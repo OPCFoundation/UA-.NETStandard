@@ -23,7 +23,9 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Creates an object with default values.
         /// </summary>
-        public ChannelToken() { }
+        public ChannelToken()
+        {
+        }
 
         /// <summary>
         /// The private version of the Dispose.
@@ -101,8 +103,8 @@ namespace Opc.Ua.Bindings
         /// Whether the token should be activated in case a new one is already created.
         /// </summary>
         public bool ActivationRequired =>
-            (HiResClock.TickCount - CreatedAtTickCount)
-            > (int)Math.Round(Lifetime * TcpMessageLimits.TokenActivationPeriod);
+            (HiResClock.TickCount - CreatedAtTickCount) >
+            (int)Math.Round(Lifetime * TcpMessageLimits.TokenActivationPeriod);
 
         /// <summary>
         /// The nonce provided by the client.

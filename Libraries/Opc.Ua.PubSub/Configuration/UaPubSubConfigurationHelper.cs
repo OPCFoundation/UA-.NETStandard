@@ -46,7 +46,9 @@ namespace Opc.Ua.PubSub.Configuration
         /// </summary>
         /// <param name="pubSubConfiguration">The configuration object that shall be saved in the file.</param>
         /// <param name="filePath">The file path from where the configuration shall be saved.</param>
-        public static void SaveConfiguration(PubSubConfigurationDataType pubSubConfiguration, string filePath)
+        public static void SaveConfiguration(
+            PubSubConfigurationDataType pubSubConfiguration,
+            string filePath)
         {
             Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite);
 
@@ -62,6 +64,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// Load a <see cref="PubSubConfigurationDataType"/> instance from and XML File
         /// </summary>
         /// <param name="filePath">The file path from where the configuration shall be loaded.</param>
+        /// <exception cref="ServiceResultException"></exception>
         public static PubSubConfigurationDataType LoadConfiguration(string filePath)
         {
             try
@@ -77,10 +80,13 @@ namespace Opc.Ua.PubSub.Configuration
                     CultureInfo.InvariantCulture,
                     "Configuration file could not be loaded: {0}\r\n",
                     filePath
-                );
-                buffer.AppendFormat(CultureInfo.InvariantCulture, "Error: {0}", e.Message);
+                )
+                    .AppendFormat(CultureInfo.InvariantCulture, "Error: {0}", e.Message);
 
-                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, e, buffer.ToString());
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    e,
+                    buffer.ToString());
             }
         }
     }

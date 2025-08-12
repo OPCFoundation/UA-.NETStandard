@@ -46,16 +46,23 @@ namespace Opc.Ua.Tests
     /// <summary>
     /// Create a collection of test assets.
     /// </summary>
+    /// <typeparam name="T"></typeparam>
     public class AssetCollection<T> : List<T>
         where T : IAsset, new()
     {
-        public AssetCollection() { }
+        public AssetCollection()
+        {
+        }
 
         public AssetCollection(IEnumerable<T> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         public AssetCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         public static AssetCollection<T> ToAssetCollection(T[] values)
         {

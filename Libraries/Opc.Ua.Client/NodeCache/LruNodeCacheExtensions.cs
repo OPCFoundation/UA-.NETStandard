@@ -63,7 +63,9 @@ namespace Opc.Ua
         )
         {
             var nodeIds = expandedNodeIds
-                .Select(expandedNodeId => ExpandedNodeId.ToNodeId(expandedNodeId, cache.Session.NamespaceUris))
+                .Select(expandedNodeId => ExpandedNodeId.ToNodeId(
+                    expandedNodeId,
+                    cache.Session.NamespaceUris))
                 .ToList();
             return cache.GetNodesAsync(nodeIds, ct);
         }
@@ -91,7 +93,9 @@ namespace Opc.Ua
         )
         {
             var nodeIds = expandedNodeIds
-                .Select(expandedNodeId => ExpandedNodeId.ToNodeId(expandedNodeId, cache.Session.NamespaceUris))
+                .Select(expandedNodeId => ExpandedNodeId.ToNodeId(
+                    expandedNodeId,
+                    cache.Session.NamespaceUris))
                 .ToList();
             return cache.GetValuesAsync(nodeIds, ct);
         }
@@ -109,7 +113,12 @@ namespace Opc.Ua
         )
         {
             var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, cache.Session.NamespaceUris);
-            return cache.GetReferencesAsync(nodeId, referenceTypeId, isInverse, includeSubtypes, ct);
+            return cache.GetReferencesAsync(
+                nodeId,
+                referenceTypeId,
+                isInverse,
+                includeSubtypes,
+                ct);
         }
 
         /// <summary>
@@ -125,9 +134,16 @@ namespace Opc.Ua
         )
         {
             var nodeIds = expandedNodeIds
-                .Select(expandedNodeId => ExpandedNodeId.ToNodeId(expandedNodeId, cache.Session.NamespaceUris))
+                .Select(expandedNodeId => ExpandedNodeId.ToNodeId(
+                    expandedNodeId,
+                    cache.Session.NamespaceUris))
                 .ToList();
-            return cache.GetReferencesAsync(nodeIds, referenceTypeIds, isInverse, includeSubtypes, ct);
+            return cache.GetReferencesAsync(
+                nodeIds,
+                referenceTypeIds,
+                isInverse,
+                includeSubtypes,
+                ct);
         }
 
         /// <summary>
@@ -143,9 +159,16 @@ namespace Opc.Ua
         )
         {
             var nodeIds = expandedNodeIds
-                .Select(expandedNodeId => ExpandedNodeId.ToNodeId(expandedNodeId, cache.Session.NamespaceUris))
+                .Select(expandedNodeId => ExpandedNodeId.ToNodeId(
+                    expandedNodeId,
+                    cache.Session.NamespaceUris))
                 .ToList();
-            return cache.GetReferencesAsync(nodeIds, [referenceTypeId], isInverse, includeSubtypes, ct);
+            return cache.GetReferencesAsync(
+                nodeIds,
+                [referenceTypeId],
+                isInverse,
+                includeSubtypes,
+                ct);
         }
 
         /// <summary>
@@ -164,7 +187,10 @@ namespace Opc.Ua
         /// <summary>
         /// Is the subTypeId a subtype of the superTypeId?
         /// </summary>
-        public static bool IsTypeOf(this ILruNodeCache cache, ExpandedNodeId subTypeId, NodeId superTypeId)
+        public static bool IsTypeOf(
+            this ILruNodeCache cache,
+            ExpandedNodeId subTypeId,
+            NodeId superTypeId)
         {
             var nodeId = ExpandedNodeId.ToNodeId(subTypeId, cache.Session.NamespaceUris);
             return cache.IsTypeOf(nodeId, superTypeId);

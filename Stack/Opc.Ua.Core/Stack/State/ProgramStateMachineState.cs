@@ -40,7 +40,7 @@ namespace Opc.Ua
             new(Objects.ProgramStateMachineType_Ready, BrowseNames.Ready, 1),
             new(Objects.ProgramStateMachineType_Running, BrowseNames.Running, 2),
             new(Objects.ProgramStateMachineType_Suspended, BrowseNames.Suspended, 3),
-            new(Objects.ProgramStateMachineType_Halted, BrowseNames.Halted, 4),
+            new(Objects.ProgramStateMachineType_Halted, BrowseNames.Halted, 4)
         ];
 
         /// <summary>
@@ -57,11 +57,20 @@ namespace Opc.Ua
             new(Objects.ProgramStateMachineType_ReadyToRunning, BrowseNames.ReadyToRunning, 2),
             new(Objects.ProgramStateMachineType_RunningToHalted, BrowseNames.RunningToHalted, 3),
             new(Objects.ProgramStateMachineType_RunningToReady, BrowseNames.RunningToReady, 4),
-            new(Objects.ProgramStateMachineType_RunningToSuspended, BrowseNames.RunningToSuspended, 5),
-            new(Objects.ProgramStateMachineType_SuspendedToRunning, BrowseNames.SuspendedToRunning, 6),
-            new(Objects.ProgramStateMachineType_SuspendedToHalted, BrowseNames.SuspendedToHalted, 7),
+            new(
+                Objects.ProgramStateMachineType_RunningToSuspended,
+                BrowseNames.RunningToSuspended,
+                5),
+            new(
+                Objects.ProgramStateMachineType_SuspendedToRunning,
+                BrowseNames.SuspendedToRunning,
+                6),
+            new(
+                Objects.ProgramStateMachineType_SuspendedToHalted,
+                BrowseNames.SuspendedToHalted,
+                7),
             new(Objects.ProgramStateMachineType_SuspendedToReady, BrowseNames.SuspendedToReady, 8),
-            new(Objects.ProgramStateMachineType_ReadyToHalted, BrowseNames.ReadyToHalted, 9),
+            new(Objects.ProgramStateMachineType_ReadyToHalted, BrowseNames.ReadyToHalted, 9)
         ];
 
         /// <summary>
@@ -78,56 +87,56 @@ namespace Opc.Ua
                 Objects.ProgramStateMachineType_HaltedToReady,
                 Objects.ProgramStateMachineType_Halted,
                 Objects.ProgramStateMachineType_Ready,
-                1,
+                1
             },
             {
                 Objects.ProgramStateMachineType_ReadyToRunning,
                 Objects.ProgramStateMachineType_Ready,
                 Objects.ProgramStateMachineType_Running,
-                1,
+                1
             },
             {
                 Objects.ProgramStateMachineType_RunningToHalted,
                 Objects.ProgramStateMachineType_Running,
                 Objects.ProgramStateMachineType_Halted,
-                1,
+                1
             },
             {
                 Objects.ProgramStateMachineType_RunningToReady,
                 Objects.ProgramStateMachineType_Running,
                 Objects.ProgramStateMachineType_Ready,
-                1,
+                1
             },
             {
                 Objects.ProgramStateMachineType_RunningToSuspended,
                 Objects.ProgramStateMachineType_Running,
                 Objects.ProgramStateMachineType_Suspended,
-                1,
+                1
             },
             {
                 Objects.ProgramStateMachineType_SuspendedToRunning,
                 Objects.ProgramStateMachineType_Suspended,
                 Objects.ProgramStateMachineType_Running,
-                1,
+                1
             },
             {
                 Objects.ProgramStateMachineType_SuspendedToHalted,
                 Objects.ProgramStateMachineType_Suspended,
                 Objects.ProgramStateMachineType_Halted,
-                1,
+                1
             },
             {
                 Objects.ProgramStateMachineType_SuspendedToReady,
                 Objects.ProgramStateMachineType_Suspended,
                 Objects.ProgramStateMachineType_Ready,
-                1,
+                1
             },
             {
                 Objects.ProgramStateMachineType_ReadyToHalted,
                 Objects.ProgramStateMachineType_Ready,
                 Objects.ProgramStateMachineType_Halted,
-                1,
-            },
+                1
+            }
         };
 
         /// <summary>
@@ -143,43 +152,43 @@ namespace Opc.Ua
             {
                 Methods.ProgramStateMachineType_Reset,
                 Objects.ProgramStateMachineType_Halted,
-                Objects.ProgramStateMachineType_HaltedToReady,
+                Objects.ProgramStateMachineType_HaltedToReady
             },
             {
                 Methods.ProgramStateMachineType_Start,
                 Objects.ProgramStateMachineType_Ready,
-                Objects.ProgramStateMachineType_ReadyToRunning,
+                Objects.ProgramStateMachineType_ReadyToRunning
             },
             {
                 Methods.ProgramStateMachineType_Suspend,
                 Objects.ProgramStateMachineType_Running,
-                Objects.ProgramStateMachineType_RunningToSuspended,
+                Objects.ProgramStateMachineType_RunningToSuspended
             },
             {
                 Methods.ProgramStateMachineType_Halt,
                 Objects.ProgramStateMachineType_Running,
-                Objects.ProgramStateMachineType_RunningToHalted,
+                Objects.ProgramStateMachineType_RunningToHalted
             },
             {
                 Methods.ProgramStateMachineType_Resume,
                 Objects.ProgramStateMachineType_Suspended,
-                Objects.ProgramStateMachineType_SuspendedToRunning,
+                Objects.ProgramStateMachineType_SuspendedToRunning
             },
             {
                 Methods.ProgramStateMachineType_Reset,
                 Objects.ProgramStateMachineType_Suspended,
-                Objects.ProgramStateMachineType_SuspendedToReady,
+                Objects.ProgramStateMachineType_SuspendedToReady
             },
             {
                 Methods.ProgramStateMachineType_Halt,
                 Objects.ProgramStateMachineType_Suspended,
-                Objects.ProgramStateMachineType_SuspendedToHalted,
+                Objects.ProgramStateMachineType_SuspendedToHalted
             },
             {
                 Methods.ProgramStateMachineType_Halt,
                 Objects.ProgramStateMachineType_Ready,
-                Objects.ProgramStateMachineType_ReadyToHalted,
-            },
+                Objects.ProgramStateMachineType_ReadyToHalted
+            }
         };
 
         /// <summary>
@@ -235,7 +244,10 @@ namespace Opc.Ua
         /// <summary>
         /// Checks whether the start method is executable.
         /// </summary>
-        protected ServiceResult IsStartExecutable(ISystemContext context, NodeState node, ref bool value)
+        protected ServiceResult IsStartExecutable(
+            ISystemContext context,
+            NodeState node,
+            ref bool value)
         {
             value = IsCausePermitted(context, Methods.ProgramStateMachineType_Start, false);
             return ServiceResult.Good;
@@ -244,7 +256,10 @@ namespace Opc.Ua
         /// <summary>
         /// Checks whether the start method is executable by the current user.
         /// </summary>
-        protected ServiceResult IsStartUserExecutable(ISystemContext context, NodeState node, ref bool value)
+        protected ServiceResult IsStartUserExecutable(
+            ISystemContext context,
+            NodeState node,
+            ref bool value)
         {
             value = IsCausePermitted(context, Methods.ProgramStateMachineType_Start, true);
             return ServiceResult.Good;
@@ -260,13 +275,21 @@ namespace Opc.Ua
             IList<object> outputArguments
         )
         {
-            return DoCause(context, method, Methods.ProgramStateMachineType_Start, inputArguments, outputArguments);
+            return DoCause(
+                context,
+                method,
+                Methods.ProgramStateMachineType_Start,
+                inputArguments,
+                outputArguments);
         }
 
         /// <summary>
         /// Checks whether the suspend method is executable.
         /// </summary>
-        protected ServiceResult IsSuspendExecutable(ISystemContext context, NodeState node, ref bool value)
+        protected ServiceResult IsSuspendExecutable(
+            ISystemContext context,
+            NodeState node,
+            ref bool value)
         {
             value = IsCausePermitted(context, Methods.ProgramStateMachineType_Suspend, false);
             return ServiceResult.Good;
@@ -275,7 +298,10 @@ namespace Opc.Ua
         /// <summary>
         /// Checks whether the suspend method is executable by the current user.
         /// </summary>
-        protected ServiceResult IsSuspendUserExecutable(ISystemContext context, NodeState node, ref bool value)
+        protected ServiceResult IsSuspendUserExecutable(
+            ISystemContext context,
+            NodeState node,
+            ref bool value)
         {
             value = IsCausePermitted(context, Methods.ProgramStateMachineType_Suspend, true);
             return ServiceResult.Good;
@@ -291,13 +317,21 @@ namespace Opc.Ua
             IList<object> outputArguments
         )
         {
-            return DoCause(context, method, Methods.ProgramStateMachineType_Suspend, inputArguments, outputArguments);
+            return DoCause(
+                context,
+                method,
+                Methods.ProgramStateMachineType_Suspend,
+                inputArguments,
+                outputArguments);
         }
 
         /// <summary>
         /// Checks whether the resume method is executable.
         /// </summary>
-        protected ServiceResult IsResumeExecutable(ISystemContext context, NodeState node, ref bool value)
+        protected ServiceResult IsResumeExecutable(
+            ISystemContext context,
+            NodeState node,
+            ref bool value)
         {
             value = IsCausePermitted(context, Methods.ProgramStateMachineType_Resume, false);
             return ServiceResult.Good;
@@ -306,7 +340,10 @@ namespace Opc.Ua
         /// <summary>
         /// Checks whether the resume method is executable by the current user.
         /// </summary>
-        protected ServiceResult IsResumeUserExecutable(ISystemContext context, NodeState node, ref bool value)
+        protected ServiceResult IsResumeUserExecutable(
+            ISystemContext context,
+            NodeState node,
+            ref bool value)
         {
             value = IsCausePermitted(context, Methods.ProgramStateMachineType_Resume, true);
             return ServiceResult.Good;
@@ -322,13 +359,21 @@ namespace Opc.Ua
             IList<object> outputArguments
         )
         {
-            return DoCause(context, method, Methods.ProgramStateMachineType_Resume, inputArguments, outputArguments);
+            return DoCause(
+                context,
+                method,
+                Methods.ProgramStateMachineType_Resume,
+                inputArguments,
+                outputArguments);
         }
 
         /// <summary>
         /// Checks whether the halt method is executable.
         /// </summary>
-        protected ServiceResult IsHaltExecutable(ISystemContext context, NodeState node, ref bool value)
+        protected ServiceResult IsHaltExecutable(
+            ISystemContext context,
+            NodeState node,
+            ref bool value)
         {
             value = IsCausePermitted(context, Methods.ProgramStateMachineType_Halt, false);
             return ServiceResult.Good;
@@ -337,7 +382,10 @@ namespace Opc.Ua
         /// <summary>
         /// Checks whether the halt method is executable by the current user.
         /// </summary>
-        protected ServiceResult IsHaltUserExecutable(ISystemContext context, NodeState node, ref bool value)
+        protected ServiceResult IsHaltUserExecutable(
+            ISystemContext context,
+            NodeState node,
+            ref bool value)
         {
             value = IsCausePermitted(context, Methods.ProgramStateMachineType_Halt, true);
             return ServiceResult.Good;
@@ -353,13 +401,21 @@ namespace Opc.Ua
             IList<object> outputArguments
         )
         {
-            return DoCause(context, method, Methods.ProgramStateMachineType_Halt, inputArguments, outputArguments);
+            return DoCause(
+                context,
+                method,
+                Methods.ProgramStateMachineType_Halt,
+                inputArguments,
+                outputArguments);
         }
 
         /// <summary>
         /// Checks whether the reset method is executable.
         /// </summary>
-        protected ServiceResult IsResetExecutable(ISystemContext context, NodeState node, ref bool value)
+        protected ServiceResult IsResetExecutable(
+            ISystemContext context,
+            NodeState node,
+            ref bool value)
         {
             value = IsCausePermitted(context, Methods.ProgramStateMachineType_Reset, false);
             return ServiceResult.Good;
@@ -368,7 +424,10 @@ namespace Opc.Ua
         /// <summary>
         /// Checks whether the reset method is executable by the current user.
         /// </summary>
-        protected ServiceResult IsResetUserExecutable(ISystemContext context, NodeState node, ref bool value)
+        protected ServiceResult IsResetUserExecutable(
+            ISystemContext context,
+            NodeState node,
+            ref bool value)
         {
             value = IsCausePermitted(context, Methods.ProgramStateMachineType_Reset, true);
             return ServiceResult.Good;
@@ -384,7 +443,12 @@ namespace Opc.Ua
             IList<object> outputArguments
         )
         {
-            return DoCause(context, method, Methods.ProgramStateMachineType_Reset, inputArguments, outputArguments);
+            return DoCause(
+                context,
+                method,
+                Methods.ProgramStateMachineType_Reset,
+                inputArguments,
+                outputArguments);
         }
     }
 }

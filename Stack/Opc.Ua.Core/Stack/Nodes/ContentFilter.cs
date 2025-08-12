@@ -31,6 +31,7 @@ namespace Opc.Ua
         /// <returns>
         /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
+        /// <exception cref="FormatException"></exception>
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
@@ -127,7 +128,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="op">The filter operator.</param>
         /// <param name="operands">The operands.</param>
-        /// <returns></returns>
+        /// <exception cref="ServiceResultException"></exception>
         public ContentFilterElement Push(FilterOperator op, params object[] operands)
         {
             // check if nothing more to do.
@@ -255,8 +256,9 @@ namespace Opc.Ua
             /// </summary>
             /// <param name="diagnosticsMasks">The diagnostics masks.</param>
             /// <param name="stringTable">The string table.</param>
-            /// <returns></returns>
-            public ContentFilterResult ToContextFilterResult(DiagnosticsMasks diagnosticsMasks, StringTable stringTable)
+            public ContentFilterResult ToContextFilterResult(
+                DiagnosticsMasks diagnosticsMasks,
+                StringTable stringTable)
             {
                 var result = new ContentFilterResult();
 
@@ -273,7 +275,10 @@ namespace Opc.Ua
 
                     if (elementResult == null || ServiceResult.IsGood(elementResult.Status))
                     {
-                        elementResult2 = new ContentFilterElementResult { StatusCode = StatusCodes.Good };
+                        elementResult2 = new ContentFilterElementResult
+                        {
+                            StatusCode = StatusCodes.Good
+                        };
 
                         result.ElementResults.Add(elementResult2);
                         result.ElementDiagnosticInfos.Add(null);
@@ -282,10 +287,16 @@ namespace Opc.Ua
 
                     error = true;
 
-                    elementResult2 = elementResult.ToContentFilterElementResult(diagnosticsMasks, stringTable);
+                    elementResult2 = elementResult.ToContentFilterElementResult(
+                        diagnosticsMasks,
+                        stringTable);
                     result.ElementResults.Add(elementResult2);
                     result.ElementDiagnosticInfos.Add(
-                        new DiagnosticInfo(elementResult.Status, diagnosticsMasks, false, stringTable)
+                        new DiagnosticInfo(
+                            elementResult.Status,
+                            diagnosticsMasks,
+                            false,
+                            stringTable)
                     );
                 }
 
@@ -342,7 +353,6 @@ namespace Opc.Ua
             /// </summary>
             /// <param name="diagnosticsMasks">The diagnostics masks.</param>
             /// <param name="stringTable">The string table.</param>
-            /// <returns></returns>
             public ContentFilterElementResult ToContentFilterElementResult(
                 DiagnosticsMasks diagnosticsMasks,
                 StringTable stringTable
@@ -400,6 +410,7 @@ namespace Opc.Ua
         /// <returns>
         /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
+        /// <exception cref="FormatException"></exception>
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
@@ -466,7 +477,6 @@ namespace Opc.Ua
                 case FilterOperator.OfType:
                     operandCount = 1;
                     break;
-
                 case FilterOperator.And:
                 case FilterOperator.Or:
                 case FilterOperator.Equals:
@@ -480,20 +490,14 @@ namespace Opc.Ua
                 case FilterOperator.BitwiseOr:
                     operandCount = 2;
                     break;
-
                 case FilterOperator.Between:
                     operandCount = 3;
                     break;
-
                 case FilterOperator.RelatedTo:
                     operandCount = 6;
                     break;
-
                 case FilterOperator.InList:
                     operandCount = -1;
-                    break;
-
-                default:
                     break;
             }
 
@@ -645,9 +649,9 @@ namespace Opc.Ua
         {
             List<FilterOperand> operands = GetOperands();
 
-            string operand1 = (operands.Count > 0) ? operands[0].ToString(nodeTable) : null;
-            string operand2 = (operands.Count > 1) ? operands[1].ToString(nodeTable) : null;
-            string operand3 = (operands.Count > 2) ? operands[2].ToString(nodeTable) : null;
+            string operand1 = operands.Count > 0 ? operands[0].ToString(nodeTable) : null;
+            string operand2 = operands.Count > 1 ? operands[1].ToString(nodeTable) : null;
+            string operand3 = operands.Count > 2 ? operands[2].ToString(nodeTable) : null;
 
             var buffer = new StringBuilder();
 
@@ -657,9 +661,12 @@ namespace Opc.Ua
                 case FilterOperator.InView:
                 case FilterOperator.IsNull:
                 case FilterOperator.Not:
-                    buffer.AppendFormat(CultureInfo.InvariantCulture, "{0} '{1}'", FilterOperator, operand1);
+                    buffer.AppendFormat(
+                        CultureInfo.InvariantCulture,
+                        "{0} '{1}'",
+                        FilterOperator,
+                        operand1);
                     break;
-
                 case FilterOperator.And:
                 case FilterOperator.Equals:
                 case FilterOperator.GreaterThan:
@@ -678,7 +685,6 @@ namespace Opc.Ua
                         operand2
                     );
                     break;
-
                 case FilterOperator.Between:
                     buffer.AppendFormat(
                         CultureInfo.InvariantCulture,
@@ -688,18 +694,23 @@ namespace Opc.Ua
                         operand3
                     );
                     break;
-
                 case FilterOperator.Cast:
-                    buffer.AppendFormat(CultureInfo.InvariantCulture, "({1}){0}", operand1, operand2);
+                    buffer.AppendFormat(
+                        CultureInfo.InvariantCulture,
+                        "({1}){0}",
+                        operand1,
+                        operand2);
                     break;
-
                 case FilterOperator.InList:
-                    buffer.AppendFormat(CultureInfo.InvariantCulture, "'{0}' in ", operand1);
-                    buffer.Append('{');
+                    buffer.AppendFormat(CultureInfo.InvariantCulture, "'{0}' in ", operand1)
+                        .Append('{');
 
                     for (int ii = 1; ii < operands.Count; ii++)
                     {
-                        buffer.AppendFormat(CultureInfo.InvariantCulture, "'{0}'", operands[ii].ToString());
+                        buffer.AppendFormat(
+                            CultureInfo.InvariantCulture,
+                            "'{0}'",
+                            operands[ii].ToString());
                         if (ii < operands.Count - 1)
                         {
                             buffer.Append(", ");
@@ -708,7 +719,6 @@ namespace Opc.Ua
 
                     buffer.Append('}');
                     break;
-
                 case FilterOperator.RelatedTo:
                     buffer.AppendFormat(CultureInfo.InvariantCulture, "'{0}' ", operand1);
 
@@ -724,7 +734,11 @@ namespace Opc.Ua
                         }
                     }
 
-                    buffer.AppendFormat(CultureInfo.InvariantCulture, "{0} '{1}'", referenceType, operand2);
+                    buffer.AppendFormat(
+                        CultureInfo.InvariantCulture,
+                        "{0} '{1}'",
+                        referenceType,
+                        operand2);
 
                     if (operand3 != null)
                     {
@@ -792,7 +806,7 @@ namespace Opc.Ua
                 ReferenceTypeId = ReferenceTypeIds.Aggregates,
                 IsInverse = false,
                 IncludeSubtypes = true,
-                TargetName = browsePath,
+                TargetName = browsePath
             };
 
             m_browsePath.Elements.Add(element);
@@ -816,7 +830,7 @@ namespace Opc.Ua
                     ReferenceTypeId = ReferenceTypeIds.Aggregates,
                     IsInverse = false,
                     IncludeSubtypes = true,
-                    TargetName = browsePaths[ii],
+                    TargetName = browsePaths[ii]
                 };
 
                 m_browsePath.Elements.Add(element);
@@ -829,7 +843,10 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         /// <param name="nodeId">The node identifier.</param>
         /// <param name="relativePath">The relative path.</param>
-        public AttributeOperand(FilterContext context, ExpandedNodeId nodeId, RelativePath relativePath)
+        public AttributeOperand(
+            FilterContext context,
+            ExpandedNodeId nodeId,
+            RelativePath relativePath)
         {
             m_nodeId = ExpandedNodeId.ToNodeId(nodeId, context.NamespaceUris);
             m_browsePath = relativePath;
@@ -873,6 +890,7 @@ namespace Opc.Ua
         /// <returns>
         /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
+        /// <exception cref="FormatException"></exception>
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
@@ -881,7 +899,10 @@ namespace Opc.Ua
 
                 for (int ii = 0; ii < m_browsePath.Elements.Count; ii++)
                 {
-                    buffer.AppendFormat(formatProvider, "/{0}", m_browsePath.Elements[ii].TargetName);
+                    buffer.AppendFormat(
+                        formatProvider,
+                        "/{0}",
+                        m_browsePath.Elements[ii].TargetName);
                 }
 
                 return buffer.ToString();
@@ -1006,12 +1027,18 @@ namespace Opc.Ua
 
             if (!RelativePath.IsEmpty(BrowsePath))
             {
-                buffer.AppendFormat(CultureInfo.InvariantCulture, "/{0}", BrowsePath.Format(nodeTable.TypeTree));
+                buffer.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    "/{0}",
+                    BrowsePath.Format(nodeTable.TypeTree));
             }
 
             if (!string.IsNullOrEmpty(IndexRange))
             {
-                buffer.AppendFormat(CultureInfo.InvariantCulture, "[{0}]", NumericRange.Parse(IndexRange));
+                buffer.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    "[{0}]",
+                    NumericRange.Parse(IndexRange));
             }
 
             if (!string.IsNullOrEmpty(Alias))
@@ -1048,6 +1075,7 @@ namespace Opc.Ua
         /// <returns>
         /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
+        /// <exception cref="FormatException"></exception>
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
@@ -1141,6 +1169,7 @@ namespace Opc.Ua
         /// <returns>
         /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
+        /// <exception cref="FormatException"></exception>
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
@@ -1188,7 +1217,8 @@ namespace Opc.Ua
         /// <returns>LiteralOperand as a displayable string.</returns>
         public override string ToString(INodeTable nodeTable)
         {
-            ExpandedNodeId nodeId = Value.Value as ExpandedNodeId ?? (ExpandedNodeId)(Value.Value as NodeId);
+            ExpandedNodeId nodeId = Value.Value as ExpandedNodeId ??
+                (ExpandedNodeId)(Value.Value as NodeId);
 
             if (nodeId != null)
             {

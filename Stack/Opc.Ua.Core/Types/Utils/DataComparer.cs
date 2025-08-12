@@ -382,7 +382,9 @@ namespace Opc.Ua.Test
                         return ReportError(attribute1, attribute2);
                     }
 
-                    string prefix = (attribute1.Name.Length > 5) ? attribute1.Name[6..] : string.Empty;
+                    string prefix = attribute1.Name.Length > 5
+                        ? attribute1.Name[6..]
+                        : string.Empty;
 
                     if (attribute1.Value != value2.GetNamespaceOfPrefix(prefix))
                     {
@@ -732,7 +734,9 @@ namespace Opc.Ua.Test
                 }
                 if (systemType == typeof(ExpandedNodeId))
                 {
-                    return CompareExpandedNodeId((ExpandedNodeId)value1.Value, (ExpandedNodeId)value2.Value);
+                    return CompareExpandedNodeId(
+                        (ExpandedNodeId)value1.Value,
+                        (ExpandedNodeId)value2.Value);
                 }
                 if (systemType == typeof(StatusCode))
                 {
@@ -740,19 +744,27 @@ namespace Opc.Ua.Test
                 }
                 if (systemType == typeof(DiagnosticInfo))
                 {
-                    return CompareDiagnosticInfo((DiagnosticInfo)value1.Value, (DiagnosticInfo)value2.Value);
+                    return CompareDiagnosticInfo(
+                        (DiagnosticInfo)value1.Value,
+                        (DiagnosticInfo)value2.Value);
                 }
                 if (systemType == typeof(QualifiedName))
                 {
-                    return CompareQualifiedName((QualifiedName)value1.Value, (QualifiedName)value2.Value);
+                    return CompareQualifiedName(
+                        (QualifiedName)value1.Value,
+                        (QualifiedName)value2.Value);
                 }
                 if (systemType == typeof(LocalizedText))
                 {
-                    return CompareLocalizedText((LocalizedText)value1.Value, (LocalizedText)value2.Value);
+                    return CompareLocalizedText(
+                        (LocalizedText)value1.Value,
+                        (LocalizedText)value2.Value);
                 }
                 if (systemType == typeof(ExtensionObject))
                 {
-                    return CompareExtensionObject((ExtensionObject)value1.Value, (ExtensionObject)value2.Value);
+                    return CompareExtensionObject(
+                        (ExtensionObject)value1.Value,
+                        (ExtensionObject)value2.Value);
                 }
                 if (systemType == typeof(DataValue))
                 {
@@ -783,7 +795,10 @@ namespace Opc.Ua.Test
                 }
                 if (systemType == typeof(ushort[]))
                 {
-                    return CompareArray((ushort[])value1.Value, (ushort[])value2.Value, CompareUInt16);
+                    return CompareArray(
+                        (ushort[])value1.Value,
+                        (ushort[])value2.Value,
+                        CompareUInt16);
                 }
                 if (systemType == typeof(int[]))
                 {
@@ -799,7 +814,10 @@ namespace Opc.Ua.Test
                 }
                 if (systemType == typeof(ulong[]))
                 {
-                    return CompareArray((ulong[])value1.Value, (ulong[])value2.Value, CompareUInt64);
+                    return CompareArray(
+                        (ulong[])value1.Value,
+                        (ulong[])value2.Value,
+                        CompareUInt64);
                 }
                 if (systemType == typeof(float[]))
                 {
@@ -807,15 +825,24 @@ namespace Opc.Ua.Test
                 }
                 if (systemType == typeof(double[]))
                 {
-                    return CompareArray((double[])value1.Value, (double[])value2.Value, CompareDouble);
+                    return CompareArray(
+                        (double[])value1.Value,
+                        (double[])value2.Value,
+                        CompareDouble);
                 }
                 if (systemType == typeof(string[]))
                 {
-                    return CompareArray((string[])value1.Value, (string[])value2.Value, CompareString);
+                    return CompareArray(
+                        (string[])value1.Value,
+                        (string[])value2.Value,
+                        CompareString);
                 }
                 if (systemType == typeof(DateTime[]))
                 {
-                    return CompareArray((DateTime[])value1.Value, (DateTime[])value2.Value, CompareDateTime);
+                    return CompareArray(
+                        (DateTime[])value1.Value,
+                        (DateTime[])value2.Value,
+                        CompareDateTime);
                 }
                 if (systemType == typeof(Uuid[]))
                 {
@@ -823,15 +850,24 @@ namespace Opc.Ua.Test
                 }
                 if (systemType == typeof(byte[][]))
                 {
-                    return CompareArray((byte[][])value1.Value, (byte[][])value2.Value, CompareByteString);
+                    return CompareArray(
+                        (byte[][])value1.Value,
+                        (byte[][])value2.Value,
+                        CompareByteString);
                 }
                 if (systemType == typeof(XmlElement[]))
                 {
-                    return CompareArray((XmlElement[])value1.Value, (XmlElement[])value2.Value, CompareXmlElement);
+                    return CompareArray(
+                        (XmlElement[])value1.Value,
+                        (XmlElement[])value2.Value,
+                        CompareXmlElement);
                 }
                 if (systemType == typeof(NodeId[]))
                 {
-                    return CompareArray((NodeId[])value1.Value, (NodeId[])value2.Value, CompareNodeId);
+                    return CompareArray(
+                        (NodeId[])value1.Value,
+                        (NodeId[])value2.Value,
+                        CompareNodeId);
                 }
                 if (systemType == typeof(ExpandedNodeId[]))
                 {
@@ -843,7 +879,10 @@ namespace Opc.Ua.Test
                 }
                 if (systemType == typeof(StatusCode[]))
                 {
-                    return CompareArray((StatusCode[])value1.Value, (StatusCode[])value2.Value, CompareStatusCode);
+                    return CompareArray(
+                        (StatusCode[])value1.Value,
+                        (StatusCode[])value2.Value,
+                        CompareStatusCode);
                 }
                 if (systemType == typeof(DiagnosticInfo[]))
                 {
@@ -879,11 +918,17 @@ namespace Opc.Ua.Test
                 }
                 if (systemType == typeof(DataValue[]))
                 {
-                    return CompareArray((DataValue[])value1.Value, (DataValue[])value2.Value, CompareDataValue);
+                    return CompareArray(
+                        (DataValue[])value1.Value,
+                        (DataValue[])value2.Value,
+                        CompareDataValue);
                 }
                 if (systemType == typeof(Variant[]))
                 {
-                    return CompareArray((Variant[])value1.Value, (Variant[])value2.Value, CompareVariant);
+                    return CompareArray(
+                        (Variant[])value1.Value,
+                        (Variant[])value2.Value,
+                        CompareVariant);
                 }
             }
 
@@ -1017,7 +1062,10 @@ namespace Opc.Ua.Test
                 return body;
             }
 
-            IServiceMessageContext context = new ServiceMessageContext() { Factory = EncodeableFactory };
+            IServiceMessageContext context = new ServiceMessageContext
+            {
+                Factory = EncodeableFactory
+            };
 
             if (body is XmlElement xml)
             {
@@ -1027,7 +1075,6 @@ namespace Opc.Ua.Test
                     decoder.PushNamespace(xmlName.Namespace);
                     body = decoder.ReadEncodeable(xmlName.Name, expectedType);
                     decoder.PopNamespace();
-                    decoder.Close();
                 }
 
                 return (IEncodeable)body;
@@ -1038,7 +1085,6 @@ namespace Opc.Ua.Test
                 using (var decoder = new BinaryDecoder(bytes, context))
                 {
                     body = decoder.ReadEncodeable(null, expectedType);
-                    decoder.Close();
                 }
 
                 return (IEncodeable)body;
@@ -1116,9 +1162,9 @@ namespace Opc.Ua.Test
             }
 
             if (
-                value1 is IEncodeable encodeable1
-                && value2 is IEncodeable encodeable2
-                && encodeable1.IsEqual(encodeable2)
+                value1 is IEncodeable encodeable1 &&
+                value2 is IEncodeable encodeable2 &&
+                encodeable1.IsEqual(encodeable2)
             )
             {
                 return true;
@@ -1130,17 +1176,22 @@ namespace Opc.Ua.Test
         /// <summary>
         /// The delegate used to compare two values.
         /// </summary>
+        /// <typeparam name="T"></typeparam>
         private delegate bool Comparator<T>(T value1, T value2);
 
         /// <summary>
         /// This method compares two arrays.
         /// </summary>
+        /// <typeparam name="T"></typeparam>
         /// <param name="value1">IEnumerable object of type T</param>
         /// <param name="value2">IEnumerable object of type T</param>
         /// <param name="comparator">Method name to compare the arrays.</param>
         /// <returns>True in case of equal values.
         /// False or ServiceResultException in case of unequal values.</returns>
-        private bool CompareArray<T>(IEnumerable<T> value1, IEnumerable<T> value2, Comparator<T> comparator)
+        private bool CompareArray<T>(
+            IEnumerable<T> value1,
+            IEnumerable<T> value2,
+            Comparator<T> comparator)
         {
             if (value1 == null)
             {
@@ -1182,6 +1233,7 @@ namespace Opc.Ua.Test
         /// <param name="value1">First Value.</param>
         /// <param name="value2">Second Value.</param>
         /// <returns>Throws ServiceResultException in case of unequal values.</returns>
+        /// <exception cref="ServiceResultException"></exception>
         private bool ReportError(object value1, object value2)
         {
             if (ThrowOnError)

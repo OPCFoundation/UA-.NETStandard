@@ -37,7 +37,7 @@ namespace Opc.Ua
         [
             new(Objects.ShelvedStateMachineType_OneShotShelved, BrowseNames.OneShotShelve, 1),
             new(Objects.ShelvedStateMachineType_TimedShelved, BrowseNames.TimedShelved, 2),
-            new(Objects.ShelvedStateMachineType_Unshelved, BrowseNames.Unshelved, 3),
+            new(Objects.ShelvedStateMachineType_Unshelved, BrowseNames.Unshelved, 3)
         ];
 
         /// <summary>
@@ -55,15 +55,27 @@ namespace Opc.Ua
                 BrowseNames.OneShotShelvedToTimedShelved,
                 1
             ),
-            new(Objects.ShelvedStateMachineType_OneShotShelvedToUnshelved, BrowseNames.OneShotShelvedToUnshelved, 2),
+            new(
+                Objects.ShelvedStateMachineType_OneShotShelvedToUnshelved,
+                BrowseNames.OneShotShelvedToUnshelved,
+                2),
             new(
                 Objects.ShelvedStateMachineType_TimedShelvedToOneShotShelved,
                 BrowseNames.TimedShelvedToOneShotShelved,
                 3
             ),
-            new(Objects.ShelvedStateMachineType_TimedShelvedToUnshelved, BrowseNames.TimedShelvedToUnshelved, 4),
-            new(Objects.ShelvedStateMachineType_UnshelvedToOneShotShelved, BrowseNames.UnshelvedToOneShotShelved, 5),
-            new(Objects.ShelvedStateMachineType_UnshelvedToTimedShelved, BrowseNames.UnshelvedToTimedShelved, 6),
+            new(
+                Objects.ShelvedStateMachineType_TimedShelvedToUnshelved,
+                BrowseNames.TimedShelvedToUnshelved,
+                4),
+            new(
+                Objects.ShelvedStateMachineType_UnshelvedToOneShotShelved,
+                BrowseNames.UnshelvedToOneShotShelved,
+                5),
+            new(
+                Objects.ShelvedStateMachineType_UnshelvedToTimedShelved,
+                BrowseNames.UnshelvedToTimedShelved,
+                6)
         ];
 
         /// <summary>
@@ -80,38 +92,38 @@ namespace Opc.Ua
                 Objects.ShelvedStateMachineType_OneShotShelvedToTimedShelved,
                 Objects.ShelvedStateMachineType_OneShotShelved,
                 Objects.ShelvedStateMachineType_TimedShelved,
-                0,
+                0
             },
             {
                 Objects.ShelvedStateMachineType_OneShotShelvedToUnshelved,
                 Objects.ShelvedStateMachineType_OneShotShelved,
                 Objects.ShelvedStateMachineType_Unshelved,
-                1,
+                1
             },
             {
                 Objects.ShelvedStateMachineType_TimedShelvedToOneShotShelved,
                 Objects.ShelvedStateMachineType_TimedShelved,
                 Objects.ShelvedStateMachineType_OneShotShelved,
-                0,
+                0
             },
             {
                 Objects.ShelvedStateMachineType_TimedShelvedToUnshelved,
                 Objects.ShelvedStateMachineType_TimedShelved,
                 Objects.ShelvedStateMachineType_Unshelved,
-                1,
+                1
             },
             {
                 Objects.ShelvedStateMachineType_UnshelvedToOneShotShelved,
                 Objects.ShelvedStateMachineType_Unshelved,
                 Objects.ShelvedStateMachineType_OneShotShelved,
-                1,
+                1
             },
             {
                 Objects.ShelvedStateMachineType_UnshelvedToTimedShelved,
                 Objects.ShelvedStateMachineType_Unshelved,
                 Objects.ShelvedStateMachineType_TimedShelved,
-                1,
-            },
+                1
+            }
         };
 
         /// <summary>
@@ -127,33 +139,33 @@ namespace Opc.Ua
             {
                 Methods.ShelvedStateMachineType_TimedShelve,
                 Objects.ShelvedStateMachineType_OneShotShelved,
-                Objects.ShelvedStateMachineType_OneShotShelvedToTimedShelved,
+                Objects.ShelvedStateMachineType_OneShotShelvedToTimedShelved
             },
             {
                 Methods.ShelvedStateMachineType_Unshelve,
                 Objects.ShelvedStateMachineType_OneShotShelved,
-                Objects.ShelvedStateMachineType_OneShotShelvedToUnshelved,
+                Objects.ShelvedStateMachineType_OneShotShelvedToUnshelved
             },
             {
                 Methods.ShelvedStateMachineType_OneShotShelve,
                 Objects.ShelvedStateMachineType_TimedShelved,
-                Objects.ShelvedStateMachineType_TimedShelvedToOneShotShelved,
+                Objects.ShelvedStateMachineType_TimedShelvedToOneShotShelved
             },
             {
                 Methods.ShelvedStateMachineType_Unshelve,
                 Objects.ShelvedStateMachineType_TimedShelved,
-                Objects.ShelvedStateMachineType_TimedShelvedToUnshelved,
+                Objects.ShelvedStateMachineType_TimedShelvedToUnshelved
             },
             {
                 Methods.ShelvedStateMachineType_OneShotShelve,
                 Objects.ShelvedStateMachineType_Unshelved,
-                Objects.ShelvedStateMachineType_UnshelvedToOneShotShelved,
+                Objects.ShelvedStateMachineType_UnshelvedToOneShotShelved
             },
             {
                 Methods.ShelvedStateMachineType_TimedShelve,
                 Objects.ShelvedStateMachineType_Unshelved,
-                Objects.ShelvedStateMachineType_UnshelvedToTimedShelved,
-            },
+                Objects.ShelvedStateMachineType_UnshelvedToTimedShelved
+            }
         };
     }
 }

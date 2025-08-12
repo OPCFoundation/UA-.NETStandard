@@ -35,8 +35,10 @@ using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Core.Tests.Stack.Bindings
 {
-    [TestFixture, Category("BufferManager")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("BufferManager")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [MemoryDiagnoser]
     [BenchmarkCategory("BufferManager")]
     public class BufferManagerBenchmarks

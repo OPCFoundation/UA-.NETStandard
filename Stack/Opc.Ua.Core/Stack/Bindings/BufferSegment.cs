@@ -59,7 +59,10 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public BufferSegment Append(byte[] array, int offset, int length)
         {
-            var segment = new BufferSegment(array, offset, length) { RunningIndex = RunningIndex + Memory.Length };
+            var segment = new BufferSegment(array, offset, length)
+            {
+                RunningIndex = RunningIndex + Memory.Length
+            };
             Next = segment;
             return segment;
         }

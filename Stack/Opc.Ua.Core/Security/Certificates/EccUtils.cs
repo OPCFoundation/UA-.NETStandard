@@ -62,8 +62,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the certificate is an ECC certificate.
         /// </summary>
-        /// <param name="securityPolicyUri"></param>
-        /// <returns></returns>
         public static bool IsEccPolicy(string securityPolicyUri)
         {
             if (securityPolicyUri != null)
@@ -86,8 +84,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the NodeId for the certificate type for the specified certificate.
         /// </summary>
-        /// <param name="certificate"></param>
-        /// <returns></returns>
         public static NodeId GetEccCertificateTypeId(X509Certificate2 certificate)
         {
             string keyAlgorithm = certificate.GetKeyAlgorithm();
@@ -118,7 +114,8 @@ namespace Opc.Ua
 
 #if ECC_SUPPORT
         /// <summary>
-        /// returns an ECCCurve if there is a matching supported curve for the provided certificate type id. if no supported ECC curve is found null is returned.
+        /// returns an ECCCurve if there is a matching supported curve for the provided
+        /// certificate type id. if no supported ECC curve is found null is returned.
         /// </summary>
         /// <param name="certificateType">the  application certificatate type node id</param>
         /// <returns>the ECCCurve, null if certificatate type id has no matching supported ECC curve</returns>
@@ -127,8 +124,8 @@ namespace Opc.Ua
             ECCurve? curve = null;
 
             if (
-                certificateType == ObjectTypeIds.EccApplicationCertificateType
-                || certificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType
+                certificateType == ObjectTypeIds.EccApplicationCertificateType ||
+                certificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType
             )
             {
                 curve = ECCurve.NamedCurves.nistP256;
@@ -162,8 +159,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the signature algorithm for the specified certificate.
         /// </summary>
-        /// <param name="certificate"></param>
-        /// <returns></returns>
         public static string GetECDsaQualifier(X509Certificate2 certificate)
         {
             if (X509Utils.IsECDsaSignature(certificate))
@@ -178,13 +173,10 @@ namespace Opc.Ua
                 {
                     case NistP256KeyParameters:
                         return NistP256;
-
                     case NistP384KeyParameters:
                         return NistP384;
-
                     case BrainpoolP256r1KeyParameters:
                         return BrainpoolP256r1;
-
                     case BrainpoolP384r1KeyParameters:
                         return BrainpoolP384r1;
                 }
@@ -197,8 +189,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the public key for the specified certificate.
         /// </summary>
-        /// <param name="certificate"></param>
-        /// <returns></returns>
         public static ECDsa GetPublicKey(X509Certificate2 certificate)
         {
             return GetPublicKey(certificate, out string[] _);
@@ -207,10 +197,11 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the public key for the specified certificate and outputs the security policy uris.
         /// </summary>
-        /// <param name="certificate"></param>
-        /// <param name="securityPolicyUris"></param>
-        /// <returns></returns>
-        public static ECDsa GetPublicKey(X509Certificate2 certificate, out string[] securityPolicyUris)
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="NotImplementedException"></exception>
+        public static ECDsa GetPublicKey(
+            X509Certificate2 certificate,
+            out string[] securityPolicyUris)
         {
             securityPolicyUris = null;
 
@@ -227,11 +218,11 @@ namespace Opc.Ua
             }
 
             const X509KeyUsageFlags kSufficientFlags =
-                X509KeyUsageFlags.KeyAgreement
-                | X509KeyUsageFlags.DigitalSignature
-                | X509KeyUsageFlags.NonRepudiation
-                | X509KeyUsageFlags.CrlSign
-                | X509KeyUsageFlags.KeyCertSign;
+                X509KeyUsageFlags.KeyAgreement |
+                X509KeyUsageFlags.DigitalSignature |
+                X509KeyUsageFlags.NonRepudiation |
+                X509KeyUsageFlags.CrlSign |
+                X509KeyUsageFlags.KeyCertSign;
 
             foreach (X509Extension extension in certificate.Extensions)
             {
@@ -247,7 +238,8 @@ namespace Opc.Ua
             }
 
             PublicKey encodedPublicKey = certificate.PublicKey;
-            string keyParameters = BitConverter.ToString(encodedPublicKey.EncodedParameters.RawData);
+            string keyParameters = BitConverter.ToString(
+                encodedPublicKey.EncodedParameters.RawData);
             byte[] keyValue = encodedPublicKey.EncodedKeyValue.RawData;
 
             var ecParameters = default(ECParameters);
@@ -275,22 +267,20 @@ namespace Opc.Ua
                     ecParameters.Curve = ECCurve.NamedCurves.nistP256;
                     securityPolicyUris = [SecurityPolicies.ECC_nistP256];
                     break;
-
                 case NistP384KeyParameters:
                     ecParameters.Curve = ECCurve.NamedCurves.nistP384;
-                    securityPolicyUris = [SecurityPolicies.ECC_nistP384, SecurityPolicies.ECC_nistP256];
+                    securityPolicyUris = [SecurityPolicies.ECC_nistP384, SecurityPolicies
+                        .ECC_nistP256];
                     break;
-
                 case BrainpoolP256r1KeyParameters:
                     ecParameters.Curve = ECCurve.NamedCurves.brainpoolP256r1;
                     securityPolicyUris = [SecurityPolicies.ECC_brainpoolP256r1];
                     break;
-
                 case BrainpoolP384r1KeyParameters:
                     ecParameters.Curve = ECCurve.NamedCurves.brainpoolP384r1;
-                    securityPolicyUris = [SecurityPolicies.ECC_brainpoolP384r1, SecurityPolicies.ECC_brainpoolP256r1];
+                    securityPolicyUris = [SecurityPolicies.ECC_brainpoolP384r1, SecurityPolicies
+                        .ECC_brainpoolP256r1];
                     break;
-
                 default:
                     throw new NotImplementedException(keyParameters);
             }
@@ -301,6 +291,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the length of a ECDsa signature of a digest.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public static int GetSignatureLength(X509Certificate2 signingCertificate)
         {
             if (signingCertificate == null)
@@ -323,8 +314,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the hash algorithm for the specified security policy.
         /// </summary>
-        /// <param name="securityPolicyUri"></param>
-        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"><paramref name="securityPolicyUri"/> is <c>null</c>.</exception>
         public static HashAlgorithmName GetSignatureAlgorithmName(string securityPolicyUri)
         {
             if (securityPolicyUri == null)
@@ -337,14 +327,9 @@ namespace Opc.Ua
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_brainpoolP256r1:
                     return HashAlgorithmName.SHA256;
-
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP384r1:
                     return HashAlgorithmName.SHA384;
-
-                case SecurityPolicies.None:
-                case SecurityPolicies.ECC_curve25519:
-                case SecurityPolicies.ECC_curve448:
                 default:
                     return HashAlgorithmName.SHA256;
             }
@@ -366,6 +351,7 @@ namespace Opc.Ua
         /// <summary>
         /// Computes an ECDSA signature.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public static byte[] Sign(
             ArraySegment<byte> dataToSign,
             X509Certificate2 signingCertificate,
@@ -460,7 +446,11 @@ namespace Opc.Ua
             string securityPolicyUri
         )
         {
-            return Verify(dataToVerify, signature, signingCertificate, GetSignatureAlgorithmName(securityPolicyUri));
+            return Verify(
+                dataToVerify,
+                signature,
+                signingCertificate,
+                GetSignatureAlgorithmName(securityPolicyUri));
         }
 
         /// <summary>
@@ -507,7 +497,12 @@ namespace Opc.Ua
             }
 #endif
             using ECDsa ecdsa = GetPublicKey(signingCertificate);
-            return ecdsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, algorithm);
+            return ecdsa.VerifyData(
+                dataToVerify.Array,
+                dataToVerify.Offset,
+                dataToVerify.Count,
+                signature,
+                algorithm);
         }
     }
 
@@ -564,7 +559,12 @@ namespace Opc.Ua
         /// <param name="encryptingKey">The key to use for encryption.</param>
         /// <param name="iv">The initialization vector to use for encryption.</param>
         /// <returns>The encrypted secret.</returns>
-        private static byte[] EncryptSecret(byte[] secret, byte[] nonce, byte[] encryptingKey, byte[] iv)
+        /// <exception cref="ServiceResultException"></exception>
+        private static byte[] EncryptSecret(
+            byte[] secret,
+            byte[] nonce,
+            byte[] encryptingKey,
+            byte[] iv)
         {
 #if CURVE25519
             bool useAuthenticatedEncryption = false;
@@ -796,7 +796,7 @@ namespace Opc.Ua
             paddingSize <<= 8;
             paddingSize += dataToDecrypt[offset + count - 2];
 
-            int notvalid = (paddingSize < count) ? 0 : 1;
+            int notvalid = paddingSize < count ? 0 : 1;
             int start = offset + count - paddingSize - 2;
 
             for (int ii = 0; ii < count - 2 && ii < paddingSize; ii++)
@@ -848,13 +848,11 @@ namespace Opc.Ua
                 case SecurityPolicies.ECC_brainpoolP256r1:
                     encryptingKeySize = 16;
                     break;
-
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP384r1:
                     encryptingKeySize = 32;
                     algorithmName = HashAlgorithmName.SHA384;
                     break;
-
                 case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
                     encryptingKeySize = 32;
@@ -872,11 +870,19 @@ namespace Opc.Ua
             byte[] keyData;
             if (forDecryption)
             {
-                keyData = receiverNonce.DeriveKey(senderNonce, salt, algorithmName, encryptingKeySize + blockSize);
+                keyData = receiverNonce.DeriveKey(
+                    senderNonce,
+                    salt,
+                    algorithmName,
+                    encryptingKeySize + blockSize);
             }
             else
             {
-                keyData = senderNonce.DeriveKey(receiverNonce, salt, algorithmName, encryptingKeySize + blockSize);
+                keyData = senderNonce.DeriveKey(
+                    receiverNonce,
+                    salt,
+                    algorithmName,
+                    encryptingKeySize + blockSize);
             }
 
             Buffer.BlockCopy(keyData, 0, encryptingKey, 0, encryptingKey.Length);
@@ -953,7 +959,13 @@ namespace Opc.Ua
                 // create keys.
                 if (EccUtils.IsEccPolicy(SecurityPolicyUri))
                 {
-                    CreateKeysForEcc(SecurityPolicyUri, SenderNonce, ReceiverNonce, false, out encryptingKey, out iv);
+                    CreateKeysForEcc(
+                        SecurityPolicyUri,
+                        SenderNonce,
+                        ReceiverNonce,
+                        false,
+                        out encryptingKey,
+                        out iv);
                 }
 
                 // encrypt  secret,
@@ -994,7 +1006,12 @@ namespace Opc.Ua
 
             var dataToSign = new ArraySegment<byte>(message, 0, message.Length - signatureLength);
             byte[] signature = EccUtils.Sign(dataToSign, SenderCertificate, signatureAlgorithm);
-            Buffer.BlockCopy(signature, 0, message, message.Length - signatureLength, signatureLength);
+            Buffer.BlockCopy(
+                signature,
+                0,
+                message,
+                message.Length - signatureLength,
+                signatureLength);
             return message;
         }
 
@@ -1004,7 +1021,10 @@ namespace Opc.Ua
         /// <param name="dataToDecrypt">The data to decrypt.</param>
         /// <param name="earliestTime">The earliest time allowed for the message signing time.</param>
         /// <returns>The encrypted data.</returns>
-        private ArraySegment<byte> VerifyHeaderForEcc(ArraySegment<byte> dataToDecrypt, DateTime earliestTime)
+        /// <exception cref="ServiceResultException"></exception>
+        private ArraySegment<byte> VerifyHeaderForEcc(
+            ArraySegment<byte> dataToDecrypt,
+            DateTime earliestTime)
         {
             using var decoder = new BinaryDecoder(
                 dataToDecrypt.Array,
@@ -1061,7 +1081,8 @@ namespace Opc.Ua
             }
             else
             {
-                X509Certificate2Collection senderCertificateChain = Utils.ParseCertificateChainBlob(senderCertificate);
+                X509Certificate2Collection senderCertificateChain = Utils.ParseCertificateChainBlob(
+                    senderCertificate);
 
                 SenderCertificate = senderCertificateChain[0];
                 SenderIssuerCertificates = [];
@@ -1097,7 +1118,9 @@ namespace Opc.Ua
 
             if (headerLength != senderPublicKey.Length + receiverPublicKey.Length + 8)
             {
-                throw new ServiceResultException(StatusCodes.BadDecodingError, "Unexpected policy header length");
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    "Unexpected policy header length");
             }
 
             int startOfEncryption = decoder.Position;
@@ -1106,7 +1129,9 @@ namespace Opc.Ua
 
             if (!Utils.IsEqual(receiverPublicKey, ReceiverNonce.Data))
             {
-                throw new ServiceResultException(StatusCodes.BadDecodingError, "Unexpected receiver nonce.");
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    "Unexpected receiver nonce.");
             }
 
             // check the signature.
@@ -1134,7 +1159,9 @@ namespace Opc.Ua
 
             if (!EccUtils.Verify(dataToSign, signature, SenderCertificate, signatureAlgorithm))
             {
-                throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Could not verify signature.");
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "Could not verify signature.");
             }
 
             // extract the encrypted data.
@@ -1154,7 +1181,13 @@ namespace Opc.Ua
         /// <param name="offset">The offset of the data to decrypt.</param>
         /// <param name="count">The number of bytes to decrypt.</param>
         /// <returns>The decrypted data.</returns>
-        public byte[] Decrypt(DateTime earliestTime, byte[] expectedNonce, byte[] data, int offset, int count)
+        /// <exception cref="ServiceResultException"></exception>
+        public byte[] Decrypt(
+            DateTime earliestTime,
+            byte[] expectedNonce,
+            byte[] data,
+            int offset,
+            int count)
         {
             ArraySegment<byte> dataToDecrypt = VerifyHeaderForEcc(
                 new ArraySegment<byte>(data, offset, count),
@@ -1188,7 +1221,7 @@ namespace Opc.Ua
 
             if (expectedNonce != null && expectedNonce.Length > 0)
             {
-                int notvalid = (expectedNonce.Length == actualNonce.Length) ? 0 : 1;
+                int notvalid = expectedNonce.Length == actualNonce.Length ? 0 : 1;
 
                 for (int ii = 0; ii < expectedNonce.Length && ii < actualNonce.Length; ii++)
                 {
@@ -1214,7 +1247,11 @@ namespace Opc.Ua
             string securityPolicyUri
         )
         {
-            return Verify(dataToVerify, signature, signingCertificate, GetSignatureAlgorithmName(securityPolicyUri));
+            return Verify(
+                dataToVerify,
+                signature,
+                signingCertificate,
+                GetSignatureAlgorithmName(securityPolicyUri));
         }
 
         /// <summary>
@@ -1261,16 +1298,21 @@ namespace Opc.Ua
             }
 #endif
             using ECDsa ecdsa = GetPublicKey(signingCertificate);
-            return ecdsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, algorithm);
+            return ecdsa.VerifyData(
+                dataToVerify.Array,
+                dataToVerify.Offset,
+                dataToVerify.Count,
+                signature,
+                algorithm);
         }
 
         /// <summary>
         /// Returns the public key for the specified certificate and outputs the security policy uris.
         /// </summary>
-        /// <param name="certificate"></param>
-        /// <param name="securityPolicyUris"></param>
-        /// <returns></returns>
-        public static ECDsa GetPublicKey(X509Certificate2 certificate, out string[] securityPolicyUris)
+        /// <exception cref="NotSupportedException"></exception>
+        public static ECDsa GetPublicKey(
+            X509Certificate2 certificate,
+            out string[] securityPolicyUris)
         {
 #if ECC_SUPPORT
             securityPolicyUris = null;
@@ -1370,8 +1412,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the public key for the specified certificate.
         /// </summary>
-        /// <param name="certificate"></param>
-        /// <returns></returns>
         public static ECDsa GetPublicKey(X509Certificate2 certificate)
         {
             return GetPublicKey(certificate, out _);
@@ -1380,8 +1420,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the hash algorithm for the specified security policy.
         /// </summary>
-        /// <param name="securityPolicyUri"></param>
-        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"><paramref name="securityPolicyUri"/> is <c>null</c>.</exception>
         public static HashAlgorithmName GetSignatureAlgorithmName(string securityPolicyUri)
         {
             if (securityPolicyUri == null)
@@ -1394,14 +1433,9 @@ namespace Opc.Ua
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_brainpoolP256r1:
                     return HashAlgorithmName.SHA256;
-
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP384r1:
                     return HashAlgorithmName.SHA384;
-
-                case SecurityPolicies.None:
-                case SecurityPolicies.ECC_curve25519:
-                case SecurityPolicies.ECC_curve448:
                 default:
                     return HashAlgorithmName.SHA256;
             }

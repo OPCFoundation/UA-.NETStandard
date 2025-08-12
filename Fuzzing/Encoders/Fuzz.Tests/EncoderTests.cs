@@ -43,19 +43,26 @@ namespace Opc.Ua.Fuzzing
     {
         public static readonly TestcaseAsset[] GoodTestcases =
         [
-            .. AssetCollection<TestcaseAsset>.CreateFromFiles(TestUtils.EnumerateTestAssets("Testcases", "*.*")),
+            .. AssetCollection<TestcaseAsset>.CreateFromFiles(
+                TestUtils.EnumerateTestAssets("Testcases", "*.*"))
         ];
+
         public static readonly TestcaseAsset[] CrashAssets =
         [
-            .. AssetCollection<TestcaseAsset>.CreateFromFiles(TestUtils.EnumerateTestAssets("Assets", "crash*.*")),
+            .. AssetCollection<TestcaseAsset>.CreateFromFiles(
+                TestUtils.EnumerateTestAssets("Assets", "crash*.*"))
         ];
+
         public static readonly TestcaseAsset[] TimeoutAssets =
         [
-            .. AssetCollection<TestcaseAsset>.CreateFromFiles(TestUtils.EnumerateTestAssets("Assets", "timeout*.*")),
+            .. AssetCollection<TestcaseAsset>.CreateFromFiles(
+                TestUtils.EnumerateTestAssets("Assets", "timeout*.*"))
         ];
+
         public static readonly TestcaseAsset[] SlowAssets =
         [
-            .. AssetCollection<TestcaseAsset>.CreateFromFiles(TestUtils.EnumerateTestAssets("Assets", "slow*.*")),
+            .. AssetCollection<TestcaseAsset>.CreateFromFiles(
+                TestUtils.EnumerateTestAssets("Assets", "slow*.*"))
         ];
 
         [DatapointSource]
@@ -67,7 +74,7 @@ namespace Opc.Ua.Fuzzing
             .. typeof(FuzzableCode)
                 .GetMethods(BindingFlags.Static | BindingFlags.Public)
                 .Where(f => f.GetParameters().Length == 1)
-                .Select(f => new FuzzTargetFunction(f)),
+                .Select(f => new FuzzTargetFunction(f))
         ];
 
         [Theory]
@@ -123,7 +130,8 @@ namespace Opc.Ua.Fuzzing
             ParameterInfo[] parameters = fuzzableCode.MethodInfo.GetParameters();
             if (parameters.Length != 1)
             {
-                throw new InvalidOperationException("Fuzzable function must have exactly one parameter.");
+                throw new InvalidOperationException(
+                    "Fuzzable function must have exactly one parameter.");
             }
             if (parameters[0].ParameterType == typeof(string))
             {
@@ -139,9 +147,11 @@ namespace Opc.Ua.Fuzzing
             {
                 var span = new ReadOnlySpan<byte>(blob);
 #if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
-                LibFuzzTemplate fuzzFunction = fuzzableCode.MethodInfo.CreateDelegate<LibFuzzTemplate>();
+                LibFuzzTemplate fuzzFunction = fuzzableCode.MethodInfo
+                    .CreateDelegate<LibFuzzTemplate>();
 #else
-                var fuzzFunction = (LibFuzzTemplate)fuzzableCode.MethodInfo.CreateDelegate(typeof(LibFuzzTemplate));
+                var fuzzFunction = (LibFuzzTemplate)fuzzableCode.MethodInfo
+                    .CreateDelegate(typeof(LibFuzzTemplate));
 #endif
                 fuzzFunction(span);
             }
@@ -153,8 +163,6 @@ namespace Opc.Ua.Fuzzing
     /// </summary>
     public class TestcaseAsset : IAsset, IFormattable
     {
-        public TestcaseAsset() { }
-
         public string Path { get; private set; }
         public byte[] Testcase { get; private set; }
 

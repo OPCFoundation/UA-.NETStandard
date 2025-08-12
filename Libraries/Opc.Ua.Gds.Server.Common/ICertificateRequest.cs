@@ -52,7 +52,7 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// The certificate request is Accepted.
         /// </summary>
-        Accepted,
+        Accepted
     }
 
     /// <summary>
@@ -149,7 +149,7 @@ namespace Opc.Ua.Gds.Server
         /// <param name="requestId">The request id.</param>
         /// <param name="certificateGroupId">The group id.</param>
         /// <param name="certificateTypeId">The certificate type.</param>
-        /// <param name="certificateRequest"></param>
+        /// <param name="certificateRequest">Cert request</param>
         /// <param name="subjectName">The subject for the certificate</param>
         /// <param name="domainNames">The domain names for the certificate.</param>
         /// <param name="privateKeyFormat">The private key format, PEM or PFX.</param>

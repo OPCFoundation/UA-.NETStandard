@@ -41,7 +41,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Constructs a new instance of the <see cref="Session"/> class.
         /// </summary>
-        Session Create(ISessionChannel channel, ApplicationConfiguration configuration, ConfiguredEndpoint endpoint);
+        Session Create(
+            ISessionChannel channel,
+            ApplicationConfiguration configuration,
+            ConfiguredEndpoint endpoint);
 
         /// <summary>
         /// Constructs a new instance of the <see cref="Session"/> class.

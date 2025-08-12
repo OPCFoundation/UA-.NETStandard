@@ -45,7 +45,11 @@ namespace TestData
         /// <param name="isReadModified">Whether to return modified data.</param>
         /// <param name="position">A index that must be passed to the NextRaw call. </param>
         /// <returns>The DataValue.</returns>
-        DataValue FirstRaw(DateTime startTime, bool isForward, bool isReadModified, out int position);
+        DataValue FirstRaw(
+            DateTime startTime,
+            bool isForward,
+            bool isReadModified,
+            out int position);
 
         /// <summary>
         /// Returns the next value in the archive.

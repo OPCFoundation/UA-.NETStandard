@@ -41,7 +41,8 @@ namespace Opc.Ua.Security.Certificates.Tests
     /// <summary>
     /// Tests for the CRL class.
     /// </summary>
-    [TestFixture, Category("CRL")]
+    [TestFixture]
+    [Category("CRL")]
     [Parallelizable]
     [TestFixtureSource(nameof(FixtureArgs))]
     [SetCulture("en-us")]
@@ -50,7 +51,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [DatapointSource]
         public static readonly CRLAsset[] CRLTestCases =
         [
-            .. AssetCollection<CRLAsset>.CreateFromFiles(TestUtils.EnumerateTestAssets("*.crl")),
+            .. AssetCollection<CRLAsset>.CreateFromFiles(TestUtils.EnumerateTestAssets("*.crl"))
         ];
 
         [DatapointSource]
@@ -58,7 +59,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             { 2048, HashAlgorithmName.SHA256 },
             { 3072, HashAlgorithmName.SHA384 },
-            { 4096, HashAlgorithmName.SHA512 },
+            { 4096, HashAlgorithmName.SHA512 }
         }.ToArray();
 
         /// <summary>
@@ -69,28 +70,28 @@ namespace Opc.Ua.Security.Certificates.Tests
             new object[]
             {
                 nameof(ObjectTypeIds.RsaSha256ApplicationCertificateType),
-                ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                ObjectTypeIds.RsaSha256ApplicationCertificateType
             },
             new object[]
             {
                 nameof(ObjectTypeIds.EccNistP256ApplicationCertificateType),
-                ObjectTypeIds.EccNistP256ApplicationCertificateType,
+                ObjectTypeIds.EccNistP256ApplicationCertificateType
             },
             new object[]
             {
                 nameof(ObjectTypeIds.EccNistP384ApplicationCertificateType),
-                ObjectTypeIds.EccNistP384ApplicationCertificateType,
+                ObjectTypeIds.EccNistP384ApplicationCertificateType
             },
             new object[]
             {
                 nameof(ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType),
-                ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType,
+                ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType
             },
             new object[]
             {
                 nameof(ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType),
-                ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType,
-            },
+                ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType
+            }
         ];
 
         public CRLTests(string certificateTypeString, NodeId certificateType)
@@ -139,7 +140,9 @@ namespace Opc.Ua.Security.Certificates.Tests
         /// Clean up the Test PKI folder
         /// </summary>
         [OneTimeTearDown]
-        protected void OneTimeTearDown() { }
+        protected void OneTimeTearDown()
+        {
+        }
 
         /// <summary>
         /// Verify self signed app certs.
@@ -192,7 +195,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             if (!empty)
             {
                 // little endian byte array as serial number?
-                var revokedarray = new RevokedCertificate(serial) { RevocationDate = DateTime.UtcNow.AddDays(30) };
+                var revokedarray = new RevokedCertificate(serial)
+                {
+                    RevocationDate = DateTime.UtcNow.AddDays(30)
+                };
                 crlBuilder.RevokedCertificates.Add(revokedarray);
                 var revokedstring = new RevokedCertificate(serstring);
                 crlBuilder.RevokedCertificates.Add(revokedstring);
@@ -242,7 +248,8 @@ namespace Opc.Ua.Security.Certificates.Tests
                 Assert.AreEqual(2, x509Crl.CrlExtensions.Count);
             }
 
-            using X509Certificate2 issuerPubKey = X509CertificateLoader.LoadCertificate(m_issuerCert.RawData);
+            using X509Certificate2 issuerPubKey = X509CertificateLoader.LoadCertificate(
+                m_issuerCert.RawData);
             Assert.True(x509Crl.VerifySignature(issuerPubKey, true));
         }
 
@@ -295,7 +302,8 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.AreEqual(serial, x509Crl.RevokedCertificates[0].UserCertificate);
             Assert.AreEqual(serstring, x509Crl.RevokedCertificates[1].SerialNumber);
             Assert.AreEqual(2, x509Crl.CrlExtensions.Count);
-            using X509Certificate2 issuerPubKey = X509CertificateLoader.LoadCertificate(m_issuerCert.RawData);
+            using X509Certificate2 issuerPubKey = X509CertificateLoader.LoadCertificate(
+                m_issuerCert.RawData);
             Assert.True(x509Crl.VerifySignature(issuerPubKey, true));
         }
 
@@ -314,10 +322,16 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetThisUpdate(baseYear)
                 .SetNextUpdate(baseYear.AddDays(100));
             byte[] serial = [4, 5, 6, 7];
-            var revokedarray = new RevokedCertificate(serial) { RevocationDate = baseYear.AddDays(1) };
+            var revokedarray = new RevokedCertificate(serial)
+            {
+                RevocationDate = baseYear.AddDays(1)
+            };
             crlBuilder.RevokedCertificates.Add(revokedarray);
             const string serstring = "45678910";
-            var revokedstring = new RevokedCertificate(serstring) { RevocationDate = baseYear.AddDays(1) };
+            var revokedstring = new RevokedCertificate(serstring)
+            {
+                RevocationDate = baseYear.AddDays(1)
+            };
             crlBuilder.RevokedCertificates.Add(revokedstring);
             crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(123));
             byte[] crlEncoded = crlBuilder.Encode();
@@ -326,10 +340,14 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             // Generate a CRL with dates up-to 2050
             baseYear = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-            crlBuilder = CrlBuilder.Create(dname, hash).SetThisUpdate(baseYear).SetNextUpdate(baseYear.AddDays(100));
+            crlBuilder = CrlBuilder.Create(dname, hash).SetThisUpdate(baseYear)
+                .SetNextUpdate(baseYear.AddDays(100));
             revokedarray = new RevokedCertificate(serial);
             crlBuilder.RevokedCertificates.Add(revokedarray);
-            revokedstring = new RevokedCertificate(serstring) { RevocationDate = baseYear.AddDays(20) };
+            revokedstring = new RevokedCertificate(serstring)
+            {
+                RevocationDate = baseYear.AddDays(20)
+            };
             crlBuilder.RevokedCertificates.Add(revokedstring);
             crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(123));
             crlEncoded = crlBuilder.Encode();
@@ -340,21 +358,24 @@ namespace Opc.Ua.Security.Certificates.Tests
         private static string WriteCRL(X509CRL x509Crl)
         {
             var stringBuilder = new StringBuilder();
-            stringBuilder.Append("Issuer:     ").AppendLine(x509Crl.Issuer);
-            stringBuilder.Append("ThisUpdate: ").Append(x509Crl.ThisUpdate).AppendLine();
-            stringBuilder.Append("NextUpdate: ").Append(x509Crl.NextUpdate).AppendLine();
-            stringBuilder.AppendLine("RevokedCertificates:");
+            stringBuilder.Append("Issuer:     ").AppendLine(x509Crl.Issuer)
+                .Append("ThisUpdate: ").Append(x509Crl.ThisUpdate).AppendLine()
+                .Append("NextUpdate: ").Append(x509Crl.NextUpdate).AppendLine()
+                .AppendLine("RevokedCertificates:");
             foreach (RevokedCertificate revokedCert in x509Crl.RevokedCertificates)
             {
                 stringBuilder
-                    .AppendFormat(CultureInfo.InvariantCulture, "{0:20}, ", revokedCert.SerialNumber)
+                    .AppendFormat(
+                        CultureInfo.InvariantCulture,
+                        "{0:20}, ",
+                        revokedCert.SerialNumber)
                     .Append(revokedCert.RevocationDate)
                     .Append(", ");
                 foreach (X509Extension entryExt in revokedCert.CrlEntryExtensions)
                 {
                     stringBuilder.Append(entryExt.Format(false)).Append(' ');
                 }
-                stringBuilder.AppendLine("");
+                stringBuilder.AppendLine(string.Empty);
             }
             stringBuilder.AppendLine("Extensions:");
             foreach (X509Extension extension in x509Crl.CrlExtensions)

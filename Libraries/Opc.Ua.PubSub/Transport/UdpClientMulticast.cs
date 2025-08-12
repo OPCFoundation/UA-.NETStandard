@@ -48,7 +48,6 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="port">The port.</param>
         /// <exception cref="SocketException">An error occurred when accessing the socket.</exception>
         public UdpClientMulticast(IPAddress localAddress, IPAddress multicastAddress, int port)
-            : base()
         {
             Address = localAddress;
             MulticastAddress = multicastAddress;
@@ -57,7 +56,10 @@ namespace Opc.Ua.PubSub.Transport
             try
             {
                 // this might throw exception on some platforms
-                Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                Client.SetSocketOption(
+                    SocketOptionLevel.Socket,
+                    SocketOptionName.ReuseAddress,
+                    true);
             }
             catch (Exception ex)
             {

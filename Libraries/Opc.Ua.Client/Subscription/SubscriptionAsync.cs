@@ -88,6 +88,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Deletes a subscription on the server.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public async Task DeleteAsync(bool silent, CancellationToken ct = default)
         {
             if (!silent)
@@ -119,7 +120,11 @@ namespace Opc.Ua.Client
                 if (StatusCode.IsBad(response.Results[0]))
                 {
                     throw new ServiceResultException(
-                        ClientBase.GetResult(response.Results[0], 0, response.DiagnosticInfos, response.ResponseHeader)
+                        ClientBase.GetResult(
+                            response.Results[0],
+                            0,
+                            response.DiagnosticInfos,
+                            response.ResponseHeader)
                     );
                 }
             }
@@ -179,6 +184,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Changes the publishing enabled state for the subscription.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public async Task SetPublishingModeAsync(bool enabled, CancellationToken ct = default)
         {
             VerifySubscriptionState(true);
@@ -197,7 +203,11 @@ namespace Opc.Ua.Client
             if (StatusCode.IsBad(response.Results[0]))
             {
                 throw new ServiceResultException(
-                    ClientBase.GetResult(response.Results[0], 0, response.DiagnosticInfos, response.ResponseHeader)
+                    ClientBase.GetResult(
+                        response.Results[0],
+                        0,
+                        response.DiagnosticInfos,
+                        response.ResponseHeader)
                 );
             }
 
@@ -211,7 +221,9 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Republishes the specified notification message.
         /// </summary>
-        public async Task<NotificationMessage> RepublishAsync(uint sequenceNumber, CancellationToken ct = default)
+        public async Task<NotificationMessage> RepublishAsync(
+            uint sequenceNumber,
+            CancellationToken ct = default)
         {
             VerifySubscriptionState(true);
 
@@ -264,7 +276,11 @@ namespace Opc.Ua.Client
             for (int ii = 0; ii < results.Count; ii++)
             {
                 itemsToBrowse[ii]
-                    .SetResolvePathResult(results[ii], ii, response.DiagnosticInfos, response.ResponseHeader);
+                    .SetResolvePathResult(
+                        results[ii],
+                        ii,
+                        response.DiagnosticInfos,
+                        response.ResponseHeader);
             }
 
             m_changeMask |= SubscriptionChangeMask.ItemsModified;
@@ -275,8 +291,9 @@ namespace Opc.Ua.Client
         /// </summary>
         public async Task<IList<MonitoredItem>> CreateItemsAsync(CancellationToken ct = default)
         {
-            List<MonitoredItem> itemsToCreate;
-            MonitoredItemCreateRequestCollection requestItems = PrepareItemsToCreate(out itemsToCreate);
+            MonitoredItemCreateRequestCollection requestItems = PrepareItemsToCreate(
+                out List<MonitoredItem> itemsToCreate
+            );
 
             if (requestItems.Count == 0)
             {
@@ -391,7 +408,11 @@ namespace Opc.Ua.Client
             // update results.
             for (int ii = 0; ii < results.Count; ii++)
             {
-                itemsToDelete[ii].SetDeleteResult(results[ii], ii, response.DiagnosticInfos, response.ResponseHeader);
+                itemsToDelete[ii].SetDeleteResult(
+                    results[ii],
+                    ii,
+                    response.DiagnosticInfos,
+                    response.ResponseHeader);
             }
 
             m_changeMask |= SubscriptionChangeMask.ItemsDeleted;
@@ -404,6 +425,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Set monitoring mode of items.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="monitoredItems"/> is <c>null</c>.</exception>
         public async Task<List<ServiceResult>> SetMonitoringModeAsync(
             MonitoringMode monitoringMode,
             IList<MonitoredItem> monitoredItems,
@@ -470,12 +492,12 @@ namespace Opc.Ua.Client
 
             var methodsToCall = new CallMethodRequestCollection
             {
-                new CallMethodRequest()
+                new CallMethodRequest
                 {
                     ObjectId = ObjectTypeIds.ConditionType,
                     MethodId = MethodIds.ConditionType_ConditionRefresh,
-                    InputArguments = [new Variant(Id)],
-                },
+                    InputArguments = [new Variant(Id)]
+                }
             };
 
             _ = await Session.CallAsync(null, methodsToCall, ct).ConfigureAwait(false);
@@ -485,18 +507,20 @@ namespace Opc.Ua.Client
         /// Tells the server to refresh all conditions being monitored by the subscription for a specific
         /// monitoredItem for events.
         /// </summary>
-        public async Task ConditionRefresh2Async(uint monitoredItemId, CancellationToken ct = default)
+        public async Task ConditionRefresh2Async(
+            uint monitoredItemId,
+            CancellationToken ct = default)
         {
             VerifySubscriptionState(true);
 
             var methodsToCall = new CallMethodRequestCollection
             {
-                new CallMethodRequest()
+                new CallMethodRequest
                 {
                     ObjectId = ObjectTypeIds.ConditionType,
                     MethodId = MethodIds.ConditionType_ConditionRefresh2,
-                    InputArguments = [new Variant(Id), new Variant(monitoredItemId)],
-                },
+                    InputArguments = [new Variant(Id), new Variant(monitoredItemId)]
+                }
             };
 
             _ = await Session.CallAsync(null, methodsToCall, ct).ConfigureAwait(false);

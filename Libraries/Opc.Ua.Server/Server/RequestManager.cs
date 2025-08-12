@@ -41,7 +41,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Initilizes the manager.
         /// </summary>
-        /// <param name="server"></param>
         public RequestManager(IServerInternal server)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
@@ -107,7 +106,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Called when a new request arrives.
         /// </summary>
-        /// <param name="context"></param>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public void RequestReceived(OperationContext context)
         {
             if (context == null)
@@ -129,6 +128,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Called when a request completes (normally or abnormally).
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public void RequestCompleted(OperationContext context)
         {
             if (context == null)
@@ -161,7 +161,10 @@ namespace Opc.Ua.Server
                         cancelledRequests.Add(request.RequestId);
 
                         // report the AuditCancelEventType
-                        m_server.ReportAuditCancelEvent(request.Session.Id, requestHandle, StatusCodes.Good);
+                        m_server.ReportAuditCancelEvent(
+                            request.Session.Id,
+                            requestHandle,
+                            StatusCodes.Good);
                     }
                 }
             }
@@ -178,7 +181,10 @@ namespace Opc.Ua.Server
                     {
                         try
                         {
-                            m_RequestCancelled(this, cancelledRequests[ii], StatusCodes.BadRequestCancelledByRequest);
+                            m_RequestCancelled(
+                                this,
+                                cancelledRequests[ii],
+                                StatusCodes.BadRequestCancelledByRequest);
                         }
                         catch (Exception e)
                         {
@@ -254,5 +260,8 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Called when a request is cancelled.
     /// </summary>
-    public delegate void RequestCancelledEventHandler(RequestManager source, uint requestId, StatusCode statusCode);
+    public delegate void RequestCancelledEventHandler(
+        RequestManager source,
+        uint requestId,
+        StatusCode statusCode);
 }

@@ -35,22 +35,32 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
     /// <summary>
     /// Tests for the BuiltIn Types.
     /// </summary>
-    [TestFixture, Category("NumericRange")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("NumericRange")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class NumericRangeTests
     {
         [OneTimeSetUp]
-        protected void OneTimeSetUp() { }
+        protected void OneTimeSetUp()
+        {
+        }
 
         [OneTimeTearDown]
-        protected void OneTimeTearDown() { }
+        protected void OneTimeTearDown()
+        {
+        }
 
         [SetUp]
-        protected void SetUp() { }
+        protected void SetUp()
+        {
+        }
 
         [TearDown]
-        protected void TearDown() { }
+        protected void TearDown()
+        {
+        }
 
         /// <summary>
         /// Test that NumericRange can be applied to Matrix objects
@@ -63,7 +73,7 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
             {
                 { 1, 2, 3 },
                 { 4, 5, 6 },
-                { 7, 8, 9 },
+                { 7, 8, 9 }
             };
 
             var matrix = new Matrix(int3x3Matrix, BuiltInType.Int32);
@@ -95,7 +105,7 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
             {
                 { 1, 2, 3 },
                 { 4, 5, 6 },
-                { 7, 8, 9 },
+                { 7, 8, 9 }
             };
 
             var dstMatrix = new Matrix(dstInt3x3Matrix, BuiltInType.Int32);
@@ -107,7 +117,7 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
                 ref dst,
                 new int[,]
                 {
-                    { 10 },
+                    { 10 }
                 }
             );
 
@@ -123,7 +133,7 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
                 {
                     { 1, 2, 3 },
                     { 4, 10, 6 },
-                    { 7, 8, 9 },
+                    { 7, 8, 9 }
                 },
                 modifiedInt3x3Matrix
             );
@@ -159,14 +169,22 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
         {
             // Update the middle element <0x55, 0x66, 0x77, 0x88> to <0x55, 0xDD, 0xEE, 0x88> by modifying 0x66 to 0xDD and 0x77 to 0xEE.
             var numericRange = Ua.NumericRange.Parse("1,1:2");
-            object dst = new byte[][] { [0x11, 0x22, 0x33, 0x44], [0x55, 0x66, 0x77, 0x88], [0x99, 0xAA, 0xBB, 0xCC] };
-            StatusCode statusCode = numericRange.UpdateRange(ref dst, new byte[][] { [0xDD, 0xEE] });
+            object dst = new byte[][] {
+                [0x11, 0x22, 0x33, 0x44],
+                [0x55, 0x66, 0x77, 0x88],
+                [0x99, 0xAA, 0xBB, 0xCC] };
+            StatusCode statusCode = numericRange.UpdateRange(
+                ref dst,
+                new byte[][] { [0xDD, 0xEE] });
             Assert.AreEqual(new StatusCode(StatusCodes.Good), statusCode);
 
             byte[][] updatedValue = dst as byte[][];
             Assert.NotNull(updatedValue);
             Assert.AreEqual(
-                new byte[][] { [0x11, 0x22, 0x33, 0x44], [0x55, 0xDD, 0xEE, 0x88], [0x99, 0xAA, 0xBB, 0xCC] },
+                new byte[][] {
+                    [0x11, 0x22, 0x33, 0x44],
+                    [0x55, 0xDD, 0xEE, 0x88],
+                    [0x99, 0xAA, 0xBB, 0xCC] },
                 updatedValue
             );
         }

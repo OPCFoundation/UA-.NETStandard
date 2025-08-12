@@ -50,7 +50,9 @@ namespace Opc.Ua
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private static void Initialize() { }
+        private static void Initialize()
+        {
+        }
 
         [DataMember(Order = 1)]
         public string AuthorityUrl { get; set; }
@@ -97,9 +99,7 @@ namespace Opc.Ua
 
             lock (configuration.PropertiesLock)
             {
-                object value = null;
-
-                if (configuration.Properties.TryGetValue("OAuth2Credentials", out value))
+                if (configuration.Properties.TryGetValue("OAuth2Credentials", out object value))
                 {
                     list = value as OAuth2CredentialCollection;
                 }
@@ -120,9 +120,12 @@ namespace Opc.Ua
             string serverApplicationUri
         )
         {
-            if (serverApplicationUri == null || !Uri.IsWellFormedUriString(serverApplicationUri, UriKind.Absolute))
+            if (serverApplicationUri == null ||
+                !Uri.IsWellFormedUriString(serverApplicationUri, UriKind.Absolute))
             {
-                throw new ArgumentException("Invalid application Uri specified.", nameof(serverApplicationUri));
+                throw new ArgumentException(
+                    "Invalid application Uri specified.",
+                    nameof(serverApplicationUri));
             }
 
             OAuth2CredentialCollection list = Load(configuration);
@@ -145,7 +148,7 @@ namespace Opc.Ua
 
                             if (uri == serverApplicationUri)
                             {
-                                return new OAuth2Credential()
+                                return new OAuth2Credential
                                 {
                                     AuthorityUrl = ii.AuthorityUrl,
                                     GrantType = ii.GrantType,
@@ -154,7 +157,7 @@ namespace Opc.Ua
                                     RedirectUrl = ii.RedirectUrl,
                                     TokenEndpoint = ii.TokenEndpoint,
                                     AuthorizationEndpoint = ii.AuthorizationEndpoint,
-                                    SelectedServer = jj,
+                                    SelectedServer = jj
                                 };
                             }
                         }
@@ -165,7 +168,9 @@ namespace Opc.Ua
             return null;
         }
 
-        public static OAuth2Credential FindByAuthorityUrl(ApplicationConfiguration configuration, string authorityUrl)
+        public static OAuth2Credential FindByAuthorityUrl(
+            ApplicationConfiguration configuration,
+            string authorityUrl)
         {
             if (authorityUrl == null || !Uri.IsWellFormedUriString(authorityUrl, UriKind.Absolute))
             {
@@ -198,7 +203,7 @@ namespace Opc.Ua
 
                     if (string.Equals(uri, authorityUrl, StringComparison.OrdinalIgnoreCase))
                     {
-                        return new OAuth2Credential()
+                        return new OAuth2Credential
                         {
                             AuthorityUrl = authorityUrl,
                             GrantType = ii.GrantType,
@@ -206,7 +211,7 @@ namespace Opc.Ua
                             ClientSecret = ii.ClientSecret,
                             RedirectUrl = ii.RedirectUrl,
                             TokenEndpoint = ii.TokenEndpoint,
-                            AuthorizationEndpoint = ii.AuthorizationEndpoint,
+                            AuthorizationEndpoint = ii.AuthorizationEndpoint
                         };
                     }
                 }

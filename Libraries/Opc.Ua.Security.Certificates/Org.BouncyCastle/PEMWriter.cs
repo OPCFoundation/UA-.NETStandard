@@ -49,7 +49,10 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Returns a byte array containing the private key in PEM format.
         /// </summary>
-        public static byte[] ExportPrivateKeyAsPEM(X509Certificate2 certificate, string password = null)
+        /// <exception cref="ArgumentException"></exception>
+        public static byte[] ExportPrivateKeyAsPEM(
+            X509Certificate2 certificate,
+            string password = null)
         {
             bool isECDsaSignature = X509PfxUtils.IsECDsaSignature(certificate);
             // check if certificate is valid for use as app/sw or user cert
@@ -63,9 +66,11 @@ namespace Opc.Ua.Security.Certificates
                     );
                 }
 
-                RsaPrivateCrtKeyParameters privateKeyParameter = X509Utils.GetRsaPrivateKeyParameter(certificate);
+                RsaPrivateCrtKeyParameters privateKeyParameter = X509Utils
+                    .GetRsaPrivateKeyParameter(certificate);
                 // write private key as PKCS#8
-                PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKeyParameter);
+                PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(
+                    privateKeyParameter);
                 byte[] serializedPrivateBytes = privateKeyInfo.ToAsn1Object().GetDerEncoded();
                 return EncodeAsPEM(serializedPrivateBytes, "PRIVATE KEY");
             }
@@ -84,7 +89,8 @@ namespace Opc.Ua.Security.Certificates
                     certificate.GetECDsaPrivateKey()
                 );
                 // write private key as PKCS#8
-                PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKeyParameter);
+                PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(
+                    privateKeyParameter);
                 byte[] serializedPrivateBytes = privateKeyInfo.ToAsn1Object().GetDerEncoded();
                 return EncodeAsPEM(serializedPrivateBytes, "PRIVATE KEY");
             }
@@ -115,7 +121,10 @@ namespace Opc.Ua.Security.Certificates
                 while (endIndex > -1 && count < 99)
                 {
                     count++;
-                    int beginIndex = pemText.IndexOf(beginlabel, searchPosition, StringComparison.Ordinal);
+                    int beginIndex = pemText.IndexOf(
+                        beginlabel,
+                        searchPosition,
+                        StringComparison.Ordinal);
                     if (beginIndex < 0)
                     {
                         return false;
@@ -133,12 +142,17 @@ namespace Opc.Ua.Security.Certificates
                         pemCertificateContent.Length
                     );
 
-                    X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(pemCertificateDecoded);
-                    if (thumbprint.Equals(certificate.Thumbprint, StringComparison.OrdinalIgnoreCase))
+                    X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(
+                        pemCertificateDecoded);
+                    if (thumbprint.Equals(
+                        certificate.Thumbprint,
+                        StringComparison.OrdinalIgnoreCase))
                     {
                         modifiedPemDataBlob = Encoding.ASCII.GetBytes(
                             pemText.Replace(
-                                pemText.Substring(beginIndex -= beginlabel.Length, endIndex + endlabel.Length),
+                                pemText.Substring(
+                                    beginIndex -= beginlabel.Length,
+                                    endIndex + endlabel.Length),
                                 string.Empty
                             )
                         );

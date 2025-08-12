@@ -197,6 +197,7 @@ namespace Opc.Ua
         /// <returns>
         /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
+        /// <exception cref="FormatException"></exception>
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format != null)
@@ -435,35 +436,27 @@ namespace Opc.Ua
                 case NodeClass.Object:
                     node = new ObjectNode();
                     break;
-
                 case NodeClass.ObjectType:
                     node = new ObjectTypeNode();
                     break;
-
                 case NodeClass.Variable:
                     node = new VariableNode();
                     break;
-
                 case NodeClass.VariableType:
                     node = new VariableTypeNode();
                     break;
-
                 case NodeClass.Method:
                     node = new MethodNode();
                     break;
-
                 case NodeClass.ReferenceType:
                     node = new ReferenceTypeNode();
                     break;
-
                 case NodeClass.DataType:
                     node = new DataTypeNode();
                     break;
-
                 case NodeClass.View:
                     node = new ViewNode();
                     break;
-
                 default:
                     node = new Node();
                     break;
@@ -517,13 +510,15 @@ namespace Opc.Ua
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
-                Factory = context.EncodeableFactory,
+                Factory = context.EncodeableFactory
             };
 
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
             using var writer = XmlWriter.Create(ostrm, settings);
-            var root = new XmlQualifiedName(SymbolicName, context.NamespaceUris.GetString(BrowseName.NamespaceIndex));
+            var root = new XmlQualifiedName(
+                SymbolicName,
+                context.NamespaceUris.GetString(BrowseName.NamespaceIndex));
 
             using var encoder = new XmlEncoder(root, writer, messageContext);
             encoder.SaveStringTable("NamespaceUris", "NamespaceUri", context.NamespaceUris);
@@ -547,7 +542,7 @@ namespace Opc.Ua
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
-                Factory = context.EncodeableFactory,
+                Factory = context.EncodeableFactory
             };
 
             using var encoder = new BinaryEncoder(ostrm, messageContext, true);
@@ -590,7 +585,7 @@ namespace Opc.Ua
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
-                Factory = context.EncodeableFactory,
+                Factory = context.EncodeableFactory
             };
 
             using var decoder = new BinaryDecoder(istrm, messageContext, true);
@@ -784,7 +779,7 @@ namespace Opc.Ua
             /// <summary>
             /// The DataTypeDefinition attribute of a DataType Node.
             /// </summary>
-            DataTypeDefinition = 0x40000000,
+            DataTypeDefinition = 0x40000000
         }
 
         /// <summary>
@@ -819,9 +814,9 @@ namespace Opc.Ua
             if (!LocalizedText.IsNullOrEmpty(m_displayName))
             {
                 if (
-                    m_browseName == null
-                    || !string.IsNullOrEmpty(m_displayName.Locale)
-                    || m_displayName.Text != m_browseName.Name
+                    m_browseName == null ||
+                    !string.IsNullOrEmpty(m_displayName.Locale) ||
+                    m_displayName.Text != m_browseName.Name
                 )
                 {
                     attributesToSave |= AttributesToSave.DisplayName;
@@ -852,7 +847,10 @@ namespace Opc.Ua
         /// <param name="context">The context for the system being accessed.</param>
         /// <param name="encoder">The encoder to write to.</param>
         /// <param name="attributesToSave">The masks indicating what attributes to write.</param>
-        public virtual void Save(ISystemContext context, BinaryEncoder encoder, AttributesToSave attributesToSave)
+        public virtual void Save(
+            ISystemContext context,
+            BinaryEncoder encoder,
+            AttributesToSave attributesToSave)
         {
             encoder.WriteEnumerated(null, NodeClass);
 
@@ -898,7 +896,10 @@ namespace Opc.Ua
         /// <param name="context">The context for the system being accessed.</param>
         /// <param name="decoder">The decoder to read from.</param>
         /// <param name="attributesToLoad">The masks indicating what attributes to read.</param>
-        public virtual void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attributesToLoad)
+        public virtual void Update(
+            ISystemContext context,
+            BinaryDecoder decoder,
+            AttributesToSave attributesToLoad)
         {
             if ((attributesToLoad & AttributesToSave.NodeClass) != 0)
             {
@@ -942,12 +943,16 @@ namespace Opc.Ua
 
             if ((attributesToLoad & AttributesToSave.WriteMask) != 0)
             {
-                m_writeMask = (AttributeWriteMask)decoder.ReadEnumerated(null, typeof(AttributeWriteMask));
+                m_writeMask = (AttributeWriteMask)decoder.ReadEnumerated(
+                    null,
+                    typeof(AttributeWriteMask));
             }
 
             if ((attributesToLoad & AttributesToSave.UserWriteMask) != 0)
             {
-                m_userWriteMask = (AttributeWriteMask)decoder.ReadEnumerated(null, typeof(AttributeWriteMask));
+                m_userWriteMask = (AttributeWriteMask)decoder.ReadEnumerated(
+                    null,
+                    typeof(AttributeWriteMask));
             }
         }
 
@@ -1056,7 +1061,14 @@ namespace Opc.Ua
             }
 
             // handle unknown child.
-            child = UpdateUnknownChild(context, decoder, this, attributesToLoad, nodeClass, symbolicName, browseName);
+            child = UpdateUnknownChild(
+                context,
+                decoder,
+                this,
+                attributesToLoad,
+                nodeClass,
+                symbolicName,
+                browseName);
 
             // add the child.
             if (child != null)
@@ -1101,7 +1113,13 @@ namespace Opc.Ua
             }
 
             // read the node from the stream.
-            return LoadUnknownNode(context, decoder, attributesToLoad, nodeClass, symbolicName, browseName);
+            return LoadUnknownNode(
+                context,
+                decoder,
+                attributesToLoad,
+                nodeClass,
+                symbolicName,
+                browseName);
         }
 
         /// <summary>
@@ -1202,13 +1220,14 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context for the system being accessed.</param>
         /// <param name="reader">The stream to read.</param>
+        /// <exception cref="ServiceResultException"></exception>
         public void LoadFromXml(ISystemContext context, XmlReader reader)
         {
             var messageContext = new ServiceMessageContext
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
-                Factory = context.EncodeableFactory,
+                Factory = context.EncodeableFactory
             };
 
             reader.MoveToContent();
@@ -1263,6 +1282,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context for the system being accessed.</param>
         /// <param name="decoder">The decoder wrapping the stream to read.</param>
+        /// <exception cref="ServiceResultException"></exception>
         public void LoadFromXml(ISystemContext context, XmlDecoder decoder)
         {
             // get the name of the child element.
@@ -1323,9 +1343,9 @@ namespace Opc.Ua
             if (!LocalizedText.IsNullOrEmpty(m_displayName))
             {
                 if (
-                    m_browseName == null
-                    || !string.IsNullOrEmpty(m_displayName.Locale)
-                    || m_browseName.Name != m_displayName.Text
+                    m_browseName == null ||
+                    !string.IsNullOrEmpty(m_displayName.Locale) ||
+                    m_browseName.Name != m_displayName.Text
                 )
                 {
                     encoder.WriteLocalizedText("DisplayName", m_displayName);
@@ -1355,6 +1375,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context for the system being accessed.</param>
         /// <param name="decoder">The decoder wrapping the stream to read.</param>
+        /// <exception cref="ServiceResultException"></exception>
         public virtual void Update(ISystemContext context, XmlDecoder decoder)
         {
             decoder.PushNamespace(Namespaces.OpcUaXsd);
@@ -1411,12 +1432,16 @@ namespace Opc.Ua
 
             if (decoder.Peek("WriteMask"))
             {
-                WriteMask = (AttributeWriteMask)decoder.ReadEnumerated("WriteMask", typeof(AttributeWriteMask));
+                WriteMask = (AttributeWriteMask)decoder.ReadEnumerated(
+                    "WriteMask",
+                    typeof(AttributeWriteMask));
             }
 
             if (decoder.Peek("UserWriteMask"))
             {
-                UserWriteMask = (AttributeWriteMask)decoder.ReadEnumerated("UserWriteMask", typeof(AttributeWriteMask));
+                UserWriteMask = (AttributeWriteMask)decoder.ReadEnumerated(
+                    "UserWriteMask",
+                    typeof(AttributeWriteMask));
             }
 
             decoder.PopNamespace();
@@ -1439,7 +1464,9 @@ namespace Opc.Ua
             {
                 BaseInstanceState child = children[ii];
 
-                encoder.Push(child.SymbolicName, context.NamespaceUris.GetString(child.BrowseName.NamespaceIndex));
+                encoder.Push(
+                    child.SymbolicName,
+                    context.NamespaceUris.GetString(child.BrowseName.NamespaceIndex));
 
                 child.Save(context, encoder);
                 child.SaveReferences(context, encoder);
@@ -1591,6 +1618,7 @@ namespace Opc.Ua
         /// The child is created if it does not already exist.
         /// Recursively updates any children of the child.
         /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
         protected BaseInstanceState UpdateChild(ISystemContext context, XmlDecoder decoder)
         {
             // get the name of the child element.
@@ -1667,6 +1695,7 @@ namespace Opc.Ua
         /// <param name="context">The context for the system being accessed.</param>
         /// <param name="decoder">The decoder.</param>
         /// <returns>The new node.</returns>
+        /// <exception cref="ServiceResultException"></exception>
         public static NodeState LoadNode(ISystemContext context, XmlDecoder decoder)
         {
             // get the name of the child element.
@@ -1709,6 +1738,7 @@ namespace Opc.Ua
         /// <param name="symbolicName">Symbolic name of the node.</param>
         /// <param name="browseName">A name qualified with a namespace.</param>
         /// <returns>An instance of the <see cref="BaseInstanceState"/> type that is a base class for all instance nodes.</returns>
+        /// <exception cref="ServiceResultException"></exception>
         private static BaseInstanceState UpdateUnknownChild(
             ISystemContext context,
             BinaryDecoder decoder,
@@ -1754,13 +1784,17 @@ namespace Opc.Ua
 
             if ((attributesToLoad & AttributesToSave.WriteMask) != 0)
             {
-                writeMask = (AttributeWriteMask)decoder.ReadEnumerated(null, typeof(AttributeWriteMask));
+                writeMask = (AttributeWriteMask)decoder.ReadEnumerated(
+                    null,
+                    typeof(AttributeWriteMask));
                 attributesToLoad &= ~AttributesToSave.WriteMask;
             }
 
             if ((attributesToLoad & AttributesToSave.UserWriteMask) != 0)
             {
-                writeMask = (AttributeWriteMask)decoder.ReadEnumerated(null, typeof(AttributeWriteMask));
+                writeMask = (AttributeWriteMask)decoder.ReadEnumerated(
+                    null,
+                    typeof(AttributeWriteMask));
                 attributesToLoad &= ~AttributesToSave.UserWriteMask;
             }
 
@@ -1782,7 +1816,13 @@ namespace Opc.Ua
             // create the appropriate node.
 
             if (
-                factory.CreateInstance(context, parent, nodeClass, browseName, referenceTypeId, typeDefinitionId)
+                factory.CreateInstance(
+                    context,
+                    parent,
+                    nodeClass,
+                    browseName,
+                    referenceTypeId,
+                    typeDefinitionId)
                 is not BaseInstanceState child
             )
             {
@@ -1820,6 +1860,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an unknown node from a stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private static NodeState LoadUnknownNode(
             ISystemContext context,
             BinaryDecoder decoder,
@@ -1878,6 +1919,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an unknown node from a stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private static NodeState LoadUnknownNode(
             ISystemContext context,
             XmlDecoder decoder,
@@ -1898,7 +1940,13 @@ namespace Opc.Ua
                 case NodeClass.Variable:
                 case NodeClass.Object:
                 case NodeClass.Method:
-                    return UpdateUnknownChild(context, decoder, null, childName, nodeClass, browseName);
+                    return UpdateUnknownChild(
+                        context,
+                        decoder,
+                        null,
+                        childName,
+                        nodeClass,
+                        browseName);
             }
 
             // get the node factory.
@@ -1935,6 +1983,7 @@ namespace Opc.Ua
         /// <summary>
         /// Updates a child which is not defined by the type definition.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private static BaseInstanceState UpdateUnknownChild(
             ISystemContext context,
             XmlDecoder decoder,
@@ -1973,8 +2022,12 @@ namespace Opc.Ua
                 description = decoder.ReadLocalizedText("Description");
             }
 
-            var writeMask = (AttributeWriteMask)decoder.ReadEnumerated("WriteMask", typeof(AttributeWriteMask));
-            var userWriteMask = (AttributeWriteMask)decoder.ReadEnumerated("UserWriteMask", typeof(AttributeWriteMask));
+            var writeMask = (AttributeWriteMask)decoder.ReadEnumerated(
+                "WriteMask",
+                typeof(AttributeWriteMask));
+            var userWriteMask = (AttributeWriteMask)decoder.ReadEnumerated(
+                "UserWriteMask",
+                typeof(AttributeWriteMask));
             NodeId referenceTypeId = decoder.ReadNodeId("ReferenceTypeId");
             NodeId typeDefinitionId = decoder.ReadNodeId("TypeDefinitionId");
 
@@ -1986,7 +2039,13 @@ namespace Opc.Ua
             // create the appropriate node.
 
             if (
-                factory.CreateInstance(context, parent, nodeClass, browseName, referenceTypeId, typeDefinitionId)
+                factory.CreateInstance(
+                    context,
+                    parent,
+                    nodeClass,
+                    browseName,
+                    referenceTypeId,
+                    typeDefinitionId)
                 is not BaseInstanceState child
             )
             {
@@ -2172,7 +2231,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the root node if the node is part of an instance hierarchy.
         /// </summary>
-        /// <returns></returns>
         public NodeState GetHierarchyRoot()
         {
             // only instance nodes can be part of a hierarchy.
@@ -2221,7 +2279,10 @@ namespace Opc.Ua
         /// <param name="context">The system context.</param>
         /// <param name="areEventsMonitored">True if monitoring is active.</param>
         /// <param name="includeChildren">Whether to recursively set the flag on any children.</param>
-        public void SetAreEventsMonitored(ISystemContext context, bool areEventsMonitored, bool includeChildren)
+        public void SetAreEventsMonitored(
+            ISystemContext context,
+            bool areEventsMonitored,
+            bool includeChildren)
         {
             lock (m_areEventsMonitoredLock)
             {
@@ -2260,7 +2321,10 @@ namespace Opc.Ua
                     {
                         if (!notifiers[ii].IsInverse)
                         {
-                            notifiers[ii].Node.SetAreEventsMonitored(context, areEventsMonitored, includeChildren);
+                            notifiers[ii].Node.SetAreEventsMonitored(
+                                context,
+                                areEventsMonitored,
+                                includeChildren);
                         }
                     }
                 }
@@ -2356,7 +2420,10 @@ namespace Opc.Ua
         /// <param name="context">The system context.</param>
         /// <param name="target">The target of the notifier relationship.</param>
         /// <param name="bidirectional">Whether the inverse relationship should be removed from the target.</param>
-        public virtual void RemoveNotifier(ISystemContext context, NodeState target, bool bidirectional)
+        public virtual void RemoveNotifier(
+            ISystemContext context,
+            NodeState target,
+            bool bidirectional)
         {
             NodeState nodeState = null;
 
@@ -2424,7 +2491,8 @@ namespace Opc.Ua
                 {
                     foreach (Notifier notifier in m_notifiers)
                     {
-                        if (isInverse == notifier.IsInverse && notifier.ReferenceTypeId == notifierTypeId)
+                        if (isInverse == notifier.IsInverse &&
+                            notifier.ReferenceTypeId == notifierTypeId)
                         {
                             notifiers.Add(notifier);
                         }
@@ -2439,7 +2507,10 @@ namespace Opc.Ua
         /// <param name="context">The system context.</param>
         /// <param name="events">The list of condition events to return.</param>
         /// <param name="includeChildren">Whether to recursively report events for the children.</param>
-        public virtual void ConditionRefresh(ISystemContext context, List<IFilterTarget> events, bool includeChildren)
+        public virtual void ConditionRefresh(
+            ISystemContext context,
+            List<IFilterTarget> events,
+            bool includeChildren)
         {
             OnConditionRefresh?.Invoke(context, this, events);
 
@@ -2542,7 +2613,10 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         /// <param name="statusCode">The status code.</param>
         /// <param name="timestamp">The timestamp. Not updated if set to DateTime.Min</param>
-        public virtual void SetStatusCode(ISystemContext context, StatusCode statusCode, DateTime timestamp)
+        public virtual void SetStatusCode(
+            ISystemContext context,
+            StatusCode statusCode,
+            DateTime timestamp)
         {
             var children = new List<BaseInstanceState>();
             GetChildren(context, children);
@@ -2671,7 +2745,9 @@ namespace Opc.Ua
         /// <summary>
         /// Recusivesly calls OnBeforeCreate for the node and its children.
         /// </summary>
-        private void CallOnBeforeAssignNodeIds(ISystemContext context, List<BaseInstanceState> children)
+        private void CallOnBeforeAssignNodeIds(
+            ISystemContext context,
+            List<BaseInstanceState> children)
         {
             OnBeforeAssignNodeIds(context);
 
@@ -2746,7 +2822,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="mappingTable">A table mapping the old node ids to the new node ids.</param>
-        public virtual void AssignNodeIds(ISystemContext context, Dictionary<NodeId, NodeId> mappingTable)
+        public virtual void AssignNodeIds(
+            ISystemContext context,
+            Dictionary<NodeId, NodeId> mappingTable)
         {
             var children = new List<BaseInstanceState>();
             GetChildren(context, children);
@@ -2911,7 +2989,9 @@ namespace Opc.Ua
                 {
                     foreach (IReference reference in m_references.Keys)
                     {
-                        var targetId = ExpandedNodeId.ToNodeId(reference.TargetId, context.NamespaceUris);
+                        var targetId = ExpandedNodeId.ToNodeId(
+                            reference.TargetId,
+                            context.NamespaceUris);
 
                         if (targetId == null)
                         {
@@ -2919,14 +2999,14 @@ namespace Opc.Ua
                             continue;
                         }
 
-                        string targetPath;
-                        if (!hierarchy.TryGetValue(targetId, out targetPath))
+                        if (!hierarchy.TryGetValue(targetId, out string targetPath))
                         {
                             references.Add(new NodeStateHierarchyReference(browsePath, reference));
                             continue;
                         }
 
-                        references.Add(new NodeStateHierarchyReference(browsePath, targetPath, reference));
+                        references.Add(
+                            new NodeStateHierarchyReference(browsePath, targetPath, reference));
                     }
                 }
             }
@@ -2947,7 +3027,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="mappingTable">A table mapping the old node ids to the new node ids.</param>
-        public virtual void UpdateReferenceTargets(ISystemContext context, Dictionary<NodeId, NodeId> mappingTable)
+        public virtual void UpdateReferenceTargets(
+            ISystemContext context,
+            Dictionary<NodeId, NodeId> mappingTable)
         {
             var children = new List<BaseInstanceState>();
             GetChildren(context, children);
@@ -2974,7 +3056,9 @@ namespace Opc.Ua
                     foreach (IReference reference in m_references.Keys)
                     {
                         // check for absolute id.
-                        var oldId = ExpandedNodeId.ToNodeId(reference.TargetId, context.NamespaceUris);
+                        var oldId = ExpandedNodeId.ToNodeId(
+                            reference.TargetId,
+                            context.NamespaceUris);
 
                         if (oldId == null)
                         {
@@ -2986,7 +3070,10 @@ namespace Opc.Ua
                         {
                             referencesToRemove.Add(reference);
                             referencesToAdd.Add(
-                                new NodeStateReference(reference.ReferenceTypeId, reference.IsInverse, newId)
+                                new NodeStateReference(
+                                    reference.ReferenceTypeId,
+                                    reference.IsInverse,
+                                    newId)
                             );
                         }
                     }
@@ -3026,7 +3113,8 @@ namespace Opc.Ua
             // get the reference type being browsed.
             NodeId referenceTypeId = browser.ReferenceType;
 
-            if (NodeId.IsNull(referenceTypeId) || browser.ReferenceType == ReferenceTypeIds.References)
+            if (NodeId.IsNull(referenceTypeId) ||
+                browser.ReferenceType == ReferenceTypeIds.References)
             {
                 referenceTypeId = null;
             }
@@ -3037,10 +3125,11 @@ namespace Opc.Ua
 
             // check if any hierarchial reference is being requested.
             if (
-                !childrenRequired
-                && context.TypeTable != null
-                && context.TypeTable.IsTypeOf(browser.ReferenceType, ReferenceTypeIds.HierarchicalReferences)
-                && browser.BrowseDirection != BrowseDirection.Inverse
+                !childrenRequired &&
+                context.TypeTable != null &&
+                context.TypeTable
+                    .IsTypeOf(browser.ReferenceType, ReferenceTypeIds.HierarchicalReferences) &&
+                browser.BrowseDirection != BrowseDirection.Inverse
             )
             {
                 childrenRequired = true;
@@ -3126,7 +3215,10 @@ namespace Opc.Ua
                         {
                             if (browserIncludeSubtypes)
                             {
-                                references = m_references.Find(browserReferenceType, false, context.TypeTable);
+                                references = m_references.Find(
+                                    browserReferenceType,
+                                    false,
+                                    context.TypeTable);
                             }
                             else
                             {
@@ -3143,7 +3235,10 @@ namespace Opc.Ua
                         {
                             if (browserIncludeSubtypes)
                             {
-                                references = m_references.Find(browserReferenceType, true, context.TypeTable);
+                                references = m_references.Find(
+                                    browserReferenceType,
+                                    true,
+                                    context.TypeTable);
                             }
                             else
                             {
@@ -3210,7 +3305,9 @@ namespace Opc.Ua
         /// A list of values.
         /// If any error occurs for an attribute the value will be null.
         /// </returns>
-        public virtual List<object> ReadAttributes(ISystemContext context, params uint[] attributeIds)
+        public virtual List<object> ReadAttributes(
+            ISystemContext context,
+            params uint[] attributeIds)
         {
             var values = new List<object>();
 
@@ -3220,7 +3317,12 @@ namespace Opc.Ua
                 {
                     var value = new DataValue();
 
-                    ServiceResult result = ReadAttribute(context, attributeIds[ii], NumericRange.Empty, null, value);
+                    ServiceResult result = ReadAttribute(
+                        context,
+                        attributeIds[ii],
+                        NumericRange.Empty,
+                        null,
+                        value);
 
                     if (ServiceResult.IsBad(result))
                     {
@@ -3360,7 +3462,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.NodeClass:
                     NodeClass nodeClass = NodeClass;
 
@@ -3377,7 +3478,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.BrowseName:
                     QualifiedName browseName = m_browseName;
 
@@ -3394,7 +3494,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.DisplayName:
                     LocalizedText displayName = m_displayName;
 
@@ -3416,7 +3515,6 @@ namespace Opc.Ua
                     }
 
                     break;
-
                 case Attributes.Description:
                     LocalizedText description = m_description;
 
@@ -3438,7 +3536,6 @@ namespace Opc.Ua
                     }
 
                     break;
-
                 case Attributes.WriteMask:
                     AttributeWriteMask writeMask = m_writeMask;
 
@@ -3455,11 +3552,11 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.UserWriteMask:
                     AttributeWriteMask userWriteMask = m_userWriteMask;
 
-                    NodeAttributeEventHandler<AttributeWriteMask> onReadUserWriteMask = OnReadUserWriteMask;
+                    NodeAttributeEventHandler<AttributeWriteMask> onReadUserWriteMask
+                        = OnReadUserWriteMask;
 
                     if (onReadUserWriteMask != null)
                     {
@@ -3472,7 +3569,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.RolePermissions:
                     RolePermissionTypeCollection rolePermissions = m_rolePermissions;
 
@@ -3495,7 +3591,6 @@ namespace Opc.Ua
                     }
 
                     break;
-
                 case Attributes.UserRolePermissions:
                     RolePermissionTypeCollection userRolePermissions = m_userRolePermissions;
 
@@ -3518,7 +3613,6 @@ namespace Opc.Ua
                     }
 
                     break;
-
                 case Attributes.AccessRestrictions:
                     AccessRestrictionType? accessRestrictions = m_accessRestrictions;
 
@@ -3624,9 +3718,9 @@ namespace Opc.Ua
 
             // writes to status code or timestamps never supported.
             if (
-                value.StatusCode != StatusCodes.Good
-                || value.ServerTimestamp != DateTime.MinValue
-                || value.SourceTimestamp != DateTime.MinValue
+                value.StatusCode != StatusCodes.Good ||
+                value.ServerTimestamp != DateTime.MinValue ||
+                value.SourceTimestamp != DateTime.MinValue
             )
             {
                 return StatusCodes.BadWriteNotSupported;
@@ -3659,7 +3753,10 @@ namespace Opc.Ua
         /// An instance of the <see cref="ServiceResult"/> containing the status code and diagnostic info for the operation.
         /// ServiceResult.Good if successful. Detailed error information otherwise.
         /// </returns>
-        protected virtual ServiceResult WriteNonValueAttribute(ISystemContext context, uint attributeId, object value)
+        protected virtual ServiceResult WriteNonValueAttribute(
+            ISystemContext context,
+            uint attributeId,
+            object value)
         {
             ServiceResult result = null;
 
@@ -3689,7 +3786,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.NodeClass:
                     int? nodeClassRef = value as int?;
 
@@ -3718,7 +3814,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.BrowseName:
                     if (value is not QualifiedName browseName)
                     {
@@ -3743,7 +3838,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.DisplayName:
                     if (value is not LocalizedText displayName)
                     {
@@ -3755,7 +3849,8 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<LocalizedText> onWriteDisplayName = OnWriteDisplayName;
+                    NodeAttributeEventHandler<LocalizedText> onWriteDisplayName
+                        = OnWriteDisplayName;
 
                     if (onWriteDisplayName != null)
                     {
@@ -3768,7 +3863,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.Description:
                     var description = value as LocalizedText;
 
@@ -3782,7 +3876,8 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<LocalizedText> onWriteDescription = OnWriteDescription;
+                    NodeAttributeEventHandler<LocalizedText> onWriteDescription
+                        = OnWriteDescription;
 
                     if (onWriteDescription != null)
                     {
@@ -3795,7 +3890,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.WriteMask:
                     uint? writeMaskRef = value as uint?;
 
@@ -3811,7 +3905,8 @@ namespace Opc.Ua
 
                     var writeMask = (AttributeWriteMask)writeMaskRef.Value;
 
-                    NodeAttributeEventHandler<AttributeWriteMask> onWriteWriteMask = OnWriteWriteMask;
+                    NodeAttributeEventHandler<AttributeWriteMask> onWriteWriteMask
+                        = OnWriteWriteMask;
 
                     if (onWriteWriteMask != null)
                     {
@@ -3824,7 +3919,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.UserWriteMask:
                     uint? userWriteMaskRef = value as uint?;
 
@@ -3840,7 +3934,8 @@ namespace Opc.Ua
 
                     var userWriteMask = (AttributeWriteMask)userWriteMaskRef.Value;
 
-                    NodeAttributeEventHandler<AttributeWriteMask> onWriteUserWriteMask = OnWriteUserWriteMask;
+                    NodeAttributeEventHandler<AttributeWriteMask> onWriteUserWriteMask
+                        = OnWriteUserWriteMask;
 
                     if (onWriteUserWriteMask != null)
                     {
@@ -3853,7 +3948,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.RolePermissions:
                     if (value is not ExtensionObject[] rolePermissionsArray)
                     {
@@ -3868,10 +3962,8 @@ namespace Opc.Ua
                         {
                             return StatusCodes.BadTypeMismatch;
                         }
-                        else
-                        {
-                            rolePermissions.Add(rolePermission);
-                        }
+
+                        rolePermissions.Add(rolePermission);
                     }
 
                     if ((WriteMask & AttributeWriteMask.RolePermissions) == 0)
@@ -3893,7 +3985,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.AccessRestrictions:
                     ushort? accessRestrictionsRef = value as ushort?;
 
@@ -3901,7 +3992,9 @@ namespace Opc.Ua
                     {
                         if (value.GetType() == typeof(uint))
                         {
-                            accessRestrictionsRef = Convert.ToUInt16(value, CultureInfo.InvariantCulture);
+                            accessRestrictionsRef = Convert.ToUInt16(
+                                value,
+                                CultureInfo.InvariantCulture);
                         }
                         else
                         {
@@ -3968,7 +4061,9 @@ namespace Opc.Ua
         /// This method assumes the symbolicPath consists of symbolic names separated by a slash ('/').
         /// Leading and trailing slashes are ignored.
         /// </remarks>
-        public virtual BaseInstanceState FindChildBySymbolicName(ISystemContext context, string symbolicPath)
+        public virtual BaseInstanceState FindChildBySymbolicName(
+            ISystemContext context,
+            string symbolicPath)
         {
             // check for null.
             if (string.IsNullOrEmpty(symbolicPath))
@@ -4057,7 +4152,11 @@ namespace Opc.Ua
         /// <param name="browsePath">The browse path.</param>
         /// <param name="index">The current position in the browse path.</param>
         /// <returns>The target if found. Null otherwise.</returns>
-        public virtual BaseInstanceState FindChild(ISystemContext context, IList<QualifiedName> browsePath, int index)
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public virtual BaseInstanceState FindChild(
+            ISystemContext context,
+            IList<QualifiedName> browsePath,
+            int index)
         {
             if (index is < 0 or >= int.MaxValue)
             {
@@ -4085,7 +4184,9 @@ namespace Opc.Ua
         /// <param name="context">The context to use.</param>
         /// <param name="browseName">The browse name.</param>
         /// <returns>The child if available. Null otherwise.</returns>
-        public virtual BaseInstanceState CreateChild(ISystemContext context, QualifiedName browseName)
+        public virtual BaseInstanceState CreateChild(
+            ISystemContext context,
+            QualifiedName browseName)
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -4100,6 +4201,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context to use.</param>
         /// <param name="child">The child to add or replace.</param>
+        /// <exception cref="ArgumentException"></exception>
         public virtual void ReplaceChild(ISystemContext context, BaseInstanceState child)
         {
             if (child == null || QualifiedName.IsNull(child.BrowseName))
@@ -4136,6 +4238,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a property and adds it to the node.
         /// </summary>
+        /// <typeparam name="T"></typeparam>
         public PropertyState AddProperty<T>(string propertyName, NodeId dataTypeId, int valueRank)
         {
             PropertyState property = new PropertyState<T>(this)
@@ -4157,7 +4260,7 @@ namespace Opc.Ua
                 AccessLevel = AccessLevels.CurrentRead,
                 UserAccessLevel = AccessLevels.CurrentRead,
                 MinimumSamplingInterval = MinimumSamplingIntervals.Indeterminate,
-                Historizing = false,
+                Historizing = false
             };
 
             AddChild(property);
@@ -4193,7 +4296,11 @@ namespace Opc.Ua
         /// </summary>
         /// <returns>False if the child does not exist or is not a variable.</returns>
         /// <remarks>Creates the child if does not already exist.</remarks>
-        public bool SetChildValue(ISystemContext context, QualifiedName browseName, BaseInstanceState source, bool copy)
+        public bool SetChildValue(
+            ISystemContext context,
+            QualifiedName browseName,
+            BaseInstanceState source,
+            bool copy)
         {
             if (source == null)
             {
@@ -4233,7 +4340,11 @@ namespace Opc.Ua
         /// </summary>
         /// <returns>False if the child does not exist or is not a variable.</returns>
         /// <remarks>Creates the child if does not already exist.</remarks>
-        public bool SetChildValue(ISystemContext context, QualifiedName browseName, object value, bool copy)
+        public bool SetChildValue(
+            ISystemContext context,
+            QualifiedName browseName,
+            object value,
+            bool copy)
         {
             if (CreateChild(context, browseName) is not BaseVariableState child)
             {
@@ -4287,7 +4398,12 @@ namespace Opc.Ua
             }
 
             // recursively search child nodes.
-            ServiceResult result = child.ReadChildAttribute(context, relativePath, index + 1, attributeId, dataValue);
+            ServiceResult result = child.ReadChildAttribute(
+                context,
+                relativePath,
+                index + 1,
+                attributeId,
+                dataValue);
 
             if (ServiceResult.IsBad(result))
             {
@@ -4343,7 +4459,12 @@ namespace Opc.Ua
                         continue;
                     }
 
-                    return children[ii].WriteChildAttribute(context, componentPath, index + 1, attributeId, value);
+                    return children[ii].WriteChildAttribute(
+                        context,
+                        componentPath,
+                        index + 1,
+                        attributeId,
+                        value);
                 }
             }
 
@@ -4366,7 +4487,8 @@ namespace Opc.Ua
                     return false;
                 }
 
-                return m_references.ContainsKey(new NodeStateReference(referenceTypeId, isInverse, targetId));
+                return m_references.ContainsKey(
+                    new NodeStateReference(referenceTypeId, isInverse, targetId));
             }
         }
 
@@ -4376,6 +4498,7 @@ namespace Opc.Ua
         /// <param name="referenceTypeId">Type of the reference.</param>
         /// <param name="isInverse">If set to <c>true</c> the reference is an inverse reference.</param>
         /// <param name="targetId">The target of the reference.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public void AddReference(NodeId referenceTypeId, bool isInverse, ExpandedNodeId targetId)
         {
             if (NodeId.IsNull(referenceTypeId))
@@ -4390,7 +4513,9 @@ namespace Opc.Ua
 
             lock (m_referencesLock)
             {
-                (m_references ??= []).Add(new NodeStateReference(referenceTypeId, isInverse, targetId), null);
+                (m_references ??= []).Add(
+                    new NodeStateReference(referenceTypeId, isInverse, targetId),
+                    null);
             }
 
             m_changeMasks |= NodeStateChangeMasks.References;
@@ -4404,6 +4529,7 @@ namespace Opc.Ua
         /// <param name="referenceTypeId">Type of the reference.</param>
         /// <param name="isInverse">If set to <c>true</c> the reference is an inverse reference.</param>
         /// <param name="targetId">The target of the reference.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public bool RemoveReference(NodeId referenceTypeId, bool isInverse, ExpandedNodeId targetId)
         {
             if (NodeId.IsNull(referenceTypeId))
@@ -4419,8 +4545,9 @@ namespace Opc.Ua
             lock (m_referencesLock)
             {
                 if (
-                    m_references != null
-                    && m_references.Remove(new NodeStateReference(referenceTypeId, isInverse, targetId))
+                    m_references != null &&
+                    m_references.Remove(
+                        new NodeStateReference(referenceTypeId, isInverse, targetId))
                 )
                 {
                     m_changeMasks |= NodeStateChangeMasks.References;
@@ -4436,6 +4563,7 @@ namespace Opc.Ua
         /// Adds a list of references (ignores duplicates).
         /// </summary>
         /// <param name="references">The list of references to add.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="references"/> is <c>null</c>.</exception>
         public void AddReferences(IList<IReference> references)
         {
             if (references == null)
@@ -4477,6 +4605,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="referenceTypeId">Type of the reference.</param>
         /// <param name="isInverse">If set to <c>true</c> the reference is an inverse reference.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public bool RemoveReferences(NodeId referenceTypeId, bool isInverse)
         {
             if (NodeId.IsNull(referenceTypeId))
@@ -4497,7 +4626,8 @@ namespace Opc.Ua
                 [
                     .. m_references
                         .Select(r => r.Key)
-                        .Where(r => r.ReferenceTypeId == referenceTypeId && r.IsInverse == isInverse),
+                        .Where(
+                            r => r.ReferenceTypeId == referenceTypeId && r.IsInverse == isInverse)
                 ];
             }
 
@@ -4574,7 +4704,8 @@ namespace Opc.Ua
                 {
                     foreach (IReference reference in m_references.Keys)
                     {
-                        if (isInverse == reference.IsInverse && reference.ReferenceTypeId == referenceTypeId)
+                        if (isInverse == reference.IsInverse &&
+                            reference.ReferenceTypeId == referenceTypeId)
                         {
                             references.Add(reference);
                         }
@@ -4715,7 +4846,7 @@ namespace Opc.Ua
         /// <summary>
         /// The node has been deleted.
         /// </summary>
-        Deleted = 0x10,
+        Deleted = 0x10
     }
 
     /// <summary>
@@ -4726,7 +4857,10 @@ namespace Opc.Ua
     /// <summary>
     /// Used to receive notifications when a non-value attribute is read or written.
     /// </summary>
-    public delegate void NodeStateChangedHandler(ISystemContext context, NodeState node, NodeStateChangeMasks changes);
+    public delegate void NodeStateChangedHandler(
+        ISystemContext context,
+        NodeState node,
+        NodeStateChangeMasks changes);
 
     /// <summary>
     /// Used to receive notifications when a reference get added to the node
@@ -4751,7 +4885,10 @@ namespace Opc.Ua
     /// <summary>
     /// Used to receive notifications when a node produces an event.
     /// </summary>
-    public delegate void NodeStateReportEventHandler(ISystemContext context, NodeState node, IFilterTarget e);
+    public delegate void NodeStateReportEventHandler(
+        ISystemContext context,
+        NodeState node,
+        IFilterTarget e);
 
     /// <summary>
     /// Used to receive notifications when a node needs to refresh its conditions.
@@ -4789,12 +4926,19 @@ namespace Opc.Ua
     /// <summary>
     /// Used to receive notifications when a non-value attribute is read or written.
     /// </summary>
-    public delegate ServiceResult NodeAttributeEventHandler<T>(ISystemContext context, NodeState node, ref T value);
+    /// <typeparam name="T"></typeparam>
+    public delegate ServiceResult NodeAttributeEventHandler<T>(
+        ISystemContext context,
+        NodeState node,
+        ref T value);
 
     /// <summary>
     /// Used to receive notifications when the value attribute is read or written.
     /// </summary>
-    public delegate ServiceResult NodeValueSimpleEventHandler(ISystemContext context, NodeState node, ref object value);
+    public delegate ServiceResult NodeValueSimpleEventHandler(
+        ISystemContext context,
+        NodeState node,
+        ref object value);
 
     /// <summary>
     /// Used to receive notifications when the value attribute is read or written.
@@ -4834,7 +4978,10 @@ namespace Opc.Ua
         /// <param name="sourcePath">The path to the source node.</param>
         /// <param name="targetPath">The path to the target node.</param>
         /// <param name="reference">The reference.</param>
-        public NodeStateHierarchyReference(string sourcePath, string targetPath, IReference reference)
+        public NodeStateHierarchyReference(
+            string sourcePath,
+            string targetPath,
+            IReference reference)
         {
             SourcePath = sourcePath;
             ReferenceTypeId = reference.ReferenceTypeId;

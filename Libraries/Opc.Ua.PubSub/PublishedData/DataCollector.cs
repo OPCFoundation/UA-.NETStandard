@@ -55,6 +55,7 @@ namespace Opc.Ua.PubSub.PublishedData
         /// </summary>
         /// <param name="publishedDataSet">The <see cref="PublishedDataSetDataType"/> that is to be validated.</param>
         /// <returns>true if configuration is correct.</returns>
+        /// <exception cref="ArgumentException"><paramref name="publishedDataSet"/></exception>
         public bool ValidatePublishedDataSet(PublishedDataSetDataType publishedDataSet)
         {
             if (publishedDataSet == null)
@@ -68,9 +69,10 @@ namespace Opc.Ua.PubSub.PublishedData
             }
             if (
                 ExtensionObject.ToEncodeable(publishedDataSet.DataSetSource)
-                    is PublishedDataItemsDataType publishedDataItems
-                && publishedDataItems.PublishedData != null
-                && publishedDataItems.PublishedData.Count != publishedDataSet.DataSetMetaData.Fields.Count
+                    is PublishedDataItemsDataType publishedDataItems &&
+                publishedDataItems.PublishedData != null &&
+                publishedDataItems.PublishedData.Count != publishedDataSet.DataSetMetaData.Fields
+                    .Count
             )
             {
                 Utils.Trace(
@@ -86,7 +88,7 @@ namespace Opc.Ua.PubSub.PublishedData
         /// <summary>
         /// Register a publishedDataSet
         /// </summary>
-        /// <param name="publishedDataSet"></param>
+        /// <exception cref="ArgumentException"><paramref name="publishedDataSet"/></exception>
         public void AddPublishedDataSet(PublishedDataSetDataType publishedDataSet)
         {
             if (publishedDataSet == null)
@@ -111,7 +113,7 @@ namespace Opc.Ua.PubSub.PublishedData
         /// <summary>
         /// Remove a registered a publishedDataSet
         /// </summary>
-        /// <param name="publishedDataSet"></param>
+        /// <exception cref="ArgumentException"><paramref name="publishedDataSet"/></exception>
         public void RemovePublishedDataSet(PublishedDataSetDataType publishedDataSet)
         {
             if (publishedDataSet == null)
@@ -124,8 +126,6 @@ namespace Opc.Ua.PubSub.PublishedData
         /// <summary>
         ///  Create and return a DataSet object created from its dataSetName
         /// </summary>
-        /// <param name="dataSetName"></param>
-        /// <returns></returns>
         public DataSet CollectData(string dataSetName)
         {
             PublishedDataSetDataType publishedDataSet = GetPublishedDataSet(dataSetName);
@@ -136,13 +136,16 @@ namespace Opc.Ua.PubSub.PublishedData
 
                 if (publishedDataSet.DataSetSource != null)
                 {
-                    var dataSet = new DataSet(dataSetName) { DataSetMetaData = publishedDataSet.DataSetMetaData };
+                    var dataSet = new DataSet(dataSetName)
+                    {
+                        DataSetMetaData = publishedDataSet.DataSetMetaData
+                    };
 
                     if (
                         ExtensionObject.ToEncodeable(publishedDataSet.DataSetSource)
-                            is PublishedDataItemsDataType publishedDataItems
-                        && publishedDataItems.PublishedData != null
-                        && publishedDataItems.PublishedData.Count > 0
+                            is PublishedDataItemsDataType publishedDataItems &&
+                        publishedDataItems.PublishedData != null &&
+                        publishedDataItems.PublishedData.Count > 0
                     )
                     {
                         dataSet.Fields = new Field[publishedDataItems.PublishedData.Count];
@@ -150,11 +153,12 @@ namespace Opc.Ua.PubSub.PublishedData
                         {
                             try
                             {
-                                PublishedVariableDataType publishedVariable = publishedDataItems.PublishedData[i];
+                                PublishedVariableDataType publishedVariable = publishedDataItems
+                                    .PublishedData[i];
                                 dataSet.Fields[i] = new Field
                                 {
                                     // set FieldMetaData property
-                                    FieldMetaData = publishedDataSet.DataSetMetaData.Fields[i],
+                                    FieldMetaData = publishedDataSet.DataSetMetaData.Fields[i]
                                 };
 
                                 // retrieve value from DataStore
@@ -174,12 +178,15 @@ namespace Opc.Ua.PubSub.PublishedData
                                     /*If an entry of the PublishedData references one of the ExtensionFields, the substituteValue shall contain the
                                     * QualifiedName of the ExtensionFields entry.
                                     * All other fields of this PublishedVariableDataType array element shall be null*/
-                                    var extensionFieldName = publishedVariable.SubstituteValue.Value as QualifiedName;
+                                    var extensionFieldName = publishedVariable.SubstituteValue
+                                        .Value as QualifiedName;
                                     if (extensionFieldName != null)
                                     {
-                                        KeyValuePair extensionField = publishedDataSet.ExtensionFields.Find(x =>
-                                            x.Key == extensionFieldName
-                                        );
+                                        KeyValuePair extensionField = publishedDataSet
+                                            .ExtensionFields
+                                            .Find(x =>
+                                                x.Key == extensionFieldName
+                                                );
                                         if (extensionField != null)
                                         {
                                             dataValue = new DataValue(extensionField.Value);
@@ -193,8 +200,8 @@ namespace Opc.Ua.PubSub.PublishedData
 
                                     //check StatusCode and return SubstituteValue if possible
                                     if (
-                                        dataValue.StatusCode == StatusCodes.Bad
-                                        && publishedVariable.SubstituteValue != Variant.Null
+                                        dataValue.StatusCode == StatusCodes.Bad &&
+                                        publishedVariable.SubstituteValue != Variant.Null
                                     )
                                     {
                                         dataValue.Value = publishedVariable.SubstituteValue.Value;
@@ -209,8 +216,8 @@ namespace Opc.Ua.PubSub.PublishedData
 
                                 bool ShouldBringToConstraints(uint givenStrlen)
                                 {
-                                    return field.FieldMetaData.MaxStringLength > 0
-                                        && givenStrlen > field.FieldMetaData.MaxStringLength;
+                                    return field.FieldMetaData.MaxStringLength > 0 &&
+                                        givenStrlen > field.FieldMetaData.MaxStringLength;
                                 }
 
                                 switch ((BuiltInType)field.FieldMetaData.BuiltInType)
@@ -219,8 +226,8 @@ namespace Opc.Ua.PubSub.PublishedData
                                         if (field.FieldMetaData.ValueRank == ValueRanks.Scalar)
                                         {
                                             if (
-                                                variant.Value is string strFieldValue
-                                                && ShouldBringToConstraints((uint)strFieldValue.Length)
+                                                variant.Value is string strFieldValue &&
+                                                ShouldBringToConstraints((uint)strFieldValue.Length)
                                             )
                                             {
                                                 variant.Value = strFieldValue[
@@ -229,17 +236,20 @@ namespace Opc.Ua.PubSub.PublishedData
                                                 dataValue.Value = variant;
                                             }
                                         }
-                                        else if (field.FieldMetaData.ValueRank == ValueRanks.OneDimension)
+                                        else if (field.FieldMetaData.ValueRank == ValueRanks
+                                            .OneDimension)
                                         {
                                             string[] valueArray = variant.Value as string[];
                                             if (valueArray != null)
                                             {
                                                 for (int idx = 0; idx < valueArray.Length; idx++)
                                                 {
-                                                    if (ShouldBringToConstraints((uint)valueArray[idx].Length))
+                                                    if (ShouldBringToConstraints(
+                                                        (uint)valueArray[idx].Length))
                                                     {
                                                         valueArray[idx] = valueArray[idx][
-                                                            ..(int)field.FieldMetaData.MaxStringLength
+                                                            ..(int)field.FieldMetaData
+                                                                .MaxStringLength
                                                         ];
                                                     }
                                                 }
@@ -251,26 +261,33 @@ namespace Opc.Ua.PubSub.PublishedData
                                         if (field.FieldMetaData.ValueRank == ValueRanks.Scalar)
                                         {
                                             if (
-                                                variant.Value is byte[] byteStringFieldValue
-                                                && ShouldBringToConstraints((uint)byteStringFieldValue.Length)
+                                                variant.Value is byte[] byteStringFieldValue &&
+                                                ShouldBringToConstraints(
+                                                    (uint)byteStringFieldValue.Length)
                                             )
                                             {
-                                                byte[] byteArray = (byte[])byteStringFieldValue.Clone();
-                                                Array.Resize(ref byteArray, (int)field.FieldMetaData.MaxStringLength);
+                                                byte[] byteArray = (byte[])byteStringFieldValue
+                                                    .Clone();
+                                                Array.Resize(
+                                                    ref byteArray,
+                                                    (int)field.FieldMetaData.MaxStringLength);
                                                 variant.Value = byteArray;
                                                 dataValue.Value = variant;
                                             }
                                         }
-                                        else if (field.FieldMetaData.ValueRank == ValueRanks.OneDimension)
+                                        else if (field.FieldMetaData.ValueRank == ValueRanks
+                                            .OneDimension)
                                         {
                                             byte[][] valueArray = variant.Value as byte[][];
                                             if (valueArray != null)
                                             {
                                                 for (int idx = 0; idx < valueArray.Length; idx++)
                                                 {
-                                                    if (ShouldBringToConstraints((uint)valueArray[idx].Length))
+                                                    if (ShouldBringToConstraints(
+                                                        (uint)valueArray[idx].Length))
                                                     {
-                                                        byte[] byteArray = (byte[])valueArray[idx].Clone();
+                                                        byte[] byteArray = (byte[])valueArray[idx]
+                                                            .Clone();
                                                         Array.Resize(
                                                             ref byteArray,
                                                             (int)field.FieldMetaData.MaxStringLength
@@ -282,15 +299,14 @@ namespace Opc.Ua.PubSub.PublishedData
                                             dataValue.Value = valueArray;
                                         }
                                         break;
-                                    default:
-                                        break;
                                 }
 
                                 dataSet.Fields[i].Value = dataValue;
                             }
                             catch (Exception ex)
                             {
-                                dataSet.Fields[i].Value = new DataValue(StatusCodes.Bad, DateTime.UtcNow);
+                                dataSet.Fields[i].Value
+                                    = new DataValue(StatusCodes.Bad, DateTime.UtcNow);
                                 Utils.Trace(
                                     Utils.TraceMasks.Information,
                                     "DataCollector.CollectData for dataset {0} field {1} resulted in ex {2}",
@@ -310,8 +326,7 @@ namespace Opc.Ua.PubSub.PublishedData
         /// <summary>
         /// Get The <see cref="PublishedDataSetDataType"/> for a DataSetName
         /// </summary>
-        /// <param name="dataSetName"></param>
-        /// <returns></returns>
+        /// <exception cref="ArgumentException"><paramref name="dataSetName"/></exception>
         public PublishedDataSetDataType GetPublishedDataSet(string dataSetName)
         {
             if (dataSetName == null)
@@ -319,7 +334,9 @@ namespace Opc.Ua.PubSub.PublishedData
                 throw new ArgumentException(null, nameof(dataSetName));
             }
 
-            if (m_publishedDataSetsByName.TryGetValue(dataSetName, out PublishedDataSetDataType value))
+            if (m_publishedDataSetsByName.TryGetValue(
+                dataSetName,
+                out PublishedDataSetDataType value))
             {
                 return value;
             }

@@ -43,6 +43,7 @@ namespace Opc.Ua.PubSub
         /// <param name="uaPubSubApplication">The parent <see cref="UaPubSubApplication"/></param>
         /// <param name="pubSubConnectionDataType">The configuration object for the new <see cref="UaPubSubConnection"/></param>
         /// <returns>The new instance of <see cref="UaPubSubConnection"/>.</returns>
+        /// <exception cref="ArgumentException"></exception>
         public static UaPubSubConnection CreateConnection(
             UaPubSubApplication uaPubSubApplication,
             PubSubConnectionDataType pubSubConnectionDataType
@@ -52,15 +53,25 @@ namespace Opc.Ua.PubSub
             {
                 return new UdpPubSubConnection(uaPubSubApplication, pubSubConnectionDataType);
             }
-            else if (pubSubConnectionDataType.TransportProfileUri == Profiles.PubSubMqttUadpTransport)
+            else if (pubSubConnectionDataType.TransportProfileUri == Profiles
+                .PubSubMqttUadpTransport)
             {
-                return new MqttPubSubConnection(uaPubSubApplication, pubSubConnectionDataType, MessageMapping.Uadp);
+                return new MqttPubSubConnection(
+                    uaPubSubApplication,
+                    pubSubConnectionDataType,
+                    MessageMapping.Uadp);
             }
-            else if (pubSubConnectionDataType.TransportProfileUri == Profiles.PubSubMqttJsonTransport)
+            else if (pubSubConnectionDataType.TransportProfileUri == Profiles
+                .PubSubMqttJsonTransport)
             {
-                return new MqttPubSubConnection(uaPubSubApplication, pubSubConnectionDataType, MessageMapping.Json);
+                return new MqttPubSubConnection(
+                    uaPubSubApplication,
+                    pubSubConnectionDataType,
+                    MessageMapping.Json);
             }
-            throw new ArgumentException("Invalid TransportProfileUri.", nameof(pubSubConnectionDataType));
+            throw new ArgumentException(
+                "Invalid TransportProfileUri.",
+                nameof(pubSubConnectionDataType));
         }
     }
 }

@@ -38,7 +38,7 @@ namespace Opc.Ua
             new(Objects.ExclusiveLimitStateMachineType_HighHigh, BrowseNames.HighHigh, 1),
             new(Objects.ExclusiveLimitStateMachineType_High, BrowseNames.High, 2),
             new(Objects.ExclusiveLimitStateMachineType_Low, BrowseNames.Low, 3),
-            new(Objects.ExclusiveLimitStateMachineType_LowLow, BrowseNames.LowLow, 4),
+            new(Objects.ExclusiveLimitStateMachineType_LowLow, BrowseNames.LowLow, 4)
         ];
 
         /// <summary>
@@ -51,10 +51,16 @@ namespace Opc.Ua
         /// </summary>
         private static readonly ElementInfo[] s_transitionTable =
         [
-            new(Objects.ExclusiveLimitStateMachineType_HighHighToHigh, BrowseNames.HighHighToHigh, 1),
-            new(Objects.ExclusiveLimitStateMachineType_HighToHighHigh, BrowseNames.HighToHighHigh, 2),
+            new(
+                Objects.ExclusiveLimitStateMachineType_HighHighToHigh,
+                BrowseNames.HighHighToHigh,
+                1),
+            new(
+                Objects.ExclusiveLimitStateMachineType_HighToHighHigh,
+                BrowseNames.HighToHighHigh,
+                2),
             new(Objects.ExclusiveLimitStateMachineType_LowLowToLow, BrowseNames.LowLowToLow, 3),
-            new(Objects.ExclusiveLimitStateMachineType_LowToLowLow, BrowseNames.LowToLowLow, 4),
+            new(Objects.ExclusiveLimitStateMachineType_LowToLowLow, BrowseNames.LowToLowLow, 4)
         ];
 
         /// <summary>
@@ -71,26 +77,26 @@ namespace Opc.Ua
                 Objects.ExclusiveLimitStateMachineType_HighHighToHigh,
                 Objects.ExclusiveLimitStateMachineType_HighHigh,
                 Objects.ExclusiveLimitStateMachineType_High,
-                0,
+                0
             },
             {
                 Objects.ExclusiveLimitStateMachineType_HighToHighHigh,
                 Objects.ExclusiveLimitStateMachineType_High,
                 Objects.ExclusiveLimitStateMachineType_HighHigh,
-                0,
+                0
             },
             {
                 Objects.ExclusiveLimitStateMachineType_LowLowToLow,
                 Objects.ExclusiveLimitStateMachineType_LowLow,
                 Objects.ExclusiveLimitStateMachineType_Low,
-                0,
+                0
             },
             {
                 Objects.ExclusiveLimitStateMachineType_LowToLowLow,
                 Objects.ExclusiveLimitStateMachineType_Low,
                 Objects.ExclusiveLimitStateMachineType_LowLow,
-                0,
-            },
+                0
+            }
         };
     }
 }

@@ -69,7 +69,7 @@ namespace Boiler
 
                 if (Math.Abs(m_controlOut.Value) > 1.0)
                 {
-                    m_controlOut.Value = (m_controlOut.Value < 0) ? -1.0 : +1.0;
+                    m_controlOut.Value = m_controlOut.Value < 0 ? -1.0 : +1.0;
                 }
             }
 

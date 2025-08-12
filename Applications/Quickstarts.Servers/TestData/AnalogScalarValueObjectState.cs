@@ -40,19 +40,55 @@ namespace TestData
         {
             base.OnAfterCreate(context, node);
 
-            InitializeVariable(context, SByteValue, Variables.AnalogScalarValueObjectType_SByteValue);
+            InitializeVariable(
+                context,
+                SByteValue,
+                Variables.AnalogScalarValueObjectType_SByteValue);
             InitializeVariable(context, ByteValue, Variables.AnalogScalarValueObjectType_ByteValue);
-            InitializeVariable(context, Int16Value, Variables.AnalogScalarValueObjectType_Int16Value);
-            InitializeVariable(context, UInt16Value, Variables.AnalogScalarValueObjectType_UInt16Value);
-            InitializeVariable(context, Int32Value, Variables.AnalogScalarValueObjectType_Int32Value);
-            InitializeVariable(context, UInt32Value, Variables.AnalogScalarValueObjectType_UInt32Value);
-            InitializeVariable(context, Int64Value, Variables.AnalogScalarValueObjectType_Int64Value);
-            InitializeVariable(context, UInt64Value, Variables.AnalogScalarValueObjectType_UInt64Value);
-            InitializeVariable(context, FloatValue, Variables.AnalogScalarValueObjectType_FloatValue);
-            InitializeVariable(context, DoubleValue, Variables.AnalogScalarValueObjectType_DoubleValue);
-            InitializeVariable(context, NumberValue, Variables.AnalogScalarValueObjectType_NumberValue);
-            InitializeVariable(context, IntegerValue, Variables.AnalogScalarValueObjectType_IntegerValue);
-            InitializeVariable(context, UIntegerValue, Variables.AnalogScalarValueObjectType_UIntegerValue);
+            InitializeVariable(
+                context,
+                Int16Value,
+                Variables.AnalogScalarValueObjectType_Int16Value);
+            InitializeVariable(
+                context,
+                UInt16Value,
+                Variables.AnalogScalarValueObjectType_UInt16Value);
+            InitializeVariable(
+                context,
+                Int32Value,
+                Variables.AnalogScalarValueObjectType_Int32Value);
+            InitializeVariable(
+                context,
+                UInt32Value,
+                Variables.AnalogScalarValueObjectType_UInt32Value);
+            InitializeVariable(
+                context,
+                Int64Value,
+                Variables.AnalogScalarValueObjectType_Int64Value);
+            InitializeVariable(
+                context,
+                UInt64Value,
+                Variables.AnalogScalarValueObjectType_UInt64Value);
+            InitializeVariable(
+                context,
+                FloatValue,
+                Variables.AnalogScalarValueObjectType_FloatValue);
+            InitializeVariable(
+                context,
+                DoubleValue,
+                Variables.AnalogScalarValueObjectType_DoubleValue);
+            InitializeVariable(
+                context,
+                NumberValue,
+                Variables.AnalogScalarValueObjectType_NumberValue);
+            InitializeVariable(
+                context,
+                IntegerValue,
+                Variables.AnalogScalarValueObjectType_IntegerValue);
+            InitializeVariable(
+                context,
+                UIntegerValue,
+                Variables.AnalogScalarValueObjectType_UIntegerValue);
         }
 
         /// <summary>

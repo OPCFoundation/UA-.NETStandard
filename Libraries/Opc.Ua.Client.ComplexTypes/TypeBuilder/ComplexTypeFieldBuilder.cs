@@ -56,7 +56,10 @@ namespace Opc.Ua.Client.ComplexTypes
             ExpandedNodeId xmlEncodingId
         )
         {
-            m_structureBuilder.StructureTypeIdAttribute(complexTypeId, binaryEncodingId, xmlEncodingId);
+            m_structureBuilder.StructureTypeIdAttribute(
+                complexTypeId,
+                binaryEncodingId,
+                xmlEncodingId);
         }
 
         /// <inheritdoc/>
@@ -74,9 +77,9 @@ namespace Opc.Ua.Client.ComplexTypes
                 null
             );
             const System.Reflection.MethodAttributes methodAttributes =
-                System.Reflection.MethodAttributes.Public
-                | System.Reflection.MethodAttributes.HideBySig
-                | System.Reflection.MethodAttributes.Virtual;
+                System.Reflection.MethodAttributes.Public |
+                System.Reflection.MethodAttributes.HideBySig |
+                System.Reflection.MethodAttributes.Virtual;
 
             MethodBuilder setBuilder = m_structureBuilder.DefineMethod(
                 "set_" + field.Name,
@@ -147,4 +150,4 @@ namespace Opc.Ua.Client.ComplexTypes
         private TypeBuilder m_structureBuilder;
         private readonly StructureType m_structureType;
     }
-} //namespace
+}

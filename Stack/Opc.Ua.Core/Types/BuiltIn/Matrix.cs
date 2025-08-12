@@ -54,7 +54,8 @@ namespace Opc.Ua
 
                 if (length != elements.Length)
                 {
-                    throw new ArgumentException("The number of elements in the array does not match the dimensions.");
+                    throw new ArgumentException(
+                        "The number of elements in the array does not match the dimensions.");
                 }
             }
             else
@@ -88,6 +89,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the flattened array as a multi-dimensional array.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public Array ToArray()
         {
             try
@@ -116,7 +118,9 @@ namespace Opc.Ua
             }
             catch (OutOfMemoryException oom)
             {
-                throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded, oom.Message);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    oom.Message);
             }
         }
 
@@ -188,7 +192,10 @@ namespace Opc.Ua
             {
                 var buffer = new StringBuilder();
 
-                buffer.AppendFormat(formatProvider, "{0}[", Elements.GetType().GetElementType().Name);
+                buffer.AppendFormat(
+                    formatProvider,
+                    "{0}[",
+                    Elements.GetType().GetElementType().Name);
 
                 for (int ii = 0; ii < Dimensions.Length; ii++)
                 {
@@ -236,12 +243,15 @@ namespace Opc.Ua
 #if DEBUG
             var sanityCheck = TypeInfo.Construct(elements);
             Debug.Assert(
-                sanityCheck.BuiltInType == builtInType
-                    || builtInType == BuiltInType.Enumeration
-                    || (sanityCheck.BuiltInType == BuiltInType.ExtensionObject && builtInType == BuiltInType.Null)
-                    || (sanityCheck.BuiltInType == BuiltInType.Int32 && builtInType == BuiltInType.Enumeration)
-                    || (sanityCheck.BuiltInType == BuiltInType.ByteString && builtInType == BuiltInType.Byte)
-                    || (builtInType == BuiltInType.Variant)
+                sanityCheck.BuiltInType == builtInType ||
+                builtInType == BuiltInType.Enumeration ||
+                (sanityCheck.BuiltInType == BuiltInType.ExtensionObject &&
+                    builtInType == BuiltInType.Null) ||
+                (sanityCheck.BuiltInType == BuiltInType.Int32 &&
+                    builtInType == BuiltInType.Enumeration) ||
+                (sanityCheck.BuiltInType == BuiltInType.ByteString &&
+                    builtInType == BuiltInType.Byte) ||
+                (builtInType == BuiltInType.Variant)
             );
 #endif
         }
@@ -273,7 +283,9 @@ namespace Opc.Ua
         {
             bool ValidateWithSideEffect(int i, Int32Collection dimCollection)
             {
-                bool zeroCompFails = allowZeroDimension ? dimCollection[i] < 0 : dimCollection[i] <= 0;
+                bool zeroCompFails = allowZeroDimension
+                    ? dimCollection[i] < 0
+                    : dimCollection[i] <= 0;
 
                 if (zeroCompFails)
                 {
@@ -341,7 +353,10 @@ namespace Opc.Ua
                 return true;
             }
 
-            return ValidateDimensions(dimensions, maxArrayLength, ValidateAgainstExpectedFlatLength);
+            return ValidateDimensions(
+                dimensions,
+                maxArrayLength,
+                ValidateAgainstExpectedFlatLength);
         }
 
         /// <summary>

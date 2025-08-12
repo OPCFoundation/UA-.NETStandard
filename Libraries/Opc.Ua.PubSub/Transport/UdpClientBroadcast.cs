@@ -56,7 +56,8 @@ namespace Opc.Ua.PubSub.Transport
             CustomizeSocketToBroadcastThroughIf();
 
             IPEndPoint boundEndpoint;
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || pubSubContext == UsedInContext.Publisher)
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
+                pubSubContext == UsedInContext.Publisher)
             {
                 //Running on Windows or Publisher on Windows/Linux
                 boundEndpoint = new IPEndPoint(address, port);
@@ -71,7 +72,11 @@ namespace Opc.Ua.PubSub.Transport
             Client.Bind(boundEndpoint);
             EnableBroadcast = true;
 
-            Utils.Trace("UdpClientBroadcast was created for address: {0}:{1} - {2}.", address, port, pubSubContext);
+            Utils.Trace(
+                "UdpClientBroadcast was created for address: {0}:{1} - {2}.",
+                address,
+                port,
+                pubSubContext);
         }
 
         /// <summary>
@@ -95,7 +100,12 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         private void CustomizeSocketToBroadcastThroughIf()
         {
-            static void SetSocketOption(UdpClientBroadcast @this, SocketOptionLevel socketOptionLevel, SocketOptionName socketOptionName, bool value)
+            static void SetSocketOption(
+                UdpClientBroadcast @this,
+                SocketOptionLevel socketOptionLevel,
+                SocketOptionName socketOptionName,
+                bool value
+            )
             {
                 try
                 {

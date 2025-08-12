@@ -77,19 +77,25 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Creates an empty extension.
         /// </summary>
-        protected X509SubjectAltNameExtension() { }
+        protected X509SubjectAltNameExtension()
+        {
+        }
 
         /// <summary>
         /// Creates an extension from ASN.1 encoded data.
         /// </summary>
         public X509SubjectAltNameExtension(AsnEncodedData encodedExtension, bool critical)
-            : this(encodedExtension.Oid, encodedExtension.RawData, critical) { }
+            : this(encodedExtension.Oid, encodedExtension.RawData, critical)
+        {
+        }
 
         /// <summary>
         /// Creates an extension from an Oid and ASN.1 encoded raw data.
         /// </summary>
         public X509SubjectAltNameExtension(string oid, byte[] rawData, bool critical)
-            : this(new Oid(oid, kFriendlyName), rawData, critical) { }
+            : this(new Oid(oid, kFriendlyName), rawData, critical)
+        {
+        }
 
         /// <summary>
         /// Creates an extension from ASN.1 encoded data.
@@ -135,9 +141,9 @@ namespace Opc.Ua.Security.Certificates
                     }
                 }
 
-                buffer.Append(kUniformResourceIdentifier);
-                buffer.Append('=');
-                buffer.Append(m_uris[ii]);
+                buffer.Append(kUniformResourceIdentifier)
+                    .Append('=')
+                    .Append(m_uris[ii]);
             }
 
             for (int ii = 0; ii < m_domainNames.Count; ii++)
@@ -154,9 +160,9 @@ namespace Opc.Ua.Security.Certificates
                     }
                 }
 
-                buffer.Append(kDnsName);
-                buffer.Append('=');
-                buffer.Append(m_domainNames[ii]);
+                buffer.Append(kDnsName)
+                    .Append('=')
+                    .Append(m_domainNames[ii]);
             }
 
             for (int ii = 0; ii < m_ipAddresses.Count; ii++)
@@ -173,9 +179,9 @@ namespace Opc.Ua.Security.Certificates
                     }
                 }
 
-                buffer.Append(kIpAddress);
-                buffer.Append('=');
-                buffer.Append(m_ipAddresses[ii]);
+                buffer.Append(kIpAddress)
+                    .Append('=')
+                    .Append(m_ipAddresses[ii]);
             }
 
             return buffer.ToString();
@@ -184,6 +190,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Initializes the extension from ASN.1 encoded data.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="asnEncodedData"/> is <c>null</c>.</exception>
         public override void CopyFrom(AsnEncodedData asnEncodedData)
         {
             if (asnEncodedData == null)
@@ -283,16 +290,17 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="sanBuilder">The subject alternative name builder</param>
         /// <param name="generalNames">The general Names to add</param>
-        private static void EncodeGeneralNames(SubjectAlternativeNameBuilder sanBuilder, IList<string> generalNames)
+        private static void EncodeGeneralNames(
+            SubjectAlternativeNameBuilder sanBuilder,
+            IList<string> generalNames)
         {
             foreach (string generalName in generalNames)
             {
-                IPAddress ipAddr;
                 if (string.IsNullOrWhiteSpace(generalName))
                 {
                     continue;
                 }
-                if (IPAddress.TryParse(generalName, out ipAddr))
+                if (IPAddress.TryParse(generalName, out IPAddress ipAddr))
                 {
                     sanBuilder.AddIpAddress(ipAddr);
                 }
@@ -331,6 +339,7 @@ namespace Opc.Ua.Security.Certificates
         /// <remarks>
         /// Only general names relevant for Opc.Ua are decoded.
         /// </remarks>
+        /// <exception cref="CryptographicException"></exception>
         private void Decode(byte[] data)
         {
             if (Oid.Value is SubjectAltNameOid or SubjectAltName2Oid)
@@ -354,12 +363,16 @@ namespace Opc.Ua.Security.Certificates
                             Asn1Tag peekTag = akiReader.PeekTag();
                             if (peekTag == uriTag)
                             {
-                                string uri = akiReader.ReadCharacterString(UniversalTagNumber.IA5String, uriTag);
+                                string uri = akiReader.ReadCharacterString(
+                                    UniversalTagNumber.IA5String,
+                                    uriTag);
                                 uris.Add(uri);
                             }
                             else if (peekTag == dnsTag)
                             {
-                                string dnsName = akiReader.ReadCharacterString(UniversalTagNumber.IA5String, dnsTag);
+                                string dnsName = akiReader.ReadCharacterString(
+                                    UniversalTagNumber.IA5String,
+                                    dnsTag);
                                 domainNames.Add(dnsName);
                             }
                             else if (peekTag == ipTag)
@@ -383,7 +396,9 @@ namespace Opc.Ua.Security.Certificates
                 }
                 catch (AsnContentException ace)
                 {
-                    throw new CryptographicException("Failed to decode the SubjectAltName extension.", ace);
+                    throw new CryptographicException(
+                        "Failed to decode the SubjectAltName extension.",
+                        ace);
                 }
             }
             throw new CryptographicException("Invalid SubjectAltNameOid.");
@@ -411,10 +426,6 @@ namespace Opc.Ua.Security.Certificates
                     case UriHostNameType.IPv6:
                         ipAddresses.Add(generalName);
                         break;
-                    case UriHostNameType.Unknown:
-                    case UriHostNameType.Basic:
-                    default:
-                        continue;
                 }
             }
             m_uris = uris;

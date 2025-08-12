@@ -39,8 +39,10 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
     /// <summary>
     /// Tests for the BuiltIn Types.
     /// </summary>
-    [TestFixture, Category("Utils")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("Utils")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [NonParallelizable]
     public class LogTests
     {
@@ -140,7 +142,10 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
             logger.LastTraceEventArgs = null;
 
             // test the legacy log mapping to TraceEventArgs
-            Utils.Trace(Utils.TraceMasks.None, "This is a None message: {0}", Utils.TraceMasks.None);
+            Utils.Trace(
+                Utils.TraceMasks.None,
+                "This is a None message: {0}",
+                Utils.TraceMasks.None);
             if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
                 Assert.AreEqual(Utils.TraceMasks.Operation, logger.LastTraceEventArgs.TraceMask);
@@ -151,7 +156,10 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
                 Assert.IsNull(logger.LastTraceEventArgs);
             }
 
-            Utils.Trace(Utils.TraceMasks.Error, "This is an Error message: {0}", Utils.TraceMasks.Error);
+            Utils.Trace(
+                Utils.TraceMasks.Error,
+                "This is an Error message: {0}",
+                Utils.TraceMasks.Error);
             if (Utils.Logger.IsEnabled(LogLevel.Error))
             {
                 Assert.AreEqual(Utils.TraceMasks.Error, logger.LastTraceEventArgs.TraceMask);
@@ -177,7 +185,10 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
                 Assert.IsNull(logger.LastTraceEventArgs);
             }
 
-            Utils.Trace(Utils.TraceMasks.StackTrace, "This is a StackTrace message: {0}", Utils.TraceMasks.StackTrace);
+            Utils.Trace(
+                Utils.TraceMasks.StackTrace,
+                "This is a StackTrace message: {0}",
+                Utils.TraceMasks.StackTrace);
             if (Utils.Logger.IsEnabled(LogLevel.Error))
             {
                 Assert.AreEqual(Utils.TraceMasks.StackTrace, logger.LastTraceEventArgs.TraceMask);
@@ -188,7 +199,10 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
                 Assert.IsNull(logger.LastTraceEventArgs);
             }
 
-            Utils.Trace(Utils.TraceMasks.Service, "This is a Service message: {0}", Utils.TraceMasks.Service);
+            Utils.Trace(
+                Utils.TraceMasks.Service,
+                "This is a Service message: {0}",
+                Utils.TraceMasks.Service);
             if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
                 Assert.AreEqual(Utils.TraceMasks.Service, logger.LastTraceEventArgs.TraceMask);
@@ -206,7 +220,9 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
             );
             if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
-                Assert.AreEqual(Utils.TraceMasks.ServiceDetail, logger.LastTraceEventArgs.TraceMask);
+                Assert.AreEqual(
+                    Utils.TraceMasks.ServiceDetail,
+                    logger.LastTraceEventArgs.TraceMask);
                 logger.LastTraceEventArgs = null;
             }
             else
@@ -214,7 +230,10 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
                 Assert.IsNull(logger.LastTraceEventArgs);
             }
 
-            Utils.Trace(Utils.TraceMasks.Operation, "This is a Operation message: {0}", Utils.TraceMasks.Operation);
+            Utils.Trace(
+                Utils.TraceMasks.Operation,
+                "This is a Operation message: {0}",
+                Utils.TraceMasks.Operation);
             if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
                 Assert.AreEqual(Utils.TraceMasks.Operation, logger.LastTraceEventArgs.TraceMask);
@@ -232,7 +251,9 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
             );
             if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
-                Assert.AreEqual(Utils.TraceMasks.OperationDetail, logger.LastTraceEventArgs.TraceMask);
+                Assert.AreEqual(
+                    Utils.TraceMasks.OperationDetail,
+                    logger.LastTraceEventArgs.TraceMask);
                 logger.LastTraceEventArgs = null;
             }
             else
@@ -240,7 +261,10 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
                 Assert.IsNull(logger.LastTraceEventArgs);
             }
 
-            Utils.Trace(Utils.TraceMasks.StartStop, "This is a StartStop message: {0}", Utils.TraceMasks.StartStop);
+            Utils.Trace(
+                Utils.TraceMasks.StartStop,
+                "This is a StartStop message: {0}",
+                Utils.TraceMasks.StartStop);
             if (Utils.Logger.IsEnabled(LogLevel.Information))
             {
                 Assert.AreEqual(Utils.TraceMasks.StartStop, logger.LastTraceEventArgs.TraceMask);
@@ -258,7 +282,9 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
             );
             if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
-                Assert.AreEqual(Utils.TraceMasks.ExternalSystem, logger.LastTraceEventArgs.TraceMask);
+                Assert.AreEqual(
+                    Utils.TraceMasks.ExternalSystem,
+                    logger.LastTraceEventArgs.TraceMask);
                 logger.LastTraceEventArgs = null;
             }
             else
@@ -266,7 +292,10 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
                 Assert.IsNull(logger.LastTraceEventArgs);
             }
 
-            Utils.Trace(Utils.TraceMasks.Security, "This is a Security message: {0}", Utils.TraceMasks.Security);
+            Utils.Trace(
+                Utils.TraceMasks.Security,
+                "This is a Security message: {0}",
+                Utils.TraceMasks.Security);
             if (Utils.Logger.IsEnabled(LogLevel.Information))
             {
                 Assert.AreEqual(Utils.TraceMasks.Security, logger.LastTraceEventArgs.TraceMask);
@@ -277,7 +306,9 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
                 Assert.IsNull(logger.LastTraceEventArgs);
             }
 
-            var sre = new ServiceResultException(StatusCodes.BadServiceUnsupported, "service unsupported");
+            var sre = new ServiceResultException(
+                StatusCodes.BadServiceUnsupported,
+                "service unsupported");
             Utils.Trace(sre, "This is a ServiceResultException");
 
             TestContext.Out.WriteLine("Logged {0} messages.", logger.TraceList.Count);

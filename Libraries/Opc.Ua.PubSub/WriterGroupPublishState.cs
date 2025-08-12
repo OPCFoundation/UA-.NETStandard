@@ -101,18 +101,20 @@ namespace Opc.Ua.PubSub
                 if (version == null)
                 {
                     // keep a copy of ConfigurationVersion
-                    state.ConfigurationVersion = metadata.ConfigurationVersion.Clone() as ConfigurationVersionDataType;
+                    state.ConfigurationVersion = metadata.ConfigurationVersion
+                        .Clone() as ConfigurationVersionDataType;
                     state.LastMetaDataUpdate = DateTime.UtcNow;
                     return true;
                 }
 
                 if (
-                    version.MajorVersion != metadata.ConfigurationVersion.MajorVersion
-                    || version.MinorVersion != metadata.ConfigurationVersion.MinorVersion
+                    version.MajorVersion != metadata.ConfigurationVersion.MajorVersion ||
+                    version.MinorVersion != metadata.ConfigurationVersion.MinorVersion
                 )
                 {
                     // keep a copy of ConfigurationVersion
-                    state.ConfigurationVersion = metadata.ConfigurationVersion.Clone() as ConfigurationVersionDataType;
+                    state.ConfigurationVersion = metadata.ConfigurationVersion
+                        .Clone() as ConfigurationVersionDataType;
                     state.LastMetaDataUpdate = DateTime.UtcNow;
                     return true;
                 }
@@ -188,7 +190,8 @@ namespace Opc.Ua.PubSub
                 if (writer.KeyFrameCount > 1)
                 {
                     state.ConfigurationVersion =
-                        dataset.DataSetMetaData.ConfigurationVersion.Clone() as ConfigurationVersionDataType;
+                        dataset.DataSetMetaData.ConfigurationVersion
+                            .Clone() as ConfigurationVersionDataType;
 
                     if (state.LastDataSet == null)
                     {
@@ -196,7 +199,10 @@ namespace Opc.Ua.PubSub
                         return;
                     }
 
-                    for (int ii = 0; ii < dataset.Fields.Length && ii < state.LastDataSet.Fields.Length; ii++)
+                    for (
+                        int ii = 0;
+                        ii < dataset.Fields.Length && ii < state.LastDataSet.Fields.Length;
+                        ii++)
                     {
                         Field field = dataset.Fields[ii];
 
@@ -211,9 +217,7 @@ namespace Opc.Ua.PubSub
 
         private DataSetState GetState(DataSetWriterDataType writer)
         {
-            DataSetState state;
-
-            if (!m_dataSetStates.TryGetValue(writer.DataSetWriterId, out state))
+            if (!m_dataSetStates.TryGetValue(writer.DataSetWriterId, out DataSetState state))
             {
                 m_dataSetStates[writer.DataSetWriterId] = state = new DataSetState();
             }

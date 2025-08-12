@@ -39,7 +39,9 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Initializes a new instance of the <see cref="AdminCredentialsRequiredEventArgs"/> class.
         /// </summary>
-        public AdminCredentialsRequiredEventArgs() { }
+        public AdminCredentialsRequiredEventArgs()
+        {
+        }
 
         /// <summary>
         /// Gets or sets the credentials.

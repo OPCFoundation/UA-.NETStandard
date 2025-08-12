@@ -128,6 +128,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Import an RSA private key from PEM.
         /// </summary>
+        /// <exception cref="CryptographicException"></exception>
         public static RSA ImportRsaPrivateKeyFromPEM(byte[] pemDataBlob, string password = null)
         {
             AsymmetricAlgorithm key = ImportPrivateKey(pemDataBlob, password);
@@ -135,15 +136,14 @@ namespace Opc.Ua.Security.Certificates
             {
                 return rsaKey;
             }
-            else
-            {
-                throw new CryptographicException("PEM data does not contain a valid RSA private key");
-            }
+
+            throw new CryptographicException("PEM data does not contain a valid RSA private key");
         }
 
         /// <summary>
         /// Import an ECDSa private key from PEM.
         /// </summary>
+        /// <exception cref="CryptographicException"></exception>
         public static ECDsa ImportECDsaPrivateKeyFromPEM(byte[] pemDataBlob, string password = null)
         {
             AsymmetricAlgorithm key = ImportPrivateKey(pemDataBlob, password);
@@ -151,19 +151,23 @@ namespace Opc.Ua.Security.Certificates
             {
                 return ecKey;
             }
-            else
-            {
-                throw new CryptographicException("PEM data does not contain a valid RSA private key");
-            }
+
+            throw new CryptographicException("PEM data does not contain a valid RSA private key");
         }
 
         /// <summary>
         /// Import a private key from PEM.
         /// </summary>
-        private static AsymmetricAlgorithm ImportPrivateKey(byte[] pemDataBlob, string password = null)
+        /// <exception cref="CryptographicException"></exception>
+        private static AsymmetricAlgorithm ImportPrivateKey(
+            byte[] pemDataBlob,
+            string password = null)
         {
             PemReader pemReader;
-            using var pemStreamReader = new StreamReader(new MemoryStream(pemDataBlob), Encoding.UTF8, true);
+            using var pemStreamReader = new StreamReader(
+                new MemoryStream(pemDataBlob),
+                Encoding.UTF8,
+                true);
             if (string.IsNullOrEmpty(password))
             {
                 pemReader = new PemReader(pemStreamReader);
@@ -219,7 +223,8 @@ namespace Opc.Ua.Security.Certificates
         }
 
 #if NET472_OR_GREATER
-        private static ECDsa CreateECDsaFromECPrivateKey(ECPrivateKeyParameters eCPrivateKeyParameters)
+        private static ECDsa CreateECDsaFromECPrivateKey(
+            ECPrivateKeyParameters eCPrivateKeyParameters)
         {
             ECDomainParameters domainParams = eCPrivateKeyParameters.Parameters;
 
@@ -229,7 +234,8 @@ namespace Opc.Ua.Security.Certificates
             string curveOid = eCPrivateKeyParameters.PublicKeyParamSet.Id;
             var curve = ECCurve.CreateFromOid(new Oid(curveOid));
 
-            Org.BouncyCastle.Math.EC.ECPoint q = domainParams.G.Multiply(eCPrivateKeyParameters.D).Normalize();
+            Org.BouncyCastle.Math.EC.ECPoint q = domainParams.G.Multiply(eCPrivateKeyParameters.D)
+                .Normalize();
             byte[] x = q.AffineXCoord.ToBigInteger().ToByteArrayUnsigned();
             byte[] y = q.AffineYCoord.ToBigInteger().ToByteArrayUnsigned();
             byte[] d = eCPrivateKeyParameters.D.ToByteArrayUnsigned();
@@ -243,7 +249,7 @@ namespace Opc.Ua.Security.Certificates
             {
                 Curve = curve,
                 Q = { X = x, Y = y },
-                D = d,
+                D = d
             };
 
             var ecdsa = ECDsa.Create();

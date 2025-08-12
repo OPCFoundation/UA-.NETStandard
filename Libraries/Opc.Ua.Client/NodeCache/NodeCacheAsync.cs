@@ -80,14 +80,19 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.LogError("Could not fetch node from server: NodeId={0}, Reason='{1}'.", nodeId, Redact.Create(e));
+                Utils.LogError(
+                    "Could not fetch node from server: NodeId={0}, Reason='{1}'.",
+                    nodeId,
+                    Redact.Create(e));
                 // m_nodes[nodeId] = null;
                 return null;
             }
         }
 
         /// <inheritdoc/>
-        public async Task<IList<INode>> FindAsync(IList<ExpandedNodeId> nodeIds, CancellationToken ct = default)
+        public async Task<IList<INode>> FindAsync(
+            IList<ExpandedNodeId> nodeIds,
+            CancellationToken ct = default)
         {
             // check for null.
             if (nodeIds == null || nodeIds.Count == 0)
@@ -158,7 +163,8 @@ namespace Opc.Ua.Client
                 }
                 else
                 {
-                    Utils.LogError("Inconsistency fetching nodes from server. Not all nodes could be assigned.");
+                    Utils.LogError(
+                        "Inconsistency fetching nodes from server. Not all nodes could be assigned.");
                     break;
                 }
             }
@@ -239,7 +245,9 @@ namespace Opc.Ua.Client
                             // transform absolute identifiers.
                             if (reference.NodeId != null && reference.NodeId.IsAbsolute)
                             {
-                                reference.NodeId = ExpandedNodeId.ToNodeId(reference.NodeId, NamespaceUris);
+                                reference.NodeId = ExpandedNodeId.ToNodeId(
+                                    reference.NodeId,
+                                    NamespaceUris);
                             }
 
                             var target = new Node(reference);
@@ -248,7 +256,8 @@ namespace Opc.Ua.Client
                         }
 
                         // add the reference.
-                        source.ReferenceTable.Add(reference.ReferenceTypeId, !reference.IsForward, reference.NodeId);
+                        source.ReferenceTable
+                            .Add(reference.ReferenceTypeId, !reference.IsForward, reference.NodeId);
                     }
                 }
                 finally
@@ -271,7 +280,9 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<IList<Node>> FetchNodesAsync(IList<ExpandedNodeId> nodeIds, CancellationToken ct)
+        public async Task<IList<Node>> FetchNodesAsync(
+            IList<ExpandedNodeId> nodeIds,
+            CancellationToken ct)
         {
             int count = nodeIds.Count;
             if (count == 0)
@@ -312,7 +323,9 @@ namespace Opc.Ua.Client
                                 // transform absolute identifiers.
                                 if (reference.NodeId != null && reference.NodeId.IsAbsolute)
                                 {
-                                    reference.NodeId = ExpandedNodeId.ToNodeId(reference.NodeId, NamespaceUris);
+                                    reference.NodeId = ExpandedNodeId.ToNodeId(
+                                        reference.NodeId,
+                                        NamespaceUris);
                                 }
 
                                 var target = new Node(reference);
@@ -327,7 +340,10 @@ namespace Opc.Ua.Client
 
                         // add the reference.
                         sourceNodes[ii]
-                            .ReferenceTable.Add(reference.ReferenceTypeId, !reference.IsForward, reference.NodeId);
+                            .ReferenceTable.Add(
+                                reference.ReferenceTypeId,
+                                !reference.IsForward,
+                                reference.NodeId);
                     }
                 }
 
@@ -358,14 +374,16 @@ namespace Opc.Ua.Client
             m_cacheLock.EnterReadLock();
             try
             {
-                references = source.ReferenceTable.Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
+                references = source.ReferenceTable
+                    .Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
             }
             finally
             {
                 m_cacheLock.ExitReadLock();
             }
 
-            var targetIds = new ExpandedNodeIdCollection(references.Select(reference => reference.TargetId));
+            var targetIds = new ExpandedNodeIdCollection(
+                references.Select(reference => reference.TargetId));
 
             IList<INode> result = await FindAsync(targetIds, ct).ConfigureAwait(false);
 
@@ -409,7 +427,8 @@ namespace Opc.Ua.Client
                     m_cacheLock.EnterReadLock();
                     try
                     {
-                        references = node.ReferenceTable.Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
+                        references = node.ReferenceTable
+                            .Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
                     }
                     finally
                     {
@@ -448,11 +467,13 @@ namespace Opc.Ua.Client
             {
                 ILocalNode superType = null;
 
-                IList<IReference> references = subType.References.Find(ReferenceTypeIds.HasSubtype, true, true, this);
+                IList<IReference> references = subType.References
+                    .Find(ReferenceTypeIds.HasSubtype, true, true, this);
 
                 if (references != null && references.Count > 0)
                 {
-                    superType = await FindAsync(references[0].TargetId, ct).ConfigureAwait(false) as ILocalNode;
+                    superType = await FindAsync(references[0].TargetId, ct).ConfigureAwait(
+                        false) as ILocalNode;
                 }
 
                 subType = superType;

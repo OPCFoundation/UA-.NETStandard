@@ -82,7 +82,11 @@ namespace Opc.Ua
         /// <returns>
         /// Returns an empty list if the source does not exist or if there are no matching targets.
         /// </returns>
-        IList<INode> Find(ExpandedNodeId sourceId, NodeId referenceTypeId, bool isInverse, bool includeSubtypes);
+        IList<INode> Find(
+            ExpandedNodeId sourceId,
+            NodeId referenceTypeId,
+            bool isInverse,
+            bool includeSubtypes);
     }
 
     /// <summary>
@@ -183,7 +187,11 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public IList<INode> Find(ExpandedNodeId sourceId, NodeId referenceTypeId, bool isInverse, bool includeSubtypes)
+        public IList<INode> Find(
+            ExpandedNodeId sourceId,
+            NodeId referenceTypeId,
+            bool isInverse,
+            bool includeSubtypes)
         {
             // create an empty list.
             IList<INode> nodes = [];
@@ -264,8 +272,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="nodeSet">The node set.</param>
         /// <param name="externalReferences">The external references.</param>
-        /// <returns></returns>
-        public List<Node> Import(NodeSet nodeSet, IDictionary<NodeId, IList<IReference>> externalReferences)
+        public List<Node> Import(
+            NodeSet nodeSet,
+            IDictionary<NodeId, IList<IReference>> externalReferences)
         {
             var importedNodes = new List<Node>();
 
@@ -301,7 +310,8 @@ namespace Opc.Ua
                 foreach (ReferenceNode reference in node.References)
                 {
                     // ignore invalid references.
-                    if (NodeId.IsNull(reference.ReferenceTypeId) || NodeId.IsNull(reference.TargetId))
+                    if (NodeId.IsNull(reference.ReferenceTypeId) ||
+                        NodeId.IsNull(reference.TargetId))
                     {
                         continue;
                     }
@@ -315,7 +325,8 @@ namespace Opc.Ua
                     }
 
                     // index reference.
-                    node.ReferenceTable.Add(reference.ReferenceTypeId, reference.IsInverse, targetId);
+                    node.ReferenceTable
+                        .Add(reference.ReferenceTypeId, reference.IsInverse, targetId);
 
                     // see if a remote node needs to be created.
                     if (targetId.ServerIndex != 0)
@@ -360,15 +371,18 @@ namespace Opc.Ua
                         // return the reverse reference to a node outside the table.
                         if (externalReferences != null)
                         {
-                            var targetId = ExpandedNodeId.ToNodeId(reference.TargetId, NamespaceUris);
+                            var targetId = ExpandedNodeId.ToNodeId(
+                                reference.TargetId,
+                                NamespaceUris);
 
                             if (targetId == null)
                             {
                                 continue;
                             }
 
-                            IList<IReference> referenceList;
-                            if (!externalReferences.TryGetValue(targetId, out referenceList))
+                            if (!externalReferences.TryGetValue(
+                                targetId,
+                                out IList<IReference> referenceList))
                             {
                                 externalReferences[targetId] = referenceList = [];
                             }
@@ -377,7 +391,7 @@ namespace Opc.Ua
                             {
                                 ReferenceTypeId = reference.ReferenceTypeId,
                                 IsInverse = !reference.IsInverse,
-                                TargetId = node.NodeId,
+                                TargetId = node.NodeId
                             };
 
                             referenceList.Add(reverseReference);
@@ -388,11 +402,12 @@ namespace Opc.Ua
 
                     // type definition and modelling rule references are one way.
                     if (
-                        reference.ReferenceTypeId != ReferenceTypeIds.HasTypeDefinition
-                        && reference.ReferenceTypeId != ReferenceTypeIds.HasModellingRule
+                        reference.ReferenceTypeId != ReferenceTypeIds.HasTypeDefinition &&
+                        reference.ReferenceTypeId != ReferenceTypeIds.HasModellingRule
                     )
                     {
-                        targetNode.ReferenceTable.Add(reference.ReferenceTypeId, !reference.IsInverse, node.NodeId);
+                        targetNode.ReferenceTable
+                            .Add(reference.ReferenceTypeId, !reference.IsInverse, node.NodeId);
                     }
                 }
 
@@ -424,7 +439,10 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    var node = new Node { NodeId = ExpandedNodeId.ToNodeId(reference.NodeId, NamespaceUris) };
+                    var node = new Node
+                    {
+                        NodeId = ExpandedNodeId.ToNodeId(reference.NodeId, NamespaceUris)
+                    };
 
                     InternalAdd(node);
                     target = node;
@@ -441,7 +459,8 @@ namespace Opc.Ua
 
                 if (!NodeId.IsNull(reference.TypeDefinition))
                 {
-                    targetNode.ReferenceTable.Add(ReferenceTypeIds.HasTypeDefinition, false, reference.TypeDefinition);
+                    targetNode.ReferenceTable
+                        .Add(ReferenceTypeIds.HasTypeDefinition, false, reference.TypeDefinition);
                 }
 
                 return targetNode;
@@ -481,21 +500,23 @@ namespace Opc.Ua
             // check if importing a node from a XML source (must copy references from References array to ReferenceTable).
 
             if (
-                node is Node serializedNode
-                && serializedNode.References.Count > 0
-                && serializedNode.ReferenceTable.Count == 0
+                node is Node serializedNode &&
+                serializedNode.References.Count > 0 &&
+                serializedNode.ReferenceTable.Count == 0
             )
             {
                 // index references.
                 foreach (ReferenceNode reference in node.References.OfType<ReferenceNode>())
                 {
                     // ignore invalid references.
-                    if (NodeId.IsNull(reference.ReferenceTypeId) || NodeId.IsNull(reference.TargetId))
+                    if (NodeId.IsNull(reference.ReferenceTypeId) ||
+                        NodeId.IsNull(reference.TargetId))
                     {
                         continue;
                     }
 
-                    node.References.Add(reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
+                    node.References
+                        .Add(reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
 
                     // see if a remote node needs to be created.
                     if (reference.TargetId.ServerIndex != 0)
@@ -527,11 +548,12 @@ namespace Opc.Ua
 
                 // type definition and modelling rule references are one way.
                 if (
-                    reference.ReferenceTypeId != ReferenceTypeIds.HasTypeDefinition
-                    && reference.ReferenceTypeId != ReferenceTypeIds.HasModellingRule
+                    reference.ReferenceTypeId != ReferenceTypeIds.HasTypeDefinition &&
+                    reference.ReferenceTypeId != ReferenceTypeIds.HasModellingRule
                 )
                 {
-                    targetNode.References.Add(reference.ReferenceTypeId, !reference.IsInverse, node.NodeId);
+                    targetNode.References
+                        .Add(reference.ReferenceTypeId, !reference.IsInverse, node.NodeId);
                 }
             }
 
@@ -586,7 +608,8 @@ namespace Opc.Ua
 
                 if (target is ILocalNode targetNode)
                 {
-                    targetNode.References.Remove(reference.ReferenceTypeId, reference.IsInverse, sourceNode.NodeId);
+                    targetNode.References
+                        .Remove(reference.ReferenceTypeId, reference.IsInverse, sourceNode.NodeId);
                 }
             }
 
@@ -664,7 +687,6 @@ namespace Opc.Ua
         /// Finds the specified node. Returns null if the node does node exist.
         /// </summary>
         /// <param name="nodeId">The node identifier.</param>
-        /// <returns></returns>
         private INode InternalFind(ExpandedNodeId nodeId)
         {
             if (nodeId == null)
@@ -675,8 +697,7 @@ namespace Opc.Ua
             // check for remote node.
             if (nodeId.ServerIndex != 0)
             {
-                RemoteNode remoteNode;
-                if (m_remoteNodes.TryGetValue(nodeId, out remoteNode))
+                if (m_remoteNodes.TryGetValue(nodeId, out RemoteNode remoteNode))
                 {
                     return remoteNode;
                 }
@@ -692,8 +713,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            ILocalNode node;
-            if (m_localNodes.TryGetValue(localId, out node))
+            if (m_localNodes.TryGetValue(localId, out ILocalNode node))
             {
                 return node;
             }
@@ -734,11 +754,13 @@ namespace Opc.Ua
             /// Removes a reference to the node.
             /// </summary>
             /// <returns>The number of references.</returns>
+            /// <exception cref="InvalidOperationException"></exception>
             public int Release()
             {
                 if (m_refs == 0)
                 {
-                    throw new InvalidOperationException("Cannot decrement reference count below zero.");
+                    throw new InvalidOperationException(
+                        "Cannot decrement reference count below zero.");
                 }
 
                 return --m_refs;

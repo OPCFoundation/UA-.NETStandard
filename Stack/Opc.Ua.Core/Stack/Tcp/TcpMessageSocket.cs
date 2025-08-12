@@ -26,7 +26,9 @@ namespace Opc.Ua.Bindings
         /// Create a Tcp transport channel.
         /// </summary>
         public TcpTransportChannel()
-            : base(new TcpMessageSocketFactory()) { }
+            : base(new TcpMessageSocketFactory())
+        {
+        }
     }
 
     /// <summary>
@@ -138,6 +140,7 @@ namespace Opc.Ua.Bindings
         /// The socket event args.
         /// </summary>
         public SocketAsyncEventArgs Args { get; }
+
         private event EventHandler<IMessageSocketAsyncEventArgs> m_InternalComplete;
     }
 
@@ -156,7 +159,9 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public void Dispose() { }
+        public void Dispose()
+        {
+        }
 
         /// <inheritdoc/>
         public object UserToken { get; set; }
@@ -209,7 +214,10 @@ namespace Opc.Ua.Bindings
         /// The method creates a new instance of a UA-TCP message socket
         /// </summary>
         /// <returns> the message socket</returns>
-        public IMessageSocket Create(IMessageSink sink, BufferManager bufferManager, int receiveBufferSize)
+        public IMessageSocket Create(
+            IMessageSink sink,
+            BufferManager bufferManager,
+            int receiveBufferSize)
         {
             return new TcpMessageSocket(sink, bufferManager, receiveBufferSize);
         }
@@ -229,11 +237,15 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Creates an unconnected socket.
         /// </summary>
-        public TcpMessageSocket(IMessageSink sink, BufferManager bufferManager, int receiveBufferSize)
+        public TcpMessageSocket(
+            IMessageSink sink,
+            BufferManager bufferManager,
+            int receiveBufferSize)
         {
             m_sink = sink;
             m_socket = null;
-            m_bufferManager = bufferManager ?? throw new ArgumentNullException(nameof(bufferManager));
+            m_bufferManager = bufferManager ??
+                throw new ArgumentNullException(nameof(bufferManager));
             m_receiveBufferSize = receiveBufferSize;
             m_incomingMessageSize = -1;
             m_readComplete = OnReadComplete;
@@ -243,11 +255,16 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Attaches the object to an existing socket.
         /// </summary>
-        public TcpMessageSocket(IMessageSink sink, Socket socket, BufferManager bufferManager, int receiveBufferSize)
+        public TcpMessageSocket(
+            IMessageSink sink,
+            Socket socket,
+            BufferManager bufferManager,
+            int receiveBufferSize)
         {
             m_sink = sink;
             m_socket = socket ?? throw new ArgumentNullException(nameof(socket));
-            m_bufferManager = bufferManager ?? throw new ArgumentNullException(nameof(bufferManager));
+            m_bufferManager = bufferManager ??
+                throw new ArgumentNullException(nameof(bufferManager));
             m_receiveBufferSize = receiveBufferSize;
             m_incomingMessageSize = -1;
             m_readComplete = OnReadComplete;
@@ -307,7 +324,12 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Connects to an endpoint.
         /// </summary>
-        public bool BeginConnect(Uri endpointUrl, EventHandler<IMessageSocketAsyncEventArgs> callback, object state)
+        /// <exception cref="ArgumentNullException"><paramref name="endpointUrl"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException"></exception>
+        public bool BeginConnect(
+            Uri endpointUrl,
+            EventHandler<IMessageSocketAsyncEventArgs> callback,
+            object state)
         {
             if (endpointUrl == null)
             {
@@ -320,10 +342,10 @@ namespace Opc.Ua.Bindings
             }
 
             SocketError error = SocketError.NotInitialized;
-            void DoCallback(SocketError socketError)
-            {
-                callback(this, new TcpMessageSocketConnectAsyncEventArgs(socketError) { UserToken = state });
-            }
+            void DoCallback(
+                SocketError socketError) => callback(
+                    this,
+                    new TcpMessageSocketConnectAsyncEventArgs(socketError) { UserToken = state });
 
             // Get port
             int port = endpointUrl.Port;
@@ -379,7 +401,9 @@ namespace Opc.Ua.Bindings
                 do
                 {
                     // allocate a buffer large enough to a message chunk.
-                    m_receiveBuffer ??= m_bufferManager.TakeBuffer(m_receiveBufferSize, "ReadNextMessage");
+                    m_receiveBuffer ??= m_bufferManager.TakeBuffer(
+                        m_receiveBufferSize,
+                        "ReadNextMessage");
 
                     // read the first 8 bytes of the message which contains the message size.
                     m_bytesReceived = 0;
@@ -439,7 +463,9 @@ namespace Opc.Ua.Bindings
 
                 if (m_readState == ReadState.NotConnected && ServiceResult.IsGood(error))
                 {
-                    error = ServiceResult.Create(StatusCodes.BadConnectionClosed, "Remote side closed connection.");
+                    error = ServiceResult.Create(
+                        StatusCodes.BadConnectionClosed,
+                        "Remote side closed connection.");
                 }
 
                 if (ServiceResult.IsBad(error))
@@ -481,7 +507,9 @@ namespace Opc.Ua.Bindings
                 }
 
                 m_readState = ReadState.Error;
-                return ServiceResult.Create(StatusCodes.BadConnectionClosed, "Remote side closed connection");
+                return ServiceResult.Create(
+                    StatusCodes.BadConnectionClosed,
+                    "Remote side closed connection");
             }
 
             m_bytesReceived += bytesRead;
@@ -535,7 +563,10 @@ namespace Opc.Ua.Bindings
                 try
                 {
                     // send notification (implementor responsible for freeing buffer) on success.
-                    var messageChunk = new ArraySegment<byte>(m_receiveBuffer, 0, m_incomingMessageSize);
+                    var messageChunk = new ArraySegment<byte>(
+                        m_receiveBuffer,
+                        0,
+                        m_incomingMessageSize);
 
                     // must allocate a new buffer for the next message.
                     m_receiveBuffer = null;
@@ -587,7 +618,10 @@ namespace Opc.Ua.Bindings
             try
             {
                 m_readState = ReadState.Receive;
-                args.SetBuffer(m_receiveBuffer, m_bytesReceived, m_bytesToReceive - m_bytesReceived);
+                args.SetBuffer(
+                    m_receiveBuffer,
+                    m_bytesReceived,
+                    m_bytesToReceive - m_bytesReceived);
                 args.Completed += m_readComplete;
                 if (!socket.ReceiveAsync(args))
                 {
@@ -614,7 +648,10 @@ namespace Opc.Ua.Bindings
             {
                 args?.Dispose();
                 BufferManager.UnlockBuffer(m_receiveBuffer);
-                throw ServiceResultException.Create(StatusCodes.BadTcpInternalError, ex, "BeginReceive failed.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTcpInternalError,
+                    ex,
+                    "BeginReceive failed.");
             }
         }
 
@@ -632,11 +669,6 @@ namespace Opc.Ua.Bindings
                 case ReadState.ReadNextMessage:
                     ReadNextMessage();
                     break;
-                case ReadState.Ready:
-                case ReadState.Receive:
-                case ReadState.ReadComplete:
-                case ReadState.NotConnected:
-                case ReadState.Error:
                 default:
                     result = false;
                     break;
@@ -659,10 +691,10 @@ namespace Opc.Ua.Bindings
             var socket = new Socket(SocketType.Stream, ProtocolType.Tcp)
             {
                 NoDelay = true,
-                LingerState = new LingerOption(true, 5),
+                LingerState = new LingerOption(true, 5)
             };
 
-            var args = new SocketAsyncEventArgs() { UserToken = callback, RemoteEndPoint = endpoint };
+            var args = new SocketAsyncEventArgs { UserToken = callback, RemoteEndPoint = endpoint };
             args.Completed += OnSocketConnected;
             if (!socket.ConnectAsync(args))
             {
@@ -676,8 +708,6 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Handle socket connection event
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="args"></param>
         private void OnSocketConnected(object sender, SocketAsyncEventArgs args)
         {
             var socket = sender as Socket;
@@ -718,6 +748,8 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Sends a buffer.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public bool Send(IMessageSocketAsyncEventArgs args)
         {
             if (args is not TcpMessageSocketAsyncEventArgs eventArgs)
@@ -760,7 +792,7 @@ namespace Opc.Ua.Bindings
             Receive = 3,
             ReadComplete = 4,
             NotConnected = 5,
-            Error = 0xff,
+            Error = 0xff
         }
 
         private readonly Lock m_readLock = new();

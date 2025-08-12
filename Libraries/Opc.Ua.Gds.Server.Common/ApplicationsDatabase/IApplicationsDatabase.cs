@@ -42,6 +42,7 @@ namespace Opc.Ua.Gds.Server.Database
         void UnregisterApplication(NodeId applicationId);
         ApplicationRecordDataType GetApplication(NodeId applicationId);
         ApplicationRecordDataType[] FindApplications(string applicationUri);
+
         ServerOnNetwork[] QueryServers(
             uint startingRecordId,
             uint maxRecordsToReturn,
@@ -51,10 +52,27 @@ namespace Opc.Ua.Gds.Server.Database
             string[] serverCapabilities,
             out DateTime lastCounterResetTime
         );
-        bool SetApplicationCertificate(NodeId applicationId, string certificateTypeId, byte[] certificate);
-        bool GetApplicationCertificate(NodeId applicationId, string certificateTypeId, out byte[] certificate);
-        bool SetApplicationTrustLists(NodeId applicationId, string certificateTypeId, string trustListId);
-        bool GetApplicationTrustLists(NodeId applicationId, string certificateTypeId, out string trustListId);
+
+        bool SetApplicationCertificate(
+            NodeId applicationId,
+            string certificateTypeId,
+            byte[] certificate);
+
+        bool GetApplicationCertificate(
+            NodeId applicationId,
+            string certificateTypeId,
+            out byte[] certificate);
+
+        bool SetApplicationTrustLists(
+            NodeId applicationId,
+            string certificateTypeId,
+            string trustListId);
+
+        bool GetApplicationTrustLists(
+            NodeId applicationId,
+            string certificateTypeId,
+            out string trustListId);
+
         ApplicationDescription[] QueryApplications(
             uint startingRecordId,
             uint maxRecordsToReturn,

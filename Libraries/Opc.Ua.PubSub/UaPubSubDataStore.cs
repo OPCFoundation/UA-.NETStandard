@@ -57,6 +57,7 @@ namespace Opc.Ua.PubSub
         /// <param name="value">The value to be store. The value is NOT copied.</param>
         /// <param name="status">The status associated with the value.</param>
         /// <param name="timestamp">The timestamp associated with the value.</param>
+        /// <exception cref="ArgumentException"><paramref name="nodeId"/></exception>
         public void WritePublishedDataItem(
             NodeId nodeId,
             Variant value,
@@ -71,11 +72,11 @@ namespace Opc.Ua.PubSub
 
             lock (m_lock)
             {
-                var dv = new DataValue()
+                var dv = new DataValue
                 {
                     WrappedValue = value,
                     StatusCode = status ?? StatusCodes.Good,
-                    SourceTimestamp = timestamp ?? DateTime.UtcNow,
+                    SourceTimestamp = timestamp ?? DateTime.UtcNow
                 };
 
                 if (!m_store.TryGetValue(nodeId, out Dictionary<uint, DataValue> dictionary))
@@ -95,6 +96,7 @@ namespace Opc.Ua.PubSub
         /// <param name="nodeId">NodeId identifier for DataValue that will be stored</param>
         /// <param name="attributeId">Default value is <see cref="Attributes.Value"/>.</param>
         /// <param name="dataValue">Default value is null. </param>
+        /// <exception cref="ArgumentException"><paramref name="nodeId"/></exception>
         public void WritePublishedDataItem(
             NodeId nodeId,
             uint attributeId = Attributes.Value,
@@ -132,7 +134,7 @@ namespace Opc.Ua.PubSub
         /// </summary>
         /// <param name="nodeId">NodeId identifier of node</param>
         /// <param name="attributeId">Default value is <see cref="Attributes.Value"/></param>
-        /// <returns></returns>
+        /// <exception cref="ArgumentException"><paramref name="nodeId"/></exception>
         public DataValue ReadPublishedDataItem(NodeId nodeId, uint attributeId = Attributes.Value)
         {
             // todo find out why the deltaFrame parameter is not used
@@ -151,8 +153,8 @@ namespace Opc.Ua.PubSub
             lock (m_lock)
             {
                 if (
-                    m_store.TryGetValue(nodeId, out Dictionary<uint, DataValue> dictionary)
-                    && dictionary.TryGetValue(attributeId, out DataValue value)
+                    m_store.TryGetValue(nodeId, out Dictionary<uint, DataValue> dictionary) &&
+                    dictionary.TryGetValue(attributeId, out DataValue value)
                 )
                 {
                     return value;
@@ -164,6 +166,8 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Updates the metadata.
         /// </summary>
-        public void UpdateMetaData(PublishedDataSetDataType publishedDataSet) { }
+        public void UpdateMetaData(PublishedDataSetDataType publishedDataSet)
+        {
+        }
     }
 }

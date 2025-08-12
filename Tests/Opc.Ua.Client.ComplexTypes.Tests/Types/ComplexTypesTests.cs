@@ -37,8 +37,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
     /// Main purpose of this test is to verify the
     /// system.emit functionality on a target platform.
     /// </summary>
-    [TestFixture, Category("ComplexTypes")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("ComplexTypes")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class ComplexSampleTypesBuilder : ComplexTypesCommon
     {
@@ -52,7 +54,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         {
             // EncoderCommon.BuiltInTypes subtracted by the number of unused types.
             int propertyBuiltInTypes = BuiltInTypes.Length - 3;
-            Type complexType = BuildComplexTypeWithAllBuiltInTypes(structureType, nameof(CreateComplexType));
+            Type complexType = BuildComplexTypeWithAllBuiltInTypes(
+                structureType,
+                nameof(CreateComplexType));
             Assert.NotNull(complexType);
             object emittedType = Activator.CreateInstance(complexType);
             var structType = emittedType as BaseComplexType;
@@ -67,8 +71,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     var structWithOptionalFieldsType = emittedType as OptionalFieldsComplexType;
                     Assert.NotNull(structWithOptionalFieldsType);
                     Assert.AreEqual(structWithOptionalFieldsType.EncodingMask, 0);
-                    Assert.AreEqual(structWithOptionalFieldsType.GetPropertyTypes().Count, propertyBuiltInTypes);
-                    Assert.AreEqual(structWithOptionalFieldsType.GetPropertyCount(), propertyBuiltInTypes);
+                    Assert.AreEqual(
+                        structWithOptionalFieldsType.GetPropertyTypes().Count,
+                        propertyBuiltInTypes);
+                    Assert.AreEqual(
+                        structWithOptionalFieldsType.GetPropertyCount(),
+                        propertyBuiltInTypes);
                     break;
                 case StructureType.Union:
                     var unionType = emittedType as UnionComplexType;

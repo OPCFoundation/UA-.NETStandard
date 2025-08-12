@@ -57,7 +57,9 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private static void Initialize() { }
+        private static void Initialize()
+        {
+        }
 
         /// <summary>
         /// Whether the user dialog for accepting invalid certificates should be displayed.

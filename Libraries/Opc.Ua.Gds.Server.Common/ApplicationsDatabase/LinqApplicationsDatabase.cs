@@ -103,7 +103,9 @@ namespace Opc.Ua.Gds.Server.Database.Linq
     [Serializable]
     public class LinqApplicationsDatabase : ApplicationsDatabaseBase, ICertificateRequest
     {
-        public override void Initialize() { }
+        public override void Initialize()
+        {
+        }
 
         public override NodeId RegisterApplication(ApplicationRecordDataType application)
         {
@@ -161,7 +163,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 if (record == null)
                 {
                     applicationId = Guid.NewGuid();
-                    record = new Application() { ApplicationId = applicationId, ID = 0 };
+                    record = new Application { ApplicationId = applicationId, ID = 0 };
                     isNew = true;
                 }
 
@@ -183,7 +185,11 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     foreach (string discoveryUrl in application.DiscoveryUrls)
                     {
                         ServerEndpoints.Add(
-                            new ServerEndpoint() { ApplicationId = record.ApplicationId, DiscoveryUrl = discoveryUrl }
+                            new ServerEndpoint
+                            {
+                                ApplicationId = record.ApplicationId,
+                                DiscoveryUrl = discoveryUrl
+                            }
                         );
                     }
                 }
@@ -193,11 +199,11 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     foreach (LocalizedText applicationName in application.ApplicationNames)
                     {
                         ApplicationNames.Add(
-                            new ApplicationName()
+                            new ApplicationName
                             {
                                 ApplicationId = record.ApplicationId,
                                 Locale = applicationName.Locale,
-                                Text = applicationName.Text,
+                                Text = applicationName.Text
                             }
                         );
                     }
@@ -218,7 +224,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             lock (Lock)
             {
                 Application application =
-                    (from ii in Applications where ii.ApplicationId == id select ii).SingleOrDefault()
+                    (from ii in Applications where ii.ApplicationId == id select ii)
+                        .SingleOrDefault()
                     ?? throw new ArgumentException(
                         "A record with the specified application id does not exist.",
                         nameof(applicationId)
@@ -229,7 +236,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     where ii.ApplicationId == id
                     select ii;
 
-                foreach (CertificateRequest entry in new List<CertificateRequest>(certificateRequests))
+                foreach (CertificateRequest entry in new List<CertificateRequest>(
+                    certificateRequests))
                 {
                     CertificateRequests.Remove(entry);
                 }
@@ -265,7 +273,10 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             lock (Lock)
             {
-                IEnumerable<Application> results = from x in Applications where x.ApplicationId == id select x;
+                IEnumerable<Application> results = from x in Applications
+                                                   where x
+                    .ApplicationId == id
+                                                   select x;
 
                 Application result = results.SingleOrDefault();
 
@@ -308,7 +319,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     capabilities.AddRange(result.ServerCapabilities.Split(','));
                 }
 
-                return new ApplicationRecordDataType()
+                return new ApplicationRecordDataType
                 {
                     ApplicationId = new NodeId(result.ApplicationId, NamespaceIndex),
                     ApplicationUri = result.ApplicationUri,
@@ -316,7 +327,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     ApplicationNames = [.. names],
                     ProductUri = result.ProductUri,
                     DiscoveryUrls = discoveryUrls,
-                    ServerCapabilities = capabilities,
+                    ServerCapabilities = capabilities
                 };
             }
         }
@@ -366,7 +377,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     }
 
                     records.Add(
-                        new ApplicationRecordDataType()
+                        new ApplicationRecordDataType
                         {
                             ApplicationId = new NodeId(result.ApplicationId, NamespaceIndex),
                             ApplicationUri = result.ApplicationUri,
@@ -374,7 +385,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                             ApplicationNames = [.. names],
                             ProductUri = result.ProductUri,
                             DiscoveryUrls = discoveryUrls,
-                            ServerCapabilities = capabilities,
+                            ServerCapabilities = capabilities
                         }
                     );
                 }
@@ -411,12 +422,14 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
                 foreach (Application result in results)
                 {
-                    if (!string.IsNullOrEmpty(applicationName) && !Match(result.ApplicationName, applicationName))
+                    if (!string.IsNullOrEmpty(applicationName) &&
+                        !Match(result.ApplicationName, applicationName))
                     {
                         continue;
                     }
 
-                    if (!string.IsNullOrEmpty(applicationUri) && !Match(result.ApplicationUri, applicationUri))
+                    if (!string.IsNullOrEmpty(applicationUri) &&
+                        !Match(result.ApplicationUri, applicationUri))
                     {
                         continue;
                     }
@@ -438,7 +451,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
                         for (int ii = 0; ii < serverCapabilities.Length; ii++)
                         {
-                            if (capabilities == null || !capabilities.Contains(serverCapabilities[ii]))
+                            if (capabilities == null ||
+                                !capabilities.Contains(serverCapabilities[ii]))
                             {
                                 match = false;
                                 break;
@@ -453,15 +467,16 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
                     // type filter, 0 and 3 returns all
                     // filter for servers
-                    if (applicationType == 1 && result.ApplicationType == (int)ApplicationType.Client)
+                    if (applicationType == 1 &&
+                        result.ApplicationType == (int)ApplicationType.Client)
                     {
                         continue;
                     }
                     else // filter for clients
                     if (
-                        applicationType == 2
-                        && result.ApplicationType != (int)ApplicationType.Client
-                        && result.ApplicationType != (int)ApplicationType.ClientAndServer
+                        applicationType == 2 &&
+                        result.ApplicationType != (int)ApplicationType.Client &&
+                        result.ApplicationType != (int)ApplicationType.ClientAndServer
                     )
                     {
                         continue;
@@ -496,7 +511,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     }
 
                     records.Add(
-                        new ApplicationDescription()
+                        new ApplicationDescription
                         {
                             ApplicationUri = result.ApplicationUri,
                             ProductUri = result.ProductUri,
@@ -504,7 +519,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                             ApplicationType = (ApplicationType)result.ApplicationType,
                             GatewayServerUri = null,
                             DiscoveryProfileUri = null,
-                            DiscoveryUrls = discoveryUrls,
+                            DiscoveryUrls = discoveryUrls
                         }
                     );
                     nextRecordId = lastID + 1;
@@ -539,7 +554,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                         y.ApplicationUri,
                         y.ProductUri,
                         x.DiscoveryUrl,
-                        y.ServerCapabilities,
+                        y.ServerCapabilities
                     };
 
                 var records = new List<ServerOnNetwork>();
@@ -547,12 +562,14 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
                 foreach (var result in results)
                 {
-                    if (!string.IsNullOrEmpty(applicationName) && !Match(result.ApplicationName, applicationName))
+                    if (!string.IsNullOrEmpty(applicationName) &&
+                        !Match(result.ApplicationName, applicationName))
                     {
                         continue;
                     }
 
-                    if (!string.IsNullOrEmpty(applicationUri) && !Match(result.ApplicationUri, applicationUri))
+                    if (!string.IsNullOrEmpty(applicationUri) &&
+                        !Match(result.ApplicationUri, applicationUri))
                     {
                         continue;
                     }
@@ -574,7 +591,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
                         for (int ii = 0; ii < serverCapabilities.Length; ii++)
                         {
-                            if (capabilities == null || !capabilities.Contains(serverCapabilities[ii]))
+                            if (capabilities == null ||
+                                !capabilities.Contains(serverCapabilities[ii]))
                             {
                                 match = false;
                                 break;
@@ -588,10 +606,10 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     }
 
                     if (
-                        lastID != 0
-                        && maxRecordsToReturn != 0
-                        && lastID != result.ID
-                        && records.Count >= maxRecordsToReturn
+                        lastID != 0 &&
+                        maxRecordsToReturn != 0 &&
+                        lastID != result.ID &&
+                        records.Count >= maxRecordsToReturn
                     )
                     {
                         break;
@@ -599,12 +617,12 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     lastID = result.ID;
 
                     records.Add(
-                        new ServerOnNetwork()
+                        new ServerOnNetwork
                         {
                             RecordId = result.ID,
                             ServerName = result.ApplicationName,
                             DiscoveryUrl = result.DiscoveryUrl,
-                            ServerCapabilities = capabilities,
+                            ServerCapabilities = capabilities
                         }
                     );
                 }
@@ -613,13 +631,19 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             }
         }
 
-        public override bool SetApplicationCertificate(NodeId applicationId, string certificateType, byte[] certificate)
+        public override bool SetApplicationCertificate(
+            NodeId applicationId,
+            string certificateType,
+            byte[] certificate)
         {
             Guid id = GetNodeIdGuid(applicationId);
 
             lock (Lock)
             {
-                IEnumerable<Application> results = from x in Applications where x.ApplicationId == id select x;
+                IEnumerable<Application> results = from x in Applications
+                                                   where x
+                    .ApplicationId == id
+                                                   select x;
 
                 Application result = results.SingleOrDefault();
 
@@ -649,7 +673,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             lock (Lock)
             {
                 Application application =
-                    (from ii in Applications where ii.ApplicationId == id select ii).SingleOrDefault()
+                    (from ii in Applications where ii.ApplicationId == id select ii)
+                        .SingleOrDefault()
                     ?? throw new ArgumentException(
                         "A record with the specified application id does not exist.",
                         nameof(applicationId)
@@ -673,7 +698,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             lock (Lock)
             {
-                Application result = (from x in Applications where x.ApplicationId == id select x).SingleOrDefault();
+                Application result = (from x in Applications where x.ApplicationId == id select x)
+                    .SingleOrDefault();
                 if (result == null)
                 {
                     return false;
@@ -700,7 +726,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             lock (Lock)
             {
-                Application result = (from x in Applications where x.ApplicationId == id select x).SingleOrDefault();
+                Application result = (from x in Applications where x.ApplicationId == id select x)
+                    .SingleOrDefault();
 
                 if (result == null)
                 {
@@ -736,7 +763,11 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
                 if (request == null)
                 {
-                    request = new CertificateRequest() { RequestId = Guid.NewGuid(), AuthorityId = authorityId };
+                    request = new CertificateRequest
+                    {
+                        RequestId = Guid.NewGuid(),
+                        AuthorityId = authorityId
+                    };
                     isNew = true;
                 }
 
@@ -790,7 +821,11 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
                 if (request == null)
                 {
-                    request = new CertificateRequest() { RequestId = Guid.NewGuid(), AuthorityId = authorityId };
+                    request = new CertificateRequest
+                    {
+                        RequestId = Guid.NewGuid(),
+                        AuthorityId = authorityId
+                    };
                     isNew = true;
                 }
 
@@ -822,7 +857,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             lock (Lock)
             {
                 CertificateRequest request =
-                    (from x in CertificateRequests where x.RequestId == id select x).SingleOrDefault()
+                    (from x in CertificateRequests where x.RequestId == id select x)
+                        .SingleOrDefault()
                     ?? throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
 
                 if (isRejected)
@@ -848,7 +884,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             lock (Lock)
             {
                 CertificateRequest request =
-                    (from x in CertificateRequests where x.RequestId == id select x).SingleOrDefault()
+                    (from x in CertificateRequests where x.RequestId == id select x)
+                        .SingleOrDefault()
                     ?? throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
 
                 request.State = (int)CertificateRequestState.Accepted;
@@ -883,7 +920,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             lock (Lock)
             {
                 CertificateRequest request =
-                    (from x in CertificateRequests where x.RequestId == reqId select x).SingleOrDefault()
+                    (from x in CertificateRequests where x.RequestId == reqId select x)
+                        .SingleOrDefault()
                     ?? throw new ServiceResultException(StatusCodes.BadInvalidArgument);
 
                 switch (request.State)
@@ -932,7 +970,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             lock (Lock)
             {
                 CertificateRequest request =
-                    (from x in CertificateRequests where x.RequestId == reqId select x).SingleOrDefault()
+                    (from x in CertificateRequests where x.RequestId == reqId select x)
+                        .SingleOrDefault()
                     ?? throw new ServiceResultException(StatusCodes.BadInvalidArgument);
 
                 switch (request.State)
@@ -961,7 +1000,9 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             }
         }
 
-        public virtual void Save() { }
+        public virtual void Save()
+        {
+        }
 
         private void SaveChanges()
         {
@@ -969,7 +1010,10 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             {
                 QueryCounterResetTime = DateTime.UtcNow;
                 // assign IDs to new apps
-                IEnumerable<Application> queryNewApps = from x in Applications where x.ID == 0 select x;
+                IEnumerable<Application> queryNewApps = from x in Applications
+                                                        where x
+                    .ID == 0
+                                                        select x;
                 if (Applications.Count > 0)
                 {
                     uint appMax = Applications.Max(a => a.ID);
@@ -1006,7 +1050,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         internal ICollection<ServerEndpoint> ServerEndpoints = [];
 
         [JsonProperty]
-        internal ICollection<CertificateRequest> CertificateRequests = new HashSet<CertificateRequest>();
+        internal ICollection<CertificateRequest> CertificateRequests
+            = new HashSet<CertificateRequest>();
 
         [JsonProperty]
         internal ICollection<CertificateStore> CertificateStores = new HashSet<CertificateStore>();

@@ -39,8 +39,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
     /// on complex data types as defined in the
     /// Client.ComplexTypes assembly.
     /// </summary>
-    [TestFixture, Category("Encoder")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("Encoder")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class ComplexTypesEncoderTests : ComplexTypesCommon
     {
@@ -50,10 +52,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [OneTimeSetUp]
         protected new void OneTimeSetUp()
         {
-            EncoderContext = new ServiceMessageContext()
+            EncoderContext = new ServiceMessageContext
             {
                 // create private copy of factory
-                Factory = new EncodeableFactory(ServiceMessageContext.GlobalContext.Factory),
+                Factory = new EncodeableFactory(ServiceMessageContext.GlobalContext.Factory)
             };
             // add a few random namespaces
             EncoderContext.NamespaceUris.Append("urn:This:is:my:test:encoder");
@@ -61,17 +63,23 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             EncoderContext.NamespaceUris.Append(Namespaces.OpcUaEncoderTests);
             // create only a single type per structure type, tests can activate
             TypeDictionary = [];
-            CreateComplexTypes(EncoderContext, TypeDictionary, "");
+            CreateComplexTypes(EncoderContext, TypeDictionary, string.Empty);
         }
 
         [OneTimeTearDown]
-        protected new void OneTimeTearDown() { }
+        protected new void OneTimeTearDown()
+        {
+        }
 
         [SetUp]
-        protected new void SetUp() { }
+        protected new void SetUp()
+        {
+        }
 
         [TearDown]
-        protected new void TearDown() { }
+        protected new void TearDown()
+        {
+        }
 
         /// <summary>
         /// Verify encode and decode of a structured type.
@@ -79,7 +87,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Theory]
         [Category("ComplexTypes")]
         public void ReEncodeComplexType(
-            [ValueSource(nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+            [ValueSource(
+                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
             StructureType structureType
         )
@@ -110,7 +119,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Theory]
         [Category("ComplexTypes")]
         public void ReEncodeStructureWithOptionalFieldsComplexType(
-            [ValueSource(nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+            [ValueSource(
+                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
             StructureFieldParameter structureFieldParameter
         )
@@ -123,7 +133,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             object emittedType = Activator.CreateInstance(complexType);
             var baseType = emittedType as BaseComplexType;
             BuiltInType builtInType = structureFieldParameter.BuiltInType;
-            TestContext.Out.WriteLine($"Optional Field: {structureFieldParameter.BuiltInType} is the only value.");
+            TestContext.Out.WriteLine(
+                $"Optional Field: {structureFieldParameter.BuiltInType} is the only value.");
             baseType[structureFieldParameter.Name] = DataGenerator.GetRandom(builtInType);
             EncodeDecodeComplexType(
                 EncoderContext,
@@ -134,7 +145,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 nodeId,
                 emittedType
             );
-            TestContext.Out.WriteLine($"Optional Field: {structureFieldParameter.BuiltInType} is null.");
+            TestContext.Out
+                .WriteLine($"Optional Field: {structureFieldParameter.BuiltInType} is null.");
             baseType[structureFieldParameter.Name] = null;
             EncodeDecodeComplexType(
                 EncoderContext,
@@ -159,7 +171,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 nodeId,
                 emittedType
             );
-            TestContext.Out.WriteLine($"Optional Field: {structureFieldParameter.BuiltInType} has random value.");
+            TestContext.Out.WriteLine(
+                $"Optional Field: {structureFieldParameter.BuiltInType} has random value.");
             baseType[structureFieldParameter.Name] = DataGenerator.GetRandom(builtInType);
             EncodeDecodeComplexType(
                 EncoderContext,
@@ -179,7 +192,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Theory]
         [Category("ComplexTypes")]
         public void ReEncodeUnionComplexType(
-            [ValueSource(nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+            [ValueSource(
+                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
             StructureFieldParameter structureFieldParameter
         )
@@ -192,7 +206,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             object emittedType = Activator.CreateInstance(complexType);
             var baseType = emittedType as BaseComplexType;
             BuiltInType builtInType = structureFieldParameter.BuiltInType;
-            TestContext.Out.WriteLine($"Union Field: {structureFieldParameter.BuiltInType} is random.");
+            TestContext.Out
+                .WriteLine($"Union Field: {structureFieldParameter.BuiltInType} is random.");
             baseType[structureFieldParameter.Name] = DataGenerator.GetRandom(builtInType);
             EncodeDecodeComplexType(
                 EncoderContext,
@@ -203,7 +218,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 nodeId,
                 emittedType
             );
-            TestContext.Out.WriteLine($"Union Field: {structureFieldParameter.BuiltInType} is null.");
+            TestContext.Out
+                .WriteLine($"Union Field: {structureFieldParameter.BuiltInType} is null.");
             baseType[structureFieldParameter.Name] = null;
             EncodeDecodeComplexType(
                 EncoderContext,
@@ -221,7 +237,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// </summary>
         [Theory]
         [Category("ComplexTypes")]
-        public void ReEncodeComplexTypeScopedContext(MemoryStreamType memoryStreamType, StructureType structureType)
+        public void ReEncodeComplexTypeScopedContext(
+            MemoryStreamType memoryStreamType,
+            StructureType structureType)
         {
             ExpandedNodeId nodeId;
             Type complexType;

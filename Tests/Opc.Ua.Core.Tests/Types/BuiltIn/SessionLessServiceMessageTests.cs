@@ -7,8 +7,10 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
     /// <summary>
     /// Tests for the SessionLessServiceMessage Tests.
     /// </summary>
-    [TestFixture, Category("BuiltIn")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("BuiltIn")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class SessionLessServiceMessageTests
     {
@@ -20,7 +22,11 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             var namespaceTable = new NamespaceTable([Namespaces.OpcUa, "http://bar", "http://foo"]);
             const string expectedServerUri = "http://foobar";
             var serverUris = new StringTable([Namespaces.OpcUa, expectedServerUri]);
-            var context = new ServiceMessageContext { NamespaceUris = namespaceTable, ServerUris = serverUris };
+            var context = new ServiceMessageContext
+            {
+                NamespaceUris = namespaceTable,
+                ServerUris = serverUris
+            };
             string result;
             using (var jsonEncoder = new JsonEncoder(context, true))
             {
@@ -29,7 +35,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                     UriVersion = uriVersion,
                     NamespaceUris = context.NamespaceUris,
                     ServerUris = context.ServerUris,
-                    Message = null,
+                    Message = null
                 };
 
                 //act and validate it does not throw

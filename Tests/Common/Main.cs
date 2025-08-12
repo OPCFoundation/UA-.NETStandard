@@ -37,7 +37,6 @@ namespace Opc.Ua.Fuzzing
         /// <summary>
         /// Main Method
         /// </summary>
-        /// <param name="args"></param>
         public static void Main(string[] args)
         {
             IConfig config = ManualConfig

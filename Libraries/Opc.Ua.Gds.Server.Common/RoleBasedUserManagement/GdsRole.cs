@@ -70,10 +70,13 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         ///  A privilege to manage the own Certificates and pull trust list
         /// </summary>
-        public static Role ApplicationSelfAdmin { get; } = new Role(NodeId.Null, "ApplicationSelfAdmin");
+        public static Role ApplicationSelfAdmin { get; }
+            = new Role(NodeId.Null, "ApplicationSelfAdmin");
 
         public GdsRole(NodeId roleId, string name)
-            : base(roleId, name) { }
+            : base(roleId, name)
+        {
+        }
     }
 
     /// <summary>
@@ -81,14 +84,19 @@ namespace Opc.Ua.Gds.Server
     /// </summary>
     public class GdsRoleBasedIdentity : RoleBasedIdentity
     {
-        public GdsRoleBasedIdentity(IUserIdentity identity, IEnumerable<Role> roles, NodeId applicationId)
+        public GdsRoleBasedIdentity(
+            IUserIdentity identity,
+            IEnumerable<Role> roles,
+            NodeId applicationId)
             : base(identity, roles)
         {
             ApplicationId = applicationId;
         }
 
         public GdsRoleBasedIdentity(IUserIdentity identity, IEnumerable<Role> roles)
-            : base(identity, roles) { }
+            : base(identity, roles)
+        {
+        }
 
         /// <summary>
         /// The applicationId in case the ApplicationSelfAdminPrivilege is used

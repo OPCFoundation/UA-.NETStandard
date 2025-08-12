@@ -65,7 +65,9 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="issuerSubjectName">Issuer distinguished name</param>
         /// <param name="hashAlgorithmName">The signing algorithm to use.</param>
-        public static CrlBuilder Create(X500DistinguishedName issuerSubjectName, HashAlgorithmName hashAlgorithmName)
+        public static CrlBuilder Create(
+            X500DistinguishedName issuerSubjectName,
+            HashAlgorithmName hashAlgorithmName)
         {
             return new CrlBuilder(issuerSubjectName, hashAlgorithmName);
         }
@@ -90,14 +92,18 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="issuerSubjectName">Issuer name</param>
         private CrlBuilder(X500DistinguishedName issuerSubjectName)
-            : this(issuerSubjectName, X509Defaults.HashAlgorithmName) { }
+            : this(issuerSubjectName, X509Defaults.HashAlgorithmName)
+        {
+        }
 
         /// <summary>
         /// Initialize the CRL builder with Issuer and hash algorithm.
         /// </summary>
         /// <param name="issuerSubjectName">Issuer distinguished name</param>
         /// <param name="hashAlgorithmName">The signing algorithm to use.</param>
-        private CrlBuilder(X500DistinguishedName issuerSubjectName, HashAlgorithmName hashAlgorithmName)
+        private CrlBuilder(
+            X500DistinguishedName issuerSubjectName,
+            HashAlgorithmName hashAlgorithmName)
             : this()
         {
             IssuerName = issuerSubjectName;
@@ -171,14 +177,18 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="serialNumbers">The array of serial numbers to revoke.</param>
         /// <param name="crlReason">The revocation reason</param>
-        public CrlBuilder AddRevokedSerialNumbers(string[] serialNumbers, CRLReason crlReason = CRLReason.Unspecified)
+        /// <exception cref="ArgumentNullException"><paramref name="serialNumbers"/> is <c>null</c>.</exception>
+        public CrlBuilder AddRevokedSerialNumbers(
+            string[] serialNumbers,
+            CRLReason crlReason = CRLReason.Unspecified)
         {
             if (serialNumbers == null)
             {
                 throw new ArgumentNullException(nameof(serialNumbers));
             }
 
-            m_revokedCertificates.AddRange([.. serialNumbers.Select(s => new RevokedCertificate(s, crlReason))]);
+            m_revokedCertificates.AddRange(
+                [.. serialNumbers.Select(s => new RevokedCertificate(s, crlReason))]);
             return this;
         }
 
@@ -187,6 +197,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="certificate">The certificate to revoke.</param>
         /// <param name="crlReason">The revocation reason</param>
+        /// <exception cref="ArgumentNullException"><paramref name="certificate"/> is <c>null</c>.</exception>
         public CrlBuilder AddRevokedCertificate(
             X509Certificate2 certificate,
             CRLReason crlReason = CRLReason.Unspecified
@@ -204,6 +215,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Add a revoked certificate.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="revokedCertificate"/> is <c>null</c>.</exception>
         public CrlBuilder AddRevokedCertificate(RevokedCertificate revokedCertificate)
         {
             if (revokedCertificate == null)
@@ -218,6 +230,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Add a list of revoked certificate.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="revokedCertificates"/> is <c>null</c>.</exception>
         public CrlBuilder AddRevokedCertificates(IList<RevokedCertificate> revokedCertificates)
         {
             if (revokedCertificates == null)
@@ -246,7 +259,8 @@ namespace Opc.Ua.Security.Certificates
         public IX509CRL CreateSignature(X509SignatureGenerator generator)
         {
             byte[] tbsRawData = Encode();
-            byte[] signatureAlgorithm = generator.GetSignatureAlgorithmIdentifier(HashAlgorithmName);
+            byte[] signatureAlgorithm = generator.GetSignatureAlgorithmIdentifier(
+                HashAlgorithmName);
             byte[] signature = generator.SignData(tbsRawData, HashAlgorithmName);
             var crlSigner = new X509Signature(tbsRawData, signature, signatureAlgorithm);
             RawData = crlSigner.Encode();

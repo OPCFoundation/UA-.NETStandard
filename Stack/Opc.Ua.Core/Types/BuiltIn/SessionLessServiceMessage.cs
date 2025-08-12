@@ -166,4 +166,4 @@ namespace Opc.Ua
             }
         }
     }
-} //namespace
+}

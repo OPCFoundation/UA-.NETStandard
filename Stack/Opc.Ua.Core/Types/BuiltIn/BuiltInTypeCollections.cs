@@ -33,13 +33,18 @@ namespace Opc.Ua
     /// bools.AddRange( New Boolean(){ True, False, True, False } )
     /// </code>
     /// </example>
-    [CollectionDataContract(Name = "ListOfBoolean", Namespace = Namespaces.OpcUaXsd, ItemName = "Boolean")]
+    [CollectionDataContract(
+        Name = "ListOfBoolean",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "Boolean")]
     public class BooleanCollection : List<bool>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public BooleanCollection() { }
+        public BooleanCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -50,13 +55,17 @@ namespace Opc.Ua
         /// </remarks>
         /// <param name="collection">A collection of boolean values to add to this new collection</param>
         public BooleanCollection(IEnumerable<bool> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         public BooleanCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -105,27 +114,36 @@ namespace Opc.Ua
     /// <remarks>
     /// Provides a strongly-typed list of <see cref="sbyte"/> values.
     /// </remarks>
-    [CollectionDataContract(Name = "ListOfSByte", Namespace = Namespaces.OpcUaXsd, ItemName = "SByte")]
+    [CollectionDataContract(
+        Name = "ListOfSByte",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "SByte")]
     public class SByteCollection : List<sbyte>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public SByteCollection() { }
+        public SByteCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection and sets the maximum capacity
         /// </summary>
         /// <param name="capacity">The maximum size of this collection</param>
         public SByteCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection and populates it with the specified collection of SByte values
         /// </summary>
         /// <param name="collection">A collection of <see cref="sbyte"/> values to populate this collection with</param>
         public SByteCollection(IEnumerable<sbyte> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -174,27 +192,36 @@ namespace Opc.Ua
     /// <remarks>
     /// Provides a strongly-typed list of <see cref="byte"/> values.
     /// </remarks>
-    [CollectionDataContract(Name = "ListOfByte", Namespace = Namespaces.OpcUaXsd, ItemName = "Byte")]
+    [CollectionDataContract(
+        Name = "ListOfByte",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "Byte")]
     public class ByteCollection : List<byte>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public ByteCollection() { }
+        public ByteCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection and sets the maximum capacity
         /// </summary>
         /// <param name="capacity">The maximum size of this collection</param>
         public ByteCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection and populates it with the specified collection of Byte values
         /// </summary>
         /// <param name="collection">A collection of <see cref="byte"/> values to populate this collection with</param>
         public ByteCollection(IEnumerable<byte> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -243,27 +270,36 @@ namespace Opc.Ua
     /// <remarks>
     /// A strongly-typed collection of Int16 values.
     /// </remarks>
-    [CollectionDataContract(Name = "ListOfInt16", Namespace = Namespaces.OpcUaXsd, ItemName = "Int16")]
+    [CollectionDataContract(
+        Name = "ListOfInt16",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "Int16")]
     public class Int16Collection : List<short>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public Int16Collection() { }
+        public Int16Collection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection and specifies the capacity
         /// </summary>
         /// <param name="capacity">The max size of the collection</param>
         public Int16Collection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection and populates it with the values passed-in
         /// </summary>
         /// <param name="collection">A collection of <see cref="short"/> values to populate the collection with</param>
         public Int16Collection(IEnumerable<short> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -306,27 +342,36 @@ namespace Opc.Ua
     /// <summary>
     /// A collection of UInt16 values.
     /// </summary>
-    [CollectionDataContract(Name = "ListOfUInt16", Namespace = Namespaces.OpcUaXsd, ItemName = "UInt16")]
+    [CollectionDataContract(
+        Name = "ListOfUInt16",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "UInt16")]
     public class UInt16Collection : List<ushort>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public UInt16Collection() { }
+        public UInt16Collection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The max capacity size of this collection</param>
         public UInt16Collection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">A Collection of <see cref="ushort"/> to pre-populate the collection with</param>
         public UInt16Collection(IEnumerable<ushort> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -369,7 +414,10 @@ namespace Opc.Ua
     /// <summary>
     /// A collection of Int32 values.
     /// </summary>
-    [CollectionDataContract(Name = "ListOfInt32", Namespace = Namespaces.OpcUaXsd, ItemName = "Int32")]
+    [CollectionDataContract(
+        Name = "ListOfInt32",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "Int32")]
     public class Int32Collection : List<int>, ICloneable
     {
         /// <summary>
@@ -378,21 +426,27 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes an empty collection of <see cref="int"/>.
         /// </remarks>
-        public Int32Collection() { }
+        public Int32Collection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">Max capacity of this collection</param>
         public Int32Collection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection
         /// </summary>
         /// <param name="collection">A collection of <see cref="int"/> to pre-populate this collection with</param>
         public Int32Collection(IEnumerable<int> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -435,7 +489,10 @@ namespace Opc.Ua
     /// <summary>
     /// A collection of UInt32 values.
     /// </summary>
-    [CollectionDataContract(Name = "ListOfUInt32", Namespace = Namespaces.OpcUaXsd, ItemName = "UInt32")]
+    [CollectionDataContract(
+        Name = "ListOfUInt32",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "UInt32")]
     public class UInt32Collection : List<uint>, ICloneable
     {
         /// <summary>
@@ -444,21 +501,27 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes an empty collection of <see cref="uint"/>.
         /// </remarks>
-        public UInt32Collection() { }
+        public UInt32Collection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">Max capacity of the collection</param>
         public UInt32Collection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">A collection of <see cref="uint"/> to pre-populate the collection with</param>
         public UInt32Collection(IEnumerable<uint> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -508,7 +571,10 @@ namespace Opc.Ua
     /// <remarks>
     /// A strongly-typed collection of Int64 values.
     /// </remarks>
-    [CollectionDataContract(Name = "ListOfInt64", Namespace = Namespaces.OpcUaXsd, ItemName = "Int64")]
+    [CollectionDataContract(
+        Name = "ListOfInt64",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "Int64")]
     public class Int64Collection : List<long>, ICloneable
     {
         /// <summary>
@@ -517,21 +583,27 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes an empty collection of <see cref="long"/>.
         /// </remarks>
-        public Int64Collection() { }
+        public Int64Collection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">Max capacity of the collection</param>
         public Int64Collection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">A colleciton of <see cref="long"/> to pre-populate the collection with</param>
         public Int64Collection(IEnumerable<long> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -577,27 +649,36 @@ namespace Opc.Ua
     /// <remarks>
     /// A strongly-typed collection of UInt64 values.
     /// </remarks>
-    [CollectionDataContract(Name = "ListOfUInt64", Namespace = Namespaces.OpcUaXsd, ItemName = "UInt64")]
+    [CollectionDataContract(
+        Name = "ListOfUInt64",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "UInt64")]
     public class UInt64Collection : List<ulong>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public UInt64Collection() { }
+        public UInt64Collection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">Max capacity of collection</param>
         public UInt64Collection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">A collection of <see cref="ulong"/> to pre-populate the collection with</param>
         public UInt64Collection(IEnumerable<ulong> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -643,27 +724,36 @@ namespace Opc.Ua
     /// <remarks>
     /// A strongly-typed collection of Float values.
     /// </remarks>
-    [CollectionDataContract(Name = "ListOfFloat", Namespace = Namespaces.OpcUaXsd, ItemName = "Float")]
+    [CollectionDataContract(
+        Name = "ListOfFloat",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "Float")]
     public class FloatCollection : List<float>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public FloatCollection() { }
+        public FloatCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The max capacity of this collection</param>
         public FloatCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">The collection of values to add into this collection</param>
         public FloatCollection(IEnumerable<float> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -706,27 +796,36 @@ namespace Opc.Ua
     /// <summary>
     /// A collection of Double values.
     /// </summary>
-    [CollectionDataContract(Name = "ListOfDouble", Namespace = Namespaces.OpcUaXsd, ItemName = "Double")]
+    [CollectionDataContract(
+        Name = "ListOfDouble",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "Double")]
     public class DoubleCollection : List<double>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public DoubleCollection() { }
+        public DoubleCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">max capacity of collection</param>
         public DoubleCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">A collection of doubles to add into this collection</param>
         public DoubleCollection(IEnumerable<double> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -772,27 +871,36 @@ namespace Opc.Ua
     /// <remarks>
     /// A strongly-typed collection of String values.
     /// </remarks>
-    [CollectionDataContract(Name = "ListOfString", Namespace = Namespaces.OpcUaXsd, ItemName = "String")]
+    [CollectionDataContract(
+        Name = "ListOfString",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "String")]
     public class StringCollection : List<string>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public StringCollection() { }
+        public StringCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">Max capacity of collection</param>
         public StringCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">A collection of strings to add to this collection</param>
         public StringCollection(IEnumerable<string> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -837,27 +945,36 @@ namespace Opc.Ua
     /// <remarks>
     /// A strongly-typed collection of DateTime values.
     /// </remarks>
-    [CollectionDataContract(Name = "ListOfDateTime", Namespace = Namespaces.OpcUaXsd, ItemName = "DateTime")]
+    [CollectionDataContract(
+        Name = "ListOfDateTime",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "DateTime")]
     public class DateTimeCollection : List<DateTime>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public DateTimeCollection() { }
+        public DateTimeCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">Max capacity of collection</param>
         public DateTimeCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
         ///<param name="collection">A collection of DateTime to add to this collection</param>
         public DateTimeCollection(IEnumerable<DateTime> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -900,27 +1017,36 @@ namespace Opc.Ua
     /// <summary>
     /// A collection of ByteString values.
     /// </summary>
-    [CollectionDataContract(Name = "ListOfByteString", Namespace = Namespaces.OpcUaXsd, ItemName = "ByteString")]
+    [CollectionDataContract(
+        Name = "ListOfByteString",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "ByteString")]
     public class ByteStringCollection : List<byte[]>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public ByteStringCollection() { }
+        public ByteStringCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">Max size of collection</param>
         public ByteStringCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">A collection of byte to add to this collection</param>
         public ByteStringCollection(IEnumerable<byte[]> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -973,27 +1099,36 @@ namespace Opc.Ua
     /// <remarks>
     /// A strongly-typed collection of XmlElement values.
     /// </remarks>
-    [CollectionDataContract(Name = "ListOfXmlElement", Namespace = Namespaces.OpcUaXsd, ItemName = "XmlElement")]
+    [CollectionDataContract(
+        Name = "ListOfXmlElement",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "XmlElement")]
     public class XmlElementCollection : List<XmlElement>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public XmlElementCollection() { }
+        public XmlElementCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">Max size of collection</param>
         public XmlElementCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">A collection of XmlElement's to add to this collection</param>
         public XmlElementCollection(IEnumerable<XmlElement> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -1038,5 +1173,5 @@ namespace Opc.Ua
 
             return clone;
         }
-    } //class
-} //namespace
+    }
+}

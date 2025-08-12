@@ -44,7 +44,10 @@ namespace Opc.Ua.Server
         /// <param name="requestHeader">The request header.</param>
         /// <param name="requestType">Type of the request.</param>
         /// <param name="identity">The identity used in the request.</param>
-        public OperationContext(RequestHeader requestHeader, RequestType requestType, IUserIdentity identity = null)
+        public OperationContext(
+            RequestHeader requestHeader,
+            RequestType requestType,
+            IUserIdentity identity = null)
         {
             if (requestHeader == null)
             {
@@ -75,7 +78,10 @@ namespace Opc.Ua.Server
         /// <param name="requestHeader">The request header.</param>
         /// <param name="requestType">Type of the request.</param>
         /// <param name="session">The session.</param>
-        public OperationContext(RequestHeader requestHeader, RequestType requestType, ISession session)
+        public OperationContext(
+            RequestHeader requestHeader,
+            RequestType requestType,
+            ISession session)
         {
             if (requestHeader == null)
             {

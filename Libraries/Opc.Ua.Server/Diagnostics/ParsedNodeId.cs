@@ -88,7 +88,7 @@ namespace Opc.Ua.Server
                 NamespaceIndex = nodeId.NamespaceIndex,
 
                 // extract the type of identifier.
-                RootType = 0,
+                RootType = 0
             };
 
             int start = 0;
@@ -165,7 +165,7 @@ namespace Opc.Ua.Server
             {
                 RootType = rootType,
                 RootId = rootId,
-                NamespaceIndex = namespaceIndex,
+                NamespaceIndex = namespaceIndex
             };
 
             if (componentNames != null)
@@ -206,8 +206,8 @@ namespace Opc.Ua.Server
             var buffer = new StringBuilder();
 
             // add the root type.
-            buffer.Append(RootType);
-            buffer.Append(':');
+            buffer.Append(RootType)
+                .Append(':');
 
             // add the root identifier.
             if (RootId != null)
@@ -229,8 +229,8 @@ namespace Opc.Ua.Server
             // add the component path.
             if (!string.IsNullOrEmpty(ComponentPath))
             {
-                buffer.Append('?');
-                buffer.Append(ComponentPath);
+                buffer.Append('?')
+                    .Append(ComponentPath);
             }
 
             // add the component name.

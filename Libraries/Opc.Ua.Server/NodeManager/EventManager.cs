@@ -83,6 +83,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Reports an event.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="e"/> is <c>null</c>.</exception>
         public static void ReportEvent(IFilterTarget e, IList<IEventMonitoredItem> monitoredItems)
         {
             if (e == null)
@@ -175,7 +176,11 @@ namespace Opc.Ua.Server
                 );
 
                 // create the monitored item.
-                var monitoredItem = new MonitoredItem(m_server, nodeManager, handle, storedMonitoredItem);
+                var monitoredItem = new MonitoredItem(
+                    m_server,
+                    nodeManager,
+                    handle,
+                    storedMonitoredItem);
 
                 // save the monitored item.
                 m_monitoredItems.Add(monitoredItem.Id, monitoredItem);
@@ -187,9 +192,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// calculates a revised queue size based on the application confiugration limits
         /// </summary>
-        /// <param name="isDurable"></param>
-        /// <param name="queueSize"></param>
-        /// <returns></returns>
         private uint CalculateRevisedQueueSize(bool isDurable, uint queueSize)
         {
             if (queueSize > m_maxEventQueueSize && !isDurable)

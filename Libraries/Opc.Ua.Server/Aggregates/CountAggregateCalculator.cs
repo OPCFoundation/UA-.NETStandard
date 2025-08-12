@@ -72,16 +72,12 @@ namespace Opc.Ua.Server
                 {
                     case Objects.AggregateFunction_Count:
                         return ComputeCount(slice);
-
                     case Objects.AggregateFunction_AnnotationCount:
                         return ComputeAnnotationCount(slice);
-
                     case Objects.AggregateFunction_DurationInStateZero:
                         return ComputeDurationInState(slice, false);
-
                     case Objects.AggregateFunction_DurationInStateNonZero:
                         return ComputeDurationInState(slice, true);
-
                     case Objects.AggregateFunction_NumberOfTransitions:
                         return ComputeNumberOfTransitions(slice);
                 }
@@ -120,7 +116,7 @@ namespace Opc.Ua.Server
             {
                 WrappedValue = new Variant(count, TypeInfo.Scalars.Int32),
                 SourceTimestamp = GetTimestamp(slice),
-                ServerTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
             };
             value.StatusCode = GetValueBasedStatusCode(slice, values, value.StatusCode);
 
@@ -160,7 +156,7 @@ namespace Opc.Ua.Server
             {
                 WrappedValue = new Variant(count, TypeInfo.Scalars.Int32),
                 SourceTimestamp = GetTimestamp(slice),
-                ServerTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
             };
             value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
 
@@ -212,7 +208,7 @@ namespace Opc.Ua.Server
             {
                 WrappedValue = new Variant(duration, TypeInfo.Scalars.Double),
                 SourceTimestamp = GetTimestamp(slice),
-                ServerTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
             };
             value.StatusCode = GetTimeBasedStatusCode(regions, value.StatusCode);
             value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
@@ -283,7 +279,7 @@ namespace Opc.Ua.Server
             {
                 WrappedValue = new Variant(count, TypeInfo.Scalars.Int32),
                 SourceTimestamp = GetTimestamp(slice),
-                ServerTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
             };
             value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
             value.StatusCode = GetValueBasedStatusCode(slice, values, value.StatusCode);

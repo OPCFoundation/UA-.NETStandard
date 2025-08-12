@@ -132,7 +132,8 @@ namespace Opc.Ua
 
             if (obj is not QualifiedName qname)
             {
-                return typeof(QualifiedName).GetTypeInfo().GUID.CompareTo(obj.GetType().GetTypeInfo().GUID);
+                return typeof(QualifiedName).GetTypeInfo().GUID
+                    .CompareTo(obj.GetType().GetTypeInfo().GUID);
             }
 
             if (qname.XmlEncodedNamespaceIndex != XmlEncodedNamespaceIndex)
@@ -283,15 +284,16 @@ namespace Opc.Ua
                 if (XmlEncodedNamespaceIndex == 0)
                 {
                     // prepend the namespace index if the name contains a colon.
-                    if (XmlEncodedName != null && XmlEncodedName.Contains(':', StringComparison.Ordinal))
+                    if (XmlEncodedName != null &&
+                        XmlEncodedName.Contains(':', StringComparison.Ordinal))
                     {
                         builder.Append("0:");
                     }
                 }
                 else
                 {
-                    builder.Append(XmlEncodedNamespaceIndex);
-                    builder.Append(':');
+                    builder.Append(XmlEncodedNamespaceIndex)
+                        .Append(':');
                 }
 
                 if (XmlEncodedName != null)
@@ -323,7 +325,11 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an expanded node id to a node id using a namespace table.
         /// </summary>
-        public static QualifiedName Create(string name, string namespaceUri, NamespaceTable namespaceTable)
+        /// <exception cref="ServiceResultException"></exception>
+        public static QualifiedName Create(
+            string name,
+            string namespaceUri,
+            NamespaceTable namespaceTable)
         {
             // check for null.
             if (string.IsNullOrEmpty(name))
@@ -372,7 +378,8 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (namespaceUris != null && namespaceUris.GetString(value.XmlEncodedNamespaceIndex) == null)
+            if (namespaceUris != null &&
+                namespaceUris.GetString(value.XmlEncodedNamespaceIndex) == null)
             {
                 return false;
             }
@@ -430,7 +437,10 @@ namespace Opc.Ua
         /// <param name="text">The QualifiedName value as a string.</param>
         /// <param name="updateTables">Whether the NamespaceTable should be updated with the NamespaceUri.</param>
         /// <exception cref="ServiceResultException">Thrown under a variety of circumstances, each time with a specific message.</exception>
-        public static QualifiedName Parse(IServiceMessageContext context, string text, bool updateTables)
+        public static QualifiedName Parse(
+            IServiceMessageContext context,
+            string text,
+            bool updateTables)
         {
             // check for null.
             if (string.IsNullOrEmpty(text))
@@ -516,20 +526,20 @@ namespace Opc.Ua
 
                     if (!string.IsNullOrEmpty(namespaceUri))
                     {
-                        buffer.Append("nsu=");
-                        buffer.Append(Utils.EscapeUri(namespaceUri));
-                        buffer.Append(';');
+                        buffer.Append("nsu=")
+                            .Append(Utils.EscapeUri(namespaceUri))
+                            .Append(';');
                     }
                     else
                     {
-                        buffer.Append(XmlEncodedNamespaceIndex);
-                        buffer.Append(':');
+                        buffer.Append(XmlEncodedNamespaceIndex)
+                            .Append(':');
                     }
                 }
                 else
                 {
-                    buffer.Append(XmlEncodedNamespaceIndex);
-                    buffer.Append(':');
+                    buffer.Append(XmlEncodedNamespaceIndex)
+                        .Append(':');
                 }
             }
 
@@ -546,7 +556,8 @@ namespace Opc.Ua
         {
             if (value != null)
             {
-                if (value.XmlEncodedNamespaceIndex != 0 || !string.IsNullOrEmpty(value.XmlEncodedName))
+                if (value.XmlEncodedNamespaceIndex != 0 ||
+                    !string.IsNullOrEmpty(value.XmlEncodedName))
                 {
                     return false;
                 }
@@ -585,27 +596,36 @@ namespace Opc.Ua
     /// <remarks>
     /// A strongly-typed collection of QualifiedName objects.
     /// </remarks>
-    [CollectionDataContract(Name = "ListOfQualifiedName", Namespace = Namespaces.OpcUaXsd, ItemName = "QualifiedName")]
+    [CollectionDataContract(
+        Name = "ListOfQualifiedName",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "QualifiedName")]
     public class QualifiedNameCollection : List<QualifiedName>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public QualifiedNameCollection() { }
+        public QualifiedNameCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">The enumerated collection of qualified names to add to this new collection</param>
         public QualifiedNameCollection(IEnumerable<QualifiedName> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">Max capacity of this collection</param>
         public QualifiedNameCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -650,5 +670,5 @@ namespace Opc.Ua
 
             return clone;
         }
-    } //class
-} //namespace
+    }
+}

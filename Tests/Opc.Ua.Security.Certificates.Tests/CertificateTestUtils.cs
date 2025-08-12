@@ -73,13 +73,19 @@ namespace Opc.Ua.Security.Certificates.Tests
 
     public class KeyHashPairCollection : List<KeyHashPair>
     {
-        public KeyHashPairCollection() { }
+        public KeyHashPairCollection()
+        {
+        }
 
         public KeyHashPairCollection(IEnumerable<KeyHashPair> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         public KeyHashPairCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         public static KeyHashPairCollection ToJsonValidationDataCollection(KeyHashPair[] values)
         {
@@ -138,15 +144,22 @@ namespace Opc.Ua.Security.Certificates.Tests
 
     public class ECCurveHashPairCollection : List<ECCurveHashPair>
     {
-        public ECCurveHashPairCollection() { }
+        public ECCurveHashPairCollection()
+        {
+        }
 
         public ECCurveHashPairCollection(IEnumerable<ECCurveHashPair> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         public ECCurveHashPairCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
-        public static ECCurveHashPairCollection ToJsonValidationDataCollection(ECCurveHashPair[] values)
+        public static ECCurveHashPairCollection ToJsonValidationDataCollection(
+            ECCurveHashPair[] values)
         {
             return values != null ? [.. values] : [];
         }
@@ -163,8 +176,6 @@ namespace Opc.Ua.Security.Certificates.Tests
     /// </summary>
     public class CRLAsset : IAsset, IFormattable
     {
-        public CRLAsset() { }
-
         public string Path { get; private set; }
         public byte[] Crl { get; private set; }
 
@@ -186,8 +197,6 @@ namespace Opc.Ua.Security.Certificates.Tests
     /// </summary>
     public class CertificateAsset : IAsset, IFormattable
     {
-        public CertificateAsset() { }
-
         public string Path { get; private set; }
         public byte[] Cert { get; private set; }
         public X509Certificate2 X509Certificate { get; private set; }
@@ -200,7 +209,9 @@ namespace Opc.Ua.Security.Certificates.Tests
             {
                 X509Certificate = X509CertificateLoader.LoadCertificateFromFile(path);
             }
-            catch { }
+            catch
+            {
+            }
         }
 
         public string ToString(string format, IFormatProvider formatProvider)
@@ -218,21 +229,24 @@ namespace Opc.Ua.Security.Certificates.Tests
         public static string WriteCRL(X509CRL x509Crl)
         {
             var stringBuilder = new StringBuilder();
-            stringBuilder.Append("Issuer:     ").AppendLine(x509Crl.Issuer);
-            stringBuilder.Append("ThisUpdate: ").Append(x509Crl.ThisUpdate).AppendLine();
-            stringBuilder.Append("NextUpdate: ").Append(x509Crl.NextUpdate).AppendLine();
-            stringBuilder.AppendLine("RevokedCertificates:");
+            stringBuilder.Append("Issuer:     ").AppendLine(x509Crl.Issuer)
+                .Append("ThisUpdate: ").Append(x509Crl.ThisUpdate).AppendLine()
+                .Append("NextUpdate: ").Append(x509Crl.NextUpdate).AppendLine()
+                .AppendLine("RevokedCertificates:");
             foreach (RevokedCertificate revokedCert in x509Crl.RevokedCertificates)
             {
                 stringBuilder
-                    .AppendFormat(CultureInfo.InvariantCulture, "{0:20}, ", revokedCert.SerialNumber)
+                    .AppendFormat(
+                        CultureInfo.InvariantCulture,
+                        "{0:20}, ",
+                        revokedCert.SerialNumber)
                     .Append(revokedCert.RevocationDate)
                     .Append(", ");
                 foreach (X509Extension entryExt in revokedCert.CrlEntryExtensions)
                 {
                     stringBuilder.Append(entryExt.Format(false)).Append(' ');
                 }
-                stringBuilder.AppendLine("");
+                stringBuilder.AppendLine(string.Empty);
             }
             stringBuilder.AppendLine("Extensions:");
             foreach (X509Extension extension in x509Crl.CrlExtensions)

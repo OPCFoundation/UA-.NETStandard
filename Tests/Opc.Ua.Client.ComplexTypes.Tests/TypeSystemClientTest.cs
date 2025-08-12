@@ -46,8 +46,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
     /// <summary>
     /// Load Type System tests.
     /// </summary>
-    [TestFixture, Category("Client")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("Client")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [NonParallelizable]
     public class TypeSystemClientTest : IUAClient
     {
@@ -103,24 +105,27 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 SecurityNone = true,
                 AutoAccept = true,
                 AllNodeManagers = true,
-                OperationLimits = true,
+                OperationLimits = true
             };
             if (writer != null)
             {
                 m_serverFixture.TraceMasks =
-                    Utils.TraceMasks.Error
-                    | Utils.TraceMasks.StackTrace
-                    | Utils.TraceMasks.Security
-                    | Utils.TraceMasks.Information;
+                    Utils.TraceMasks.Error |
+                    Utils.TraceMasks.StackTrace |
+                    Utils.TraceMasks.Security |
+                    Utils.TraceMasks.Information;
             }
-            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out, m_pkiRoot).ConfigureAwait(false);
+            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out, m_pkiRoot)
+                .ConfigureAwait(false);
 
             m_clientFixture = new ClientFixture();
 
             await m_clientFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             m_clientFixture.Config.TransportQuotas.MaxMessageSize = 4 * 1024 * 1024;
             m_url = new Uri(
-                m_uriScheme + "://localhost:" + m_serverFixture.Port.ToString(CultureInfo.InvariantCulture)
+                m_uriScheme +
+                "://localhost:" +
+                m_serverFixture.Port.ToString(CultureInfo.InvariantCulture)
             );
             try
             {
@@ -162,7 +167,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             m_serverFixture.SetTraceOutput(TestContext.Out);
         }
 
-        [Test, Order(100)]
+        [Test]
+        [Order(100)]
         [TestCase(false, false, false)]
         [TestCase(true, false, false)]
         [TestCase(false, true, false)]
@@ -190,9 +196,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             foreach (ExpandedNodeId dataTypeId in typeSystem.GetDefinedDataTypeIds())
             {
-                NodeIdDictionary<DataTypeDefinition> definitions = typeSystem.GetDataTypeDefinitionsForDataType(
-                    dataTypeId
-                );
+                NodeIdDictionary<DataTypeDefinition> definitions = typeSystem
+                    .GetDataTypeDefinitionsForDataType(
+                        dataTypeId
+                        );
                 Assert.IsNotEmpty(definitions);
                 Type type = Session.Factory.GetSystemType(dataTypeId);
                 Assert.IsNotNull(type);
@@ -211,7 +218,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             }
         }
 
-        [Test, Order(200)]
+        [Test]
+        [Order(200)]
         public async Task BrowseComplexTypesServerAsync()
         {
             var samples = new ClientSamples(TestContext.Out, null, null, true);
@@ -248,7 +256,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             }
         }
 
-        [Test, Order(300)]
+        [Test]
+        [Order(300)]
         public async Task FetchComplexTypesServerAsync()
         {
             var samples = new ClientSamples(TestContext.Out, null, null, true);
@@ -266,7 +275,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             var variableIds = new NodeIdCollection(
                 allNodes
                     .Where(r =>
-                        r.NodeClass == NodeClass.Variable && r is VariableNode v && v.DataType.NamespaceIndex != 0
+                        r.NodeClass == NodeClass.Variable &&
+                        r is VariableNode v &&
+                        v.DataType.NamespaceIndex != 0
                     )
                     .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris))
             );
@@ -288,14 +299,19 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             {
                 DataValue value = values[ii];
                 NodeId variableId = variableIds[ii];
-                var variableExpandedNodeId = NodeId.ToExpandedNodeId(variableId, Session.NamespaceUris);
+                var variableExpandedNodeId = NodeId.ToExpandedNodeId(
+                    variableId,
+                    Session.NamespaceUris);
                 if (
-                    allNodes.FirstOrDefault(n => n.NodeId == variableId) is VariableNode variableNode
-                    && variableNode.DataType.NamespaceIndex != 0
+                    allNodes.FirstOrDefault(
+                        n => n.NodeId == variableId) is VariableNode variableNode &&
+                    variableNode.DataType.NamespaceIndex != 0
                 )
                 {
                     TestContext.Out.WriteLine("Check for custom type: {0}", variableNode);
-                    var fullTypeId = NodeId.ToExpandedNodeId(variableNode.DataType, Session.NamespaceUris);
+                    var fullTypeId = NodeId.ToExpandedNodeId(
+                        variableNode.DataType,
+                        Session.NamespaceUris);
                     Type type = Session.Factory.GetSystemType(fullTypeId);
                     if (type == null)
                     {
@@ -320,7 +336,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                                 variableNode.NodeId,
                                 variableNode.DataType
                             );
-                            (_, _) = await samples.ReadAllValuesAsync(this, [variableId]).ConfigureAwait(false);
+                            (_, _) = await samples.ReadAllValuesAsync(this, [variableId])
+                                .ConfigureAwait(false);
                         }
                         else
                         {
@@ -344,12 +361,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                                 variableNode,
                                 value.Value
                             );
-                            (_, _) = await samples.ReadAllValuesAsync(this, [variableId]).ConfigureAwait(false);
+                            (_, _) = await samples.ReadAllValuesAsync(this, [variableId])
+                                .ConfigureAwait(false);
                         }
                         continue;
                     }
 
-                    if (value.Value is Array array && array.GetType().GetElementType() == typeof(ExtensionObject))
+                    if (value.Value is Array array &&
+                        array.GetType().GetElementType() == typeof(ExtensionObject))
                     {
                         foreach (ExtensionObject valueItem in array)
                         {
@@ -362,7 +381,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                                     variableNode,
                                     valueItem
                                 );
-                                (_, _) = await samples.ReadAllValuesAsync(this, [variableId]).ConfigureAwait(false);
+                                (_, _) = await samples.ReadAllValuesAsync(this, [variableId])
+                                    .ConfigureAwait(false);
                             }
                         }
                     }
@@ -377,7 +397,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             }
         }
 
-        [Test, Order(330)]
+        [Test]
+        [Order(330)]
         public void ValidateFetchedAndBrowsedNodesMatch()
         {
             if (m_browsedNodesCount < 0 || m_fetchedNodesCount < 0)
@@ -387,14 +408,16 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             Assert.AreEqual(m_fetchedNodesCount, m_browsedNodesCount);
         }
 
-        [Test, Order(400)]
+        [Test]
+        [Order(400)]
         public async Task ReadWriteScalarVariableTypeAsync()
         {
             var samples = new ClientSamples(TestContext.Out, null, null, true);
             await samples.LoadTypeSystemAsync(Session).ConfigureAwait(false);
 
             // test the static version of the structure
-            ExpandedNodeId structureVariable = TestData.VariableIds.Data_Static_Structure_ScalarStructure;
+            ExpandedNodeId structureVariable = TestData.VariableIds
+                .Data_Static_Structure_ScalarStructure;
             Assert.NotNull(structureVariable);
             var nodeId = ExpandedNodeId.ToNodeId(structureVariable, Session.NamespaceUris);
             Assert.NotNull(nodeId);
@@ -434,17 +457,20 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             complexType["IntegerValue"] = new Variant((long)54321);
             complexType["UIntegerValue"] = new Variant((ulong)12345);
 
-            var dataWriteValue = new DataValue(dataValue.WrappedValue) { SourceTimestamp = DateTime.UtcNow };
+            var dataWriteValue = new DataValue(dataValue.WrappedValue)
+            {
+                SourceTimestamp = DateTime.UtcNow
+            };
 
             // write value back
-            var writeValues = new WriteValueCollection()
+            var writeValues = new WriteValueCollection
             {
-                new WriteValue()
+                new WriteValue
                 {
                     NodeId = nodeId,
                     AttributeId = Attributes.Value,
-                    Value = dataWriteValue,
-                },
+                    Value = dataWriteValue
+                }
             };
 
             WriteResponse response = await Session

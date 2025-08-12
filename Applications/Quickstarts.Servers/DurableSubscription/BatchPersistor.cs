@@ -42,12 +42,17 @@ namespace Quickstarts.Servers
     /// <inheritdoc/>
     public class BatchPersistor : IBatchPersistor
     {
-        private static readonly JsonSerializerSettings s_settings = new() { TypeNameHandling = TypeNameHandling.All };
+        private static readonly JsonSerializerSettings s_settings = new()
+        {
+            TypeNameHandling = TypeNameHandling.All
+        };
+
         private static readonly string s_storage_path = Path.Combine(
             Environment.CurrentDirectory,
             "Durable Subscriptions",
             "Batches"
         );
+
         private const string kBaseFilename = "_batch.txt";
 
         /// <inheritdoc/>
@@ -94,7 +99,9 @@ namespace Quickstarts.Servers
         /// <inheritdoc/>
         public void RestoreSynchronously(BatchBase batch)
         {
-            string filePath = Path.Combine(s_storage_path, $"{batch.MonitoredItemId}_{batch.Id}{kBaseFilename}");
+            string filePath = Path.Combine(
+                s_storage_path,
+                $"{batch.MonitoredItemId}_{batch.Id}{kBaseFilename}");
             object result = null;
             try
             {
@@ -145,7 +152,9 @@ namespace Quickstarts.Servers
                     Directory.CreateDirectory(s_storage_path);
                 }
 
-                string filePath = Path.Combine(s_storage_path, $"{batch.MonitoredItemId}_{batch.Id}{kBaseFilename}");
+                string filePath = Path.Combine(
+                    s_storage_path,
+                    $"{batch.MonitoredItemId}_{batch.Id}{kBaseFilename}");
 
                 File.WriteAllText(filePath, result);
 
@@ -189,7 +198,9 @@ namespace Quickstarts.Servers
                     var directory = new DirectoryInfo(s_storage_path);
 
                     // Create a single regex pattern that matches any of the batches to keep
-                    string pattern = string.Join("|", batchesToKeep.Select(batch => $"{batch}_.*{kBaseFilename}$"));
+                    string pattern = string.Join(
+                        "|",
+                        batchesToKeep.Select(batch => $"{batch}_.*{kBaseFilename}$"));
                     var regex = new Regex(pattern, RegexOptions.Compiled);
 
                     foreach (FileInfo file in directory.GetFiles())

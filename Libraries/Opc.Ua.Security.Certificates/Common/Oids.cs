@@ -147,6 +147,7 @@ namespace Opc.Ua.Security.Certificates
         /// Get the RSA oid for a hash algorithm signature.
         /// </summary>
         /// <param name="hashAlgorithm">The hash algorithm name.</param>
+        /// <exception cref="CryptographicException"></exception>
         public static string GetRSAOid(HashAlgorithmName hashAlgorithm)
         {
             if (hashAlgorithm == HashAlgorithmName.SHA1)
@@ -167,7 +168,8 @@ namespace Opc.Ua.Security.Certificates
             }
             else
             {
-                throw new CryptographicException($"Signing RSA with hash {hashAlgorithm.Name} is not supported. ");
+                throw new CryptographicException(
+                    $"Signing RSA with hash {hashAlgorithm.Name} is not supported. ");
             }
         }
 
@@ -175,6 +177,7 @@ namespace Opc.Ua.Security.Certificates
         /// Get the ECDsa oid for a hash algorithm signature.
         /// </summary>
         /// <param name="hashAlgorithm">The hash algorithm name.</param>
+        /// <exception cref="CryptographicException"></exception>
         public static string GetECDsaOid(HashAlgorithmName hashAlgorithm)
         {
             if (hashAlgorithm == HashAlgorithmName.SHA1)
@@ -195,7 +198,8 @@ namespace Opc.Ua.Security.Certificates
             }
             else
             {
-                throw new CryptographicException($"Signing ECDsa with hash {hashAlgorithm.Name} is not supported. ");
+                throw new CryptographicException(
+                    $"Signing ECDsa with hash {hashAlgorithm.Name} is not supported. ");
             }
         }
 
@@ -203,6 +207,7 @@ namespace Opc.Ua.Security.Certificates
         /// Get the hash algorithm used to sign a certificate.
         /// </summary>
         /// <param name="oid">The signature algorithm oid.</param>
+        /// <exception cref="CryptographicException"></exception>
         public static HashAlgorithmName GetHashAlgorithmName(string oid)
         {
             return oid switch
@@ -211,7 +216,7 @@ namespace Opc.Ua.Security.Certificates
                 ECDsaWithSha256 or RsaPkcs1Sha256 => HashAlgorithmName.SHA256,
                 ECDsaWithSha384 or RsaPkcs1Sha384 => HashAlgorithmName.SHA384,
                 ECDsaWithSha512 or RsaPkcs1Sha512 => HashAlgorithmName.SHA512,
-                _ => throw new CryptographicException($"Hash algorithm {oid} is not supported. "),
+                _ => throw new CryptographicException($"Hash algorithm {oid} is not supported. ")
             };
         }
     }

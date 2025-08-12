@@ -33,7 +33,7 @@ namespace Opc.Ua.Server
     public class StoredMonitoredItem : IStoredMonitoredItem
     {
         /// <inheritdoc/>
-        public bool IsRestored { get; set; } = false;
+        public bool IsRestored { get; set; }
 
         /// <inheritdoc/>
         public uint SubscriptionId { get; set; }

@@ -85,9 +85,7 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                TypeInfo typeInfo = null;
-
-                if (!m_nodes.TryGetValue(localId, out typeInfo))
+                if (!m_nodes.TryGetValue(localId, out TypeInfo typeInfo))
                 {
                     return NodeId.Null;
                 }
@@ -111,9 +109,7 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                TypeInfo typeInfo = null;
-
-                if (!m_nodes.TryGetValue(typeId, out typeInfo))
+                if (!m_nodes.TryGetValue(typeId, out TypeInfo typeInfo))
                 {
                     return NodeId.Null;
                 }
@@ -158,9 +154,7 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                TypeInfo typeInfo = null;
-
-                if (m_nodes.TryGetValue(localId, out typeInfo))
+                if (m_nodes.TryGetValue(localId, out TypeInfo typeInfo))
                 {
                     typeInfo.GetSubtypes(subtypes);
                 }
@@ -204,9 +198,7 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                TypeInfo typeInfo = null;
-
-                if (!m_nodes.TryGetValue(startId, out typeInfo))
+                if (!m_nodes.TryGetValue(startId, out TypeInfo typeInfo))
                 {
                     return false;
                 }
@@ -232,9 +224,7 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                TypeInfo typeInfo = null;
-
-                if (!m_nodes.TryGetValue(subTypeId, out typeInfo))
+                if (!m_nodes.TryGetValue(subTypeId, out TypeInfo typeInfo))
                 {
                     return false;
                 }
@@ -248,9 +238,7 @@ namespace Opc.Ua
         {
             lock (m_lock)
             {
-                TypeInfo typeInfo = null;
-
-                if (!m_nodes.TryGetValue(referenceTypeId, out typeInfo))
+                if (!m_nodes.TryGetValue(referenceTypeId, out TypeInfo typeInfo))
                 {
                     return null;
                 }
@@ -270,9 +258,7 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                TypeInfo typeInfo = null;
-
-                if (!m_referenceTypes.TryGetValue(browseName, out typeInfo))
+                if (!m_referenceTypes.TryGetValue(browseName, out TypeInfo typeInfo))
                 {
                     return null;
                 }
@@ -307,9 +293,8 @@ namespace Opc.Ua
             lock (m_lock)
             {
                 // lookup the immediate basetype of the subtype.
-                TypeInfo typeInfo = null;
 
-                if (!m_encodings.TryGetValue(localId, out typeInfo))
+                if (!m_encodings.TryGetValue(localId, out TypeInfo typeInfo))
                 {
                     return false;
                 }
@@ -427,9 +412,7 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                TypeInfo typeInfo = null;
-
-                if (!m_encodings.TryGetValue(localId, out typeInfo))
+                if (!m_encodings.TryGetValue(localId, out TypeInfo typeInfo))
                 {
                     return NodeId.Null;
                 }
@@ -443,9 +426,7 @@ namespace Opc.Ua
         {
             lock (m_lock)
             {
-                TypeInfo typeInfo = null;
-
-                if (!m_encodings.TryGetValue(encodingId, out typeInfo))
+                if (!m_encodings.TryGetValue(encodingId, out TypeInfo typeInfo))
                 {
                     return NodeId.Null;
                 }
@@ -471,6 +452,7 @@ namespace Opc.Ua
         /// Adds a node to the type table if it is a type and does not already exist. If it exists references are updated.
         /// </summary>
         /// <param name="node">The node.</param>
+        /// <exception cref="ServiceResultException"></exception>
         public void Add(ILocalNode node)
         {
             // ignore null.
@@ -482,12 +464,12 @@ namespace Opc.Ua
             // ignore non-types.
             if (
                 (
-                    (int)node.NodeClass
-                    & (
-                        (int)NodeClass.ObjectType
-                        | (int)NodeClass.VariableType
-                        | (int)NodeClass.ReferenceType
-                        | (int)NodeClass.DataType
+                    (int)node.NodeClass &
+                    (
+                        (int)NodeClass.ObjectType |
+                        (int)NodeClass.VariableType |
+                        (int)NodeClass.ReferenceType |
+                        (int)NodeClass.DataType
                     )
                 ) == 0
             )
@@ -498,7 +480,8 @@ namespace Opc.Ua
             NodeId localsuperTypeId = null;
 
             // find the supertype.
-            ExpandedNodeId superTypeId = node.References.FindTarget(ReferenceTypeIds.HasSubtype, true, false, null, 0);
+            ExpandedNodeId superTypeId = node.References
+                .FindTarget(ReferenceTypeIds.HasSubtype, true, false, null, 0);
 
             if (superTypeId != null)
             {
@@ -518,7 +501,8 @@ namespace Opc.Ua
                 // lookup the supertype.
                 TypeInfo superTypeInfo = null;
 
-                if (localsuperTypeId != null && !m_nodes.TryGetValue(localsuperTypeId, out superTypeInfo))
+                if (localsuperTypeId != null &&
+                    !m_nodes.TryGetValue(localsuperTypeId, out superTypeInfo))
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadNodeIdInvalid,
@@ -551,7 +535,8 @@ namespace Opc.Ua
                 }
 
                 // any new encodings.
-                IList<IReference> encodings = node.References.Find(ReferenceTypeIds.HasEncoding, false, false, null);
+                IList<IReference> encodings = node.References
+                    .Find(ReferenceTypeIds.HasEncoding, false, false, null);
 
                 if (encodings.Count > 0)
                 {
@@ -559,7 +544,9 @@ namespace Opc.Ua
 
                     for (int ii = 0; ii < encodings.Count; ii++)
                     {
-                        typeInfo.Encodings[ii] = ExpandedNodeId.ToNodeId(encodings[ii].TargetId, m_namespaceUris);
+                        typeInfo.Encodings[ii] = ExpandedNodeId.ToNodeId(
+                            encodings[ii].TargetId,
+                            m_namespaceUris);
                         m_encodings[typeInfo.Encodings[ii]] = typeInfo;
                     }
                 }
@@ -601,7 +588,10 @@ namespace Opc.Ua
         /// <remarks>
         /// Updates the any existing entry.
         /// </remarks>
-        public void AddReferenceSubtype(NodeId subTypeId, NodeId superTypeId, QualifiedName browseName)
+        public void AddReferenceSubtype(
+            NodeId subTypeId,
+            NodeId superTypeId,
+            QualifiedName browseName)
         {
             AddSubtype(subTypeId, superTypeId, browseName);
         }
@@ -620,9 +610,7 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                TypeInfo typeInfo = null;
-
-                if (!m_nodes.TryGetValue(dataTypeId, out typeInfo))
+                if (!m_nodes.TryGetValue(dataTypeId, out TypeInfo typeInfo))
                 {
                     return false;
                 }
@@ -653,6 +641,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Updates the any existing entry.
         /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
         private void AddSubtype(NodeId subTypeId, NodeId superTypeId, QualifiedName browseName)
         {
             lock (m_lock)
@@ -660,7 +649,8 @@ namespace Opc.Ua
                 // lookup the supertype.
                 TypeInfo superTypeInfo = null;
 
-                if (!NodeId.IsNull(superTypeId) && !m_nodes.TryGetValue(superTypeId, out superTypeInfo))
+                if (!NodeId.IsNull(superTypeId) &&
+                    !m_nodes.TryGetValue(superTypeId, out superTypeInfo))
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadNodeIdInvalid,
@@ -722,9 +712,8 @@ namespace Opc.Ua
             lock (m_lock)
             {
                 // remove type.
-                TypeInfo typeInfo = null;
 
-                if (!m_nodes.TryGetValue(localId, out typeInfo))
+                if (!m_nodes.TryGetValue(localId, out TypeInfo typeInfo))
                 {
                     return;
                 }

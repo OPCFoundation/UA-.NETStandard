@@ -43,7 +43,7 @@ namespace Opc.Ua.Core.Tests
             DomainNames = [];
             Subject = null;
             PrivateKeyFormat = "PFX";
-            PrivateKeyPassword = "";
+            PrivateKeyPassword = string.Empty;
             Certificate = null;
             PrivateKey = null;
             IssuerCertificates = null;

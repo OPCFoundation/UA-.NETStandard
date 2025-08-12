@@ -56,7 +56,11 @@ namespace Opc.Ua.Client.ComplexTypes
             string moduleName = null
         )
         {
-            return new ComplexTypeBuilder(m_moduleFactory, targetNamespace, targetNamespaceIndex, moduleName);
+            return new ComplexTypeBuilder(
+                m_moduleFactory,
+                targetNamespace,
+                targetNamespaceIndex,
+                moduleName);
         }
 
         /// <summary>
@@ -67,4 +71,4 @@ namespace Opc.Ua.Client.ComplexTypes
             return m_moduleFactory.GetTypes();
         }
     }
-} //namespace
+}

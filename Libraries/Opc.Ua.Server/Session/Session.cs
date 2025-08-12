@@ -112,7 +112,7 @@ namespace Opc.Ua.Server
                 EndpointUrl = endpointUrl,
                 ActualSessionTimeout = sessionTimeout,
                 ClientConnectionTime = now,
-                ClientLastContactTime = now,
+                ClientLastContactTime = now
             };
 
             // initialize security diagnostics.
@@ -121,7 +121,7 @@ namespace Opc.Ua.Server
                 SessionId = Id,
                 ClientUserIdOfSession = Identity.DisplayName,
                 AuthenticationMechanism = Identity.TokenType.ToString(),
-                Encoding = context.ChannelContext.MessageEncoding.ToString(),
+                Encoding = context.ChannelContext.MessageEncoding.ToString()
             };
             m_securityDiagnostics.ClientUserIdHistory.Add(Identity.DisplayName);
 
@@ -286,7 +286,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Set the ECC security policy URI
         /// </summary>
-        /// <param name="securityPolicyUri"></param>
         public virtual void SetEccUserTokenSecurityPolicy(string securityPolicyUri)
         {
             lock (m_lock)
@@ -314,7 +313,7 @@ namespace Opc.Ua.Server
 
                 m_eccUserTokenNonce = Nonce.CreateNonce(m_eccUserTokenSecurityPolicyUri);
 
-                var key = new EphemeralKeyType() { PublicKey = m_eccUserTokenNonce.Data };
+                var key = new EphemeralKeyType { PublicKey = m_eccUserTokenNonce.Data };
 
                 key.Signature = EccUtils.Sign(
                     new ArraySegment<byte>(key.PublicKey),
@@ -345,6 +344,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates the request.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="requestHeader"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public virtual void ValidateRequest(RequestHeader requestHeader, RequestType requestType)
         {
             if (requestHeader == null)
@@ -387,11 +388,12 @@ namespace Opc.Ua.Server
             {
                 NodeIdCollection currentRoleIds = EffectiveIdentity?.GrantedRoleIds;
                 if (
-                    (currentRoleIds?.Contains(ObjectIds.WellKnownRole_SecurityAdmin)) == true
-                    || (currentRoleIds?.Contains(ObjectIds.WellKnownRole_ConfigureAdmin)) == true
+                    (currentRoleIds?.Contains(ObjectIds.WellKnownRole_SecurityAdmin)) == true ||
+                    (currentRoleIds?.Contains(ObjectIds.WellKnownRole_ConfigureAdmin)) == true
                 )
                 {
-                    requestHeader.ReturnDiagnostics |= (uint)DiagnosticsMasks.UserPermissionAdditionalInfo;
+                    requestHeader.ReturnDiagnostics
+                        |= (uint)DiagnosticsMasks.UserPermissionAdditionalInfo;
                 }
             }
         }
@@ -411,6 +413,7 @@ namespace Opc.Ua.Server
         /// Updates the requested locale ids.
         /// </summary>
         /// <returns>true if the new locale ids are different from the old locale ids.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="localeIds"/> is <c>null</c>.</exception>
         public bool UpdateLocaleIds(StringCollection localeIds)
         {
             if (localeIds == null)
@@ -442,6 +445,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Activates the session and binds it to the current secure channel.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void ValidateBeforeActivate(
             OperationContext context,
             SignatureData clientSignature,
@@ -464,8 +468,8 @@ namespace Opc.Ua.Server
                 EndpointDescription endpoint = context.ChannelContext.EndpointDescription;
 
                 if (
-                    endpoint.SecurityPolicyUri != EndpointDescription.SecurityPolicyUri
-                    || endpoint.SecurityMode != EndpointDescription.SecurityMode
+                    endpoint.SecurityPolicyUri != EndpointDescription.SecurityPolicyUri ||
+                    endpoint.SecurityMode != EndpointDescription.SecurityMode
                 )
                 {
                     throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
@@ -475,15 +479,18 @@ namespace Opc.Ua.Server
                 if (ClientCertificate != null)
                 {
                     if (
-                        EndpointDescription.SecurityPolicyUri != SecurityPolicies.None
-                        && clientSignature != null
-                        && clientSignature.Signature == null
+                        EndpointDescription.SecurityPolicyUri != SecurityPolicies.None &&
+                        clientSignature != null &&
+                        clientSignature.Signature == null
                     )
                     {
-                        throw new ServiceResultException(StatusCodes.BadApplicationSignatureInvalid);
+                        throw new ServiceResultException(
+                            StatusCodes.BadApplicationSignatureInvalid);
                     }
 
-                    byte[] dataToSign = Utils.Append(m_serverCertificate.RawData, m_serverNonce.Data);
+                    byte[] dataToSign = Utils.Append(
+                        m_serverCertificate.RawData,
+                        m_serverNonce.Data);
 
                     if (
                         !SecurityPolicies.Verify(
@@ -496,9 +503,10 @@ namespace Opc.Ua.Server
                     {
                         // verify for certificate chain in endpoint.
                         // validate the signature with complete chain if the check with leaf certificate failed.
-                        X509Certificate2Collection serverCertificateChain = Utils.ParseCertificateChainBlob(
-                            EndpointDescription.ServerCertificate
-                        );
+                        X509Certificate2Collection serverCertificateChain = Utils
+                            .ParseCertificateChainBlob(
+                                EndpointDescription.ServerCertificate
+                                );
 
                         if (serverCertificateChain.Count > 1)
                         {
@@ -506,12 +514,15 @@ namespace Opc.Ua.Server
 
                             for (int i = 0; i < serverCertificateChain.Count; i++)
                             {
-                                serverCertificateChainList.AddRange(serverCertificateChain[i].RawData);
+                                serverCertificateChainList.AddRange(
+                                    serverCertificateChain[i].RawData);
                             }
 
                             byte[] serverCertificateChainData = [.. serverCertificateChainList];
 
-                            dataToSign = Utils.Append(serverCertificateChainData, m_serverNonce.Data);
+                            dataToSign = Utils.Append(
+                                serverCertificateChainData,
+                                m_serverNonce.Data);
 
                             if (
                                 !SecurityPolicies.Verify(
@@ -522,12 +533,14 @@ namespace Opc.Ua.Server
                                 )
                             )
                             {
-                                throw new ServiceResultException(StatusCodes.BadApplicationSignatureInvalid);
+                                throw new ServiceResultException(
+                                    StatusCodes.BadApplicationSignatureInvalid);
                             }
                         }
                         else
                         {
-                            throw new ServiceResultException(StatusCodes.BadApplicationSignatureInvalid);
+                            throw new ServiceResultException(
+                                StatusCodes.BadApplicationSignatureInvalid);
                         }
                     }
                 }
@@ -550,7 +563,10 @@ namespace Opc.Ua.Server
                 }
 
                 // validate the user identity token.
-                identityToken = ValidateUserIdentityToken(userIdentityToken, userTokenSignature, out userTokenPolicy);
+                identityToken = ValidateUserIdentityToken(
+                    userIdentityToken,
+                    userTokenSignature,
+                    out userTokenPolicy);
 
                 TraceState("VALIDATED");
             }
@@ -574,7 +590,8 @@ namespace Opc.Ua.Server
                 // update user identity.
                 bool changed = false;
 
-                if (identityToken != null && UpdateUserIdentity(identityToken, identity, effectiveIdentity))
+                if (identityToken != null &&
+                    UpdateUserIdentity(identityToken, identity, effectiveIdentity))
                 {
                     changed = true;
                 }
@@ -612,7 +629,7 @@ namespace Opc.Ua.Server
                     {
                         var item = new SignedSoftwareCertificate
                         {
-                            CertificateData = softwareCertificate.SignedCertificate.RawData,
+                            CertificateData = softwareCertificate.SignedCertificate.RawData
                         };
                         signedSoftwareCertificates.Add(item);
                     }
@@ -636,7 +653,8 @@ namespace Opc.Ua.Server
         {
             TraceState("CLOSED");
 
-            m_server.DiagnosticsNodeManager.DeleteSessionDiagnostics(m_server.DefaultSystemContext, Id);
+            m_server.DiagnosticsNodeManager
+                .DeleteSessionDiagnostics(m_server.DefaultSystemContext, Id);
         }
 
         /// <summary>
@@ -645,6 +663,7 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// If the session has too many continuation points the oldest one is dropped.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="continuationPoint"/> is <c>null</c>.</exception>
         public void SaveContinuationPoint(ContinuationPoint continuationPoint)
         {
             if (continuationPoint == null)
@@ -714,6 +733,7 @@ namespace Opc.Ua.Server
         /// If the continuationPoint implements IDisposable it will be disposed when
         /// the Session is closed or discarded.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="continuationPoint"/> is <c>null</c>.</exception>
         public void SaveHistoryContinuationPoint(Guid id, object continuationPoint)
         {
             if (continuationPoint == null)
@@ -738,7 +758,7 @@ namespace Opc.Ua.Server
                 {
                     Id = id,
                     Value = continuationPoint,
-                    Timestamp = DateTime.UtcNow,
+                    Timestamp = DateTime.UtcNow
                 };
 
                 m_historyContinuationPoints.Add(cp);
@@ -808,7 +828,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns a copy of the current diagnostics.
         /// </summary>
-        private ServiceResult OnUpdateDiagnostics(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnUpdateDiagnostics(
+            ISystemContext context,
+            NodeState node,
+            ref object value)
         {
             lock (DiagnosticsLock)
             {
@@ -821,7 +844,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns a copy of the current security diagnostics.
         /// </summary>
-        private ServiceResult OnUpdateSecurityDiagnostics(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnUpdateSecurityDiagnostics(
+            ISystemContext context,
+            NodeState node,
+            ref object value)
         {
             lock (DiagnosticsLock)
             {
@@ -834,6 +860,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates the identity token supplied by the client.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private UserIdentityToken ValidateUserIdentityToken(
             ExtensionObject identityToken,
             SignatureData userTokenSignature,
@@ -844,19 +871,21 @@ namespace Opc.Ua.Server
 
             // check for empty token.
             if (
-                identityToken == null
-                || identityToken.Body == null
-                || identityToken.Body.GetType() == typeof(AnonymousIdentityToken)
+                identityToken == null ||
+                identityToken.Body == null ||
+                identityToken.Body.GetType() == typeof(AnonymousIdentityToken)
             )
             {
                 // check if an anonymous login is permitted.
-                if (EndpointDescription.UserIdentityTokens != null && EndpointDescription.UserIdentityTokens.Count > 0)
+                if (EndpointDescription.UserIdentityTokens != null &&
+                    EndpointDescription.UserIdentityTokens.Count > 0)
                 {
                     bool found = false;
 
                     for (int ii = 0; ii < EndpointDescription.UserIdentityTokens.Count; ii++)
                     {
-                        if (EndpointDescription.UserIdentityTokens[ii].TokenType == UserTokenType.Anonymous)
+                        if (EndpointDescription.UserIdentityTokens[ii]
+                            .TokenType == UserTokenType.Anonymous)
                         {
                             found = true;
                             policy = EndpointDescription.UserIdentityTokens[ii];
@@ -883,12 +912,16 @@ namespace Opc.Ua.Server
             {
                 //handle the use case when the UserIdentityToken is binary encoded over xml message encoding
                 if (
-                    identityToken.Encoding == ExtensionObjectEncoding.Binary
-                    && typeof(byte[]).IsInstanceOfType(identityToken.Body)
+                    identityToken.Encoding == ExtensionObjectEncoding.Binary &&
+                    typeof(byte[]).IsInstanceOfType(identityToken.Body)
                 )
                 {
                     if (
-                        BaseVariableState.DecodeExtensionObject(null, typeof(UserIdentityToken), identityToken, false)
+                        BaseVariableState.DecodeExtensionObject(
+                            null,
+                            typeof(UserIdentityToken),
+                            identityToken,
+                            false)
                         is not UserIdentityToken newToken
                     )
                     {
@@ -970,7 +1003,9 @@ namespace Opc.Ua.Server
             }
 
             // find the user token policy.
-            policy = EndpointDescription.FindUserTokenPolicy(token.PolicyId, EndpointDescription.SecurityPolicyUri);
+            policy = EndpointDescription.FindUserTokenPolicy(
+                token.PolicyId,
+                EndpointDescription.SecurityPolicyUri);
 
             if (policy == null)
             {
@@ -980,7 +1015,8 @@ namespace Opc.Ua.Server
                 );
             }
 
-            if (token is IssuedIdentityToken issuedToken && policy.IssuedTokenType == Profiles.JwtUserToken)
+            if (token is IssuedIdentityToken issuedToken &&
+                policy.IssuedTokenType == Profiles.JwtUserToken)
             {
                 issuedToken.IssuedTokenType = IssuedTokenType.JWT;
             }
@@ -998,7 +1034,9 @@ namespace Opc.Ua.Server
                 // decrypt the token.
                 if (m_serverCertificate == null)
                 {
-                    m_serverCertificate = CertificateFactory.Create(EndpointDescription.ServerCertificate, true);
+                    m_serverCertificate = CertificateFactory.Create(
+                        EndpointDescription.ServerCertificate,
+                        true);
 
                     // check for valid certificate.
                     if (m_serverCertificate == null)
@@ -1033,15 +1071,18 @@ namespace Opc.Ua.Server
                 // verify the signature.
                 if (securityPolicyUri != SecurityPolicies.None)
                 {
-                    byte[] dataToSign = Utils.Append(m_serverCertificate.RawData, m_serverNonce.Data);
+                    byte[] dataToSign = Utils.Append(
+                        m_serverCertificate.RawData,
+                        m_serverNonce.Data);
 
                     if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri))
                     {
                         // verify for certificate chain in endpoint.
                         // validate the signature with complete chain if the check with leaf certificate failed.
-                        X509Certificate2Collection serverCertificateChain = Utils.ParseCertificateChainBlob(
-                            EndpointDescription.ServerCertificate
-                        );
+                        X509Certificate2Collection serverCertificateChain = Utils
+                            .ParseCertificateChainBlob(
+                                EndpointDescription.ServerCertificate
+                                );
 
                         if (serverCertificateChain.Count > 1)
                         {
@@ -1049,12 +1090,15 @@ namespace Opc.Ua.Server
 
                             for (int i = 0; i < serverCertificateChain.Count; i++)
                             {
-                                serverCertificateChainList.AddRange(serverCertificateChain[i].RawData);
+                                serverCertificateChainList.AddRange(
+                                    serverCertificateChain[i].RawData);
                             }
 
                             byte[] serverCertificateChainData = [.. serverCertificateChainList];
 
-                            dataToSign = Utils.Append(serverCertificateChainData, m_serverNonce.Data);
+                            dataToSign = Utils.Append(
+                                serverCertificateChainData,
+                                m_serverNonce.Data);
 
                             if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri))
                             {
@@ -1083,6 +1127,7 @@ namespace Opc.Ua.Server
         /// Updates the user identity.
         /// </summary>
         /// <returns>true if the new identity is different from the old identity.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="identityToken"/> is <c>null</c>.</exception>
         private bool UpdateUserIdentity(
             UserIdentityToken identityToken,
             IUserIdentity identity,
@@ -1124,7 +1169,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Updates the diagnostic counters associated with the request.
         /// </summary>
-        private void UpdateDiagnosticCounters(RequestType requestType, bool error, bool authorizationError)
+        private void UpdateDiagnosticCounters(
+            RequestType requestType,
+            bool error,
+            bool authorizationError)
         {
             lock (DiagnosticsLock)
             {
@@ -1152,111 +1200,84 @@ namespace Opc.Ua.Server
                     case RequestType.Read:
                         counter = SessionDiagnostics.ReadCount;
                         break;
-
                     case RequestType.HistoryRead:
                         counter = SessionDiagnostics.HistoryReadCount;
                         break;
-
                     case RequestType.Write:
                         counter = SessionDiagnostics.WriteCount;
                         break;
-
                     case RequestType.HistoryUpdate:
                         counter = SessionDiagnostics.HistoryUpdateCount;
                         break;
-
                     case RequestType.Call:
                         counter = SessionDiagnostics.CallCount;
                         break;
-
                     case RequestType.CreateMonitoredItems:
                         counter = SessionDiagnostics.CreateMonitoredItemsCount;
                         break;
-
                     case RequestType.ModifyMonitoredItems:
                         counter = SessionDiagnostics.ModifyMonitoredItemsCount;
                         break;
-
                     case RequestType.SetMonitoringMode:
                         counter = SessionDiagnostics.SetMonitoringModeCount;
                         break;
-
                     case RequestType.SetTriggering:
                         counter = SessionDiagnostics.SetTriggeringCount;
                         break;
-
                     case RequestType.DeleteMonitoredItems:
                         counter = SessionDiagnostics.DeleteMonitoredItemsCount;
                         break;
-
                     case RequestType.CreateSubscription:
                         counter = SessionDiagnostics.CreateSubscriptionCount;
                         break;
-
                     case RequestType.ModifySubscription:
                         counter = SessionDiagnostics.ModifySubscriptionCount;
                         break;
-
                     case RequestType.SetPublishingMode:
                         counter = SessionDiagnostics.SetPublishingModeCount;
                         break;
-
                     case RequestType.Publish:
                         counter = SessionDiagnostics.PublishCount;
                         break;
-
                     case RequestType.Republish:
                         counter = SessionDiagnostics.RepublishCount;
                         break;
-
                     case RequestType.TransferSubscriptions:
                         counter = SessionDiagnostics.TransferSubscriptionsCount;
                         break;
-
                     case RequestType.DeleteSubscriptions:
                         counter = SessionDiagnostics.DeleteSubscriptionsCount;
                         break;
-
                     case RequestType.AddNodes:
                         counter = SessionDiagnostics.AddNodesCount;
                         break;
-
                     case RequestType.AddReferences:
                         counter = SessionDiagnostics.AddReferencesCount;
                         break;
-
                     case RequestType.DeleteNodes:
                         counter = SessionDiagnostics.DeleteNodesCount;
                         break;
-
                     case RequestType.DeleteReferences:
                         counter = SessionDiagnostics.DeleteReferencesCount;
                         break;
-
                     case RequestType.Browse:
                         counter = SessionDiagnostics.BrowseCount;
                         break;
-
                     case RequestType.BrowseNext:
                         counter = SessionDiagnostics.BrowseNextCount;
                         break;
-
                     case RequestType.TranslateBrowsePathsToNodeIds:
                         counter = SessionDiagnostics.TranslateBrowsePathsToNodeIdsCount;
                         break;
-
                     case RequestType.QueryFirst:
                         counter = SessionDiagnostics.QueryFirstCount;
                         break;
-
                     case RequestType.QueryNext:
                         counter = SessionDiagnostics.QueryNextCount;
                         break;
-
                     case RequestType.RegisterNodes:
                         counter = SessionDiagnostics.RegisterNodesCount;
                         break;
-
                     case RequestType.UnregisterNodes:
                         counter = SessionDiagnostics.UnregisterNodesCount;
                         break;

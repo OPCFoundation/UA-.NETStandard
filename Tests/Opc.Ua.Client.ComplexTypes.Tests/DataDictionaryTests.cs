@@ -49,10 +49,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         public const int MaxByteStringLengthForTest = 4096;
 
         public DataDictionaryTests()
-            : base(Utils.UriSchemeOpcTcp) { }
+            : base(Utils.UriSchemeOpcTcp)
+        {
+        }
 
         public DataDictionaryTests(string uriScheme = Utils.UriSchemeOpcTcp)
-            : base(uriScheme) { }
+            : base(uriScheme)
+        {
+        }
 
         /// <summary>
         /// Set up a Server and a Client instance.
@@ -90,13 +94,15 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         )
         {
             // start Ref server
-            ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging)
+            ServerFixture = new ServerFixture<ReferenceServer>(
+                enableTracing,
+                disableActivityLogging)
             {
                 UriScheme = UriScheme,
                 SecurityNone = securityNone,
                 AutoAccept = true,
                 AllNodeManagers = true,
-                OperationLimits = true,
+                OperationLimits = true
             };
 
             if (writer != null)
@@ -108,15 +114,20 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             ServerFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
             ServerFixture.Config.TransportQuotas.MaxByteStringLength = MaxByteStringLengthForTest;
             ServerFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName));
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies
+                .Add(new UserTokenPolicy(UserTokenType.UserName));
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
                 new UserTokenPolicy(UserTokenType.Certificate)
             );
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Profiles.JwtUserToken }
+                new UserTokenPolicy(UserTokenType.IssuedToken)
+                {
+                    IssuedTokenType = Profiles.JwtUserToken
+                }
             );
 
-            ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
+            ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out)
+                .ConfigureAwait(false);
             ReferenceServer.TokenValidator = TokenValidator;
             ServerFixturePort = ServerFixture.Port;
         }
@@ -148,10 +159,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             base.GlobalCleanup();
         }
 
-        [Test, Order(100)]
+        [Test]
+        [Order(100)]
         public async Task ReadDictionaryByteStringAsync()
         {
-            var dictionaryIds = new List<NodeId> { VariableIds.OpcUa_BinarySchema, GetTestDataDictionaryNodeId() };
+            var dictionaryIds = new List<NodeId> {
+                VariableIds.OpcUa_BinarySchema,
+                GetTestDataDictionaryNodeId() };
 
             var theSession = (Session)((TraceableSession)Session).Session;
 
@@ -159,7 +173,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             {
                 var referenceDescription = new ReferenceDescription
                 {
-                    NodeId = NodeId.ToExpandedNodeId(dataDictionaryId, theSession.NodeCache.NamespaceUris),
+                    NodeId = NodeId.ToExpandedNodeId(
+                        dataDictionaryId,
+                        theSession.NodeCache.NamespaceUris)
                 };
 
                 // make sure the dictionary is too large to fit in a single message
@@ -168,26 +184,29 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     NodeId = dataDictionaryId,
                     AttributeId = Attributes.Value,
                     IndexRange = null,
-                    DataEncoding = null,
+                    DataEncoding = null
                 };
 
                 var nodesToRead = new ReadValueIdCollection { readValueId };
 
-                ServiceResultException x = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                    _ = theSession.Read(
-                        null,
-                        0,
-                        TimestampsToReturn.Neither,
-                        nodesToRead,
-                        out DataValueCollection results,
-                        out DiagnosticInfoCollection diagnosticInfos
-                    )
-                );
+                ServiceResultException x = NUnit.Framework.Assert
+                    .Throws<ServiceResultException>(() =>
+                        _ = theSession.Read(
+                            null,
+                            0,
+                            TimestampsToReturn.Neither,
+                            nodesToRead,
+                            out DataValueCollection results,
+                            out DiagnosticInfoCollection diagnosticInfos
+                        )
+                        );
 
                 Assert.AreEqual(StatusCodes.BadEncodingLimitsExceeded, x.StatusCode);
 
                 // now ensure we get the dictionary in chunks
-                DataDictionary dictionary = await LoadDataDictionaryAsync(theSession, referenceDescription)
+                DataDictionary dictionary = await LoadDataDictionaryAsync(
+                    theSession,
+                    referenceDescription)
                     .ConfigureAwait(false);
                 Assert.IsNotNull(dictionary);
 
@@ -197,14 +216,20 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 if (dataDictionaryId == dictionaryIds[0])
                 {
                     Assert.IsTrue(dictionary.DataTypes.Count > 160);
-                    Assert.IsTrue(dictionary.DataTypes.ContainsKey(VariableIds.OpcUa_BinarySchema_Union));
-                    Assert.IsTrue(dictionary.DataTypes.ContainsKey(VariableIds.OpcUa_BinarySchema_OptionSet));
-                    Assert.AreEqual("http://opcfoundation.org/UA/", dictionary.TypeDictionary.TargetNamespace);
+                    Assert.IsTrue(
+                        dictionary.DataTypes.ContainsKey(VariableIds.OpcUa_BinarySchema_Union));
+                    Assert.IsTrue(
+                        dictionary.DataTypes.ContainsKey(VariableIds.OpcUa_BinarySchema_OptionSet));
+                    Assert.AreEqual(
+                        "http://opcfoundation.org/UA/",
+                        dictionary.TypeDictionary.TargetNamespace);
                 }
                 else if (dataDictionaryId == dictionaryIds[1])
                 {
                     Assert.IsTrue(dictionary.DataTypes.Count >= 10);
-                    Assert.AreEqual("http://test.org/UA/Data/", dictionary.TypeDictionary.TargetNamespace);
+                    Assert.AreEqual(
+                        "http://test.org/UA/Data/",
+                        dictionary.TypeDictionary.TargetNamespace);
                 }
             }
         }
@@ -212,13 +237,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         /// <summary>
         /// Load the data dictionary from the server.
         /// </summary>
-        /// <param name="session"></param>
-        /// <param name="dictionaryNode"></param>
-        /// <returns></returns>
-        public Task<DataDictionary> LoadDataDictionaryAsync(ISession session, ReferenceDescription dictionaryNode)
+        public Task<DataDictionary> LoadDataDictionaryAsync(
+            ISession session,
+            ReferenceDescription dictionaryNode)
         {
             // check if the dictionary has already been loaded.
-            var dictionaryId = ExpandedNodeId.ToNodeId(dictionaryNode.NodeId, session.NamespaceUris);
+            var dictionaryId = ExpandedNodeId.ToNodeId(
+                dictionaryNode.NodeId,
+                session.NamespaceUris);
 
             var nodeCacheResolver = new NodeCacheResolver(session);
 
@@ -230,19 +256,18 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         /// retrieve the node id of the test data dictionary without relying on
         /// hard coded identifiers
         /// </summary>
-        /// <returns></returns>
         public NodeId GetTestDataDictionaryNodeId()
         {
-            var browseDescription = new BrowseDescription()
+            var browseDescription = new BrowseDescription
             {
                 NodeId = ObjectIds.OPCBinarySchema_TypeSystem,
                 BrowseDirection = BrowseDirection.Forward,
                 ReferenceTypeId = ReferenceTypeIds.HasComponent,
                 IncludeSubtypes = true,
                 NodeClassMask = (uint)NodeClass.Variable,
-                ResultMask = (uint)BrowseResultMask.All,
+                ResultMask = (uint)BrowseResultMask.All
             };
-            var browseDescriptions = new BrowseDescriptionCollection() { browseDescription };
+            var browseDescriptions = new BrowseDescriptionCollection { browseDescription };
 
             Assert.NotNull(Session, "Client not connected to Server.");
             _ = Session.Browse(

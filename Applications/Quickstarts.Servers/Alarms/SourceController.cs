@@ -40,6 +40,7 @@ namespace Alarms
         }
 
         public AlarmController Controller { get; set; }
+
         public BaseDataVariableState Source { get; set; }
     }
 }

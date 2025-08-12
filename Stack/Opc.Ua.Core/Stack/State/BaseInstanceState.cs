@@ -50,7 +50,6 @@ namespace Opc.Ua
         /// Returns the id of the default type definition node for the instance.
         /// </summary>
         /// <param name="namespaceUris">The namespace uris.</param>
-        /// <returns></returns>
         protected virtual NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return null;
@@ -145,14 +144,14 @@ namespace Opc.Ua
 
                 for (int ii = names.Count - 1; ii >= 0; ii--)
                 {
-                    buffer.Append(names[ii]);
-                    buffer.Append(seperator);
+                    buffer.Append(names[ii])
+                        .Append(seperator);
                 }
             }
 
-            buffer.Append(GetNonNullText(stateParent));
-            buffer.Append(seperator);
-            buffer.Append(name);
+            buffer.Append(GetNonNullText(stateParent))
+                .Append(seperator)
+                .Append(name);
 
             return buffer.ToString();
         }
@@ -173,10 +172,8 @@ namespace Opc.Ua
                 {
                     return node.BrowseName.Name;
                 }
-                else
-                {
-                    return node.NodeClass.ToString();
-                }
+
+                return node.NodeClass.ToString();
             }
 
             return node.DisplayName.Text;
@@ -261,7 +258,10 @@ namespace Opc.Ua
         /// This method creates components based on the browse paths in the event field and sets
         /// the NodeId or Value based on values in the event notification.
         /// </remarks>
-        public void Update(ISystemContext context, SimpleAttributeOperandCollection fields, EventFieldList e)
+        public void Update(
+            ISystemContext context,
+            SimpleAttributeOperandCollection fields,
+            EventFieldList e)
         {
             for (int ii = 0; ii < fields.Count; ii++)
             {
@@ -283,9 +283,9 @@ namespace Opc.Ua
 
                 // extract the type definition for the event.
                 if (
-                    field.BrowsePath.Count == 1
-                    && field.AttributeId == Attributes.Value
-                    && field.BrowsePath[0] == BrowseNames.EventType
+                    field.BrowsePath.Count == 1 &&
+                    field.AttributeId == Attributes.Value &&
+                    field.BrowsePath[0] == BrowseNames.EventType
                 )
                 {
                     m_typeDefinitionId = value as NodeId;
@@ -337,7 +337,8 @@ namespace Opc.Ua
                     // save the variable value.
                     if (field.AttributeId == Attributes.Value)
                     {
-                        if (child is BaseVariableState variable && field.AttributeId == Attributes.Value)
+                        if (child is BaseVariableState variable &&
+                            field.AttributeId == Attributes.Value)
                         {
                             try
                             {
@@ -363,7 +364,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="minimumSamplingInterval">The minimum sampling interval.</param>
-        public void SetMinimumSamplingInterval(ISystemContext context, double minimumSamplingInterval)
+        public void SetMinimumSamplingInterval(
+            ISystemContext context,
+            double minimumSamplingInterval)
         {
             if (this is BaseVariableState variable)
             {
@@ -389,7 +392,8 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual bool IsTypeOf(FilterContext context, NodeId typeDefinitionId)
         {
-            return NodeId.IsNull(typeDefinitionId) || context.TypeTree.IsTypeOf(TypeDefinitionId, typeDefinitionId);
+            return NodeId.IsNull(typeDefinitionId) ||
+                context.TypeTree.IsTypeOf(TypeDefinitionId, typeDefinitionId);
         }
 
         /// <inheritdoc/>
@@ -403,9 +407,9 @@ namespace Opc.Ua
         {
             // check the type definition.
             if (
-                !NodeId.IsNull(typeDefinitionId)
-                && typeDefinitionId != ObjectTypes.BaseEventType
-                && !context.TypeTree.IsTypeOf(TypeDefinitionId, typeDefinitionId)
+                !NodeId.IsNull(typeDefinitionId) &&
+                typeDefinitionId != ObjectTypes.BaseEventType &&
+                !context.TypeTree.IsTypeOf(TypeDefinitionId, typeDefinitionId)
             )
             {
                 return null;
@@ -414,7 +418,12 @@ namespace Opc.Ua
             // read the child attribute.
             var dataValue = new DataValue();
 
-            ServiceResult result = ReadChildAttribute(null, relativePath, 0, attributeId, dataValue);
+            ServiceResult result = ReadChildAttribute(
+                null,
+                relativePath,
+                0,
+                attributeId,
+                dataValue);
 
             if (ServiceResult.IsBad(result))
             {
@@ -461,7 +470,8 @@ namespace Opc.Ua
 
             if (!NodeId.IsNull(m_typeDefinitionId) && IsObjectOrVariable)
             {
-                node.ReferenceTable.Add(ReferenceTypeIds.HasTypeDefinition, false, TypeDefinitionId);
+                node.ReferenceTable
+                    .Add(ReferenceTypeIds.HasTypeDefinition, false, TypeDefinitionId);
             }
 
             if (!NodeId.IsNull(ModellingRuleId))
@@ -542,7 +552,10 @@ namespace Opc.Ua
         /// <param name="context">The context user.</param>
         /// <param name="encoder">The encoder to write to.</param>
         /// <param name="attributesToSave">The masks indicating what attributes to write.</param>
-        public override void Save(ISystemContext context, BinaryEncoder encoder, AttributesToSave attributesToSave)
+        public override void Save(
+            ISystemContext context,
+            BinaryEncoder encoder,
+            AttributesToSave attributesToSave)
         {
             base.Save(context, encoder, attributesToSave);
 
@@ -573,7 +586,10 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         /// <param name="decoder">The decoder.</param>
         /// <param name="attributesToLoad">The attributes to load.</param>
-        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attributesToLoad)
+        public override void Update(
+            ISystemContext context,
+            BinaryDecoder decoder,
+            AttributesToSave attributesToLoad)
         {
             base.Update(context, decoder, attributesToLoad);
 
@@ -644,9 +660,9 @@ namespace Opc.Ua
             NodeId typeDefinitionId = m_typeDefinitionId;
 
             if (
-                !NodeId.IsNull(typeDefinitionId)
-                && IsObjectOrVariable
-                && browser.IsRequired(ReferenceTypeIds.HasTypeDefinition, false)
+                !NodeId.IsNull(typeDefinitionId) &&
+                IsObjectOrVariable &&
+                browser.IsRequired(ReferenceTypeIds.HasTypeDefinition, false)
             )
             {
                 browser.Add(ReferenceTypeIds.HasTypeDefinition, false, typeDefinitionId);
@@ -654,7 +670,8 @@ namespace Opc.Ua
 
             NodeId modellingRuleId = m_modellingRuleId;
 
-            if (!NodeId.IsNull(modellingRuleId) && browser.IsRequired(ReferenceTypeIds.HasModellingRule, false))
+            if (!NodeId.IsNull(modellingRuleId) &&
+                browser.IsRequired(ReferenceTypeIds.HasModellingRule, false))
             {
                 browser.Add(ReferenceTypeIds.HasModellingRule, false, modellingRuleId);
             }
@@ -672,7 +689,8 @@ namespace Opc.Ua
             }
         }
 
-        private bool IsObjectOrVariable => ((int)NodeClass & ((int)NodeClass.Variable | (int)NodeClass.Object)) != 0;
+        private bool IsObjectOrVariable
+            => ((int)NodeClass & ((int)NodeClass.Variable | (int)NodeClass.Object)) != 0;
 
         private NodeId m_referenceTypeId;
         private NodeId m_typeDefinitionId;

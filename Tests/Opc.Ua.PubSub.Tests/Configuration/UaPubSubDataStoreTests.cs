@@ -39,7 +39,18 @@ namespace Opc.Ua.PubSub.Tests.Configuration
     {
         [Test(Description = "Validate WritePublishedDataItem call with different values")]
         public void ValidateWritePublishedDataItem(
-            [Values(true, (byte)1, (ushort)2, (short)3, (uint)4, 5, (ulong)6, (long)7, (double)8, (float)9, "10")]
+            [Values(
+                true,
+                (byte)1,
+                (ushort)2,
+                (short)3,
+                (uint)4,
+                5,
+                (ulong)6,
+                (long)7,
+                (double)8,
+                (float)9,
+                "10")]
                 object value
         )
         {
@@ -48,12 +59,20 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var nodeId = new NodeId("ns=1;i=1");
 
             //Act
-            dataStore.WritePublishedDataItem(nodeId, Attributes.Value, new DataValue(new Variant(value)));
+            dataStore.WritePublishedDataItem(
+                nodeId,
+                Attributes.Value,
+                new DataValue(new Variant(value)));
             DataValue readDataValue = dataStore.ReadPublishedDataItem(nodeId, Attributes.Value);
 
             //Assert
-            Assert.IsNotNull(readDataValue, "Returned DataValue for written nodeId and attribute is null");
-            Assert.AreEqual(readDataValue.Value, value, "Read after write returned different value");
+            Assert.IsNotNull(
+                readDataValue,
+                "Returned DataValue for written nodeId and attribute is null");
+            Assert.AreEqual(
+                readDataValue.Value,
+                value,
+                "Read after write returned different value");
         }
 
         [Test(Description = "Validate WritePublishedDataItem call with null NodeId")]
@@ -63,7 +82,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var dataStore = new UaPubSubDataStore();
 
             //Assert
-            NUnit.Framework.Assert.Throws<ArgumentException>(() => dataStore.WritePublishedDataItem(null));
+            NUnit.Framework.Assert
+                .Throws<ArgumentException>(() => dataStore.WritePublishedDataItem(null));
         }
 
         [Test(Description = "Validate WritePublishedDataItem call with invalid Attribute")]
@@ -74,7 +94,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             //Assert
             NUnit.Framework.Assert.Throws<ArgumentException>(() =>
-                dataStore.WritePublishedDataItem(new NodeId("ns=0;i=2253"), Attributes.AccessLevelEx + 1)
+                dataStore.WritePublishedDataItem(
+                    new NodeId("ns=0;i=2253"),
+                    Attributes.AccessLevelEx + 1)
             );
         }
 
@@ -89,7 +111,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             DataValue readDataValue = dataStore.ReadPublishedDataItem(nodeId, Attributes.Value);
 
             //Assert
-            Assert.IsNull(readDataValue, "Returned DataValue for written nodeId and attribute is NOT null");
+            Assert.IsNull(
+                readDataValue,
+                "Returned DataValue for written nodeId and attribute is NOT null");
         }
 
         [Test(Description = "Validate ReadPublishedDataItem call with null NodeId")]
@@ -99,7 +123,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var dataStore = new UaPubSubDataStore();
 
             //Assert
-            NUnit.Framework.Assert.Throws<ArgumentException>(() => dataStore.ReadPublishedDataItem(null));
+            NUnit.Framework.Assert
+                .Throws<ArgumentException>(() => dataStore.ReadPublishedDataItem(null));
         }
 
         [Test(Description = "Validate ReadPublishedDataItem call with invalid Attribute")]
@@ -109,7 +134,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var dataStore = new UaPubSubDataStore();
             //Assert
             NUnit.Framework.Assert.Throws<ArgumentException>(() =>
-                dataStore.ReadPublishedDataItem(new NodeId("ns=0;i=2253"), Attributes.AccessLevelEx + 1)
+                dataStore.ReadPublishedDataItem(
+                    new NodeId("ns=0;i=2253"),
+                    Attributes.AccessLevelEx + 1)
             );
         }
     }

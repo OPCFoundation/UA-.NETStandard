@@ -12,7 +12,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     /// <summary>
     /// Tests for the CertificateFactory class.
     /// </summary>
-    [TestFixture, Category("CertificateStore")]
+    [TestFixture]
+    [Category("CertificateStore")]
     [SetCulture("en-us")]
     public class CertificateStoreTypeTest
     {
@@ -38,17 +39,20 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .ConfigureAwait(false);
             int instancesCreatedWhileLoadingConfig = TestCertStore.InstancesCreated;
             Assert.IsTrue(instancesCreatedWhileLoadingConfig > 0);
-            CertificateTrustList trustedIssuers = appConfig.SecurityConfiguration.TrustedIssuerCertificates;
+            CertificateTrustList trustedIssuers = appConfig.SecurityConfiguration
+                .TrustedIssuerCertificates;
             using ICertificateStore trustedIssuersStore = trustedIssuers.OpenStore();
             trustedIssuersStore.Close();
             int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
-            Assert.IsTrue(instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore);
+            Assert.IsTrue(
+                instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore);
 
             var certificateStoreIdentifier = new CertificateStoreIdentifier(
                 TestCertStore.StoreTypePrefix + @"CurrentUser\Disallowed"
             );
             using ICertificateStore store = certificateStoreIdentifier.OpenStore();
-            Assert.IsTrue(instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
+            Assert.IsTrue(
+                instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
         }
     }
 
@@ -88,7 +92,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             if (!location.StartsWith(StoreTypePrefix, StringComparison.Ordinal))
             {
-                throw new ArgumentException($"Expected argument {nameof(location)} starting with {StoreTypePrefix}");
+                throw new ArgumentException(
+                    $"Expected argument {nameof(location)} starting with {StoreTypePrefix}");
             }
             m_innerStore.Open(location[StoreTypePrefix.Length..], noPrivateKeys);
         }
@@ -115,7 +120,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <inheritdoc/>
-        public Task AddAsync(X509Certificate2 certificate, string password = null, CancellationToken ct = default)
+        public Task AddAsync(
+            X509Certificate2 certificate,
+            string password = null,
+            CancellationToken ct = default)
         {
             return m_innerStore.AddAsync(certificate, password, ct);
         }
@@ -153,7 +161,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <inheritdoc/>
-        public Task<X509Certificate2Collection> FindByThumbprintAsync(string thumbprint, CancellationToken ct = default)
+        public Task<X509Certificate2Collection> FindByThumbprintAsync(
+            string thumbprint,
+            CancellationToken ct = default)
         {
             return m_innerStore.FindByThumbprintAsync(thumbprint, ct);
         }
@@ -202,7 +212,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         /// <inheritdoc/>
         [Obsolete("Use EnumerateCRLsAsync instead.")]
-        public Task<X509CRLCollection> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
+        public Task<X509CRLCollection> EnumerateCRLs(
+            X509Certificate2 issuer,
+            bool validateUpdateTime = true)
         {
             return EnumerateCRLsAsync(issuer, validateUpdateTime);
         }
@@ -247,7 +259,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             string password
         )
         {
-            return LoadPrivateKeyAsync(thumbprint, subjectName, applicationUri, certificateType, password);
+            return LoadPrivateKeyAsync(
+                thumbprint,
+                subjectName,
+                applicationUri,
+                certificateType,
+                password);
         }
 
         /// <inheritdoc/>

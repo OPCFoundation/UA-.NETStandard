@@ -43,8 +43,10 @@ namespace Opc.Ua.Client.Tests
     /// <summary>
     /// Test Client Services.
     /// </summary>
-    [TestFixture, Category("Client")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("Client")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     public class DurableSubscriptionTest : ClientTestFramework
     {
         public readonly uint MillisecondsPerHour = 3600 * 1000;
@@ -72,14 +74,16 @@ namespace Opc.Ua.Client.Tests
         {
             {
                 // start Ref server
-                ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging)
+                ServerFixture = new ServerFixture<ReferenceServer>(
+                    enableTracing,
+                    disableActivityLogging)
                 {
                     UriScheme = UriScheme,
                     SecurityNone = securityNone,
                     AutoAccept = true,
                     AllNodeManagers = true,
                     OperationLimits = true,
-                    DurableSubscriptionsEnabled = true,
+                    DurableSubscriptionsEnabled = true
                 };
             }
 
@@ -96,15 +100,20 @@ namespace Opc.Ua.Client.Tests
                 .MaxStringLength = TransportQuotaMaxStringLength;
             ServerFixture.Config.ServerConfiguration.MinSessionTimeout = 1000;
             ServerFixture.Config.ServerConfiguration.MinSubscriptionLifetime = 1500;
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName));
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies
+                .Add(new UserTokenPolicy(UserTokenType.UserName));
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
                 new UserTokenPolicy(UserTokenType.Certificate)
             );
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Profiles.JwtUserToken }
+                new UserTokenPolicy(UserTokenType.IssuedToken)
+                {
+                    IssuedTokenType = Profiles.JwtUserToken
+                }
             );
 
-            ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
+            ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out)
+                .ConfigureAwait(false);
             ReferenceServer.TokenValidator = TokenValidator;
             ServerFixturePort = ServerFixture.Port;
         }
@@ -170,7 +179,8 @@ namespace Opc.Ua.Client.Tests
             return base.TearDownAsync();
         }
 
-        [Test, Order(100)]
+        [Test]
+        [Order(100)]
         [TestCase(900, 100u, 100u, 10000u, 3600u, 83442u, TestName = "Test Lifetime Over Maximum")]
         [TestCase(900, 100u, 100u, 0u, 3600u, 83442u, TestName = "Test Lifetime Zero")]
         [TestCase(1200, 100u, 100u, 1u, 1u, 3000u, TestName = "Test Lifetime One")]
@@ -197,7 +207,7 @@ namespace Opc.Ua.Client.Tests
             {
                 KeepAliveCount = keepAliveCount,
                 LifetimeCount = lifetimeCount,
-                PublishingInterval = publishingInterval,
+                PublishingInterval = publishingInterval
             };
 
             Assert.True(Session.AddSubscription(subscription));
@@ -207,8 +217,10 @@ namespace Opc.Ua.Client.Tests
 
             _ = GetValues(desiredNodeIds);
 
-            uint revisedLifetimeInHours;
-            Assert.True(subscription.SetSubscriptionDurable(requestedHours, out revisedLifetimeInHours));
+            Assert.True(
+                subscription.SetSubscriptionDurable(
+                    requestedHours,
+                    out uint revisedLifetimeInHours));
 
             Assert.AreEqual(expectedHours, revisedLifetimeInHours);
 
@@ -225,13 +237,24 @@ namespace Opc.Ua.Client.Tests
             Assert.True(Session.RemoveSubscription(subscription));
         }
 
-        [Test, Order(110)]
+        [Test]
+        [Order(110)]
         [TestCase(0u, 1u, 1u, false, TestName = "QueueSize 0")]
         [TestCase(101u, 101u, 102u, false, TestName = "QueueSize over standard subscripion limit")]
         [TestCase(9999u, 1000u, 1000u, false, TestName = "QueueSize over durable limit")]
         [TestCase(0u, 1000u, 1u, true, TestName = "QueueSize 0 Event MI")]
-        [TestCase(1001u, 1001u, 1002u, true, TestName = "QueueSize over standard subscripion limit Event MI")]
-        [TestCase(99999u, 10000u, 10000u, true, TestName = "QueueSize over durable limit, Event MI")]
+        [TestCase(
+            1001u,
+            1001u,
+            1002u,
+            true,
+            TestName = "QueueSize over standard subscripion limit Event MI")]
+        [TestCase(
+            99999u,
+            10000u,
+            10000u,
+            true,
+            TestName = "QueueSize over durable limit, Event MI")]
         public async Task TestRevisedQueueSizeAsync(
             uint queueSize,
             uint expectedRevisedQueueSize,
@@ -239,7 +262,8 @@ namespace Opc.Ua.Client.Tests
             bool useEventMI
         )
         {
-            TestableSubscription subscription = await CreateDurableSubscriptionAsync().ConfigureAwait(false);
+            TestableSubscription subscription = await CreateDurableSubscriptionAsync()
+                .ConfigureAwait(false);
 
             MonitoredItem mi;
             if (useEventMI)
@@ -257,35 +281,41 @@ namespace Opc.Ua.Client.Tests
                     SamplingInterval = 500,
                     Filter = null,
                     DiscardOldest = true,
-                    QueueSize = queueSize,
+                    QueueSize = queueSize
                 };
             }
 
             subscription.AddItem(mi);
 
-            IList<MonitoredItem> result = await subscription.CreateItemsAsync().ConfigureAwait(false);
+            IList<MonitoredItem> result = await subscription.CreateItemsAsync()
+                .ConfigureAwait(false);
             NUnit.Framework.Assert.That(ServiceResult.IsGood(result[0].Status.Error), Is.True);
-            NUnit.Framework.Assert.That(result[0].Status.QueueSize, Is.EqualTo(expectedRevisedQueueSize));
+            NUnit.Framework.Assert
+                .That(result[0].Status.QueueSize, Is.EqualTo(expectedRevisedQueueSize));
 
             mi.QueueSize = queueSize + 1;
 
-            IList<MonitoredItem> resultModify = await subscription.ModifyItemsAsync().ConfigureAwait(false);
-            NUnit.Framework.Assert.That(ServiceResult.IsGood(resultModify[0].Status.Error), Is.True);
-            NUnit.Framework.Assert.That(resultModify[0].Status.QueueSize, Is.EqualTo(expectedModifiedQueueSize));
+            IList<MonitoredItem> resultModify = await subscription.ModifyItemsAsync()
+                .ConfigureAwait(false);
+            NUnit.Framework.Assert
+                .That(ServiceResult.IsGood(resultModify[0].Status.Error), Is.True);
+            NUnit.Framework.Assert
+                .That(resultModify[0].Status.QueueSize, Is.EqualTo(expectedModifiedQueueSize));
 
             Assert.True(subscription.GetMonitoredItems(out _, out _));
 
             Assert.True(await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false));
         }
 
-        [Test, Order(160)]
+        [Test]
+        [Order(160)]
         public void SetSubscriptionDurableFailsWhenMIExists()
         {
             var subscription = new TestableSubscription(Session.DefaultSubscription)
             {
                 KeepAliveCount = 100u,
                 LifetimeCount = 100u,
-                PublishingInterval = 900,
+                PublishingInterval = 900
             };
 
             Assert.True(Session.AddSubscription(subscription));
@@ -302,7 +332,7 @@ namespace Opc.Ua.Client.Tests
                 SamplingInterval = 500,
                 Filter = null,
                 DiscardOldest = true,
-                QueueSize = 1,
+                QueueSize = 1
             };
 
             subscription.AddItem(mi);
@@ -317,14 +347,15 @@ namespace Opc.Ua.Client.Tests
             Assert.True(Session.RemoveSubscription(subscription));
         }
 
-        [Test, Order(180)]
+        [Test]
+        [Order(180)]
         public void SetSubscriptionDurableFailsWhenSubscriptionDoesNotExist()
         {
             var subscription = new TestableSubscription(Session.DefaultSubscription)
             {
                 KeepAliveCount = 100u,
                 LifetimeCount = 100u,
-                PublishingInterval = 900,
+                PublishingInterval = 900
             };
 
             Assert.True(Session.AddSubscription(subscription));
@@ -339,7 +370,8 @@ namespace Opc.Ua.Client.Tests
             );
         }
 
-        [Test, Order(200)]
+        [Test]
+        [Order(200)]
         [TestCase(false, false, TestName = "Validate Session Close")]
         [TestCase(true, false, TestName = "Validate Transfer")]
         [TestCase(true, true, TestName = "Restart of Server")]
@@ -362,7 +394,7 @@ namespace Opc.Ua.Client.Tests
                 KeepAliveCount = keepAliveCount,
                 LifetimeCount = lifetimeCount,
                 PublishingInterval = publishingInterval,
-                MinLifetimeInterval = 1500,
+                MinLifetimeInterval = 1500
             };
 
             subscription.StateChanged += (s, e) =>
@@ -379,8 +411,9 @@ namespace Opc.Ua.Client.Tests
 
             if (setSubscriptionDurable)
             {
-                uint revisedLifetimeInHours = 0;
-                Assert.True(subscription.SetSubscriptionDurable(requestedHours, out revisedLifetimeInHours));
+                Assert.True(subscription.SetSubscriptionDurable(
+                    requestedHours,
+                    out uint revisedLifetimeInHours));
 
                 Assert.AreEqual(expectedHours, revisedLifetimeInHours);
 
@@ -405,7 +438,7 @@ namespace Opc.Ua.Client.Tests
                     {
                         StartNodeId = nodeId,
                         SamplingInterval = 1000,
-                        QueueSize = 100,
+                        QueueSize = 100
                     };
                     monitoredItem.Notification += (item, _) =>
                     {
@@ -452,20 +485,25 @@ namespace Opc.Ua.Client.Tests
 
             DateTime restartTime = DateTime.UtcNow;
             ISession transferSession = await ClientFixture
-                .ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256, null, new UserIdentity("sysadmin", "demo"))
+                .ConnectAsync(
+                    ServerUrl,
+                    SecurityPolicies.Basic256Sha256,
+                    null,
+                    new UserIdentity("sysadmin", "demo"))
                 .ConfigureAwait(false);
 
-            bool result = await transferSession.TransferSubscriptionsAsync(subscriptions, true).ConfigureAwait(false);
+            bool result = await transferSession.TransferSubscriptionsAsync(subscriptions, true)
+                .ConfigureAwait(false);
 
             Assert.AreEqual(
                 setSubscriptionDurable,
                 result,
-                "SetSubscriptionDurable = "
-                    + setSubscriptionDurable.ToString()
-                    + " Transfer Result "
-                    + result.ToString()
-                    + " Expected "
-                    + setSubscriptionDurable
+                "SetSubscriptionDurable = " +
+                setSubscriptionDurable.ToString() +
+                " Transfer Result " +
+                result.ToString() +
+                " Expected " +
+                setSubscriptionDurable
             );
 
             if (setSubscriptionDurable && !restartServer)
@@ -520,7 +558,8 @@ namespace Opc.Ua.Client.Tests
             }
             else if (setSubscriptionDurable)
             {
-                Assert.True(await transferSession.RemoveSubscriptionAsync(subscription).ConfigureAwait(false));
+                Assert.True(await transferSession.RemoveSubscriptionAsync(subscription)
+                    .ConfigureAwait(false));
             }
         }
 
@@ -535,7 +574,9 @@ namespace Opc.Ua.Client.Tests
             var dataValue = modifiedValues[desiredValue] as DataValue;
             Assert.IsNotNull(dataValue);
             Assert.IsNotNull(dataValue.Value);
-            Assert.AreEqual(expectedValue, Convert.ToUInt32(dataValue.Value, CultureInfo.InvariantCulture));
+            Assert.AreEqual(
+                expectedValue,
+                Convert.ToUInt32(dataValue.Value, CultureInfo.InvariantCulture));
 
             return modifiedValues;
         }
@@ -546,13 +587,14 @@ namespace Opc.Ua.Client.Tests
             {
                 KeepAliveCount = 100u,
                 LifetimeCount = 100u,
-                PublishingInterval = 900,
+                PublishingInterval = 900
             };
 
             Assert.True(Session.AddSubscription(subscription));
             subscription.Create();
 
-            (bool success, _) = await subscription.SetSubscriptionDurableAsync(1).ConfigureAwait(false);
+            (bool success, _) = await subscription.SetSubscriptionDurableAsync(1)
+                .ConfigureAwait(false);
             Assert.True(success);
 
             return subscription;
@@ -562,8 +604,8 @@ namespace Opc.Ua.Client.Tests
         {
             var desiredNodeIds = new Dictionary<string, NodeId>();
 
-            var serverDiags = new NodeId(Variables.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
-            ReferenceDescriptionCollection references;
+            var serverDiags = new NodeId(
+                Variables.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
 
             NodeId monitoredItemCountNodeId = null;
             NodeId maxLifetimeCountNodeId = null;
@@ -581,7 +623,7 @@ namespace Opc.Ua.Client.Tests
                 true,
                 0,
                 out _,
-                out references
+                out ReferenceDescriptionCollection references
             );
 
             Assert.NotNull(references, "Initial Browse has no references");
@@ -595,12 +637,12 @@ namespace Opc.Ua.Client.Tests
 
             foreach (ReferenceDescription reference in references)
             {
-                TestContext.Out.WriteLine("Initial Browse Reference {0}", reference.BrowseName.Name);
+                TestContext.Out
+                    .WriteLine("Initial Browse Reference {0}", reference.BrowseName.Name);
 
-                if (reference.BrowseName.Name == subscriptionId.ToString(CultureInfo.InvariantCulture))
+                if (reference.BrowseName.Name == subscriptionId.ToString(
+                    CultureInfo.InvariantCulture))
                 {
-                    ReferenceDescriptionCollection desiredReferences;
-
                     Session.Browse(
                         null,
                         null,
@@ -611,11 +653,14 @@ namespace Opc.Ua.Client.Tests
                         true,
                         0,
                         out byte[] anotherContinuationPoint,
-                        out desiredReferences
+                        out ReferenceDescriptionCollection desiredReferences
                     );
 
                     Assert.NotNull(desiredReferences, "Secondary Browse has no references");
-                    Assert.Greater(desiredReferences.Count, 0, "Secondary Browse has zero references");
+                    Assert.Greater(
+                        desiredReferences.Count,
+                        0,
+                        "Secondary Browse has zero references");
 
                     TestContext.Out.WriteLine(
                         "Secondary Browse for SubscriptionId {0} has {1} references",
@@ -632,7 +677,9 @@ namespace Opc.Ua.Client.Tests
                                 "Subscription Reference {0} ExpandedNodeId is Null",
                                 referenceDescription.BrowseName.Name
                             );
-                            TestContext.Out.WriteLine("Full ReferenceDescription {0}", referenceDescription.ToString());
+                            TestContext.Out.WriteLine(
+                                "Full ReferenceDescription {0}",
+                                referenceDescription.ToString());
                         }
                         else
                         {
@@ -748,17 +795,18 @@ namespace Opc.Ua.Client.Tests
             whereClause.Push(
                 FilterOperator.Equals,
                 [
-                    new SimpleAttributeOperand()
+                    new SimpleAttributeOperand
                     {
                         AttributeId = Attributes.Value,
                         TypeDefinitionId = ObjectTypeIds.BaseEventType,
-                        BrowsePath = [.. new QualifiedName[] { "EventType" }],
+                        BrowsePath = [.. new QualifiedName[] { "EventType" }]
                     },
-                    new LiteralOperand { Value = new Variant(new NodeId(ObjectTypeIds.BaseEventType)) },
+                    new LiteralOperand {
+                        Value = new Variant(new NodeId(ObjectTypeIds.BaseEventType)) }
                 ]
             );
 
-            return new MonitoredItem()
+            return new MonitoredItem
             {
                 AttributeId = Attributes.EventNotifier,
                 StartNodeId = ObjectIds.Server,
@@ -775,22 +823,22 @@ namespace Opc.Ua.Client.Tests
                             {
                                 AttributeId = Attributes.Value,
                                 TypeDefinitionId = ObjectTypeIds.BaseEventType,
-                                BrowsePath = [.. new QualifiedName[] { BrowseNames.Message }],
-                            },
-                        },
+                                BrowsePath = [.. new QualifiedName[] { BrowseNames.Message }]
+                            }
+                        }
                     ],
-                    WhereClause = whereClause,
+                    WhereClause = whereClause
                 },
                 DiscardOldest = true,
-                QueueSize = queueSize,
+                QueueSize = queueSize
             };
         }
 
         private static string DateTimeMs(DateTime dateTime)
         {
-            return dateTime.ToLongTimeString()
-                + "."
-                + dateTime.Millisecond.ToString("D3", CultureInfo.InvariantCulture);
+            return dateTime.ToLongTimeString() +
+                "." +
+                dateTime.Millisecond.ToString("D3", CultureInfo.InvariantCulture);
         }
     }
 }

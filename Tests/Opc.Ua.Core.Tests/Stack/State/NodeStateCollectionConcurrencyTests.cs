@@ -12,22 +12,27 @@ namespace Opc.Ua.Core.Tests.Stack.State
     /// Tests for concurrency issues in BaseVariableState class
     /// </summary>
     [TestFixture]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Category("NodeStateConcurrency")]
     [Parallelizable(ParallelScope.All)]
     public class NodeStateCollectionConcurrencyTests
     {
         [Test]
         [CancelAfter(10000)]
-        public void NodeStateReferencesCollectionConcurrencyTest(CancellationToken cancellationToken)
+        public void NodeStateReferencesCollectionConcurrencyTest(
+            CancellationToken cancellationToken)
         {
             var testNodeState = new AnalogUnitRangeState(null);
             var serviceMessageContext = new ServiceMessageContext();
 
-            var systemContext = new SystemContext() { NamespaceUris = serviceMessageContext.NamespaceUris };
+            var systemContext = new SystemContext
+            {
+                NamespaceUris = serviceMessageContext.NamespaceUris
+            };
 
             testNodeState.Create(
-                new SystemContext() { NamespaceUris = serviceMessageContext.NamespaceUris },
+                new SystemContext { NamespaceUris = serviceMessageContext.NamespaceUris },
                 new NodeId("TestNode", 7),
                 new QualifiedName("TestNode", 7),
                 new LocalizedText("TestNode"),
@@ -60,7 +65,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 cancellationToken
             );
 
-            foreach (ExpandedNodeId target in referenceTargets.GetConsumingEnumerable(cancellationToken))
+            foreach (ExpandedNodeId target in referenceTargets.GetConsumingEnumerable(
+                cancellationToken))
             {
                 bool removeReferenceSuccess = testNodeState.RemoveReference(
                     ReferenceTypeIds.HasComponent,
@@ -83,12 +89,15 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void NodeStateNotifiersCollectionConcurrencyTest(CancellationToken cancellationToken)
         {
             var serviceMessageContext = new ServiceMessageContext();
-            var systemContext = new SystemContext() { NamespaceUris = serviceMessageContext.NamespaceUris };
+            var systemContext = new SystemContext
+            {
+                NamespaceUris = serviceMessageContext.NamespaceUris
+            };
 
             var testNodeState = new BaseObjectState(null);
 
             testNodeState.Create(
-                new SystemContext() { NamespaceUris = serviceMessageContext.NamespaceUris },
+                new SystemContext { NamespaceUris = serviceMessageContext.NamespaceUris },
                 new NodeId("TestNode", 7),
                 new QualifiedName("TestNode", 7),
                 new LocalizedText("TestNode"),
@@ -114,7 +123,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
                         var targetState = new AnalogUnitRangeState(null);
 
                         testNodeState.Create(
-                            new SystemContext() { NamespaceUris = serviceMessageContext.NamespaceUris },
+                            new SystemContext
+                            {
+                                NamespaceUris = serviceMessageContext.NamespaceUris
+                            },
                             new NodeId("TestNode", 7),
                             new QualifiedName("TestNode", 7),
                             new LocalizedText("TestNode"),
@@ -122,7 +134,11 @@ namespace Opc.Ua.Core.Tests.Stack.State
                         );
 
                         var target = new ExpandedNodeId(index++, "test.namespace");
-                        testNodeState.AddNotifier(systemContext, ReferenceTypeIds.HasEventSource, false, targetState);
+                        testNodeState.AddNotifier(
+                            systemContext,
+                            ReferenceTypeIds.HasEventSource,
+                            false,
+                            targetState);
                         notifierTargets.Add(targetState);
                     }
 
@@ -149,12 +165,15 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void NodeStateChildrenCollectionConcurrencyTest(CancellationToken cancellationToken)
         {
             var serviceMessageContext = new ServiceMessageContext();
-            var systemContext = new SystemContext() { NamespaceUris = serviceMessageContext.NamespaceUris };
+            var systemContext = new SystemContext
+            {
+                NamespaceUris = serviceMessageContext.NamespaceUris
+            };
 
             var testNodeState = new BaseObjectState(null);
 
             testNodeState.Create(
-                new SystemContext() { NamespaceUris = serviceMessageContext.NamespaceUris },
+                new SystemContext { NamespaceUris = serviceMessageContext.NamespaceUris },
                 new NodeId("TestNode", 7),
                 new QualifiedName("TestNode", 7),
                 new LocalizedText("TestNode"),
@@ -180,7 +199,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
                         var targetState = new AnalogUnitRangeState(null);
 
                         testNodeState.Create(
-                            new SystemContext() { NamespaceUris = serviceMessageContext.NamespaceUris },
+                            new SystemContext
+                            {
+                                NamespaceUris = serviceMessageContext.NamespaceUris
+                            },
                             new NodeId("TestNode", 7),
                             new QualifiedName("TestNode", 7),
                             new LocalizedText("TestNode"),
@@ -197,7 +219,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 cancellationToken
             );
 
-            foreach (BaseInstanceState child in childrenCollection.GetConsumingEnumerable(cancellationToken))
+            foreach (BaseInstanceState child in childrenCollection.GetConsumingEnumerable(
+                cancellationToken))
             {
                 testNodeState.RemoveChild(child);
             }

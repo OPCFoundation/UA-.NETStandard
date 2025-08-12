@@ -32,7 +32,10 @@ namespace Opc.Ua
         {
             m_eventId = new PropertyState<byte[]>(this) { Value = Guid.NewGuid().ToByteArray() };
 
-            m_eventType = new PropertyState<NodeId>(this) { Value = GetDefaultTypeDefinitionId(context.NamespaceUris) };
+            m_eventType = new PropertyState<NodeId>(this)
+            {
+                Value = GetDefaultTypeDefinitionId(context.NamespaceUris)
+            };
 
             TypeDefinitionId = m_eventType.Value;
 
@@ -45,13 +48,16 @@ namespace Opc.Ua
                         Value = source.NodeId,
                         RolePermissions = source.RolePermissions,
                         UserRolePermissions = source.UserRolePermissions,
-                        NodeId = source.NodeId,
+                        NodeId = source.NodeId
                     };
                 }
 
                 if (!QualifiedName.IsNull(source.BrowseName))
                 {
-                    m_sourceName = new PropertyState<string>(this) { Value = source.BrowseName.Name };
+                    m_sourceName = new PropertyState<string>(this)
+                    {
+                        Value = source.BrowseName.Name
+                    };
                 }
             }
 
@@ -89,7 +95,7 @@ namespace Opc.Ua
     /// <remarks>
     /// Event severities can have any value between 1 and 1000. This enumeration provides default values.
     /// </remarks>
-    public enum EventSeverity : int
+    public enum EventSeverity
     {
         /// <summary>
         /// The lowest possible severity.
@@ -124,6 +130,6 @@ namespace Opc.Ua
         /// <summary>
         /// The highest possible severity.
         /// </summary>
-        Max = 1000,
+        Max = 1000
     }
 }

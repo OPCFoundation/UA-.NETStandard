@@ -43,7 +43,9 @@ namespace Opc.Ua.Gds.Tests
         public GlobalDiscoveryServerClient GDSClient { get; private set; }
         public static bool AutoAccept { get; set; }
 
-        public GlobalDiscoveryTestClient(bool autoAccept, string storeType = CertificateStoreType.Directory)
+        public GlobalDiscoveryTestClient(
+            bool autoAccept,
+            string storeType = CertificateStoreType.Directory)
         {
             AutoAccept = autoAccept;
             m_storeType = storeType;
@@ -64,7 +66,8 @@ namespace Opc.Ua.Gds.Tests
             {
                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
-                    throw new PlatformNotSupportedException("X509 Store with crls is only supported on Windows");
+                    throw new PlatformNotSupportedException(
+                        "X509 Store with crls is only supported on Windows");
                 }
                 configSectionName = "Opc.Ua.GlobalDiscoveryTestClientX509Stores";
             }
@@ -73,22 +76,23 @@ namespace Opc.Ua.Gds.Tests
             {
                 ApplicationName = "Global Discovery Client",
                 ApplicationType = ApplicationType.Client,
-                ConfigSectionName = configSectionName,
+                ConfigSectionName = configSectionName
             };
 
 #if USE_FILE_CONFIG
             // load the application configuration.
-            Configuration = await m_application.LoadApplicationConfigurationAsync(false).ConfigureAwait(false);
+            Configuration = await m_application.LoadApplicationConfigurationAsync(false)
+                .ConfigureAwait(false);
 #else
             string root = Path.Combine("%LocalApplicationData%", "OPC");
             string pkiRoot = Path.Combine(root, "pki");
-            var clientConfig = new GlobalDiscoveryTestClientConfiguration()
+            var clientConfig = new GlobalDiscoveryTestClientConfiguration
             {
                 GlobalDiscoveryServerUrl = "opc.tcp://localhost:58810/GlobalDiscoveryTestServer",
                 AppUserName = "appuser",
                 AppPassword = "demo",
                 AdminUserName = "appadmin",
-                AdminPassword = "demo",
+                AdminPassword = "demo"
             };
 
             CertificateIdentifierCollection applicationCerts =
@@ -127,18 +131,21 @@ namespace Opc.Ua.Gds.Tests
                 throw new Exception("Application instance certificate invalid!");
             }
 
-            Configuration.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(
+            Configuration.CertificateValidator.CertificateValidation
+                += new CertificateValidationEventHandler(
                 CertificateValidator_CertificateValidation
             );
 
             GlobalDiscoveryTestClientConfiguration gdsClientConfiguration =
                 Configuration.ParseExtension<GlobalDiscoveryTestClientConfiguration>();
-            GDSClient = new GlobalDiscoveryServerClient(Configuration, gdsClientConfiguration.GlobalDiscoveryServerUrl)
+            GDSClient = new GlobalDiscoveryServerClient(
+                Configuration,
+                gdsClientConfiguration.GlobalDiscoveryServerUrl)
             {
                 EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(
                     gdsClientConfiguration.GlobalDiscoveryServerUrl,
                     port
-                ),
+                )
             };
             if (string.IsNullOrEmpty(gdsClientConfiguration.AppUserName))
             {
@@ -146,9 +153,13 @@ namespace Opc.Ua.Gds.Tests
             }
             else
             {
-                AppUser = new UserIdentity(gdsClientConfiguration.AppUserName, gdsClientConfiguration.AppPassword);
+                AppUser = new UserIdentity(
+                    gdsClientConfiguration.AppUserName,
+                    gdsClientConfiguration.AppPassword);
             }
-            AdminUser = new UserIdentity(gdsClientConfiguration.AdminUserName, gdsClientConfiguration.AdminPassword);
+            AdminUser = new UserIdentity(
+                gdsClientConfiguration.AdminUserName,
+                gdsClientConfiguration.AdminPassword);
             Anonymous = new UserIdentity();
         }
 
@@ -170,7 +181,8 @@ namespace Opc.Ua.Gds.Tests
                 }
                 OwnApplicationTestData.ApplicationRecord.ApplicationId = id;
                 //start Key Pair Request
-                NodeId req_id = await StartNewKeyPairAsync(OwnApplicationTestData).ConfigureAwait(false);
+                NodeId req_id = await StartNewKeyPairAsync(OwnApplicationTestData).ConfigureAwait(
+                    false);
                 if (req_id == null)
                 {
                     return false;
@@ -178,15 +190,17 @@ namespace Opc.Ua.Gds.Tests
 
                 OwnApplicationTestData.CertificateRequestId = req_id;
                 //Finish KeyPairRequest
-                byte[] certificate,
-                    privateKey;
-                FinishKeyPair(OwnApplicationTestData, out certificate, out privateKey);
+                FinishKeyPair(
+                    OwnApplicationTestData,
+                    out byte[] certificate,
+                    out byte[] privateKey);
                 if (certificate == null || privateKey == null)
                 {
                     return false;
                 }
                 //apply cert
-                await ApplyNewApplicationInstanceCertificateAsync(certificate, privateKey).ConfigureAwait(false);
+                await ApplyNewApplicationInstanceCertificateAsync(certificate, privateKey)
+                    .ConfigureAwait(false);
                 OwnApplicationTestData.Certificate = certificate;
                 OwnApplicationTestData.PrivateKey = privateKey;
                 OwnApplicationTestData.CertificateRequestId = null;
@@ -214,20 +228,27 @@ namespace Opc.Ua.Gds.Tests
 
         public string ReadLogFile()
         {
-            return File.ReadAllText(Utils.ReplaceSpecialFolderNames(Configuration.TraceConfiguration.OutputFilePath));
+            return File.ReadAllText(
+                Utils.ReplaceSpecialFolderNames(Configuration.TraceConfiguration.OutputFilePath));
         }
 
-        private async Task ApplyNewApplicationInstanceCertificateAsync(byte[] certificate, byte[] privateKey)
+        private async Task ApplyNewApplicationInstanceCertificateAsync(
+            byte[] certificate,
+            byte[] privateKey)
         {
             using X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificate);
-            X509Certificate2 certWithPrivateKey = CertificateFactory.CreateCertificateWithPEMPrivateKey(
-                x509,
-                privateKey
-            );
-            GDSClient.Configuration.SecurityConfiguration.ApplicationCertificate = new CertificateIdentifier(
+            X509Certificate2 certWithPrivateKey = CertificateFactory
+                .CreateCertificateWithPEMPrivateKey(
+                    x509,
+                    privateKey
+                    );
+            GDSClient.Configuration.SecurityConfiguration.ApplicationCertificate
+                = new CertificateIdentifier(
                 certWithPrivateKey
             );
-            ICertificateStore store = GDSClient.Configuration.SecurityConfiguration.ApplicationCertificate.OpenStore();
+            ICertificateStore store = GDSClient.Configuration.SecurityConfiguration
+                .ApplicationCertificate
+                .OpenStore();
             await store.AddAsync(certWithPrivateKey).ConfigureAwait(false);
         }
 
@@ -303,10 +324,10 @@ namespace Opc.Ua.Gds.Tests
                     ApplicationType = GDSClient.Configuration.ApplicationType,
                     ProductUri = GDSClient.Configuration.ProductUri,
                     ApplicationNames = [new LocalizedText(GDSClient.Configuration.ApplicationName)],
-                    ApplicationId = new NodeId(Guid.NewGuid()),
+                    ApplicationId = new NodeId(Guid.NewGuid())
                 },
                 PrivateKeyFormat = "PEM",
-                Subject = $"CN={GDSClient.Configuration.ApplicationName},DC={Utils.GetHostName()},O=OPC Foundation",
+                Subject = $"CN={GDSClient.Configuration.ApplicationName},DC={Utils.GetHostName()},O=OPC Foundation"
             };
         }
 
@@ -340,7 +361,9 @@ namespace Opc.Ua.Gds.Tests
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private static void Initialize() { }
+        private static void Initialize()
+        {
+        }
 
         [DataMember(Order = 1)]
         public string GlobalDiscoveryServerUrl { get; set; }

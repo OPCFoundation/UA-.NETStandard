@@ -39,16 +39,18 @@ namespace Opc.Ua
                 MaxByteStringLength = DefaultEncodingLimits.MaxByteStringLength,
                 MaxStringLength = DefaultEncodingLimits.MaxStringLength,
                 MaxEncodingNestingLevels = DefaultEncodingLimits.MaxEncodingNestingLevels,
-                MaxDecoderRecoveries = DefaultEncodingLimits.MaxDecoderRecoveries,
+                MaxDecoderRecoveries = DefaultEncodingLimits.MaxDecoderRecoveries
             };
         }
 
         /// <summary>
         /// Creates an instance of a configuration with reasonable default values.
         /// </summary>
-        public static EndpointConfiguration Create(ApplicationConfiguration applicationConfiguration)
+        public static EndpointConfiguration Create(
+            ApplicationConfiguration applicationConfiguration)
         {
-            if (applicationConfiguration == null || applicationConfiguration.TransportQuotas == null)
+            if (applicationConfiguration == null ||
+                applicationConfiguration.TransportQuotas == null)
             {
                 return Create();
             }
@@ -62,10 +64,13 @@ namespace Opc.Ua
                 MaxMessageSize = applicationConfiguration.TransportQuotas.MaxMessageSize,
                 MaxStringLength = applicationConfiguration.TransportQuotas.MaxStringLength,
                 MaxBufferSize = applicationConfiguration.TransportQuotas.MaxBufferSize,
-                MaxEncodingNestingLevels = applicationConfiguration.TransportQuotas.MaxEncodingNestingLevels,
-                MaxDecoderRecoveries = applicationConfiguration.TransportQuotas.MaxDecoderRecoveries,
+                MaxEncodingNestingLevels = applicationConfiguration.TransportQuotas
+                    .MaxEncodingNestingLevels,
+                MaxDecoderRecoveries = applicationConfiguration.TransportQuotas
+                    .MaxDecoderRecoveries,
                 ChannelLifetime = applicationConfiguration.TransportQuotas.ChannelLifetime,
-                SecurityTokenLifetime = applicationConfiguration.TransportQuotas.SecurityTokenLifetime,
+                SecurityTokenLifetime = applicationConfiguration.TransportQuotas
+                    .SecurityTokenLifetime
             };
         }
 

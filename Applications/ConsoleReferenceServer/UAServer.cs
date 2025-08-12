@@ -44,12 +44,15 @@ namespace Quickstarts
         where T : StandardServer, new()
     {
         public ApplicationInstance Application { get; private set; }
+
         public ApplicationConfiguration Configuration => Application.ApplicationConfiguration;
 
         public bool AutoAccept { get; set; }
+
         public string Password { get; set; }
 
         public ExitCode ExitCode { get; private set; }
+
         public T Server { get; private set; }
 
         /// <summary>
@@ -64,6 +67,7 @@ namespace Quickstarts
         /// <summary>
         /// Load the application configuration.
         /// </summary>
+        /// <exception cref="ErrorExitException"></exception>
         public async Task LoadAsync(string applicationName, string configSectionName)
         {
             try
@@ -77,7 +81,7 @@ namespace Quickstarts
                     ApplicationName = applicationName,
                     ApplicationType = ApplicationType.Server,
                     ConfigSectionName = configSectionName,
-                    CertificatePasswordProvider = passwordProvider,
+                    CertificatePasswordProvider = passwordProvider
                 };
 
                 // load the application configuration.
@@ -92,6 +96,7 @@ namespace Quickstarts
         /// <summary>
         /// Load the application configuration.
         /// </summary>
+        /// <exception cref="ErrorExitException"></exception>
         public async Task CheckCertificateAsync(bool renewCertificate)
         {
             try
@@ -127,6 +132,7 @@ namespace Quickstarts
         /// <summary>
         /// Create server instance and add node managers.
         /// </summary>
+        /// <exception cref="ErrorExitException"></exception>
         public void Create(IList<INodeManagerFactory> nodeManagerFactories)
         {
             try
@@ -150,6 +156,7 @@ namespace Quickstarts
         /// <summary>
         /// Start the server.
         /// </summary>
+        /// <exception cref="ErrorExitException"></exception>
         public async Task StartAsync()
         {
             try
@@ -164,11 +171,7 @@ namespace Quickstarts
                 ExitCode = ExitCode.ErrorRunning;
 
                 // print endpoint info
-                IEnumerable<string> endpoints = Application
-                    .Server.GetEndpoints()
-                    .Select(e => e.EndpointUrl)
-                    .Distinct();
-                foreach (string endpoint in endpoints)
+                foreach (string endpoint in Application.Server.GetEndpoints().Select(e => e.EndpointUrl).Distinct())
                 {
                     m_output.WriteLine(endpoint);
                 }
@@ -190,6 +193,7 @@ namespace Quickstarts
         /// <summary>
         /// Stops the server.
         /// </summary>
+        /// <exception cref="ErrorExitException"></exception>
         public async Task StopAsync()
         {
             try

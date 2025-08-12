@@ -36,22 +36,32 @@ namespace Opc.Ua.Core.Tests.Stack.Client
     /// <summary>
     /// Tests for the UANodeSet helper.
     /// </summary>
-    [TestFixture, Category("Client")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("Client")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class ClientTests
     {
         [OneTimeSetUp]
-        protected void OneTimeSetUp() { }
+        protected void OneTimeSetUp()
+        {
+        }
 
         [OneTimeTearDown]
-        protected void OneTimeTearDown() { }
+        protected void OneTimeTearDown()
+        {
+        }
 
         [SetUp]
-        protected void SetUp() { }
+        protected void SetUp()
+        {
+        }
 
         [TearDown]
-        protected void TearDown() { }
+        protected void TearDown()
+        {
+        }
 
         /// <summary>
         /// Ensure that use of OriginalString preserves a scope id of a IPv6 address.
@@ -72,7 +82,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 Scheme = uri.Scheme,
                 Host = uri.DnsSafeHost,
                 Port = uri.Port,
-                Path = uri.AbsolutePath,
+                Path = uri.AbsolutePath
             };
 
             Assert.AreEqual(uri.OriginalString, uriBuilder.Uri.OriginalString);
@@ -81,16 +91,16 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void ValidateAppConfigWithoutAppCert()
         {
-            var appConfig = new ApplicationConfiguration()
+            var appConfig = new ApplicationConfiguration
             {
                 ApplicationName = "Test",
                 ClientConfiguration = new ClientConfiguration(),
-                SecurityConfiguration = new SecurityConfiguration()
+                SecurityConfiguration = new SecurityConfiguration
                 {
                     ApplicationCertificate = new CertificateIdentifier(),
                     TrustedPeerCertificates = new CertificateTrustList { StorePath = "Test" },
-                    TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" },
-                },
+                    TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" }
+                }
             };
             NUnit.Framework.Assert.DoesNotThrow(() =>
                 appConfig.ValidateAsync(ApplicationType.Client).GetAwaiter().GetResult()

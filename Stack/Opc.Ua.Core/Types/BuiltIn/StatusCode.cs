@@ -90,7 +90,11 @@ namespace Opc.Ua
     /// <br/></para>
     /// </remarks>
     [DataContract(Name = "StatusCode", Namespace = Namespaces.OpcUaXsd)]
-    public struct StatusCode : IComparable, IFormattable, IComparable<StatusCode>, IEquatable<StatusCode>
+    public struct StatusCode :
+        IComparable,
+        IFormattable,
+        IComparable<StatusCode>,
+        IEquatable<StatusCode>
     {
         /// <summary>
         /// Initializes the object with a numeric value.
@@ -700,7 +704,7 @@ namespace Opc.Ua
     /// Flags that are set to indicate the limit status of the value.
     /// </summary>
     [Flags]
-    public enum LimitBits : int
+    public enum LimitBits
     {
         /// <summary>
         /// The value is free to change.
@@ -720,14 +724,14 @@ namespace Opc.Ua
         /// <summary>
         /// The value is constant and cannot change.
         /// </summary>
-        Constant = Low | High,
+        Constant = Low | High
     }
 
     /// <summary>
     /// Flags that are set by the historian when returning archived values.
     /// </summary>
     [Flags]
-    public enum AggregateBits : int
+    public enum AggregateBits
     {
         /// <summary>
         /// A raw data value.
@@ -762,13 +766,16 @@ namespace Opc.Ua
         /// <summary>
         /// Multiple values match the aggregate criteria (i.e. multiple minimum values at different timestamps within the same interval)
         /// </summary>
-        MultipleValues = 0x10,
+        MultipleValues = 0x10
     }
 
     /// <summary>
     /// A collection of StatusCodes.
     /// </summary>
-    [CollectionDataContract(Name = "ListOfStatusCode", Namespace = Namespaces.OpcUaXsd, ItemName = "StatusCode")]
+    [CollectionDataContract(
+        Name = "ListOfStatusCode",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "StatusCode")]
     public class StatusCodeCollection : List<StatusCode>, ICloneable
     {
         /// <summary>
@@ -777,7 +784,9 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes an empty collection.
         /// </remarks>
-        public StatusCodeCollection() { }
+        public StatusCodeCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -787,7 +796,9 @@ namespace Opc.Ua
         /// </remarks>
         /// <param name="collection">The collection to copy</param>
         public StatusCodeCollection(IEnumerable<StatusCode> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
@@ -797,7 +808,9 @@ namespace Opc.Ua
         /// </remarks>
         /// <param name="capacity">The maximum capacity allowed for this instance of the collection</param>
         public StatusCodeCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -869,4 +882,4 @@ namespace Opc.Ua
         /// </summary>
         public const uint Bad = 0x80000000;
     }
-} //namespace
+}

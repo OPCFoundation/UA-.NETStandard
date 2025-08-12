@@ -31,6 +31,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// This is an interface to the factory of a transport binding.
     /// </summary>
+    /// <typeparam name="T"></typeparam>
     public interface ITransportBindingFactory<T> : ITransportBindingScheme
     {
         /// <summary>
@@ -43,6 +44,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// The interface to manage transport bindings.
     /// </summary>
+    /// <typeparam name="T"></typeparam>
     public interface ITransportBindings<T>
     {
         /// <summary>

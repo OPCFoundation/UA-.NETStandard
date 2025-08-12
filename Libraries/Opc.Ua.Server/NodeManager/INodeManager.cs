@@ -121,7 +121,10 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// Returns null if the node does not exist.
         /// </remarks>
-        NodeMetadata GetNodeMetadata(OperationContext context, object targetHandle, BrowseResultMask resultMask);
+        NodeMetadata GetNodeMetadata(
+            OperationContext context,
+            object targetHandle,
+            BrowseResultMask resultMask);
 
         /// <summary>
         /// Returns the set of references that meet the filter criteria.
@@ -218,7 +221,10 @@ namespace Opc.Ua.Server
         /// Each node manager should only process node ids that it recognizes. If it processes a value it
         /// must set the Processed flag in the WriteValue structure.
         /// </remarks>
-        void Write(OperationContext context, IList<WriteValue> nodesToWrite, IList<ServiceResult> errors);
+        void Write(
+            OperationContext context,
+            IList<WriteValue> nodesToWrite,
+            IList<ServiceResult> errors);
 
         /// <summary>
         /// Updates the history for a set of nodes.
@@ -273,7 +279,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Tells the NodeManager to refresh any conditions.
         /// </summary>
-        ServiceResult ConditionRefresh(OperationContext context, IList<IEventMonitoredItem> monitoredItems);
+        ServiceResult ConditionRefresh(
+            OperationContext context,
+            IList<IEventMonitoredItem> monitoredItems);
 
         /// <summary>
         /// Creates a set of monitored items.

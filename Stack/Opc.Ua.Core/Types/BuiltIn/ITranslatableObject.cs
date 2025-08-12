@@ -48,7 +48,11 @@ namespace Opc.Ua
         /// <remarks>
         /// If any error occur during format the unformatted text is used instead.
         /// </remarks>
-        LocalizedText Translate(IList<string> preferredLocales, string key, string text, params object[] args);
+        LocalizedText Translate(
+            IList<string> preferredLocales,
+            string key,
+            string text,
+            params object[] args);
 
         /// <summary>
         /// Translates the LocalizedText using the information in the TranslationInfo property.
@@ -74,7 +78,9 @@ namespace Opc.Ua
         /// <summary>
         /// Creates an empty object.
         /// </summary>
-        public TranslationInfo() { }
+        public TranslationInfo()
+        {
+        }
 
         /// <summary>
         /// Creates an object from a key and a LocalizedText.

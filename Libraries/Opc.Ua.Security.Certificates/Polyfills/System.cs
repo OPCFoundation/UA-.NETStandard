@@ -55,7 +55,10 @@ namespace System
         /// <summary>
         /// Contains a character in a string using a specified comparison type.
         /// </summary>
-        public static bool Contains(this string target, string value, StringComparison comparisonType)
+        public static bool Contains(
+            this string target,
+            string value,
+            StringComparison comparisonType)
         {
             return target.Contains(value);
         }

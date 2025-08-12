@@ -36,13 +36,16 @@ namespace Opc.Ua.Server.Tests
     /// <summary>
     /// Test Standard Server startup.
     /// </summary>
-    [TestFixture, Category("Server")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("Server")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class ServerStartupTests
     {
         [DatapointSource]
-        public string[] UriSchemes = [Utils.UriSchemeOpcTcp, Utils.UriSchemeHttps, Utils.UriSchemeOpcHttps];
+        public string[] UriSchemes = [Utils.UriSchemeOpcTcp, Utils.UriSchemeHttps, Utils
+            .UriSchemeOpcHttps];
 
         /// <summary>
         /// Start a server fixture with different uri schemes.

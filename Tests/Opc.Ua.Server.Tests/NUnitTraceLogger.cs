@@ -82,7 +82,8 @@ namespace Opc.Ua.Server.Tests
                 {
                     m_writer.WriteLine(e.Exception);
                 }
-                m_writer.WriteLine(string.Format(CultureInfo.InvariantCulture, e.Format, e.Arguments ?? []));
+                m_writer.WriteLine(
+                    string.Format(CultureInfo.InvariantCulture, e.Format, e.Arguments ?? []));
             }
         }
     }

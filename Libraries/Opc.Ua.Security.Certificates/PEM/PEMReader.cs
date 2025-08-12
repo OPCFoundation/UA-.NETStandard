@@ -58,10 +58,11 @@ namespace Opc.Ua.Security.Certificates
                     "-----BEGIN PRIVATE KEY-----",
                     "-----BEGIN RSA PRIVATE KEY-----",
                     "-----BEGIN ENCRYPTED PRIVATE KEY-----",
-                    "-----BEGIN EC PRIVATE KEY-----",
+                    "-----BEGIN EC PRIVATE KEY-----"
                 ];
 
-                return valuesToCheck.Any(value => pemText.Contains(value, StringComparison.Ordinal));
+                return valuesToCheck.Any(
+                    value => pemText.Contains(value, StringComparison.Ordinal));
             }
             catch
             {
@@ -75,7 +76,8 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="pemDataBlob">The PEM datablob as byte array.</param>
         /// <returns>The certificates.</returns>
-        public static X509Certificate2Collection ImportPublicKeysFromPEM(ReadOnlySpan<byte> pemDataBlob)
+        public static X509Certificate2Collection ImportPublicKeysFromPEM(
+            ReadOnlySpan<byte> pemDataBlob)
         {
             var certificates = new X509Certificate2Collection();
             const string label = "CERTIFICATE";
@@ -101,13 +103,19 @@ namespace Opc.Ua.Security.Certificates
                         return certificates;
                     }
                     ReadOnlySpan<char> pemCertificateContent = pemText[beginIndex..endIndex];
-                    var pemCertificateDecoded = new Span<byte>(new byte[pemCertificateContent.Length]);
-                    if (Convert.TryFromBase64Chars(pemCertificateContent, pemCertificateDecoded, out int bytesWritten))
+                    var pemCertificateDecoded = new Span<byte>(
+                        new byte[pemCertificateContent.Length]);
+                    if (Convert.TryFromBase64Chars(
+                        pemCertificateContent,
+                        pemCertificateDecoded,
+                        out int bytesWritten))
                     {
 #if NET6_0_OR_GREATER
-                        certificates.Add(X509CertificateLoader.LoadCertificate(pemCertificateDecoded));
+                        certificates.Add(
+                            X509CertificateLoader.LoadCertificate(pemCertificateDecoded));
 #else
-                        certificates.Add(X509CertificateLoader.LoadCertificate(pemCertificateDecoded.ToArray()));
+                        certificates.Add(
+                            X509CertificateLoader.LoadCertificate(pemCertificateDecoded.ToArray()));
 #endif
                     }
 
@@ -120,7 +128,9 @@ namespace Opc.Ua.Security.Certificates
             }
             catch (Exception ex)
             {
-                throw new CryptographicException("Failed to decode the PEM encoded Certificates.", ex);
+                throw new CryptographicException(
+                    "Failed to decode the PEM encoded Certificates.",
+                    ex);
             }
             return certificates;
         }
@@ -132,6 +142,8 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="pemDataBlob">The PEM datablob as byte array.</param>
         /// <param name="password">The password to use (optional).</param>
         /// <returns>The RSA private key.</returns>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="CryptographicException"></exception>
         public static RSA ImportRsaPrivateKeyFromPEM(byte[] pemDataBlob, string password = null)
         {
             string[] labels = ["ENCRYPTED PRIVATE KEY", "PRIVATE KEY", "RSA PRIVATE KEY"];
@@ -157,8 +169,7 @@ namespace Opc.Ua.Security.Certificates
                     }
                     string pemData = pemText[beginIndex..endIndex];
                     byte[] pemDecoded = new byte[pemData.Length];
-                    int bytesDecoded;
-                    if (Convert.TryFromBase64Chars(pemData, pemDecoded, out bytesDecoded))
+                    if (Convert.TryFromBase64Chars(pemData, pemDecoded, out int bytesDecoded))
                     {
                         var rsaPrivateKey = RSA.Create();
                         int bytesRead;
@@ -167,7 +178,8 @@ namespace Opc.Ua.Security.Certificates
                             case 1:
                                 if (string.IsNullOrEmpty(password))
                                 {
-                                    throw new ArgumentException("Need password for encrypted private key.");
+                                    throw new ArgumentException(
+                                        "Need password for encrypted private key.");
                                 }
                                 rsaPrivateKey.ImportEncryptedPkcs8PrivateKey(
                                     password.ToCharArray(),
@@ -204,6 +216,8 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="pemDataBlob">The PEM data as byte array.</param>
         /// <param name="password">The password to use if the key is encrypted (optional)</param>
         /// <returns>ECDsa instance containing the private key</returns>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="CryptographicException"></exception>
         public static ECDsa ImportECDsaPrivateKeyFromPEM(byte[] pemDataBlob, string password = null)
         {
             // PEM labels for EC keys. Probably need adjustment
@@ -249,16 +263,18 @@ namespace Opc.Ua.Security.Certificates
                                 // ENCRYPTED PRIVATE KEY
                                 if (string.IsNullOrEmpty(password))
                                 {
-                                    throw new ArgumentException("A password is required for an encrypted private key.");
+                                    throw new ArgumentException(
+                                        "A password is required for an encrypted private key.");
                                 }
-                                ecdsaKey.ImportEncryptedPkcs8PrivateKey(password.ToCharArray(), decodedBytes, out _);
+                                ecdsaKey.ImportEncryptedPkcs8PrivateKey(
+                                    password.ToCharArray(),
+                                    decodedBytes,
+                                    out _);
                                 break;
-
                             case 2:
                                 // PRIVATE KEY (Unencrypted PKCS#8)
                                 ecdsaKey.ImportPkcs8PrivateKey(decodedBytes, out _);
                                 break;
-
                             case 3:
                                 // EC PRIVATE KEY
                                 ecdsaKey.ImportECPrivateKey(decodedBytes, out _);

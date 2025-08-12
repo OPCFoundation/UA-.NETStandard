@@ -32,7 +32,6 @@ namespace Opc.Ua
         /// <summary>
         /// Constructor which takes a password string.
         /// </summary>
-        /// <param name="password"></param>
         public CertificatePasswordProvider(string password)
         {
             m_password = password;

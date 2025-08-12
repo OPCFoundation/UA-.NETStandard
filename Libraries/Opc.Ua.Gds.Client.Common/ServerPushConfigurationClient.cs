@@ -60,7 +60,8 @@ namespace Opc.Ua.Gds.Client
         public NodeId DefaultUserTokenGroup { get; private set; }
 
         // TODO: currently only sha256 cert is supported
-        public NodeId ApplicationCertificateType => Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType;
+        public NodeId ApplicationCertificateType
+            => Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType;
 
         /// <summary>
         /// Gets the application instance.
@@ -126,6 +127,7 @@ namespace Opc.Ua.Gds.Client
         /// <value>
         /// The endpoint.
         /// </value>
+        /// <exception cref="InvalidOperationException"></exception>
         public ConfiguredEndpoint Endpoint
         {
             get
@@ -141,10 +143,13 @@ namespace Opc.Ua.Gds.Client
             {
                 if (Session != null)
                 {
-                    throw new InvalidOperationException("Session must be closed before changing endpoint.");
+                    throw new InvalidOperationException(
+                        "Session must be closed before changing endpoint.");
                 }
 
-                if (value == null || m_endpoint == null || value.EndpointUrl != m_endpoint.EndpointUrl)
+                if (value == null ||
+                    m_endpoint == null ||
+                    value.EndpointUrl != m_endpoint.EndpointUrl)
                 {
                     AdminCredentials = null;
                 }
@@ -209,10 +214,15 @@ namespace Opc.Ua.Gds.Client
 
             if (!Uri.IsWellFormedUriString(endpointUrl, UriKind.Absolute))
             {
-                throw new ArgumentException(endpointUrl + " is not a valid URL.", nameof(endpointUrl));
+                throw new ArgumentException(
+                    endpointUrl + " is not a valid URL.",
+                    nameof(endpointUrl));
             }
 
-            EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(Configuration, endpointUrl, true);
+            EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(
+                Configuration,
+                endpointUrl,
+                true);
             var endpointConfiguration = EndpointConfiguration.Create(Configuration);
             var endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
@@ -233,9 +243,12 @@ namespace Opc.Ua.Gds.Client
         /// Connects the specified endpoint.
         /// </summary>
         /// <param name="endpoint">The endpoint.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <c>null</c>.</exception>
         public async Task ConnectAsync(ConfiguredEndpoint endpoint)
         {
-            if (endpoint != null && m_endpoint != null && endpoint.EndpointUrl != m_endpoint.EndpointUrl)
+            if (endpoint != null &&
+                m_endpoint != null &&
+                endpoint.EndpointUrl != m_endpoint.EndpointUrl)
             {
                 AdminCredentials = null;
             }
@@ -324,7 +337,9 @@ namespace Opc.Ua.Gds.Client
                 }
                 catch (Exception exception)
                 {
-                    Utils.LogError(exception, "Unexpected error raising ConnectionStatusChanged event.");
+                    Utils.LogError(
+                        exception,
+                        "Unexpected error raising ConnectionStatusChanged event.");
                 }
             }
         }
@@ -351,20 +366,23 @@ namespace Opc.Ua.Gds.Client
             {
                 var nodesToRead = new ReadValueIdCollection
                 {
-                    new ReadValueId()
+                    new ReadValueId
                     {
                         NodeId = ExpandedNodeId.ToNodeId(
                             Ua.VariableIds.ServerConfiguration_SupportedPrivateKeyFormats,
                             Session.NamespaceUris
                         ),
-                        AttributeId = Attributes.Value,
-                    },
+                        AttributeId = Attributes.Value
+                    }
                 };
 
-                DataValueCollection results;
-
-                DiagnosticInfoCollection diagnosticInfos;
-                Session.Read(null, 0, TimestampsToReturn.Neither, nodesToRead, out results, out diagnosticInfos);
+                Session.Read(
+                    null,
+                    0,
+                    TimestampsToReturn.Neither,
+                    nodesToRead,
+                    out DataValueCollection results,
+                    out DiagnosticInfoCollection diagnosticInfos);
 
                 ClientBase.ValidateResponse(results, nodesToRead);
                 ClientBase.ValidateDiagnosticInfos(diagnosticInfos, nodesToRead);
@@ -396,7 +414,8 @@ namespace Opc.Ua.Gds.Client
                         Session.NamespaceUris
                     ),
                     ExpandedNodeId.ToNodeId(
-                        Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_OpenWithMasks,
+                        Ua.MethodIds
+                            .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_OpenWithMasks,
                         Session.NamespaceUris
                     ),
                     (uint)masks
@@ -416,7 +435,8 @@ namespace Opc.Ua.Gds.Client
                                 Session.NamespaceUris
                             ),
                             ExpandedNodeId.ToNodeId(
-                                Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Read,
+                                Ua.MethodIds
+                                    .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Read,
                                 Session.NamespaceUris
                             ),
                             fileHandle,
@@ -454,7 +474,8 @@ namespace Opc.Ua.Gds.Client
                                 Session.NamespaceUris
                             ),
                             ExpandedNodeId.ToNodeId(
-                                Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Close,
+                                Ua.MethodIds
+                                    .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Close,
                                 Session.NamespaceUris
                             ),
                             fileHandle
@@ -538,7 +559,8 @@ namespace Opc.Ua.Gds.Client
                                 Session.NamespaceUris
                             ),
                             ExpandedNodeId.ToNodeId(
-                                Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Write,
+                                Ua.MethodIds
+                                    .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Write,
                                 Session.NamespaceUris
                             ),
                             fileHandle,
@@ -552,7 +574,8 @@ namespace Opc.Ua.Gds.Client
                             Session.NamespaceUris
                         ),
                         ExpandedNodeId.ToNodeId(
-                            Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_CloseAndUpdate,
+                            Ua.MethodIds
+                                .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_CloseAndUpdate,
                             Session.NamespaceUris
                         ),
                         fileHandle
@@ -570,7 +593,8 @@ namespace Opc.Ua.Gds.Client
                                 Session.NamespaceUris
                             ),
                             ExpandedNodeId.ToNodeId(
-                                Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Close,
+                                Ua.MethodIds
+                                    .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Close,
                                 Session.NamespaceUris
                             ),
                             fileHandle
@@ -605,7 +629,8 @@ namespace Opc.Ua.Gds.Client
                         Session.NamespaceUris
                     ),
                     ExpandedNodeId.ToNodeId(
-                        Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_AddCertificate,
+                        Ua.MethodIds
+                            .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_AddCertificate,
                         Session.NamespaceUris
                     ),
                     certificate.RawData,
@@ -637,7 +662,8 @@ namespace Opc.Ua.Gds.Client
                         Session.NamespaceUris
                     ),
                     ExpandedNodeId.ToNodeId(
-                        Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_RemoveCertificate,
+                        Ua.MethodIds
+                            .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_RemoveCertificate,
                         Session.NamespaceUris
                     ),
                     thumbprint,
@@ -676,7 +702,9 @@ namespace Opc.Ua.Gds.Client
             try
             {
                 System.Collections.Generic.IList<object> outputArguments = Session.Call(
-                    ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration, Session.NamespaceUris),
+                    ExpandedNodeId.ToNodeId(
+                        Ua.ObjectIds.ServerConfiguration,
+                        Session.NamespaceUris),
                     ExpandedNodeId.ToNodeId(
                         Ua.MethodIds.ServerConfigurationType_GetCertificates,
                         Session.NamespaceUris
@@ -703,7 +731,6 @@ namespace Opc.Ua.Gds.Client
         /// <param name="subjectName">Name of the subject.</param>
         /// <param name="regeneratePrivateKey">if set to <c>true</c> [regenerate private key].</param>
         /// <param name="nonce">The nonce.</param>
-        /// <returns></returns>
         public byte[] CreateSigningRequest(
             NodeId certificateGroupId,
             NodeId certificateTypeId,
@@ -722,7 +749,9 @@ namespace Opc.Ua.Gds.Client
             try
             {
                 System.Collections.Generic.IList<object> outputArguments = Session.Call(
-                    ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration, Session.NamespaceUris),
+                    ExpandedNodeId.ToNodeId(
+                        Ua.ObjectIds.ServerConfiguration,
+                        Session.NamespaceUris),
                     ExpandedNodeId.ToNodeId(
                         Ua.MethodIds.ServerConfiguration_CreateSigningRequest,
                         Session.NamespaceUris
@@ -775,8 +804,12 @@ namespace Opc.Ua.Gds.Client
             try
             {
                 System.Collections.Generic.IList<object> outputArguments = Session.Call(
-                    ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration, Session.NamespaceUris),
-                    ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_UpdateCertificate, Session.NamespaceUris),
+                    ExpandedNodeId.ToNodeId(
+                        Ua.ObjectIds.ServerConfiguration,
+                        Session.NamespaceUris),
+                    ExpandedNodeId.ToNodeId(
+                        Ua.MethodIds.ServerConfiguration_UpdateCertificate,
+                        Session.NamespaceUris),
                     certificateGroupId,
                     certificateTypeId,
                     certificate,
@@ -813,8 +846,12 @@ namespace Opc.Ua.Gds.Client
             try
             {
                 System.Collections.Generic.IList<object> outputArguments = Session.Call(
-                    ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration, Session.NamespaceUris),
-                    ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_GetRejectedList, Session.NamespaceUris)
+                    ExpandedNodeId.ToNodeId(
+                        Ua.ObjectIds.ServerConfiguration,
+                        Session.NamespaceUris),
+                    ExpandedNodeId.ToNodeId(
+                        Ua.MethodIds.ServerConfiguration_GetRejectedList,
+                        Session.NamespaceUris)
                 );
 
                 byte[][] rawCertificates = (byte[][])outputArguments[0];
@@ -845,7 +882,9 @@ namespace Opc.Ua.Gds.Client
 
             Session.Call(
                 ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_ApplyChanges, Session.NamespaceUris)
+                ExpandedNodeId.ToNodeId(
+                    Ua.MethodIds.ServerConfiguration_ApplyChanges,
+                    Session.NamespaceUris)
             );
         }
 
@@ -861,7 +900,8 @@ namespace Opc.Ua.Gds.Client
                 {
                     EventHandler<AdminCredentialsRequiredEventArgs> handle =
                         AdminCredentialsRequired
-                        ?? throw new InvalidOperationException("The operation requires administrator credentials.");
+                        ?? throw new InvalidOperationException(
+                            "The operation requires administrator credentials.");
                     var args = new AdminCredentialsRequiredEventArgs();
                     handle(this, args);
                     newCredentials = args.Credentials;

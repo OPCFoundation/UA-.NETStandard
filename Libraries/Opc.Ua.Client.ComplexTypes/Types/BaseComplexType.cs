@@ -41,7 +41,11 @@ namespace Opc.Ua.Client.ComplexTypes
     /// <summary>
     /// The base class for all complex types.
     /// </summary>
-    public class BaseComplexType : IEncodeable, IFormattable, IComplexTypeProperties, IStructureTypeInfo
+    public class BaseComplexType :
+        IEncodeable,
+        IFormattable,
+        IComplexTypeProperties,
+        IStructureTypeInfo
     {
         /// <summary>
         /// Initializes the object with default values.
@@ -193,7 +197,11 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
                 {
-                    AppendPropertyValue(formatProvider, body, property.GetValue(this), property.ValueRank);
+                    AppendPropertyValue(
+                        formatProvider,
+                        body,
+                        property.GetValue(this),
+                        property.ValueRank);
                 }
 
                 if (body.Length > 0)
@@ -350,7 +358,10 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Append a property to the value string.
         /// </summary>
-        private static void AppendPropertyValue(IFormatProvider formatProvider, StringBuilder body, object value)
+        private static void AppendPropertyValue(
+            IFormatProvider formatProvider,
+            StringBuilder body,
+            object value)
         {
             if (value is byte[] x)
             {
@@ -370,7 +381,11 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Encode a property based on the property type and value rank.
         /// </summary>
-        protected void EncodeProperty(IEncoder encoder, string name, ComplexTypePropertyInfo property)
+        /// <exception cref="ServiceResultException"></exception>
+        protected void EncodeProperty(
+            IEncoder encoder,
+            string name,
+            ComplexTypePropertyInfo property)
         {
             int valueRank = property.ValueRank;
             BuiltInType builtInType = property.BuiltInType;
@@ -403,7 +418,12 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Encode a scalar property based on the property type.
         /// </summary>
-        private void EncodeProperty(IEncoder encoder, string name, PropertyInfo property, BuiltInType builtInType)
+        /// <exception cref="ServiceResultException"></exception>
+        private void EncodeProperty(
+            IEncoder encoder,
+            string name,
+            PropertyInfo property,
+            BuiltInType builtInType)
         {
             Type propertyType = property.PropertyType;
             if (propertyType.IsEnum)
@@ -494,14 +514,13 @@ namespace Opc.Ua.Client.ComplexTypes
                         break;
                     }
                     goto case BuiltInType.Int32;
-                case BuiltInType.Null:
-                case BuiltInType.Number:
-                case BuiltInType.Integer:
-                case BuiltInType.UInteger:
                 default:
                     if (typeof(IEncodeable).IsAssignableFrom(propertyType))
                     {
-                        encoder.WriteEncodeable(name, (IEncodeable)property.GetValue(this), propertyType);
+                        encoder.WriteEncodeable(
+                            name,
+                            (IEncodeable)property.GetValue(this),
+                            propertyType);
                         break;
                     }
                     throw ServiceResultException.Create(
@@ -523,7 +542,8 @@ namespace Opc.Ua.Client.ComplexTypes
             int valueRank
         )
         {
-            Type elementType = property.PropertyType.GetElementType() ?? property.PropertyType.GetItemType();
+            Type elementType = property.PropertyType.GetElementType() ??
+                property.PropertyType.GetItemType();
             if (elementType.IsEnum)
             {
                 builtInType = BuiltInType.Enumeration;
@@ -542,7 +562,11 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Decode a property based on the property type and value rank.
         /// </summary>
-        protected void DecodeProperty(IDecoder decoder, string name, ComplexTypePropertyInfo property)
+        /// <exception cref="ServiceResultException"></exception>
+        protected void DecodeProperty(
+            IDecoder decoder,
+            string name,
+            ComplexTypePropertyInfo property)
         {
             int valueRank = property.ValueRank;
             if (valueRank == ValueRanks.Scalar)
@@ -551,7 +575,12 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             else if (valueRank >= ValueRanks.OneDimension)
             {
-                DecodePropertyArray(decoder, name, property.PropertyInfo, property.BuiltInType, valueRank);
+                DecodePropertyArray(
+                    decoder,
+                    name,
+                    property.PropertyInfo,
+                    property.BuiltInType,
+                    valueRank);
             }
             else
             {
@@ -566,7 +595,12 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Decode a scalar property based on the property type.
         /// </summary>
-        private void DecodeProperty(IDecoder decoder, string name, PropertyInfo property, BuiltInType builtInType)
+        /// <exception cref="ServiceResultException"></exception>
+        private void DecodeProperty(
+            IDecoder decoder,
+            string name,
+            PropertyInfo property,
+            BuiltInType builtInType)
         {
             Type propertyType = property.PropertyType;
             if (propertyType.IsEnum)
@@ -662,10 +696,6 @@ namespace Opc.Ua.Client.ComplexTypes
                         break;
                     }
                     goto case BuiltInType.Int32;
-                case BuiltInType.Null:
-                case BuiltInType.Number:
-                case BuiltInType.Integer:
-                case BuiltInType.UInteger:
                 default:
                     if (typeof(IEncodeable).IsAssignableFrom(propertyType))
                     {
@@ -691,7 +721,8 @@ namespace Opc.Ua.Client.ComplexTypes
             int valueRank
         )
         {
-            Type elementType = property.PropertyType.GetElementType() ?? property.PropertyType.GetItemType();
+            Type elementType = property.PropertyType.GetElementType() ??
+                property.PropertyType.GetItemType();
             if (elementType.IsEnum)
             {
                 builtInType = BuiltInType.Enumeration;
@@ -708,7 +739,8 @@ namespace Opc.Ua.Client.ComplexTypes
             StructureDefinitionAttribute definitionAttribute = GetType()
                 .GetCustomAttribute<StructureDefinitionAttribute>();
 
-            StructureTypeIdAttribute typeAttribute = GetType().GetCustomAttribute<StructureTypeIdAttribute>();
+            StructureTypeIdAttribute typeAttribute = GetType()
+                .GetCustomAttribute<StructureTypeIdAttribute>();
             if (typeAttribute != null)
             {
                 TypeId = ExpandedNodeId.Parse(typeAttribute.ComplexTypeId);
@@ -719,16 +751,21 @@ namespace Opc.Ua.Client.ComplexTypes
             m_propertyList = [];
             foreach (PropertyInfo property in GetType().GetProperties())
             {
-                StructureFieldAttribute fieldAttribute = property.GetCustomAttribute<StructureFieldAttribute>();
+                StructureFieldAttribute fieldAttribute = property
+                    .GetCustomAttribute<StructureFieldAttribute>();
 
                 if (fieldAttribute == null)
                 {
                     continue;
                 }
 
-                DataMemberAttribute dataAttribute = property.GetCustomAttribute<DataMemberAttribute>();
+                DataMemberAttribute dataAttribute = property
+                    .GetCustomAttribute<DataMemberAttribute>();
 
-                var newProperty = new ComplexTypePropertyInfo(property, fieldAttribute, dataAttribute);
+                var newProperty = new ComplexTypePropertyInfo(
+                    property,
+                    fieldAttribute,
+                    dataAttribute);
 
                 m_propertyList.Add(newProperty);
             }
@@ -764,4 +801,4 @@ namespace Opc.Ua.Client.ComplexTypes
 
         private XmlQualifiedName m_xmlName;
     }
-} //namespace
+}

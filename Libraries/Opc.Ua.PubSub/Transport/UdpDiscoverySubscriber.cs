@@ -56,7 +56,6 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Create new instance of <see cref="UdpDiscoverySubscriber"/>
         /// </summary>
-        /// <param name="udpConnection"></param>
         public UdpDiscoverySubscriber(UdpPubSubConnection udpConnection)
             : base(udpConnection)
         {
@@ -74,7 +73,6 @@ namespace Opc.Ua.PubSub.Transport
         /// Implementation of StartAsync for the subscriber Discovery
         /// </summary>
         /// <param name="messageContext">The <see cref="IServiceMessageContext"/> object that should be used in encode/decode messages</param>
-        /// <returns></returns>
         public override async Task StartAsync(IServiceMessageContext messageContext)
         {
             await base.StartAsync(messageContext).ConfigureAwait(false);
@@ -85,7 +83,6 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Stop the UdpDiscovery process for Subscriber
         /// </summary>
-        /// <returns></returns>
         public override async Task StopAsync()
         {
             await base.StopAsync().ConfigureAwait(false);
@@ -96,7 +93,6 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Enqueue the specified DataSetWriterId for DataSetInformation to be requested
         /// </summary>
-        /// <param name="writerId"></param>
         public void AddWriterIdForDataSetMetadata(ushort writerId)
         {
             lock (Lock)
@@ -111,7 +107,6 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Removes the specified DataSetWriterId for DataSetInformation to be requested
         /// </summary>
-        /// <param name="writerId"></param>
         public void RemoveWriterIdForDataSetMetadata(ushort writerId)
         {
             lock (Lock)
@@ -126,16 +121,17 @@ namespace Opc.Ua.PubSub.Transport
         public void SendDiscoveryRequestDataSetWriterConfiguration()
         {
             ushort[] dataSetWriterIds = m_udpConnection
-                .PubSubConnectionConfiguration.ReaderGroups?.SelectMany(group => group.DataSetReaders)
-                ?.Select(group => group.DataSetWriterId)
-                ?.ToArray();
+                .PubSubConnectionConfiguration.ReaderGroups?
+                .SelectMany(group => group.DataSetReaders)?
+                .Select(group => group.DataSetWriterId)?
+                .ToArray();
 
             var discoveryRequestDataSetWriterConfiguration = new UadpNetworkMessage(
                 UADPNetworkMessageDiscoveryType.DataSetWriterConfiguration
             )
             {
                 DataSetWriterIds = dataSetWriterIds,
-                PublisherId = m_udpConnection.PubSubConnectionConfiguration.PublisherId.Value,
+                PublisherId = m_udpConnection.PubSubConnectionConfiguration.PublisherId.Value
             };
 
             byte[] bytes = discoveryRequestDataSetWriterConfiguration.Encode(MessageContext);
@@ -150,7 +146,9 @@ namespace Opc.Ua.PubSub.Transport
                 }
                 catch (Exception ex)
                 {
-                    Utils.Trace(ex, "UdpDiscoverySubscriber.SendDiscoveryRequestDataSetWriterConfiguration");
+                    Utils.Trace(
+                        ex,
+                        "UdpDiscoverySubscriber.SendDiscoveryRequestDataSetWriterConfiguration");
                 }
             }
 
@@ -164,12 +162,15 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="writerConfig">the configuration</param>
         public void UpdateDataSetWriterConfiguration(WriterGroupDataType writerConfig)
         {
-            WriterGroupDataType writerGroup = m_udpConnection.PubSubConnectionConfiguration.WriterGroups?.Find(x =>
-                x.WriterGroupId == writerConfig.WriterGroupId
-            );
+            WriterGroupDataType writerGroup = m_udpConnection.PubSubConnectionConfiguration
+                .WriterGroups?
+                .Find(x =>
+                    x.WriterGroupId == writerConfig.WriterGroupId
+                    );
             if (writerGroup != null)
             {
-                int index = m_udpConnection.PubSubConnectionConfiguration.WriterGroups.IndexOf(writerGroup);
+                int index = m_udpConnection.PubSubConnectionConfiguration.WriterGroups
+                    .IndexOf(writerGroup);
                 m_udpConnection.PubSubConnectionConfiguration.WriterGroups[index] = writerConfig;
             }
         }
@@ -183,7 +184,7 @@ namespace Opc.Ua.PubSub.Transport
                 UADPNetworkMessageDiscoveryType.PublisherEndpoint
             )
             {
-                PublisherId = m_udpConnection.PubSubConnectionConfiguration.PublisherId.Value,
+                PublisherId = m_udpConnection.PubSubConnectionConfiguration.PublisherId.Value
             };
 
             byte[] bytes = discoveryRequestPublisherEndpoints.Encode(MessageContext);
@@ -202,7 +203,9 @@ namespace Opc.Ua.PubSub.Transport
                 }
                 catch (Exception ex)
                 {
-                    Utils.Trace(ex, "UdpDiscoverySubscriber.SendDiscoveryRequestPublisherEndpoints");
+                    Utils.Trace(
+                        ex,
+                        "UdpDiscoverySubscriber.SendDiscoveryRequestPublisherEndpoints");
                 }
             }
 
@@ -233,7 +236,7 @@ namespace Opc.Ua.PubSub.Transport
             )
             {
                 DataSetWriterIds = dataSetWriterIds,
-                PublisherId = m_udpConnection.PubSubConnectionConfiguration.PublisherId.Value,
+                PublisherId = m_udpConnection.PubSubConnectionConfiguration.PublisherId.Value
             };
 
             byte[] bytes = discoveryRequestMetaDataMessage.Encode(MessageContext);
@@ -263,7 +266,6 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Decide if there is anything to publish
         /// </summary>
-        /// <returns></returns>
         private bool CanPublish()
         {
             lock (Lock)

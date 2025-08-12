@@ -40,7 +40,10 @@ namespace Opc.Ua.Server
         /// <param name="context">The context.</param>
         /// <param name="request">The request.</param>
         /// <param name="server">The server.</param>
-        public AsyncPublishOperation(OperationContext context, IEndpointIncomingRequest request, StandardServer server)
+        public AsyncPublishOperation(
+            OperationContext context,
+            IEndpointIncomingRequest request,
+            StandardServer server)
         {
             Context = context;
             m_request = request;

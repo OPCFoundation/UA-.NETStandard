@@ -68,4 +68,4 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public int BuiltInType { get; set; }
     }
-} //namespace
+}

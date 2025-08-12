@@ -83,7 +83,6 @@ namespace Opc.Ua.Security.Certificates
         /// Construct minimal revoked certificate
         /// with serialnumber and actual UTC time.
         /// </summary>
-        /// <param name="serialNumber"></param>
         public RevokedCertificate(string serialNumber)
             : this()
         {
@@ -94,7 +93,6 @@ namespace Opc.Ua.Security.Certificates
         /// Construct minimal revoked certificate
         /// with serialnumber and actual UTC time.
         /// </summary>
-        /// <param name="serialNumber"></param>
         public RevokedCertificate(byte[] serialNumber)
             : this()
         {

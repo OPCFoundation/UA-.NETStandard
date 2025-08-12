@@ -29,9 +29,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
-using System.Runtime.Serialization;
 using Opc.Ua;
 
 namespace TestData
@@ -45,9 +45,8 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public GenerateValuesMethodState(NodeState parent) : base(parent)
-        {
-        }
+        public GenerateValuesMethodState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         public new static NodeState Construct(NodeState parent)
@@ -72,11 +71,11 @@ namespace TestData
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGGCCgQAAAABABgAAABHZW5lcmF0ZVZh" +
-           "bHVlc01ldGhvZFR5cGUBAekDAC8BAekD6QMAAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJn" +
-           "dW1lbnRzAQHqAwAuAETqAwAAlgEAAAABACoBAUYAAAAKAAAASXRlcmF0aW9ucwAH/////wAAAAADAAAA" +
-           "ACUAAABUaGUgbnVtYmVyIG9mIG5ldyB2YWx1ZXMgdG8gZ2VuZXJhdGUuAQAoAQEAAAABAAAAAAAAAAEB" +
-           "/////wAAAAA=";
+            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGGCCgQAAAABABgAAABHZW5lcmF0ZVZh"
+            + "bHVlc01ldGhvZFR5cGUBAekDAC8BAekD6QMAAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJn"
+            + "dW1lbnRzAQHqAwAuAETqAwAAlgEAAAABACoBAUYAAAAKAAAASXRlcmF0aW9ucwAH/////wAAAAADAAAA"
+            + "ACUAAABUaGUgbnVtYmVyIG9mIG5ldyB2YWx1ZXMgdG8gZ2VuZXJhdGUuAQAoAQEAAAABAAAAAAAAAAEB"
+            + "/////wAAAAA=";
         #endregion
 #endif
         #endregion
@@ -95,7 +94,8 @@ namespace TestData
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments)
+            IList<object> _outputArguments
+        )
         {
             if (OnCall == null)
             {
@@ -108,11 +108,7 @@ namespace TestData
 
             if (OnCall != null)
             {
-                _result = OnCall(
-                    _context,
-                    this,
-                    _objectId,
-                    iterations);
+                _result = OnCall(_context, this, _objectId, iterations);
             }
 
             return _result;
@@ -129,7 +125,8 @@ namespace TestData
         ISystemContext _context,
         MethodState _method,
         NodeId _objectId,
-        uint iterations);
+        uint iterations
+    );
 #endif
     #endregion
 
@@ -142,14 +139,17 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public GenerateValuesEventState(NodeState parent) : base(parent)
-        {
-        }
+        public GenerateValuesEventState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(TestData.ObjectTypes.GenerateValuesEventType, TestData.Namespaces.TestData, namespaceUris);
+            return Opc.Ua.NodeId.Create(
+                TestData.ObjectTypes.GenerateValuesEventType,
+                TestData.Namespaces.TestData,
+                namespaceUris
+            );
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -176,17 +176,17 @@ namespace TestData
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGCAAgEAAAABAB8AAABHZW5lcmF0ZVZh" +
-           "bHVlc0V2ZW50VHlwZUluc3RhbmNlAQHrAwEB6wPrAwAA/////woAAAAVYIkKAgAAAAAABwAAAEV2ZW50" +
-           "SWQBAewDAC4AROwDAAAAD/////8BAf////8AAAAAFWCJCgIAAAAAAAkAAABFdmVudFR5cGUBAe0DAC4A" +
-           "RO0DAAAAEf////8BAf////8AAAAAFWCJCgIAAAAAAAoAAABTb3VyY2VOb2RlAQHuAwAuAETuAwAAABH/" +
-           "////AQH/////AAAAABVgiQoCAAAAAAAKAAAAU291cmNlTmFtZQEB7wMALgBE7wMAAAAM/////wEB////" +
-           "/wAAAAAVYIkKAgAAAAAABAAAAFRpbWUBAfADAC4ARPADAAABACYB/////wEB/////wAAAAAVYIkKAgAA" +
-           "AAAACwAAAFJlY2VpdmVUaW1lAQHxAwAuAETxAwAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAcA" +
-           "AABNZXNzYWdlAQHzAwAuAETzAwAAABX/////AQH/////AAAAABVgiQoCAAAAAAAIAAAAU2V2ZXJpdHkB" +
-           "AfQDAC4ARPQDAAAABf////8BAf////8AAAAAFWCJCgIAAAABAAoAAABJdGVyYXRpb25zAQH1AwAuAET1" +
-           "AwAAAAf/////AQH/////AAAAABVgiQoCAAAAAQANAAAATmV3VmFsdWVDb3VudAEB9gMALgBE9gMAAAAH" +
-           "/////wEB/////wAAAAA=";
+            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGCAAgEAAAABAB8AAABHZW5lcmF0ZVZh"
+            + "bHVlc0V2ZW50VHlwZUluc3RhbmNlAQHrAwEB6wPrAwAA/////woAAAAVYIkKAgAAAAAABwAAAEV2ZW50"
+            + "SWQBAewDAC4AROwDAAAAD/////8BAf////8AAAAAFWCJCgIAAAAAAAkAAABFdmVudFR5cGUBAe0DAC4A"
+            + "RO0DAAAAEf////8BAf////8AAAAAFWCJCgIAAAAAAAoAAABTb3VyY2VOb2RlAQHuAwAuAETuAwAAABH/"
+            + "////AQH/////AAAAABVgiQoCAAAAAAAKAAAAU291cmNlTmFtZQEB7wMALgBE7wMAAAAM/////wEB////"
+            + "/wAAAAAVYIkKAgAAAAAABAAAAFRpbWUBAfADAC4ARPADAAABACYB/////wEB/////wAAAAAVYIkKAgAA"
+            + "AAAACwAAAFJlY2VpdmVUaW1lAQHxAwAuAETxAwAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAcA"
+            + "AABNZXNzYWdlAQHzAwAuAETzAwAAABX/////AQH/////AAAAABVgiQoCAAAAAAAIAAAAU2V2ZXJpdHkB"
+            + "AfQDAC4ARPQDAAAABf////8BAf////8AAAAAFWCJCgIAAAABAAoAAABJdGVyYXRpb25zAQH1AwAuAET1"
+            + "AwAAAAf/////AQH/////AAAAABVgiQoCAAAAAQANAAAATmV3VmFsdWVDb3VudAEB9gMALgBE9gMAAAAH"
+            + "/////wEB/////wAAAAA=";
         #endregion
 #endif
         #endregion
@@ -199,7 +199,6 @@ namespace TestData
             {
                 return m_iterations;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_iterations, value))
@@ -218,7 +217,6 @@ namespace TestData
             {
                 return m_newValueCount;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_newValueCount, value))
@@ -233,9 +231,7 @@ namespace TestData
 
         #region Overridden Methods
         /// <remarks />
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
+        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
             if (m_iterations != null)
             {
@@ -255,7 +251,8 @@ namespace TestData
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement)
+            BaseInstanceState replacement
+        )
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -335,14 +332,17 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public TestDataObjectState(NodeState parent) : base(parent)
-        {
-        }
+        public TestDataObjectState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(TestData.ObjectTypes.TestDataObjectType, TestData.Namespaces.TestData, namespaceUris);
+            return Opc.Ua.NodeId.Create(
+                TestData.ObjectTypes.TestDataObjectType,
+                TestData.Namespaces.TestData,
+                namespaceUris
+            );
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -369,48 +369,48 @@ namespace TestData
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGCAAgEAAAABABoAAABUZXN0RGF0YU9i" +
-           "amVjdFR5cGVJbnN0YW5jZQEB9wMBAfcD9wMAAAEAAAAAJAABAfsDAwAAADVgiQoCAAAAAQAQAAAAU2lt" +
-           "dWxhdGlvbkFjdGl2ZQEB+AMDAAAAAEcAAABJZiB0cnVlIHRoZSBzZXJ2ZXIgd2lsbCBwcm9kdWNlIG5l" +
-           "dyB2YWx1ZXMgZm9yIGVhY2ggbW9uaXRvcmVkIHZhcmlhYmxlLgAuAET4AwAAAAH/////AQH/////AAAA" +
-           "AARhggoEAAAAAQAOAAAAR2VuZXJhdGVWYWx1ZXMBAfkDAC8BAfkD+QMAAAEB/////wEAAAAXYKkKAgAA" +
-           "AAAADgAAAElucHV0QXJndW1lbnRzAQH6AwAuAET6AwAAlgEAAAABACoBAUYAAAAKAAAASXRlcmF0aW9u" +
-           "cwAH/////wAAAAADAAAAACUAAABUaGUgbnVtYmVyIG9mIG5ldyB2YWx1ZXMgdG8gZ2VuZXJhdGUuAQAo" +
-           "AQEAAAABAAAAAAAAAAEB/////wAAAAAEYIAKAQAAAAEADQAAAEN5Y2xlQ29tcGxldGUBAfsDAC8BAEEL" +
-           "+wMAAAEAAAAAJAEBAfcDFwAAABVgiQoCAAAAAAAHAAAARXZlbnRJZAEB/AMALgBE/AMAAAAP/////wEB" +
-           "/////wAAAAAVYIkKAgAAAAAACQAAAEV2ZW50VHlwZQEB/QMALgBE/QMAAAAR/////wEB/////wAAAAAV" +
-           "YIkKAgAAAAAACgAAAFNvdXJjZU5vZGUBAf4DAC4ARP4DAAAAEf////8BAf////8AAAAAFWCJCgIAAAAA" +
-           "AAoAAABTb3VyY2VOYW1lAQH/AwAuAET/AwAAAAz/////AQH/////AAAAABVgiQoCAAAAAAAEAAAAVGlt" +
-           "ZQEBAAQALgBEAAQAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAALAAAAUmVjZWl2ZVRpbWUBAQEE" +
-           "AC4ARAEEAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAE1lc3NhZ2UBAQMEAC4ARAMEAAAA" +
-           "Ff////8BAf////8AAAAAFWCJCgIAAAAAAAgAAABTZXZlcml0eQEBBAQALgBEBAQAAAAF/////wEB////" +
-           "/wAAAAAVYIkKAgAAAAAAEAAAAENvbmRpdGlvbkNsYXNzSWQBAQUEAC4ARAUEAAAAEf////8BAf////8A" +
-           "AAAAFWCJCgIAAAAAABIAAABDb25kaXRpb25DbGFzc05hbWUBAQYEAC4ARAYEAAAAFf////8BAf////8A" +
-           "AAAAFWCJCgIAAAAAAA0AAABDb25kaXRpb25OYW1lAQEJBAAuAEQJBAAAAAz/////AQH/////AAAAABVg" +
-           "iQoCAAAAAAAIAAAAQnJhbmNoSWQBAQoEAC4ARAoEAAAAEf////8BAf////8AAAAAFWCJCgIAAAAAAAYA" +
-           "AABSZXRhaW4BAQsEAC4ARAsEAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABFbmFibGVkU3Rh" +
-           "dGUBAQwEAC8BACMjDAQAAAAV/////wEBAgAAAAEALCMAAQEgBAEALCMAAQEpBAEAAAAVYIkKAgAAAAAA" +
-           "AgAAAElkAQENBAAuAEQNBAAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAAUXVhbGl0eQEBFQQA" +
-           "LwEAKiMVBAAAABP/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1wAQEWBAAu" +
-           "AEQWBAAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABMYXN0U2V2ZXJpdHkBARcEAC8BACoj" +
-           "FwQAAAAF/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFtcAEBGAQALgBEGAQA" +
-           "AAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAAQ29tbWVudAEBGQQALwEAKiMZBAAAABX/////" +
-           "AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1wAQEaBAAuAEQaBAAAAQAmAf////8B" +
-           "Af////8AAAAAFWCJCgIAAAAAAAwAAABDbGllbnRVc2VySWQBARsEAC4ARBsEAAAADP////8BAf////8A" +
-           "AAAABGGCCgQAAAAAAAcAAABEaXNhYmxlAQEcBAAvAQBEIxwEAAABAQEAAAABAPkLAAEA8woAAAAABGGC" +
-           "CgQAAAAAAAYAAABFbmFibGUBAR0EAC8BAEMjHQQAAAEBAQAAAAEA+QsAAQDzCgAAAAAEYYIKBAAAAAAA" +
-           "CgAAAEFkZENvbW1lbnQBAR4EAC8BAEUjHgQAAAEBAQAAAAEA+QsAAQANCwEAAAAXYKkKAgAAAAAADgAA" +
-           "AElucHV0QXJndW1lbnRzAQEfBAAuAEQfBAAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP/////wAA" +
-           "AAADAAAAACgAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAqAQFCAAAA" +
-           "BwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBjb25k" +
-           "aXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACgAAAEFja2VkU3RhdGUBASAE" +
-           "AC8BACMjIAQAAAAV/////wEBAQAAAAEALCMBAQEMBAEAAAAVYIkKAgAAAAAAAgAAAElkAQEhBAAuAEQh" +
-           "BAAAAAH/////AQH/////AAAAAARhggoEAAAAAAALAAAAQWNrbm93bGVkZ2UBATIEAC8BAJcjMgQAAAEB" +
-           "AQAAAAEA+QsAAQDwIgEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQEzBAAuAEQzBAAAlgIA" +
-           "AAABACoBAUYAAAAHAAAARXZlbnRJZAAP/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmllciBmb3Ig" +
-           "dGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAqAQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAkAAAA" +
-           "VGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAA" +
-           "AAA=";
+            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGCAAgEAAAABABoAAABUZXN0RGF0YU9i"
+            + "amVjdFR5cGVJbnN0YW5jZQEB9wMBAfcD9wMAAAEAAAAAJAABAfsDAwAAADVgiQoCAAAAAQAQAAAAU2lt"
+            + "dWxhdGlvbkFjdGl2ZQEB+AMDAAAAAEcAAABJZiB0cnVlIHRoZSBzZXJ2ZXIgd2lsbCBwcm9kdWNlIG5l"
+            + "dyB2YWx1ZXMgZm9yIGVhY2ggbW9uaXRvcmVkIHZhcmlhYmxlLgAuAET4AwAAAAH/////AQH/////AAAA"
+            + "AARhggoEAAAAAQAOAAAAR2VuZXJhdGVWYWx1ZXMBAfkDAC8BAfkD+QMAAAEB/////wEAAAAXYKkKAgAA"
+            + "AAAADgAAAElucHV0QXJndW1lbnRzAQH6AwAuAET6AwAAlgEAAAABACoBAUYAAAAKAAAASXRlcmF0aW9u"
+            + "cwAH/////wAAAAADAAAAACUAAABUaGUgbnVtYmVyIG9mIG5ldyB2YWx1ZXMgdG8gZ2VuZXJhdGUuAQAo"
+            + "AQEAAAABAAAAAAAAAAEB/////wAAAAAEYIAKAQAAAAEADQAAAEN5Y2xlQ29tcGxldGUBAfsDAC8BAEEL"
+            + "+wMAAAEAAAAAJAEBAfcDFwAAABVgiQoCAAAAAAAHAAAARXZlbnRJZAEB/AMALgBE/AMAAAAP/////wEB"
+            + "/////wAAAAAVYIkKAgAAAAAACQAAAEV2ZW50VHlwZQEB/QMALgBE/QMAAAAR/////wEB/////wAAAAAV"
+            + "YIkKAgAAAAAACgAAAFNvdXJjZU5vZGUBAf4DAC4ARP4DAAAAEf////8BAf////8AAAAAFWCJCgIAAAAA"
+            + "AAoAAABTb3VyY2VOYW1lAQH/AwAuAET/AwAAAAz/////AQH/////AAAAABVgiQoCAAAAAAAEAAAAVGlt"
+            + "ZQEBAAQALgBEAAQAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAALAAAAUmVjZWl2ZVRpbWUBAQEE"
+            + "AC4ARAEEAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAE1lc3NhZ2UBAQMEAC4ARAMEAAAA"
+            + "Ff////8BAf////8AAAAAFWCJCgIAAAAAAAgAAABTZXZlcml0eQEBBAQALgBEBAQAAAAF/////wEB////"
+            + "/wAAAAAVYIkKAgAAAAAAEAAAAENvbmRpdGlvbkNsYXNzSWQBAQUEAC4ARAUEAAAAEf////8BAf////8A"
+            + "AAAAFWCJCgIAAAAAABIAAABDb25kaXRpb25DbGFzc05hbWUBAQYEAC4ARAYEAAAAFf////8BAf////8A"
+            + "AAAAFWCJCgIAAAAAAA0AAABDb25kaXRpb25OYW1lAQEJBAAuAEQJBAAAAAz/////AQH/////AAAAABVg"
+            + "iQoCAAAAAAAIAAAAQnJhbmNoSWQBAQoEAC4ARAoEAAAAEf////8BAf////8AAAAAFWCJCgIAAAAAAAYA"
+            + "AABSZXRhaW4BAQsEAC4ARAsEAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABFbmFibGVkU3Rh"
+            + "dGUBAQwEAC8BACMjDAQAAAAV/////wEBAgAAAAEALCMAAQEgBAEALCMAAQEpBAEAAAAVYIkKAgAAAAAA"
+            + "AgAAAElkAQENBAAuAEQNBAAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAAUXVhbGl0eQEBFQQA"
+            + "LwEAKiMVBAAAABP/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1wAQEWBAAu"
+            + "AEQWBAAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABMYXN0U2V2ZXJpdHkBARcEAC8BACoj"
+            + "FwQAAAAF/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFtcAEBGAQALgBEGAQA"
+            + "AAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAAQ29tbWVudAEBGQQALwEAKiMZBAAAABX/////"
+            + "AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1wAQEaBAAuAEQaBAAAAQAmAf////8B"
+            + "Af////8AAAAAFWCJCgIAAAAAAAwAAABDbGllbnRVc2VySWQBARsEAC4ARBsEAAAADP////8BAf////8A"
+            + "AAAABGGCCgQAAAAAAAcAAABEaXNhYmxlAQEcBAAvAQBEIxwEAAABAQEAAAABAPkLAAEA8woAAAAABGGC"
+            + "CgQAAAAAAAYAAABFbmFibGUBAR0EAC8BAEMjHQQAAAEBAQAAAAEA+QsAAQDzCgAAAAAEYYIKBAAAAAAA"
+            + "CgAAAEFkZENvbW1lbnQBAR4EAC8BAEUjHgQAAAEBAQAAAAEA+QsAAQANCwEAAAAXYKkKAgAAAAAADgAA"
+            + "AElucHV0QXJndW1lbnRzAQEfBAAuAEQfBAAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP/////wAA"
+            + "AAADAAAAACgAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAqAQFCAAAA"
+            + "BwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBjb25k"
+            + "aXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACgAAAEFja2VkU3RhdGUBASAE"
+            + "AC8BACMjIAQAAAAV/////wEBAQAAAAEALCMBAQEMBAEAAAAVYIkKAgAAAAAAAgAAAElkAQEhBAAuAEQh"
+            + "BAAAAAH/////AQH/////AAAAAARhggoEAAAAAAALAAAAQWNrbm93bGVkZ2UBATIEAC8BAJcjMgQAAAEB"
+            + "AQAAAAEA+QsAAQDwIgEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQEzBAAuAEQzBAAAlgIA"
+            + "AAABACoBAUYAAAAHAAAARXZlbnRJZAAP/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmllciBmb3Ig"
+            + "dGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAqAQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAkAAAA"
+            + "VGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAA"
+            + "AAA=";
         #endregion
 #endif
         #endregion
@@ -423,7 +423,6 @@ namespace TestData
             {
                 return m_simulationActive;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_simulationActive, value))
@@ -442,7 +441,6 @@ namespace TestData
             {
                 return m_generateValuesMethod;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_generateValuesMethod, value))
@@ -461,7 +459,6 @@ namespace TestData
             {
                 return m_cycleComplete;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_cycleComplete, value))
@@ -476,9 +473,7 @@ namespace TestData
 
         #region Overridden Methods
         /// <remarks />
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
+        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
             if (m_simulationActive != null)
             {
@@ -503,7 +498,8 @@ namespace TestData
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement)
+            BaseInstanceState replacement
+        )
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -605,20 +601,27 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public ScalarStructureVariableState(NodeState parent) : base(parent)
-        {
-        }
+        public ScalarStructureVariableState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(TestData.VariableTypes.ScalarStructureVariableType, TestData.Namespaces.TestData, namespaceUris);
+            return Opc.Ua.NodeId.Create(
+                TestData.VariableTypes.ScalarStructureVariableType,
+                TestData.Namespaces.TestData,
+                namespaceUris
+            );
         }
 
         /// <remarks />
         protected override NodeId GetDefaultDataTypeId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(TestData.DataTypes.ScalarStructureDataType, TestData.Namespaces.TestData, namespaceUris);
+            return Opc.Ua.NodeId.Create(
+                TestData.DataTypes.ScalarStructureDataType,
+                TestData.Namespaces.TestData,
+                namespaceUris
+            );
         }
 
         /// <remarks />
@@ -651,33 +654,33 @@ namespace TestData
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////FWCBAgIAAAABACMAAABTY2FsYXJTdHJ1" +
-           "Y3R1cmVWYXJpYWJsZVR5cGVJbnN0YW5jZQEBNwQBATcENwQAAAEBNgQBAf////8bAAAAFWCJCgIAAAAB" +
-           "AAwAAABCb29sZWFuVmFsdWUBATgEAC8APzgEAAAAAf////8BAf////8AAAAAFWCJCgIAAAABAAoAAABT" +
-           "Qnl0ZVZhbHVlAQE5BAAvAD85BAAAAAL/////AQH/////AAAAABVgiQoCAAAAAQAJAAAAQnl0ZVZhbHVl" +
-           "AQE6BAAvAD86BAAAAAP/////AQH/////AAAAABVgiQoCAAAAAQAKAAAASW50MTZWYWx1ZQEBOwQALwA/" +
-           "OwQAAAAE/////wEB/////wAAAAAVYIkKAgAAAAEACwAAAFVJbnQxNlZhbHVlAQE8BAAvAD88BAAAAAX/" +
-           "////AQH/////AAAAABVgiQoCAAAAAQAKAAAASW50MzJWYWx1ZQEBPQQALwA/PQQAAAAG/////wEB////" +
-           "/wAAAAAVYIkKAgAAAAEACwAAAFVJbnQzMlZhbHVlAQE+BAAvAD8+BAAAAAf/////AQH/////AAAAABVg" +
-           "iQoCAAAAAQAKAAAASW50NjRWYWx1ZQEBPwQALwA/PwQAAAAI/////wEB/////wAAAAAVYIkKAgAAAAEA" +
-           "CwAAAFVJbnQ2NFZhbHVlAQFABAAvAD9ABAAAAAn/////AQH/////AAAAABVgiQoCAAAAAQAKAAAARmxv" +
-           "YXRWYWx1ZQEBQQQALwA/QQQAAAAK/////wEB/////wAAAAAVYIkKAgAAAAEACwAAAERvdWJsZVZhbHVl" +
-           "AQFCBAAvAD9CBAAAAAv/////AQH/////AAAAABVgiQoCAAAAAQALAAAAU3RyaW5nVmFsdWUBAUMEAC8A" +
-           "P0MEAAAADP////8BAf////8AAAAAFWCJCgIAAAABAA0AAABEYXRlVGltZVZhbHVlAQFEBAAvAD9EBAAA" +
-           "AA3/////AQH/////AAAAABVgiQoCAAAAAQAJAAAAR3VpZFZhbHVlAQFFBAAvAD9FBAAAAA7/////AQH/" +
-           "////AAAAABVgiQoCAAAAAQAPAAAAQnl0ZVN0cmluZ1ZhbHVlAQFGBAAvAD9GBAAAAA//////AQH/////" +
-           "AAAAABVgiQoCAAAAAQAPAAAAWG1sRWxlbWVudFZhbHVlAQFHBAAvAD9HBAAAABD/////AQH/////AAAA" +
-           "ABVgiQoCAAAAAQALAAAATm9kZUlkVmFsdWUBAUgEAC8AP0gEAAAAEf////8BAf////8AAAAAFWCJCgIA" +
-           "AAABABMAAABFeHBhbmRlZE5vZGVJZFZhbHVlAQFJBAAvAD9JBAAAABL/////AQH/////AAAAABVgiQoC" +
-           "AAAAAQASAAAAUXVhbGlmaWVkTmFtZVZhbHVlAQFKBAAvAD9KBAAAABT/////AQH/////AAAAABVgiQoC" +
-           "AAAAAQASAAAATG9jYWxpemVkVGV4dFZhbHVlAQFLBAAvAD9LBAAAABX/////AQH/////AAAAABVgiQoC" +
-           "AAAAAQAPAAAAU3RhdHVzQ29kZVZhbHVlAQFMBAAvAD9MBAAAABP/////AQH/////AAAAABVgiQoCAAAA" +
-           "AQAMAAAAVmFyaWFudFZhbHVlAQFNBAAvAD9NBAAAABj/////AQH/////AAAAABVgiQoCAAAAAQAQAAAA" +
-           "RW51bWVyYXRpb25WYWx1ZQEBTgQALwA/TgQAAAAd/////wEB/////wAAAAAVYIkKAgAAAAEADgAAAFN0" +
-           "cnVjdHVyZVZhbHVlAQFPBAAvAD9PBAAAABb/////AQH/////AAAAABVgiQoCAAAAAQALAAAATnVtYmVy" +
-           "VmFsdWUBAVAEAC8AP1AEAAAAGv////8BAf////8AAAAAFWCJCgIAAAABAAwAAABJbnRlZ2VyVmFsdWUB" +
-           "AVEEAC8AP1EEAAAAG/////8BAf////8AAAAAFWCJCgIAAAABAA0AAABVSW50ZWdlclZhbHVlAQFSBAAv" +
-           "AD9SBAAAABz/////AQH/////AAAAAA==";
+            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////FWCBAgIAAAABACMAAABTY2FsYXJTdHJ1"
+            + "Y3R1cmVWYXJpYWJsZVR5cGVJbnN0YW5jZQEBNwQBATcENwQAAAEBNgQBAf////8bAAAAFWCJCgIAAAAB"
+            + "AAwAAABCb29sZWFuVmFsdWUBATgEAC8APzgEAAAAAf////8BAf////8AAAAAFWCJCgIAAAABAAoAAABT"
+            + "Qnl0ZVZhbHVlAQE5BAAvAD85BAAAAAL/////AQH/////AAAAABVgiQoCAAAAAQAJAAAAQnl0ZVZhbHVl"
+            + "AQE6BAAvAD86BAAAAAP/////AQH/////AAAAABVgiQoCAAAAAQAKAAAASW50MTZWYWx1ZQEBOwQALwA/"
+            + "OwQAAAAE/////wEB/////wAAAAAVYIkKAgAAAAEACwAAAFVJbnQxNlZhbHVlAQE8BAAvAD88BAAAAAX/"
+            + "////AQH/////AAAAABVgiQoCAAAAAQAKAAAASW50MzJWYWx1ZQEBPQQALwA/PQQAAAAG/////wEB////"
+            + "/wAAAAAVYIkKAgAAAAEACwAAAFVJbnQzMlZhbHVlAQE+BAAvAD8+BAAAAAf/////AQH/////AAAAABVg"
+            + "iQoCAAAAAQAKAAAASW50NjRWYWx1ZQEBPwQALwA/PwQAAAAI/////wEB/////wAAAAAVYIkKAgAAAAEA"
+            + "CwAAAFVJbnQ2NFZhbHVlAQFABAAvAD9ABAAAAAn/////AQH/////AAAAABVgiQoCAAAAAQAKAAAARmxv"
+            + "YXRWYWx1ZQEBQQQALwA/QQQAAAAK/////wEB/////wAAAAAVYIkKAgAAAAEACwAAAERvdWJsZVZhbHVl"
+            + "AQFCBAAvAD9CBAAAAAv/////AQH/////AAAAABVgiQoCAAAAAQALAAAAU3RyaW5nVmFsdWUBAUMEAC8A"
+            + "P0MEAAAADP////8BAf////8AAAAAFWCJCgIAAAABAA0AAABEYXRlVGltZVZhbHVlAQFEBAAvAD9EBAAA"
+            + "AA3/////AQH/////AAAAABVgiQoCAAAAAQAJAAAAR3VpZFZhbHVlAQFFBAAvAD9FBAAAAA7/////AQH/"
+            + "////AAAAABVgiQoCAAAAAQAPAAAAQnl0ZVN0cmluZ1ZhbHVlAQFGBAAvAD9GBAAAAA//////AQH/////"
+            + "AAAAABVgiQoCAAAAAQAPAAAAWG1sRWxlbWVudFZhbHVlAQFHBAAvAD9HBAAAABD/////AQH/////AAAA"
+            + "ABVgiQoCAAAAAQALAAAATm9kZUlkVmFsdWUBAUgEAC8AP0gEAAAAEf////8BAf////8AAAAAFWCJCgIA"
+            + "AAABABMAAABFeHBhbmRlZE5vZGVJZFZhbHVlAQFJBAAvAD9JBAAAABL/////AQH/////AAAAABVgiQoC"
+            + "AAAAAQASAAAAUXVhbGlmaWVkTmFtZVZhbHVlAQFKBAAvAD9KBAAAABT/////AQH/////AAAAABVgiQoC"
+            + "AAAAAQASAAAATG9jYWxpemVkVGV4dFZhbHVlAQFLBAAvAD9LBAAAABX/////AQH/////AAAAABVgiQoC"
+            + "AAAAAQAPAAAAU3RhdHVzQ29kZVZhbHVlAQFMBAAvAD9MBAAAABP/////AQH/////AAAAABVgiQoCAAAA"
+            + "AQAMAAAAVmFyaWFudFZhbHVlAQFNBAAvAD9NBAAAABj/////AQH/////AAAAABVgiQoCAAAAAQAQAAAA"
+            + "RW51bWVyYXRpb25WYWx1ZQEBTgQALwA/TgQAAAAd/////wEB/////wAAAAAVYIkKAgAAAAEADgAAAFN0"
+            + "cnVjdHVyZVZhbHVlAQFPBAAvAD9PBAAAABb/////AQH/////AAAAABVgiQoCAAAAAQALAAAATnVtYmVy"
+            + "VmFsdWUBAVAEAC8AP1AEAAAAGv////8BAf////8AAAAAFWCJCgIAAAABAAwAAABJbnRlZ2VyVmFsdWUB"
+            + "AVEEAC8AP1EEAAAAG/////8BAf////8AAAAAFWCJCgIAAAABAA0AAABVSW50ZWdlclZhbHVlAQFSBAAv"
+            + "AD9SBAAAABz/////AQH/////AAAAAA==";
         #endregion
 #endif
         #endregion
@@ -690,7 +693,6 @@ namespace TestData
             {
                 return m_booleanValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_booleanValue, value))
@@ -709,7 +711,6 @@ namespace TestData
             {
                 return m_sByteValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_sByteValue, value))
@@ -728,7 +729,6 @@ namespace TestData
             {
                 return m_byteValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_byteValue, value))
@@ -747,7 +747,6 @@ namespace TestData
             {
                 return m_int16Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_int16Value, value))
@@ -766,7 +765,6 @@ namespace TestData
             {
                 return m_uInt16Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_uInt16Value, value))
@@ -785,7 +783,6 @@ namespace TestData
             {
                 return m_int32Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_int32Value, value))
@@ -804,7 +801,6 @@ namespace TestData
             {
                 return m_uInt32Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_uInt32Value, value))
@@ -823,7 +819,6 @@ namespace TestData
             {
                 return m_int64Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_int64Value, value))
@@ -842,7 +837,6 @@ namespace TestData
             {
                 return m_uInt64Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_uInt64Value, value))
@@ -861,7 +855,6 @@ namespace TestData
             {
                 return m_floatValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_floatValue, value))
@@ -880,7 +873,6 @@ namespace TestData
             {
                 return m_doubleValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_doubleValue, value))
@@ -899,7 +891,6 @@ namespace TestData
             {
                 return m_stringValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_stringValue, value))
@@ -918,7 +909,6 @@ namespace TestData
             {
                 return m_dateTimeValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_dateTimeValue, value))
@@ -937,7 +927,6 @@ namespace TestData
             {
                 return m_guidValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_guidValue, value))
@@ -956,7 +945,6 @@ namespace TestData
             {
                 return m_byteStringValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_byteStringValue, value))
@@ -975,7 +963,6 @@ namespace TestData
             {
                 return m_xmlElementValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_xmlElementValue, value))
@@ -994,7 +981,6 @@ namespace TestData
             {
                 return m_nodeIdValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_nodeIdValue, value))
@@ -1013,7 +999,6 @@ namespace TestData
             {
                 return m_expandedNodeIdValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_expandedNodeIdValue, value))
@@ -1032,7 +1017,6 @@ namespace TestData
             {
                 return m_qualifiedNameValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_qualifiedNameValue, value))
@@ -1051,7 +1035,6 @@ namespace TestData
             {
                 return m_localizedTextValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_localizedTextValue, value))
@@ -1070,7 +1053,6 @@ namespace TestData
             {
                 return m_statusCodeValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_statusCodeValue, value))
@@ -1089,7 +1071,6 @@ namespace TestData
             {
                 return m_variantValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_variantValue, value))
@@ -1108,7 +1089,6 @@ namespace TestData
             {
                 return m_enumerationValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_enumerationValue, value))
@@ -1127,7 +1107,6 @@ namespace TestData
             {
                 return m_structureValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_structureValue, value))
@@ -1146,7 +1125,6 @@ namespace TestData
             {
                 return m_numberValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_numberValue, value))
@@ -1165,7 +1143,6 @@ namespace TestData
             {
                 return m_integerValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_integerValue, value))
@@ -1184,7 +1161,6 @@ namespace TestData
             {
                 return m_uIntegerValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_uIntegerValue, value))
@@ -1199,9 +1175,7 @@ namespace TestData
 
         #region Overridden Methods
         /// <remarks />
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
+        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
             if (m_booleanValue != null)
             {
@@ -1346,7 +1320,8 @@ namespace TestData
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement)
+            BaseInstanceState replacement
+        )
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -1973,7 +1948,12 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public ScalarStructureVariableValue(ScalarStructureVariableState variable, ScalarStructureDataType value, object dataLock) : base(dataLock)
+        public ScalarStructureVariableValue(
+            ScalarStructureVariableState variable,
+            ScalarStructureDataType value,
+            object dataLock
+        )
+            : base(dataLock)
         {
             m_value = value;
 
@@ -1990,14 +1970,23 @@ namespace TestData
         /// <remarks />
         public ScalarStructureVariableState Variable
         {
-            get { return m_variable; }
+            get
+            {
+                return m_variable;
+            }
         }
 
         /// <remarks />
         public ScalarStructureDataType Value
         {
-            get { return m_value; }
-            set { m_value = value; }
+            get
+            {
+                return m_value;
+            }
+            set
+            {
+                m_value = value;
+            }
         }
         #endregion
 
@@ -2219,7 +2208,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -2241,7 +2231,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -2267,7 +2258,12 @@ namespace TestData
             return ServiceResult.Good;
         }
 
-        private void UpdateChildrenChangeMasks(ISystemContext context, ref ScalarStructureDataType newValue, ref StatusCode statusCode, ref DateTime timestamp)
+        private void UpdateChildrenChangeMasks(
+            ISystemContext context,
+            ref ScalarStructureDataType newValue,
+            ref StatusCode statusCode,
+            ref DateTime timestamp
+        )
         {
             if (!Utils.IsEqual(m_value.BooleanValue, newValue.BooleanValue))
                 UpdateChildVariableStatus(m_variable.BooleanValue, ref statusCode, ref timestamp);
@@ -2332,7 +2328,11 @@ namespace TestData
             m_variable.ClearChangeMasks(context, false);
         }
 
-        private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
+        private void UpdateChildVariableStatus(
+            BaseVariableState child,
+            ref StatusCode statusCode,
+            ref DateTime timestamp
+        )
         {
             if (child == null)
                 return;
@@ -2353,7 +2353,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -2396,7 +2397,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -2418,7 +2420,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -2461,7 +2464,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -2483,7 +2487,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -2526,7 +2531,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -2548,7 +2554,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -2591,7 +2598,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -2613,7 +2621,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -2656,7 +2665,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -2678,7 +2688,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -2721,7 +2732,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -2743,7 +2755,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -2786,7 +2799,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -2808,7 +2822,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -2851,7 +2866,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -2873,7 +2889,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -2916,7 +2933,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -2938,7 +2956,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -2981,7 +3000,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3003,7 +3023,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3046,7 +3067,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3068,7 +3090,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3111,7 +3134,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3133,7 +3157,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3176,7 +3201,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3198,7 +3224,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3241,7 +3268,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3263,7 +3291,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3306,7 +3335,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3328,7 +3358,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3371,7 +3402,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3393,7 +3425,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3436,7 +3469,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3458,7 +3492,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3501,7 +3536,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3523,7 +3559,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3566,7 +3603,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3588,7 +3626,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3631,7 +3670,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3653,7 +3693,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3696,7 +3737,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3718,7 +3760,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3761,7 +3804,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3783,7 +3827,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3826,7 +3871,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3848,7 +3894,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3891,7 +3938,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3913,7 +3961,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3956,7 +4005,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -3978,7 +4028,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -4021,7 +4072,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -4043,7 +4095,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -4086,7 +4139,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -4118,9 +4172,8 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public ScalarValue1MethodState(NodeState parent) : base(parent)
-        {
-        }
+        public ScalarValue1MethodState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         public new static NodeState Construct(NodeState parent)
@@ -4145,22 +4198,22 @@ namespace TestData
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGGCCgQAAAABABYAAABTY2FsYXJWYWx1" +
-           "ZTFNZXRob2RUeXBlAQFTBAAvAQFTBFMEAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3Vt" +
-           "ZW50cwEBVAQALgBEVAQAAJYLAAAAAQAqAQEYAAAACQAAAEJvb2xlYW5JbgAB/////wAAAAAAAQAqAQEW" +
-           "AAAABwAAAFNCeXRlSW4AAv////8AAAAAAAEAKgEBFQAAAAYAAABCeXRlSW4AA/////8AAAAAAAEAKgEB" +
-           "FgAAAAcAAABJbnQxNkluAAT/////AAAAAAABACoBARcAAAAIAAAAVUludDE2SW4ABf////8AAAAAAAEA" +
-           "KgEBFgAAAAcAAABJbnQzMkluAAb/////AAAAAAABACoBARcAAAAIAAAAVUludDMySW4AB/////8AAAAA" +
-           "AAEAKgEBFgAAAAcAAABJbnQ2NEluAAj/////AAAAAAABACoBARcAAAAIAAAAVUludDY0SW4ACf////8A" +
-           "AAAAAAEAKgEBFgAAAAcAAABGbG9hdEluAAr/////AAAAAAABACoBARcAAAAIAAAARG91YmxlSW4AC///" +
-           "//8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVu" +
-           "dHMBAVUEAC4ARFUEAACWCwAAAAEAKgEBGQAAAAoAAABCb29sZWFuT3V0AAH/////AAAAAAABACoBARcA" +
-           "AAAIAAAAU0J5dGVPdXQAAv////8AAAAAAAEAKgEBFgAAAAcAAABCeXRlT3V0AAP/////AAAAAAABACoB" +
-           "ARcAAAAIAAAASW50MTZPdXQABP////8AAAAAAAEAKgEBGAAAAAkAAABVSW50MTZPdXQABf////8AAAAA" +
-           "AAEAKgEBFwAAAAgAAABJbnQzMk91dAAG/////wAAAAAAAQAqAQEYAAAACQAAAFVJbnQzMk91dAAH////" +
-           "/wAAAAAAAQAqAQEXAAAACAAAAEludDY0T3V0AAj/////AAAAAAABACoBARgAAAAJAAAAVUludDY0T3V0" +
-           "AAn/////AAAAAAABACoBARcAAAAIAAAARmxvYXRPdXQACv////8AAAAAAAEAKgEBGAAAAAkAAABEb3Vi" +
-           "bGVPdXQAC/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGGCCgQAAAABABYAAABTY2FsYXJWYWx1"
+            + "ZTFNZXRob2RUeXBlAQFTBAAvAQFTBFMEAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3Vt"
+            + "ZW50cwEBVAQALgBEVAQAAJYLAAAAAQAqAQEYAAAACQAAAEJvb2xlYW5JbgAB/////wAAAAAAAQAqAQEW"
+            + "AAAABwAAAFNCeXRlSW4AAv////8AAAAAAAEAKgEBFQAAAAYAAABCeXRlSW4AA/////8AAAAAAAEAKgEB"
+            + "FgAAAAcAAABJbnQxNkluAAT/////AAAAAAABACoBARcAAAAIAAAAVUludDE2SW4ABf////8AAAAAAAEA"
+            + "KgEBFgAAAAcAAABJbnQzMkluAAb/////AAAAAAABACoBARcAAAAIAAAAVUludDMySW4AB/////8AAAAA"
+            + "AAEAKgEBFgAAAAcAAABJbnQ2NEluAAj/////AAAAAAABACoBARcAAAAIAAAAVUludDY0SW4ACf////8A"
+            + "AAAAAAEAKgEBFgAAAAcAAABGbG9hdEluAAr/////AAAAAAABACoBARcAAAAIAAAARG91YmxlSW4AC///"
+            + "//8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVu"
+            + "dHMBAVUEAC4ARFUEAACWCwAAAAEAKgEBGQAAAAoAAABCb29sZWFuT3V0AAH/////AAAAAAABACoBARcA"
+            + "AAAIAAAAU0J5dGVPdXQAAv////8AAAAAAAEAKgEBFgAAAAcAAABCeXRlT3V0AAP/////AAAAAAABACoB"
+            + "ARcAAAAIAAAASW50MTZPdXQABP////8AAAAAAAEAKgEBGAAAAAkAAABVSW50MTZPdXQABf////8AAAAA"
+            + "AAEAKgEBFwAAAAgAAABJbnQzMk91dAAG/////wAAAAAAAQAqAQEYAAAACQAAAFVJbnQzMk91dAAH////"
+            + "/wAAAAAAAQAqAQEXAAAACAAAAEludDY0T3V0AAj/////AAAAAAABACoBARgAAAAJAAAAVUludDY0T3V0"
+            + "AAn/////AAAAAAABACoBARcAAAAIAAAARmxvYXRPdXQACv////8AAAAAAAEAKgEBGAAAAAkAAABEb3Vi"
+            + "bGVPdXQAC/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
         #endregion
 #endif
         #endregion
@@ -4179,7 +4232,8 @@ namespace TestData
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments)
+            IList<object> _outputArguments
+        )
         {
             if (OnCall == null)
             {
@@ -4239,7 +4293,8 @@ namespace TestData
                     ref int64Out,
                     ref uInt64Out,
                     ref floatOut,
-                    ref doubleOut);
+                    ref doubleOut
+                );
             }
 
             _outputArguments[0] = booleanOut;
@@ -4289,7 +4344,8 @@ namespace TestData
         ref long int64Out,
         ref ulong uInt64Out,
         ref float floatOut,
-        ref double doubleOut);
+        ref double doubleOut
+    );
 #endif
     #endregion
 
@@ -4302,9 +4358,8 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public ScalarValue2MethodState(NodeState parent) : base(parent)
-        {
-        }
+        public ScalarValue2MethodState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         public new static NodeState Construct(NodeState parent)
@@ -4329,22 +4384,22 @@ namespace TestData
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGGCCgQAAAABABYAAABTY2FsYXJWYWx1" +
-           "ZTJNZXRob2RUeXBlAQFWBAAvAQFWBFYEAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3Vt" +
-           "ZW50cwEBVwQALgBEVwQAAJYKAAAAAQAqAQEXAAAACAAAAFN0cmluZ0luAAz/////AAAAAAABACoBARkA" +
-           "AAAKAAAARGF0ZVRpbWVJbgAN/////wAAAAAAAQAqAQEVAAAABgAAAEd1aWRJbgAO/////wAAAAAAAQAq" +
-           "AQEbAAAADAAAAEJ5dGVTdHJpbmdJbgAP/////wAAAAAAAQAqAQEbAAAADAAAAFhtbEVsZW1lbnRJbgAQ" +
-           "/////wAAAAAAAQAqAQEXAAAACAAAAE5vZGVJZEluABH/////AAAAAAABACoBAR8AAAAQAAAARXhwYW5k" +
-           "ZWROb2RlSWRJbgAS/////wAAAAAAAQAqAQEeAAAADwAAAFF1YWxpZmllZE5hbWVJbgAU/////wAAAAAA" +
-           "AQAqAQEeAAAADwAAAExvY2FsaXplZFRleHRJbgAV/////wAAAAAAAQAqAQEbAAAADAAAAFN0YXR1c0Nv" +
-           "ZGVJbgAT/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1" +
-           "dEFyZ3VtZW50cwEBWAQALgBEWAQAAJYKAAAAAQAqAQEYAAAACQAAAFN0cmluZ091dAAM/////wAAAAAA" +
-           "AQAqAQEaAAAACwAAAERhdGVUaW1lT3V0AA3/////AAAAAAABACoBARYAAAAHAAAAR3VpZE91dAAO////" +
-           "/wAAAAAAAQAqAQEcAAAADQAAAEJ5dGVTdHJpbmdPdXQAD/////8AAAAAAAEAKgEBHAAAAA0AAABYbWxF" +
-           "bGVtZW50T3V0ABD/////AAAAAAABACoBARgAAAAJAAAATm9kZUlkT3V0ABH/////AAAAAAABACoBASAA" +
-           "AAARAAAARXhwYW5kZWROb2RlSWRPdXQAEv////8AAAAAAAEAKgEBHwAAABAAAABRdWFsaWZpZWROYW1l" +
-           "T3V0ABT/////AAAAAAABACoBAR8AAAAQAAAATG9jYWxpemVkVGV4dE91dAAV/////wAAAAAAAQAqAQEc" +
-           "AAAADQAAAFN0YXR1c0NvZGVPdXQAE/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGGCCgQAAAABABYAAABTY2FsYXJWYWx1"
+            + "ZTJNZXRob2RUeXBlAQFWBAAvAQFWBFYEAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3Vt"
+            + "ZW50cwEBVwQALgBEVwQAAJYKAAAAAQAqAQEXAAAACAAAAFN0cmluZ0luAAz/////AAAAAAABACoBARkA"
+            + "AAAKAAAARGF0ZVRpbWVJbgAN/////wAAAAAAAQAqAQEVAAAABgAAAEd1aWRJbgAO/////wAAAAAAAQAq"
+            + "AQEbAAAADAAAAEJ5dGVTdHJpbmdJbgAP/////wAAAAAAAQAqAQEbAAAADAAAAFhtbEVsZW1lbnRJbgAQ"
+            + "/////wAAAAAAAQAqAQEXAAAACAAAAE5vZGVJZEluABH/////AAAAAAABACoBAR8AAAAQAAAARXhwYW5k"
+            + "ZWROb2RlSWRJbgAS/////wAAAAAAAQAqAQEeAAAADwAAAFF1YWxpZmllZE5hbWVJbgAU/////wAAAAAA"
+            + "AQAqAQEeAAAADwAAAExvY2FsaXplZFRleHRJbgAV/////wAAAAAAAQAqAQEbAAAADAAAAFN0YXR1c0Nv"
+            + "ZGVJbgAT/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1"
+            + "dEFyZ3VtZW50cwEBWAQALgBEWAQAAJYKAAAAAQAqAQEYAAAACQAAAFN0cmluZ091dAAM/////wAAAAAA"
+            + "AQAqAQEaAAAACwAAAERhdGVUaW1lT3V0AA3/////AAAAAAABACoBARYAAAAHAAAAR3VpZE91dAAO////"
+            + "/wAAAAAAAQAqAQEcAAAADQAAAEJ5dGVTdHJpbmdPdXQAD/////8AAAAAAAEAKgEBHAAAAA0AAABYbWxF"
+            + "bGVtZW50T3V0ABD/////AAAAAAABACoBARgAAAAJAAAATm9kZUlkT3V0ABH/////AAAAAAABACoBASAA"
+            + "AAARAAAARXhwYW5kZWROb2RlSWRPdXQAEv////8AAAAAAAEAKgEBHwAAABAAAABRdWFsaWZpZWROYW1l"
+            + "T3V0ABT/////AAAAAAABACoBAR8AAAAQAAAATG9jYWxpemVkVGV4dE91dAAV/////wAAAAAAAQAqAQEc"
+            + "AAAADQAAAFN0YXR1c0NvZGVPdXQAE/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
         #endregion
 #endif
         #endregion
@@ -4363,7 +4418,8 @@ namespace TestData
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments)
+            IList<object> _outputArguments
+        )
         {
             if (OnCall == null)
             {
@@ -4419,7 +4475,8 @@ namespace TestData
                     ref expandedNodeIdOut,
                     ref qualifiedNameOut,
                     ref localizedTextOut,
-                    ref statusCodeOut);
+                    ref statusCodeOut
+                );
             }
 
             _outputArguments[0] = stringOut;
@@ -4466,7 +4523,8 @@ namespace TestData
         ref ExpandedNodeId expandedNodeIdOut,
         ref QualifiedName qualifiedNameOut,
         ref LocalizedText localizedTextOut,
-        ref StatusCode statusCodeOut);
+        ref StatusCode statusCodeOut
+    );
 #endif
     #endregion
 
@@ -4479,9 +4537,8 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public ScalarValue3MethodState(NodeState parent) : base(parent)
-        {
-        }
+        public ScalarValue3MethodState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         public new static NodeState Construct(NodeState parent)
@@ -4506,14 +4563,14 @@ namespace TestData
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGGCCgQAAAABABYAAABTY2FsYXJWYWx1" +
-           "ZTNNZXRob2RUeXBlAQFZBAAvAQFZBFkEAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3Vt" +
-           "ZW50cwEBWgQALgBEWgQAAJYDAAAAAQAqAQEYAAAACQAAAFZhcmlhbnRJbgAY/////wAAAAAAAQAqAQEc" +
-           "AAAADQAAAEVudW1lcmF0aW9uSW4AHf////8AAAAAAAEAKgEBGgAAAAsAAABTdHJ1Y3R1cmVJbgAW////" +
-           "/wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50" +
-           "cwEBWwQALgBEWwQAAJYDAAAAAQAqAQEZAAAACgAAAFZhcmlhbnRPdXQAGP////8AAAAAAAEAKgEBHQAA" +
-           "AA4AAABFbnVtZXJhdGlvbk91dAAd/////wAAAAAAAQAqAQEbAAAADAAAAFN0cnVjdHVyZU91dAAW////" +
-           "/wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGGCCgQAAAABABYAAABTY2FsYXJWYWx1"
+            + "ZTNNZXRob2RUeXBlAQFZBAAvAQFZBFkEAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3Vt"
+            + "ZW50cwEBWgQALgBEWgQAAJYDAAAAAQAqAQEYAAAACQAAAFZhcmlhbnRJbgAY/////wAAAAAAAQAqAQEc"
+            + "AAAADQAAAEVudW1lcmF0aW9uSW4AHf////8AAAAAAAEAKgEBGgAAAAsAAABTdHJ1Y3R1cmVJbgAW////"
+            + "/wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50"
+            + "cwEBWwQALgBEWwQAAJYDAAAAAQAqAQEZAAAACgAAAFZhcmlhbnRPdXQAGP////8AAAAAAAEAKgEBHQAA"
+            + "AA4AAABFbnVtZXJhdGlvbk91dAAd/////wAAAAAAAQAqAQEbAAAADAAAAFN0cnVjdHVyZU91dAAW////"
+            + "/wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
         #endregion
 #endif
         #endregion
@@ -4532,7 +4589,8 @@ namespace TestData
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments)
+            IList<object> _outputArguments
+        )
         {
             if (OnCall == null)
             {
@@ -4560,7 +4618,8 @@ namespace TestData
                     structureIn,
                     ref variantOut,
                     ref enumerationOut,
-                    ref structureOut);
+                    ref structureOut
+                );
             }
 
             _outputArguments[0] = variantOut;
@@ -4586,7 +4645,8 @@ namespace TestData
         ExtensionObject structureIn,
         ref object variantOut,
         ref int enumerationOut,
-        ref ExtensionObject structureOut);
+        ref ExtensionObject structureOut
+    );
 #endif
     #endregion
 
@@ -4599,14 +4659,17 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public ScalarValueObjectState(NodeState parent) : base(parent)
-        {
-        }
+        public ScalarValueObjectState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(TestData.ObjectTypes.ScalarValueObjectType, TestData.Namespaces.TestData, namespaceUris);
+            return Opc.Ua.NodeId.Create(
+                TestData.ObjectTypes.ScalarValueObjectType,
+                TestData.Namespaces.TestData,
+                namespaceUris
+            );
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -4633,78 +4696,78 @@ namespace TestData
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGCAAgEAAAABAB0AAABTY2FsYXJWYWx1" +
-           "ZU9iamVjdFR5cGVJbnN0YW5jZQEBXAQBAVwEXAQAAAEAAAAAJAABAWAEIgAAADVgiQoCAAAAAQAQAAAA" +
-           "U2ltdWxhdGlvbkFjdGl2ZQEBXQQDAAAAAEcAAABJZiB0cnVlIHRoZSBzZXJ2ZXIgd2lsbCBwcm9kdWNl" +
-           "IG5ldyB2YWx1ZXMgZm9yIGVhY2ggbW9uaXRvcmVkIHZhcmlhYmxlLgAuAERdBAAAAAH/////AQH/////" +
-           "AAAAAARhggoEAAAAAQAOAAAAR2VuZXJhdGVWYWx1ZXMBAV4EAC8BAfkDXgQAAAEB/////wEAAAAXYKkK" +
-           "AgAAAAAADgAAAElucHV0QXJndW1lbnRzAQFfBAAuAERfBAAAlgEAAAABACoBAUYAAAAKAAAASXRlcmF0" +
-           "aW9ucwAH/////wAAAAADAAAAACUAAABUaGUgbnVtYmVyIG9mIG5ldyB2YWx1ZXMgdG8gZ2VuZXJhdGUu" +
-           "AQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYIAKAQAAAAEADQAAAEN5Y2xlQ29tcGxldGUBAWAEAC8B" +
-           "AEELYAQAAAEAAAAAJAEBAVwEFwAAABVgiQoCAAAAAAAHAAAARXZlbnRJZAEBYQQALgBEYQQAAAAP////" +
-           "/wEB/////wAAAAAVYIkKAgAAAAAACQAAAEV2ZW50VHlwZQEBYgQALgBEYgQAAAAR/////wEB/////wAA" +
-           "AAAVYIkKAgAAAAAACgAAAFNvdXJjZU5vZGUBAWMEAC4ARGMEAAAAEf////8BAf////8AAAAAFWCJCgIA" +
-           "AAAAAAoAAABTb3VyY2VOYW1lAQFkBAAuAERkBAAAAAz/////AQH/////AAAAABVgiQoCAAAAAAAEAAAA" +
-           "VGltZQEBZQQALgBEZQQAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAALAAAAUmVjZWl2ZVRpbWUB" +
-           "AWYEAC4ARGYEAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAE1lc3NhZ2UBAWgEAC4ARGgE" +
-           "AAAAFf////8BAf////8AAAAAFWCJCgIAAAAAAAgAAABTZXZlcml0eQEBaQQALgBEaQQAAAAF/////wEB" +
-           "/////wAAAAAVYIkKAgAAAAAAEAAAAENvbmRpdGlvbkNsYXNzSWQBAWoEAC4ARGoEAAAAEf////8BAf//" +
-           "//8AAAAAFWCJCgIAAAAAABIAAABDb25kaXRpb25DbGFzc05hbWUBAWsEAC4ARGsEAAAAFf////8BAf//" +
-           "//8AAAAAFWCJCgIAAAAAAA0AAABDb25kaXRpb25OYW1lAQFuBAAuAERuBAAAAAz/////AQH/////AAAA" +
-           "ABVgiQoCAAAAAAAIAAAAQnJhbmNoSWQBAW8EAC4ARG8EAAAAEf////8BAf////8AAAAAFWCJCgIAAAAA" +
-           "AAYAAABSZXRhaW4BAXAEAC4ARHAEAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABFbmFibGVk" +
-           "U3RhdGUBAXEEAC8BACMjcQQAAAAV/////wEBAgAAAAEALCMAAQGFBAEALCMAAQGOBAEAAAAVYIkKAgAA" +
-           "AAAAAgAAAElkAQFyBAAuAERyBAAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAAUXVhbGl0eQEB" +
-           "egQALwEAKiN6BAAAABP/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1wAQF7" +
-           "BAAuAER7BAAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABMYXN0U2V2ZXJpdHkBAXwEAC8B" +
-           "ACojfAQAAAAF/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFtcAEBfQQALgBE" +
-           "fQQAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAAQ29tbWVudAEBfgQALwEAKiN+BAAAABX/" +
-           "////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1wAQF/BAAuAER/BAAAAQAmAf//" +
-           "//8BAf////8AAAAAFWCJCgIAAAAAAAwAAABDbGllbnRVc2VySWQBAYAEAC4ARIAEAAAADP////8BAf//" +
-           "//8AAAAABGGCCgQAAAAAAAcAAABEaXNhYmxlAQGBBAAvAQBEI4EEAAABAQEAAAABAPkLAAEA8woAAAAA" +
-           "BGGCCgQAAAAAAAYAAABFbmFibGUBAYIEAC8BAEMjggQAAAEBAQAAAAEA+QsAAQDzCgAAAAAEYYIKBAAA" +
-           "AAAACgAAAEFkZENvbW1lbnQBAYMEAC8BAEUjgwQAAAEBAQAAAAEA+QsAAQANCwEAAAAXYKkKAgAAAAAA" +
-           "DgAAAElucHV0QXJndW1lbnRzAQGEBAAuAESEBAAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP////" +
-           "/wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAqAQFC" +
-           "AAAABwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBj" +
-           "b25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACgAAAEFja2VkU3RhdGUB" +
-           "AYUEAC8BACMjhQQAAAAV/////wEBAQAAAAEALCMBAQFxBAEAAAAVYIkKAgAAAAAAAgAAAElkAQGGBAAu" +
-           "AESGBAAAAAH/////AQH/////AAAAAARhggoEAAAAAAALAAAAQWNrbm93bGVkZ2UBAZcEAC8BAJcjlwQA" +
-           "AAEBAQAAAAEA+QsAAQDwIgEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQGYBAAuAESYBAAA" +
-           "lgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmllciBm" +
-           "b3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAqAQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAk" +
-           "AAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB////" +
-           "/wAAAAAVYIkKAgAAAAEADAAAAEJvb2xlYW5WYWx1ZQEBmwQALwA/mwQAAAAB/////wEB/////wAAAAAV" +
-           "YIkKAgAAAAEACgAAAFNCeXRlVmFsdWUBAZwEAC8AP5wEAAAAAv////8BAf////8AAAAAFWCJCgIAAAAB" +
-           "AAkAAABCeXRlVmFsdWUBAZ0EAC8AP50EAAAAA/////8BAf////8AAAAAFWCJCgIAAAABAAoAAABJbnQx" +
-           "NlZhbHVlAQGeBAAvAD+eBAAAAAT/////AQH/////AAAAABVgiQoCAAAAAQALAAAAVUludDE2VmFsdWUB" +
-           "AZ8EAC8AP58EAAAABf////8BAf////8AAAAAFWCJCgIAAAABAAoAAABJbnQzMlZhbHVlAQGgBAAvAD+g" +
-           "BAAAAAb/////AQH/////AAAAABVgiQoCAAAAAQALAAAAVUludDMyVmFsdWUBAaEEAC8AP6EEAAAAB///" +
-           "//8BAf////8AAAAAFWCJCgIAAAABAAoAAABJbnQ2NFZhbHVlAQGiBAAvAD+iBAAAAAj/////AQH/////" +
-           "AAAAABVgiQoCAAAAAQALAAAAVUludDY0VmFsdWUBAaMEAC8AP6MEAAAACf////8BAf////8AAAAAFWCJ" +
-           "CgIAAAABAAoAAABGbG9hdFZhbHVlAQGkBAAvAD+kBAAAAAr/////AQH/////AAAAABVgiQoCAAAAAQAL" +
-           "AAAARG91YmxlVmFsdWUBAaUEAC8AP6UEAAAAC/////8BAf////8AAAAAFWCJCgIAAAABAAsAAABTdHJp" +
-           "bmdWYWx1ZQEBpgQALwA/pgQAAAAM/////wEB/////wAAAAAVYIkKAgAAAAEADQAAAERhdGVUaW1lVmFs" +
-           "dWUBAacEAC8AP6cEAAAADf////8BAf////8AAAAAFWCJCgIAAAABAAkAAABHdWlkVmFsdWUBAagEAC8A" +
-           "P6gEAAAADv////8BAf////8AAAAAFWCJCgIAAAABAA8AAABCeXRlU3RyaW5nVmFsdWUBAakEAC8AP6kE" +
-           "AAAAD/////8BAf////8AAAAAFWCJCgIAAAABAA8AAABYbWxFbGVtZW50VmFsdWUBAaoEAC8AP6oEAAAA" +
-           "EP////8BAf////8AAAAAFWCJCgIAAAABAAsAAABOb2RlSWRWYWx1ZQEBqwQALwA/qwQAAAAR/////wEB" +
-           "/////wAAAAAVYIkKAgAAAAEAEwAAAEV4cGFuZGVkTm9kZUlkVmFsdWUBAawEAC8AP6wEAAAAEv////8B" +
-           "Af////8AAAAAFWCJCgIAAAABABIAAABRdWFsaWZpZWROYW1lVmFsdWUBAa0EAC8AP60EAAAAFP////8B" +
-           "Af////8AAAAAFWCJCgIAAAABABIAAABMb2NhbGl6ZWRUZXh0VmFsdWUBAa4EAC8AP64EAAAAFf////8B" +
-           "Af////8AAAAAFWCJCgIAAAABAA8AAABTdGF0dXNDb2RlVmFsdWUBAa8EAC8AP68EAAAAE/////8BAf//" +
-           "//8AAAAAFWCJCgIAAAABAAwAAABWYXJpYW50VmFsdWUBAbAEAC8AP7AEAAAAGP////8BAf////8AAAAA" +
-           "FWCJCgIAAAABABAAAABFbnVtZXJhdGlvblZhbHVlAQGxBAAvAD+xBAAAAB3/////AQH/////AAAAABVg" +
-           "iQoCAAAAAQAOAAAAU3RydWN0dXJlVmFsdWUBAbIEAC8AP7IEAAAAFv////8BAf////8AAAAAFWCJCgIA" +
-           "AAABAAsAAABOdW1iZXJWYWx1ZQEBswQALwA/swQAAAAa/////wEB/////wAAAAAVYIkKAgAAAAEADAAA" +
-           "AEludGVnZXJWYWx1ZQEBtAQALwA/tAQAAAAb/////wEB/////wAAAAAVYIkKAgAAAAEADQAAAFVJbnRl" +
-           "Z2VyVmFsdWUBAbUEAC8AP7UEAAAAHP////8BAf////8AAAAAFWCJCgIAAAABAAsAAABWZWN0b3JWYWx1" +
-           "ZQEBtgQALwEBYQe2BAAAAQFgB/////8BAf////8DAAAAFWCJCgIAAAABAAEAAABYAQG3BAAuAES3BAAA" +
-           "AAv/////AQH/////AAAAABVgiQoCAAAAAQABAAAAWQEBuAQALgBEuAQAAAAL/////wEB/////wAAAAAV" +
-           "YIkKAgAAAAEAAQAAAFoBAbkEAC4ARLkEAAAAC/////8BAf////8AAAAAFWCJCgIAAAABABAAAABWZWN0" +
-           "b3JVbmlvblZhbHVlAQH+DQAvAD/+DQAAAQEADv////8BAf////8AAAAAFWCJCgIAAAABAB0AAABWZWN0" +
-           "b3JXaXRoT3B0aW9uYWxGaWVsZHNWYWx1ZQEB/w0ALwA//w0AAAEBAQ7/////AQH/////AAAAABVgiQoC" +
-           "AAAAAQAUAAAATXVsdGlwbGVWZWN0b3JzVmFsdWUBAR4OAC8APx4OAAABAR8O/////wEB/////wAAAAA=";
+            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGCAAgEAAAABAB0AAABTY2FsYXJWYWx1"
+            + "ZU9iamVjdFR5cGVJbnN0YW5jZQEBXAQBAVwEXAQAAAEAAAAAJAABAWAEIgAAADVgiQoCAAAAAQAQAAAA"
+            + "U2ltdWxhdGlvbkFjdGl2ZQEBXQQDAAAAAEcAAABJZiB0cnVlIHRoZSBzZXJ2ZXIgd2lsbCBwcm9kdWNl"
+            + "IG5ldyB2YWx1ZXMgZm9yIGVhY2ggbW9uaXRvcmVkIHZhcmlhYmxlLgAuAERdBAAAAAH/////AQH/////"
+            + "AAAAAARhggoEAAAAAQAOAAAAR2VuZXJhdGVWYWx1ZXMBAV4EAC8BAfkDXgQAAAEB/////wEAAAAXYKkK"
+            + "AgAAAAAADgAAAElucHV0QXJndW1lbnRzAQFfBAAuAERfBAAAlgEAAAABACoBAUYAAAAKAAAASXRlcmF0"
+            + "aW9ucwAH/////wAAAAADAAAAACUAAABUaGUgbnVtYmVyIG9mIG5ldyB2YWx1ZXMgdG8gZ2VuZXJhdGUu"
+            + "AQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYIAKAQAAAAEADQAAAEN5Y2xlQ29tcGxldGUBAWAEAC8B"
+            + "AEELYAQAAAEAAAAAJAEBAVwEFwAAABVgiQoCAAAAAAAHAAAARXZlbnRJZAEBYQQALgBEYQQAAAAP////"
+            + "/wEB/////wAAAAAVYIkKAgAAAAAACQAAAEV2ZW50VHlwZQEBYgQALgBEYgQAAAAR/////wEB/////wAA"
+            + "AAAVYIkKAgAAAAAACgAAAFNvdXJjZU5vZGUBAWMEAC4ARGMEAAAAEf////8BAf////8AAAAAFWCJCgIA"
+            + "AAAAAAoAAABTb3VyY2VOYW1lAQFkBAAuAERkBAAAAAz/////AQH/////AAAAABVgiQoCAAAAAAAEAAAA"
+            + "VGltZQEBZQQALgBEZQQAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAALAAAAUmVjZWl2ZVRpbWUB"
+            + "AWYEAC4ARGYEAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAE1lc3NhZ2UBAWgEAC4ARGgE"
+            + "AAAAFf////8BAf////8AAAAAFWCJCgIAAAAAAAgAAABTZXZlcml0eQEBaQQALgBEaQQAAAAF/////wEB"
+            + "/////wAAAAAVYIkKAgAAAAAAEAAAAENvbmRpdGlvbkNsYXNzSWQBAWoEAC4ARGoEAAAAEf////8BAf//"
+            + "//8AAAAAFWCJCgIAAAAAABIAAABDb25kaXRpb25DbGFzc05hbWUBAWsEAC4ARGsEAAAAFf////8BAf//"
+            + "//8AAAAAFWCJCgIAAAAAAA0AAABDb25kaXRpb25OYW1lAQFuBAAuAERuBAAAAAz/////AQH/////AAAA"
+            + "ABVgiQoCAAAAAAAIAAAAQnJhbmNoSWQBAW8EAC4ARG8EAAAAEf////8BAf////8AAAAAFWCJCgIAAAAA"
+            + "AAYAAABSZXRhaW4BAXAEAC4ARHAEAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABFbmFibGVk"
+            + "U3RhdGUBAXEEAC8BACMjcQQAAAAV/////wEBAgAAAAEALCMAAQGFBAEALCMAAQGOBAEAAAAVYIkKAgAA"
+            + "AAAAAgAAAElkAQFyBAAuAERyBAAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAAUXVhbGl0eQEB"
+            + "egQALwEAKiN6BAAAABP/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1wAQF7"
+            + "BAAuAER7BAAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABMYXN0U2V2ZXJpdHkBAXwEAC8B"
+            + "ACojfAQAAAAF/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFtcAEBfQQALgBE"
+            + "fQQAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAAQ29tbWVudAEBfgQALwEAKiN+BAAAABX/"
+            + "////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1wAQF/BAAuAER/BAAAAQAmAf//"
+            + "//8BAf////8AAAAAFWCJCgIAAAAAAAwAAABDbGllbnRVc2VySWQBAYAEAC4ARIAEAAAADP////8BAf//"
+            + "//8AAAAABGGCCgQAAAAAAAcAAABEaXNhYmxlAQGBBAAvAQBEI4EEAAABAQEAAAABAPkLAAEA8woAAAAA"
+            + "BGGCCgQAAAAAAAYAAABFbmFibGUBAYIEAC8BAEMjggQAAAEBAQAAAAEA+QsAAQDzCgAAAAAEYYIKBAAA"
+            + "AAAACgAAAEFkZENvbW1lbnQBAYMEAC8BAEUjgwQAAAEBAQAAAAEA+QsAAQANCwEAAAAXYKkKAgAAAAAA"
+            + "DgAAAElucHV0QXJndW1lbnRzAQGEBAAuAESEBAAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP////"
+            + "/wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAqAQFC"
+            + "AAAABwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBj"
+            + "b25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACgAAAEFja2VkU3RhdGUB"
+            + "AYUEAC8BACMjhQQAAAAV/////wEBAQAAAAEALCMBAQFxBAEAAAAVYIkKAgAAAAAAAgAAAElkAQGGBAAu"
+            + "AESGBAAAAAH/////AQH/////AAAAAARhggoEAAAAAAALAAAAQWNrbm93bGVkZ2UBAZcEAC8BAJcjlwQA"
+            + "AAEBAQAAAAEA+QsAAQDwIgEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQGYBAAuAESYBAAA"
+            + "lgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmllciBm"
+            + "b3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAqAQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAk"
+            + "AAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB////"
+            + "/wAAAAAVYIkKAgAAAAEADAAAAEJvb2xlYW5WYWx1ZQEBmwQALwA/mwQAAAAB/////wEB/////wAAAAAV"
+            + "YIkKAgAAAAEACgAAAFNCeXRlVmFsdWUBAZwEAC8AP5wEAAAAAv////8BAf////8AAAAAFWCJCgIAAAAB"
+            + "AAkAAABCeXRlVmFsdWUBAZ0EAC8AP50EAAAAA/////8BAf////8AAAAAFWCJCgIAAAABAAoAAABJbnQx"
+            + "NlZhbHVlAQGeBAAvAD+eBAAAAAT/////AQH/////AAAAABVgiQoCAAAAAQALAAAAVUludDE2VmFsdWUB"
+            + "AZ8EAC8AP58EAAAABf////8BAf////8AAAAAFWCJCgIAAAABAAoAAABJbnQzMlZhbHVlAQGgBAAvAD+g"
+            + "BAAAAAb/////AQH/////AAAAABVgiQoCAAAAAQALAAAAVUludDMyVmFsdWUBAaEEAC8AP6EEAAAAB///"
+            + "//8BAf////8AAAAAFWCJCgIAAAABAAoAAABJbnQ2NFZhbHVlAQGiBAAvAD+iBAAAAAj/////AQH/////"
+            + "AAAAABVgiQoCAAAAAQALAAAAVUludDY0VmFsdWUBAaMEAC8AP6MEAAAACf////8BAf////8AAAAAFWCJ"
+            + "CgIAAAABAAoAAABGbG9hdFZhbHVlAQGkBAAvAD+kBAAAAAr/////AQH/////AAAAABVgiQoCAAAAAQAL"
+            + "AAAARG91YmxlVmFsdWUBAaUEAC8AP6UEAAAAC/////8BAf////8AAAAAFWCJCgIAAAABAAsAAABTdHJp"
+            + "bmdWYWx1ZQEBpgQALwA/pgQAAAAM/////wEB/////wAAAAAVYIkKAgAAAAEADQAAAERhdGVUaW1lVmFs"
+            + "dWUBAacEAC8AP6cEAAAADf////8BAf////8AAAAAFWCJCgIAAAABAAkAAABHdWlkVmFsdWUBAagEAC8A"
+            + "P6gEAAAADv////8BAf////8AAAAAFWCJCgIAAAABAA8AAABCeXRlU3RyaW5nVmFsdWUBAakEAC8AP6kE"
+            + "AAAAD/////8BAf////8AAAAAFWCJCgIAAAABAA8AAABYbWxFbGVtZW50VmFsdWUBAaoEAC8AP6oEAAAA"
+            + "EP////8BAf////8AAAAAFWCJCgIAAAABAAsAAABOb2RlSWRWYWx1ZQEBqwQALwA/qwQAAAAR/////wEB"
+            + "/////wAAAAAVYIkKAgAAAAEAEwAAAEV4cGFuZGVkTm9kZUlkVmFsdWUBAawEAC8AP6wEAAAAEv////8B"
+            + "Af////8AAAAAFWCJCgIAAAABABIAAABRdWFsaWZpZWROYW1lVmFsdWUBAa0EAC8AP60EAAAAFP////8B"
+            + "Af////8AAAAAFWCJCgIAAAABABIAAABMb2NhbGl6ZWRUZXh0VmFsdWUBAa4EAC8AP64EAAAAFf////8B"
+            + "Af////8AAAAAFWCJCgIAAAABAA8AAABTdGF0dXNDb2RlVmFsdWUBAa8EAC8AP68EAAAAE/////8BAf//"
+            + "//8AAAAAFWCJCgIAAAABAAwAAABWYXJpYW50VmFsdWUBAbAEAC8AP7AEAAAAGP////8BAf////8AAAAA"
+            + "FWCJCgIAAAABABAAAABFbnVtZXJhdGlvblZhbHVlAQGxBAAvAD+xBAAAAB3/////AQH/////AAAAABVg"
+            + "iQoCAAAAAQAOAAAAU3RydWN0dXJlVmFsdWUBAbIEAC8AP7IEAAAAFv////8BAf////8AAAAAFWCJCgIA"
+            + "AAABAAsAAABOdW1iZXJWYWx1ZQEBswQALwA/swQAAAAa/////wEB/////wAAAAAVYIkKAgAAAAEADAAA"
+            + "AEludGVnZXJWYWx1ZQEBtAQALwA/tAQAAAAb/////wEB/////wAAAAAVYIkKAgAAAAEADQAAAFVJbnRl"
+            + "Z2VyVmFsdWUBAbUEAC8AP7UEAAAAHP////8BAf////8AAAAAFWCJCgIAAAABAAsAAABWZWN0b3JWYWx1"
+            + "ZQEBtgQALwEBYQe2BAAAAQFgB/////8BAf////8DAAAAFWCJCgIAAAABAAEAAABYAQG3BAAuAES3BAAA"
+            + "AAv/////AQH/////AAAAABVgiQoCAAAAAQABAAAAWQEBuAQALgBEuAQAAAAL/////wEB/////wAAAAAV"
+            + "YIkKAgAAAAEAAQAAAFoBAbkEAC4ARLkEAAAAC/////8BAf////8AAAAAFWCJCgIAAAABABAAAABWZWN0"
+            + "b3JVbmlvblZhbHVlAQH+DQAvAD/+DQAAAQEADv////8BAf////8AAAAAFWCJCgIAAAABAB0AAABWZWN0"
+            + "b3JXaXRoT3B0aW9uYWxGaWVsZHNWYWx1ZQEB/w0ALwA//w0AAAEBAQ7/////AQH/////AAAAABVgiQoC"
+            + "AAAAAQAUAAAATXVsdGlwbGVWZWN0b3JzVmFsdWUBAR4OAC8APx4OAAABAR8O/////wEB/////wAAAAA=";
         #endregion
 #endif
         #endregion
@@ -4717,7 +4780,6 @@ namespace TestData
             {
                 return m_booleanValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_booleanValue, value))
@@ -4736,7 +4798,6 @@ namespace TestData
             {
                 return m_sByteValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_sByteValue, value))
@@ -4755,7 +4816,6 @@ namespace TestData
             {
                 return m_byteValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_byteValue, value))
@@ -4774,7 +4834,6 @@ namespace TestData
             {
                 return m_int16Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_int16Value, value))
@@ -4793,7 +4852,6 @@ namespace TestData
             {
                 return m_uInt16Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_uInt16Value, value))
@@ -4812,7 +4870,6 @@ namespace TestData
             {
                 return m_int32Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_int32Value, value))
@@ -4831,7 +4888,6 @@ namespace TestData
             {
                 return m_uInt32Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_uInt32Value, value))
@@ -4850,7 +4906,6 @@ namespace TestData
             {
                 return m_int64Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_int64Value, value))
@@ -4869,7 +4924,6 @@ namespace TestData
             {
                 return m_uInt64Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_uInt64Value, value))
@@ -4888,7 +4942,6 @@ namespace TestData
             {
                 return m_floatValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_floatValue, value))
@@ -4907,7 +4960,6 @@ namespace TestData
             {
                 return m_doubleValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_doubleValue, value))
@@ -4926,7 +4978,6 @@ namespace TestData
             {
                 return m_stringValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_stringValue, value))
@@ -4945,7 +4996,6 @@ namespace TestData
             {
                 return m_dateTimeValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_dateTimeValue, value))
@@ -4964,7 +5014,6 @@ namespace TestData
             {
                 return m_guidValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_guidValue, value))
@@ -4983,7 +5032,6 @@ namespace TestData
             {
                 return m_byteStringValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_byteStringValue, value))
@@ -5002,7 +5050,6 @@ namespace TestData
             {
                 return m_xmlElementValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_xmlElementValue, value))
@@ -5021,7 +5068,6 @@ namespace TestData
             {
                 return m_nodeIdValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_nodeIdValue, value))
@@ -5040,7 +5086,6 @@ namespace TestData
             {
                 return m_expandedNodeIdValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_expandedNodeIdValue, value))
@@ -5059,7 +5104,6 @@ namespace TestData
             {
                 return m_qualifiedNameValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_qualifiedNameValue, value))
@@ -5078,7 +5122,6 @@ namespace TestData
             {
                 return m_localizedTextValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_localizedTextValue, value))
@@ -5097,7 +5140,6 @@ namespace TestData
             {
                 return m_statusCodeValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_statusCodeValue, value))
@@ -5116,7 +5158,6 @@ namespace TestData
             {
                 return m_variantValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_variantValue, value))
@@ -5135,7 +5176,6 @@ namespace TestData
             {
                 return m_enumerationValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_enumerationValue, value))
@@ -5154,7 +5194,6 @@ namespace TestData
             {
                 return m_structureValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_structureValue, value))
@@ -5173,7 +5212,6 @@ namespace TestData
             {
                 return m_numberValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_numberValue, value))
@@ -5192,7 +5230,6 @@ namespace TestData
             {
                 return m_integerValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_integerValue, value))
@@ -5211,7 +5248,6 @@ namespace TestData
             {
                 return m_uIntegerValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_uIntegerValue, value))
@@ -5230,7 +5266,6 @@ namespace TestData
             {
                 return m_vectorValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_vectorValue, value))
@@ -5249,7 +5284,6 @@ namespace TestData
             {
                 return m_vectorUnionValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_vectorUnionValue, value))
@@ -5268,7 +5302,6 @@ namespace TestData
             {
                 return m_vectorWithOptionalFieldsValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_vectorWithOptionalFieldsValue, value))
@@ -5287,7 +5320,6 @@ namespace TestData
             {
                 return m_multipleVectorsValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_multipleVectorsValue, value))
@@ -5302,9 +5334,7 @@ namespace TestData
 
         #region Overridden Methods
         /// <remarks />
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
+        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
             if (m_booleanValue != null)
             {
@@ -5469,7 +5499,8 @@ namespace TestData
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement)
+            BaseInstanceState replacement
+        )
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -6097,11 +6128,14 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                VectorWithOptionalFieldsValue = new BaseDataVariableState<VectorWithOptionalFields>(this);
+                                VectorWithOptionalFieldsValue = new BaseDataVariableState<VectorWithOptionalFields>(
+                                    this
+                                );
                             }
                             else
                             {
-                                VectorWithOptionalFieldsValue = (BaseDataVariableState<VectorWithOptionalFields>)replacement;
+                                VectorWithOptionalFieldsValue =
+                                    (BaseDataVariableState<VectorWithOptionalFields>)replacement;
                             }
                         }
                     }
@@ -6187,14 +6221,17 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public StructureValueObjectState(NodeState parent) : base(parent)
-        {
-        }
+        public StructureValueObjectState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(TestData.ObjectTypes.StructureValueObjectType, TestData.Namespaces.TestData, namespaceUris);
+            return Opc.Ua.NodeId.Create(
+                TestData.ObjectTypes.StructureValueObjectType,
+                TestData.Namespaces.TestData,
+                namespaceUris
+            );
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -6221,76 +6258,76 @@ namespace TestData
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGCAAgEAAAABACAAAABTdHJ1Y3R1cmVW" +
-           "YWx1ZU9iamVjdFR5cGVJbnN0YW5jZQEBugQBAboEugQAAAEAAAAAJAABAb4EBQAAADVgiQoCAAAAAQAQ" +
-           "AAAAU2ltdWxhdGlvbkFjdGl2ZQEBuwQDAAAAAEcAAABJZiB0cnVlIHRoZSBzZXJ2ZXIgd2lsbCBwcm9k" +
-           "dWNlIG5ldyB2YWx1ZXMgZm9yIGVhY2ggbW9uaXRvcmVkIHZhcmlhYmxlLgAuAES7BAAAAAH/////AQH/" +
-           "////AAAAAARhggoEAAAAAQAOAAAAR2VuZXJhdGVWYWx1ZXMBAbwEAC8BAfkDvAQAAAEB/////wEAAAAX" +
-           "YKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQG9BAAuAES9BAAAlgEAAAABACoBAUYAAAAKAAAASXRl" +
-           "cmF0aW9ucwAH/////wAAAAADAAAAACUAAABUaGUgbnVtYmVyIG9mIG5ldyB2YWx1ZXMgdG8gZ2VuZXJh" +
-           "dGUuAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYIAKAQAAAAEADQAAAEN5Y2xlQ29tcGxldGUBAb4E" +
-           "AC8BAEELvgQAAAEAAAAAJAEBAboEFwAAABVgiQoCAAAAAAAHAAAARXZlbnRJZAEBvwQALgBEvwQAAAAP" +
-           "/////wEB/////wAAAAAVYIkKAgAAAAAACQAAAEV2ZW50VHlwZQEBwAQALgBEwAQAAAAR/////wEB////" +
-           "/wAAAAAVYIkKAgAAAAAACgAAAFNvdXJjZU5vZGUBAcEEAC4ARMEEAAAAEf////8BAf////8AAAAAFWCJ" +
-           "CgIAAAAAAAoAAABTb3VyY2VOYW1lAQHCBAAuAETCBAAAAAz/////AQH/////AAAAABVgiQoCAAAAAAAE" +
-           "AAAAVGltZQEBwwQALgBEwwQAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAALAAAAUmVjZWl2ZVRp" +
-           "bWUBAcQEAC4ARMQEAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAE1lc3NhZ2UBAcYEAC4A" +
-           "RMYEAAAAFf////8BAf////8AAAAAFWCJCgIAAAAAAAgAAABTZXZlcml0eQEBxwQALgBExwQAAAAF////" +
-           "/wEB/////wAAAAAVYIkKAgAAAAAAEAAAAENvbmRpdGlvbkNsYXNzSWQBAcgEAC4ARMgEAAAAEf////8B" +
-           "Af////8AAAAAFWCJCgIAAAAAABIAAABDb25kaXRpb25DbGFzc05hbWUBAckEAC4ARMkEAAAAFf////8B" +
-           "Af////8AAAAAFWCJCgIAAAAAAA0AAABDb25kaXRpb25OYW1lAQHMBAAuAETMBAAAAAz/////AQH/////" +
-           "AAAAABVgiQoCAAAAAAAIAAAAQnJhbmNoSWQBAc0EAC4ARM0EAAAAEf////8BAf////8AAAAAFWCJCgIA" +
-           "AAAAAAYAAABSZXRhaW4BAc4EAC4ARM4EAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABFbmFi" +
-           "bGVkU3RhdGUBAc8EAC8BACMjzwQAAAAV/////wEBAgAAAAEALCMAAQHjBAEALCMAAQHsBAEAAAAVYIkK" +
-           "AgAAAAAAAgAAAElkAQHQBAAuAETQBAAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAAUXVhbGl0" +
-           "eQEB2AQALwEAKiPYBAAAABP/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1w" +
-           "AQHZBAAuAETZBAAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABMYXN0U2V2ZXJpdHkBAdoE" +
-           "AC8BACoj2gQAAAAF/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFtcAEB2wQA" +
-           "LgBE2wQAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAAQ29tbWVudAEB3AQALwEAKiPcBAAA" +
-           "ABX/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1wAQHdBAAuAETdBAAAAQAm" +
-           "Af////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABDbGllbnRVc2VySWQBAd4EAC4ARN4EAAAADP////8B" +
-           "Af////8AAAAABGGCCgQAAAAAAAcAAABEaXNhYmxlAQHfBAAvAQBEI98EAAABAQEAAAABAPkLAAEA8woA" +
-           "AAAABGGCCgQAAAAAAAYAAABFbmFibGUBAeAEAC8BAEMj4AQAAAEBAQAAAAEA+QsAAQDzCgAAAAAEYYIK" +
-           "BAAAAAAACgAAAEFkZENvbW1lbnQBAeEEAC8BAEUj4QQAAAEBAQAAAAEA+QsAAQANCwEAAAAXYKkKAgAA" +
-           "AAAADgAAAElucHV0QXJndW1lbnRzAQHiBAAuAETiBAAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP" +
-           "/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAq" +
-           "AQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRo" +
-           "ZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACgAAAEFja2VkU3Rh" +
-           "dGUBAeMEAC8BACMj4wQAAAAV/////wEBAQAAAAEALCMBAQHPBAEAAAAVYIkKAgAAAAAAAgAAAElkAQHk" +
-           "BAAuAETkBAAAAAH/////AQH/////AAAAAARhggoEAAAAAAALAAAAQWNrbm93bGVkZ2UBAfUEAC8BAJcj" +
-           "9QQAAAEBAQAAAAEA+QsAAQDwIgEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQH2BAAuAET2" +
-           "BAAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmll" +
-           "ciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAqAQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAA" +
-           "AAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB" +
-           "/////wAAAAAVYIkKAgAAAAEADwAAAFNjYWxhclN0cnVjdHVyZQEB+QQALwEBNwT5BAAAAQE2BP////8B" +
-           "Af////8bAAAAFWCJCgIAAAABAAwAAABCb29sZWFuVmFsdWUBAfoEAC8AP/oEAAAAAf////8BAf////8A" +
-           "AAAAFWCJCgIAAAABAAoAAABTQnl0ZVZhbHVlAQH7BAAvAD/7BAAAAAL/////AQH/////AAAAABVgiQoC" +
-           "AAAAAQAJAAAAQnl0ZVZhbHVlAQH8BAAvAD/8BAAAAAP/////AQH/////AAAAABVgiQoCAAAAAQAKAAAA" +
-           "SW50MTZWYWx1ZQEB/QQALwA//QQAAAAE/////wEB/////wAAAAAVYIkKAgAAAAEACwAAAFVJbnQxNlZh" +
-           "bHVlAQH+BAAvAD/+BAAAAAX/////AQH/////AAAAABVgiQoCAAAAAQAKAAAASW50MzJWYWx1ZQEB/wQA" +
-           "LwA//wQAAAAG/////wEB/////wAAAAAVYIkKAgAAAAEACwAAAFVJbnQzMlZhbHVlAQEABQAvAD8ABQAA" +
-           "AAf/////AQH/////AAAAABVgiQoCAAAAAQAKAAAASW50NjRWYWx1ZQEBAQUALwA/AQUAAAAI/////wEB" +
-           "/////wAAAAAVYIkKAgAAAAEACwAAAFVJbnQ2NFZhbHVlAQECBQAvAD8CBQAAAAn/////AQH/////AAAA" +
-           "ABVgiQoCAAAAAQAKAAAARmxvYXRWYWx1ZQEBAwUALwA/AwUAAAAK/////wEB/////wAAAAAVYIkKAgAA" +
-           "AAEACwAAAERvdWJsZVZhbHVlAQEEBQAvAD8EBQAAAAv/////AQH/////AAAAABVgiQoCAAAAAQALAAAA" +
-           "U3RyaW5nVmFsdWUBAQUFAC8APwUFAAAADP////8BAf////8AAAAAFWCJCgIAAAABAA0AAABEYXRlVGlt" +
-           "ZVZhbHVlAQEGBQAvAD8GBQAAAA3/////AQH/////AAAAABVgiQoCAAAAAQAJAAAAR3VpZFZhbHVlAQEH" +
-           "BQAvAD8HBQAAAA7/////AQH/////AAAAABVgiQoCAAAAAQAPAAAAQnl0ZVN0cmluZ1ZhbHVlAQEIBQAv" +
-           "AD8IBQAAAA//////AQH/////AAAAABVgiQoCAAAAAQAPAAAAWG1sRWxlbWVudFZhbHVlAQEJBQAvAD8J" +
-           "BQAAABD/////AQH/////AAAAABVgiQoCAAAAAQALAAAATm9kZUlkVmFsdWUBAQoFAC8APwoFAAAAEf//" +
-           "//8BAf////8AAAAAFWCJCgIAAAABABMAAABFeHBhbmRlZE5vZGVJZFZhbHVlAQELBQAvAD8LBQAAABL/" +
-           "////AQH/////AAAAABVgiQoCAAAAAQASAAAAUXVhbGlmaWVkTmFtZVZhbHVlAQEMBQAvAD8MBQAAABT/" +
-           "////AQH/////AAAAABVgiQoCAAAAAQASAAAATG9jYWxpemVkVGV4dFZhbHVlAQENBQAvAD8NBQAAABX/" +
-           "////AQH/////AAAAABVgiQoCAAAAAQAPAAAAU3RhdHVzQ29kZVZhbHVlAQEOBQAvAD8OBQAAABP/////" +
-           "AQH/////AAAAABVgiQoCAAAAAQAMAAAAVmFyaWFudFZhbHVlAQEPBQAvAD8PBQAAABj/////AQH/////" +
-           "AAAAABVgiQoCAAAAAQAQAAAARW51bWVyYXRpb25WYWx1ZQEBEAUALwA/EAUAAAAd/////wEB/////wAA" +
-           "AAAVYIkKAgAAAAEADgAAAFN0cnVjdHVyZVZhbHVlAQERBQAvAD8RBQAAABb/////AQH/////AAAAABVg" +
-           "iQoCAAAAAQALAAAATnVtYmVyVmFsdWUBARIFAC8APxIFAAAAGv////8BAf////8AAAAAFWCJCgIAAAAB" +
-           "AAwAAABJbnRlZ2VyVmFsdWUBARMFAC8APxMFAAAAG/////8BAf////8AAAAAFWCJCgIAAAABAA0AAABV" +
-           "SW50ZWdlclZhbHVlAQEUBQAvAD8UBQAAABz/////AQH/////AAAAABVgiQoCAAAAAQAPAAAAVmVjdG9y" +
-           "U3RydWN0dXJlAQEVBQAvAQFhBxUFAAABAWAH/////wEB/////wMAAAAVYIkKAgAAAAEAAQAAAFgBARYF" +
-           "AC4ARBYFAAAAC/////8BAf////8AAAAAFWCJCgIAAAABAAEAAABZAQEXBQAuAEQXBQAAAAv/////AQH/" +
-           "////AAAAABVgiQoCAAAAAQABAAAAWgEBGAUALgBEGAUAAAAL/////wEB/////wAAAAA=";
+            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGCAAgEAAAABACAAAABTdHJ1Y3R1cmVW"
+            + "YWx1ZU9iamVjdFR5cGVJbnN0YW5jZQEBugQBAboEugQAAAEAAAAAJAABAb4EBQAAADVgiQoCAAAAAQAQ"
+            + "AAAAU2ltdWxhdGlvbkFjdGl2ZQEBuwQDAAAAAEcAAABJZiB0cnVlIHRoZSBzZXJ2ZXIgd2lsbCBwcm9k"
+            + "dWNlIG5ldyB2YWx1ZXMgZm9yIGVhY2ggbW9uaXRvcmVkIHZhcmlhYmxlLgAuAES7BAAAAAH/////AQH/"
+            + "////AAAAAARhggoEAAAAAQAOAAAAR2VuZXJhdGVWYWx1ZXMBAbwEAC8BAfkDvAQAAAEB/////wEAAAAX"
+            + "YKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQG9BAAuAES9BAAAlgEAAAABACoBAUYAAAAKAAAASXRl"
+            + "cmF0aW9ucwAH/////wAAAAADAAAAACUAAABUaGUgbnVtYmVyIG9mIG5ldyB2YWx1ZXMgdG8gZ2VuZXJh"
+            + "dGUuAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYIAKAQAAAAEADQAAAEN5Y2xlQ29tcGxldGUBAb4E"
+            + "AC8BAEELvgQAAAEAAAAAJAEBAboEFwAAABVgiQoCAAAAAAAHAAAARXZlbnRJZAEBvwQALgBEvwQAAAAP"
+            + "/////wEB/////wAAAAAVYIkKAgAAAAAACQAAAEV2ZW50VHlwZQEBwAQALgBEwAQAAAAR/////wEB////"
+            + "/wAAAAAVYIkKAgAAAAAACgAAAFNvdXJjZU5vZGUBAcEEAC4ARMEEAAAAEf////8BAf////8AAAAAFWCJ"
+            + "CgIAAAAAAAoAAABTb3VyY2VOYW1lAQHCBAAuAETCBAAAAAz/////AQH/////AAAAABVgiQoCAAAAAAAE"
+            + "AAAAVGltZQEBwwQALgBEwwQAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAALAAAAUmVjZWl2ZVRp"
+            + "bWUBAcQEAC4ARMQEAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAE1lc3NhZ2UBAcYEAC4A"
+            + "RMYEAAAAFf////8BAf////8AAAAAFWCJCgIAAAAAAAgAAABTZXZlcml0eQEBxwQALgBExwQAAAAF////"
+            + "/wEB/////wAAAAAVYIkKAgAAAAAAEAAAAENvbmRpdGlvbkNsYXNzSWQBAcgEAC4ARMgEAAAAEf////8B"
+            + "Af////8AAAAAFWCJCgIAAAAAABIAAABDb25kaXRpb25DbGFzc05hbWUBAckEAC4ARMkEAAAAFf////8B"
+            + "Af////8AAAAAFWCJCgIAAAAAAA0AAABDb25kaXRpb25OYW1lAQHMBAAuAETMBAAAAAz/////AQH/////"
+            + "AAAAABVgiQoCAAAAAAAIAAAAQnJhbmNoSWQBAc0EAC4ARM0EAAAAEf////8BAf////8AAAAAFWCJCgIA"
+            + "AAAAAAYAAABSZXRhaW4BAc4EAC4ARM4EAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABFbmFi"
+            + "bGVkU3RhdGUBAc8EAC8BACMjzwQAAAAV/////wEBAgAAAAEALCMAAQHjBAEALCMAAQHsBAEAAAAVYIkK"
+            + "AgAAAAAAAgAAAElkAQHQBAAuAETQBAAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAAUXVhbGl0"
+            + "eQEB2AQALwEAKiPYBAAAABP/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1w"
+            + "AQHZBAAuAETZBAAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABMYXN0U2V2ZXJpdHkBAdoE"
+            + "AC8BACoj2gQAAAAF/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFtcAEB2wQA"
+            + "LgBE2wQAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAAQ29tbWVudAEB3AQALwEAKiPcBAAA"
+            + "ABX/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1wAQHdBAAuAETdBAAAAQAm"
+            + "Af////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABDbGllbnRVc2VySWQBAd4EAC4ARN4EAAAADP////8B"
+            + "Af////8AAAAABGGCCgQAAAAAAAcAAABEaXNhYmxlAQHfBAAvAQBEI98EAAABAQEAAAABAPkLAAEA8woA"
+            + "AAAABGGCCgQAAAAAAAYAAABFbmFibGUBAeAEAC8BAEMj4AQAAAEBAQAAAAEA+QsAAQDzCgAAAAAEYYIK"
+            + "BAAAAAAACgAAAEFkZENvbW1lbnQBAeEEAC8BAEUj4QQAAAEBAQAAAAEA+QsAAQANCwEAAAAXYKkKAgAA"
+            + "AAAADgAAAElucHV0QXJndW1lbnRzAQHiBAAuAETiBAAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP"
+            + "/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAq"
+            + "AQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRo"
+            + "ZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACgAAAEFja2VkU3Rh"
+            + "dGUBAeMEAC8BACMj4wQAAAAV/////wEBAQAAAAEALCMBAQHPBAEAAAAVYIkKAgAAAAAAAgAAAElkAQHk"
+            + "BAAuAETkBAAAAAH/////AQH/////AAAAAARhggoEAAAAAAALAAAAQWNrbm93bGVkZ2UBAfUEAC8BAJcj"
+            + "9QQAAAEBAQAAAAEA+QsAAQDwIgEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQH2BAAuAET2"
+            + "BAAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmll"
+            + "ciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAqAQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAA"
+            + "AAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB"
+            + "/////wAAAAAVYIkKAgAAAAEADwAAAFNjYWxhclN0cnVjdHVyZQEB+QQALwEBNwT5BAAAAQE2BP////8B"
+            + "Af////8bAAAAFWCJCgIAAAABAAwAAABCb29sZWFuVmFsdWUBAfoEAC8AP/oEAAAAAf////8BAf////8A"
+            + "AAAAFWCJCgIAAAABAAoAAABTQnl0ZVZhbHVlAQH7BAAvAD/7BAAAAAL/////AQH/////AAAAABVgiQoC"
+            + "AAAAAQAJAAAAQnl0ZVZhbHVlAQH8BAAvAD/8BAAAAAP/////AQH/////AAAAABVgiQoCAAAAAQAKAAAA"
+            + "SW50MTZWYWx1ZQEB/QQALwA//QQAAAAE/////wEB/////wAAAAAVYIkKAgAAAAEACwAAAFVJbnQxNlZh"
+            + "bHVlAQH+BAAvAD/+BAAAAAX/////AQH/////AAAAABVgiQoCAAAAAQAKAAAASW50MzJWYWx1ZQEB/wQA"
+            + "LwA//wQAAAAG/////wEB/////wAAAAAVYIkKAgAAAAEACwAAAFVJbnQzMlZhbHVlAQEABQAvAD8ABQAA"
+            + "AAf/////AQH/////AAAAABVgiQoCAAAAAQAKAAAASW50NjRWYWx1ZQEBAQUALwA/AQUAAAAI/////wEB"
+            + "/////wAAAAAVYIkKAgAAAAEACwAAAFVJbnQ2NFZhbHVlAQECBQAvAD8CBQAAAAn/////AQH/////AAAA"
+            + "ABVgiQoCAAAAAQAKAAAARmxvYXRWYWx1ZQEBAwUALwA/AwUAAAAK/////wEB/////wAAAAAVYIkKAgAA"
+            + "AAEACwAAAERvdWJsZVZhbHVlAQEEBQAvAD8EBQAAAAv/////AQH/////AAAAABVgiQoCAAAAAQALAAAA"
+            + "U3RyaW5nVmFsdWUBAQUFAC8APwUFAAAADP////8BAf////8AAAAAFWCJCgIAAAABAA0AAABEYXRlVGlt"
+            + "ZVZhbHVlAQEGBQAvAD8GBQAAAA3/////AQH/////AAAAABVgiQoCAAAAAQAJAAAAR3VpZFZhbHVlAQEH"
+            + "BQAvAD8HBQAAAA7/////AQH/////AAAAABVgiQoCAAAAAQAPAAAAQnl0ZVN0cmluZ1ZhbHVlAQEIBQAv"
+            + "AD8IBQAAAA//////AQH/////AAAAABVgiQoCAAAAAQAPAAAAWG1sRWxlbWVudFZhbHVlAQEJBQAvAD8J"
+            + "BQAAABD/////AQH/////AAAAABVgiQoCAAAAAQALAAAATm9kZUlkVmFsdWUBAQoFAC8APwoFAAAAEf//"
+            + "//8BAf////8AAAAAFWCJCgIAAAABABMAAABFeHBhbmRlZE5vZGVJZFZhbHVlAQELBQAvAD8LBQAAABL/"
+            + "////AQH/////AAAAABVgiQoCAAAAAQASAAAAUXVhbGlmaWVkTmFtZVZhbHVlAQEMBQAvAD8MBQAAABT/"
+            + "////AQH/////AAAAABVgiQoCAAAAAQASAAAATG9jYWxpemVkVGV4dFZhbHVlAQENBQAvAD8NBQAAABX/"
+            + "////AQH/////AAAAABVgiQoCAAAAAQAPAAAAU3RhdHVzQ29kZVZhbHVlAQEOBQAvAD8OBQAAABP/////"
+            + "AQH/////AAAAABVgiQoCAAAAAQAMAAAAVmFyaWFudFZhbHVlAQEPBQAvAD8PBQAAABj/////AQH/////"
+            + "AAAAABVgiQoCAAAAAQAQAAAARW51bWVyYXRpb25WYWx1ZQEBEAUALwA/EAUAAAAd/////wEB/////wAA"
+            + "AAAVYIkKAgAAAAEADgAAAFN0cnVjdHVyZVZhbHVlAQERBQAvAD8RBQAAABb/////AQH/////AAAAABVg"
+            + "iQoCAAAAAQALAAAATnVtYmVyVmFsdWUBARIFAC8APxIFAAAAGv////8BAf////8AAAAAFWCJCgIAAAAB"
+            + "AAwAAABJbnRlZ2VyVmFsdWUBARMFAC8APxMFAAAAG/////8BAf////8AAAAAFWCJCgIAAAABAA0AAABV"
+            + "SW50ZWdlclZhbHVlAQEUBQAvAD8UBQAAABz/////AQH/////AAAAABVgiQoCAAAAAQAPAAAAVmVjdG9y"
+            + "U3RydWN0dXJlAQEVBQAvAQFhBxUFAAABAWAH/////wEB/////wMAAAAVYIkKAgAAAAEAAQAAAFgBARYF"
+            + "AC4ARBYFAAAAC/////8BAf////8AAAAAFWCJCgIAAAABAAEAAABZAQEXBQAuAEQXBQAAAAv/////AQH/"
+            + "////AAAAABVgiQoCAAAAAQABAAAAWgEBGAUALgBEGAUAAAAL/////wEB/////wAAAAA=";
         #endregion
 #endif
         #endregion
@@ -6303,7 +6340,6 @@ namespace TestData
             {
                 return m_scalarStructure;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_scalarStructure, value))
@@ -6322,7 +6358,6 @@ namespace TestData
             {
                 return m_vectorStructure;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_vectorStructure, value))
@@ -6337,9 +6372,7 @@ namespace TestData
 
         #region Overridden Methods
         /// <remarks />
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
+        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
             if (m_scalarStructure != null)
             {
@@ -6359,7 +6392,8 @@ namespace TestData
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement)
+            BaseInstanceState replacement
+        )
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -6439,14 +6473,17 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public AnalogScalarValueObjectState(NodeState parent) : base(parent)
-        {
-        }
+        public AnalogScalarValueObjectState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(TestData.ObjectTypes.AnalogScalarValueObjectType, TestData.Namespaces.TestData, namespaceUris);
+            return Opc.Ua.NodeId.Create(
+                TestData.ObjectTypes.AnalogScalarValueObjectType,
+                TestData.Namespaces.TestData,
+                namespaceUris
+            );
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -6473,71 +6510,71 @@ namespace TestData
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGCAAgEAAAABACMAAABBbmFsb2dTY2Fs" +
-           "YXJWYWx1ZU9iamVjdFR5cGVJbnN0YW5jZQEBGQUBARkFGQUAAAEAAAAAJAABAR0FEAAAADVgiQoCAAAA" +
-           "AQAQAAAAU2ltdWxhdGlvbkFjdGl2ZQEBGgUDAAAAAEcAAABJZiB0cnVlIHRoZSBzZXJ2ZXIgd2lsbCBw" +
-           "cm9kdWNlIG5ldyB2YWx1ZXMgZm9yIGVhY2ggbW9uaXRvcmVkIHZhcmlhYmxlLgAuAEQaBQAAAAH/////" +
-           "AQH/////AAAAAARhggoEAAAAAQAOAAAAR2VuZXJhdGVWYWx1ZXMBARsFAC8BAfkDGwUAAAEB/////wEA" +
-           "AAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQEcBQAuAEQcBQAAlgEAAAABACoBAUYAAAAKAAAA" +
-           "SXRlcmF0aW9ucwAH/////wAAAAADAAAAACUAAABUaGUgbnVtYmVyIG9mIG5ldyB2YWx1ZXMgdG8gZ2Vu" +
-           "ZXJhdGUuAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYIAKAQAAAAEADQAAAEN5Y2xlQ29tcGxldGUB" +
-           "AR0FAC8BAEELHQUAAAEAAAAAJAEBARkFFwAAABVgiQoCAAAAAAAHAAAARXZlbnRJZAEBHgUALgBEHgUA" +
-           "AAAP/////wEB/////wAAAAAVYIkKAgAAAAAACQAAAEV2ZW50VHlwZQEBHwUALgBEHwUAAAAR/////wEB" +
-           "/////wAAAAAVYIkKAgAAAAAACgAAAFNvdXJjZU5vZGUBASAFAC4ARCAFAAAAEf////8BAf////8AAAAA" +
-           "FWCJCgIAAAAAAAoAAABTb3VyY2VOYW1lAQEhBQAuAEQhBQAAAAz/////AQH/////AAAAABVgiQoCAAAA" +
-           "AAAEAAAAVGltZQEBIgUALgBEIgUAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAALAAAAUmVjZWl2" +
-           "ZVRpbWUBASMFAC4ARCMFAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAE1lc3NhZ2UBASUF" +
-           "AC4ARCUFAAAAFf////8BAf////8AAAAAFWCJCgIAAAAAAAgAAABTZXZlcml0eQEBJgUALgBEJgUAAAAF" +
-           "/////wEB/////wAAAAAVYIkKAgAAAAAAEAAAAENvbmRpdGlvbkNsYXNzSWQBAScFAC4ARCcFAAAAEf//" +
-           "//8BAf////8AAAAAFWCJCgIAAAAAABIAAABDb25kaXRpb25DbGFzc05hbWUBASgFAC4ARCgFAAAAFf//" +
-           "//8BAf////8AAAAAFWCJCgIAAAAAAA0AAABDb25kaXRpb25OYW1lAQErBQAuAEQrBQAAAAz/////AQH/" +
-           "////AAAAABVgiQoCAAAAAAAIAAAAQnJhbmNoSWQBASwFAC4ARCwFAAAAEf////8BAf////8AAAAAFWCJ" +
-           "CgIAAAAAAAYAAABSZXRhaW4BAS0FAC4ARC0FAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABF" +
-           "bmFibGVkU3RhdGUBAS4FAC8BACMjLgUAAAAV/////wEBAgAAAAEALCMAAQFCBQEALCMAAQFLBQEAAAAV" +
-           "YIkKAgAAAAAAAgAAAElkAQEvBQAuAEQvBQAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAAUXVh" +
-           "bGl0eQEBNwUALwEAKiM3BQAAABP/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0" +
-           "YW1wAQE4BQAuAEQ4BQAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABMYXN0U2V2ZXJpdHkB" +
-           "ATkFAC8BACojOQUAAAAF/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFtcAEB" +
-           "OgUALgBEOgUAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAAQ29tbWVudAEBOwUALwEAKiM7" +
-           "BQAAABX/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1wAQE8BQAuAEQ8BQAA" +
-           "AQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABDbGllbnRVc2VySWQBAT0FAC4ARD0FAAAADP//" +
-           "//8BAf////8AAAAABGGCCgQAAAAAAAcAAABEaXNhYmxlAQE+BQAvAQBEIz4FAAABAQEAAAABAPkLAAEA" +
-           "8woAAAAABGGCCgQAAAAAAAYAAABFbmFibGUBAT8FAC8BAEMjPwUAAAEBAQAAAAEA+QsAAQDzCgAAAAAE" +
-           "YYIKBAAAAAAACgAAAEFkZENvbW1lbnQBAUAFAC8BAEUjQAUAAAEBAQAAAAEA+QsAAQANCwEAAAAXYKkK" +
-           "AgAAAAAADgAAAElucHV0QXJndW1lbnRzAQFBBQAuAERBBQAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJ" +
-           "ZAAP/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQu" +
-           "AQAqAQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRv" +
-           "IHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACgAAAEFja2Vk" +
-           "U3RhdGUBAUIFAC8BACMjQgUAAAAV/////wEBAQAAAAEALCMBAQEuBQEAAAAVYIkKAgAAAAAAAgAAAElk" +
-           "AQFDBQAuAERDBQAAAAH/////AQH/////AAAAAARhggoEAAAAAAALAAAAQWNrbm93bGVkZ2UBAVQFAC8B" +
-           "AJcjVAUAAAEBAQAAAAEA+QsAAQDwIgEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQFVBQAu" +
-           "AERVBQAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP/////wAAAAADAAAAACgAAABUaGUgaWRlbnRp" +
-           "ZmllciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAqAQFCAAAABwAAAENvbW1lbnQAFf////8AAAAA" +
-           "AwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAA" +
-           "AAEB/////wAAAAAVYIkKAgAAAAEACgAAAFNCeXRlVmFsdWUBAVgFAC8BAEAJWAUAAAAC/////wEB////" +
-           "/wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UBAVwFAC4ARFwFAAABAHQD/////wEB/////wAAAAAVYIkK" +
-           "AgAAAAEACQAAAEJ5dGVWYWx1ZQEBXgUALwEAQAleBQAAAAP/////AQH/////AQAAABVgiQoCAAAAAAAH" +
-           "AAAARVVSYW5nZQEBYgUALgBEYgUAAAEAdAP/////AQH/////AAAAABVgiQoCAAAAAQAKAAAASW50MTZW" +
-           "YWx1ZQEBZAUALwEAQAlkBQAAAAT/////AQH/////AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEBaAUA" +
-           "LgBEaAUAAAEAdAP/////AQH/////AAAAABVgiQoCAAAAAQALAAAAVUludDE2VmFsdWUBAWoFAC8BAEAJ" +
-           "agUAAAAF/////wEB/////wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UBAW4FAC4ARG4FAAABAHQD////" +
-           "/wEB/////wAAAAAVYIkKAgAAAAEACgAAAEludDMyVmFsdWUBAXAFAC8BAEAJcAUAAAAG/////wEB////" +
-           "/wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UBAXQFAC4ARHQFAAABAHQD/////wEB/////wAAAAAVYIkK" +
-           "AgAAAAEACwAAAFVJbnQzMlZhbHVlAQF2BQAvAQBACXYFAAAAB/////8BAf////8BAAAAFWCJCgIAAAAA" +
-           "AAcAAABFVVJhbmdlAQF6BQAuAER6BQAAAQB0A/////8BAf////8AAAAAFWCJCgIAAAABAAoAAABJbnQ2" +
-           "NFZhbHVlAQF8BQAvAQBACXwFAAAACP////8BAf////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQGA" +
-           "BQAuAESABQAAAQB0A/////8BAf////8AAAAAFWCJCgIAAAABAAsAAABVSW50NjRWYWx1ZQEBggUALwEA" +
-           "QAmCBQAAAAn/////AQH/////AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEBhgUALgBEhgUAAAEAdAP/" +
-           "////AQH/////AAAAABVgiQoCAAAAAQAKAAAARmxvYXRWYWx1ZQEBiAUALwEAQAmIBQAAAAr/////AQH/" +
-           "////AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEBjAUALgBEjAUAAAEAdAP/////AQH/////AAAAABVg" +
-           "iQoCAAAAAQALAAAARG91YmxlVmFsdWUBAY4FAC8BAEAJjgUAAAAL/////wEB/////wEAAAAVYIkKAgAA" +
-           "AAAABwAAAEVVUmFuZ2UBAZIFAC4ARJIFAAABAHQD/////wEB/////wAAAAAVYIkKAgAAAAEACwAAAE51" +
-           "bWJlclZhbHVlAQGUBQAvAQBACZQFAAAAGv////8BAf////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdl" +
-           "AQGYBQAuAESYBQAAAQB0A/////8BAf////8AAAAAFWCJCgIAAAABAAwAAABJbnRlZ2VyVmFsdWUBAZoF" +
-           "AC8BAEAJmgUAAAAb/////wEB/////wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UBAZ4FAC4ARJ4FAAAB" +
-           "AHQD/////wEB/////wAAAAAVYIkKAgAAAAEADQAAAFVJbnRlZ2VyVmFsdWUBAaAFAC8BAEAJoAUAAAAc" +
-           "/////wEB/////wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UBAaQFAC4ARKQFAAABAHQD/////wEB////" +
-           "/wAAAAA=";
+            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGCAAgEAAAABACMAAABBbmFsb2dTY2Fs"
+            + "YXJWYWx1ZU9iamVjdFR5cGVJbnN0YW5jZQEBGQUBARkFGQUAAAEAAAAAJAABAR0FEAAAADVgiQoCAAAA"
+            + "AQAQAAAAU2ltdWxhdGlvbkFjdGl2ZQEBGgUDAAAAAEcAAABJZiB0cnVlIHRoZSBzZXJ2ZXIgd2lsbCBw"
+            + "cm9kdWNlIG5ldyB2YWx1ZXMgZm9yIGVhY2ggbW9uaXRvcmVkIHZhcmlhYmxlLgAuAEQaBQAAAAH/////"
+            + "AQH/////AAAAAARhggoEAAAAAQAOAAAAR2VuZXJhdGVWYWx1ZXMBARsFAC8BAfkDGwUAAAEB/////wEA"
+            + "AAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQEcBQAuAEQcBQAAlgEAAAABACoBAUYAAAAKAAAA"
+            + "SXRlcmF0aW9ucwAH/////wAAAAADAAAAACUAAABUaGUgbnVtYmVyIG9mIG5ldyB2YWx1ZXMgdG8gZ2Vu"
+            + "ZXJhdGUuAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYIAKAQAAAAEADQAAAEN5Y2xlQ29tcGxldGUB"
+            + "AR0FAC8BAEELHQUAAAEAAAAAJAEBARkFFwAAABVgiQoCAAAAAAAHAAAARXZlbnRJZAEBHgUALgBEHgUA"
+            + "AAAP/////wEB/////wAAAAAVYIkKAgAAAAAACQAAAEV2ZW50VHlwZQEBHwUALgBEHwUAAAAR/////wEB"
+            + "/////wAAAAAVYIkKAgAAAAAACgAAAFNvdXJjZU5vZGUBASAFAC4ARCAFAAAAEf////8BAf////8AAAAA"
+            + "FWCJCgIAAAAAAAoAAABTb3VyY2VOYW1lAQEhBQAuAEQhBQAAAAz/////AQH/////AAAAABVgiQoCAAAA"
+            + "AAAEAAAAVGltZQEBIgUALgBEIgUAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAALAAAAUmVjZWl2"
+            + "ZVRpbWUBASMFAC4ARCMFAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAE1lc3NhZ2UBASUF"
+            + "AC4ARCUFAAAAFf////8BAf////8AAAAAFWCJCgIAAAAAAAgAAABTZXZlcml0eQEBJgUALgBEJgUAAAAF"
+            + "/////wEB/////wAAAAAVYIkKAgAAAAAAEAAAAENvbmRpdGlvbkNsYXNzSWQBAScFAC4ARCcFAAAAEf//"
+            + "//8BAf////8AAAAAFWCJCgIAAAAAABIAAABDb25kaXRpb25DbGFzc05hbWUBASgFAC4ARCgFAAAAFf//"
+            + "//8BAf////8AAAAAFWCJCgIAAAAAAA0AAABDb25kaXRpb25OYW1lAQErBQAuAEQrBQAAAAz/////AQH/"
+            + "////AAAAABVgiQoCAAAAAAAIAAAAQnJhbmNoSWQBASwFAC4ARCwFAAAAEf////8BAf////8AAAAAFWCJ"
+            + "CgIAAAAAAAYAAABSZXRhaW4BAS0FAC4ARC0FAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABF"
+            + "bmFibGVkU3RhdGUBAS4FAC8BACMjLgUAAAAV/////wEBAgAAAAEALCMAAQFCBQEALCMAAQFLBQEAAAAV"
+            + "YIkKAgAAAAAAAgAAAElkAQEvBQAuAEQvBQAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAAUXVh"
+            + "bGl0eQEBNwUALwEAKiM3BQAAABP/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0"
+            + "YW1wAQE4BQAuAEQ4BQAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABMYXN0U2V2ZXJpdHkB"
+            + "ATkFAC8BACojOQUAAAAF/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFtcAEB"
+            + "OgUALgBEOgUAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAAQ29tbWVudAEBOwUALwEAKiM7"
+            + "BQAAABX/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1wAQE8BQAuAEQ8BQAA"
+            + "AQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABDbGllbnRVc2VySWQBAT0FAC4ARD0FAAAADP//"
+            + "//8BAf////8AAAAABGGCCgQAAAAAAAcAAABEaXNhYmxlAQE+BQAvAQBEIz4FAAABAQEAAAABAPkLAAEA"
+            + "8woAAAAABGGCCgQAAAAAAAYAAABFbmFibGUBAT8FAC8BAEMjPwUAAAEBAQAAAAEA+QsAAQDzCgAAAAAE"
+            + "YYIKBAAAAAAACgAAAEFkZENvbW1lbnQBAUAFAC8BAEUjQAUAAAEBAQAAAAEA+QsAAQANCwEAAAAXYKkK"
+            + "AgAAAAAADgAAAElucHV0QXJndW1lbnRzAQFBBQAuAERBBQAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJ"
+            + "ZAAP/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQu"
+            + "AQAqAQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRv"
+            + "IHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACgAAAEFja2Vk"
+            + "U3RhdGUBAUIFAC8BACMjQgUAAAAV/////wEBAQAAAAEALCMBAQEuBQEAAAAVYIkKAgAAAAAAAgAAAElk"
+            + "AQFDBQAuAERDBQAAAAH/////AQH/////AAAAAARhggoEAAAAAAALAAAAQWNrbm93bGVkZ2UBAVQFAC8B"
+            + "AJcjVAUAAAEBAQAAAAEA+QsAAQDwIgEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQFVBQAu"
+            + "AERVBQAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP/////wAAAAADAAAAACgAAABUaGUgaWRlbnRp"
+            + "ZmllciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAqAQFCAAAABwAAAENvbW1lbnQAFf////8AAAAA"
+            + "AwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAA"
+            + "AAEB/////wAAAAAVYIkKAgAAAAEACgAAAFNCeXRlVmFsdWUBAVgFAC8BAEAJWAUAAAAC/////wEB////"
+            + "/wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UBAVwFAC4ARFwFAAABAHQD/////wEB/////wAAAAAVYIkK"
+            + "AgAAAAEACQAAAEJ5dGVWYWx1ZQEBXgUALwEAQAleBQAAAAP/////AQH/////AQAAABVgiQoCAAAAAAAH"
+            + "AAAARVVSYW5nZQEBYgUALgBEYgUAAAEAdAP/////AQH/////AAAAABVgiQoCAAAAAQAKAAAASW50MTZW"
+            + "YWx1ZQEBZAUALwEAQAlkBQAAAAT/////AQH/////AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEBaAUA"
+            + "LgBEaAUAAAEAdAP/////AQH/////AAAAABVgiQoCAAAAAQALAAAAVUludDE2VmFsdWUBAWoFAC8BAEAJ"
+            + "agUAAAAF/////wEB/////wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UBAW4FAC4ARG4FAAABAHQD////"
+            + "/wEB/////wAAAAAVYIkKAgAAAAEACgAAAEludDMyVmFsdWUBAXAFAC8BAEAJcAUAAAAG/////wEB////"
+            + "/wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UBAXQFAC4ARHQFAAABAHQD/////wEB/////wAAAAAVYIkK"
+            + "AgAAAAEACwAAAFVJbnQzMlZhbHVlAQF2BQAvAQBACXYFAAAAB/////8BAf////8BAAAAFWCJCgIAAAAA"
+            + "AAcAAABFVVJhbmdlAQF6BQAuAER6BQAAAQB0A/////8BAf////8AAAAAFWCJCgIAAAABAAoAAABJbnQ2"
+            + "NFZhbHVlAQF8BQAvAQBACXwFAAAACP////8BAf////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQGA"
+            + "BQAuAESABQAAAQB0A/////8BAf////8AAAAAFWCJCgIAAAABAAsAAABVSW50NjRWYWx1ZQEBggUALwEA"
+            + "QAmCBQAAAAn/////AQH/////AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEBhgUALgBEhgUAAAEAdAP/"
+            + "////AQH/////AAAAABVgiQoCAAAAAQAKAAAARmxvYXRWYWx1ZQEBiAUALwEAQAmIBQAAAAr/////AQH/"
+            + "////AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEBjAUALgBEjAUAAAEAdAP/////AQH/////AAAAABVg"
+            + "iQoCAAAAAQALAAAARG91YmxlVmFsdWUBAY4FAC8BAEAJjgUAAAAL/////wEB/////wEAAAAVYIkKAgAA"
+            + "AAAABwAAAEVVUmFuZ2UBAZIFAC4ARJIFAAABAHQD/////wEB/////wAAAAAVYIkKAgAAAAEACwAAAE51"
+            + "bWJlclZhbHVlAQGUBQAvAQBACZQFAAAAGv////8BAf////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdl"
+            + "AQGYBQAuAESYBQAAAQB0A/////8BAf////8AAAAAFWCJCgIAAAABAAwAAABJbnRlZ2VyVmFsdWUBAZoF"
+            + "AC8BAEAJmgUAAAAb/////wEB/////wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UBAZ4FAC4ARJ4FAAAB"
+            + "AHQD/////wEB/////wAAAAAVYIkKAgAAAAEADQAAAFVJbnRlZ2VyVmFsdWUBAaAFAC8BAEAJoAUAAAAc"
+            + "/////wEB/////wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UBAaQFAC4ARKQFAAABAHQD/////wEB////"
+            + "/wAAAAA=";
         #endregion
 #endif
         #endregion
@@ -6550,7 +6587,6 @@ namespace TestData
             {
                 return m_sByteValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_sByteValue, value))
@@ -6569,7 +6605,6 @@ namespace TestData
             {
                 return m_byteValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_byteValue, value))
@@ -6588,7 +6623,6 @@ namespace TestData
             {
                 return m_int16Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_int16Value, value))
@@ -6607,7 +6641,6 @@ namespace TestData
             {
                 return m_uInt16Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_uInt16Value, value))
@@ -6626,7 +6659,6 @@ namespace TestData
             {
                 return m_int32Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_int32Value, value))
@@ -6645,7 +6677,6 @@ namespace TestData
             {
                 return m_uInt32Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_uInt32Value, value))
@@ -6664,7 +6695,6 @@ namespace TestData
             {
                 return m_int64Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_int64Value, value))
@@ -6683,7 +6713,6 @@ namespace TestData
             {
                 return m_uInt64Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_uInt64Value, value))
@@ -6702,7 +6731,6 @@ namespace TestData
             {
                 return m_floatValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_floatValue, value))
@@ -6721,7 +6749,6 @@ namespace TestData
             {
                 return m_doubleValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_doubleValue, value))
@@ -6740,7 +6767,6 @@ namespace TestData
             {
                 return m_numberValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_numberValue, value))
@@ -6759,7 +6785,6 @@ namespace TestData
             {
                 return m_integerValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_integerValue, value))
@@ -6778,7 +6803,6 @@ namespace TestData
             {
                 return m_uIntegerValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_uIntegerValue, value))
@@ -6793,9 +6817,7 @@ namespace TestData
 
         #region Overridden Methods
         /// <remarks />
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
+        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
             if (m_sByteValue != null)
             {
@@ -6870,7 +6892,8 @@ namespace TestData
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement)
+            BaseInstanceState replacement
+        )
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -7192,9 +7215,8 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public ArrayValue1MethodState(NodeState parent) : base(parent)
-        {
-        }
+        public ArrayValue1MethodState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         public new static NodeState Construct(NodeState parent)
@@ -7219,24 +7241,24 @@ namespace TestData
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGGCCgQAAAABABUAAABBcnJheVZhbHVl" +
-           "MU1ldGhvZFR5cGUBAacFAC8BAacFpwUAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1l" +
-           "bnRzAQGoBQAuAESoBQAAlgsAAAABACoBARwAAAAJAAAAQm9vbGVhbkluAAEBAAAAAQAAAAAAAAAAAQAq" +
-           "AQEaAAAABwAAAFNCeXRlSW4AAgEAAAABAAAAAAAAAAABACoBARkAAAAGAAAAQnl0ZUluAAMBAAAAAQAA" +
-           "AAAAAAAAAQAqAQEaAAAABwAAAEludDE2SW4ABAEAAAABAAAAAAAAAAABACoBARsAAAAIAAAAVUludDE2" +
-           "SW4ABQEAAAABAAAAAAAAAAABACoBARoAAAAHAAAASW50MzJJbgAGAQAAAAEAAAAAAAAAAAEAKgEBGwAA" +
-           "AAgAAABVSW50MzJJbgAHAQAAAAEAAAAAAAAAAAEAKgEBGgAAAAcAAABJbnQ2NEluAAgBAAAAAQAAAAAA" +
-           "AAAAAQAqAQEbAAAACAAAAFVJbnQ2NEluAAkBAAAAAQAAAAAAAAAAAQAqAQEaAAAABwAAAEZsb2F0SW4A" +
-           "CgEAAAABAAAAAAAAAAABACoBARsAAAAIAAAARG91YmxlSW4ACwEAAAABAAAAAAAAAAABACgBAQAAAAEA" +
-           "AAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQGpBQAuAESpBQAAlgsA" +
-           "AAABACoBAR0AAAAKAAAAQm9vbGVhbk91dAABAQAAAAEAAAAAAAAAAAEAKgEBGwAAAAgAAABTQnl0ZU91" +
-           "dAACAQAAAAEAAAAAAAAAAAEAKgEBGgAAAAcAAABCeXRlT3V0AAMBAAAAAQAAAAAAAAAAAQAqAQEbAAAA" +
-           "CAAAAEludDE2T3V0AAQBAAAAAQAAAAAAAAAAAQAqAQEcAAAACQAAAFVJbnQxNk91dAAFAQAAAAEAAAAA" +
-           "AAAAAAEAKgEBGwAAAAgAAABJbnQzMk91dAAGAQAAAAEAAAAAAAAAAAEAKgEBHAAAAAkAAABVSW50MzJP" +
-           "dXQABwEAAAABAAAAAAAAAAABACoBARsAAAAIAAAASW50NjRPdXQACAEAAAABAAAAAAAAAAABACoBARwA" +
-           "AAAJAAAAVUludDY0T3V0AAkBAAAAAQAAAAAAAAAAAQAqAQEbAAAACAAAAEZsb2F0T3V0AAoBAAAAAQAA" +
-           "AAAAAAAAAQAqAQEcAAAACQAAAERvdWJsZU91dAALAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAAAAAAB" +
-           "Af////8AAAAA";
+            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGGCCgQAAAABABUAAABBcnJheVZhbHVl"
+            + "MU1ldGhvZFR5cGUBAacFAC8BAacFpwUAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1l"
+            + "bnRzAQGoBQAuAESoBQAAlgsAAAABACoBARwAAAAJAAAAQm9vbGVhbkluAAEBAAAAAQAAAAAAAAAAAQAq"
+            + "AQEaAAAABwAAAFNCeXRlSW4AAgEAAAABAAAAAAAAAAABACoBARkAAAAGAAAAQnl0ZUluAAMBAAAAAQAA"
+            + "AAAAAAAAAQAqAQEaAAAABwAAAEludDE2SW4ABAEAAAABAAAAAAAAAAABACoBARsAAAAIAAAAVUludDE2"
+            + "SW4ABQEAAAABAAAAAAAAAAABACoBARoAAAAHAAAASW50MzJJbgAGAQAAAAEAAAAAAAAAAAEAKgEBGwAA"
+            + "AAgAAABVSW50MzJJbgAHAQAAAAEAAAAAAAAAAAEAKgEBGgAAAAcAAABJbnQ2NEluAAgBAAAAAQAAAAAA"
+            + "AAAAAQAqAQEbAAAACAAAAFVJbnQ2NEluAAkBAAAAAQAAAAAAAAAAAQAqAQEaAAAABwAAAEZsb2F0SW4A"
+            + "CgEAAAABAAAAAAAAAAABACoBARsAAAAIAAAARG91YmxlSW4ACwEAAAABAAAAAAAAAAABACgBAQAAAAEA"
+            + "AAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQGpBQAuAESpBQAAlgsA"
+            + "AAABACoBAR0AAAAKAAAAQm9vbGVhbk91dAABAQAAAAEAAAAAAAAAAAEAKgEBGwAAAAgAAABTQnl0ZU91"
+            + "dAACAQAAAAEAAAAAAAAAAAEAKgEBGgAAAAcAAABCeXRlT3V0AAMBAAAAAQAAAAAAAAAAAQAqAQEbAAAA"
+            + "CAAAAEludDE2T3V0AAQBAAAAAQAAAAAAAAAAAQAqAQEcAAAACQAAAFVJbnQxNk91dAAFAQAAAAEAAAAA"
+            + "AAAAAAEAKgEBGwAAAAgAAABJbnQzMk91dAAGAQAAAAEAAAAAAAAAAAEAKgEBHAAAAAkAAABVSW50MzJP"
+            + "dXQABwEAAAABAAAAAAAAAAABACoBARsAAAAIAAAASW50NjRPdXQACAEAAAABAAAAAAAAAAABACoBARwA"
+            + "AAAJAAAAVUludDY0T3V0AAkBAAAAAQAAAAAAAAAAAQAqAQEbAAAACAAAAEZsb2F0T3V0AAoBAAAAAQAA"
+            + "AAAAAAAAAQAqAQEcAAAACQAAAERvdWJsZU91dAALAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAAAAAAB"
+            + "Af////8AAAAA";
         #endregion
 #endif
         #endregion
@@ -7255,7 +7277,8 @@ namespace TestData
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments)
+            IList<object> _outputArguments
+        )
         {
             if (OnCall == null)
             {
@@ -7315,7 +7338,8 @@ namespace TestData
                     ref int64Out,
                     ref uInt64Out,
                     ref floatOut,
-                    ref doubleOut);
+                    ref doubleOut
+                );
             }
 
             _outputArguments[0] = booleanOut;
@@ -7365,7 +7389,8 @@ namespace TestData
         ref long[] int64Out,
         ref ulong[] uInt64Out,
         ref float[] floatOut,
-        ref double[] doubleOut);
+        ref double[] doubleOut
+    );
 #endif
     #endregion
 
@@ -7378,9 +7403,8 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public ArrayValue2MethodState(NodeState parent) : base(parent)
-        {
-        }
+        public ArrayValue2MethodState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         public new static NodeState Construct(NodeState parent)
@@ -7405,24 +7429,24 @@ namespace TestData
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGGCCgQAAAABABUAAABBcnJheVZhbHVl" +
-           "Mk1ldGhvZFR5cGUBAaoFAC8BAaoFqgUAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1l" +
-           "bnRzAQGrBQAuAESrBQAAlgoAAAABACoBARsAAAAIAAAAU3RyaW5nSW4ADAEAAAABAAAAAAAAAAABACoB" +
-           "AR0AAAAKAAAARGF0ZVRpbWVJbgANAQAAAAEAAAAAAAAAAAEAKgEBGQAAAAYAAABHdWlkSW4ADgEAAAAB" +
-           "AAAAAAAAAAABACoBAR8AAAAMAAAAQnl0ZVN0cmluZ0luAA8BAAAAAQAAAAAAAAAAAQAqAQEfAAAADAAA" +
-           "AFhtbEVsZW1lbnRJbgAQAQAAAAEAAAAAAAAAAAEAKgEBGwAAAAgAAABOb2RlSWRJbgARAQAAAAEAAAAA" +
-           "AAAAAAEAKgEBIwAAABAAAABFeHBhbmRlZE5vZGVJZEluABIBAAAAAQAAAAAAAAAAAQAqAQEiAAAADwAA" +
-           "AFF1YWxpZmllZE5hbWVJbgAUAQAAAAEAAAAAAAAAAAEAKgEBIgAAAA8AAABMb2NhbGl6ZWRUZXh0SW4A" +
-           "FQEAAAABAAAAAAAAAAABACoBAR8AAAAMAAAAU3RhdHVzQ29kZUluABMBAAAAAQAAAAAAAAAAAQAoAQEA" +
-           "AAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEBrAUALgBErAUA" +
-           "AJYKAAAAAQAqAQEcAAAACQAAAFN0cmluZ091dAAMAQAAAAEAAAAAAAAAAAEAKgEBHgAAAAsAAABEYXRl" +
-           "VGltZU91dAANAQAAAAEAAAAAAAAAAAEAKgEBGgAAAAcAAABHdWlkT3V0AA4BAAAAAQAAAAAAAAAAAQAq" +
-           "AQEgAAAADQAAAEJ5dGVTdHJpbmdPdXQADwEAAAABAAAAAAAAAAABACoBASAAAAANAAAAWG1sRWxlbWVu" +
-           "dE91dAAQAQAAAAEAAAAAAAAAAAEAKgEBHAAAAAkAAABOb2RlSWRPdXQAEQEAAAABAAAAAAAAAAABACoB" +
-           "ASQAAAARAAAARXhwYW5kZWROb2RlSWRPdXQAEgEAAAABAAAAAAAAAAABACoBASMAAAAQAAAAUXVhbGlm" +
-           "aWVkTmFtZU91dAAUAQAAAAEAAAAAAAAAAAEAKgEBIwAAABAAAABMb2NhbGl6ZWRUZXh0T3V0ABUBAAAA" +
-           "AQAAAAAAAAAAAQAqAQEgAAAADQAAAFN0YXR1c0NvZGVPdXQAEwEAAAABAAAAAAAAAAABACgBAQAAAAEA" +
-           "AAAAAAAAAQH/////AAAAAA==";
+            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGGCCgQAAAABABUAAABBcnJheVZhbHVl"
+            + "Mk1ldGhvZFR5cGUBAaoFAC8BAaoFqgUAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1l"
+            + "bnRzAQGrBQAuAESrBQAAlgoAAAABACoBARsAAAAIAAAAU3RyaW5nSW4ADAEAAAABAAAAAAAAAAABACoB"
+            + "AR0AAAAKAAAARGF0ZVRpbWVJbgANAQAAAAEAAAAAAAAAAAEAKgEBGQAAAAYAAABHdWlkSW4ADgEAAAAB"
+            + "AAAAAAAAAAABACoBAR8AAAAMAAAAQnl0ZVN0cmluZ0luAA8BAAAAAQAAAAAAAAAAAQAqAQEfAAAADAAA"
+            + "AFhtbEVsZW1lbnRJbgAQAQAAAAEAAAAAAAAAAAEAKgEBGwAAAAgAAABOb2RlSWRJbgARAQAAAAEAAAAA"
+            + "AAAAAAEAKgEBIwAAABAAAABFeHBhbmRlZE5vZGVJZEluABIBAAAAAQAAAAAAAAAAAQAqAQEiAAAADwAA"
+            + "AFF1YWxpZmllZE5hbWVJbgAUAQAAAAEAAAAAAAAAAAEAKgEBIgAAAA8AAABMb2NhbGl6ZWRUZXh0SW4A"
+            + "FQEAAAABAAAAAAAAAAABACoBAR8AAAAMAAAAU3RhdHVzQ29kZUluABMBAAAAAQAAAAAAAAAAAQAoAQEA"
+            + "AAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEBrAUALgBErAUA"
+            + "AJYKAAAAAQAqAQEcAAAACQAAAFN0cmluZ091dAAMAQAAAAEAAAAAAAAAAAEAKgEBHgAAAAsAAABEYXRl"
+            + "VGltZU91dAANAQAAAAEAAAAAAAAAAAEAKgEBGgAAAAcAAABHdWlkT3V0AA4BAAAAAQAAAAAAAAAAAQAq"
+            + "AQEgAAAADQAAAEJ5dGVTdHJpbmdPdXQADwEAAAABAAAAAAAAAAABACoBASAAAAANAAAAWG1sRWxlbWVu"
+            + "dE91dAAQAQAAAAEAAAAAAAAAAAEAKgEBHAAAAAkAAABOb2RlSWRPdXQAEQEAAAABAAAAAAAAAAABACoB"
+            + "ASQAAAARAAAARXhwYW5kZWROb2RlSWRPdXQAEgEAAAABAAAAAAAAAAABACoBASMAAAAQAAAAUXVhbGlm"
+            + "aWVkTmFtZU91dAAUAQAAAAEAAAAAAAAAAAEAKgEBIwAAABAAAABMb2NhbGl6ZWRUZXh0T3V0ABUBAAAA"
+            + "AQAAAAAAAAAAAQAqAQEgAAAADQAAAFN0YXR1c0NvZGVPdXQAEwEAAAABAAAAAAAAAAABACgBAQAAAAEA"
+            + "AAAAAAAAAQH/////AAAAAA==";
         #endregion
 #endif
         #endregion
@@ -7441,7 +7465,8 @@ namespace TestData
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments)
+            IList<object> _outputArguments
+        )
         {
             if (OnCall == null)
             {
@@ -7497,7 +7522,8 @@ namespace TestData
                     ref expandedNodeIdOut,
                     ref qualifiedNameOut,
                     ref localizedTextOut,
-                    ref statusCodeOut);
+                    ref statusCodeOut
+                );
             }
 
             _outputArguments[0] = stringOut;
@@ -7544,7 +7570,8 @@ namespace TestData
         ref ExpandedNodeId[] expandedNodeIdOut,
         ref QualifiedName[] qualifiedNameOut,
         ref LocalizedText[] localizedTextOut,
-        ref StatusCode[] statusCodeOut);
+        ref StatusCode[] statusCodeOut
+    );
 #endif
     #endregion
 
@@ -7557,9 +7584,8 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public ArrayValue3MethodState(NodeState parent) : base(parent)
-        {
-        }
+        public ArrayValue3MethodState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         public new static NodeState Construct(NodeState parent)
@@ -7584,14 +7610,14 @@ namespace TestData
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGGCCgQAAAABABUAAABBcnJheVZhbHVl" +
-           "M01ldGhvZFR5cGUBAa0FAC8BAa0FrQUAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1l" +
-           "bnRzAQGuBQAuAESuBQAAlgMAAAABACoBARwAAAAJAAAAVmFyaWFudEluABgBAAAAAQAAAAAAAAAAAQAq" +
-           "AQEgAAAADQAAAEVudW1lcmF0aW9uSW4AHQEAAAABAAAAAAAAAAABACoBAR4AAAALAAAAU3RydWN0dXJl" +
-           "SW4AFgEAAAABAAAAAAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0" +
-           "cHV0QXJndW1lbnRzAQGvBQAuAESvBQAAlgMAAAABACoBAR0AAAAKAAAAVmFyaWFudE91dAAYAQAAAAEA" +
-           "AAAAAAAAAAEAKgEBIQAAAA4AAABFbnVtZXJhdGlvbk91dAAdAQAAAAEAAAAAAAAAAAEAKgEBHwAAAAwA" +
-           "AABTdHJ1Y3R1cmVPdXQAFgEAAAABAAAAAAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGGCCgQAAAABABUAAABBcnJheVZhbHVl"
+            + "M01ldGhvZFR5cGUBAa0FAC8BAa0FrQUAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1l"
+            + "bnRzAQGuBQAuAESuBQAAlgMAAAABACoBARwAAAAJAAAAVmFyaWFudEluABgBAAAAAQAAAAAAAAAAAQAq"
+            + "AQEgAAAADQAAAEVudW1lcmF0aW9uSW4AHQEAAAABAAAAAAAAAAABACoBAR4AAAALAAAAU3RydWN0dXJl"
+            + "SW4AFgEAAAABAAAAAAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0"
+            + "cHV0QXJndW1lbnRzAQGvBQAuAESvBQAAlgMAAAABACoBAR0AAAAKAAAAVmFyaWFudE91dAAYAQAAAAEA"
+            + "AAAAAAAAAAEAKgEBIQAAAA4AAABFbnVtZXJhdGlvbk91dAAdAQAAAAEAAAAAAAAAAAEAKgEBHwAAAAwA"
+            + "AABTdHJ1Y3R1cmVPdXQAFgEAAAABAAAAAAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
         #endregion
 #endif
         #endregion
@@ -7610,7 +7636,8 @@ namespace TestData
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments)
+            IList<object> _outputArguments
+        )
         {
             if (OnCall == null)
             {
@@ -7638,7 +7665,8 @@ namespace TestData
                     structureIn,
                     ref variantOut,
                     ref enumerationOut,
-                    ref structureOut);
+                    ref structureOut
+                );
             }
 
             _outputArguments[0] = variantOut;
@@ -7664,7 +7692,8 @@ namespace TestData
         ExtensionObject[] structureIn,
         ref Variant[] variantOut,
         ref int[] enumerationOut,
-        ref ExtensionObject[] structureOut);
+        ref ExtensionObject[] structureOut
+    );
 #endif
     #endregion
 
@@ -7677,14 +7706,17 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public ArrayValueObjectState(NodeState parent) : base(parent)
-        {
-        }
+        public ArrayValueObjectState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(TestData.ObjectTypes.ArrayValueObjectType, TestData.Namespaces.TestData, namespaceUris);
+            return Opc.Ua.NodeId.Create(
+                TestData.ObjectTypes.ArrayValueObjectType,
+                TestData.Namespaces.TestData,
+                namespaceUris
+            );
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -7711,80 +7743,80 @@ namespace TestData
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGCAAgEAAAABABwAAABBcnJheVZhbHVl" +
-           "T2JqZWN0VHlwZUluc3RhbmNlAQGwBQEBsAWwBQAAAQAAAAAkAAEBtAUiAAAANWCJCgIAAAABABAAAABT" +
-           "aW11bGF0aW9uQWN0aXZlAQGxBQMAAAAARwAAAElmIHRydWUgdGhlIHNlcnZlciB3aWxsIHByb2R1Y2Ug" +
-           "bmV3IHZhbHVlcyBmb3IgZWFjaCBtb25pdG9yZWQgdmFyaWFibGUuAC4ARLEFAAAAAf////8BAf////8A" +
-           "AAAABGGCCgQAAAABAA4AAABHZW5lcmF0ZVZhbHVlcwEBsgUALwEB+QOyBQAAAQH/////AQAAABdgqQoC" +
-           "AAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAbMFAC4ARLMFAACWAQAAAAEAKgEBRgAAAAoAAABJdGVyYXRp" +
-           "b25zAAf/////AAAAAAMAAAAAJQAAAFRoZSBudW1iZXIgb2YgbmV3IHZhbHVlcyB0byBnZW5lcmF0ZS4B" +
-           "ACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARggAoBAAAAAQANAAAAQ3ljbGVDb21wbGV0ZQEBtAUALwEA" +
-           "QQu0BQAAAQAAAAAkAQEBsAUXAAAAFWCJCgIAAAAAAAcAAABFdmVudElkAQG1BQAuAES1BQAAAA//////" +
-           "AQH/////AAAAABVgiQoCAAAAAAAJAAAARXZlbnRUeXBlAQG2BQAuAES2BQAAABH/////AQH/////AAAA" +
-           "ABVgiQoCAAAAAAAKAAAAU291cmNlTm9kZQEBtwUALgBEtwUAAAAR/////wEB/////wAAAAAVYIkKAgAA" +
-           "AAAACgAAAFNvdXJjZU5hbWUBAbgFAC4ARLgFAAAADP////8BAf////8AAAAAFWCJCgIAAAAAAAQAAABU" +
-           "aW1lAQG5BQAuAES5BQAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAsAAABSZWNlaXZlVGltZQEB" +
-           "ugUALgBEugUAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAATWVzc2FnZQEBvAUALgBEvAUA" +
-           "AAAV/////wEB/////wAAAAAVYIkKAgAAAAAACAAAAFNldmVyaXR5AQG9BQAuAES9BQAAAAX/////AQH/" +
-           "////AAAAABVgiQoCAAAAAAAQAAAAQ29uZGl0aW9uQ2xhc3NJZAEBvgUALgBEvgUAAAAR/////wEB////" +
-           "/wAAAAAVYIkKAgAAAAAAEgAAAENvbmRpdGlvbkNsYXNzTmFtZQEBvwUALgBEvwUAAAAV/////wEB////" +
-           "/wAAAAAVYIkKAgAAAAAADQAAAENvbmRpdGlvbk5hbWUBAcIFAC4ARMIFAAAADP////8BAf////8AAAAA" +
-           "FWCJCgIAAAAAAAgAAABCcmFuY2hJZAEBwwUALgBEwwUAAAAR/////wEB/////wAAAAAVYIkKAgAAAAAA" +
-           "BgAAAFJldGFpbgEBxAUALgBExAUAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAEVuYWJsZWRT" +
-           "dGF0ZQEBxQUALwEAIyPFBQAAABX/////AQECAAAAAQAsIwABAdkFAQAsIwABAeIFAQAAABVgiQoCAAAA" +
-           "AAACAAAASWQBAcYFAC4ARMYFAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABRdWFsaXR5AQHO" +
-           "BQAvAQAqI84FAAAAE/////8BAf////8BAAAAFWCJCgIAAAAAAA8AAABTb3VyY2VUaW1lc3RhbXABAc8F" +
-           "AC4ARM8FAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAExhc3RTZXZlcml0eQEB0AUALwEA" +
-           "KiPQBQAAAAX/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1wAQHRBQAuAETR" +
-           "BQAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABDb21tZW50AQHSBQAvAQAqI9IFAAAAFf//" +
-           "//8BAf////8BAAAAFWCJCgIAAAAAAA8AAABTb3VyY2VUaW1lc3RhbXABAdMFAC4ARNMFAAABACYB////" +
-           "/wEB/////wAAAAAVYIkKAgAAAAAADAAAAENsaWVudFVzZXJJZAEB1AUALgBE1AUAAAAM/////wEB////" +
-           "/wAAAAAEYYIKBAAAAAAABwAAAERpc2FibGUBAdUFAC8BAEQj1QUAAAEBAQAAAAEA+QsAAQDzCgAAAAAE" +
-           "YYIKBAAAAAAABgAAAEVuYWJsZQEB1gUALwEAQyPWBQAAAQEBAAAAAQD5CwABAPMKAAAAAARhggoEAAAA" +
-           "AAAKAAAAQWRkQ29tbWVudAEB1wUALwEARSPXBQAAAQEBAAAAAQD5CwABAA0LAQAAABdgqQoCAAAAAAAO" +
-           "AAAASW5wdXRBcmd1bWVudHMBAdgFAC4ARNgFAACWAgAAAAEAKgEBRgAAAAcAAABFdmVudElkAA//////" +
-           "AAAAAAMAAAAAKAAAAFRoZSBpZGVudGlmaWVyIGZvciB0aGUgZXZlbnQgdG8gY29tbWVudC4BACoBAUIA" +
-           "AAAHAAAAQ29tbWVudAAV/////wAAAAADAAAAACQAAABUaGUgY29tbWVudCB0byBhZGQgdG8gdGhlIGNv" +
-           "bmRpdGlvbi4BACgBAQAAAAEAAAAAAAAAAQH/////AAAAABVgiQoCAAAAAAAKAAAAQWNrZWRTdGF0ZQEB" +
-           "2QUALwEAIyPZBQAAABX/////AQEBAAAAAQAsIwEBAcUFAQAAABVgiQoCAAAAAAACAAAASWQBAdoFAC4A" +
-           "RNoFAAAAAf////8BAf////8AAAAABGGCCgQAAAAAAAsAAABBY2tub3dsZWRnZQEB6wUALwEAlyPrBQAA" +
-           "AQEBAAAAAQD5CwABAPAiAQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAewFAC4AROwFAACW" +
-           "AgAAAAEAKgEBRgAAAAcAAABFdmVudElkAA//////AAAAAAMAAAAAKAAAAFRoZSBpZGVudGlmaWVyIGZv" +
-           "ciB0aGUgZXZlbnQgdG8gY29tbWVudC4BACoBAUIAAAAHAAAAQ29tbWVudAAV/////wAAAAADAAAAACQA" +
-           "AABUaGUgY29tbWVudCB0byBhZGQgdG8gdGhlIGNvbmRpdGlvbi4BACgBAQAAAAEAAAAAAAAAAQH/////" +
-           "AAAAABdgiQoCAAAAAQAMAAAAQm9vbGVhblZhbHVlAQHvBQAvAD/vBQAAAAEBAAAAAQAAAAAAAAABAf//" +
-           "//8AAAAAF2CJCgIAAAABAAoAAABTQnl0ZVZhbHVlAQHwBQAvAD/wBQAAAAIBAAAAAQAAAAAAAAABAf//" +
-           "//8AAAAAF2CJCgIAAAABAAkAAABCeXRlVmFsdWUBAfEFAC8AP/EFAAAAAwEAAAABAAAAAAAAAAEB////" +
-           "/wAAAAAXYIkKAgAAAAEACgAAAEludDE2VmFsdWUBAfIFAC8AP/IFAAAABAEAAAABAAAAAAAAAAEB////" +
-           "/wAAAAAXYIkKAgAAAAEACwAAAFVJbnQxNlZhbHVlAQHzBQAvAD/zBQAAAAUBAAAAAQAAAAAAAAABAf//" +
-           "//8AAAAAF2CJCgIAAAABAAoAAABJbnQzMlZhbHVlAQH0BQAvAD/0BQAAAAYBAAAAAQAAAAAAAAABAf//" +
-           "//8AAAAAF2CJCgIAAAABAAsAAABVSW50MzJWYWx1ZQEB9QUALwA/9QUAAAAHAQAAAAEAAAAAAAAAAQH/" +
-           "////AAAAABdgiQoCAAAAAQAKAAAASW50NjRWYWx1ZQEB9gUALwA/9gUAAAAIAQAAAAEAAAAAAAAAAQH/" +
-           "////AAAAABdgiQoCAAAAAQALAAAAVUludDY0VmFsdWUBAfcFAC8AP/cFAAAACQEAAAABAAAAAAAAAAEB" +
-           "/////wAAAAAXYIkKAgAAAAEACgAAAEZsb2F0VmFsdWUBAfgFAC8AP/gFAAAACgEAAAABAAAAAAAAAAEB" +
-           "/////wAAAAAXYIkKAgAAAAEACwAAAERvdWJsZVZhbHVlAQH5BQAvAD/5BQAAAAsBAAAAAQAAAAAAAAAB" +
-           "Af////8AAAAAF2CJCgIAAAABAAsAAABTdHJpbmdWYWx1ZQEB+gUALwA/+gUAAAAMAQAAAAEAAAAAAAAA" +
-           "AQH/////AAAAABdgiQoCAAAAAQANAAAARGF0ZVRpbWVWYWx1ZQEB+wUALwA/+wUAAAANAQAAAAEAAAAA" +
-           "AAAAAQH/////AAAAABdgiQoCAAAAAQAJAAAAR3VpZFZhbHVlAQH8BQAvAD/8BQAAAA4BAAAAAQAAAAAA" +
-           "AAABAf////8AAAAAF2CJCgIAAAABAA8AAABCeXRlU3RyaW5nVmFsdWUBAf0FAC8AP/0FAAAADwEAAAAB" +
-           "AAAAAAAAAAEB/////wAAAAAXYIkKAgAAAAEADwAAAFhtbEVsZW1lbnRWYWx1ZQEB/gUALwA//gUAAAAQ" +
-           "AQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAQALAAAATm9kZUlkVmFsdWUBAf8FAC8AP/8FAAAA" +
-           "EQEAAAABAAAAAAAAAAEB/////wAAAAAXYIkKAgAAAAEAEwAAAEV4cGFuZGVkTm9kZUlkVmFsdWUBAQAG" +
-           "AC8APwAGAAAAEgEAAAABAAAAAAAAAAEB/////wAAAAAXYIkKAgAAAAEAEgAAAFF1YWxpZmllZE5hbWVW" +
-           "YWx1ZQEBAQYALwA/AQYAAAAUAQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAQASAAAATG9jYWxp" +
-           "emVkVGV4dFZhbHVlAQECBgAvAD8CBgAAABUBAAAAAQAAAAAAAAABAf////8AAAAAF2CJCgIAAAABAA8A" +
-           "AABTdGF0dXNDb2RlVmFsdWUBAQMGAC8APwMGAAAAEwEAAAABAAAAAAAAAAEB/////wAAAAAXYIkKAgAA" +
-           "AAEADAAAAFZhcmlhbnRWYWx1ZQEBBAYALwA/BAYAAAAYAQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoC" +
-           "AAAAAQAQAAAARW51bWVyYXRpb25WYWx1ZQEBBQYALwA/BQYAAAAdAQAAAAEAAAAAAAAAAQH/////AAAA" +
-           "ABdgiQoCAAAAAQAOAAAAU3RydWN0dXJlVmFsdWUBAQYGAC8APwYGAAAAFgEAAAABAAAAAAAAAAEB////" +
-           "/wAAAAAXYIkKAgAAAAEACwAAAE51bWJlclZhbHVlAQEHBgAvAD8HBgAAABoBAAAAAQAAAAAAAAABAf//" +
-           "//8AAAAAF2CJCgIAAAABAAwAAABJbnRlZ2VyVmFsdWUBAQgGAC8APwgGAAAAGwEAAAABAAAAAAAAAAEB" +
-           "/////wAAAAAXYIkKAgAAAAEADQAAAFVJbnRlZ2VyVmFsdWUBAQkGAC8APwkGAAAAHAEAAAABAAAAAAAA" +
-           "AAEB/////wAAAAAXYIkKAgAAAAEACwAAAFZlY3RvclZhbHVlAQEKBgAvAD8KBgAAAQFgBwEAAAABAAAA" +
-           "AAAAAAEB/////wAAAAAXYIkKAgAAAAEAEAAAAFZlY3RvclVuaW9uVmFsdWUBARgOAC8APxgOAAABAQAO" +
-           "AQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAQAdAAAAVmVjdG9yV2l0aE9wdGlvbmFsRmllbGRz" +
-           "VmFsdWUBARkOAC8APxkOAAABAQEOAQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAQAUAAAATXVs" +
-           "dGlwbGVWZWN0b3JzVmFsdWUBASsOAC8APysOAAABAR8OAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGCAAgEAAAABABwAAABBcnJheVZhbHVl"
+            + "T2JqZWN0VHlwZUluc3RhbmNlAQGwBQEBsAWwBQAAAQAAAAAkAAEBtAUiAAAANWCJCgIAAAABABAAAABT"
+            + "aW11bGF0aW9uQWN0aXZlAQGxBQMAAAAARwAAAElmIHRydWUgdGhlIHNlcnZlciB3aWxsIHByb2R1Y2Ug"
+            + "bmV3IHZhbHVlcyBmb3IgZWFjaCBtb25pdG9yZWQgdmFyaWFibGUuAC4ARLEFAAAAAf////8BAf////8A"
+            + "AAAABGGCCgQAAAABAA4AAABHZW5lcmF0ZVZhbHVlcwEBsgUALwEB+QOyBQAAAQH/////AQAAABdgqQoC"
+            + "AAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAbMFAC4ARLMFAACWAQAAAAEAKgEBRgAAAAoAAABJdGVyYXRp"
+            + "b25zAAf/////AAAAAAMAAAAAJQAAAFRoZSBudW1iZXIgb2YgbmV3IHZhbHVlcyB0byBnZW5lcmF0ZS4B"
+            + "ACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARggAoBAAAAAQANAAAAQ3ljbGVDb21wbGV0ZQEBtAUALwEA"
+            + "QQu0BQAAAQAAAAAkAQEBsAUXAAAAFWCJCgIAAAAAAAcAAABFdmVudElkAQG1BQAuAES1BQAAAA//////"
+            + "AQH/////AAAAABVgiQoCAAAAAAAJAAAARXZlbnRUeXBlAQG2BQAuAES2BQAAABH/////AQH/////AAAA"
+            + "ABVgiQoCAAAAAAAKAAAAU291cmNlTm9kZQEBtwUALgBEtwUAAAAR/////wEB/////wAAAAAVYIkKAgAA"
+            + "AAAACgAAAFNvdXJjZU5hbWUBAbgFAC4ARLgFAAAADP////8BAf////8AAAAAFWCJCgIAAAAAAAQAAABU"
+            + "aW1lAQG5BQAuAES5BQAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAsAAABSZWNlaXZlVGltZQEB"
+            + "ugUALgBEugUAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAATWVzc2FnZQEBvAUALgBEvAUA"
+            + "AAAV/////wEB/////wAAAAAVYIkKAgAAAAAACAAAAFNldmVyaXR5AQG9BQAuAES9BQAAAAX/////AQH/"
+            + "////AAAAABVgiQoCAAAAAAAQAAAAQ29uZGl0aW9uQ2xhc3NJZAEBvgUALgBEvgUAAAAR/////wEB////"
+            + "/wAAAAAVYIkKAgAAAAAAEgAAAENvbmRpdGlvbkNsYXNzTmFtZQEBvwUALgBEvwUAAAAV/////wEB////"
+            + "/wAAAAAVYIkKAgAAAAAADQAAAENvbmRpdGlvbk5hbWUBAcIFAC4ARMIFAAAADP////8BAf////8AAAAA"
+            + "FWCJCgIAAAAAAAgAAABCcmFuY2hJZAEBwwUALgBEwwUAAAAR/////wEB/////wAAAAAVYIkKAgAAAAAA"
+            + "BgAAAFJldGFpbgEBxAUALgBExAUAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAEVuYWJsZWRT"
+            + "dGF0ZQEBxQUALwEAIyPFBQAAABX/////AQECAAAAAQAsIwABAdkFAQAsIwABAeIFAQAAABVgiQoCAAAA"
+            + "AAACAAAASWQBAcYFAC4ARMYFAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABRdWFsaXR5AQHO"
+            + "BQAvAQAqI84FAAAAE/////8BAf////8BAAAAFWCJCgIAAAAAAA8AAABTb3VyY2VUaW1lc3RhbXABAc8F"
+            + "AC4ARM8FAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAExhc3RTZXZlcml0eQEB0AUALwEA"
+            + "KiPQBQAAAAX/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1wAQHRBQAuAETR"
+            + "BQAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABDb21tZW50AQHSBQAvAQAqI9IFAAAAFf//"
+            + "//8BAf////8BAAAAFWCJCgIAAAAAAA8AAABTb3VyY2VUaW1lc3RhbXABAdMFAC4ARNMFAAABACYB////"
+            + "/wEB/////wAAAAAVYIkKAgAAAAAADAAAAENsaWVudFVzZXJJZAEB1AUALgBE1AUAAAAM/////wEB////"
+            + "/wAAAAAEYYIKBAAAAAAABwAAAERpc2FibGUBAdUFAC8BAEQj1QUAAAEBAQAAAAEA+QsAAQDzCgAAAAAE"
+            + "YYIKBAAAAAAABgAAAEVuYWJsZQEB1gUALwEAQyPWBQAAAQEBAAAAAQD5CwABAPMKAAAAAARhggoEAAAA"
+            + "AAAKAAAAQWRkQ29tbWVudAEB1wUALwEARSPXBQAAAQEBAAAAAQD5CwABAA0LAQAAABdgqQoCAAAAAAAO"
+            + "AAAASW5wdXRBcmd1bWVudHMBAdgFAC4ARNgFAACWAgAAAAEAKgEBRgAAAAcAAABFdmVudElkAA//////"
+            + "AAAAAAMAAAAAKAAAAFRoZSBpZGVudGlmaWVyIGZvciB0aGUgZXZlbnQgdG8gY29tbWVudC4BACoBAUIA"
+            + "AAAHAAAAQ29tbWVudAAV/////wAAAAADAAAAACQAAABUaGUgY29tbWVudCB0byBhZGQgdG8gdGhlIGNv"
+            + "bmRpdGlvbi4BACgBAQAAAAEAAAAAAAAAAQH/////AAAAABVgiQoCAAAAAAAKAAAAQWNrZWRTdGF0ZQEB"
+            + "2QUALwEAIyPZBQAAABX/////AQEBAAAAAQAsIwEBAcUFAQAAABVgiQoCAAAAAAACAAAASWQBAdoFAC4A"
+            + "RNoFAAAAAf////8BAf////8AAAAABGGCCgQAAAAAAAsAAABBY2tub3dsZWRnZQEB6wUALwEAlyPrBQAA"
+            + "AQEBAAAAAQD5CwABAPAiAQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAewFAC4AROwFAACW"
+            + "AgAAAAEAKgEBRgAAAAcAAABFdmVudElkAA//////AAAAAAMAAAAAKAAAAFRoZSBpZGVudGlmaWVyIGZv"
+            + "ciB0aGUgZXZlbnQgdG8gY29tbWVudC4BACoBAUIAAAAHAAAAQ29tbWVudAAV/////wAAAAADAAAAACQA"
+            + "AABUaGUgY29tbWVudCB0byBhZGQgdG8gdGhlIGNvbmRpdGlvbi4BACgBAQAAAAEAAAAAAAAAAQH/////"
+            + "AAAAABdgiQoCAAAAAQAMAAAAQm9vbGVhblZhbHVlAQHvBQAvAD/vBQAAAAEBAAAAAQAAAAAAAAABAf//"
+            + "//8AAAAAF2CJCgIAAAABAAoAAABTQnl0ZVZhbHVlAQHwBQAvAD/wBQAAAAIBAAAAAQAAAAAAAAABAf//"
+            + "//8AAAAAF2CJCgIAAAABAAkAAABCeXRlVmFsdWUBAfEFAC8AP/EFAAAAAwEAAAABAAAAAAAAAAEB////"
+            + "/wAAAAAXYIkKAgAAAAEACgAAAEludDE2VmFsdWUBAfIFAC8AP/IFAAAABAEAAAABAAAAAAAAAAEB////"
+            + "/wAAAAAXYIkKAgAAAAEACwAAAFVJbnQxNlZhbHVlAQHzBQAvAD/zBQAAAAUBAAAAAQAAAAAAAAABAf//"
+            + "//8AAAAAF2CJCgIAAAABAAoAAABJbnQzMlZhbHVlAQH0BQAvAD/0BQAAAAYBAAAAAQAAAAAAAAABAf//"
+            + "//8AAAAAF2CJCgIAAAABAAsAAABVSW50MzJWYWx1ZQEB9QUALwA/9QUAAAAHAQAAAAEAAAAAAAAAAQH/"
+            + "////AAAAABdgiQoCAAAAAQAKAAAASW50NjRWYWx1ZQEB9gUALwA/9gUAAAAIAQAAAAEAAAAAAAAAAQH/"
+            + "////AAAAABdgiQoCAAAAAQALAAAAVUludDY0VmFsdWUBAfcFAC8AP/cFAAAACQEAAAABAAAAAAAAAAEB"
+            + "/////wAAAAAXYIkKAgAAAAEACgAAAEZsb2F0VmFsdWUBAfgFAC8AP/gFAAAACgEAAAABAAAAAAAAAAEB"
+            + "/////wAAAAAXYIkKAgAAAAEACwAAAERvdWJsZVZhbHVlAQH5BQAvAD/5BQAAAAsBAAAAAQAAAAAAAAAB"
+            + "Af////8AAAAAF2CJCgIAAAABAAsAAABTdHJpbmdWYWx1ZQEB+gUALwA/+gUAAAAMAQAAAAEAAAAAAAAA"
+            + "AQH/////AAAAABdgiQoCAAAAAQANAAAARGF0ZVRpbWVWYWx1ZQEB+wUALwA/+wUAAAANAQAAAAEAAAAA"
+            + "AAAAAQH/////AAAAABdgiQoCAAAAAQAJAAAAR3VpZFZhbHVlAQH8BQAvAD/8BQAAAA4BAAAAAQAAAAAA"
+            + "AAABAf////8AAAAAF2CJCgIAAAABAA8AAABCeXRlU3RyaW5nVmFsdWUBAf0FAC8AP/0FAAAADwEAAAAB"
+            + "AAAAAAAAAAEB/////wAAAAAXYIkKAgAAAAEADwAAAFhtbEVsZW1lbnRWYWx1ZQEB/gUALwA//gUAAAAQ"
+            + "AQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAQALAAAATm9kZUlkVmFsdWUBAf8FAC8AP/8FAAAA"
+            + "EQEAAAABAAAAAAAAAAEB/////wAAAAAXYIkKAgAAAAEAEwAAAEV4cGFuZGVkTm9kZUlkVmFsdWUBAQAG"
+            + "AC8APwAGAAAAEgEAAAABAAAAAAAAAAEB/////wAAAAAXYIkKAgAAAAEAEgAAAFF1YWxpZmllZE5hbWVW"
+            + "YWx1ZQEBAQYALwA/AQYAAAAUAQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAQASAAAATG9jYWxp"
+            + "emVkVGV4dFZhbHVlAQECBgAvAD8CBgAAABUBAAAAAQAAAAAAAAABAf////8AAAAAF2CJCgIAAAABAA8A"
+            + "AABTdGF0dXNDb2RlVmFsdWUBAQMGAC8APwMGAAAAEwEAAAABAAAAAAAAAAEB/////wAAAAAXYIkKAgAA"
+            + "AAEADAAAAFZhcmlhbnRWYWx1ZQEBBAYALwA/BAYAAAAYAQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoC"
+            + "AAAAAQAQAAAARW51bWVyYXRpb25WYWx1ZQEBBQYALwA/BQYAAAAdAQAAAAEAAAAAAAAAAQH/////AAAA"
+            + "ABdgiQoCAAAAAQAOAAAAU3RydWN0dXJlVmFsdWUBAQYGAC8APwYGAAAAFgEAAAABAAAAAAAAAAEB////"
+            + "/wAAAAAXYIkKAgAAAAEACwAAAE51bWJlclZhbHVlAQEHBgAvAD8HBgAAABoBAAAAAQAAAAAAAAABAf//"
+            + "//8AAAAAF2CJCgIAAAABAAwAAABJbnRlZ2VyVmFsdWUBAQgGAC8APwgGAAAAGwEAAAABAAAAAAAAAAEB"
+            + "/////wAAAAAXYIkKAgAAAAEADQAAAFVJbnRlZ2VyVmFsdWUBAQkGAC8APwkGAAAAHAEAAAABAAAAAAAA"
+            + "AAEB/////wAAAAAXYIkKAgAAAAEACwAAAFZlY3RvclZhbHVlAQEKBgAvAD8KBgAAAQFgBwEAAAABAAAA"
+            + "AAAAAAEB/////wAAAAAXYIkKAgAAAAEAEAAAAFZlY3RvclVuaW9uVmFsdWUBARgOAC8APxgOAAABAQAO"
+            + "AQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAQAdAAAAVmVjdG9yV2l0aE9wdGlvbmFsRmllbGRz"
+            + "VmFsdWUBARkOAC8APxkOAAABAQEOAQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAQAUAAAATXVs"
+            + "dGlwbGVWZWN0b3JzVmFsdWUBASsOAC8APysOAAABAR8OAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
         #endregion
 #endif
         #endregion
@@ -7797,7 +7829,6 @@ namespace TestData
             {
                 return m_booleanValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_booleanValue, value))
@@ -7816,7 +7847,6 @@ namespace TestData
             {
                 return m_sByteValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_sByteValue, value))
@@ -7835,7 +7865,6 @@ namespace TestData
             {
                 return m_byteValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_byteValue, value))
@@ -7854,7 +7883,6 @@ namespace TestData
             {
                 return m_int16Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_int16Value, value))
@@ -7873,7 +7901,6 @@ namespace TestData
             {
                 return m_uInt16Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_uInt16Value, value))
@@ -7892,7 +7919,6 @@ namespace TestData
             {
                 return m_int32Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_int32Value, value))
@@ -7911,7 +7937,6 @@ namespace TestData
             {
                 return m_uInt32Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_uInt32Value, value))
@@ -7930,7 +7955,6 @@ namespace TestData
             {
                 return m_int64Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_int64Value, value))
@@ -7949,7 +7973,6 @@ namespace TestData
             {
                 return m_uInt64Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_uInt64Value, value))
@@ -7968,7 +7991,6 @@ namespace TestData
             {
                 return m_floatValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_floatValue, value))
@@ -7987,7 +8009,6 @@ namespace TestData
             {
                 return m_doubleValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_doubleValue, value))
@@ -8006,7 +8027,6 @@ namespace TestData
             {
                 return m_stringValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_stringValue, value))
@@ -8025,7 +8045,6 @@ namespace TestData
             {
                 return m_dateTimeValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_dateTimeValue, value))
@@ -8044,7 +8063,6 @@ namespace TestData
             {
                 return m_guidValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_guidValue, value))
@@ -8063,7 +8081,6 @@ namespace TestData
             {
                 return m_byteStringValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_byteStringValue, value))
@@ -8082,7 +8099,6 @@ namespace TestData
             {
                 return m_xmlElementValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_xmlElementValue, value))
@@ -8101,7 +8117,6 @@ namespace TestData
             {
                 return m_nodeIdValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_nodeIdValue, value))
@@ -8120,7 +8135,6 @@ namespace TestData
             {
                 return m_expandedNodeIdValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_expandedNodeIdValue, value))
@@ -8139,7 +8153,6 @@ namespace TestData
             {
                 return m_qualifiedNameValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_qualifiedNameValue, value))
@@ -8158,7 +8171,6 @@ namespace TestData
             {
                 return m_localizedTextValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_localizedTextValue, value))
@@ -8177,7 +8189,6 @@ namespace TestData
             {
                 return m_statusCodeValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_statusCodeValue, value))
@@ -8196,7 +8207,6 @@ namespace TestData
             {
                 return m_variantValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_variantValue, value))
@@ -8215,7 +8225,6 @@ namespace TestData
             {
                 return m_enumerationValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_enumerationValue, value))
@@ -8234,7 +8243,6 @@ namespace TestData
             {
                 return m_structureValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_structureValue, value))
@@ -8253,7 +8261,6 @@ namespace TestData
             {
                 return m_numberValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_numberValue, value))
@@ -8272,7 +8279,6 @@ namespace TestData
             {
                 return m_integerValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_integerValue, value))
@@ -8291,7 +8297,6 @@ namespace TestData
             {
                 return m_uIntegerValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_uIntegerValue, value))
@@ -8310,7 +8315,6 @@ namespace TestData
             {
                 return m_vectorValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_vectorValue, value))
@@ -8329,7 +8333,6 @@ namespace TestData
             {
                 return m_vectorUnionValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_vectorUnionValue, value))
@@ -8348,7 +8351,6 @@ namespace TestData
             {
                 return m_vectorWithOptionalFieldsValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_vectorWithOptionalFieldsValue, value))
@@ -8367,7 +8369,6 @@ namespace TestData
             {
                 return m_multipleVectorsValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_multipleVectorsValue, value))
@@ -8382,9 +8383,7 @@ namespace TestData
 
         #region Overridden Methods
         /// <remarks />
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
+        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
             if (m_booleanValue != null)
             {
@@ -8549,7 +8548,8 @@ namespace TestData
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement)
+            BaseInstanceState replacement
+        )
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -9177,11 +9177,14 @@ namespace TestData
                         {
                             if (replacement == null)
                             {
-                                VectorWithOptionalFieldsValue = new BaseDataVariableState<VectorWithOptionalFields[]>(this);
+                                VectorWithOptionalFieldsValue = new BaseDataVariableState<VectorWithOptionalFields[]>(
+                                    this
+                                );
                             }
                             else
                             {
-                                VectorWithOptionalFieldsValue = (BaseDataVariableState<VectorWithOptionalFields[]>)replacement;
+                                VectorWithOptionalFieldsValue =
+                                    (BaseDataVariableState<VectorWithOptionalFields[]>)replacement;
                             }
                         }
                     }
@@ -9267,14 +9270,17 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public AnalogArrayValueObjectState(NodeState parent) : base(parent)
-        {
-        }
+        public AnalogArrayValueObjectState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(TestData.ObjectTypes.AnalogArrayValueObjectType, TestData.Namespaces.TestData, namespaceUris);
+            return Opc.Ua.NodeId.Create(
+                TestData.ObjectTypes.AnalogArrayValueObjectType,
+                TestData.Namespaces.TestData,
+                namespaceUris
+            );
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -9301,72 +9307,72 @@ namespace TestData
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGCAAgEAAAABACIAAABBbmFsb2dBcnJh" +
-           "eVZhbHVlT2JqZWN0VHlwZUluc3RhbmNlAQELBgEBCwYLBgAAAQAAAAAkAAEBDwYQAAAANWCJCgIAAAAB" +
-           "ABAAAABTaW11bGF0aW9uQWN0aXZlAQEMBgMAAAAARwAAAElmIHRydWUgdGhlIHNlcnZlciB3aWxsIHBy" +
-           "b2R1Y2UgbmV3IHZhbHVlcyBmb3IgZWFjaCBtb25pdG9yZWQgdmFyaWFibGUuAC4ARAwGAAAAAf////8B" +
-           "Af////8AAAAABGGCCgQAAAABAA4AAABHZW5lcmF0ZVZhbHVlcwEBDQYALwEB+QMNBgAAAQH/////AQAA" +
-           "ABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAQ4GAC4ARA4GAACWAQAAAAEAKgEBRgAAAAoAAABJ" +
-           "dGVyYXRpb25zAAf/////AAAAAAMAAAAAJQAAAFRoZSBudW1iZXIgb2YgbmV3IHZhbHVlcyB0byBnZW5l" +
-           "cmF0ZS4BACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARggAoBAAAAAQANAAAAQ3ljbGVDb21wbGV0ZQEB" +
-           "DwYALwEAQQsPBgAAAQAAAAAkAQEBCwYXAAAAFWCJCgIAAAAAAAcAAABFdmVudElkAQEQBgAuAEQQBgAA" +
-           "AA//////AQH/////AAAAABVgiQoCAAAAAAAJAAAARXZlbnRUeXBlAQERBgAuAEQRBgAAABH/////AQH/" +
-           "////AAAAABVgiQoCAAAAAAAKAAAAU291cmNlTm9kZQEBEgYALgBEEgYAAAAR/////wEB/////wAAAAAV" +
-           "YIkKAgAAAAAACgAAAFNvdXJjZU5hbWUBARMGAC4ARBMGAAAADP////8BAf////8AAAAAFWCJCgIAAAAA" +
-           "AAQAAABUaW1lAQEUBgAuAEQUBgAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAsAAABSZWNlaXZl" +
-           "VGltZQEBFQYALgBEFQYAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAATWVzc2FnZQEBFwYA" +
-           "LgBEFwYAAAAV/////wEB/////wAAAAAVYIkKAgAAAAAACAAAAFNldmVyaXR5AQEYBgAuAEQYBgAAAAX/" +
-           "////AQH/////AAAAABVgiQoCAAAAAAAQAAAAQ29uZGl0aW9uQ2xhc3NJZAEBGQYALgBEGQYAAAAR////" +
-           "/wEB/////wAAAAAVYIkKAgAAAAAAEgAAAENvbmRpdGlvbkNsYXNzTmFtZQEBGgYALgBEGgYAAAAV////" +
-           "/wEB/////wAAAAAVYIkKAgAAAAAADQAAAENvbmRpdGlvbk5hbWUBAR0GAC4ARB0GAAAADP////8BAf//" +
-           "//8AAAAAFWCJCgIAAAAAAAgAAABCcmFuY2hJZAEBHgYALgBEHgYAAAAR/////wEB/////wAAAAAVYIkK" +
-           "AgAAAAAABgAAAFJldGFpbgEBHwYALgBEHwYAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAEVu" +
-           "YWJsZWRTdGF0ZQEBIAYALwEAIyMgBgAAABX/////AQECAAAAAQAsIwABATQGAQAsIwABAT0GAQAAABVg" +
-           "iQoCAAAAAAACAAAASWQBASEGAC4ARCEGAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABRdWFs" +
-           "aXR5AQEpBgAvAQAqIykGAAAAE/////8BAf////8BAAAAFWCJCgIAAAAAAA8AAABTb3VyY2VUaW1lc3Rh" +
-           "bXABASoGAC4ARCoGAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAExhc3RTZXZlcml0eQEB" +
-           "KwYALwEAKiMrBgAAAAX/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1wAQEs" +
-           "BgAuAEQsBgAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABDb21tZW50AQEtBgAvAQAqIy0G" +
-           "AAAAFf////8BAf////8BAAAAFWCJCgIAAAAAAA8AAABTb3VyY2VUaW1lc3RhbXABAS4GAC4ARC4GAAAB" +
-           "ACYB/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAENsaWVudFVzZXJJZAEBLwYALgBELwYAAAAM////" +
-           "/wEB/////wAAAAAEYYIKBAAAAAAABwAAAERpc2FibGUBATAGAC8BAEQjMAYAAAEBAQAAAAEA+QsAAQDz" +
-           "CgAAAAAEYYIKBAAAAAAABgAAAEVuYWJsZQEBMQYALwEAQyMxBgAAAQEBAAAAAQD5CwABAPMKAAAAAARh" +
-           "ggoEAAAAAAAKAAAAQWRkQ29tbWVudAEBMgYALwEARSMyBgAAAQEBAAAAAQD5CwABAA0LAQAAABdgqQoC" +
-           "AAAAAAAOAAAASW5wdXRBcmd1bWVudHMBATMGAC4ARDMGAACWAgAAAAEAKgEBRgAAAAcAAABFdmVudElk" +
-           "AA//////AAAAAAMAAAAAKAAAAFRoZSBpZGVudGlmaWVyIGZvciB0aGUgZXZlbnQgdG8gY29tbWVudC4B" +
-           "ACoBAUIAAAAHAAAAQ29tbWVudAAV/////wAAAAADAAAAACQAAABUaGUgY29tbWVudCB0byBhZGQgdG8g" +
-           "dGhlIGNvbmRpdGlvbi4BACgBAQAAAAEAAAAAAAAAAQH/////AAAAABVgiQoCAAAAAAAKAAAAQWNrZWRT" +
-           "dGF0ZQEBNAYALwEAIyM0BgAAABX/////AQEBAAAAAQAsIwEBASAGAQAAABVgiQoCAAAAAAACAAAASWQB" +
-           "ATUGAC4ARDUGAAAAAf////8BAf////8AAAAABGGCCgQAAAAAAAsAAABBY2tub3dsZWRnZQEBRgYALwEA" +
-           "lyNGBgAAAQEBAAAAAQD5CwABAPAiAQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAUcGAC4A" +
-           "REcGAACWAgAAAAEAKgEBRgAAAAcAAABFdmVudElkAA//////AAAAAAMAAAAAKAAAAFRoZSBpZGVudGlm" +
-           "aWVyIGZvciB0aGUgZXZlbnQgdG8gY29tbWVudC4BACoBAUIAAAAHAAAAQ29tbWVudAAV/////wAAAAAD" +
-           "AAAAACQAAABUaGUgY29tbWVudCB0byBhZGQgdG8gdGhlIGNvbmRpdGlvbi4BACgBAQAAAAEAAAAAAAAA" +
-           "AQH/////AAAAABdgiQoCAAAAAQAKAAAAU0J5dGVWYWx1ZQEBSgYALwEAQAlKBgAAAAIBAAAAAQAAAAAA" +
-           "AAABAf////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQFOBgAuAEROBgAAAQB0A/////8BAf////8A" +
-           "AAAAF2CJCgIAAAABAAkAAABCeXRlVmFsdWUBAVAGAC8BAEAJUAYAAAADAQAAAAEAAAAAAAAAAQH/////" +
-           "AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEBVAYALgBEVAYAAAEAdAP/////AQH/////AAAAABdgiQoC" +
-           "AAAAAQAKAAAASW50MTZWYWx1ZQEBVgYALwEAQAlWBgAAAAQBAAAAAQAAAAAAAAABAf////8BAAAAFWCJ" +
-           "CgIAAAAAAAcAAABFVVJhbmdlAQFaBgAuAERaBgAAAQB0A/////8BAf////8AAAAAF2CJCgIAAAABAAsA" +
-           "AABVSW50MTZWYWx1ZQEBXAYALwEAQAlcBgAAAAUBAAAAAQAAAAAAAAABAf////8BAAAAFWCJCgIAAAAA" +
-           "AAcAAABFVVJhbmdlAQFgBgAuAERgBgAAAQB0A/////8BAf////8AAAAAF2CJCgIAAAABAAoAAABJbnQz" +
-           "MlZhbHVlAQFiBgAvAQBACWIGAAAABgEAAAABAAAAAAAAAAEB/////wEAAAAVYIkKAgAAAAAABwAAAEVV" +
-           "UmFuZ2UBAWYGAC4ARGYGAAABAHQD/////wEB/////wAAAAAXYIkKAgAAAAEACwAAAFVJbnQzMlZhbHVl" +
-           "AQFoBgAvAQBACWgGAAAABwEAAAABAAAAAAAAAAEB/////wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UB" +
-           "AWwGAC4ARGwGAAABAHQD/////wEB/////wAAAAAXYIkKAgAAAAEACgAAAEludDY0VmFsdWUBAW4GAC8B" +
-           "AEAJbgYAAAAIAQAAAAEAAAAAAAAAAQH/////AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEBcgYALgBE" +
-           "cgYAAAEAdAP/////AQH/////AAAAABdgiQoCAAAAAQALAAAAVUludDY0VmFsdWUBAXQGAC8BAEAJdAYA" +
-           "AAAJAQAAAAEAAAAAAAAAAQH/////AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEBeAYALgBEeAYAAAEA" +
-           "dAP/////AQH/////AAAAABdgiQoCAAAAAQAKAAAARmxvYXRWYWx1ZQEBegYALwEAQAl6BgAAAAoBAAAA" +
-           "AQAAAAAAAAABAf////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQF+BgAuAER+BgAAAQB0A/////8B" +
-           "Af////8AAAAAF2CJCgIAAAABAAsAAABEb3VibGVWYWx1ZQEBgAYALwEAQAmABgAAAAsBAAAAAQAAAAAA" +
-           "AAABAf////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQGEBgAuAESEBgAAAQB0A/////8BAf////8A" +
-           "AAAAF2CJCgIAAAABAAsAAABOdW1iZXJWYWx1ZQEBhgYALwEAQAmGBgAAABoBAAAAAQAAAAAAAAABAf//" +
-           "//8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQGKBgAuAESKBgAAAQB0A/////8BAf////8AAAAAF2CJ" +
-           "CgIAAAABAAwAAABJbnRlZ2VyVmFsdWUBAYwGAC8BAEAJjAYAAAAbAQAAAAEAAAAAAAAAAQH/////AQAA" +
-           "ABVgiQoCAAAAAAAHAAAARVVSYW5nZQEBkAYALgBEkAYAAAEAdAP/////AQH/////AAAAABdgiQoCAAAA" +
-           "AQANAAAAVUludGVnZXJWYWx1ZQEBkgYALwEAQAmSBgAAABwBAAAAAQAAAAAAAAABAf////8BAAAAFWCJ" +
-           "CgIAAAAAAAcAAABFVVJhbmdlAQGWBgAuAESWBgAAAQB0A/////8BAf////8AAAAA";
+            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGCAAgEAAAABACIAAABBbmFsb2dBcnJh"
+            + "eVZhbHVlT2JqZWN0VHlwZUluc3RhbmNlAQELBgEBCwYLBgAAAQAAAAAkAAEBDwYQAAAANWCJCgIAAAAB"
+            + "ABAAAABTaW11bGF0aW9uQWN0aXZlAQEMBgMAAAAARwAAAElmIHRydWUgdGhlIHNlcnZlciB3aWxsIHBy"
+            + "b2R1Y2UgbmV3IHZhbHVlcyBmb3IgZWFjaCBtb25pdG9yZWQgdmFyaWFibGUuAC4ARAwGAAAAAf////8B"
+            + "Af////8AAAAABGGCCgQAAAABAA4AAABHZW5lcmF0ZVZhbHVlcwEBDQYALwEB+QMNBgAAAQH/////AQAA"
+            + "ABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAQ4GAC4ARA4GAACWAQAAAAEAKgEBRgAAAAoAAABJ"
+            + "dGVyYXRpb25zAAf/////AAAAAAMAAAAAJQAAAFRoZSBudW1iZXIgb2YgbmV3IHZhbHVlcyB0byBnZW5l"
+            + "cmF0ZS4BACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARggAoBAAAAAQANAAAAQ3ljbGVDb21wbGV0ZQEB"
+            + "DwYALwEAQQsPBgAAAQAAAAAkAQEBCwYXAAAAFWCJCgIAAAAAAAcAAABFdmVudElkAQEQBgAuAEQQBgAA"
+            + "AA//////AQH/////AAAAABVgiQoCAAAAAAAJAAAARXZlbnRUeXBlAQERBgAuAEQRBgAAABH/////AQH/"
+            + "////AAAAABVgiQoCAAAAAAAKAAAAU291cmNlTm9kZQEBEgYALgBEEgYAAAAR/////wEB/////wAAAAAV"
+            + "YIkKAgAAAAAACgAAAFNvdXJjZU5hbWUBARMGAC4ARBMGAAAADP////8BAf////8AAAAAFWCJCgIAAAAA"
+            + "AAQAAABUaW1lAQEUBgAuAEQUBgAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAsAAABSZWNlaXZl"
+            + "VGltZQEBFQYALgBEFQYAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAATWVzc2FnZQEBFwYA"
+            + "LgBEFwYAAAAV/////wEB/////wAAAAAVYIkKAgAAAAAACAAAAFNldmVyaXR5AQEYBgAuAEQYBgAAAAX/"
+            + "////AQH/////AAAAABVgiQoCAAAAAAAQAAAAQ29uZGl0aW9uQ2xhc3NJZAEBGQYALgBEGQYAAAAR////"
+            + "/wEB/////wAAAAAVYIkKAgAAAAAAEgAAAENvbmRpdGlvbkNsYXNzTmFtZQEBGgYALgBEGgYAAAAV////"
+            + "/wEB/////wAAAAAVYIkKAgAAAAAADQAAAENvbmRpdGlvbk5hbWUBAR0GAC4ARB0GAAAADP////8BAf//"
+            + "//8AAAAAFWCJCgIAAAAAAAgAAABCcmFuY2hJZAEBHgYALgBEHgYAAAAR/////wEB/////wAAAAAVYIkK"
+            + "AgAAAAAABgAAAFJldGFpbgEBHwYALgBEHwYAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAEVu"
+            + "YWJsZWRTdGF0ZQEBIAYALwEAIyMgBgAAABX/////AQECAAAAAQAsIwABATQGAQAsIwABAT0GAQAAABVg"
+            + "iQoCAAAAAAACAAAASWQBASEGAC4ARCEGAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABRdWFs"
+            + "aXR5AQEpBgAvAQAqIykGAAAAE/////8BAf////8BAAAAFWCJCgIAAAAAAA8AAABTb3VyY2VUaW1lc3Rh"
+            + "bXABASoGAC4ARCoGAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAExhc3RTZXZlcml0eQEB"
+            + "KwYALwEAKiMrBgAAAAX/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1wAQEs"
+            + "BgAuAEQsBgAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABDb21tZW50AQEtBgAvAQAqIy0G"
+            + "AAAAFf////8BAf////8BAAAAFWCJCgIAAAAAAA8AAABTb3VyY2VUaW1lc3RhbXABAS4GAC4ARC4GAAAB"
+            + "ACYB/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAENsaWVudFVzZXJJZAEBLwYALgBELwYAAAAM////"
+            + "/wEB/////wAAAAAEYYIKBAAAAAAABwAAAERpc2FibGUBATAGAC8BAEQjMAYAAAEBAQAAAAEA+QsAAQDz"
+            + "CgAAAAAEYYIKBAAAAAAABgAAAEVuYWJsZQEBMQYALwEAQyMxBgAAAQEBAAAAAQD5CwABAPMKAAAAAARh"
+            + "ggoEAAAAAAAKAAAAQWRkQ29tbWVudAEBMgYALwEARSMyBgAAAQEBAAAAAQD5CwABAA0LAQAAABdgqQoC"
+            + "AAAAAAAOAAAASW5wdXRBcmd1bWVudHMBATMGAC4ARDMGAACWAgAAAAEAKgEBRgAAAAcAAABFdmVudElk"
+            + "AA//////AAAAAAMAAAAAKAAAAFRoZSBpZGVudGlmaWVyIGZvciB0aGUgZXZlbnQgdG8gY29tbWVudC4B"
+            + "ACoBAUIAAAAHAAAAQ29tbWVudAAV/////wAAAAADAAAAACQAAABUaGUgY29tbWVudCB0byBhZGQgdG8g"
+            + "dGhlIGNvbmRpdGlvbi4BACgBAQAAAAEAAAAAAAAAAQH/////AAAAABVgiQoCAAAAAAAKAAAAQWNrZWRT"
+            + "dGF0ZQEBNAYALwEAIyM0BgAAABX/////AQEBAAAAAQAsIwEBASAGAQAAABVgiQoCAAAAAAACAAAASWQB"
+            + "ATUGAC4ARDUGAAAAAf////8BAf////8AAAAABGGCCgQAAAAAAAsAAABBY2tub3dsZWRnZQEBRgYALwEA"
+            + "lyNGBgAAAQEBAAAAAQD5CwABAPAiAQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAUcGAC4A"
+            + "REcGAACWAgAAAAEAKgEBRgAAAAcAAABFdmVudElkAA//////AAAAAAMAAAAAKAAAAFRoZSBpZGVudGlm"
+            + "aWVyIGZvciB0aGUgZXZlbnQgdG8gY29tbWVudC4BACoBAUIAAAAHAAAAQ29tbWVudAAV/////wAAAAAD"
+            + "AAAAACQAAABUaGUgY29tbWVudCB0byBhZGQgdG8gdGhlIGNvbmRpdGlvbi4BACgBAQAAAAEAAAAAAAAA"
+            + "AQH/////AAAAABdgiQoCAAAAAQAKAAAAU0J5dGVWYWx1ZQEBSgYALwEAQAlKBgAAAAIBAAAAAQAAAAAA"
+            + "AAABAf////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQFOBgAuAEROBgAAAQB0A/////8BAf////8A"
+            + "AAAAF2CJCgIAAAABAAkAAABCeXRlVmFsdWUBAVAGAC8BAEAJUAYAAAADAQAAAAEAAAAAAAAAAQH/////"
+            + "AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEBVAYALgBEVAYAAAEAdAP/////AQH/////AAAAABdgiQoC"
+            + "AAAAAQAKAAAASW50MTZWYWx1ZQEBVgYALwEAQAlWBgAAAAQBAAAAAQAAAAAAAAABAf////8BAAAAFWCJ"
+            + "CgIAAAAAAAcAAABFVVJhbmdlAQFaBgAuAERaBgAAAQB0A/////8BAf////8AAAAAF2CJCgIAAAABAAsA"
+            + "AABVSW50MTZWYWx1ZQEBXAYALwEAQAlcBgAAAAUBAAAAAQAAAAAAAAABAf////8BAAAAFWCJCgIAAAAA"
+            + "AAcAAABFVVJhbmdlAQFgBgAuAERgBgAAAQB0A/////8BAf////8AAAAAF2CJCgIAAAABAAoAAABJbnQz"
+            + "MlZhbHVlAQFiBgAvAQBACWIGAAAABgEAAAABAAAAAAAAAAEB/////wEAAAAVYIkKAgAAAAAABwAAAEVV"
+            + "UmFuZ2UBAWYGAC4ARGYGAAABAHQD/////wEB/////wAAAAAXYIkKAgAAAAEACwAAAFVJbnQzMlZhbHVl"
+            + "AQFoBgAvAQBACWgGAAAABwEAAAABAAAAAAAAAAEB/////wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UB"
+            + "AWwGAC4ARGwGAAABAHQD/////wEB/////wAAAAAXYIkKAgAAAAEACgAAAEludDY0VmFsdWUBAW4GAC8B"
+            + "AEAJbgYAAAAIAQAAAAEAAAAAAAAAAQH/////AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEBcgYALgBE"
+            + "cgYAAAEAdAP/////AQH/////AAAAABdgiQoCAAAAAQALAAAAVUludDY0VmFsdWUBAXQGAC8BAEAJdAYA"
+            + "AAAJAQAAAAEAAAAAAAAAAQH/////AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEBeAYALgBEeAYAAAEA"
+            + "dAP/////AQH/////AAAAABdgiQoCAAAAAQAKAAAARmxvYXRWYWx1ZQEBegYALwEAQAl6BgAAAAoBAAAA"
+            + "AQAAAAAAAAABAf////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQF+BgAuAER+BgAAAQB0A/////8B"
+            + "Af////8AAAAAF2CJCgIAAAABAAsAAABEb3VibGVWYWx1ZQEBgAYALwEAQAmABgAAAAsBAAAAAQAAAAAA"
+            + "AAABAf////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQGEBgAuAESEBgAAAQB0A/////8BAf////8A"
+            + "AAAAF2CJCgIAAAABAAsAAABOdW1iZXJWYWx1ZQEBhgYALwEAQAmGBgAAABoBAAAAAQAAAAAAAAABAf//"
+            + "//8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQGKBgAuAESKBgAAAQB0A/////8BAf////8AAAAAF2CJ"
+            + "CgIAAAABAAwAAABJbnRlZ2VyVmFsdWUBAYwGAC8BAEAJjAYAAAAbAQAAAAEAAAAAAAAAAQH/////AQAA"
+            + "ABVgiQoCAAAAAAAHAAAARVVSYW5nZQEBkAYALgBEkAYAAAEAdAP/////AQH/////AAAAABdgiQoCAAAA"
+            + "AQANAAAAVUludGVnZXJWYWx1ZQEBkgYALwEAQAmSBgAAABwBAAAAAQAAAAAAAAABAf////8BAAAAFWCJ"
+            + "CgIAAAAAAAcAAABFVVJhbmdlAQGWBgAuAESWBgAAAQB0A/////8BAf////8AAAAA";
         #endregion
 #endif
         #endregion
@@ -9379,7 +9385,6 @@ namespace TestData
             {
                 return m_sByteValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_sByteValue, value))
@@ -9398,7 +9403,6 @@ namespace TestData
             {
                 return m_byteValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_byteValue, value))
@@ -9417,7 +9421,6 @@ namespace TestData
             {
                 return m_int16Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_int16Value, value))
@@ -9436,7 +9439,6 @@ namespace TestData
             {
                 return m_uInt16Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_uInt16Value, value))
@@ -9455,7 +9457,6 @@ namespace TestData
             {
                 return m_int32Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_int32Value, value))
@@ -9474,7 +9475,6 @@ namespace TestData
             {
                 return m_uInt32Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_uInt32Value, value))
@@ -9493,7 +9493,6 @@ namespace TestData
             {
                 return m_int64Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_int64Value, value))
@@ -9512,7 +9511,6 @@ namespace TestData
             {
                 return m_uInt64Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_uInt64Value, value))
@@ -9531,7 +9529,6 @@ namespace TestData
             {
                 return m_floatValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_floatValue, value))
@@ -9550,7 +9547,6 @@ namespace TestData
             {
                 return m_doubleValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_doubleValue, value))
@@ -9569,7 +9565,6 @@ namespace TestData
             {
                 return m_numberValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_numberValue, value))
@@ -9588,7 +9583,6 @@ namespace TestData
             {
                 return m_integerValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_integerValue, value))
@@ -9607,7 +9601,6 @@ namespace TestData
             {
                 return m_uIntegerValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_uIntegerValue, value))
@@ -9622,9 +9615,7 @@ namespace TestData
 
         #region Overridden Methods
         /// <remarks />
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
+        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
             if (m_sByteValue != null)
             {
@@ -9699,7 +9690,8 @@ namespace TestData
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement)
+            BaseInstanceState replacement
+        )
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -10021,14 +10013,17 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public UserScalarValueObjectState(NodeState parent) : base(parent)
-        {
-        }
+        public UserScalarValueObjectState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(TestData.ObjectTypes.UserScalarValueObjectType, TestData.Namespaces.TestData, namespaceUris);
+            return Opc.Ua.NodeId.Create(
+                TestData.ObjectTypes.UserScalarValueObjectType,
+                TestData.Namespaces.TestData,
+                namespaceUris
+            );
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -10055,68 +10050,68 @@ namespace TestData
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGCAAgEAAAABACEAAABVc2VyU2NhbGFy" +
-           "VmFsdWVPYmplY3RUeXBlSW5zdGFuY2UBAa8GAQGvBq8GAAABAAAAACQAAQGzBhkAAAA1YIkKAgAAAAEA" +
-           "EAAAAFNpbXVsYXRpb25BY3RpdmUBAbAGAwAAAABHAAAASWYgdHJ1ZSB0aGUgc2VydmVyIHdpbGwgcHJv" +
-           "ZHVjZSBuZXcgdmFsdWVzIGZvciBlYWNoIG1vbml0b3JlZCB2YXJpYWJsZS4ALgBEsAYAAAAB/////wEB" +
-           "/////wAAAAAEYYIKBAAAAAEADgAAAEdlbmVyYXRlVmFsdWVzAQGxBgAvAQH5A7EGAAABAf////8BAAAA" +
-           "F2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEBsgYALgBEsgYAAJYBAAAAAQAqAQFGAAAACgAAAEl0" +
-           "ZXJhdGlvbnMAB/////8AAAAAAwAAAAAlAAAAVGhlIG51bWJlciBvZiBuZXcgdmFsdWVzIHRvIGdlbmVy" +
-           "YXRlLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGCACgEAAAABAA0AAABDeWNsZUNvbXBsZXRlAQGz" +
-           "BgAvAQBBC7MGAAABAAAAACQBAQGvBhcAAAAVYIkKAgAAAAAABwAAAEV2ZW50SWQBAbQGAC4ARLQGAAAA" +
-           "D/////8BAf////8AAAAAFWCJCgIAAAAAAAkAAABFdmVudFR5cGUBAbUGAC4ARLUGAAAAEf////8BAf//" +
-           "//8AAAAAFWCJCgIAAAAAAAoAAABTb3VyY2VOb2RlAQG2BgAuAES2BgAAABH/////AQH/////AAAAABVg" +
-           "iQoCAAAAAAAKAAAAU291cmNlTmFtZQEBtwYALgBEtwYAAAAM/////wEB/////wAAAAAVYIkKAgAAAAAA" +
-           "BAAAAFRpbWUBAbgGAC4ARLgGAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAACwAAAFJlY2VpdmVU" +
-           "aW1lAQG5BgAuAES5BgAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABNZXNzYWdlAQG7BgAu" +
-           "AES7BgAAABX/////AQH/////AAAAABVgiQoCAAAAAAAIAAAAU2V2ZXJpdHkBAbwGAC4ARLwGAAAABf//" +
-           "//8BAf////8AAAAAFWCJCgIAAAAAABAAAABDb25kaXRpb25DbGFzc0lkAQG9BgAuAES9BgAAABH/////" +
-           "AQH/////AAAAABVgiQoCAAAAAAASAAAAQ29uZGl0aW9uQ2xhc3NOYW1lAQG+BgAuAES+BgAAABX/////" +
-           "AQH/////AAAAABVgiQoCAAAAAAANAAAAQ29uZGl0aW9uTmFtZQEBwQYALgBEwQYAAAAM/////wEB////" +
-           "/wAAAAAVYIkKAgAAAAAACAAAAEJyYW5jaElkAQHCBgAuAETCBgAAABH/////AQH/////AAAAABVgiQoC" +
-           "AAAAAAAGAAAAUmV0YWluAQHDBgAuAETDBgAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAARW5h" +
-           "YmxlZFN0YXRlAQHEBgAvAQAjI8QGAAAAFf////8BAQIAAAABACwjAAEB2AYBACwjAAEB4QYBAAAAFWCJ" +
-           "CgIAAAAAAAIAAABJZAEBxQYALgBExQYAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAFF1YWxp" +
-           "dHkBAc0GAC8BACojzQYAAAAT/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFt" +
-           "cAEBzgYALgBEzgYAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAATGFzdFNldmVyaXR5AQHP" +
-           "BgAvAQAqI88GAAAABf////8BAf////8BAAAAFWCJCgIAAAAAAA8AAABTb3VyY2VUaW1lc3RhbXABAdAG" +
-           "AC4ARNAGAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAENvbW1lbnQBAdEGAC8BACoj0QYA" +
-           "AAAV/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFtcAEB0gYALgBE0gYAAAEA" +
-           "JgH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAAQ2xpZW50VXNlcklkAQHTBgAuAETTBgAAAAz/////" +
-           "AQH/////AAAAAARhggoEAAAAAAAHAAAARGlzYWJsZQEB1AYALwEARCPUBgAAAQEBAAAAAQD5CwABAPMK" +
-           "AAAAAARhggoEAAAAAAAGAAAARW5hYmxlAQHVBgAvAQBDI9UGAAABAQEAAAABAPkLAAEA8woAAAAABGGC" +
-           "CgQAAAAAAAoAAABBZGRDb21tZW50AQHWBgAvAQBFI9YGAAABAQEAAAABAPkLAAEADQsBAAAAF2CpCgIA" +
-           "AAAAAA4AAABJbnB1dEFyZ3VtZW50cwEB1wYALgBE1wYAAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50SWQA" +
-           "D/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50LgEA" +
-           "KgEBQgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0" +
-           "aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAAoAAABBY2tlZFN0" +
-           "YXRlAQHYBgAvAQAjI9gGAAAAFf////8BAQEAAAABACwjAQEBxAYBAAAAFWCJCgIAAAAAAAIAAABJZAEB" +
-           "2QYALgBE2QYAAAAB/////wEB/////wAAAAAEYYIKBAAAAAAACwAAAEFja25vd2xlZGdlAQHqBgAvAQCX" +
-           "I+oGAAABAQEAAAABAPkLAAEA8CIBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEB6wYALgBE" +
-           "6wYAAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50SWQAD/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZp" +
-           "ZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50LgEAKgEBQgAAAAcAAABDb21tZW50ABX/////AAAAAAMA" +
-           "AAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAAB" +
-           "Af////8AAAAAFWCJCgIAAAABAAwAAABCb29sZWFuVmFsdWUBAe4GAC8AP+4GAAABAZgG/////wEB////" +
-           "/wAAAAAVYIkKAgAAAAEACgAAAFNCeXRlVmFsdWUBAe8GAC8AP+8GAAABAZkG/////wEB/////wAAAAAV" +
-           "YIkKAgAAAAEACQAAAEJ5dGVWYWx1ZQEB8AYALwA/8AYAAAEBmgb/////AQH/////AAAAABVgiQoCAAAA" +
-           "AQAKAAAASW50MTZWYWx1ZQEB8QYALwA/8QYAAAEBmwb/////AQH/////AAAAABVgiQoCAAAAAQALAAAA" +
-           "VUludDE2VmFsdWUBAfIGAC8AP/IGAAABAZwG/////wEB/////wAAAAAVYIkKAgAAAAEACgAAAEludDMy" +
-           "VmFsdWUBAfMGAC8AP/MGAAABAZ0G/////wEB/////wAAAAAVYIkKAgAAAAEACwAAAFVJbnQzMlZhbHVl" +
-           "AQH0BgAvAD/0BgAAAQGeBv////8BAf////8AAAAAFWCJCgIAAAABAAoAAABJbnQ2NFZhbHVlAQH1BgAv" +
-           "AD/1BgAAAQGfBv////8BAf////8AAAAAFWCJCgIAAAABAAsAAABVSW50NjRWYWx1ZQEB9gYALwA/9gYA" +
-           "AAEBoAb/////AQH/////AAAAABVgiQoCAAAAAQAKAAAARmxvYXRWYWx1ZQEB9wYALwA/9wYAAAEBoQb/" +
-           "////AQH/////AAAAABVgiQoCAAAAAQALAAAARG91YmxlVmFsdWUBAfgGAC8AP/gGAAABAaIG/////wEB" +
-           "/////wAAAAAVYIkKAgAAAAEACwAAAFN0cmluZ1ZhbHVlAQH5BgAvAD/5BgAAAQGjBv////8BAf////8A" +
-           "AAAAFWCJCgIAAAABAA0AAABEYXRlVGltZVZhbHVlAQH6BgAvAD/6BgAAAQGkBv////8BAf////8AAAAA" +
-           "FWCJCgIAAAABAAkAAABHdWlkVmFsdWUBAfsGAC8AP/sGAAABAaUG/////wEB/////wAAAAAVYIkKAgAA" +
-           "AAEADwAAAEJ5dGVTdHJpbmdWYWx1ZQEB/AYALwA//AYAAAEBpgb/////AQH/////AAAAABVgiQoCAAAA" +
-           "AQAPAAAAWG1sRWxlbWVudFZhbHVlAQH9BgAvAD/9BgAAAQGnBv////8BAf////8AAAAAFWCJCgIAAAAB" +
-           "AAsAAABOb2RlSWRWYWx1ZQEB/gYALwA//gYAAAEBqAb/////AQH/////AAAAABVgiQoCAAAAAQATAAAA" +
-           "RXhwYW5kZWROb2RlSWRWYWx1ZQEB/wYALwA//wYAAAEBqQb/////AQH/////AAAAABVgiQoCAAAAAQAS" +
-           "AAAAUXVhbGlmaWVkTmFtZVZhbHVlAQEABwAvAD8ABwAAAQGqBv////8BAf////8AAAAAFWCJCgIAAAAB" +
-           "ABIAAABMb2NhbGl6ZWRUZXh0VmFsdWUBAQEHAC8APwEHAAABAasG/////wEB/////wAAAAAVYIkKAgAA" +
-           "AAEADwAAAFN0YXR1c0NvZGVWYWx1ZQEBAgcALwA/AgcAAAEBrAb/////AQH/////AAAAABVgiQoCAAAA" +
-           "AQAMAAAAVmFyaWFudFZhbHVlAQEDBwAvAD8DBwAAAQGtBv////8BAf////8AAAAA";
+            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGCAAgEAAAABACEAAABVc2VyU2NhbGFy"
+            + "VmFsdWVPYmplY3RUeXBlSW5zdGFuY2UBAa8GAQGvBq8GAAABAAAAACQAAQGzBhkAAAA1YIkKAgAAAAEA"
+            + "EAAAAFNpbXVsYXRpb25BY3RpdmUBAbAGAwAAAABHAAAASWYgdHJ1ZSB0aGUgc2VydmVyIHdpbGwgcHJv"
+            + "ZHVjZSBuZXcgdmFsdWVzIGZvciBlYWNoIG1vbml0b3JlZCB2YXJpYWJsZS4ALgBEsAYAAAAB/////wEB"
+            + "/////wAAAAAEYYIKBAAAAAEADgAAAEdlbmVyYXRlVmFsdWVzAQGxBgAvAQH5A7EGAAABAf////8BAAAA"
+            + "F2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEBsgYALgBEsgYAAJYBAAAAAQAqAQFGAAAACgAAAEl0"
+            + "ZXJhdGlvbnMAB/////8AAAAAAwAAAAAlAAAAVGhlIG51bWJlciBvZiBuZXcgdmFsdWVzIHRvIGdlbmVy"
+            + "YXRlLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGCACgEAAAABAA0AAABDeWNsZUNvbXBsZXRlAQGz"
+            + "BgAvAQBBC7MGAAABAAAAACQBAQGvBhcAAAAVYIkKAgAAAAAABwAAAEV2ZW50SWQBAbQGAC4ARLQGAAAA"
+            + "D/////8BAf////8AAAAAFWCJCgIAAAAAAAkAAABFdmVudFR5cGUBAbUGAC4ARLUGAAAAEf////8BAf//"
+            + "//8AAAAAFWCJCgIAAAAAAAoAAABTb3VyY2VOb2RlAQG2BgAuAES2BgAAABH/////AQH/////AAAAABVg"
+            + "iQoCAAAAAAAKAAAAU291cmNlTmFtZQEBtwYALgBEtwYAAAAM/////wEB/////wAAAAAVYIkKAgAAAAAA"
+            + "BAAAAFRpbWUBAbgGAC4ARLgGAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAACwAAAFJlY2VpdmVU"
+            + "aW1lAQG5BgAuAES5BgAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABNZXNzYWdlAQG7BgAu"
+            + "AES7BgAAABX/////AQH/////AAAAABVgiQoCAAAAAAAIAAAAU2V2ZXJpdHkBAbwGAC4ARLwGAAAABf//"
+            + "//8BAf////8AAAAAFWCJCgIAAAAAABAAAABDb25kaXRpb25DbGFzc0lkAQG9BgAuAES9BgAAABH/////"
+            + "AQH/////AAAAABVgiQoCAAAAAAASAAAAQ29uZGl0aW9uQ2xhc3NOYW1lAQG+BgAuAES+BgAAABX/////"
+            + "AQH/////AAAAABVgiQoCAAAAAAANAAAAQ29uZGl0aW9uTmFtZQEBwQYALgBEwQYAAAAM/////wEB////"
+            + "/wAAAAAVYIkKAgAAAAAACAAAAEJyYW5jaElkAQHCBgAuAETCBgAAABH/////AQH/////AAAAABVgiQoC"
+            + "AAAAAAAGAAAAUmV0YWluAQHDBgAuAETDBgAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAARW5h"
+            + "YmxlZFN0YXRlAQHEBgAvAQAjI8QGAAAAFf////8BAQIAAAABACwjAAEB2AYBACwjAAEB4QYBAAAAFWCJ"
+            + "CgIAAAAAAAIAAABJZAEBxQYALgBExQYAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAFF1YWxp"
+            + "dHkBAc0GAC8BACojzQYAAAAT/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFt"
+            + "cAEBzgYALgBEzgYAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAATGFzdFNldmVyaXR5AQHP"
+            + "BgAvAQAqI88GAAAABf////8BAf////8BAAAAFWCJCgIAAAAAAA8AAABTb3VyY2VUaW1lc3RhbXABAdAG"
+            + "AC4ARNAGAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAENvbW1lbnQBAdEGAC8BACoj0QYA"
+            + "AAAV/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFtcAEB0gYALgBE0gYAAAEA"
+            + "JgH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAAQ2xpZW50VXNlcklkAQHTBgAuAETTBgAAAAz/////"
+            + "AQH/////AAAAAARhggoEAAAAAAAHAAAARGlzYWJsZQEB1AYALwEARCPUBgAAAQEBAAAAAQD5CwABAPMK"
+            + "AAAAAARhggoEAAAAAAAGAAAARW5hYmxlAQHVBgAvAQBDI9UGAAABAQEAAAABAPkLAAEA8woAAAAABGGC"
+            + "CgQAAAAAAAoAAABBZGRDb21tZW50AQHWBgAvAQBFI9YGAAABAQEAAAABAPkLAAEADQsBAAAAF2CpCgIA"
+            + "AAAAAA4AAABJbnB1dEFyZ3VtZW50cwEB1wYALgBE1wYAAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50SWQA"
+            + "D/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50LgEA"
+            + "KgEBQgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0"
+            + "aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAAoAAABBY2tlZFN0"
+            + "YXRlAQHYBgAvAQAjI9gGAAAAFf////8BAQEAAAABACwjAQEBxAYBAAAAFWCJCgIAAAAAAAIAAABJZAEB"
+            + "2QYALgBE2QYAAAAB/////wEB/////wAAAAAEYYIKBAAAAAAACwAAAEFja25vd2xlZGdlAQHqBgAvAQCX"
+            + "I+oGAAABAQEAAAABAPkLAAEA8CIBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEB6wYALgBE"
+            + "6wYAAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50SWQAD/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZp"
+            + "ZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50LgEAKgEBQgAAAAcAAABDb21tZW50ABX/////AAAAAAMA"
+            + "AAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAAB"
+            + "Af////8AAAAAFWCJCgIAAAABAAwAAABCb29sZWFuVmFsdWUBAe4GAC8AP+4GAAABAZgG/////wEB////"
+            + "/wAAAAAVYIkKAgAAAAEACgAAAFNCeXRlVmFsdWUBAe8GAC8AP+8GAAABAZkG/////wEB/////wAAAAAV"
+            + "YIkKAgAAAAEACQAAAEJ5dGVWYWx1ZQEB8AYALwA/8AYAAAEBmgb/////AQH/////AAAAABVgiQoCAAAA"
+            + "AQAKAAAASW50MTZWYWx1ZQEB8QYALwA/8QYAAAEBmwb/////AQH/////AAAAABVgiQoCAAAAAQALAAAA"
+            + "VUludDE2VmFsdWUBAfIGAC8AP/IGAAABAZwG/////wEB/////wAAAAAVYIkKAgAAAAEACgAAAEludDMy"
+            + "VmFsdWUBAfMGAC8AP/MGAAABAZ0G/////wEB/////wAAAAAVYIkKAgAAAAEACwAAAFVJbnQzMlZhbHVl"
+            + "AQH0BgAvAD/0BgAAAQGeBv////8BAf////8AAAAAFWCJCgIAAAABAAoAAABJbnQ2NFZhbHVlAQH1BgAv"
+            + "AD/1BgAAAQGfBv////8BAf////8AAAAAFWCJCgIAAAABAAsAAABVSW50NjRWYWx1ZQEB9gYALwA/9gYA"
+            + "AAEBoAb/////AQH/////AAAAABVgiQoCAAAAAQAKAAAARmxvYXRWYWx1ZQEB9wYALwA/9wYAAAEBoQb/"
+            + "////AQH/////AAAAABVgiQoCAAAAAQALAAAARG91YmxlVmFsdWUBAfgGAC8AP/gGAAABAaIG/////wEB"
+            + "/////wAAAAAVYIkKAgAAAAEACwAAAFN0cmluZ1ZhbHVlAQH5BgAvAD/5BgAAAQGjBv////8BAf////8A"
+            + "AAAAFWCJCgIAAAABAA0AAABEYXRlVGltZVZhbHVlAQH6BgAvAD/6BgAAAQGkBv////8BAf////8AAAAA"
+            + "FWCJCgIAAAABAAkAAABHdWlkVmFsdWUBAfsGAC8AP/sGAAABAaUG/////wEB/////wAAAAAVYIkKAgAA"
+            + "AAEADwAAAEJ5dGVTdHJpbmdWYWx1ZQEB/AYALwA//AYAAAEBpgb/////AQH/////AAAAABVgiQoCAAAA"
+            + "AQAPAAAAWG1sRWxlbWVudFZhbHVlAQH9BgAvAD/9BgAAAQGnBv////8BAf////8AAAAAFWCJCgIAAAAB"
+            + "AAsAAABOb2RlSWRWYWx1ZQEB/gYALwA//gYAAAEBqAb/////AQH/////AAAAABVgiQoCAAAAAQATAAAA"
+            + "RXhwYW5kZWROb2RlSWRWYWx1ZQEB/wYALwA//wYAAAEBqQb/////AQH/////AAAAABVgiQoCAAAAAQAS"
+            + "AAAAUXVhbGlmaWVkTmFtZVZhbHVlAQEABwAvAD8ABwAAAQGqBv////8BAf////8AAAAAFWCJCgIAAAAB"
+            + "ABIAAABMb2NhbGl6ZWRUZXh0VmFsdWUBAQEHAC8APwEHAAABAasG/////wEB/////wAAAAAVYIkKAgAA"
+            + "AAEADwAAAFN0YXR1c0NvZGVWYWx1ZQEBAgcALwA/AgcAAAEBrAb/////AQH/////AAAAABVgiQoCAAAA"
+            + "AQAMAAAAVmFyaWFudFZhbHVlAQEDBwAvAD8DBwAAAQGtBv////8BAf////8AAAAA";
         #endregion
 #endif
         #endregion
@@ -10129,7 +10124,6 @@ namespace TestData
             {
                 return m_booleanValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_booleanValue, value))
@@ -10148,7 +10142,6 @@ namespace TestData
             {
                 return m_sByteValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_sByteValue, value))
@@ -10167,7 +10160,6 @@ namespace TestData
             {
                 return m_byteValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_byteValue, value))
@@ -10186,7 +10178,6 @@ namespace TestData
             {
                 return m_int16Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_int16Value, value))
@@ -10205,7 +10196,6 @@ namespace TestData
             {
                 return m_uInt16Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_uInt16Value, value))
@@ -10224,7 +10214,6 @@ namespace TestData
             {
                 return m_int32Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_int32Value, value))
@@ -10243,7 +10232,6 @@ namespace TestData
             {
                 return m_uInt32Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_uInt32Value, value))
@@ -10262,7 +10250,6 @@ namespace TestData
             {
                 return m_int64Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_int64Value, value))
@@ -10281,7 +10268,6 @@ namespace TestData
             {
                 return m_uInt64Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_uInt64Value, value))
@@ -10300,7 +10286,6 @@ namespace TestData
             {
                 return m_floatValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_floatValue, value))
@@ -10319,7 +10304,6 @@ namespace TestData
             {
                 return m_doubleValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_doubleValue, value))
@@ -10338,7 +10322,6 @@ namespace TestData
             {
                 return m_stringValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_stringValue, value))
@@ -10357,7 +10340,6 @@ namespace TestData
             {
                 return m_dateTimeValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_dateTimeValue, value))
@@ -10376,7 +10358,6 @@ namespace TestData
             {
                 return m_guidValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_guidValue, value))
@@ -10395,7 +10376,6 @@ namespace TestData
             {
                 return m_byteStringValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_byteStringValue, value))
@@ -10414,7 +10394,6 @@ namespace TestData
             {
                 return m_xmlElementValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_xmlElementValue, value))
@@ -10433,7 +10412,6 @@ namespace TestData
             {
                 return m_nodeIdValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_nodeIdValue, value))
@@ -10452,7 +10430,6 @@ namespace TestData
             {
                 return m_expandedNodeIdValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_expandedNodeIdValue, value))
@@ -10471,7 +10448,6 @@ namespace TestData
             {
                 return m_qualifiedNameValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_qualifiedNameValue, value))
@@ -10490,7 +10466,6 @@ namespace TestData
             {
                 return m_localizedTextValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_localizedTextValue, value))
@@ -10509,7 +10484,6 @@ namespace TestData
             {
                 return m_statusCodeValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_statusCodeValue, value))
@@ -10528,7 +10502,6 @@ namespace TestData
             {
                 return m_variantValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_variantValue, value))
@@ -10543,9 +10516,7 @@ namespace TestData
 
         #region Overridden Methods
         /// <remarks />
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
+        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
             if (m_booleanValue != null)
             {
@@ -10665,7 +10636,8 @@ namespace TestData
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement)
+            BaseInstanceState replacement
+        )
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -11185,9 +11157,8 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public UserScalarValue1MethodState(NodeState parent) : base(parent)
-        {
-        }
+        public UserScalarValue1MethodState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         public new static NodeState Construct(NodeState parent)
@@ -11212,24 +11183,24 @@ namespace TestData
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGGCCgQAAAABABoAAABVc2VyU2NhbGFy" +
-           "VmFsdWUxTWV0aG9kVHlwZQEBBAcALwEBBAcEBwAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRB" +
-           "cmd1bWVudHMBAQUHAC4ARAUHAACWDAAAAAEAKgEBGgAAAAkAAABCb29sZWFuSW4BAZgG/////wAAAAAA" +
-           "AQAqAQEYAAAABwAAAFNCeXRlSW4BAZkG/////wAAAAAAAQAqAQEXAAAABgAAAEJ5dGVJbgEBmgb/////" +
-           "AAAAAAABACoBARgAAAAHAAAASW50MTZJbgEBmwb/////AAAAAAABACoBARkAAAAIAAAAVUludDE2SW4B" +
-           "AZwG/////wAAAAAAAQAqAQEYAAAABwAAAEludDMySW4BAZ0G/////wAAAAAAAQAqAQEZAAAACAAAAFVJ" +
-           "bnQzMkluAQGeBv////8AAAAAAAEAKgEBGAAAAAcAAABJbnQ2NEluAQGfBv////8AAAAAAAEAKgEBGQAA" +
-           "AAgAAABVSW50NjRJbgEBoAb/////AAAAAAABACoBARgAAAAHAAAARmxvYXRJbgEBoQb/////AAAAAAAB" +
-           "ACoBARkAAAAIAAAARG91YmxlSW4BAaIG/////wAAAAAAAQAqAQEZAAAACAAAAFN0cmluZ0luAQGjBv//" +
-           "//8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVu" +
-           "dHMBAQYHAC4ARAYHAACWDAAAAAEAKgEBGwAAAAoAAABCb29sZWFuT3V0AQGYBv////8AAAAAAAEAKgEB" +
-           "GQAAAAgAAABTQnl0ZU91dAEBmQb/////AAAAAAABACoBARgAAAAHAAAAQnl0ZU91dAEBmgb/////AAAA" +
-           "AAABACoBARkAAAAIAAAASW50MTZPdXQBAZsG/////wAAAAAAAQAqAQEaAAAACQAAAFVJbnQxNk91dAEB" +
-           "nAb/////AAAAAAABACoBARkAAAAIAAAASW50MzJPdXQBAZ0G/////wAAAAAAAQAqAQEaAAAACQAAAFVJ" +
-           "bnQzMk91dAEBngb/////AAAAAAABACoBARkAAAAIAAAASW50NjRPdXQBAZ8G/////wAAAAAAAQAqAQEa" +
-           "AAAACQAAAFVJbnQ2NE91dAEBoAb/////AAAAAAABACoBARkAAAAIAAAARmxvYXRPdXQBAaEG/////wAA" +
-           "AAAAAQAqAQEaAAAACQAAAERvdWJsZU91dAEBogb/////AAAAAAABACoBARoAAAAJAAAAU3RyaW5nT3V0" +
-           "AQGjBv////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGGCCgQAAAABABoAAABVc2VyU2NhbGFy"
+            + "VmFsdWUxTWV0aG9kVHlwZQEBBAcALwEBBAcEBwAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRB"
+            + "cmd1bWVudHMBAQUHAC4ARAUHAACWDAAAAAEAKgEBGgAAAAkAAABCb29sZWFuSW4BAZgG/////wAAAAAA"
+            + "AQAqAQEYAAAABwAAAFNCeXRlSW4BAZkG/////wAAAAAAAQAqAQEXAAAABgAAAEJ5dGVJbgEBmgb/////"
+            + "AAAAAAABACoBARgAAAAHAAAASW50MTZJbgEBmwb/////AAAAAAABACoBARkAAAAIAAAAVUludDE2SW4B"
+            + "AZwG/////wAAAAAAAQAqAQEYAAAABwAAAEludDMySW4BAZ0G/////wAAAAAAAQAqAQEZAAAACAAAAFVJ"
+            + "bnQzMkluAQGeBv////8AAAAAAAEAKgEBGAAAAAcAAABJbnQ2NEluAQGfBv////8AAAAAAAEAKgEBGQAA"
+            + "AAgAAABVSW50NjRJbgEBoAb/////AAAAAAABACoBARgAAAAHAAAARmxvYXRJbgEBoQb/////AAAAAAAB"
+            + "ACoBARkAAAAIAAAARG91YmxlSW4BAaIG/////wAAAAAAAQAqAQEZAAAACAAAAFN0cmluZ0luAQGjBv//"
+            + "//8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVu"
+            + "dHMBAQYHAC4ARAYHAACWDAAAAAEAKgEBGwAAAAoAAABCb29sZWFuT3V0AQGYBv////8AAAAAAAEAKgEB"
+            + "GQAAAAgAAABTQnl0ZU91dAEBmQb/////AAAAAAABACoBARgAAAAHAAAAQnl0ZU91dAEBmgb/////AAAA"
+            + "AAABACoBARkAAAAIAAAASW50MTZPdXQBAZsG/////wAAAAAAAQAqAQEaAAAACQAAAFVJbnQxNk91dAEB"
+            + "nAb/////AAAAAAABACoBARkAAAAIAAAASW50MzJPdXQBAZ0G/////wAAAAAAAQAqAQEaAAAACQAAAFVJ"
+            + "bnQzMk91dAEBngb/////AAAAAAABACoBARkAAAAIAAAASW50NjRPdXQBAZ8G/////wAAAAAAAQAqAQEa"
+            + "AAAACQAAAFVJbnQ2NE91dAEBoAb/////AAAAAAABACoBARkAAAAIAAAARmxvYXRPdXQBAaEG/////wAA"
+            + "AAAAAQAqAQEaAAAACQAAAERvdWJsZU91dAEBogb/////AAAAAAABACoBARoAAAAJAAAAU3RyaW5nT3V0"
+            + "AQGjBv////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
         #endregion
 #endif
         #endregion
@@ -11248,7 +11219,8 @@ namespace TestData
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments)
+            IList<object> _outputArguments
+        )
         {
             if (OnCall == null)
             {
@@ -11312,7 +11284,8 @@ namespace TestData
                     ref uInt64Out,
                     ref floatOut,
                     ref doubleOut,
-                    ref stringOut);
+                    ref stringOut
+                );
             }
 
             _outputArguments[0] = booleanOut;
@@ -11365,7 +11338,8 @@ namespace TestData
         ref ulong uInt64Out,
         ref float floatOut,
         ref double doubleOut,
-        ref string stringOut);
+        ref string stringOut
+    );
 #endif
     #endregion
 
@@ -11378,9 +11352,8 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public UserScalarValue2MethodState(NodeState parent) : base(parent)
-        {
-        }
+        public UserScalarValue2MethodState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         public new static NodeState Construct(NodeState parent)
@@ -11405,23 +11378,23 @@ namespace TestData
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGGCCgQAAAABABoAAABVc2VyU2NhbGFy" +
-           "VmFsdWUyTWV0aG9kVHlwZQEBBwcALwEBBwcHBwAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRB" +
-           "cmd1bWVudHMBAQgHAC4ARAgHAACWCgAAAAEAKgEBGwAAAAoAAABEYXRlVGltZUluAQGkBv////8AAAAA" +
-           "AAEAKgEBFwAAAAYAAABHdWlkSW4BAaUG/////wAAAAAAAQAqAQEdAAAADAAAAEJ5dGVTdHJpbmdJbgEB" +
-           "pgb/////AAAAAAABACoBAR0AAAAMAAAAWG1sRWxlbWVudEluAQGnBv////8AAAAAAAEAKgEBGQAAAAgA" +
-           "AABOb2RlSWRJbgEBqAb/////AAAAAAABACoBASEAAAAQAAAARXhwYW5kZWROb2RlSWRJbgEBqQb/////" +
-           "AAAAAAABACoBASAAAAAPAAAAUXVhbGlmaWVkTmFtZUluAQGqBv////8AAAAAAAEAKgEBIAAAAA8AAABM" +
-           "b2NhbGl6ZWRUZXh0SW4BAasG/////wAAAAAAAQAqAQEdAAAADAAAAFN0YXR1c0NvZGVJbgEBrAb/////" +
-           "AAAAAAABACoBARoAAAAJAAAAVmFyaWFudEluAQGtBv////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf//" +
-           "//8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAQkHAC4ARAkHAACWCgAAAAEAKgEBHAAA" +
-           "AAsAAABEYXRlVGltZU91dAEBpAb/////AAAAAAABACoBARgAAAAHAAAAR3VpZE91dAEBpQb/////AAAA" +
-           "AAABACoBAR4AAAANAAAAQnl0ZVN0cmluZ091dAEBpgb/////AAAAAAABACoBAR4AAAANAAAAWG1sRWxl" +
-           "bWVudE91dAEBpwb/////AAAAAAABACoBARoAAAAJAAAATm9kZUlkT3V0AQGoBv////8AAAAAAAEAKgEB" +
-           "IgAAABEAAABFeHBhbmRlZE5vZGVJZE91dAEBqQb/////AAAAAAABACoBASEAAAAQAAAAUXVhbGlmaWVk" +
-           "TmFtZU91dAEBqgb/////AAAAAAABACoBASEAAAAQAAAATG9jYWxpemVkVGV4dE91dAEBqwb/////AAAA" +
-           "AAABACoBAR4AAAANAAAAU3RhdHVzQ29kZU91dAEBrAb/////AAAAAAABACoBARsAAAAKAAAAVmFyaWFu" +
-           "dE91dAEBrQb/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGGCCgQAAAABABoAAABVc2VyU2NhbGFy"
+            + "VmFsdWUyTWV0aG9kVHlwZQEBBwcALwEBBwcHBwAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRB"
+            + "cmd1bWVudHMBAQgHAC4ARAgHAACWCgAAAAEAKgEBGwAAAAoAAABEYXRlVGltZUluAQGkBv////8AAAAA"
+            + "AAEAKgEBFwAAAAYAAABHdWlkSW4BAaUG/////wAAAAAAAQAqAQEdAAAADAAAAEJ5dGVTdHJpbmdJbgEB"
+            + "pgb/////AAAAAAABACoBAR0AAAAMAAAAWG1sRWxlbWVudEluAQGnBv////8AAAAAAAEAKgEBGQAAAAgA"
+            + "AABOb2RlSWRJbgEBqAb/////AAAAAAABACoBASEAAAAQAAAARXhwYW5kZWROb2RlSWRJbgEBqQb/////"
+            + "AAAAAAABACoBASAAAAAPAAAAUXVhbGlmaWVkTmFtZUluAQGqBv////8AAAAAAAEAKgEBIAAAAA8AAABM"
+            + "b2NhbGl6ZWRUZXh0SW4BAasG/////wAAAAAAAQAqAQEdAAAADAAAAFN0YXR1c0NvZGVJbgEBrAb/////"
+            + "AAAAAAABACoBARoAAAAJAAAAVmFyaWFudEluAQGtBv////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf//"
+            + "//8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAQkHAC4ARAkHAACWCgAAAAEAKgEBHAAA"
+            + "AAsAAABEYXRlVGltZU91dAEBpAb/////AAAAAAABACoBARgAAAAHAAAAR3VpZE91dAEBpQb/////AAAA"
+            + "AAABACoBAR4AAAANAAAAQnl0ZVN0cmluZ091dAEBpgb/////AAAAAAABACoBAR4AAAANAAAAWG1sRWxl"
+            + "bWVudE91dAEBpwb/////AAAAAAABACoBARoAAAAJAAAATm9kZUlkT3V0AQGoBv////8AAAAAAAEAKgEB"
+            + "IgAAABEAAABFeHBhbmRlZE5vZGVJZE91dAEBqQb/////AAAAAAABACoBASEAAAAQAAAAUXVhbGlmaWVk"
+            + "TmFtZU91dAEBqgb/////AAAAAAABACoBASEAAAAQAAAATG9jYWxpemVkVGV4dE91dAEBqwb/////AAAA"
+            + "AAABACoBAR4AAAANAAAAU3RhdHVzQ29kZU91dAEBrAb/////AAAAAAABACoBARsAAAAKAAAAVmFyaWFu"
+            + "dE91dAEBrQb/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
         #endregion
 #endif
         #endregion
@@ -11440,7 +11413,8 @@ namespace TestData
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments)
+            IList<object> _outputArguments
+        )
         {
             if (OnCall == null)
             {
@@ -11496,7 +11470,8 @@ namespace TestData
                     ref qualifiedNameOut,
                     ref localizedTextOut,
                     ref statusCodeOut,
-                    ref variantOut);
+                    ref variantOut
+                );
             }
 
             _outputArguments[0] = dateTimeOut;
@@ -11543,7 +11518,8 @@ namespace TestData
         ref QualifiedName qualifiedNameOut,
         ref LocalizedText localizedTextOut,
         ref StatusCode statusCodeOut,
-        ref object variantOut);
+        ref object variantOut
+    );
 #endif
     #endregion
 
@@ -11556,14 +11532,17 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public UserArrayValueObjectState(NodeState parent) : base(parent)
-        {
-        }
+        public UserArrayValueObjectState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(TestData.ObjectTypes.UserArrayValueObjectType, TestData.Namespaces.TestData, namespaceUris);
+            return Opc.Ua.NodeId.Create(
+                TestData.ObjectTypes.UserArrayValueObjectType,
+                TestData.Namespaces.TestData,
+                namespaceUris
+            );
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -11590,71 +11569,71 @@ namespace TestData
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGCAAgEAAAABACAAAABVc2VyQXJyYXlW" +
-           "YWx1ZU9iamVjdFR5cGVJbnN0YW5jZQEBCwcBAQsHCwcAAAEAAAAAJAABAQ8HGQAAADVgiQoCAAAAAQAQ" +
-           "AAAAU2ltdWxhdGlvbkFjdGl2ZQEBDAcDAAAAAEcAAABJZiB0cnVlIHRoZSBzZXJ2ZXIgd2lsbCBwcm9k" +
-           "dWNlIG5ldyB2YWx1ZXMgZm9yIGVhY2ggbW9uaXRvcmVkIHZhcmlhYmxlLgAuAEQMBwAAAAH/////AQH/" +
-           "////AAAAAARhggoEAAAAAQAOAAAAR2VuZXJhdGVWYWx1ZXMBAQ0HAC8BAfkDDQcAAAEB/////wEAAAAX" +
-           "YKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQEOBwAuAEQOBwAAlgEAAAABACoBAUYAAAAKAAAASXRl" +
-           "cmF0aW9ucwAH/////wAAAAADAAAAACUAAABUaGUgbnVtYmVyIG9mIG5ldyB2YWx1ZXMgdG8gZ2VuZXJh" +
-           "dGUuAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYIAKAQAAAAEADQAAAEN5Y2xlQ29tcGxldGUBAQ8H" +
-           "AC8BAEELDwcAAAEAAAAAJAEBAQsHFwAAABVgiQoCAAAAAAAHAAAARXZlbnRJZAEBEAcALgBEEAcAAAAP" +
-           "/////wEB/////wAAAAAVYIkKAgAAAAAACQAAAEV2ZW50VHlwZQEBEQcALgBEEQcAAAAR/////wEB////" +
-           "/wAAAAAVYIkKAgAAAAAACgAAAFNvdXJjZU5vZGUBARIHAC4ARBIHAAAAEf////8BAf////8AAAAAFWCJ" +
-           "CgIAAAAAAAoAAABTb3VyY2VOYW1lAQETBwAuAEQTBwAAAAz/////AQH/////AAAAABVgiQoCAAAAAAAE" +
-           "AAAAVGltZQEBFAcALgBEFAcAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAALAAAAUmVjZWl2ZVRp" +
-           "bWUBARUHAC4ARBUHAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAE1lc3NhZ2UBARcHAC4A" +
-           "RBcHAAAAFf////8BAf////8AAAAAFWCJCgIAAAAAAAgAAABTZXZlcml0eQEBGAcALgBEGAcAAAAF////" +
-           "/wEB/////wAAAAAVYIkKAgAAAAAAEAAAAENvbmRpdGlvbkNsYXNzSWQBARkHAC4ARBkHAAAAEf////8B" +
-           "Af////8AAAAAFWCJCgIAAAAAABIAAABDb25kaXRpb25DbGFzc05hbWUBARoHAC4ARBoHAAAAFf////8B" +
-           "Af////8AAAAAFWCJCgIAAAAAAA0AAABDb25kaXRpb25OYW1lAQEdBwAuAEQdBwAAAAz/////AQH/////" +
-           "AAAAABVgiQoCAAAAAAAIAAAAQnJhbmNoSWQBAR4HAC4ARB4HAAAAEf////8BAf////8AAAAAFWCJCgIA" +
-           "AAAAAAYAAABSZXRhaW4BAR8HAC4ARB8HAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABFbmFi" +
-           "bGVkU3RhdGUBASAHAC8BACMjIAcAAAAV/////wEBAgAAAAEALCMAAQE0BwEALCMAAQE9BwEAAAAVYIkK" +
-           "AgAAAAAAAgAAAElkAQEhBwAuAEQhBwAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAAUXVhbGl0" +
-           "eQEBKQcALwEAKiMpBwAAABP/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1w" +
-           "AQEqBwAuAEQqBwAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABMYXN0U2V2ZXJpdHkBASsH" +
-           "AC8BACojKwcAAAAF/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFtcAEBLAcA" +
-           "LgBELAcAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAAQ29tbWVudAEBLQcALwEAKiMtBwAA" +
-           "ABX/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1wAQEuBwAuAEQuBwAAAQAm" +
-           "Af////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABDbGllbnRVc2VySWQBAS8HAC4ARC8HAAAADP////8B" +
-           "Af////8AAAAABGGCCgQAAAAAAAcAAABEaXNhYmxlAQEwBwAvAQBEIzAHAAABAQEAAAABAPkLAAEA8woA" +
-           "AAAABGGCCgQAAAAAAAYAAABFbmFibGUBATEHAC8BAEMjMQcAAAEBAQAAAAEA+QsAAQDzCgAAAAAEYYIK" +
-           "BAAAAAAACgAAAEFkZENvbW1lbnQBATIHAC8BAEUjMgcAAAEBAQAAAAEA+QsAAQANCwEAAAAXYKkKAgAA" +
-           "AAAADgAAAElucHV0QXJndW1lbnRzAQEzBwAuAEQzBwAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP" +
-           "/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAq" +
-           "AQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRo" +
-           "ZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACgAAAEFja2VkU3Rh" +
-           "dGUBATQHAC8BACMjNAcAAAAV/////wEBAQAAAAEALCMBAQEgBwEAAAAVYIkKAgAAAAAAAgAAAElkAQE1" +
-           "BwAuAEQ1BwAAAAH/////AQH/////AAAAAARhggoEAAAAAAALAAAAQWNrbm93bGVkZ2UBAUYHAC8BAJcj" +
-           "RgcAAAEBAQAAAAEA+QsAAQDwIgEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQFHBwAuAERH" +
-           "BwAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmll" +
-           "ciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAqAQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAA" +
-           "AAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB" +
-           "/////wAAAAAXYIkKAgAAAAEADAAAAEJvb2xlYW5WYWx1ZQEBSgcALwA/SgcAAAEBmAYBAAAAAQAAAAAA" +
-           "AAABAf////8AAAAAF2CJCgIAAAABAAoAAABTQnl0ZVZhbHVlAQFLBwAvAD9LBwAAAQGZBgEAAAABAAAA" +
-           "AAAAAAEB/////wAAAAAXYIkKAgAAAAEACQAAAEJ5dGVWYWx1ZQEBTAcALwA/TAcAAAEBmgYBAAAAAQAA" +
-           "AAAAAAABAf////8AAAAAF2CJCgIAAAABAAoAAABJbnQxNlZhbHVlAQFNBwAvAD9NBwAAAQGbBgEAAAAB" +
-           "AAAAAAAAAAEB/////wAAAAAXYIkKAgAAAAEACwAAAFVJbnQxNlZhbHVlAQFOBwAvAD9OBwAAAQGcBgEA" +
-           "AAABAAAAAAAAAAEB/////wAAAAAXYIkKAgAAAAEACgAAAEludDMyVmFsdWUBAU8HAC8AP08HAAABAZ0G" +
-           "AQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAQALAAAAVUludDMyVmFsdWUBAVAHAC8AP1AHAAAB" +
-           "AZ4GAQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAQAKAAAASW50NjRWYWx1ZQEBUQcALwA/UQcA" +
-           "AAEBnwYBAAAAAQAAAAAAAAABAf////8AAAAAF2CJCgIAAAABAAsAAABVSW50NjRWYWx1ZQEBUgcALwA/" +
-           "UgcAAAEBoAYBAAAAAQAAAAAAAAABAf////8AAAAAF2CJCgIAAAABAAoAAABGbG9hdFZhbHVlAQFTBwAv" +
-           "AD9TBwAAAQGhBgEAAAABAAAAAAAAAAEB/////wAAAAAXYIkKAgAAAAEACwAAAERvdWJsZVZhbHVlAQFU" +
-           "BwAvAD9UBwAAAQGiBgEAAAABAAAAAAAAAAEB/////wAAAAAXYIkKAgAAAAEACwAAAFN0cmluZ1ZhbHVl" +
-           "AQFVBwAvAD9VBwAAAQGjBgEAAAABAAAAAAAAAAEB/////wAAAAAXYIkKAgAAAAEADQAAAERhdGVUaW1l" +
-           "VmFsdWUBAVYHAC8AP1YHAAABAaQGAQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAQAJAAAAR3Vp" +
-           "ZFZhbHVlAQFXBwAvAD9XBwAAAQGlBgEAAAABAAAAAAAAAAEB/////wAAAAAXYIkKAgAAAAEADwAAAEJ5" +
-           "dGVTdHJpbmdWYWx1ZQEBWAcALwA/WAcAAAEBpgYBAAAAAQAAAAAAAAABAf////8AAAAAF2CJCgIAAAAB" +
-           "AA8AAABYbWxFbGVtZW50VmFsdWUBAVkHAC8AP1kHAAABAacGAQAAAAEAAAAAAAAAAQH/////AAAAABdg" +
-           "iQoCAAAAAQALAAAATm9kZUlkVmFsdWUBAVoHAC8AP1oHAAABAagGAQAAAAEAAAAAAAAAAQH/////AAAA" +
-           "ABdgiQoCAAAAAQATAAAARXhwYW5kZWROb2RlSWRWYWx1ZQEBWwcALwA/WwcAAAEBqQYBAAAAAQAAAAAA" +
-           "AAABAf////8AAAAAF2CJCgIAAAABABIAAABRdWFsaWZpZWROYW1lVmFsdWUBAVwHAC8AP1wHAAABAaoG" +
-           "AQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAQASAAAATG9jYWxpemVkVGV4dFZhbHVlAQFdBwAv" +
-           "AD9dBwAAAQGrBgEAAAABAAAAAAAAAAEB/////wAAAAAXYIkKAgAAAAEADwAAAFN0YXR1c0NvZGVWYWx1" +
-           "ZQEBXgcALwA/XgcAAAEBrAYBAAAAAQAAAAAAAAABAf////8AAAAAF2CJCgIAAAABAAwAAABWYXJpYW50" +
-           "VmFsdWUBAV8HAC8AP18HAAABAa0GAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGCAAgEAAAABACAAAABVc2VyQXJyYXlW"
+            + "YWx1ZU9iamVjdFR5cGVJbnN0YW5jZQEBCwcBAQsHCwcAAAEAAAAAJAABAQ8HGQAAADVgiQoCAAAAAQAQ"
+            + "AAAAU2ltdWxhdGlvbkFjdGl2ZQEBDAcDAAAAAEcAAABJZiB0cnVlIHRoZSBzZXJ2ZXIgd2lsbCBwcm9k"
+            + "dWNlIG5ldyB2YWx1ZXMgZm9yIGVhY2ggbW9uaXRvcmVkIHZhcmlhYmxlLgAuAEQMBwAAAAH/////AQH/"
+            + "////AAAAAARhggoEAAAAAQAOAAAAR2VuZXJhdGVWYWx1ZXMBAQ0HAC8BAfkDDQcAAAEB/////wEAAAAX"
+            + "YKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQEOBwAuAEQOBwAAlgEAAAABACoBAUYAAAAKAAAASXRl"
+            + "cmF0aW9ucwAH/////wAAAAADAAAAACUAAABUaGUgbnVtYmVyIG9mIG5ldyB2YWx1ZXMgdG8gZ2VuZXJh"
+            + "dGUuAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYIAKAQAAAAEADQAAAEN5Y2xlQ29tcGxldGUBAQ8H"
+            + "AC8BAEELDwcAAAEAAAAAJAEBAQsHFwAAABVgiQoCAAAAAAAHAAAARXZlbnRJZAEBEAcALgBEEAcAAAAP"
+            + "/////wEB/////wAAAAAVYIkKAgAAAAAACQAAAEV2ZW50VHlwZQEBEQcALgBEEQcAAAAR/////wEB////"
+            + "/wAAAAAVYIkKAgAAAAAACgAAAFNvdXJjZU5vZGUBARIHAC4ARBIHAAAAEf////8BAf////8AAAAAFWCJ"
+            + "CgIAAAAAAAoAAABTb3VyY2VOYW1lAQETBwAuAEQTBwAAAAz/////AQH/////AAAAABVgiQoCAAAAAAAE"
+            + "AAAAVGltZQEBFAcALgBEFAcAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAALAAAAUmVjZWl2ZVRp"
+            + "bWUBARUHAC4ARBUHAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAE1lc3NhZ2UBARcHAC4A"
+            + "RBcHAAAAFf////8BAf////8AAAAAFWCJCgIAAAAAAAgAAABTZXZlcml0eQEBGAcALgBEGAcAAAAF////"
+            + "/wEB/////wAAAAAVYIkKAgAAAAAAEAAAAENvbmRpdGlvbkNsYXNzSWQBARkHAC4ARBkHAAAAEf////8B"
+            + "Af////8AAAAAFWCJCgIAAAAAABIAAABDb25kaXRpb25DbGFzc05hbWUBARoHAC4ARBoHAAAAFf////8B"
+            + "Af////8AAAAAFWCJCgIAAAAAAA0AAABDb25kaXRpb25OYW1lAQEdBwAuAEQdBwAAAAz/////AQH/////"
+            + "AAAAABVgiQoCAAAAAAAIAAAAQnJhbmNoSWQBAR4HAC4ARB4HAAAAEf////8BAf////8AAAAAFWCJCgIA"
+            + "AAAAAAYAAABSZXRhaW4BAR8HAC4ARB8HAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABFbmFi"
+            + "bGVkU3RhdGUBASAHAC8BACMjIAcAAAAV/////wEBAgAAAAEALCMAAQE0BwEALCMAAQE9BwEAAAAVYIkK"
+            + "AgAAAAAAAgAAAElkAQEhBwAuAEQhBwAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAAUXVhbGl0"
+            + "eQEBKQcALwEAKiMpBwAAABP/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1w"
+            + "AQEqBwAuAEQqBwAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABMYXN0U2V2ZXJpdHkBASsH"
+            + "AC8BACojKwcAAAAF/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFtcAEBLAcA"
+            + "LgBELAcAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAHAAAAQ29tbWVudAEBLQcALwEAKiMtBwAA"
+            + "ABX/////AQH/////AQAAABVgiQoCAAAAAAAPAAAAU291cmNlVGltZXN0YW1wAQEuBwAuAEQuBwAAAQAm"
+            + "Af////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABDbGllbnRVc2VySWQBAS8HAC4ARC8HAAAADP////8B"
+            + "Af////8AAAAABGGCCgQAAAAAAAcAAABEaXNhYmxlAQEwBwAvAQBEIzAHAAABAQEAAAABAPkLAAEA8woA"
+            + "AAAABGGCCgQAAAAAAAYAAABFbmFibGUBATEHAC8BAEMjMQcAAAEBAQAAAAEA+QsAAQDzCgAAAAAEYYIK"
+            + "BAAAAAAACgAAAEFkZENvbW1lbnQBATIHAC8BAEUjMgcAAAEBAQAAAAEA+QsAAQANCwEAAAAXYKkKAgAA"
+            + "AAAADgAAAElucHV0QXJndW1lbnRzAQEzBwAuAEQzBwAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP"
+            + "/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAq"
+            + "AQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRo"
+            + "ZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACgAAAEFja2VkU3Rh"
+            + "dGUBATQHAC8BACMjNAcAAAAV/////wEBAQAAAAEALCMBAQEgBwEAAAAVYIkKAgAAAAAAAgAAAElkAQE1"
+            + "BwAuAEQ1BwAAAAH/////AQH/////AAAAAARhggoEAAAAAAALAAAAQWNrbm93bGVkZ2UBAUYHAC8BAJcj"
+            + "RgcAAAEBAQAAAAEA+QsAAQDwIgEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQFHBwAuAERH"
+            + "BwAAlgIAAAABACoBAUYAAAAHAAAARXZlbnRJZAAP/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmll"
+            + "ciBmb3IgdGhlIGV2ZW50IHRvIGNvbW1lbnQuAQAqAQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAA"
+            + "AAAkAAAAVGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB"
+            + "/////wAAAAAXYIkKAgAAAAEADAAAAEJvb2xlYW5WYWx1ZQEBSgcALwA/SgcAAAEBmAYBAAAAAQAAAAAA"
+            + "AAABAf////8AAAAAF2CJCgIAAAABAAoAAABTQnl0ZVZhbHVlAQFLBwAvAD9LBwAAAQGZBgEAAAABAAAA"
+            + "AAAAAAEB/////wAAAAAXYIkKAgAAAAEACQAAAEJ5dGVWYWx1ZQEBTAcALwA/TAcAAAEBmgYBAAAAAQAA"
+            + "AAAAAAABAf////8AAAAAF2CJCgIAAAABAAoAAABJbnQxNlZhbHVlAQFNBwAvAD9NBwAAAQGbBgEAAAAB"
+            + "AAAAAAAAAAEB/////wAAAAAXYIkKAgAAAAEACwAAAFVJbnQxNlZhbHVlAQFOBwAvAD9OBwAAAQGcBgEA"
+            + "AAABAAAAAAAAAAEB/////wAAAAAXYIkKAgAAAAEACgAAAEludDMyVmFsdWUBAU8HAC8AP08HAAABAZ0G"
+            + "AQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAQALAAAAVUludDMyVmFsdWUBAVAHAC8AP1AHAAAB"
+            + "AZ4GAQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAQAKAAAASW50NjRWYWx1ZQEBUQcALwA/UQcA"
+            + "AAEBnwYBAAAAAQAAAAAAAAABAf////8AAAAAF2CJCgIAAAABAAsAAABVSW50NjRWYWx1ZQEBUgcALwA/"
+            + "UgcAAAEBoAYBAAAAAQAAAAAAAAABAf////8AAAAAF2CJCgIAAAABAAoAAABGbG9hdFZhbHVlAQFTBwAv"
+            + "AD9TBwAAAQGhBgEAAAABAAAAAAAAAAEB/////wAAAAAXYIkKAgAAAAEACwAAAERvdWJsZVZhbHVlAQFU"
+            + "BwAvAD9UBwAAAQGiBgEAAAABAAAAAAAAAAEB/////wAAAAAXYIkKAgAAAAEACwAAAFN0cmluZ1ZhbHVl"
+            + "AQFVBwAvAD9VBwAAAQGjBgEAAAABAAAAAAAAAAEB/////wAAAAAXYIkKAgAAAAEADQAAAERhdGVUaW1l"
+            + "VmFsdWUBAVYHAC8AP1YHAAABAaQGAQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAQAJAAAAR3Vp"
+            + "ZFZhbHVlAQFXBwAvAD9XBwAAAQGlBgEAAAABAAAAAAAAAAEB/////wAAAAAXYIkKAgAAAAEADwAAAEJ5"
+            + "dGVTdHJpbmdWYWx1ZQEBWAcALwA/WAcAAAEBpgYBAAAAAQAAAAAAAAABAf////8AAAAAF2CJCgIAAAAB"
+            + "AA8AAABYbWxFbGVtZW50VmFsdWUBAVkHAC8AP1kHAAABAacGAQAAAAEAAAAAAAAAAQH/////AAAAABdg"
+            + "iQoCAAAAAQALAAAATm9kZUlkVmFsdWUBAVoHAC8AP1oHAAABAagGAQAAAAEAAAAAAAAAAQH/////AAAA"
+            + "ABdgiQoCAAAAAQATAAAARXhwYW5kZWROb2RlSWRWYWx1ZQEBWwcALwA/WwcAAAEBqQYBAAAAAQAAAAAA"
+            + "AAABAf////8AAAAAF2CJCgIAAAABABIAAABRdWFsaWZpZWROYW1lVmFsdWUBAVwHAC8AP1wHAAABAaoG"
+            + "AQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAQASAAAATG9jYWxpemVkVGV4dFZhbHVlAQFdBwAv"
+            + "AD9dBwAAAQGrBgEAAAABAAAAAAAAAAEB/////wAAAAAXYIkKAgAAAAEADwAAAFN0YXR1c0NvZGVWYWx1"
+            + "ZQEBXgcALwA/XgcAAAEBrAYBAAAAAQAAAAAAAAABAf////8AAAAAF2CJCgIAAAABAAwAAABWYXJpYW50"
+            + "VmFsdWUBAV8HAC8AP18HAAABAa0GAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
         #endregion
 #endif
         #endregion
@@ -11667,7 +11646,6 @@ namespace TestData
             {
                 return m_booleanValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_booleanValue, value))
@@ -11686,7 +11664,6 @@ namespace TestData
             {
                 return m_sByteValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_sByteValue, value))
@@ -11705,7 +11682,6 @@ namespace TestData
             {
                 return m_byteValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_byteValue, value))
@@ -11724,7 +11700,6 @@ namespace TestData
             {
                 return m_int16Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_int16Value, value))
@@ -11743,7 +11718,6 @@ namespace TestData
             {
                 return m_uInt16Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_uInt16Value, value))
@@ -11762,7 +11736,6 @@ namespace TestData
             {
                 return m_int32Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_int32Value, value))
@@ -11781,7 +11754,6 @@ namespace TestData
             {
                 return m_uInt32Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_uInt32Value, value))
@@ -11800,7 +11772,6 @@ namespace TestData
             {
                 return m_int64Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_int64Value, value))
@@ -11819,7 +11790,6 @@ namespace TestData
             {
                 return m_uInt64Value;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_uInt64Value, value))
@@ -11838,7 +11808,6 @@ namespace TestData
             {
                 return m_floatValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_floatValue, value))
@@ -11857,7 +11826,6 @@ namespace TestData
             {
                 return m_doubleValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_doubleValue, value))
@@ -11876,7 +11844,6 @@ namespace TestData
             {
                 return m_stringValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_stringValue, value))
@@ -11895,7 +11862,6 @@ namespace TestData
             {
                 return m_dateTimeValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_dateTimeValue, value))
@@ -11914,7 +11880,6 @@ namespace TestData
             {
                 return m_guidValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_guidValue, value))
@@ -11933,7 +11898,6 @@ namespace TestData
             {
                 return m_byteStringValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_byteStringValue, value))
@@ -11952,7 +11916,6 @@ namespace TestData
             {
                 return m_xmlElementValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_xmlElementValue, value))
@@ -11971,7 +11934,6 @@ namespace TestData
             {
                 return m_nodeIdValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_nodeIdValue, value))
@@ -11990,7 +11952,6 @@ namespace TestData
             {
                 return m_expandedNodeIdValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_expandedNodeIdValue, value))
@@ -12009,7 +11970,6 @@ namespace TestData
             {
                 return m_qualifiedNameValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_qualifiedNameValue, value))
@@ -12028,7 +11988,6 @@ namespace TestData
             {
                 return m_localizedTextValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_localizedTextValue, value))
@@ -12047,7 +12006,6 @@ namespace TestData
             {
                 return m_statusCodeValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_statusCodeValue, value))
@@ -12066,7 +12024,6 @@ namespace TestData
             {
                 return m_variantValue;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_variantValue, value))
@@ -12081,9 +12038,7 @@ namespace TestData
 
         #region Overridden Methods
         /// <remarks />
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
+        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
             if (m_booleanValue != null)
             {
@@ -12203,7 +12158,8 @@ namespace TestData
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement)
+            BaseInstanceState replacement
+        )
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -12723,14 +12679,17 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public VectorVariableState(NodeState parent) : base(parent)
-        {
-        }
+        public VectorVariableState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(TestData.VariableTypes.VectorVariableType, TestData.Namespaces.TestData, namespaceUris);
+            return Opc.Ua.NodeId.Create(
+                TestData.VariableTypes.VectorVariableType,
+                TestData.Namespaces.TestData,
+                namespaceUris
+            );
         }
 
         /// <remarks />
@@ -12769,10 +12728,10 @@ namespace TestData
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////FWCBAgIAAAABABoAAABWZWN0b3JWYXJp" +
-           "YWJsZVR5cGVJbnN0YW5jZQEBYQcBAWEHYQcAAAEBYAcBAf////8DAAAAFWCJCgIAAAABAAEAAABYAQFi" +
-           "BwAuAERiBwAAAAv/////AQH/////AAAAABVgiQoCAAAAAQABAAAAWQEBYwcALgBEYwcAAAAL/////wEB" +
-           "/////wAAAAAVYIkKAgAAAAEAAQAAAFoBAWQHAC4ARGQHAAAAC/////8BAf////8AAAAA";
+            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////FWCBAgIAAAABABoAAABWZWN0b3JWYXJp"
+            + "YWJsZVR5cGVJbnN0YW5jZQEBYQcBAWEHYQcAAAEBYAcBAf////8DAAAAFWCJCgIAAAABAAEAAABYAQFi"
+            + "BwAuAERiBwAAAAv/////AQH/////AAAAABVgiQoCAAAAAQABAAAAWQEBYwcALgBEYwcAAAAL/////wEB"
+            + "/////wAAAAAVYIkKAgAAAAEAAQAAAFoBAWQHAC4ARGQHAAAAC/////8BAf////8AAAAA";
         #endregion
 #endif
         #endregion
@@ -12785,7 +12744,6 @@ namespace TestData
             {
                 return m_x;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_x, value))
@@ -12804,7 +12762,6 @@ namespace TestData
             {
                 return m_y;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_y, value))
@@ -12823,7 +12780,6 @@ namespace TestData
             {
                 return m_z;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_z, value))
@@ -12838,9 +12794,7 @@ namespace TestData
 
         #region Overridden Methods
         /// <remarks />
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
+        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
             if (m_x != null)
             {
@@ -12865,7 +12819,8 @@ namespace TestData
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement)
+            BaseInstanceState replacement
+        )
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -12964,7 +12919,8 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public VectorVariableValue(VectorVariableState variable, Vector value, object dataLock) : base(dataLock)
+        public VectorVariableValue(VectorVariableState variable, Vector value, object dataLock)
+            : base(dataLock)
         {
             m_value = value;
 
@@ -12981,14 +12937,23 @@ namespace TestData
         /// <remarks />
         public VectorVariableState Variable
         {
-            get { return m_variable; }
+            get
+            {
+                return m_variable;
+            }
         }
 
         /// <remarks />
         public Vector Value
         {
-            get { return m_value; }
-            set { m_value = value; }
+            get
+            {
+                return m_value;
+            }
+            set
+            {
+                m_value = value;
+            }
         }
         #endregion
 
@@ -13042,7 +13007,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -13064,7 +13030,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -13090,7 +13057,12 @@ namespace TestData
             return ServiceResult.Good;
         }
 
-        private void UpdateChildrenChangeMasks(ISystemContext context, ref Vector newValue, ref StatusCode statusCode, ref DateTime timestamp)
+        private void UpdateChildrenChangeMasks(
+            ISystemContext context,
+            ref Vector newValue,
+            ref StatusCode statusCode,
+            ref DateTime timestamp
+        )
         {
             if (!Utils.IsEqual(m_value.X, newValue.X))
                 UpdateChildVariableStatus(m_variable.X, ref statusCode, ref timestamp);
@@ -13107,7 +13079,11 @@ namespace TestData
             m_variable.ClearChangeMasks(context, false);
         }
 
-        private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
+        private void UpdateChildVariableStatus(
+            BaseVariableState child,
+            ref StatusCode statusCode,
+            ref DateTime timestamp
+        )
         {
             if (child == null)
                 return;
@@ -13128,7 +13104,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -13171,7 +13148,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -13193,7 +13171,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -13236,7 +13215,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -13258,7 +13238,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -13301,7 +13282,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             lock (Lock)
             {
@@ -13333,9 +13315,8 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public UserArrayValue1MethodState(NodeState parent) : base(parent)
-        {
-        }
+        public UserArrayValue1MethodState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         public new static NodeState Construct(NodeState parent)
@@ -13360,26 +13341,26 @@ namespace TestData
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGGCCgQAAAABABkAAABVc2VyQXJyYXlW" +
-           "YWx1ZTFNZXRob2RUeXBlAQFnBwAvAQFnB2cHAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFy" +
-           "Z3VtZW50cwEBaAcALgBEaAcAAJYMAAAAAQAqAQEeAAAACQAAAEJvb2xlYW5JbgEBmAYBAAAAAQAAAAAA" +
-           "AAAAAQAqAQEcAAAABwAAAFNCeXRlSW4BAZkGAQAAAAEAAAAAAAAAAAEAKgEBGwAAAAYAAABCeXRlSW4B" +
-           "AZoGAQAAAAEAAAAAAAAAAAEAKgEBHAAAAAcAAABJbnQxNkluAQGbBgEAAAABAAAAAAAAAAABACoBAR0A" +
-           "AAAIAAAAVUludDE2SW4BAZwGAQAAAAEAAAAAAAAAAAEAKgEBHAAAAAcAAABJbnQzMkluAQGdBgEAAAAB" +
-           "AAAAAAAAAAABACoBAR0AAAAIAAAAVUludDMySW4BAZ4GAQAAAAEAAAAAAAAAAAEAKgEBHAAAAAcAAABJ" +
-           "bnQ2NEluAQGfBgEAAAABAAAAAAAAAAABACoBAR0AAAAIAAAAVUludDY0SW4BAaAGAQAAAAEAAAAAAAAA" +
-           "AAEAKgEBHAAAAAcAAABGbG9hdEluAQGhBgEAAAABAAAAAAAAAAABACoBAR0AAAAIAAAARG91YmxlSW4B" +
-           "AaIGAQAAAAEAAAAAAAAAAAEAKgEBHQAAAAgAAABTdHJpbmdJbgEBowYBAAAAAQAAAAAAAAAAAQAoAQEA" +
-           "AAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEBaQcALgBEaQcA" +
-           "AJYMAAAAAQAqAQEfAAAACgAAAEJvb2xlYW5PdXQBAZgGAQAAAAEAAAAAAAAAAAEAKgEBHQAAAAgAAABT" +
-           "Qnl0ZU91dAEBmQYBAAAAAQAAAAAAAAAAAQAqAQEcAAAABwAAAEJ5dGVPdXQBAZoGAQAAAAEAAAAAAAAA" +
-           "AAEAKgEBHQAAAAgAAABJbnQxNk91dAEBmwYBAAAAAQAAAAAAAAAAAQAqAQEeAAAACQAAAFVJbnQxNk91" +
-           "dAEBnAYBAAAAAQAAAAAAAAAAAQAqAQEdAAAACAAAAEludDMyT3V0AQGdBgEAAAABAAAAAAAAAAABACoB" +
-           "AR4AAAAJAAAAVUludDMyT3V0AQGeBgEAAAABAAAAAAAAAAABACoBAR0AAAAIAAAASW50NjRPdXQBAZ8G" +
-           "AQAAAAEAAAAAAAAAAAEAKgEBHgAAAAkAAABVSW50NjRPdXQBAaAGAQAAAAEAAAAAAAAAAAEAKgEBHQAA" +
-           "AAgAAABGbG9hdE91dAEBoQYBAAAAAQAAAAAAAAAAAQAqAQEeAAAACQAAAERvdWJsZU91dAEBogYBAAAA" +
-           "AQAAAAAAAAAAAQAqAQEeAAAACQAAAFN0cmluZ091dAEBowYBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAA" +
-           "AAAAAAEB/////wAAAAA=";
+            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGGCCgQAAAABABkAAABVc2VyQXJyYXlW"
+            + "YWx1ZTFNZXRob2RUeXBlAQFnBwAvAQFnB2cHAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFy"
+            + "Z3VtZW50cwEBaAcALgBEaAcAAJYMAAAAAQAqAQEeAAAACQAAAEJvb2xlYW5JbgEBmAYBAAAAAQAAAAAA"
+            + "AAAAAQAqAQEcAAAABwAAAFNCeXRlSW4BAZkGAQAAAAEAAAAAAAAAAAEAKgEBGwAAAAYAAABCeXRlSW4B"
+            + "AZoGAQAAAAEAAAAAAAAAAAEAKgEBHAAAAAcAAABJbnQxNkluAQGbBgEAAAABAAAAAAAAAAABACoBAR0A"
+            + "AAAIAAAAVUludDE2SW4BAZwGAQAAAAEAAAAAAAAAAAEAKgEBHAAAAAcAAABJbnQzMkluAQGdBgEAAAAB"
+            + "AAAAAAAAAAABACoBAR0AAAAIAAAAVUludDMySW4BAZ4GAQAAAAEAAAAAAAAAAAEAKgEBHAAAAAcAAABJ"
+            + "bnQ2NEluAQGfBgEAAAABAAAAAAAAAAABACoBAR0AAAAIAAAAVUludDY0SW4BAaAGAQAAAAEAAAAAAAAA"
+            + "AAEAKgEBHAAAAAcAAABGbG9hdEluAQGhBgEAAAABAAAAAAAAAAABACoBAR0AAAAIAAAARG91YmxlSW4B"
+            + "AaIGAQAAAAEAAAAAAAAAAAEAKgEBHQAAAAgAAABTdHJpbmdJbgEBowYBAAAAAQAAAAAAAAAAAQAoAQEA"
+            + "AAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEBaQcALgBEaQcA"
+            + "AJYMAAAAAQAqAQEfAAAACgAAAEJvb2xlYW5PdXQBAZgGAQAAAAEAAAAAAAAAAAEAKgEBHQAAAAgAAABT"
+            + "Qnl0ZU91dAEBmQYBAAAAAQAAAAAAAAAAAQAqAQEcAAAABwAAAEJ5dGVPdXQBAZoGAQAAAAEAAAAAAAAA"
+            + "AAEAKgEBHQAAAAgAAABJbnQxNk91dAEBmwYBAAAAAQAAAAAAAAAAAQAqAQEeAAAACQAAAFVJbnQxNk91"
+            + "dAEBnAYBAAAAAQAAAAAAAAAAAQAqAQEdAAAACAAAAEludDMyT3V0AQGdBgEAAAABAAAAAAAAAAABACoB"
+            + "AR4AAAAJAAAAVUludDMyT3V0AQGeBgEAAAABAAAAAAAAAAABACoBAR0AAAAIAAAASW50NjRPdXQBAZ8G"
+            + "AQAAAAEAAAAAAAAAAAEAKgEBHgAAAAkAAABVSW50NjRPdXQBAaAGAQAAAAEAAAAAAAAAAAEAKgEBHQAA"
+            + "AAgAAABGbG9hdE91dAEBoQYBAAAAAQAAAAAAAAAAAQAqAQEeAAAACQAAAERvdWJsZU91dAEBogYBAAAA"
+            + "AQAAAAAAAAAAAQAqAQEeAAAACQAAAFN0cmluZ091dAEBowYBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAA"
+            + "AAAAAAEB/////wAAAAA=";
         #endregion
 #endif
         #endregion
@@ -13398,7 +13379,8 @@ namespace TestData
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments)
+            IList<object> _outputArguments
+        )
         {
             if (OnCall == null)
             {
@@ -13462,7 +13444,8 @@ namespace TestData
                     ref uInt64Out,
                     ref floatOut,
                     ref doubleOut,
-                    ref stringOut);
+                    ref stringOut
+                );
             }
 
             _outputArguments[0] = booleanOut;
@@ -13515,7 +13498,8 @@ namespace TestData
         ref ulong[] uInt64Out,
         ref float[] floatOut,
         ref double[] doubleOut,
-        ref string[] stringOut);
+        ref string[] stringOut
+    );
 #endif
     #endregion
 
@@ -13528,9 +13512,8 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public UserArrayValue2MethodState(NodeState parent) : base(parent)
-        {
-        }
+        public UserArrayValue2MethodState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         public new static NodeState Construct(NodeState parent)
@@ -13555,25 +13538,25 @@ namespace TestData
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGGCCgQAAAABABkAAABVc2VyQXJyYXlW" +
-           "YWx1ZTJNZXRob2RUeXBlAQFqBwAvAQFqB2oHAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFy" +
-           "Z3VtZW50cwEBawcALgBEawcAAJYKAAAAAQAqAQEfAAAACgAAAERhdGVUaW1lSW4BAaQGAQAAAAEAAAAA" +
-           "AAAAAAEAKgEBGwAAAAYAAABHdWlkSW4BAaUGAQAAAAEAAAAAAAAAAAEAKgEBIQAAAAwAAABCeXRlU3Ry" +
-           "aW5nSW4BAaYGAQAAAAEAAAAAAAAAAAEAKgEBIQAAAAwAAABYbWxFbGVtZW50SW4BAacGAQAAAAEAAAAA" +
-           "AAAAAAEAKgEBHQAAAAgAAABOb2RlSWRJbgEBqAYBAAAAAQAAAAAAAAAAAQAqAQElAAAAEAAAAEV4cGFu" +
-           "ZGVkTm9kZUlkSW4BAakGAQAAAAEAAAAAAAAAAAEAKgEBJAAAAA8AAABRdWFsaWZpZWROYW1lSW4BAaoG" +
-           "AQAAAAEAAAAAAAAAAAEAKgEBJAAAAA8AAABMb2NhbGl6ZWRUZXh0SW4BAasGAQAAAAEAAAAAAAAAAAEA" +
-           "KgEBIQAAAAwAAABTdGF0dXNDb2RlSW4BAawGAQAAAAEAAAAAAAAAAAEAKgEBHgAAAAkAAABWYXJpYW50" +
-           "SW4BAa0GAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABP" +
-           "dXRwdXRBcmd1bWVudHMBAWwHAC4ARGwHAACWCgAAAAEAKgEBIAAAAAsAAABEYXRlVGltZU91dAEBpAYB" +
-           "AAAAAQAAAAAAAAAAAQAqAQEcAAAABwAAAEd1aWRPdXQBAaUGAQAAAAEAAAAAAAAAAAEAKgEBIgAAAA0A" +
-           "AABCeXRlU3RyaW5nT3V0AQGmBgEAAAABAAAAAAAAAAABACoBASIAAAANAAAAWG1sRWxlbWVudE91dAEB" +
-           "pwYBAAAAAQAAAAAAAAAAAQAqAQEeAAAACQAAAE5vZGVJZE91dAEBqAYBAAAAAQAAAAAAAAAAAQAqAQEm" +
-           "AAAAEQAAAEV4cGFuZGVkTm9kZUlkT3V0AQGpBgEAAAABAAAAAAAAAAABACoBASUAAAAQAAAAUXVhbGlm" +
-           "aWVkTmFtZU91dAEBqgYBAAAAAQAAAAAAAAAAAQAqAQElAAAAEAAAAExvY2FsaXplZFRleHRPdXQBAasG" +
-           "AQAAAAEAAAAAAAAAAAEAKgEBIgAAAA0AAABTdGF0dXNDb2RlT3V0AQGsBgEAAAABAAAAAAAAAAABACoB" +
-           "AR8AAAAKAAAAVmFyaWFudE91dAEBrQYBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAA" +
-           "AAA=";
+            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGGCCgQAAAABABkAAABVc2VyQXJyYXlW"
+            + "YWx1ZTJNZXRob2RUeXBlAQFqBwAvAQFqB2oHAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFy"
+            + "Z3VtZW50cwEBawcALgBEawcAAJYKAAAAAQAqAQEfAAAACgAAAERhdGVUaW1lSW4BAaQGAQAAAAEAAAAA"
+            + "AAAAAAEAKgEBGwAAAAYAAABHdWlkSW4BAaUGAQAAAAEAAAAAAAAAAAEAKgEBIQAAAAwAAABCeXRlU3Ry"
+            + "aW5nSW4BAaYGAQAAAAEAAAAAAAAAAAEAKgEBIQAAAAwAAABYbWxFbGVtZW50SW4BAacGAQAAAAEAAAAA"
+            + "AAAAAAEAKgEBHQAAAAgAAABOb2RlSWRJbgEBqAYBAAAAAQAAAAAAAAAAAQAqAQElAAAAEAAAAEV4cGFu"
+            + "ZGVkTm9kZUlkSW4BAakGAQAAAAEAAAAAAAAAAAEAKgEBJAAAAA8AAABRdWFsaWZpZWROYW1lSW4BAaoG"
+            + "AQAAAAEAAAAAAAAAAAEAKgEBJAAAAA8AAABMb2NhbGl6ZWRUZXh0SW4BAasGAQAAAAEAAAAAAAAAAAEA"
+            + "KgEBIQAAAAwAAABTdGF0dXNDb2RlSW4BAawGAQAAAAEAAAAAAAAAAAEAKgEBHgAAAAkAAABWYXJpYW50"
+            + "SW4BAa0GAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABP"
+            + "dXRwdXRBcmd1bWVudHMBAWwHAC4ARGwHAACWCgAAAAEAKgEBIAAAAAsAAABEYXRlVGltZU91dAEBpAYB"
+            + "AAAAAQAAAAAAAAAAAQAqAQEcAAAABwAAAEd1aWRPdXQBAaUGAQAAAAEAAAAAAAAAAAEAKgEBIgAAAA0A"
+            + "AABCeXRlU3RyaW5nT3V0AQGmBgEAAAABAAAAAAAAAAABACoBASIAAAANAAAAWG1sRWxlbWVudE91dAEB"
+            + "pwYBAAAAAQAAAAAAAAAAAQAqAQEeAAAACQAAAE5vZGVJZE91dAEBqAYBAAAAAQAAAAAAAAAAAQAqAQEm"
+            + "AAAAEQAAAEV4cGFuZGVkTm9kZUlkT3V0AQGpBgEAAAABAAAAAAAAAAABACoBASUAAAAQAAAAUXVhbGlm"
+            + "aWVkTmFtZU91dAEBqgYBAAAAAQAAAAAAAAAAAQAqAQElAAAAEAAAAExvY2FsaXplZFRleHRPdXQBAasG"
+            + "AQAAAAEAAAAAAAAAAAEAKgEBIgAAAA0AAABTdGF0dXNDb2RlT3V0AQGsBgEAAAABAAAAAAAAAAABACoB"
+            + "AR8AAAAKAAAAVmFyaWFudE91dAEBrQYBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAA"
+            + "AAA=";
         #endregion
 #endif
         #endregion
@@ -13592,7 +13575,8 @@ namespace TestData
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments)
+            IList<object> _outputArguments
+        )
         {
             if (OnCall == null)
             {
@@ -13648,7 +13632,8 @@ namespace TestData
                     ref qualifiedNameOut,
                     ref localizedTextOut,
                     ref statusCodeOut,
-                    ref variantOut);
+                    ref variantOut
+                );
             }
 
             _outputArguments[0] = dateTimeOut;
@@ -13695,7 +13680,8 @@ namespace TestData
         ref QualifiedName[] qualifiedNameOut,
         ref LocalizedText[] localizedTextOut,
         ref StatusCode[] statusCodeOut,
-        ref Variant[] variantOut);
+        ref Variant[] variantOut
+    );
 #endif
     #endregion
 
@@ -13708,14 +13694,17 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public MethodTestState(NodeState parent) : base(parent)
-        {
-        }
+        public MethodTestState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(TestData.ObjectTypes.MethodTestType, TestData.Namespaces.TestData, namespaceUris);
+            return Opc.Ua.NodeId.Create(
+                TestData.ObjectTypes.MethodTestType,
+                TestData.Namespaces.TestData,
+                namespaceUris
+            );
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -13742,154 +13731,154 @@ namespace TestData
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGCAAgEAAAABABYAAABNZXRob2RUZXN0" +
-           "VHlwZUluc3RhbmNlAQFtBwEBbQdtBwAA/////woAAAAEYYIKBAAAAAEADQAAAFNjYWxhck1ldGhvZDEB" +
-           "AW4HAC8BAW4HbgcAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQFvBwAuAERv" +
-           "BwAAlgsAAAABACoBARgAAAAJAAAAQm9vbGVhbkluAAH/////AAAAAAABACoBARYAAAAHAAAAU0J5dGVJ" +
-           "bgAC/////wAAAAAAAQAqAQEVAAAABgAAAEJ5dGVJbgAD/////wAAAAAAAQAqAQEWAAAABwAAAEludDE2" +
-           "SW4ABP////8AAAAAAAEAKgEBFwAAAAgAAABVSW50MTZJbgAF/////wAAAAAAAQAqAQEWAAAABwAAAElu" +
-           "dDMySW4ABv////8AAAAAAAEAKgEBFwAAAAgAAABVSW50MzJJbgAH/////wAAAAAAAQAqAQEWAAAABwAA" +
-           "AEludDY0SW4ACP////8AAAAAAAEAKgEBFwAAAAgAAABVSW50NjRJbgAJ/////wAAAAAAAQAqAQEWAAAA" +
-           "BwAAAEZsb2F0SW4ACv////8AAAAAAAEAKgEBFwAAAAgAAABEb3VibGVJbgAL/////wAAAAAAAQAoAQEA" +
-           "AAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEBcAcALgBEcAcA" +
-           "AJYLAAAAAQAqAQEZAAAACgAAAEJvb2xlYW5PdXQAAf////8AAAAAAAEAKgEBFwAAAAgAAABTQnl0ZU91" +
-           "dAAC/////wAAAAAAAQAqAQEWAAAABwAAAEJ5dGVPdXQAA/////8AAAAAAAEAKgEBFwAAAAgAAABJbnQx" +
-           "Nk91dAAE/////wAAAAAAAQAqAQEYAAAACQAAAFVJbnQxNk91dAAF/////wAAAAAAAQAqAQEXAAAACAAA" +
-           "AEludDMyT3V0AAb/////AAAAAAABACoBARgAAAAJAAAAVUludDMyT3V0AAf/////AAAAAAABACoBARcA" +
-           "AAAIAAAASW50NjRPdXQACP////8AAAAAAAEAKgEBGAAAAAkAAABVSW50NjRPdXQACf////8AAAAAAAEA" +
-           "KgEBFwAAAAgAAABGbG9hdE91dAAK/////wAAAAAAAQAqAQEYAAAACQAAAERvdWJsZU91dAAL/////wAA" +
-           "AAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAEADQAAAFNjYWxhck1ldGhvZDIBAXEH" +
-           "AC8BAXEHcQcAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQFyBwAuAERyBwAA" +
-           "lgoAAAABACoBARcAAAAIAAAAU3RyaW5nSW4ADP////8AAAAAAAEAKgEBGQAAAAoAAABEYXRlVGltZUlu" +
-           "AA3/////AAAAAAABACoBARUAAAAGAAAAR3VpZEluAA7/////AAAAAAABACoBARsAAAAMAAAAQnl0ZVN0" +
-           "cmluZ0luAA//////AAAAAAABACoBARsAAAAMAAAAWG1sRWxlbWVudEluABD/////AAAAAAABACoBARcA" +
-           "AAAIAAAATm9kZUlkSW4AEf////8AAAAAAAEAKgEBHwAAABAAAABFeHBhbmRlZE5vZGVJZEluABL/////" +
-           "AAAAAAABACoBAR4AAAAPAAAAUXVhbGlmaWVkTmFtZUluABT/////AAAAAAABACoBAR4AAAAPAAAATG9j" +
-           "YWxpemVkVGV4dEluABX/////AAAAAAABACoBARsAAAAMAAAAU3RhdHVzQ29kZUluABP/////AAAAAAAB" +
-           "ACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQFzBwAu" +
-           "AERzBwAAlgoAAAABACoBARgAAAAJAAAAU3RyaW5nT3V0AAz/////AAAAAAABACoBARoAAAALAAAARGF0" +
-           "ZVRpbWVPdXQADf////8AAAAAAAEAKgEBFgAAAAcAAABHdWlkT3V0AA7/////AAAAAAABACoBARwAAAAN" +
-           "AAAAQnl0ZVN0cmluZ091dAAP/////wAAAAAAAQAqAQEcAAAADQAAAFhtbEVsZW1lbnRPdXQAEP////8A" +
-           "AAAAAAEAKgEBGAAAAAkAAABOb2RlSWRPdXQAEf////8AAAAAAAEAKgEBIAAAABEAAABFeHBhbmRlZE5v" +
-           "ZGVJZE91dAAS/////wAAAAAAAQAqAQEfAAAAEAAAAFF1YWxpZmllZE5hbWVPdXQAFP////8AAAAAAAEA" +
-           "KgEBHwAAABAAAABMb2NhbGl6ZWRUZXh0T3V0ABX/////AAAAAAABACoBARwAAAANAAAAU3RhdHVzQ29k" +
-           "ZU91dAAT/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAEADQAAAFNjYWxh" +
-           "ck1ldGhvZDMBAXQHAC8BAXQHdAcAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRz" +
-           "AQF1BwAuAER1BwAAlgMAAAABACoBARgAAAAJAAAAVmFyaWFudEluABj/////AAAAAAABACoBARwAAAAN" +
-           "AAAARW51bWVyYXRpb25JbgAd/////wAAAAAAAQAqAQEaAAAACwAAAFN0cnVjdHVyZUluABb/////AAAA" +
-           "AAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQF2" +
-           "BwAuAER2BwAAlgMAAAABACoBARkAAAAKAAAAVmFyaWFudE91dAAY/////wAAAAAAAQAqAQEdAAAADgAA" +
-           "AEVudW1lcmF0aW9uT3V0AB3/////AAAAAAABACoBARsAAAAMAAAAU3RydWN0dXJlT3V0ABb/////AAAA" +
-           "AAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAQAMAAAAQXJyYXlNZXRob2QxAQF3BwAv" +
-           "AQF3B3cHAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEBeAcALgBEeAcAAJYL" +
-           "AAAAAQAqAQEcAAAACQAAAEJvb2xlYW5JbgABAQAAAAEAAAAAAAAAAAEAKgEBGgAAAAcAAABTQnl0ZUlu" +
-           "AAIBAAAAAQAAAAAAAAAAAQAqAQEZAAAABgAAAEJ5dGVJbgADAQAAAAEAAAAAAAAAAAEAKgEBGgAAAAcA" +
-           "AABJbnQxNkluAAQBAAAAAQAAAAAAAAAAAQAqAQEbAAAACAAAAFVJbnQxNkluAAUBAAAAAQAAAAAAAAAA" +
-           "AQAqAQEaAAAABwAAAEludDMySW4ABgEAAAABAAAAAAAAAAABACoBARsAAAAIAAAAVUludDMySW4ABwEA" +
-           "AAABAAAAAAAAAAABACoBARoAAAAHAAAASW50NjRJbgAIAQAAAAEAAAAAAAAAAAEAKgEBGwAAAAgAAABV" +
-           "SW50NjRJbgAJAQAAAAEAAAAAAAAAAAEAKgEBGgAAAAcAAABGbG9hdEluAAoBAAAAAQAAAAAAAAAAAQAq" +
-           "AQEbAAAACAAAAERvdWJsZUluAAsBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAX" +
-           "YKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEBeQcALgBEeQcAAJYLAAAAAQAqAQEdAAAACgAAAEJv" +
-           "b2xlYW5PdXQAAQEAAAABAAAAAAAAAAABACoBARsAAAAIAAAAU0J5dGVPdXQAAgEAAAABAAAAAAAAAAAB" +
-           "ACoBARoAAAAHAAAAQnl0ZU91dAADAQAAAAEAAAAAAAAAAAEAKgEBGwAAAAgAAABJbnQxNk91dAAEAQAA" +
-           "AAEAAAAAAAAAAAEAKgEBHAAAAAkAAABVSW50MTZPdXQABQEAAAABAAAAAAAAAAABACoBARsAAAAIAAAA" +
-           "SW50MzJPdXQABgEAAAABAAAAAAAAAAABACoBARwAAAAJAAAAVUludDMyT3V0AAcBAAAAAQAAAAAAAAAA" +
-           "AQAqAQEbAAAACAAAAEludDY0T3V0AAgBAAAAAQAAAAAAAAAAAQAqAQEcAAAACQAAAFVJbnQ2NE91dAAJ" +
-           "AQAAAAEAAAAAAAAAAAEAKgEBGwAAAAgAAABGbG9hdE91dAAKAQAAAAEAAAAAAAAAAAEAKgEBHAAAAAkA" +
-           "AABEb3VibGVPdXQACwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAA" +
-           "AQAMAAAAQXJyYXlNZXRob2QyAQF6BwAvAQF6B3oHAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1" +
-           "dEFyZ3VtZW50cwEBewcALgBEewcAAJYKAAAAAQAqAQEbAAAACAAAAFN0cmluZ0luAAwBAAAAAQAAAAAA" +
-           "AAAAAQAqAQEdAAAACgAAAERhdGVUaW1lSW4ADQEAAAABAAAAAAAAAAABACoBARkAAAAGAAAAR3VpZElu" +
-           "AA4BAAAAAQAAAAAAAAAAAQAqAQEfAAAADAAAAEJ5dGVTdHJpbmdJbgAPAQAAAAEAAAAAAAAAAAEAKgEB" +
-           "HwAAAAwAAABYbWxFbGVtZW50SW4AEAEAAAABAAAAAAAAAAABACoBARsAAAAIAAAATm9kZUlkSW4AEQEA" +
-           "AAABAAAAAAAAAAABACoBASMAAAAQAAAARXhwYW5kZWROb2RlSWRJbgASAQAAAAEAAAAAAAAAAAEAKgEB" +
-           "IgAAAA8AAABRdWFsaWZpZWROYW1lSW4AFAEAAAABAAAAAAAAAAABACoBASIAAAAPAAAATG9jYWxpemVk" +
-           "VGV4dEluABUBAAAAAQAAAAAAAAAAAQAqAQEfAAAADAAAAFN0YXR1c0NvZGVJbgATAQAAAAEAAAAAAAAA" +
-           "AAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAXwH" +
-           "AC4ARHwHAACWCgAAAAEAKgEBHAAAAAkAAABTdHJpbmdPdXQADAEAAAABAAAAAAAAAAABACoBAR4AAAAL" +
-           "AAAARGF0ZVRpbWVPdXQADQEAAAABAAAAAAAAAAABACoBARoAAAAHAAAAR3VpZE91dAAOAQAAAAEAAAAA" +
-           "AAAAAAEAKgEBIAAAAA0AAABCeXRlU3RyaW5nT3V0AA8BAAAAAQAAAAAAAAAAAQAqAQEgAAAADQAAAFht" +
-           "bEVsZW1lbnRPdXQAEAEAAAABAAAAAAAAAAABACoBARwAAAAJAAAATm9kZUlkT3V0ABEBAAAAAQAAAAAA" +
-           "AAAAAQAqAQEkAAAAEQAAAEV4cGFuZGVkTm9kZUlkT3V0ABIBAAAAAQAAAAAAAAAAAQAqAQEjAAAAEAAA" +
-           "AFF1YWxpZmllZE5hbWVPdXQAFAEAAAABAAAAAAAAAAABACoBASMAAAAQAAAATG9jYWxpemVkVGV4dE91" +
-           "dAAVAQAAAAEAAAAAAAAAAAEAKgEBIAAAAA0AAABTdGF0dXNDb2RlT3V0ABMBAAAAAQAAAAAAAAAAAQAo" +
-           "AQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAEADAAAAEFycmF5TWV0aG9kMwEBfQcALwEBfQd9" +
-           "BwAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAX4HAC4ARH4HAACWAwAAAAEA" +
-           "KgEBHAAAAAkAAABWYXJpYW50SW4AGAEAAAABAAAAAAAAAAABACoBASAAAAANAAAARW51bWVyYXRpb25J" +
-           "bgAdAQAAAAEAAAAAAAAAAAEAKgEBHgAAAAsAAABTdHJ1Y3R1cmVJbgAWAQAAAAEAAAAAAAAAAAEAKAEB" +
-           "AAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAX8HAC4ARH8H" +
-           "AACWAwAAAAEAKgEBHQAAAAoAAABWYXJpYW50T3V0ABgBAAAAAQAAAAAAAAAAAQAqAQEhAAAADgAAAEVu" +
-           "dW1lcmF0aW9uT3V0AB0BAAAAAQAAAAAAAAAAAQAqAQEfAAAADAAAAFN0cnVjdHVyZU91dAAWAQAAAAEA" +
-           "AAAAAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAABABEAAABVc2VyU2NhbGFyTWV0" +
-           "aG9kMQEBgAcALwEBgAeABwAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAYEH" +
-           "AC4ARIEHAACWDAAAAAEAKgEBGgAAAAkAAABCb29sZWFuSW4BAZgG/////wAAAAAAAQAqAQEYAAAABwAA" +
-           "AFNCeXRlSW4BAZkG/////wAAAAAAAQAqAQEXAAAABgAAAEJ5dGVJbgEBmgb/////AAAAAAABACoBARgA" +
-           "AAAHAAAASW50MTZJbgEBmwb/////AAAAAAABACoBARkAAAAIAAAAVUludDE2SW4BAZwG/////wAAAAAA" +
-           "AQAqAQEYAAAABwAAAEludDMySW4BAZ0G/////wAAAAAAAQAqAQEZAAAACAAAAFVJbnQzMkluAQGeBv//" +
-           "//8AAAAAAAEAKgEBGAAAAAcAAABJbnQ2NEluAQGfBv////8AAAAAAAEAKgEBGQAAAAgAAABVSW50NjRJ" +
-           "bgEBoAb/////AAAAAAABACoBARgAAAAHAAAARmxvYXRJbgEBoQb/////AAAAAAABACoBARkAAAAIAAAA" +
-           "RG91YmxlSW4BAaIG/////wAAAAAAAQAqAQEZAAAACAAAAFN0cmluZ0luAQGjBv////8AAAAAAAEAKAEB" +
-           "AAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAYIHAC4ARIIH" +
-           "AACWDAAAAAEAKgEBGwAAAAoAAABCb29sZWFuT3V0AQGYBv////8AAAAAAAEAKgEBGQAAAAgAAABTQnl0" +
-           "ZU91dAEBmQb/////AAAAAAABACoBARgAAAAHAAAAQnl0ZU91dAEBmgb/////AAAAAAABACoBARkAAAAI" +
-           "AAAASW50MTZPdXQBAZsG/////wAAAAAAAQAqAQEaAAAACQAAAFVJbnQxNk91dAEBnAb/////AAAAAAAB" +
-           "ACoBARkAAAAIAAAASW50MzJPdXQBAZ0G/////wAAAAAAAQAqAQEaAAAACQAAAFVJbnQzMk91dAEBngb/" +
-           "////AAAAAAABACoBARkAAAAIAAAASW50NjRPdXQBAZ8G/////wAAAAAAAQAqAQEaAAAACQAAAFVJbnQ2" +
-           "NE91dAEBoAb/////AAAAAAABACoBARkAAAAIAAAARmxvYXRPdXQBAaEG/////wAAAAAAAQAqAQEaAAAA" +
-           "CQAAAERvdWJsZU91dAEBogb/////AAAAAAABACoBARoAAAAJAAAAU3RyaW5nT3V0AQGjBv////8AAAAA" +
-           "AAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAABABEAAABVc2VyU2NhbGFyTWV0aG9kMgEB" +
-           "gwcALwEBgweDBwAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAYQHAC4ARIQH" +
-           "AACWCgAAAAEAKgEBGwAAAAoAAABEYXRlVGltZUluAQGkBv////8AAAAAAAEAKgEBFwAAAAYAAABHdWlk" +
-           "SW4BAaUG/////wAAAAAAAQAqAQEdAAAADAAAAEJ5dGVTdHJpbmdJbgEBpgb/////AAAAAAABACoBAR0A" +
-           "AAAMAAAAWG1sRWxlbWVudEluAQGnBv////8AAAAAAAEAKgEBGQAAAAgAAABOb2RlSWRJbgEBqAb/////" +
-           "AAAAAAABACoBASEAAAAQAAAARXhwYW5kZWROb2RlSWRJbgEBqQb/////AAAAAAABACoBASAAAAAPAAAA" +
-           "UXVhbGlmaWVkTmFtZUluAQGqBv////8AAAAAAAEAKgEBIAAAAA8AAABMb2NhbGl6ZWRUZXh0SW4BAasG" +
-           "/////wAAAAAAAQAqAQEdAAAADAAAAFN0YXR1c0NvZGVJbgEBrAb/////AAAAAAABACoBARoAAAAJAAAA" +
-           "VmFyaWFudEluAQGtBv////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8A" +
-           "AABPdXRwdXRBcmd1bWVudHMBAYUHAC4ARIUHAACWCgAAAAEAKgEBHAAAAAsAAABEYXRlVGltZU91dAEB" +
-           "pAb/////AAAAAAABACoBARgAAAAHAAAAR3VpZE91dAEBpQb/////AAAAAAABACoBAR4AAAANAAAAQnl0" +
-           "ZVN0cmluZ091dAEBpgb/////AAAAAAABACoBAR4AAAANAAAAWG1sRWxlbWVudE91dAEBpwb/////AAAA" +
-           "AAABACoBARoAAAAJAAAATm9kZUlkT3V0AQGoBv////8AAAAAAAEAKgEBIgAAABEAAABFeHBhbmRlZE5v" +
-           "ZGVJZE91dAEBqQb/////AAAAAAABACoBASEAAAAQAAAAUXVhbGlmaWVkTmFtZU91dAEBqgb/////AAAA" +
-           "AAABACoBASEAAAAQAAAATG9jYWxpemVkVGV4dE91dAEBqwb/////AAAAAAABACoBAR4AAAANAAAAU3Rh" +
-           "dHVzQ29kZU91dAEBrAb/////AAAAAAABACoBARsAAAAKAAAAVmFyaWFudE91dAEBrQb/////AAAAAAAB" +
-           "ACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAQAQAAAAVXNlckFycmF5TWV0aG9kMQEBhgcA" +
-           "LwEBhgeGBwAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAYcHAC4ARIcHAACW" +
-           "DAAAAAEAKgEBHgAAAAkAAABCb29sZWFuSW4BAZgGAQAAAAEAAAAAAAAAAAEAKgEBHAAAAAcAAABTQnl0" +
-           "ZUluAQGZBgEAAAABAAAAAAAAAAABACoBARsAAAAGAAAAQnl0ZUluAQGaBgEAAAABAAAAAAAAAAABACoB" +
-           "ARwAAAAHAAAASW50MTZJbgEBmwYBAAAAAQAAAAAAAAAAAQAqAQEdAAAACAAAAFVJbnQxNkluAQGcBgEA" +
-           "AAABAAAAAAAAAAABACoBARwAAAAHAAAASW50MzJJbgEBnQYBAAAAAQAAAAAAAAAAAQAqAQEdAAAACAAA" +
-           "AFVJbnQzMkluAQGeBgEAAAABAAAAAAAAAAABACoBARwAAAAHAAAASW50NjRJbgEBnwYBAAAAAQAAAAAA" +
-           "AAAAAQAqAQEdAAAACAAAAFVJbnQ2NEluAQGgBgEAAAABAAAAAAAAAAABACoBARwAAAAHAAAARmxvYXRJ" +
-           "bgEBoQYBAAAAAQAAAAAAAAAAAQAqAQEdAAAACAAAAERvdWJsZUluAQGiBgEAAAABAAAAAAAAAAABACoB" +
-           "AR0AAAAIAAAAU3RyaW5nSW4BAaMGAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA" +
-           "F2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAYgHAC4ARIgHAACWDAAAAAEAKgEBHwAAAAoAAABC" +
-           "b29sZWFuT3V0AQGYBgEAAAABAAAAAAAAAAABACoBAR0AAAAIAAAAU0J5dGVPdXQBAZkGAQAAAAEAAAAA" +
-           "AAAAAAEAKgEBHAAAAAcAAABCeXRlT3V0AQGaBgEAAAABAAAAAAAAAAABACoBAR0AAAAIAAAASW50MTZP" +
-           "dXQBAZsGAQAAAAEAAAAAAAAAAAEAKgEBHgAAAAkAAABVSW50MTZPdXQBAZwGAQAAAAEAAAAAAAAAAAEA" +
-           "KgEBHQAAAAgAAABJbnQzMk91dAEBnQYBAAAAAQAAAAAAAAAAAQAqAQEeAAAACQAAAFVJbnQzMk91dAEB" +
-           "ngYBAAAAAQAAAAAAAAAAAQAqAQEdAAAACAAAAEludDY0T3V0AQGfBgEAAAABAAAAAAAAAAABACoBAR4A" +
-           "AAAJAAAAVUludDY0T3V0AQGgBgEAAAABAAAAAAAAAAABACoBAR0AAAAIAAAARmxvYXRPdXQBAaEGAQAA" +
-           "AAEAAAAAAAAAAAEAKgEBHgAAAAkAAABEb3VibGVPdXQBAaIGAQAAAAEAAAAAAAAAAAEAKgEBHgAAAAkA" +
-           "AABTdHJpbmdPdXQBAaMGAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQA" +
-           "AAABABAAAABVc2VyQXJyYXlNZXRob2QyAQGJBwAvAQGJB4kHAAABAf////8CAAAAF2CpCgIAAAAAAA4A" +
-           "AABJbnB1dEFyZ3VtZW50cwEBigcALgBEigcAAJYKAAAAAQAqAQEfAAAACgAAAERhdGVUaW1lSW4BAaQG" +
-           "AQAAAAEAAAAAAAAAAAEAKgEBGwAAAAYAAABHdWlkSW4BAaUGAQAAAAEAAAAAAAAAAAEAKgEBIQAAAAwA" +
-           "AABCeXRlU3RyaW5nSW4BAaYGAQAAAAEAAAAAAAAAAAEAKgEBIQAAAAwAAABYbWxFbGVtZW50SW4BAacG" +
-           "AQAAAAEAAAAAAAAAAAEAKgEBHQAAAAgAAABOb2RlSWRJbgEBqAYBAAAAAQAAAAAAAAAAAQAqAQElAAAA" +
-           "EAAAAEV4cGFuZGVkTm9kZUlkSW4BAakGAQAAAAEAAAAAAAAAAAEAKgEBJAAAAA8AAABRdWFsaWZpZWRO" +
-           "YW1lSW4BAaoGAQAAAAEAAAAAAAAAAAEAKgEBJAAAAA8AAABMb2NhbGl6ZWRUZXh0SW4BAasGAQAAAAEA" +
-           "AAAAAAAAAAEAKgEBIQAAAAwAAABTdGF0dXNDb2RlSW4BAawGAQAAAAEAAAAAAAAAAAEAKgEBHgAAAAkA" +
-           "AABWYXJpYW50SW4BAa0GAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIA" +
-           "AAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAYsHAC4ARIsHAACWCgAAAAEAKgEBIAAAAAsAAABEYXRlVGlt" +
-           "ZU91dAEBpAYBAAAAAQAAAAAAAAAAAQAqAQEcAAAABwAAAEd1aWRPdXQBAaUGAQAAAAEAAAAAAAAAAAEA" +
-           "KgEBIgAAAA0AAABCeXRlU3RyaW5nT3V0AQGmBgEAAAABAAAAAAAAAAABACoBASIAAAANAAAAWG1sRWxl" +
-           "bWVudE91dAEBpwYBAAAAAQAAAAAAAAAAAQAqAQEeAAAACQAAAE5vZGVJZE91dAEBqAYBAAAAAQAAAAAA" +
-           "AAAAAQAqAQEmAAAAEQAAAEV4cGFuZGVkTm9kZUlkT3V0AQGpBgEAAAABAAAAAAAAAAABACoBASUAAAAQ" +
-           "AAAAUXVhbGlmaWVkTmFtZU91dAEBqgYBAAAAAQAAAAAAAAAAAQAqAQElAAAAEAAAAExvY2FsaXplZFRl" +
-           "eHRPdXQBAasGAQAAAAEAAAAAAAAAAAEAKgEBIgAAAA0AAABTdGF0dXNDb2RlT3V0AQGsBgEAAAABAAAA" +
-           "AAAAAAABACoBAR8AAAAKAAAAVmFyaWFudE91dAEBrQYBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAA" +
-           "AAEB/////wAAAAA=";
+            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGCAAgEAAAABABYAAABNZXRob2RUZXN0"
+            + "VHlwZUluc3RhbmNlAQFtBwEBbQdtBwAA/////woAAAAEYYIKBAAAAAEADQAAAFNjYWxhck1ldGhvZDEB"
+            + "AW4HAC8BAW4HbgcAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQFvBwAuAERv"
+            + "BwAAlgsAAAABACoBARgAAAAJAAAAQm9vbGVhbkluAAH/////AAAAAAABACoBARYAAAAHAAAAU0J5dGVJ"
+            + "bgAC/////wAAAAAAAQAqAQEVAAAABgAAAEJ5dGVJbgAD/////wAAAAAAAQAqAQEWAAAABwAAAEludDE2"
+            + "SW4ABP////8AAAAAAAEAKgEBFwAAAAgAAABVSW50MTZJbgAF/////wAAAAAAAQAqAQEWAAAABwAAAElu"
+            + "dDMySW4ABv////8AAAAAAAEAKgEBFwAAAAgAAABVSW50MzJJbgAH/////wAAAAAAAQAqAQEWAAAABwAA"
+            + "AEludDY0SW4ACP////8AAAAAAAEAKgEBFwAAAAgAAABVSW50NjRJbgAJ/////wAAAAAAAQAqAQEWAAAA"
+            + "BwAAAEZsb2F0SW4ACv////8AAAAAAAEAKgEBFwAAAAgAAABEb3VibGVJbgAL/////wAAAAAAAQAoAQEA"
+            + "AAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEBcAcALgBEcAcA"
+            + "AJYLAAAAAQAqAQEZAAAACgAAAEJvb2xlYW5PdXQAAf////8AAAAAAAEAKgEBFwAAAAgAAABTQnl0ZU91"
+            + "dAAC/////wAAAAAAAQAqAQEWAAAABwAAAEJ5dGVPdXQAA/////8AAAAAAAEAKgEBFwAAAAgAAABJbnQx"
+            + "Nk91dAAE/////wAAAAAAAQAqAQEYAAAACQAAAFVJbnQxNk91dAAF/////wAAAAAAAQAqAQEXAAAACAAA"
+            + "AEludDMyT3V0AAb/////AAAAAAABACoBARgAAAAJAAAAVUludDMyT3V0AAf/////AAAAAAABACoBARcA"
+            + "AAAIAAAASW50NjRPdXQACP////8AAAAAAAEAKgEBGAAAAAkAAABVSW50NjRPdXQACf////8AAAAAAAEA"
+            + "KgEBFwAAAAgAAABGbG9hdE91dAAK/////wAAAAAAAQAqAQEYAAAACQAAAERvdWJsZU91dAAL/////wAA"
+            + "AAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAEADQAAAFNjYWxhck1ldGhvZDIBAXEH"
+            + "AC8BAXEHcQcAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQFyBwAuAERyBwAA"
+            + "lgoAAAABACoBARcAAAAIAAAAU3RyaW5nSW4ADP////8AAAAAAAEAKgEBGQAAAAoAAABEYXRlVGltZUlu"
+            + "AA3/////AAAAAAABACoBARUAAAAGAAAAR3VpZEluAA7/////AAAAAAABACoBARsAAAAMAAAAQnl0ZVN0"
+            + "cmluZ0luAA//////AAAAAAABACoBARsAAAAMAAAAWG1sRWxlbWVudEluABD/////AAAAAAABACoBARcA"
+            + "AAAIAAAATm9kZUlkSW4AEf////8AAAAAAAEAKgEBHwAAABAAAABFeHBhbmRlZE5vZGVJZEluABL/////"
+            + "AAAAAAABACoBAR4AAAAPAAAAUXVhbGlmaWVkTmFtZUluABT/////AAAAAAABACoBAR4AAAAPAAAATG9j"
+            + "YWxpemVkVGV4dEluABX/////AAAAAAABACoBARsAAAAMAAAAU3RhdHVzQ29kZUluABP/////AAAAAAAB"
+            + "ACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQFzBwAu"
+            + "AERzBwAAlgoAAAABACoBARgAAAAJAAAAU3RyaW5nT3V0AAz/////AAAAAAABACoBARoAAAALAAAARGF0"
+            + "ZVRpbWVPdXQADf////8AAAAAAAEAKgEBFgAAAAcAAABHdWlkT3V0AA7/////AAAAAAABACoBARwAAAAN"
+            + "AAAAQnl0ZVN0cmluZ091dAAP/////wAAAAAAAQAqAQEcAAAADQAAAFhtbEVsZW1lbnRPdXQAEP////8A"
+            + "AAAAAAEAKgEBGAAAAAkAAABOb2RlSWRPdXQAEf////8AAAAAAAEAKgEBIAAAABEAAABFeHBhbmRlZE5v"
+            + "ZGVJZE91dAAS/////wAAAAAAAQAqAQEfAAAAEAAAAFF1YWxpZmllZE5hbWVPdXQAFP////8AAAAAAAEA"
+            + "KgEBHwAAABAAAABMb2NhbGl6ZWRUZXh0T3V0ABX/////AAAAAAABACoBARwAAAANAAAAU3RhdHVzQ29k"
+            + "ZU91dAAT/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAEADQAAAFNjYWxh"
+            + "ck1ldGhvZDMBAXQHAC8BAXQHdAcAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRz"
+            + "AQF1BwAuAER1BwAAlgMAAAABACoBARgAAAAJAAAAVmFyaWFudEluABj/////AAAAAAABACoBARwAAAAN"
+            + "AAAARW51bWVyYXRpb25JbgAd/////wAAAAAAAQAqAQEaAAAACwAAAFN0cnVjdHVyZUluABb/////AAAA"
+            + "AAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQF2"
+            + "BwAuAER2BwAAlgMAAAABACoBARkAAAAKAAAAVmFyaWFudE91dAAY/////wAAAAAAAQAqAQEdAAAADgAA"
+            + "AEVudW1lcmF0aW9uT3V0AB3/////AAAAAAABACoBARsAAAAMAAAAU3RydWN0dXJlT3V0ABb/////AAAA"
+            + "AAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAQAMAAAAQXJyYXlNZXRob2QxAQF3BwAv"
+            + "AQF3B3cHAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEBeAcALgBEeAcAAJYL"
+            + "AAAAAQAqAQEcAAAACQAAAEJvb2xlYW5JbgABAQAAAAEAAAAAAAAAAAEAKgEBGgAAAAcAAABTQnl0ZUlu"
+            + "AAIBAAAAAQAAAAAAAAAAAQAqAQEZAAAABgAAAEJ5dGVJbgADAQAAAAEAAAAAAAAAAAEAKgEBGgAAAAcA"
+            + "AABJbnQxNkluAAQBAAAAAQAAAAAAAAAAAQAqAQEbAAAACAAAAFVJbnQxNkluAAUBAAAAAQAAAAAAAAAA"
+            + "AQAqAQEaAAAABwAAAEludDMySW4ABgEAAAABAAAAAAAAAAABACoBARsAAAAIAAAAVUludDMySW4ABwEA"
+            + "AAABAAAAAAAAAAABACoBARoAAAAHAAAASW50NjRJbgAIAQAAAAEAAAAAAAAAAAEAKgEBGwAAAAgAAABV"
+            + "SW50NjRJbgAJAQAAAAEAAAAAAAAAAAEAKgEBGgAAAAcAAABGbG9hdEluAAoBAAAAAQAAAAAAAAAAAQAq"
+            + "AQEbAAAACAAAAERvdWJsZUluAAsBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAX"
+            + "YKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEBeQcALgBEeQcAAJYLAAAAAQAqAQEdAAAACgAAAEJv"
+            + "b2xlYW5PdXQAAQEAAAABAAAAAAAAAAABACoBARsAAAAIAAAAU0J5dGVPdXQAAgEAAAABAAAAAAAAAAAB"
+            + "ACoBARoAAAAHAAAAQnl0ZU91dAADAQAAAAEAAAAAAAAAAAEAKgEBGwAAAAgAAABJbnQxNk91dAAEAQAA"
+            + "AAEAAAAAAAAAAAEAKgEBHAAAAAkAAABVSW50MTZPdXQABQEAAAABAAAAAAAAAAABACoBARsAAAAIAAAA"
+            + "SW50MzJPdXQABgEAAAABAAAAAAAAAAABACoBARwAAAAJAAAAVUludDMyT3V0AAcBAAAAAQAAAAAAAAAA"
+            + "AQAqAQEbAAAACAAAAEludDY0T3V0AAgBAAAAAQAAAAAAAAAAAQAqAQEcAAAACQAAAFVJbnQ2NE91dAAJ"
+            + "AQAAAAEAAAAAAAAAAAEAKgEBGwAAAAgAAABGbG9hdE91dAAKAQAAAAEAAAAAAAAAAAEAKgEBHAAAAAkA"
+            + "AABEb3VibGVPdXQACwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAA"
+            + "AQAMAAAAQXJyYXlNZXRob2QyAQF6BwAvAQF6B3oHAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1"
+            + "dEFyZ3VtZW50cwEBewcALgBEewcAAJYKAAAAAQAqAQEbAAAACAAAAFN0cmluZ0luAAwBAAAAAQAAAAAA"
+            + "AAAAAQAqAQEdAAAACgAAAERhdGVUaW1lSW4ADQEAAAABAAAAAAAAAAABACoBARkAAAAGAAAAR3VpZElu"
+            + "AA4BAAAAAQAAAAAAAAAAAQAqAQEfAAAADAAAAEJ5dGVTdHJpbmdJbgAPAQAAAAEAAAAAAAAAAAEAKgEB"
+            + "HwAAAAwAAABYbWxFbGVtZW50SW4AEAEAAAABAAAAAAAAAAABACoBARsAAAAIAAAATm9kZUlkSW4AEQEA"
+            + "AAABAAAAAAAAAAABACoBASMAAAAQAAAARXhwYW5kZWROb2RlSWRJbgASAQAAAAEAAAAAAAAAAAEAKgEB"
+            + "IgAAAA8AAABRdWFsaWZpZWROYW1lSW4AFAEAAAABAAAAAAAAAAABACoBASIAAAAPAAAATG9jYWxpemVk"
+            + "VGV4dEluABUBAAAAAQAAAAAAAAAAAQAqAQEfAAAADAAAAFN0YXR1c0NvZGVJbgATAQAAAAEAAAAAAAAA"
+            + "AAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAXwH"
+            + "AC4ARHwHAACWCgAAAAEAKgEBHAAAAAkAAABTdHJpbmdPdXQADAEAAAABAAAAAAAAAAABACoBAR4AAAAL"
+            + "AAAARGF0ZVRpbWVPdXQADQEAAAABAAAAAAAAAAABACoBARoAAAAHAAAAR3VpZE91dAAOAQAAAAEAAAAA"
+            + "AAAAAAEAKgEBIAAAAA0AAABCeXRlU3RyaW5nT3V0AA8BAAAAAQAAAAAAAAAAAQAqAQEgAAAADQAAAFht"
+            + "bEVsZW1lbnRPdXQAEAEAAAABAAAAAAAAAAABACoBARwAAAAJAAAATm9kZUlkT3V0ABEBAAAAAQAAAAAA"
+            + "AAAAAQAqAQEkAAAAEQAAAEV4cGFuZGVkTm9kZUlkT3V0ABIBAAAAAQAAAAAAAAAAAQAqAQEjAAAAEAAA"
+            + "AFF1YWxpZmllZE5hbWVPdXQAFAEAAAABAAAAAAAAAAABACoBASMAAAAQAAAATG9jYWxpemVkVGV4dE91"
+            + "dAAVAQAAAAEAAAAAAAAAAAEAKgEBIAAAAA0AAABTdGF0dXNDb2RlT3V0ABMBAAAAAQAAAAAAAAAAAQAo"
+            + "AQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAEADAAAAEFycmF5TWV0aG9kMwEBfQcALwEBfQd9"
+            + "BwAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAX4HAC4ARH4HAACWAwAAAAEA"
+            + "KgEBHAAAAAkAAABWYXJpYW50SW4AGAEAAAABAAAAAAAAAAABACoBASAAAAANAAAARW51bWVyYXRpb25J"
+            + "bgAdAQAAAAEAAAAAAAAAAAEAKgEBHgAAAAsAAABTdHJ1Y3R1cmVJbgAWAQAAAAEAAAAAAAAAAAEAKAEB"
+            + "AAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAX8HAC4ARH8H"
+            + "AACWAwAAAAEAKgEBHQAAAAoAAABWYXJpYW50T3V0ABgBAAAAAQAAAAAAAAAAAQAqAQEhAAAADgAAAEVu"
+            + "dW1lcmF0aW9uT3V0AB0BAAAAAQAAAAAAAAAAAQAqAQEfAAAADAAAAFN0cnVjdHVyZU91dAAWAQAAAAEA"
+            + "AAAAAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAABABEAAABVc2VyU2NhbGFyTWV0"
+            + "aG9kMQEBgAcALwEBgAeABwAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAYEH"
+            + "AC4ARIEHAACWDAAAAAEAKgEBGgAAAAkAAABCb29sZWFuSW4BAZgG/////wAAAAAAAQAqAQEYAAAABwAA"
+            + "AFNCeXRlSW4BAZkG/////wAAAAAAAQAqAQEXAAAABgAAAEJ5dGVJbgEBmgb/////AAAAAAABACoBARgA"
+            + "AAAHAAAASW50MTZJbgEBmwb/////AAAAAAABACoBARkAAAAIAAAAVUludDE2SW4BAZwG/////wAAAAAA"
+            + "AQAqAQEYAAAABwAAAEludDMySW4BAZ0G/////wAAAAAAAQAqAQEZAAAACAAAAFVJbnQzMkluAQGeBv//"
+            + "//8AAAAAAAEAKgEBGAAAAAcAAABJbnQ2NEluAQGfBv////8AAAAAAAEAKgEBGQAAAAgAAABVSW50NjRJ"
+            + "bgEBoAb/////AAAAAAABACoBARgAAAAHAAAARmxvYXRJbgEBoQb/////AAAAAAABACoBARkAAAAIAAAA"
+            + "RG91YmxlSW4BAaIG/////wAAAAAAAQAqAQEZAAAACAAAAFN0cmluZ0luAQGjBv////8AAAAAAAEAKAEB"
+            + "AAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAYIHAC4ARIIH"
+            + "AACWDAAAAAEAKgEBGwAAAAoAAABCb29sZWFuT3V0AQGYBv////8AAAAAAAEAKgEBGQAAAAgAAABTQnl0"
+            + "ZU91dAEBmQb/////AAAAAAABACoBARgAAAAHAAAAQnl0ZU91dAEBmgb/////AAAAAAABACoBARkAAAAI"
+            + "AAAASW50MTZPdXQBAZsG/////wAAAAAAAQAqAQEaAAAACQAAAFVJbnQxNk91dAEBnAb/////AAAAAAAB"
+            + "ACoBARkAAAAIAAAASW50MzJPdXQBAZ0G/////wAAAAAAAQAqAQEaAAAACQAAAFVJbnQzMk91dAEBngb/"
+            + "////AAAAAAABACoBARkAAAAIAAAASW50NjRPdXQBAZ8G/////wAAAAAAAQAqAQEaAAAACQAAAFVJbnQ2"
+            + "NE91dAEBoAb/////AAAAAAABACoBARkAAAAIAAAARmxvYXRPdXQBAaEG/////wAAAAAAAQAqAQEaAAAA"
+            + "CQAAAERvdWJsZU91dAEBogb/////AAAAAAABACoBARoAAAAJAAAAU3RyaW5nT3V0AQGjBv////8AAAAA"
+            + "AAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAABABEAAABVc2VyU2NhbGFyTWV0aG9kMgEB"
+            + "gwcALwEBgweDBwAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAYQHAC4ARIQH"
+            + "AACWCgAAAAEAKgEBGwAAAAoAAABEYXRlVGltZUluAQGkBv////8AAAAAAAEAKgEBFwAAAAYAAABHdWlk"
+            + "SW4BAaUG/////wAAAAAAAQAqAQEdAAAADAAAAEJ5dGVTdHJpbmdJbgEBpgb/////AAAAAAABACoBAR0A"
+            + "AAAMAAAAWG1sRWxlbWVudEluAQGnBv////8AAAAAAAEAKgEBGQAAAAgAAABOb2RlSWRJbgEBqAb/////"
+            + "AAAAAAABACoBASEAAAAQAAAARXhwYW5kZWROb2RlSWRJbgEBqQb/////AAAAAAABACoBASAAAAAPAAAA"
+            + "UXVhbGlmaWVkTmFtZUluAQGqBv////8AAAAAAAEAKgEBIAAAAA8AAABMb2NhbGl6ZWRUZXh0SW4BAasG"
+            + "/////wAAAAAAAQAqAQEdAAAADAAAAFN0YXR1c0NvZGVJbgEBrAb/////AAAAAAABACoBARoAAAAJAAAA"
+            + "VmFyaWFudEluAQGtBv////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8A"
+            + "AABPdXRwdXRBcmd1bWVudHMBAYUHAC4ARIUHAACWCgAAAAEAKgEBHAAAAAsAAABEYXRlVGltZU91dAEB"
+            + "pAb/////AAAAAAABACoBARgAAAAHAAAAR3VpZE91dAEBpQb/////AAAAAAABACoBAR4AAAANAAAAQnl0"
+            + "ZVN0cmluZ091dAEBpgb/////AAAAAAABACoBAR4AAAANAAAAWG1sRWxlbWVudE91dAEBpwb/////AAAA"
+            + "AAABACoBARoAAAAJAAAATm9kZUlkT3V0AQGoBv////8AAAAAAAEAKgEBIgAAABEAAABFeHBhbmRlZE5v"
+            + "ZGVJZE91dAEBqQb/////AAAAAAABACoBASEAAAAQAAAAUXVhbGlmaWVkTmFtZU91dAEBqgb/////AAAA"
+            + "AAABACoBASEAAAAQAAAATG9jYWxpemVkVGV4dE91dAEBqwb/////AAAAAAABACoBAR4AAAANAAAAU3Rh"
+            + "dHVzQ29kZU91dAEBrAb/////AAAAAAABACoBARsAAAAKAAAAVmFyaWFudE91dAEBrQb/////AAAAAAAB"
+            + "ACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAQAQAAAAVXNlckFycmF5TWV0aG9kMQEBhgcA"
+            + "LwEBhgeGBwAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAYcHAC4ARIcHAACW"
+            + "DAAAAAEAKgEBHgAAAAkAAABCb29sZWFuSW4BAZgGAQAAAAEAAAAAAAAAAAEAKgEBHAAAAAcAAABTQnl0"
+            + "ZUluAQGZBgEAAAABAAAAAAAAAAABACoBARsAAAAGAAAAQnl0ZUluAQGaBgEAAAABAAAAAAAAAAABACoB"
+            + "ARwAAAAHAAAASW50MTZJbgEBmwYBAAAAAQAAAAAAAAAAAQAqAQEdAAAACAAAAFVJbnQxNkluAQGcBgEA"
+            + "AAABAAAAAAAAAAABACoBARwAAAAHAAAASW50MzJJbgEBnQYBAAAAAQAAAAAAAAAAAQAqAQEdAAAACAAA"
+            + "AFVJbnQzMkluAQGeBgEAAAABAAAAAAAAAAABACoBARwAAAAHAAAASW50NjRJbgEBnwYBAAAAAQAAAAAA"
+            + "AAAAAQAqAQEdAAAACAAAAFVJbnQ2NEluAQGgBgEAAAABAAAAAAAAAAABACoBARwAAAAHAAAARmxvYXRJ"
+            + "bgEBoQYBAAAAAQAAAAAAAAAAAQAqAQEdAAAACAAAAERvdWJsZUluAQGiBgEAAAABAAAAAAAAAAABACoB"
+            + "AR0AAAAIAAAAU3RyaW5nSW4BAaMGAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA"
+            + "F2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAYgHAC4ARIgHAACWDAAAAAEAKgEBHwAAAAoAAABC"
+            + "b29sZWFuT3V0AQGYBgEAAAABAAAAAAAAAAABACoBAR0AAAAIAAAAU0J5dGVPdXQBAZkGAQAAAAEAAAAA"
+            + "AAAAAAEAKgEBHAAAAAcAAABCeXRlT3V0AQGaBgEAAAABAAAAAAAAAAABACoBAR0AAAAIAAAASW50MTZP"
+            + "dXQBAZsGAQAAAAEAAAAAAAAAAAEAKgEBHgAAAAkAAABVSW50MTZPdXQBAZwGAQAAAAEAAAAAAAAAAAEA"
+            + "KgEBHQAAAAgAAABJbnQzMk91dAEBnQYBAAAAAQAAAAAAAAAAAQAqAQEeAAAACQAAAFVJbnQzMk91dAEB"
+            + "ngYBAAAAAQAAAAAAAAAAAQAqAQEdAAAACAAAAEludDY0T3V0AQGfBgEAAAABAAAAAAAAAAABACoBAR4A"
+            + "AAAJAAAAVUludDY0T3V0AQGgBgEAAAABAAAAAAAAAAABACoBAR0AAAAIAAAARmxvYXRPdXQBAaEGAQAA"
+            + "AAEAAAAAAAAAAAEAKgEBHgAAAAkAAABEb3VibGVPdXQBAaIGAQAAAAEAAAAAAAAAAAEAKgEBHgAAAAkA"
+            + "AABTdHJpbmdPdXQBAaMGAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQA"
+            + "AAABABAAAABVc2VyQXJyYXlNZXRob2QyAQGJBwAvAQGJB4kHAAABAf////8CAAAAF2CpCgIAAAAAAA4A"
+            + "AABJbnB1dEFyZ3VtZW50cwEBigcALgBEigcAAJYKAAAAAQAqAQEfAAAACgAAAERhdGVUaW1lSW4BAaQG"
+            + "AQAAAAEAAAAAAAAAAAEAKgEBGwAAAAYAAABHdWlkSW4BAaUGAQAAAAEAAAAAAAAAAAEAKgEBIQAAAAwA"
+            + "AABCeXRlU3RyaW5nSW4BAaYGAQAAAAEAAAAAAAAAAAEAKgEBIQAAAAwAAABYbWxFbGVtZW50SW4BAacG"
+            + "AQAAAAEAAAAAAAAAAAEAKgEBHQAAAAgAAABOb2RlSWRJbgEBqAYBAAAAAQAAAAAAAAAAAQAqAQElAAAA"
+            + "EAAAAEV4cGFuZGVkTm9kZUlkSW4BAakGAQAAAAEAAAAAAAAAAAEAKgEBJAAAAA8AAABRdWFsaWZpZWRO"
+            + "YW1lSW4BAaoGAQAAAAEAAAAAAAAAAAEAKgEBJAAAAA8AAABMb2NhbGl6ZWRUZXh0SW4BAasGAQAAAAEA"
+            + "AAAAAAAAAAEAKgEBIQAAAAwAAABTdGF0dXNDb2RlSW4BAawGAQAAAAEAAAAAAAAAAAEAKgEBHgAAAAkA"
+            + "AABWYXJpYW50SW4BAa0GAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIA"
+            + "AAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAYsHAC4ARIsHAACWCgAAAAEAKgEBIAAAAAsAAABEYXRlVGlt"
+            + "ZU91dAEBpAYBAAAAAQAAAAAAAAAAAQAqAQEcAAAABwAAAEd1aWRPdXQBAaUGAQAAAAEAAAAAAAAAAAEA"
+            + "KgEBIgAAAA0AAABCeXRlU3RyaW5nT3V0AQGmBgEAAAABAAAAAAAAAAABACoBASIAAAANAAAAWG1sRWxl"
+            + "bWVudE91dAEBpwYBAAAAAQAAAAAAAAAAAQAqAQEeAAAACQAAAE5vZGVJZE91dAEBqAYBAAAAAQAAAAAA"
+            + "AAAAAQAqAQEmAAAAEQAAAEV4cGFuZGVkTm9kZUlkT3V0AQGpBgEAAAABAAAAAAAAAAABACoBASUAAAAQ"
+            + "AAAAUXVhbGlmaWVkTmFtZU91dAEBqgYBAAAAAQAAAAAAAAAAAQAqAQElAAAAEAAAAExvY2FsaXplZFRl"
+            + "eHRPdXQBAasGAQAAAAEAAAAAAAAAAAEAKgEBIgAAAA0AAABTdGF0dXNDb2RlT3V0AQGsBgEAAAABAAAA"
+            + "AAAAAAABACoBAR8AAAAKAAAAVmFyaWFudE91dAEBrQYBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAA"
+            + "AAEB/////wAAAAA=";
         #endregion
 #endif
         #endregion
@@ -13902,7 +13891,6 @@ namespace TestData
             {
                 return m_scalarMethod1Method;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_scalarMethod1Method, value))
@@ -13921,7 +13909,6 @@ namespace TestData
             {
                 return m_scalarMethod2Method;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_scalarMethod2Method, value))
@@ -13940,7 +13927,6 @@ namespace TestData
             {
                 return m_scalarMethod3Method;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_scalarMethod3Method, value))
@@ -13959,7 +13945,6 @@ namespace TestData
             {
                 return m_arrayMethod1Method;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_arrayMethod1Method, value))
@@ -13978,7 +13963,6 @@ namespace TestData
             {
                 return m_arrayMethod2Method;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_arrayMethod2Method, value))
@@ -13997,7 +13981,6 @@ namespace TestData
             {
                 return m_arrayMethod3Method;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_arrayMethod3Method, value))
@@ -14016,7 +13999,6 @@ namespace TestData
             {
                 return m_userScalarMethod1Method;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_userScalarMethod1Method, value))
@@ -14035,7 +14017,6 @@ namespace TestData
             {
                 return m_userScalarMethod2Method;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_userScalarMethod2Method, value))
@@ -14054,7 +14035,6 @@ namespace TestData
             {
                 return m_userArrayMethod1Method;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_userArrayMethod1Method, value))
@@ -14073,7 +14053,6 @@ namespace TestData
             {
                 return m_userArrayMethod2Method;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_userArrayMethod2Method, value))
@@ -14088,9 +14067,7 @@ namespace TestData
 
         #region Overridden Methods
         /// <remarks />
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
+        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
             if (m_scalarMethod1Method != null)
             {
@@ -14150,7 +14127,8 @@ namespace TestData
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement)
+            BaseInstanceState replacement
+        )
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -14406,14 +14384,17 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public TestSystemConditionState(NodeState parent) : base(parent)
-        {
-        }
+        public TestSystemConditionState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(TestData.ObjectTypes.TestSystemConditionType, TestData.Namespaces.TestData, namespaceUris);
+            return Opc.Ua.NodeId.Create(
+                TestData.ObjectTypes.TestSystemConditionType,
+                TestData.Namespaces.TestData,
+                namespaceUris
+            );
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -14440,35 +14421,35 @@ namespace TestData
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGCAAgEAAAABAB8AAABUZXN0U3lzdGVt" +
-           "Q29uZGl0aW9uVHlwZUluc3RhbmNlAQGMBwEBjAeMBwAA/////xYAAAAVYIkKAgAAAAAABwAAAEV2ZW50" +
-           "SWQBAY0HAC4ARI0HAAAAD/////8BAf////8AAAAAFWCJCgIAAAAAAAkAAABFdmVudFR5cGUBAY4HAC4A" +
-           "RI4HAAAAEf////8BAf////8AAAAAFWCJCgIAAAAAAAoAAABTb3VyY2VOb2RlAQGPBwAuAESPBwAAABH/" +
-           "////AQH/////AAAAABVgiQoCAAAAAAAKAAAAU291cmNlTmFtZQEBkAcALgBEkAcAAAAM/////wEB////" +
-           "/wAAAAAVYIkKAgAAAAAABAAAAFRpbWUBAZEHAC4ARJEHAAABACYB/////wEB/////wAAAAAVYIkKAgAA" +
-           "AAAACwAAAFJlY2VpdmVUaW1lAQGSBwAuAESSBwAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAcA" +
-           "AABNZXNzYWdlAQGUBwAuAESUBwAAABX/////AQH/////AAAAABVgiQoCAAAAAAAIAAAAU2V2ZXJpdHkB" +
-           "AZUHAC4ARJUHAAAABf////8BAf////8AAAAAFWCJCgIAAAAAABAAAABDb25kaXRpb25DbGFzc0lkAQGW" +
-           "BwAuAESWBwAAABH/////AQH/////AAAAABVgiQoCAAAAAAASAAAAQ29uZGl0aW9uQ2xhc3NOYW1lAQGX" +
-           "BwAuAESXBwAAABX/////AQH/////AAAAABVgiQoCAAAAAAANAAAAQ29uZGl0aW9uTmFtZQEBmgcALgBE" +
-           "mgcAAAAM/////wEB/////wAAAAAVYIkKAgAAAAAACAAAAEJyYW5jaElkAQGbBwAuAESbBwAAABH/////" +
-           "AQH/////AAAAABVgiQoCAAAAAAAGAAAAUmV0YWluAQGcBwAuAEScBwAAAAH/////AQH/////AAAAABVg" +
-           "iQoCAAAAAAAMAAAARW5hYmxlZFN0YXRlAQGdBwAvAQAjI50HAAAAFf////8BAf////8BAAAAFWCJCgIA" +
-           "AAAAAAIAAABJZAEBngcALgBEngcAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAFF1YWxpdHkB" +
-           "AaYHAC8BACojpgcAAAAT/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFtcAEB" +
-           "pwcALgBEpwcAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAATGFzdFNldmVyaXR5AQGoBwAv" +
-           "AQAqI6gHAAAABf////8BAf////8BAAAAFWCJCgIAAAAAAA8AAABTb3VyY2VUaW1lc3RhbXABAakHAC4A" +
-           "RKkHAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAENvbW1lbnQBAaoHAC8BACojqgcAAAAV" +
-           "/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFtcAEBqwcALgBEqwcAAAEAJgH/" +
-           "////AQH/////AAAAABVgiQoCAAAAAAAMAAAAQ2xpZW50VXNlcklkAQGsBwAuAESsBwAAAAz/////AQH/" +
-           "////AAAAAARhggoEAAAAAAAHAAAARGlzYWJsZQEBrQcALwEARCOtBwAAAQEBAAAAAQD5CwABAPMKAAAA" +
-           "AARhggoEAAAAAAAGAAAARW5hYmxlAQGuBwAvAQBDI64HAAABAQEAAAABAPkLAAEA8woAAAAABGGCCgQA" +
-           "AAAAAAoAAABBZGRDb21tZW50AQGvBwAvAQBFI68HAAABAQEAAAABAPkLAAEADQsBAAAAF2CpCgIAAAAA" +
-           "AA4AAABJbnB1dEFyZ3VtZW50cwEBsAcALgBEsAcAAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50SWQAD///" +
-           "//8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50LgEAKgEB" +
-           "QgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUg" +
-           "Y29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAABABIAAABNb25pdG9yZWRO" +
-           "b2RlQ291bnQBAbUHAC4ARLUHAAAABv////8BAf////8AAAAA";
+            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGCAAgEAAAABAB8AAABUZXN0U3lzdGVt"
+            + "Q29uZGl0aW9uVHlwZUluc3RhbmNlAQGMBwEBjAeMBwAA/////xYAAAAVYIkKAgAAAAAABwAAAEV2ZW50"
+            + "SWQBAY0HAC4ARI0HAAAAD/////8BAf////8AAAAAFWCJCgIAAAAAAAkAAABFdmVudFR5cGUBAY4HAC4A"
+            + "RI4HAAAAEf////8BAf////8AAAAAFWCJCgIAAAAAAAoAAABTb3VyY2VOb2RlAQGPBwAuAESPBwAAABH/"
+            + "////AQH/////AAAAABVgiQoCAAAAAAAKAAAAU291cmNlTmFtZQEBkAcALgBEkAcAAAAM/////wEB////"
+            + "/wAAAAAVYIkKAgAAAAAABAAAAFRpbWUBAZEHAC4ARJEHAAABACYB/////wEB/////wAAAAAVYIkKAgAA"
+            + "AAAACwAAAFJlY2VpdmVUaW1lAQGSBwAuAESSBwAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAAcA"
+            + "AABNZXNzYWdlAQGUBwAuAESUBwAAABX/////AQH/////AAAAABVgiQoCAAAAAAAIAAAAU2V2ZXJpdHkB"
+            + "AZUHAC4ARJUHAAAABf////8BAf////8AAAAAFWCJCgIAAAAAABAAAABDb25kaXRpb25DbGFzc0lkAQGW"
+            + "BwAuAESWBwAAABH/////AQH/////AAAAABVgiQoCAAAAAAASAAAAQ29uZGl0aW9uQ2xhc3NOYW1lAQGX"
+            + "BwAuAESXBwAAABX/////AQH/////AAAAABVgiQoCAAAAAAANAAAAQ29uZGl0aW9uTmFtZQEBmgcALgBE"
+            + "mgcAAAAM/////wEB/////wAAAAAVYIkKAgAAAAAACAAAAEJyYW5jaElkAQGbBwAuAESbBwAAABH/////"
+            + "AQH/////AAAAABVgiQoCAAAAAAAGAAAAUmV0YWluAQGcBwAuAEScBwAAAAH/////AQH/////AAAAABVg"
+            + "iQoCAAAAAAAMAAAARW5hYmxlZFN0YXRlAQGdBwAvAQAjI50HAAAAFf////8BAf////8BAAAAFWCJCgIA"
+            + "AAAAAAIAAABJZAEBngcALgBEngcAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAFF1YWxpdHkB"
+            + "AaYHAC8BACojpgcAAAAT/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFtcAEB"
+            + "pwcALgBEpwcAAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAATGFzdFNldmVyaXR5AQGoBwAv"
+            + "AQAqI6gHAAAABf////8BAf////8BAAAAFWCJCgIAAAAAAA8AAABTb3VyY2VUaW1lc3RhbXABAakHAC4A"
+            + "RKkHAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAENvbW1lbnQBAaoHAC8BACojqgcAAAAV"
+            + "/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFtcAEBqwcALgBEqwcAAAEAJgH/"
+            + "////AQH/////AAAAABVgiQoCAAAAAAAMAAAAQ2xpZW50VXNlcklkAQGsBwAuAESsBwAAAAz/////AQH/"
+            + "////AAAAAARhggoEAAAAAAAHAAAARGlzYWJsZQEBrQcALwEARCOtBwAAAQEBAAAAAQD5CwABAPMKAAAA"
+            + "AARhggoEAAAAAAAGAAAARW5hYmxlAQGuBwAvAQBDI64HAAABAQEAAAABAPkLAAEA8woAAAAABGGCCgQA"
+            + "AAAAAAoAAABBZGRDb21tZW50AQGvBwAvAQBFI68HAAABAQEAAAABAPkLAAEADQsBAAAAF2CpCgIAAAAA"
+            + "AA4AAABJbnB1dEFyZ3VtZW50cwEBsAcALgBEsAcAAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50SWQAD///"
+            + "//8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50LgEAKgEB"
+            + "QgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUg"
+            + "Y29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAABABIAAABNb25pdG9yZWRO"
+            + "b2RlQ291bnQBAbUHAC4ARLUHAAAABv////8BAf////8AAAAA";
         #endregion
 #endif
         #endregion
@@ -14481,7 +14462,6 @@ namespace TestData
             {
                 return m_monitoredNodeCount;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_monitoredNodeCount, value))
@@ -14496,9 +14476,7 @@ namespace TestData
 
         #region Overridden Methods
         /// <remarks />
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
+        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
             if (m_monitoredNodeCount != null)
             {
@@ -14513,7 +14491,8 @@ namespace TestData
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement)
+            BaseInstanceState replacement
+        )
         {
             if (QualifiedName.IsNull(browseName))
             {

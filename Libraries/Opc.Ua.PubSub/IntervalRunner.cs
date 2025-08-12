@@ -52,7 +52,11 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Create new instance of <see cref="IntervalRunner"/>.
         /// </summary>
-        public IntervalRunner(object id, double interval, Func<bool> canExecuteFunc, Action intervalAction)
+        public IntervalRunner(
+            object id,
+            double interval,
+            Func<bool> canExecuteFunc,
+            Action intervalAction)
         {
             Id = id;
             Interval = interval;
@@ -168,7 +172,9 @@ namespace Opc.Ua.PubSub
                 if (sleepCycle > 16)
                 {
                     // Use Task.Delay if sleep cycle is larger
-                    await Task.Delay(TimeSpan.FromMilliseconds(sleepCycle), m_cancellationToken.Token)
+                    await Task.Delay(
+                        TimeSpan.FromMilliseconds(sleepCycle),
+                        m_cancellationToken.Token)
                         .ConfigureAwait(false);
 
                     // Still ticks to consume (spurious wakeup too early), improbable

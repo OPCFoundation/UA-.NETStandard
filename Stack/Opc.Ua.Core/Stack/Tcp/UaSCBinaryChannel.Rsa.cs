@@ -27,6 +27,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Creates an RSA PKCS#1 v1.5 or PSS signature of a hash algorithm for the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private static byte[] Rsa_Sign(
             ArraySegment<byte> dataToSign,
             X509Certificate2 signingCertificate,
@@ -43,12 +44,18 @@ namespace Opc.Ua.Bindings
                 );
 
             // create the signature.
-            return rsa.SignData(dataToSign.Array, dataToSign.Offset, dataToSign.Count, algorithm, padding);
+            return rsa.SignData(
+                dataToSign.Array,
+                dataToSign.Offset,
+                dataToSign.Count,
+                algorithm,
+                padding);
         }
 
         /// <summary>
         /// Verifies an RSA PKCS#1 v1.5 or PSS signature of a hash algorithm for the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private static bool Rsa_Verify(
             ArraySegment<byte> dataToVerify,
             byte[] signature,
@@ -77,8 +84,11 @@ namespace Opc.Ua.Bindings
                 )
             )
             {
-                string messageType = Encoding.UTF8.GetString(dataToVerify.Array, dataToVerify.Offset, 4);
-                int messageLength = BitConverter.ToInt32(dataToVerify.Array, dataToVerify.Offset + 4);
+                string messageType = Encoding.UTF8
+                    .GetString(dataToVerify.Array, dataToVerify.Offset, 4);
+                int messageLength = BitConverter.ToInt32(
+                    dataToVerify.Array,
+                    dataToVerify.Offset + 4);
                 string actualSignature = Utils.ToHexString(signature);
                 Utils.LogError("Could not validate signature.");
                 Utils.LogCertificate(LogLevel.Error, "Certificate: ", signingCertificate);
@@ -96,6 +106,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Encrypts the message using RSA encryption.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private ArraySegment<byte> Rsa_Encrypt(
             ArraySegment<byte> dataToEncrypt,
             ArraySegment<byte> headerToCopy,
@@ -125,7 +136,12 @@ namespace Opc.Ua.Bindings
             }
 
             byte[] encryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Rsa_Encrypt");
-            Array.Copy(headerToCopy.Array, headerToCopy.Offset, encryptedBuffer, 0, headerToCopy.Count);
+            Array.Copy(
+                headerToCopy.Array,
+                headerToCopy.Offset,
+                encryptedBuffer,
+                0,
+                headerToCopy.Count);
             RSAEncryptionPadding rsaPadding = RsaUtils.GetRSAEncryptionPadding(padding);
 
             using (
@@ -161,6 +177,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Decrypts the message using RSA encryption.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private ArraySegment<byte> Rsa_Decrypt(
             ArraySegment<byte> dataToDecrypt,
             ArraySegment<byte> headerToCopy,
@@ -190,7 +207,12 @@ namespace Opc.Ua.Bindings
             }
 
             byte[] decryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Rsa_Decrypt");
-            Array.Copy(headerToCopy.Array, headerToCopy.Offset, decryptedBuffer, 0, headerToCopy.Count);
+            Array.Copy(
+                headerToCopy.Array,
+                headerToCopy.Offset,
+                decryptedBuffer,
+                0,
+                headerToCopy.Count);
             RSAEncryptionPadding rsaPadding = RsaUtils.GetRSAEncryptionPadding(padding);
 
             using (

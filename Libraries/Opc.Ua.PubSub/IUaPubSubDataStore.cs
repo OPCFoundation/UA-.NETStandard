@@ -41,14 +41,16 @@ namespace Opc.Ua.PubSub
         /// <param name="nodeId">NodeId identifier for DataValue that will be stored</param>
         /// <param name="attributeId">Default value is <see cref="Attributes.Value"/>.</param>
         /// <param name="dataValue">Default value is null. </param>
-        void WritePublishedDataItem(NodeId nodeId, uint attributeId = Attributes.Value, DataValue dataValue = null);
+        void WritePublishedDataItem(
+            NodeId nodeId,
+            uint attributeId = Attributes.Value,
+            DataValue dataValue = null);
 
         /// <summary>
         /// Read the DataValue stored for a specific NodeId and Attribute.
         /// </summary>
         /// <param name="nodeId">NodeId identifier of node</param>
         /// <param name="attributeId">Default value is <see cref="Attributes.Value"/></param>
-        /// <returns></returns>
         DataValue ReadPublishedDataItem(NodeId nodeId, uint attributeId = Attributes.Value);
 
         /// <summary>

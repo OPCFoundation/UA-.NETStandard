@@ -37,12 +37,13 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Determine if the connection can publish metadata for specified writer group and data set writer
         /// </summary>
-        bool CanPublishMetaData(WriterGroupDataType writerGroupConfiguration, DataSetWriterDataType dataSetWriter);
+        bool CanPublishMetaData(
+            WriterGroupDataType writerGroupConfiguration,
+            DataSetWriterDataType dataSetWriter);
 
         /// <summary>
         /// Create and return the DataSetMetaData message for a DataSetWriter
         /// </summary>
-        /// <returns></returns>
         UaNetworkMessage CreateDataSetMetaDataNetworkMessage(
             WriterGroupDataType writerGroup,
             DataSetWriterDataType dataSetWriter

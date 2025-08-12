@@ -149,6 +149,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Updates the object with the results of a create monitored item request.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="request"/> is <c>null</c>.</exception>
         internal void SetCreateResult(
             MonitoredItemCreateRequest request,
             MonitoredItemCreateResult result,
@@ -199,6 +200,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Updates the object with the results of a transfer monitored item request.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="monitoredItem"/> is <c>null</c>.</exception>
         internal void SetTransferResult(MonitoredItem monitoredItem)
         {
             if (monitoredItem == null)
@@ -227,6 +229,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Updates the object with the results of a modify monitored item request.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="request"/> is <c>null</c>.</exception>
         internal void SetModifyResult(
             MonitoredItemModifyRequest request,
             MonitoredItemModifyResult result,
@@ -256,7 +259,8 @@ namespace Opc.Ua.Client
 
                 if (request.RequestedParameters.Filter != null)
                 {
-                    Filter = Utils.Clone(request.RequestedParameters.Filter.Body) as MonitoringFilter;
+                    Filter = Utils.Clone(
+                        request.RequestedParameters.Filter.Body) as MonitoringFilter;
                 }
 
                 SamplingInterval = result.RevisedSamplingInterval;

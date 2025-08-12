@@ -29,9 +29,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
-using System.Runtime.Serialization;
 using Opc.Ua;
 
 namespace Boiler
@@ -45,14 +45,17 @@ namespace Boiler
     {
         #region Constructors
         /// <remarks />
-        public GenericControllerState(NodeState parent) : base(parent)
-        {
-        }
+        public GenericControllerState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.GenericControllerType, Boiler.Namespaces.Boiler, namespaceUris);
+            return Opc.Ua.NodeId.Create(
+                Boiler.ObjectTypes.GenericControllerType,
+                Boiler.Namespaces.Boiler,
+                namespaceUris
+            );
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -79,11 +82,11 @@ namespace Boiler
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAHQAA" +
-           "AEdlbmVyaWNDb250cm9sbGVyVHlwZUluc3RhbmNlAQHsAwEB7APsAwAA/////wMAAAAVYIkKAgAAAAEA" +
-           "CwAAAE1lYXN1cmVtZW50AQHtAwAuAETtAwAAAAv/////AQH/////AAAAABVgiQoCAAAAAQAIAAAAU2V0" +
-           "UG9pbnQBAe4DAC4ARO4DAAAAC/////8DA/////8AAAAAFWCJCgIAAAABAAoAAABDb250cm9sT3V0AQHv" +
-           "AwAuAETvAwAAAAv/////AQH/////AAAAAA==";
+            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAHQAA"
+            + "AEdlbmVyaWNDb250cm9sbGVyVHlwZUluc3RhbmNlAQHsAwEB7APsAwAA/////wMAAAAVYIkKAgAAAAEA"
+            + "CwAAAE1lYXN1cmVtZW50AQHtAwAuAETtAwAAAAv/////AQH/////AAAAABVgiQoCAAAAAQAIAAAAU2V0"
+            + "UG9pbnQBAe4DAC4ARO4DAAAAC/////8DA/////8AAAAAFWCJCgIAAAABAAoAAABDb250cm9sT3V0AQHv"
+            + "AwAuAETvAwAAAAv/////AQH/////AAAAAA==";
         #endregion
 #endif
         #endregion
@@ -96,7 +99,6 @@ namespace Boiler
             {
                 return m_measurement;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_measurement, value))
@@ -115,7 +117,6 @@ namespace Boiler
             {
                 return m_setPoint;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_setPoint, value))
@@ -134,7 +135,6 @@ namespace Boiler
             {
                 return m_controlOut;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_controlOut, value))
@@ -149,9 +149,7 @@ namespace Boiler
 
         #region Overridden Methods
         /// <remarks />
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
+        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
             if (m_measurement != null)
             {
@@ -176,7 +174,8 @@ namespace Boiler
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement)
+            BaseInstanceState replacement
+        )
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -278,9 +277,8 @@ namespace Boiler
     {
         #region Constructors
         /// <remarks />
-        public GenericSensorState(NodeState parent) : base(parent)
-        {
-        }
+        public GenericSensorState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
@@ -312,10 +310,10 @@ namespace Boiler
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAGQAA" +
-           "AEdlbmVyaWNTZW5zb3JUeXBlSW5zdGFuY2UBAfADAQHwA/ADAAD/////AQAAABVgiQoCAAAAAQAGAAAA" +
-           "T3V0cHV0AQHxAwAvAQBACfEDAAAAC/////8BAf////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQH1" +
-           "AwAuAET1AwAAAQB0A/////8BAf////8AAAAA";
+            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAGQAA"
+            + "AEdlbmVyaWNTZW5zb3JUeXBlSW5zdGFuY2UBAfADAQHwA/ADAAD/////AQAAABVgiQoCAAAAAQAGAAAA"
+            + "T3V0cHV0AQHxAwAvAQBACfEDAAAAC/////8BAf////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQH1"
+            + "AwAuAET1AwAAAQB0A/////8BAf////8AAAAA";
         #endregion
 #endif
         #endregion
@@ -328,7 +326,6 @@ namespace Boiler
             {
                 return m_output;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_output, value))
@@ -343,9 +340,7 @@ namespace Boiler
 
         #region Overridden Methods
         /// <remarks />
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
+        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
             if (m_output != null)
             {
@@ -360,7 +355,8 @@ namespace Boiler
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement)
+            BaseInstanceState replacement
+        )
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -418,14 +414,17 @@ namespace Boiler
     {
         #region Constructors
         /// <remarks />
-        public GenericActuatorState(NodeState parent) : base(parent)
-        {
-        }
+        public GenericActuatorState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.GenericActuatorType, Boiler.Namespaces.Boiler, namespaceUris);
+            return Opc.Ua.NodeId.Create(
+                Boiler.ObjectTypes.GenericActuatorType,
+                Boiler.Namespaces.Boiler,
+                namespaceUris
+            );
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -452,10 +451,10 @@ namespace Boiler
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAGwAA" +
-           "AEdlbmVyaWNBY3R1YXRvclR5cGVJbnN0YW5jZQEB9wMBAfcD9wMAAP////8BAAAAFWCJCgIAAAABAAUA" +
-           "AABJbnB1dAEB+AMALwEAQAn4AwAAAAv/////AgL/////AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEB" +
-           "/AMALgBE/AMAAAEAdAP/////AQH/////AAAAAA==";
+            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAGwAA"
+            + "AEdlbmVyaWNBY3R1YXRvclR5cGVJbnN0YW5jZQEB9wMBAfcD9wMAAP////8BAAAAFWCJCgIAAAABAAUA"
+            + "AABJbnB1dAEB+AMALwEAQAn4AwAAAAv/////AgL/////AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEB"
+            + "/AMALgBE/AMAAAEAdAP/////AQH/////AAAAAA==";
         #endregion
 #endif
         #endregion
@@ -468,7 +467,6 @@ namespace Boiler
             {
                 return m_input;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_input, value))
@@ -483,9 +481,7 @@ namespace Boiler
 
         #region Overridden Methods
         /// <remarks />
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
+        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
             if (m_input != null)
             {
@@ -500,7 +496,8 @@ namespace Boiler
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement)
+            BaseInstanceState replacement
+        )
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -558,14 +555,17 @@ namespace Boiler
     {
         #region Constructors
         /// <remarks />
-        public CustomControllerState(NodeState parent) : base(parent)
-        {
-        }
+        public CustomControllerState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.CustomControllerType, Boiler.Namespaces.Boiler, namespaceUris);
+            return Opc.Ua.NodeId.Create(
+                Boiler.ObjectTypes.CustomControllerType,
+                Boiler.Namespaces.Boiler,
+                namespaceUris
+            );
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -592,13 +592,13 @@ namespace Boiler
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAHAAA" +
-           "AEN1c3RvbUNvbnRyb2xsZXJUeXBlSW5zdGFuY2UBAf4DAQH+A/4DAAD/////BQAAABVgiQoCAAAAAQAG" +
-           "AAAASW5wdXQxAQH/AwAuAET/AwAAAAv/////AgL/////AAAAABVgiQoCAAAAAQAGAAAASW5wdXQyAQEA" +
-           "BAAuAEQABAAAAAv/////AgL/////AAAAABVgiQoCAAAAAQAGAAAASW5wdXQzAQEBBAAuAEQBBAAAAAv/" +
-           "////AgL/////AAAAABVgiQoCAAAAAQAKAAAAQ29udHJvbE91dAEBAgQALgBEAgQAAAAL/////wEB////" +
-           "/wAAAAAVYMkKAgAAAAwAAABEZXNjcmlwdGlvblgBAAsAAABEZXNjcmlwdGlvbgEBAwQALgBEAwQAAAAV" +
-           "/////wEB/////wAAAAA=";
+            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAHAAA"
+            + "AEN1c3RvbUNvbnRyb2xsZXJUeXBlSW5zdGFuY2UBAf4DAQH+A/4DAAD/////BQAAABVgiQoCAAAAAQAG"
+            + "AAAASW5wdXQxAQH/AwAuAET/AwAAAAv/////AgL/////AAAAABVgiQoCAAAAAQAGAAAASW5wdXQyAQEA"
+            + "BAAuAEQABAAAAAv/////AgL/////AAAAABVgiQoCAAAAAQAGAAAASW5wdXQzAQEBBAAuAEQBBAAAAAv/"
+            + "////AgL/////AAAAABVgiQoCAAAAAQAKAAAAQ29udHJvbE91dAEBAgQALgBEAgQAAAAL/////wEB////"
+            + "/wAAAAAVYMkKAgAAAAwAAABEZXNjcmlwdGlvblgBAAsAAABEZXNjcmlwdGlvbgEBAwQALgBEAwQAAAAV"
+            + "/////wEB/////wAAAAA=";
         #endregion
 #endif
         #endregion
@@ -611,7 +611,6 @@ namespace Boiler
             {
                 return m_input1;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_input1, value))
@@ -630,7 +629,6 @@ namespace Boiler
             {
                 return m_input2;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_input2, value))
@@ -649,7 +647,6 @@ namespace Boiler
             {
                 return m_input3;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_input3, value))
@@ -668,7 +665,6 @@ namespace Boiler
             {
                 return m_controlOut;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_controlOut, value))
@@ -687,7 +683,6 @@ namespace Boiler
             {
                 return m_descriptionX;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_descriptionX, value))
@@ -702,9 +697,7 @@ namespace Boiler
 
         #region Overridden Methods
         /// <remarks />
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
+        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
             if (m_input1 != null)
             {
@@ -739,7 +732,8 @@ namespace Boiler
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement)
+            BaseInstanceState replacement
+        )
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -885,9 +879,8 @@ namespace Boiler
     {
         #region Constructors
         /// <remarks />
-        public ValveState(NodeState parent) : base(parent)
-        {
-        }
+        public ValveState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
@@ -919,10 +912,10 @@ namespace Boiler
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAEQAA" +
-           "AFZhbHZlVHlwZUluc3RhbmNlAQEEBAEBBAQEBAAA/////wEAAAAVYIkKAgAAAAEABQAAAElucHV0AQEF" +
-           "BAAvAQBACQUEAAAAC/////8CAv////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQEJBAAuAEQJBAAA" +
-           "AQB0A/////8BAf////8AAAAA";
+            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAEQAA"
+            + "AFZhbHZlVHlwZUluc3RhbmNlAQEEBAEBBAQEBAAA/////wEAAAAVYIkKAgAAAAEABQAAAElucHV0AQEF"
+            + "BAAvAQBACQUEAAAAC/////8CAv////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQEJBAAuAEQJBAAA"
+            + "AQB0A/////8BAf////8AAAAA";
         #endregion
 #endif
         #endregion
@@ -948,14 +941,17 @@ namespace Boiler
     {
         #region Constructors
         /// <remarks />
-        public LevelControllerState(NodeState parent) : base(parent)
-        {
-        }
+        public LevelControllerState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.LevelControllerType, Boiler.Namespaces.Boiler, namespaceUris);
+            return Opc.Ua.NodeId.Create(
+                Boiler.ObjectTypes.LevelControllerType,
+                Boiler.Namespaces.Boiler,
+                namespaceUris
+            );
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -982,11 +978,11 @@ namespace Boiler
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAGwAA" +
-           "AExldmVsQ29udHJvbGxlclR5cGVJbnN0YW5jZQEBCwQBAQsECwQAAP////8DAAAAFWCJCgIAAAABAAsA" +
-           "AABNZWFzdXJlbWVudAEBDAQALgBEDAQAAAAL/////wEB/////wAAAAAVYIkKAgAAAAEACAAAAFNldFBv" +
-           "aW50AQENBAAuAEQNBAAAAAv/////AwP/////AAAAABVgiQoCAAAAAQAKAAAAQ29udHJvbE91dAEBDgQA" +
-           "LgBEDgQAAAAL/////wEB/////wAAAAA=";
+            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAGwAA"
+            + "AExldmVsQ29udHJvbGxlclR5cGVJbnN0YW5jZQEBCwQBAQsECwQAAP////8DAAAAFWCJCgIAAAABAAsA"
+            + "AABNZWFzdXJlbWVudAEBDAQALgBEDAQAAAAL/////wEB/////wAAAAAVYIkKAgAAAAEACAAAAFNldFBv"
+            + "aW50AQENBAAuAEQNBAAAAAv/////AwP/////AAAAABVgiQoCAAAAAQAKAAAAQ29udHJvbE91dAEBDgQA"
+            + "LgBEDgQAAAAL/////wEB/////wAAAAA=";
         #endregion
 #endif
         #endregion
@@ -1012,9 +1008,8 @@ namespace Boiler
     {
         #region Constructors
         /// <remarks />
-        public FlowControllerState(NodeState parent) : base(parent)
-        {
-        }
+        public FlowControllerState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
@@ -1046,11 +1041,11 @@ namespace Boiler
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAGgAA" +
-           "AEZsb3dDb250cm9sbGVyVHlwZUluc3RhbmNlAQEPBAEBDwQPBAAA/////wMAAAAVYIkKAgAAAAEACwAA" +
-           "AE1lYXN1cmVtZW50AQEQBAAuAEQQBAAAAAv/////AQH/////AAAAABVgiQoCAAAAAQAIAAAAU2V0UG9p" +
-           "bnQBAREEAC4ARBEEAAAAC/////8DA/////8AAAAAFWCJCgIAAAABAAoAAABDb250cm9sT3V0AQESBAAu" +
-           "AEQSBAAAAAv/////AQH/////AAAAAA==";
+            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAGgAA"
+            + "AEZsb3dDb250cm9sbGVyVHlwZUluc3RhbmNlAQEPBAEBDwQPBAAA/////wMAAAAVYIkKAgAAAAEACwAA"
+            + "AE1lYXN1cmVtZW50AQEQBAAuAEQQBAAAAAv/////AQH/////AAAAABVgiQoCAAAAAQAIAAAAU2V0UG9p"
+            + "bnQBAREEAC4ARBEEAAAAC/////8DA/////8AAAAAFWCJCgIAAAABAAoAAABDb250cm9sT3V0AQESBAAu"
+            + "AEQSBAAAAAv/////AQH/////AAAAAA==";
         #endregion
 #endif
         #endregion
@@ -1076,9 +1071,8 @@ namespace Boiler
     {
         #region Constructors
         /// <remarks />
-        public LevelIndicatorState(NodeState parent) : base(parent)
-        {
-        }
+        public LevelIndicatorState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
@@ -1110,10 +1104,10 @@ namespace Boiler
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAGgAA" +
-           "AExldmVsSW5kaWNhdG9yVHlwZUluc3RhbmNlAQETBAEBEwQTBAAA/////wEAAAAVYIkKAgAAAAEABgAA" +
-           "AE91dHB1dAEBFAQALwEAQAkUBAAAAAv/////AQH/////AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEB" +
-           "GAQALgBEGAQAAAEAdAP/////AQH/////AAAAAA==";
+            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAGgAA"
+            + "AExldmVsSW5kaWNhdG9yVHlwZUluc3RhbmNlAQETBAEBEwQTBAAA/////wEAAAAVYIkKAgAAAAEABgAA"
+            + "AE91dHB1dAEBFAQALwEAQAkUBAAAAAv/////AQH/////AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEB"
+            + "GAQALgBEGAQAAAEAdAP/////AQH/////AAAAAA==";
         #endregion
 #endif
         #endregion
@@ -1139,14 +1133,17 @@ namespace Boiler
     {
         #region Constructors
         /// <remarks />
-        public FlowTransmitterState(NodeState parent) : base(parent)
-        {
-        }
+        public FlowTransmitterState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.FlowTransmitterType, Boiler.Namespaces.Boiler, namespaceUris);
+            return Opc.Ua.NodeId.Create(
+                Boiler.ObjectTypes.FlowTransmitterType,
+                Boiler.Namespaces.Boiler,
+                namespaceUris
+            );
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -1173,10 +1170,10 @@ namespace Boiler
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAGwAA" +
-           "AEZsb3dUcmFuc21pdHRlclR5cGVJbnN0YW5jZQEBGgQBARoEGgQAAP////8BAAAAFWCJCgIAAAABAAYA" +
-           "AABPdXRwdXQBARsEAC8BAEAJGwQAAAAL/////wEB/////wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UB" +
-           "AR8EAC4ARB8EAAABAHQD/////wEB/////wAAAAA=";
+            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAGwAA"
+            + "AEZsb3dUcmFuc21pdHRlclR5cGVJbnN0YW5jZQEBGgQBARoEGgQAAP////8BAAAAFWCJCgIAAAABAAYA"
+            + "AABPdXRwdXQBARsEAC8BAEAJGwQAAAAL/////wEB/////wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UB"
+            + "AR8EAC4ARB8EAAABAHQD/////wEB/////wAAAAA=";
         #endregion
 #endif
         #endregion
@@ -1202,14 +1199,17 @@ namespace Boiler
     {
         #region Constructors
         /// <remarks />
-        public BoilerStateMachineState(NodeState parent) : base(parent)
-        {
-        }
+        public BoilerStateMachineState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.BoilerStateMachineType, Boiler.Namespaces.Boiler, namespaceUris);
+            return Opc.Ua.NodeId.Create(
+                Boiler.ObjectTypes.BoilerStateMachineType,
+                Boiler.Namespaces.Boiler,
+                namespaceUris
+            );
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -1236,30 +1236,30 @@ namespace Boiler
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAHgAA" +
-           "AEJvaWxlclN0YXRlTWFjaGluZVR5cGVJbnN0YW5jZQEBIQQBASEEIQQAAP////8LAAAAFWCJCgIAAAAA" +
-           "AAwAAABDdXJyZW50U3RhdGUBASIEAC8BAMgKIgQAAAAV/////wEB/////wIAAAAVYIkKAgAAAAAAAgAA" +
-           "AElkAQEjBAAuAEQjBAAAABH/////AQH/////AAAAABVgiQoCAAAAAAAGAAAATnVtYmVyAQElBAAuAEQl" +
-           "BAAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAOAAAATGFzdFRyYW5zaXRpb24BAScEAC8BAM8KJwQA" +
-           "AAAV/////wEB/////wMAAAAVYIkKAgAAAAAAAgAAAElkAQEoBAAuAEQoBAAAABH/////AQH/////AAAA" +
-           "ABVgiQoCAAAAAAAGAAAATnVtYmVyAQEqBAAuAEQqBAAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAO" +
-           "AAAAVHJhbnNpdGlvblRpbWUBASsEAC4ARCsEAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAACQAA" +
-           "AERlbGV0YWJsZQEBMAQALgBEMAQAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAACgAAAEF1dG9EZWxl" +
-           "dGUBATEEAC4ARDEEAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABSZWN5Y2xlQ291bnQBATIE" +
-           "AC4ARDIEAAAABv////8BAf////8AAAAAJGGCCgQAAAABAAUAAABTdGFydAEBXgQDAAAAAEsAAABDYXVz" +
-           "ZXMgdGhlIFByb2dyYW0gdG8gdHJhbnNpdGlvbiBmcm9tIHRoZSBSZWFkeSBzdGF0ZSB0byB0aGUgUnVu" +
-           "bmluZyBzdGF0ZS4ALwEAegleBAAAAQEBAAAAADUBAQFOBAAAAAAkYYIKBAAAAAEABwAAAFN1c3BlbmQB" +
-           "AV8EAwAAAABPAAAAQ2F1c2VzIHRoZSBQcm9ncmFtIHRvIHRyYW5zaXRpb24gZnJvbSB0aGUgUnVubmlu" +
-           "ZyBzdGF0ZSB0byB0aGUgU3VzcGVuZGVkIHN0YXRlLgAvAQB7CV8EAAABAQEAAAAANQEBAVQEAAAAACRh" +
-           "ggoEAAAAAQAGAAAAUmVzdW1lAQFgBAMAAAAATwAAAENhdXNlcyB0aGUgUHJvZ3JhbSB0byB0cmFuc2l0" +
-           "aW9uIGZyb20gdGhlIFN1c3BlbmRlZCBzdGF0ZSB0byB0aGUgUnVubmluZyBzdGF0ZS4ALwEAfAlgBAAA" +
-           "AQEBAAAAADUBAQFWBAAAAAAkYYIKBAAAAAEABAAAAEhhbHQBAWEEAwAAAABgAAAAQ2F1c2VzIHRoZSBQ" +
-           "cm9ncmFtIHRvIHRyYW5zaXRpb24gZnJvbSB0aGUgUmVhZHksIFJ1bm5pbmcgb3IgU3VzcGVuZGVkIHN0" +
-           "YXRlIHRvIHRoZSBIYWx0ZWQgc3RhdGUuAC8BAH0JYQQAAAEBAwAAAAA1AQEBUAQANQEBAVgEADUBAQFc" +
-           "BAAAAAAkYYIKBAAAAAEABQAAAFJlc2V0AQFiBAMAAAAASgAAAENhdXNlcyB0aGUgUHJvZ3JhbSB0byB0" +
-           "cmFuc2l0aW9uIGZyb20gdGhlIEhhbHRlZCBzdGF0ZSB0byB0aGUgUmVhZHkgc3RhdGUuAC8BAH4JYgQA" +
-           "AAEBAQAAAAA1AQEBTAQAAAAANWCJCgIAAAABAAoAAABVcGRhdGVSYXRlAQFjBAMAAAAAJgAAAFRoZSBy" +
-           "YXRlIGF0IHdoaWNoIHRoZSBzaW11bGF0aW9uIHJ1bnMuAC4ARGMEAAAAB/////8DA/////8AAAAA";
+            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAHgAA"
+            + "AEJvaWxlclN0YXRlTWFjaGluZVR5cGVJbnN0YW5jZQEBIQQBASEEIQQAAP////8LAAAAFWCJCgIAAAAA"
+            + "AAwAAABDdXJyZW50U3RhdGUBASIEAC8BAMgKIgQAAAAV/////wEB/////wIAAAAVYIkKAgAAAAAAAgAA"
+            + "AElkAQEjBAAuAEQjBAAAABH/////AQH/////AAAAABVgiQoCAAAAAAAGAAAATnVtYmVyAQElBAAuAEQl"
+            + "BAAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAOAAAATGFzdFRyYW5zaXRpb24BAScEAC8BAM8KJwQA"
+            + "AAAV/////wEB/////wMAAAAVYIkKAgAAAAAAAgAAAElkAQEoBAAuAEQoBAAAABH/////AQH/////AAAA"
+            + "ABVgiQoCAAAAAAAGAAAATnVtYmVyAQEqBAAuAEQqBAAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAO"
+            + "AAAAVHJhbnNpdGlvblRpbWUBASsEAC4ARCsEAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAACQAA"
+            + "AERlbGV0YWJsZQEBMAQALgBEMAQAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAACgAAAEF1dG9EZWxl"
+            + "dGUBATEEAC4ARDEEAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABSZWN5Y2xlQ291bnQBATIE"
+            + "AC4ARDIEAAAABv////8BAf////8AAAAAJGGCCgQAAAABAAUAAABTdGFydAEBXgQDAAAAAEsAAABDYXVz"
+            + "ZXMgdGhlIFByb2dyYW0gdG8gdHJhbnNpdGlvbiBmcm9tIHRoZSBSZWFkeSBzdGF0ZSB0byB0aGUgUnVu"
+            + "bmluZyBzdGF0ZS4ALwEAegleBAAAAQEBAAAAADUBAQFOBAAAAAAkYYIKBAAAAAEABwAAAFN1c3BlbmQB"
+            + "AV8EAwAAAABPAAAAQ2F1c2VzIHRoZSBQcm9ncmFtIHRvIHRyYW5zaXRpb24gZnJvbSB0aGUgUnVubmlu"
+            + "ZyBzdGF0ZSB0byB0aGUgU3VzcGVuZGVkIHN0YXRlLgAvAQB7CV8EAAABAQEAAAAANQEBAVQEAAAAACRh"
+            + "ggoEAAAAAQAGAAAAUmVzdW1lAQFgBAMAAAAATwAAAENhdXNlcyB0aGUgUHJvZ3JhbSB0byB0cmFuc2l0"
+            + "aW9uIGZyb20gdGhlIFN1c3BlbmRlZCBzdGF0ZSB0byB0aGUgUnVubmluZyBzdGF0ZS4ALwEAfAlgBAAA"
+            + "AQEBAAAAADUBAQFWBAAAAAAkYYIKBAAAAAEABAAAAEhhbHQBAWEEAwAAAABgAAAAQ2F1c2VzIHRoZSBQ"
+            + "cm9ncmFtIHRvIHRyYW5zaXRpb24gZnJvbSB0aGUgUmVhZHksIFJ1bm5pbmcgb3IgU3VzcGVuZGVkIHN0"
+            + "YXRlIHRvIHRoZSBIYWx0ZWQgc3RhdGUuAC8BAH0JYQQAAAEBAwAAAAA1AQEBUAQANQEBAVgEADUBAQFc"
+            + "BAAAAAAkYYIKBAAAAAEABQAAAFJlc2V0AQFiBAMAAAAASgAAAENhdXNlcyB0aGUgUHJvZ3JhbSB0byB0"
+            + "cmFuc2l0aW9uIGZyb20gdGhlIEhhbHRlZCBzdGF0ZSB0byB0aGUgUmVhZHkgc3RhdGUuAC8BAH4JYgQA"
+            + "AAEBAQAAAAA1AQEBTAQAAAAANWCJCgIAAAABAAoAAABVcGRhdGVSYXRlAQFjBAMAAAAAJgAAAFRoZSBy"
+            + "YXRlIGF0IHdoaWNoIHRoZSBzaW11bGF0aW9uIHJ1bnMuAC4ARGMEAAAAB/////8DA/////8AAAAA";
         #endregion
 #endif
         #endregion
@@ -1272,7 +1272,6 @@ namespace Boiler
             {
                 return m_updateRate;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_updateRate, value))
@@ -1291,7 +1290,6 @@ namespace Boiler
             {
                 return m_startMethod;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_startMethod, value))
@@ -1310,7 +1308,6 @@ namespace Boiler
             {
                 return m_suspendMethod;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_suspendMethod, value))
@@ -1329,7 +1326,6 @@ namespace Boiler
             {
                 return m_resumeMethod;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_resumeMethod, value))
@@ -1348,7 +1344,6 @@ namespace Boiler
             {
                 return m_haltMethod;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_haltMethod, value))
@@ -1367,7 +1362,6 @@ namespace Boiler
             {
                 return m_resetMethod;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_resetMethod, value))
@@ -1382,9 +1376,7 @@ namespace Boiler
 
         #region Overridden Methods
         /// <remarks />
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
+        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
             if (m_updateRate != null)
             {
@@ -1424,7 +1416,8 @@ namespace Boiler
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement)
+            BaseInstanceState replacement
+        )
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -1592,14 +1585,17 @@ namespace Boiler
     {
         #region Constructors
         /// <remarks />
-        public BoilerInputPipeState(NodeState parent) : base(parent)
-        {
-        }
+        public BoilerInputPipeState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.BoilerInputPipeType, Boiler.Namespaces.Boiler, namespaceUris);
+            return Opc.Ua.NodeId.Create(
+                Boiler.ObjectTypes.BoilerInputPipeType,
+                Boiler.Namespaces.Boiler,
+                namespaceUris
+            );
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -1626,14 +1622,14 @@ namespace Boiler
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAGwAA" +
-           "AEJvaWxlcklucHV0UGlwZVR5cGVJbnN0YW5jZQEBZAQBAWQEZAQAAAEAAAAAMAABAWUEAgAAAIRgwAoB" +
-           "AAAAEAAAAEZsb3dUcmFuc21pdHRlcjEBAAYAAABGVFgwMDEBAWUEAC8BARoEZQQAAAEBAAAAADABAQFk" +
-           "BAEAAAAVYIkKAgAAAAEABgAAAE91dHB1dAEBZgQALwEAQAlmBAAAAAv/////AQH/////AQAAABVgiQoC" +
-           "AAAAAAAHAAAARVVSYW5nZQEBagQALgBEagQAAAEAdAP/////AQH/////AAAAAIRgwAoBAAAABQAAAFZh" +
-           "bHZlAQAJAAAAVmFsdmVYMDAxAQFsBAAvAQEEBGwEAAAB/////wEAAAAVYIkKAgAAAAEABQAAAElucHV0" +
-           "AQFtBAAvAQBACW0EAAAAC/////8CAv////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQFxBAAuAERx" +
-           "BAAAAQB0A/////8BAf////8AAAAA";
+            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAGwAA"
+            + "AEJvaWxlcklucHV0UGlwZVR5cGVJbnN0YW5jZQEBZAQBAWQEZAQAAAEAAAAAMAABAWUEAgAAAIRgwAoB"
+            + "AAAAEAAAAEZsb3dUcmFuc21pdHRlcjEBAAYAAABGVFgwMDEBAWUEAC8BARoEZQQAAAEBAAAAADABAQFk"
+            + "BAEAAAAVYIkKAgAAAAEABgAAAE91dHB1dAEBZgQALwEAQAlmBAAAAAv/////AQH/////AQAAABVgiQoC"
+            + "AAAAAAAHAAAARVVSYW5nZQEBagQALgBEagQAAAEAdAP/////AQH/////AAAAAIRgwAoBAAAABQAAAFZh"
+            + "bHZlAQAJAAAAVmFsdmVYMDAxAQFsBAAvAQEEBGwEAAAB/////wEAAAAVYIkKAgAAAAEABQAAAElucHV0"
+            + "AQFtBAAvAQBACW0EAAAAC/////8CAv////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQFxBAAuAERx"
+            + "BAAAAQB0A/////8BAf////8AAAAA";
         #endregion
 #endif
         #endregion
@@ -1646,7 +1642,6 @@ namespace Boiler
             {
                 return m_flowTransmitter1;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_flowTransmitter1, value))
@@ -1665,7 +1660,6 @@ namespace Boiler
             {
                 return m_valve;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_valve, value))
@@ -1680,9 +1674,7 @@ namespace Boiler
 
         #region Overridden Methods
         /// <remarks />
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
+        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
             if (m_flowTransmitter1 != null)
             {
@@ -1702,7 +1694,8 @@ namespace Boiler
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement)
+            BaseInstanceState replacement
+        )
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -1782,9 +1775,8 @@ namespace Boiler
     {
         #region Constructors
         /// <remarks />
-        public BoilerDrumState(NodeState parent) : base(parent)
-        {
-        }
+        public BoilerDrumState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
@@ -1816,11 +1808,11 @@ namespace Boiler
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAFgAA" +
-           "AEJvaWxlckRydW1UeXBlSW5zdGFuY2UBAXMEAQFzBHMEAAABAAAAADAAAQF0BAEAAACEYMAKAQAAAA4A" +
-           "AABMZXZlbEluZGljYXRvcgEABgAAAExJWDAwMQEBdAQALwEBEwR0BAAAAQEAAAAAMAEBAXMEAQAAABVg" +
-           "iQoCAAAAAQAGAAAAT3V0cHV0AQF1BAAvAQBACXUEAAAAC/////8BAf////8BAAAAFWCJCgIAAAAAAAcA" +
-           "AABFVVJhbmdlAQF5BAAuAER5BAAAAQB0A/////8BAf////8AAAAA";
+            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAFgAA"
+            + "AEJvaWxlckRydW1UeXBlSW5zdGFuY2UBAXMEAQFzBHMEAAABAAAAADAAAQF0BAEAAACEYMAKAQAAAA4A"
+            + "AABMZXZlbEluZGljYXRvcgEABgAAAExJWDAwMQEBdAQALwEBEwR0BAAAAQEAAAAAMAEBAXMEAQAAABVg"
+            + "iQoCAAAAAQAGAAAAT3V0cHV0AQF1BAAvAQBACXUEAAAAC/////8BAf////8BAAAAFWCJCgIAAAAAAAcA"
+            + "AABFVVJhbmdlAQF5BAAuAER5BAAAAQB0A/////8BAf////8AAAAA";
         #endregion
 #endif
         #endregion
@@ -1833,7 +1825,6 @@ namespace Boiler
             {
                 return m_levelIndicator;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_levelIndicator, value))
@@ -1848,9 +1839,7 @@ namespace Boiler
 
         #region Overridden Methods
         /// <remarks />
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
+        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
             if (m_levelIndicator != null)
             {
@@ -1865,7 +1854,8 @@ namespace Boiler
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement)
+            BaseInstanceState replacement
+        )
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -1923,14 +1913,17 @@ namespace Boiler
     {
         #region Constructors
         /// <remarks />
-        public BoilerOutputPipeState(NodeState parent) : base(parent)
-        {
-        }
+        public BoilerOutputPipeState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.BoilerOutputPipeType, Boiler.Namespaces.Boiler, namespaceUris);
+            return Opc.Ua.NodeId.Create(
+                Boiler.ObjectTypes.BoilerOutputPipeType,
+                Boiler.Namespaces.Boiler,
+                namespaceUris
+            );
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -1957,11 +1950,11 @@ namespace Boiler
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAHAAA" +
-           "AEJvaWxlck91dHB1dFBpcGVUeXBlSW5zdGFuY2UBAXsEAQF7BHsEAAABAAAAADAAAQF8BAEAAACEYMAK" +
-           "AQAAABAAAABGbG93VHJhbnNtaXR0ZXIyAQAGAAAARlRYMDAyAQF8BAAvAQEaBHwEAAABAQAAAAAwAQEB" +
-           "ewQBAAAAFWCJCgIAAAABAAYAAABPdXRwdXQBAX0EAC8BAEAJfQQAAAAL/////wEB/////wEAAAAVYIkK" +
-           "AgAAAAAABwAAAEVVUmFuZ2UBAYEEAC4ARIEEAAABAHQD/////wEB/////wAAAAA=";
+            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAHAAA"
+            + "AEJvaWxlck91dHB1dFBpcGVUeXBlSW5zdGFuY2UBAXsEAQF7BHsEAAABAAAAADAAAQF8BAEAAACEYMAK"
+            + "AQAAABAAAABGbG93VHJhbnNtaXR0ZXIyAQAGAAAARlRYMDAyAQF8BAAvAQEaBHwEAAABAQAAAAAwAQEB"
+            + "ewQBAAAAFWCJCgIAAAABAAYAAABPdXRwdXQBAX0EAC8BAEAJfQQAAAAL/////wEB/////wEAAAAVYIkK"
+            + "AgAAAAAABwAAAEVVUmFuZ2UBAYEEAC4ARIEEAAABAHQD/////wEB/////wAAAAA=";
         #endregion
 #endif
         #endregion
@@ -1974,7 +1967,6 @@ namespace Boiler
             {
                 return m_flowTransmitter2;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_flowTransmitter2, value))
@@ -1989,9 +1981,7 @@ namespace Boiler
 
         #region Overridden Methods
         /// <remarks />
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
+        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
             if (m_flowTransmitter2 != null)
             {
@@ -2006,7 +1996,8 @@ namespace Boiler
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement)
+            BaseInstanceState replacement
+        )
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -2064,9 +2055,8 @@ namespace Boiler
     {
         #region Constructors
         /// <remarks />
-        public BoilerState(NodeState parent) : base(parent)
-        {
-        }
+        public BoilerState(NodeState parent)
+            : base(parent) { }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
@@ -2098,61 +2088,61 @@ namespace Boiler
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////+EYIACAQAAAAEAEgAA" +
-           "AEJvaWxlclR5cGVJbnN0YW5jZQEBgwQBAYMEgwQAAAEEAAAAADAAAQGEBAAwAAEBkwQAMAABAZsEACQA" +
-           "AQGxBAcAAACEYMAKAQAAAAkAAABJbnB1dFBpcGUBAAgAAABQaXBlWDAwMQEBhAQALwEBZASEBAAAAQMA" +
-           "AAAAMAEBAYMEADAAAQGFBAEB6QMAAQGTBAIAAACEYMAKAQAAABAAAABGbG93VHJhbnNtaXR0ZXIxAQAG" +
-           "AAAARlRYMDAxAQGFBAAvAQEaBIUEAAABAQAAAAAwAQEBhAQBAAAAFWCJCgIAAAABAAYAAABPdXRwdXQB" +
-           "AYYEAC8BAEAJhgQAAAAL/////wEBAgAAAAEB6wMAAQGkBAEB6wMAAQGtBAEAAAAVYIkKAgAAAAAABwAA" +
-           "AEVVUmFuZ2UBAYoEAC4ARIoEAAABAHQD/////wEB/////wAAAACEYMAKAQAAAAUAAABWYWx2ZQEACQAA" +
-           "AFZhbHZlWDAwMQEBjAQALwEBBASMBAAAAf////8BAAAAFWCJCgIAAAABAAUAAABJbnB1dAEBjQQALwEA" +
-           "QAmNBAAAAAv/////AgIBAAAAAQHrAwEBAaYEAQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEBkQQALgBE" +
-           "kQQAAAEAdAP/////AQH/////AAAAAIRgwAoBAAAABAAAAERydW0BAAgAAABEcnVtWDAwMQEBkwQALwEB" +
-           "cwSTBAAAAQQAAAAAMAEBAYMEAQHpAwEBAYQEADAAAQGUBAEB6gMAAQGbBAEAAACEYMAKAQAAAA4AAABM" +
-           "ZXZlbEluZGljYXRvcgEABgAAAExJWDAwMQEBlAQALwEBEwSUBAAAAQEAAAAAMAEBAZMEAQAAABVgiQoC" +
-           "AAAAAQAGAAAAT3V0cHV0AQGVBAAvAQBACZUEAAAAGv////8BAQEAAAABAesDAAEBqAQBAAAAFWCJCgIA" +
-           "AAAAAAcAAABFVVJhbmdlAQGZBAAuAESZBAAAAQB0A/////8BAf////8AAAAAhGDACgEAAAAKAAAAT3V0" +
-           "cHV0UGlwZQEACAAAAFBpcGVYMDAyAQGbBAAvAQF7BJsEAAABAwAAAAAwAQEBgwQBAeoDAQEBkwQAMAAB" +
-           "AZwEAQAAAIRgwAoBAAAAEAAAAEZsb3dUcmFuc21pdHRlcjIBAAYAAABGVFgwMDIBAZwEAC8BARoEnAQA" +
-           "AAEBAAAAADABAQGbBAEAAAAVYIkKAgAAAAEABgAAAE91dHB1dAEBnQQALwEAQAmdBAAAAAv/////AQEB" +
-           "AAAAAQHrAwABAa4EAQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEBoQQALgBEoQQAAAEAdAP/////AQH/" +
-           "////AAAAAARgwAoBAAAADgAAAEZsb3dDb250cm9sbGVyAQAGAAAARkNYMDAxAQGjBAAvAQEPBKMEAAD/" +
-           "////AwAAABVgiQoCAAAAAQALAAAATWVhc3VyZW1lbnQBAaQEAC4ARKQEAAAAC/////8BAQEAAAABAesD" +
-           "AQEBhgQAAAAAFWCJCgIAAAABAAgAAABTZXRQb2ludAEBpQQALgBEpQQAAAAL/////wMDAQAAAAEB6wMB" +
-           "AQGvBAAAAAAVYIkKAgAAAAEACgAAAENvbnRyb2xPdXQBAaYEAC4ARKYEAAAAC/////8BAQEAAAABAesD" +
-           "AAEBjQQAAAAABGDACgEAAAAPAAAATGV2ZWxDb250cm9sbGVyAQAGAAAATENYMDAxAQGnBAAvAQELBKcE" +
-           "AAD/////AwAAABVgiQoCAAAAAQALAAAATWVhc3VyZW1lbnQBAagEAC4ARKgEAAAAC/////8BAQEAAAAB" +
-           "AesDAQEBlQQAAAAAFWCJCgIAAAABAAgAAABTZXRQb2ludAEBqQQALgBEqQQAAAAL/////wMD/////wAA" +
-           "AAAVYIkKAgAAAAEACgAAAENvbnRyb2xPdXQBAaoEAC4ARKoEAAAAC/////8BAQEAAAABAesDAAEBrAQA" +
-           "AAAABGDACgEAAAAQAAAAQ3VzdG9tQ29udHJvbGxlcgEABgAAAENDWDAwMQEBqwQALwEB/gOrBAAA////" +
-           "/wUAAAAVYIkKAgAAAAEABgAAAElucHV0MQEBrAQALgBErAQAAAAL/////wICAQAAAAEB6wMBAQGqBAAA" +
-           "AAAVYIkKAgAAAAEABgAAAElucHV0MgEBrQQALgBErQQAAAAL/////wICAQAAAAEB6wMBAQGGBAAAAAAV" +
-           "YIkKAgAAAAEABgAAAElucHV0MwEBrgQALgBErgQAAAAL/////wICAQAAAAEB6wMBAQGdBAAAAAAVYIkK" +
-           "AgAAAAEACgAAAENvbnRyb2xPdXQBAa8EAC4ARK8EAAAAC/////8BAQEAAAABAesDAAEBpQQAAAAAFWDJ" +
-           "CgIAAAAMAAAARGVzY3JpcHRpb25YAQALAAAARGVzY3JpcHRpb24BAbAEAC4ARLAEAAAAFf////8BAf//" +
-           "//8AAAAAhGCACgEAAAABAAoAAABTaW11bGF0aW9uAQGxBAAvAQEhBLEEAAABAQAAAAAkAQEBgwQLAAAA" +
-           "FWCJCgIAAAAAAAwAAABDdXJyZW50U3RhdGUBAbIEAC8BAMgKsgQAAAAV/////wEB/////wIAAAAVYIkK" +
-           "AgAAAAAAAgAAAElkAQGzBAAuAESzBAAAABH/////AQH/////AAAAABVgiQoCAAAAAAAGAAAATnVtYmVy" +
-           "AQG1BAAuAES1BAAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAOAAAATGFzdFRyYW5zaXRpb24BAbcE" +
-           "AC8BAM8KtwQAAAAV/////wEB/////wMAAAAVYIkKAgAAAAAAAgAAAElkAQG4BAAuAES4BAAAABH/////" +
-           "AQH/////AAAAABVgiQoCAAAAAAAGAAAATnVtYmVyAQG6BAAuAES6BAAAAAf/////AQH/////AAAAABVg" +
-           "iQoCAAAAAAAOAAAAVHJhbnNpdGlvblRpbWUBAbsEAC4ARLsEAAABACYB/////wEB/////wAAAAAVYIkK" +
-           "AgAAAAAACQAAAERlbGV0YWJsZQEBvwQALgBEvwQAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAACgAA" +
-           "AEF1dG9EZWxldGUBAcAEAC4ARMAEAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABSZWN5Y2xl" +
-           "Q291bnQBAcEEAC4ARMEEAAAABv////8BAf////8AAAAANWCJCgIAAAABAAoAAABVcGRhdGVSYXRlAQHQ" +
-           "BAMAAAAAJgAAAFRoZSByYXRlIGF0IHdoaWNoIHRoZSBzaW11bGF0aW9uIHJ1bnMuAC4ARNAEAAAAB///" +
-           "//8DA/////8AAAAAJGGCCgQAAAABAAUAAABTdGFydAEB0QQDAAAAAEsAAABDYXVzZXMgdGhlIFByb2dy" +
-           "YW0gdG8gdHJhbnNpdGlvbiBmcm9tIHRoZSBSZWFkeSBzdGF0ZSB0byB0aGUgUnVubmluZyBzdGF0ZS4A" +
-           "LwEBXgTRBAAAAQH/////AAAAACRhggoEAAAAAQAHAAAAU3VzcGVuZAEB0gQDAAAAAE8AAABDYXVzZXMg" +
-           "dGhlIFByb2dyYW0gdG8gdHJhbnNpdGlvbiBmcm9tIHRoZSBSdW5uaW5nIHN0YXRlIHRvIHRoZSBTdXNw" +
-           "ZW5kZWQgc3RhdGUuAC8BAV8E0gQAAAEB/////wAAAAAkYYIKBAAAAAEABgAAAFJlc3VtZQEB0wQDAAAA" +
-           "AE8AAABDYXVzZXMgdGhlIFByb2dyYW0gdG8gdHJhbnNpdGlvbiBmcm9tIHRoZSBTdXNwZW5kZWQgc3Rh" +
-           "dGUgdG8gdGhlIFJ1bm5pbmcgc3RhdGUuAC8BAWAE0wQAAAEB/////wAAAAAkYYIKBAAAAAEABAAAAEhh" +
-           "bHQBAdQEAwAAAABgAAAAQ2F1c2VzIHRoZSBQcm9ncmFtIHRvIHRyYW5zaXRpb24gZnJvbSB0aGUgUmVh" +
-           "ZHksIFJ1bm5pbmcgb3IgU3VzcGVuZGVkIHN0YXRlIHRvIHRoZSBIYWx0ZWQgc3RhdGUuAC8BAWEE1AQA" +
-           "AAEB/////wAAAAAkYYIKBAAAAAEABQAAAFJlc2V0AQHVBAMAAAAASgAAAENhdXNlcyB0aGUgUHJvZ3Jh" +
-           "bSB0byB0cmFuc2l0aW9uIGZyb20gdGhlIEhhbHRlZCBzdGF0ZSB0byB0aGUgUmVhZHkgc3RhdGUuAC8B" +
-           "AWIE1QQAAAEB/////wAAAAA=";
+            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////+EYIACAQAAAAEAEgAA"
+            + "AEJvaWxlclR5cGVJbnN0YW5jZQEBgwQBAYMEgwQAAAEEAAAAADAAAQGEBAAwAAEBkwQAMAABAZsEACQA"
+            + "AQGxBAcAAACEYMAKAQAAAAkAAABJbnB1dFBpcGUBAAgAAABQaXBlWDAwMQEBhAQALwEBZASEBAAAAQMA"
+            + "AAAAMAEBAYMEADAAAQGFBAEB6QMAAQGTBAIAAACEYMAKAQAAABAAAABGbG93VHJhbnNtaXR0ZXIxAQAG"
+            + "AAAARlRYMDAxAQGFBAAvAQEaBIUEAAABAQAAAAAwAQEBhAQBAAAAFWCJCgIAAAABAAYAAABPdXRwdXQB"
+            + "AYYEAC8BAEAJhgQAAAAL/////wEBAgAAAAEB6wMAAQGkBAEB6wMAAQGtBAEAAAAVYIkKAgAAAAAABwAA"
+            + "AEVVUmFuZ2UBAYoEAC4ARIoEAAABAHQD/////wEB/////wAAAACEYMAKAQAAAAUAAABWYWx2ZQEACQAA"
+            + "AFZhbHZlWDAwMQEBjAQALwEBBASMBAAAAf////8BAAAAFWCJCgIAAAABAAUAAABJbnB1dAEBjQQALwEA"
+            + "QAmNBAAAAAv/////AgIBAAAAAQHrAwEBAaYEAQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEBkQQALgBE"
+            + "kQQAAAEAdAP/////AQH/////AAAAAIRgwAoBAAAABAAAAERydW0BAAgAAABEcnVtWDAwMQEBkwQALwEB"
+            + "cwSTBAAAAQQAAAAAMAEBAYMEAQHpAwEBAYQEADAAAQGUBAEB6gMAAQGbBAEAAACEYMAKAQAAAA4AAABM"
+            + "ZXZlbEluZGljYXRvcgEABgAAAExJWDAwMQEBlAQALwEBEwSUBAAAAQEAAAAAMAEBAZMEAQAAABVgiQoC"
+            + "AAAAAQAGAAAAT3V0cHV0AQGVBAAvAQBACZUEAAAAGv////8BAQEAAAABAesDAAEBqAQBAAAAFWCJCgIA"
+            + "AAAAAAcAAABFVVJhbmdlAQGZBAAuAESZBAAAAQB0A/////8BAf////8AAAAAhGDACgEAAAAKAAAAT3V0"
+            + "cHV0UGlwZQEACAAAAFBpcGVYMDAyAQGbBAAvAQF7BJsEAAABAwAAAAAwAQEBgwQBAeoDAQEBkwQAMAAB"
+            + "AZwEAQAAAIRgwAoBAAAAEAAAAEZsb3dUcmFuc21pdHRlcjIBAAYAAABGVFgwMDIBAZwEAC8BARoEnAQA"
+            + "AAEBAAAAADABAQGbBAEAAAAVYIkKAgAAAAEABgAAAE91dHB1dAEBnQQALwEAQAmdBAAAAAv/////AQEB"
+            + "AAAAAQHrAwABAa4EAQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEBoQQALgBEoQQAAAEAdAP/////AQH/"
+            + "////AAAAAARgwAoBAAAADgAAAEZsb3dDb250cm9sbGVyAQAGAAAARkNYMDAxAQGjBAAvAQEPBKMEAAD/"
+            + "////AwAAABVgiQoCAAAAAQALAAAATWVhc3VyZW1lbnQBAaQEAC4ARKQEAAAAC/////8BAQEAAAABAesD"
+            + "AQEBhgQAAAAAFWCJCgIAAAABAAgAAABTZXRQb2ludAEBpQQALgBEpQQAAAAL/////wMDAQAAAAEB6wMB"
+            + "AQGvBAAAAAAVYIkKAgAAAAEACgAAAENvbnRyb2xPdXQBAaYEAC4ARKYEAAAAC/////8BAQEAAAABAesD"
+            + "AAEBjQQAAAAABGDACgEAAAAPAAAATGV2ZWxDb250cm9sbGVyAQAGAAAATENYMDAxAQGnBAAvAQELBKcE"
+            + "AAD/////AwAAABVgiQoCAAAAAQALAAAATWVhc3VyZW1lbnQBAagEAC4ARKgEAAAAC/////8BAQEAAAAB"
+            + "AesDAQEBlQQAAAAAFWCJCgIAAAABAAgAAABTZXRQb2ludAEBqQQALgBEqQQAAAAL/////wMD/////wAA"
+            + "AAAVYIkKAgAAAAEACgAAAENvbnRyb2xPdXQBAaoEAC4ARKoEAAAAC/////8BAQEAAAABAesDAAEBrAQA"
+            + "AAAABGDACgEAAAAQAAAAQ3VzdG9tQ29udHJvbGxlcgEABgAAAENDWDAwMQEBqwQALwEB/gOrBAAA////"
+            + "/wUAAAAVYIkKAgAAAAEABgAAAElucHV0MQEBrAQALgBErAQAAAAL/////wICAQAAAAEB6wMBAQGqBAAA"
+            + "AAAVYIkKAgAAAAEABgAAAElucHV0MgEBrQQALgBErQQAAAAL/////wICAQAAAAEB6wMBAQGGBAAAAAAV"
+            + "YIkKAgAAAAEABgAAAElucHV0MwEBrgQALgBErgQAAAAL/////wICAQAAAAEB6wMBAQGdBAAAAAAVYIkK"
+            + "AgAAAAEACgAAAENvbnRyb2xPdXQBAa8EAC4ARK8EAAAAC/////8BAQEAAAABAesDAAEBpQQAAAAAFWDJ"
+            + "CgIAAAAMAAAARGVzY3JpcHRpb25YAQALAAAARGVzY3JpcHRpb24BAbAEAC4ARLAEAAAAFf////8BAf//"
+            + "//8AAAAAhGCACgEAAAABAAoAAABTaW11bGF0aW9uAQGxBAAvAQEhBLEEAAABAQAAAAAkAQEBgwQLAAAA"
+            + "FWCJCgIAAAAAAAwAAABDdXJyZW50U3RhdGUBAbIEAC8BAMgKsgQAAAAV/////wEB/////wIAAAAVYIkK"
+            + "AgAAAAAAAgAAAElkAQGzBAAuAESzBAAAABH/////AQH/////AAAAABVgiQoCAAAAAAAGAAAATnVtYmVy"
+            + "AQG1BAAuAES1BAAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAOAAAATGFzdFRyYW5zaXRpb24BAbcE"
+            + "AC8BAM8KtwQAAAAV/////wEB/////wMAAAAVYIkKAgAAAAAAAgAAAElkAQG4BAAuAES4BAAAABH/////"
+            + "AQH/////AAAAABVgiQoCAAAAAAAGAAAATnVtYmVyAQG6BAAuAES6BAAAAAf/////AQH/////AAAAABVg"
+            + "iQoCAAAAAAAOAAAAVHJhbnNpdGlvblRpbWUBAbsEAC4ARLsEAAABACYB/////wEB/////wAAAAAVYIkK"
+            + "AgAAAAAACQAAAERlbGV0YWJsZQEBvwQALgBEvwQAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAACgAA"
+            + "AEF1dG9EZWxldGUBAcAEAC4ARMAEAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABSZWN5Y2xl"
+            + "Q291bnQBAcEEAC4ARMEEAAAABv////8BAf////8AAAAANWCJCgIAAAABAAoAAABVcGRhdGVSYXRlAQHQ"
+            + "BAMAAAAAJgAAAFRoZSByYXRlIGF0IHdoaWNoIHRoZSBzaW11bGF0aW9uIHJ1bnMuAC4ARNAEAAAAB///"
+            + "//8DA/////8AAAAAJGGCCgQAAAABAAUAAABTdGFydAEB0QQDAAAAAEsAAABDYXVzZXMgdGhlIFByb2dy"
+            + "YW0gdG8gdHJhbnNpdGlvbiBmcm9tIHRoZSBSZWFkeSBzdGF0ZSB0byB0aGUgUnVubmluZyBzdGF0ZS4A"
+            + "LwEBXgTRBAAAAQH/////AAAAACRhggoEAAAAAQAHAAAAU3VzcGVuZAEB0gQDAAAAAE8AAABDYXVzZXMg"
+            + "dGhlIFByb2dyYW0gdG8gdHJhbnNpdGlvbiBmcm9tIHRoZSBSdW5uaW5nIHN0YXRlIHRvIHRoZSBTdXNw"
+            + "ZW5kZWQgc3RhdGUuAC8BAV8E0gQAAAEB/////wAAAAAkYYIKBAAAAAEABgAAAFJlc3VtZQEB0wQDAAAA"
+            + "AE8AAABDYXVzZXMgdGhlIFByb2dyYW0gdG8gdHJhbnNpdGlvbiBmcm9tIHRoZSBTdXNwZW5kZWQgc3Rh"
+            + "dGUgdG8gdGhlIFJ1bm5pbmcgc3RhdGUuAC8BAWAE0wQAAAEB/////wAAAAAkYYIKBAAAAAEABAAAAEhh"
+            + "bHQBAdQEAwAAAABgAAAAQ2F1c2VzIHRoZSBQcm9ncmFtIHRvIHRyYW5zaXRpb24gZnJvbSB0aGUgUmVh"
+            + "ZHksIFJ1bm5pbmcgb3IgU3VzcGVuZGVkIHN0YXRlIHRvIHRoZSBIYWx0ZWQgc3RhdGUuAC8BAWEE1AQA"
+            + "AAEB/////wAAAAAkYYIKBAAAAAEABQAAAFJlc2V0AQHVBAMAAAAASgAAAENhdXNlcyB0aGUgUHJvZ3Jh"
+            + "bSB0byB0cmFuc2l0aW9uIGZyb20gdGhlIEhhbHRlZCBzdGF0ZSB0byB0aGUgUmVhZHkgc3RhdGUuAC8B"
+            + "AWIE1QQAAAEB/////wAAAAA=";
         #endregion
 #endif
         #endregion
@@ -2165,7 +2155,6 @@ namespace Boiler
             {
                 return m_inputPipe;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_inputPipe, value))
@@ -2184,7 +2173,6 @@ namespace Boiler
             {
                 return m_drum;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_drum, value))
@@ -2203,7 +2191,6 @@ namespace Boiler
             {
                 return m_outputPipe;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_outputPipe, value))
@@ -2222,7 +2209,6 @@ namespace Boiler
             {
                 return m_flowController;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_flowController, value))
@@ -2241,7 +2227,6 @@ namespace Boiler
             {
                 return m_levelController;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_levelController, value))
@@ -2260,7 +2245,6 @@ namespace Boiler
             {
                 return m_customController;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_customController, value))
@@ -2279,7 +2263,6 @@ namespace Boiler
             {
                 return m_simulation;
             }
-
             set
             {
                 if (!Object.ReferenceEquals(m_simulation, value))
@@ -2294,9 +2277,7 @@ namespace Boiler
 
         #region Overridden Methods
         /// <remarks />
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
+        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
             if (m_inputPipe != null)
             {
@@ -2341,7 +2322,8 @@ namespace Boiler
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement)
+            BaseInstanceState replacement
+        )
         {
             if (QualifiedName.IsNull(browseName))
             {

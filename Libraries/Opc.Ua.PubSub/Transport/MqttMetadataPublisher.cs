@@ -94,7 +94,6 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Decide if the DataSetWriter can publish metadata
         /// </summary>
-        /// <returns></returns>
         private bool CanPublish()
         {
             return m_parentConnection.CanPublishMetaData(m_writerGroup, m_dataSetWriter);
@@ -107,10 +106,11 @@ namespace Opc.Ua.PubSub.Transport
         {
             try
             {
-                UaNetworkMessage metaDataNetworkMessage = m_parentConnection.CreateDataSetMetaDataNetworkMessage(
-                    m_writerGroup,
-                    m_dataSetWriter
-                );
+                UaNetworkMessage metaDataNetworkMessage = m_parentConnection
+                    .CreateDataSetMetaDataNetworkMessage(
+                        m_writerGroup,
+                        m_dataSetWriter
+                        );
                 if (metaDataNetworkMessage != null)
                 {
                     bool success = m_parentConnection.PublishNetworkMessage(metaDataNetworkMessage);
@@ -136,15 +136,14 @@ namespace Opc.Ua.PubSub.Transport
             /// <summary>
             /// Create new instance of <see cref="MetaDataState"/>
             /// </summary>
-            /// <param name="dataSetWriter"></param>
             public MetaDataState(DataSetWriterDataType dataSetWriter)
             {
                 DataSetWriter = dataSetWriter;
                 LastSendTime = DateTime.MinValue;
 
                 var transport =
-                    ExtensionObject.ToEncodeable(DataSetWriter.TransportSettings)
-                    as BrokerDataSetWriterTransportDataType;
+                    ExtensionObject.ToEncodeable(DataSetWriter.TransportSettings) as
+                    BrokerDataSetWriterTransportDataType;
 
                 MetaDataUpdateTime = transport?.MetaDataUpdateTime ?? 0;
             }
@@ -172,10 +171,11 @@ namespace Opc.Ua.PubSub.Transport
             /// <summary>
             /// Get the next publish interval
             /// </summary>
-            /// <returns></returns>
             public double GetNextPublishInterval()
             {
-                return Math.Max(0, MetaDataUpdateTime - DateTime.UtcNow.Subtract(LastSendTime).TotalMilliseconds);
+                return Math.Max(
+                    0,
+                    MetaDataUpdateTime - DateTime.UtcNow.Subtract(LastSendTime).TotalMilliseconds);
             }
         }
     }

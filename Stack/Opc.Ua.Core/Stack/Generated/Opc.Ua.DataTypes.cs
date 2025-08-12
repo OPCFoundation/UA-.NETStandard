@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -29,12 +29,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Xml;
 using System.Linq;
 using System.Runtime.Serialization;
-using System.Threading.Tasks;
+using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
+using System.Xml;
 
 namespace Opc.Ua
 {
@@ -52,18 +52,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfEnumeration", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Enumeration")]
+    [CollectionDataContract(
+        Name = "ListOfEnumeration",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "Enumeration"
+    )]
     public partial class EnumerationCollection : List<Enumeration>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public EnumerationCollection() { }
+        public EnumerationCollection()
+        {
+        }
 
         /// <remarks />
-        public EnumerationCollection(int capacity) : base(capacity) { }
+        public EnumerationCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public EnumerationCollection(IEnumerable<Enumeration> collection) : base(collection) { }
+        public EnumerationCollection(IEnumerable<Enumeration> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -140,18 +148,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfNamingRuleType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NamingRuleType")]
+    [CollectionDataContract(
+        Name = "ListOfNamingRuleType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "NamingRuleType"
+    )]
     public partial class NamingRuleTypeCollection : List<NamingRuleType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public NamingRuleTypeCollection() { }
+        public NamingRuleTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public NamingRuleTypeCollection(int capacity) : base(capacity) { }
+        public NamingRuleTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public NamingRuleTypeCollection(IEnumerable<NamingRuleType> collection) : base(collection) { }
+        public NamingRuleTypeCollection(IEnumerable<NamingRuleType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -250,7 +266,6 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -258,7 +273,6 @@ namespace Opc.Ua
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -278,7 +292,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return true;
         }
 
@@ -292,7 +305,6 @@ namespace Opc.Ua
         public new object MemberwiseClone()
         {
             Union clone = (Union)base.MemberwiseClone();
-
 
             return clone;
         }
@@ -311,13 +323,17 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <remarks />
-        public UnionCollection() { }
+        public UnionCollection()
+        {
+        }
 
         /// <remarks />
-        public UnionCollection(int capacity) : base(capacity) { }
+        public UnionCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public UnionCollection(IEnumerable<Union> collection) : base(collection) { }
+        public UnionCollection(IEnumerable<Union> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -398,18 +414,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfRedundantServerMode", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RedundantServerMode")]
+    [CollectionDataContract(
+        Name = "ListOfRedundantServerMode",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "RedundantServerMode"
+    )]
     public partial class RedundantServerModeCollection : List<RedundantServerMode>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public RedundantServerModeCollection() { }
+        public RedundantServerModeCollection()
+        {
+        }
 
         /// <remarks />
-        public RedundantServerModeCollection(int capacity) : base(capacity) { }
+        public RedundantServerModeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public RedundantServerModeCollection(IEnumerable<RedundantServerMode> collection) : base(collection) { }
+        public RedundantServerModeCollection(IEnumerable<RedundantServerMode> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -494,16 +518,28 @@ namespace Opc.Ua
         [DataMember(Name = "Key", IsRequired = false, Order = 1)]
         public QualifiedName Key
         {
-            get { return m_key; }
-            set { m_key = value; }
+            get
+            {
+                return m_key;
+            }
+            set
+            {
+                m_key = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Value", IsRequired = false, Order = 2)]
         public Variant Value
         {
-            get { return m_value; }
-            set { m_value = value; }
+            get
+            {
+                return m_value;
+            }
+            set
+            {
+                m_value = value;
+            }
         }
         #endregion
 
@@ -593,18 +629,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfKeyValuePair", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "KeyValuePair")]
+    [CollectionDataContract(
+        Name = "ListOfKeyValuePair",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "KeyValuePair"
+    )]
     public partial class KeyValuePairCollection : List<KeyValuePair>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public KeyValuePairCollection() { }
+        public KeyValuePairCollection()
+        {
+        }
 
         /// <remarks />
-        public KeyValuePairCollection(int capacity) : base(capacity) { }
+        public KeyValuePairCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public KeyValuePairCollection(IEnumerable<KeyValuePair> collection) : base(collection) { }
+        public KeyValuePairCollection(IEnumerable<KeyValuePair> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -692,7 +736,6 @@ namespace Opc.Ua
             {
                 return m_parameters;
             }
-
             set
             {
                 m_parameters = value;
@@ -816,16 +859,28 @@ namespace Opc.Ua
         [DataMember(Name = "PublicKey", IsRequired = false, Order = 1)]
         public byte[] PublicKey
         {
-            get { return m_publicKey; }
-            set { m_publicKey = value; }
+            get
+            {
+                return m_publicKey;
+            }
+            set
+            {
+                m_publicKey = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Signature", IsRequired = false, Order = 2)]
         public byte[] Signature
         {
-            get { return m_signature; }
-            set { m_signature = value; }
+            get
+            {
+                return m_signature;
+            }
+            set
+            {
+                m_signature = value;
+            }
         }
         #endregion
 
@@ -948,32 +1003,56 @@ namespace Opc.Ua
         [DataMember(Name = "EndpointUrl", IsRequired = false, Order = 1)]
         public string EndpointUrl
         {
-            get { return m_endpointUrl; }
-            set { m_endpointUrl = value; }
+            get
+            {
+                return m_endpointUrl;
+            }
+            set
+            {
+                m_endpointUrl = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SecurityMode", IsRequired = false, Order = 2)]
         public MessageSecurityMode SecurityMode
         {
-            get { return m_securityMode; }
-            set { m_securityMode = value; }
+            get
+            {
+                return m_securityMode;
+            }
+            set
+            {
+                m_securityMode = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SecurityPolicyUri", IsRequired = false, Order = 3)]
         public string SecurityPolicyUri
         {
-            get { return m_securityPolicyUri; }
-            set { m_securityPolicyUri = value; }
+            get
+            {
+                return m_securityPolicyUri;
+            }
+            set
+            {
+                m_securityPolicyUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TransportProfileUri", IsRequired = false, Order = 4)]
         public string TransportProfileUri
         {
-            get { return m_transportProfileUri; }
-            set { m_transportProfileUri = value; }
+            get
+            {
+                return m_transportProfileUri;
+            }
+            set
+            {
+                m_transportProfileUri = value;
+            }
         }
         #endregion
 
@@ -1075,18 +1154,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfEndpointType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EndpointType")]
+    [CollectionDataContract(
+        Name = "ListOfEndpointType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "EndpointType"
+    )]
     public partial class EndpointTypeCollection : List<EndpointType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public EndpointTypeCollection() { }
+        public EndpointTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public EndpointTypeCollection(int capacity) : base(capacity) { }
+        public EndpointTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public EndpointTypeCollection(IEnumerable<EndpointType> collection) : base(collection) { }
+        public EndpointTypeCollection(IEnumerable<EndpointType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -1174,40 +1261,70 @@ namespace Opc.Ua
         [DataMember(Name = "Name", IsRequired = false, Order = 1)]
         public string Name
         {
-            get { return m_name; }
-            set { m_name = value; }
+            get
+            {
+                return m_name;
+            }
+            set
+            {
+                m_name = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Description", IsRequired = false, Order = 2)]
         public LocalizedText Description
         {
-            get { return m_description; }
-            set { m_description = value; }
+            get
+            {
+                return m_description;
+            }
+            set
+            {
+                m_description = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Reserved", IsRequired = false, Order = 3)]
         public bool Reserved
         {
-            get { return m_reserved; }
-            set { m_reserved = value; }
+            get
+            {
+                return m_reserved;
+            }
+            set
+            {
+                m_reserved = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "StartingBitPosition", IsRequired = false, Order = 4)]
         public uint StartingBitPosition
         {
-            get { return m_startingBitPosition; }
-            set { m_startingBitPosition = value; }
+            get
+            {
+                return m_startingBitPosition;
+            }
+            set
+            {
+                m_startingBitPosition = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "EndingBitPosition", IsRequired = false, Order = 5)]
         public uint EndingBitPosition
         {
-            get { return m_endingBitPosition; }
-            set { m_endingBitPosition = value; }
+            get
+            {
+                return m_endingBitPosition;
+            }
+            set
+            {
+                m_endingBitPosition = value;
+            }
         }
         #endregion
 
@@ -1315,18 +1432,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfBitFieldDefinition", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BitFieldDefinition")]
+    [CollectionDataContract(
+        Name = "ListOfBitFieldDefinition",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "BitFieldDefinition"
+    )]
     public partial class BitFieldDefinitionCollection : List<BitFieldDefinition>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public BitFieldDefinitionCollection() { }
+        public BitFieldDefinitionCollection()
+        {
+        }
 
         /// <remarks />
-        public BitFieldDefinitionCollection(int capacity) : base(capacity) { }
+        public BitFieldDefinitionCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public BitFieldDefinitionCollection(IEnumerable<BitFieldDefinition> collection) : base(collection) { }
+        public BitFieldDefinitionCollection(IEnumerable<BitFieldDefinition> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -1411,16 +1536,28 @@ namespace Opc.Ua
         [DataMember(Name = "Numerator", IsRequired = false, Order = 1)]
         public int Numerator
         {
-            get { return m_numerator; }
-            set { m_numerator = value; }
+            get
+            {
+                return m_numerator;
+            }
+            set
+            {
+                m_numerator = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Denominator", IsRequired = false, Order = 2)]
         public uint Denominator
         {
-            get { return m_denominator; }
-            set { m_denominator = value; }
+            get
+            {
+                return m_denominator;
+            }
+            set
+            {
+                m_denominator = value;
+            }
         }
         #endregion
 
@@ -1510,18 +1647,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfRationalNumber", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RationalNumber")]
+    [CollectionDataContract(
+        Name = "ListOfRationalNumber",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "RationalNumber"
+    )]
     public partial class RationalNumberCollection : List<RationalNumber>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public RationalNumberCollection() { }
+        public RationalNumberCollection()
+        {
+        }
 
         /// <remarks />
-        public RationalNumberCollection(int capacity) : base(capacity) { }
+        public RationalNumberCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public RationalNumberCollection(IEnumerable<RationalNumber> collection) : base(collection) { }
+        public RationalNumberCollection(IEnumerable<RationalNumber> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -1620,7 +1765,6 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -1628,7 +1772,6 @@ namespace Opc.Ua
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -1648,7 +1791,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return true;
         }
 
@@ -1662,7 +1804,6 @@ namespace Opc.Ua
         public new object MemberwiseClone()
         {
             Vector clone = (Vector)base.MemberwiseClone();
-
 
             return clone;
         }
@@ -1681,13 +1822,17 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <remarks />
-        public VectorCollection() { }
+        public VectorCollection()
+        {
+        }
 
         /// <remarks />
-        public VectorCollection(int capacity) : base(capacity) { }
+        public VectorCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public VectorCollection(IEnumerable<Vector> collection) : base(collection) { }
+        public VectorCollection(IEnumerable<Vector> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -1773,24 +1918,42 @@ namespace Opc.Ua
         [DataMember(Name = "X", IsRequired = false, Order = 1)]
         public double X
         {
-            get { return m_x; }
-            set { m_x = value; }
+            get
+            {
+                return m_x;
+            }
+            set
+            {
+                m_x = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Y", IsRequired = false, Order = 2)]
         public double Y
         {
-            get { return m_y; }
-            set { m_y = value; }
+            get
+            {
+                return m_y;
+            }
+            set
+            {
+                m_y = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Z", IsRequired = false, Order = 3)]
         public double Z
         {
-            get { return m_z; }
-            set { m_z = value; }
+            get
+            {
+                return m_z;
+            }
+            set
+            {
+                m_z = value;
+            }
         }
         #endregion
 
@@ -1890,18 +2053,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfThreeDVector", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ThreeDVector")]
+    [CollectionDataContract(
+        Name = "ListOfThreeDVector",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ThreeDVector"
+    )]
     public partial class ThreeDVectorCollection : List<ThreeDVector>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ThreeDVectorCollection() { }
+        public ThreeDVectorCollection()
+        {
+        }
 
         /// <remarks />
-        public ThreeDVectorCollection(int capacity) : base(capacity) { }
+        public ThreeDVectorCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ThreeDVectorCollection(IEnumerable<ThreeDVector> collection) : base(collection) { }
+        public ThreeDVectorCollection(IEnumerable<ThreeDVector> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -2000,7 +2171,6 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -2008,7 +2178,6 @@ namespace Opc.Ua
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -2028,7 +2197,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return true;
         }
 
@@ -2043,7 +2211,6 @@ namespace Opc.Ua
         {
             CartesianCoordinates clone = (CartesianCoordinates)base.MemberwiseClone();
 
-
             return clone;
         }
         #endregion
@@ -2056,18 +2223,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfCartesianCoordinates", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "CartesianCoordinates")]
+    [CollectionDataContract(
+        Name = "ListOfCartesianCoordinates",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "CartesianCoordinates"
+    )]
     public partial class CartesianCoordinatesCollection : List<CartesianCoordinates>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public CartesianCoordinatesCollection() { }
+        public CartesianCoordinatesCollection()
+        {
+        }
 
         /// <remarks />
-        public CartesianCoordinatesCollection(int capacity) : base(capacity) { }
+        public CartesianCoordinatesCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public CartesianCoordinatesCollection(IEnumerable<CartesianCoordinates> collection) : base(collection) { }
+        public CartesianCoordinatesCollection(IEnumerable<CartesianCoordinates> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -2153,24 +2328,42 @@ namespace Opc.Ua
         [DataMember(Name = "X", IsRequired = false, Order = 1)]
         public double X
         {
-            get { return m_x; }
-            set { m_x = value; }
+            get
+            {
+                return m_x;
+            }
+            set
+            {
+                m_x = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Y", IsRequired = false, Order = 2)]
         public double Y
         {
-            get { return m_y; }
-            set { m_y = value; }
+            get
+            {
+                return m_y;
+            }
+            set
+            {
+                m_y = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Z", IsRequired = false, Order = 3)]
         public double Z
         {
-            get { return m_z; }
-            set { m_z = value; }
+            get
+            {
+                return m_z;
+            }
+            set
+            {
+                m_z = value;
+            }
         }
         #endregion
 
@@ -2270,18 +2463,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfThreeDCartesianCoordinates", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ThreeDCartesianCoordinates")]
+    [CollectionDataContract(
+        Name = "ListOfThreeDCartesianCoordinates",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ThreeDCartesianCoordinates"
+    )]
     public partial class ThreeDCartesianCoordinatesCollection : List<ThreeDCartesianCoordinates>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ThreeDCartesianCoordinatesCollection() { }
+        public ThreeDCartesianCoordinatesCollection()
+        {
+        }
 
         /// <remarks />
-        public ThreeDCartesianCoordinatesCollection(int capacity) : base(capacity) { }
+        public ThreeDCartesianCoordinatesCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ThreeDCartesianCoordinatesCollection(IEnumerable<ThreeDCartesianCoordinates> collection) : base(collection) { }
+        public ThreeDCartesianCoordinatesCollection(IEnumerable<ThreeDCartesianCoordinates> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -2380,7 +2581,6 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -2388,7 +2588,6 @@ namespace Opc.Ua
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -2408,7 +2607,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return true;
         }
 
@@ -2423,7 +2621,6 @@ namespace Opc.Ua
         {
             Orientation clone = (Orientation)base.MemberwiseClone();
 
-
             return clone;
         }
         #endregion
@@ -2436,18 +2633,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfOrientation", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Orientation")]
+    [CollectionDataContract(
+        Name = "ListOfOrientation",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "Orientation"
+    )]
     public partial class OrientationCollection : List<Orientation>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public OrientationCollection() { }
+        public OrientationCollection()
+        {
+        }
 
         /// <remarks />
-        public OrientationCollection(int capacity) : base(capacity) { }
+        public OrientationCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public OrientationCollection(IEnumerable<Orientation> collection) : base(collection) { }
+        public OrientationCollection(IEnumerable<Orientation> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -2533,24 +2738,42 @@ namespace Opc.Ua
         [DataMember(Name = "A", IsRequired = false, Order = 1)]
         public double A
         {
-            get { return m_a; }
-            set { m_a = value; }
+            get
+            {
+                return m_a;
+            }
+            set
+            {
+                m_a = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "B", IsRequired = false, Order = 2)]
         public double B
         {
-            get { return m_b; }
-            set { m_b = value; }
+            get
+            {
+                return m_b;
+            }
+            set
+            {
+                m_b = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "C", IsRequired = false, Order = 3)]
         public double C
         {
-            get { return m_c; }
-            set { m_c = value; }
+            get
+            {
+                return m_c;
+            }
+            set
+            {
+                m_c = value;
+            }
         }
         #endregion
 
@@ -2650,18 +2873,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfThreeDOrientation", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ThreeDOrientation")]
+    [CollectionDataContract(
+        Name = "ListOfThreeDOrientation",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ThreeDOrientation"
+    )]
     public partial class ThreeDOrientationCollection : List<ThreeDOrientation>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ThreeDOrientationCollection() { }
+        public ThreeDOrientationCollection()
+        {
+        }
 
         /// <remarks />
-        public ThreeDOrientationCollection(int capacity) : base(capacity) { }
+        public ThreeDOrientationCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ThreeDOrientationCollection(IEnumerable<ThreeDOrientation> collection) : base(collection) { }
+        public ThreeDOrientationCollection(IEnumerable<ThreeDOrientation> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -2760,7 +2991,6 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -2768,7 +2998,6 @@ namespace Opc.Ua
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -2788,7 +3017,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return true;
         }
 
@@ -2802,7 +3030,6 @@ namespace Opc.Ua
         public new object MemberwiseClone()
         {
             Frame clone = (Frame)base.MemberwiseClone();
-
 
             return clone;
         }
@@ -2821,13 +3048,17 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <remarks />
-        public FrameCollection() { }
+        public FrameCollection()
+        {
+        }
 
         /// <remarks />
-        public FrameCollection(int capacity) : base(capacity) { }
+        public FrameCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public FrameCollection(IEnumerable<Frame> collection) : base(collection) { }
+        public FrameCollection(IEnumerable<Frame> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -2916,7 +3147,6 @@ namespace Opc.Ua
             {
                 return m_cartesianCoordinates;
             }
-
             set
             {
                 m_cartesianCoordinates = value;
@@ -2936,7 +3166,6 @@ namespace Opc.Ua
             {
                 return m_orientation;
             }
-
             set
             {
                 m_orientation = value;
@@ -2982,7 +3211,8 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            CartesianCoordinates = (ThreeDCartesianCoordinates)decoder.ReadEncodeable("CartesianCoordinates", typeof(ThreeDCartesianCoordinates));
+            CartesianCoordinates = (ThreeDCartesianCoordinates)
+                decoder.ReadEncodeable("CartesianCoordinates", typeof(ThreeDCartesianCoordinates));
             Orientation = (ThreeDOrientation)decoder.ReadEncodeable("Orientation", typeof(ThreeDOrientation));
 
             decoder.PopNamespace();
@@ -3039,18 +3269,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfThreeDFrame", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ThreeDFrame")]
+    [CollectionDataContract(
+        Name = "ListOfThreeDFrame",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ThreeDFrame"
+    )]
     public partial class ThreeDFrameCollection : List<ThreeDFrame>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ThreeDFrameCollection() { }
+        public ThreeDFrameCollection()
+        {
+        }
 
         /// <remarks />
-        public ThreeDFrameCollection(int capacity) : base(capacity) { }
+        public ThreeDFrameCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ThreeDFrameCollection(IEnumerable<ThreeDFrame> collection) : base(collection) { }
+        public ThreeDFrameCollection(IEnumerable<ThreeDFrame> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -3131,18 +3369,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfOpenFileMode", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "OpenFileMode")]
+    [CollectionDataContract(
+        Name = "ListOfOpenFileMode",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "OpenFileMode"
+    )]
     public partial class OpenFileModeCollection : List<OpenFileMode>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public OpenFileModeCollection() { }
+        public OpenFileModeCollection()
+        {
+        }
 
         /// <remarks />
-        public OpenFileModeCollection(int capacity) : base(capacity) { }
+        public OpenFileModeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public OpenFileModeCollection(IEnumerable<OpenFileMode> collection) : base(collection) { }
+        public OpenFileModeCollection(IEnumerable<OpenFileMode> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -3243,18 +3489,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfIdentityCriteriaType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "IdentityCriteriaType")]
+    [CollectionDataContract(
+        Name = "ListOfIdentityCriteriaType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "IdentityCriteriaType"
+    )]
     public partial class IdentityCriteriaTypeCollection : List<IdentityCriteriaType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public IdentityCriteriaTypeCollection() { }
+        public IdentityCriteriaTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public IdentityCriteriaTypeCollection(int capacity) : base(capacity) { }
+        public IdentityCriteriaTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public IdentityCriteriaTypeCollection(IEnumerable<IdentityCriteriaType> collection) : base(collection) { }
+        public IdentityCriteriaTypeCollection(IEnumerable<IdentityCriteriaType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -3339,16 +3593,28 @@ namespace Opc.Ua
         [DataMember(Name = "CriteriaType", IsRequired = false, Order = 1)]
         public IdentityCriteriaType CriteriaType
         {
-            get { return m_criteriaType; }
-            set { m_criteriaType = value; }
+            get
+            {
+                return m_criteriaType;
+            }
+            set
+            {
+                m_criteriaType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Criteria", IsRequired = false, Order = 2)]
         public string Criteria
         {
-            get { return m_criteria; }
-            set { m_criteria = value; }
+            get
+            {
+                return m_criteria;
+            }
+            set
+            {
+                m_criteria = value;
+            }
         }
         #endregion
 
@@ -3438,18 +3704,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfIdentityMappingRuleType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "IdentityMappingRuleType")]
+    [CollectionDataContract(
+        Name = "ListOfIdentityMappingRuleType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "IdentityMappingRuleType"
+    )]
     public partial class IdentityMappingRuleTypeCollection : List<IdentityMappingRuleType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public IdentityMappingRuleTypeCollection() { }
+        public IdentityMappingRuleTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public IdentityMappingRuleTypeCollection(int capacity) : base(capacity) { }
+        public IdentityMappingRuleTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public IdentityMappingRuleTypeCollection(IEnumerable<IdentityMappingRuleType> collection) : base(collection) { }
+        public IdentityMappingRuleTypeCollection(IEnumerable<IdentityMappingRuleType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -3536,32 +3810,56 @@ namespace Opc.Ua
         [DataMember(Name = "NumericCode", IsRequired = false, Order = 1)]
         public short NumericCode
         {
-            get { return m_numericCode; }
-            set { m_numericCode = value; }
+            get
+            {
+                return m_numericCode;
+            }
+            set
+            {
+                m_numericCode = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Exponent", IsRequired = false, Order = 2)]
         public sbyte Exponent
         {
-            get { return m_exponent; }
-            set { m_exponent = value; }
+            get
+            {
+                return m_exponent;
+            }
+            set
+            {
+                m_exponent = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "AlphabeticCode", IsRequired = false, Order = 3)]
         public string AlphabeticCode
         {
-            get { return m_alphabeticCode; }
-            set { m_alphabeticCode = value; }
+            get
+            {
+                return m_alphabeticCode;
+            }
+            set
+            {
+                m_alphabeticCode = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Currency", IsRequired = false, Order = 4)]
         public LocalizedText Currency
         {
-            get { return m_currency; }
-            set { m_currency = value; }
+            get
+            {
+                return m_currency;
+            }
+            set
+            {
+                m_currency = value;
+            }
         }
         #endregion
 
@@ -3663,18 +3961,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfCurrencyUnitType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "CurrencyUnitType")]
+    [CollectionDataContract(
+        Name = "ListOfCurrencyUnitType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "CurrencyUnitType"
+    )]
     public partial class CurrencyUnitTypeCollection : List<CurrencyUnitType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public CurrencyUnitTypeCollection() { }
+        public CurrencyUnitTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public CurrencyUnitTypeCollection(int capacity) : base(capacity) { }
+        public CurrencyUnitTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public CurrencyUnitTypeCollection(IEnumerable<CurrencyUnitType> collection) : base(collection) { }
+        public CurrencyUnitTypeCollection(IEnumerable<CurrencyUnitType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -3760,24 +4066,42 @@ namespace Opc.Ua
         [DataMember(Name = "Annotation", IsRequired = false, Order = 1)]
         public string Annotation
         {
-            get { return m_annotation; }
-            set { m_annotation = value; }
+            get
+            {
+                return m_annotation;
+            }
+            set
+            {
+                m_annotation = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Discipline", IsRequired = false, Order = 2)]
         public string Discipline
         {
-            get { return m_discipline; }
-            set { m_discipline = value; }
+            get
+            {
+                return m_discipline;
+            }
+            set
+            {
+                m_discipline = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Uri", IsRequired = false, Order = 3)]
         public string Uri
         {
-            get { return m_uri; }
-            set { m_uri = value; }
+            get
+            {
+                return m_uri;
+            }
+            set
+            {
+                m_uri = value;
+            }
         }
         #endregion
 
@@ -3873,18 +4197,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfAnnotationDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AnnotationDataType")]
+    [CollectionDataContract(
+        Name = "ListOfAnnotationDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "AnnotationDataType"
+    )]
     public partial class AnnotationDataTypeCollection : List<AnnotationDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public AnnotationDataTypeCollection() { }
+        public AnnotationDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public AnnotationDataTypeCollection(int capacity) : base(capacity) { }
+        public AnnotationDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public AnnotationDataTypeCollection(IEnumerable<AnnotationDataType> collection) : base(collection) { }
+        public AnnotationDataTypeCollection(IEnumerable<AnnotationDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -3971,32 +4303,56 @@ namespace Opc.Ua
         [DataMember(Name = "InitialAddend", IsRequired = false, Order = 1)]
         public float InitialAddend
         {
-            get { return m_initialAddend; }
-            set { m_initialAddend = value; }
+            get
+            {
+                return m_initialAddend;
+            }
+            set
+            {
+                m_initialAddend = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Multiplicand", IsRequired = false, Order = 2)]
         public float Multiplicand
         {
-            get { return m_multiplicand; }
-            set { m_multiplicand = value; }
+            get
+            {
+                return m_multiplicand;
+            }
+            set
+            {
+                m_multiplicand = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Divisor", IsRequired = false, Order = 3)]
         public float Divisor
         {
-            get { return m_divisor; }
-            set { m_divisor = value; }
+            get
+            {
+                return m_divisor;
+            }
+            set
+            {
+                m_divisor = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "FinalAddend", IsRequired = false, Order = 4)]
         public float FinalAddend
         {
-            get { return m_finalAddend; }
-            set { m_finalAddend = value; }
+            get
+            {
+                return m_finalAddend;
+            }
+            set
+            {
+                m_finalAddend = value;
+            }
         }
         #endregion
 
@@ -4098,18 +4454,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfLinearConversionDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "LinearConversionDataType")]
+    [CollectionDataContract(
+        Name = "ListOfLinearConversionDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "LinearConversionDataType"
+    )]
     public partial class LinearConversionDataTypeCollection : List<LinearConversionDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public LinearConversionDataTypeCollection() { }
+        public LinearConversionDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public LinearConversionDataTypeCollection(int capacity) : base(capacity) { }
+        public LinearConversionDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public LinearConversionDataTypeCollection(IEnumerable<LinearConversionDataType> collection) : base(collection) { }
+        public LinearConversionDataTypeCollection(IEnumerable<LinearConversionDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -4186,18 +4550,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfConversionLimitEnum", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ConversionLimitEnum")]
+    [CollectionDataContract(
+        Name = "ListOfConversionLimitEnum",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ConversionLimitEnum"
+    )]
     public partial class ConversionLimitEnumCollection : List<ConversionLimitEnum>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ConversionLimitEnumCollection() { }
+        public ConversionLimitEnumCollection()
+        {
+        }
 
         /// <remarks />
-        public ConversionLimitEnumCollection(int capacity) : base(capacity) { }
+        public ConversionLimitEnumCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ConversionLimitEnumCollection(IEnumerable<ConversionLimitEnum> collection) : base(collection) { }
+        public ConversionLimitEnumCollection(IEnumerable<ConversionLimitEnum> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -4288,64 +4660,112 @@ namespace Opc.Ua
         [DataMember(Name = "MassExponent", IsRequired = false, Order = 1)]
         public sbyte MassExponent
         {
-            get { return m_massExponent; }
-            set { m_massExponent = value; }
+            get
+            {
+                return m_massExponent;
+            }
+            set
+            {
+                m_massExponent = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "LengthExponent", IsRequired = false, Order = 2)]
         public sbyte LengthExponent
         {
-            get { return m_lengthExponent; }
-            set { m_lengthExponent = value; }
+            get
+            {
+                return m_lengthExponent;
+            }
+            set
+            {
+                m_lengthExponent = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TimeExponent", IsRequired = false, Order = 3)]
         public sbyte TimeExponent
         {
-            get { return m_timeExponent; }
-            set { m_timeExponent = value; }
+            get
+            {
+                return m_timeExponent;
+            }
+            set
+            {
+                m_timeExponent = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ElectricCurrentExponent", IsRequired = false, Order = 4)]
         public sbyte ElectricCurrentExponent
         {
-            get { return m_electricCurrentExponent; }
-            set { m_electricCurrentExponent = value; }
+            get
+            {
+                return m_electricCurrentExponent;
+            }
+            set
+            {
+                m_electricCurrentExponent = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "AmountOfSubstanceExponent", IsRequired = false, Order = 5)]
         public sbyte AmountOfSubstanceExponent
         {
-            get { return m_amountOfSubstanceExponent; }
-            set { m_amountOfSubstanceExponent = value; }
+            get
+            {
+                return m_amountOfSubstanceExponent;
+            }
+            set
+            {
+                m_amountOfSubstanceExponent = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "LuminousIntensityExponent", IsRequired = false, Order = 6)]
         public sbyte LuminousIntensityExponent
         {
-            get { return m_luminousIntensityExponent; }
-            set { m_luminousIntensityExponent = value; }
+            get
+            {
+                return m_luminousIntensityExponent;
+            }
+            set
+            {
+                m_luminousIntensityExponent = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "AbsoluteTemperatureExponent", IsRequired = false, Order = 7)]
         public sbyte AbsoluteTemperatureExponent
         {
-            get { return m_absoluteTemperatureExponent; }
-            set { m_absoluteTemperatureExponent = value; }
+            get
+            {
+                return m_absoluteTemperatureExponent;
+            }
+            set
+            {
+                m_absoluteTemperatureExponent = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DimensionlessExponent", IsRequired = false, Order = 8)]
         public sbyte DimensionlessExponent
         {
-            get { return m_dimensionlessExponent; }
-            set { m_dimensionlessExponent = value; }
+            get
+            {
+                return m_dimensionlessExponent;
+            }
+            set
+            {
+                m_dimensionlessExponent = value;
+            }
         }
         #endregion
 
@@ -4471,18 +4891,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfQuantityDimension", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "QuantityDimension")]
+    [CollectionDataContract(
+        Name = "ListOfQuantityDimension",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "QuantityDimension"
+    )]
     public partial class QuantityDimensionCollection : List<QuantityDimension>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public QuantityDimensionCollection() { }
+        public QuantityDimensionCollection()
+        {
+        }
 
         /// <remarks />
-        public QuantityDimensionCollection(int capacity) : base(capacity) { }
+        public QuantityDimensionCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public QuantityDimensionCollection(IEnumerable<QuantityDimension> collection) : base(collection) { }
+        public QuantityDimensionCollection(IEnumerable<QuantityDimension> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -4569,13 +4997,17 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <remarks />
-        public AlarmMaskCollection() { }
+        public AlarmMaskCollection()
+        {
+        }
 
         /// <remarks />
-        public AlarmMaskCollection(int capacity) : base(capacity) { }
+        public AlarmMaskCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public AlarmMaskCollection(IEnumerable<AlarmMask> collection) : base(collection) { }
+        public AlarmMaskCollection(IEnumerable<AlarmMask> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -4742,8 +5174,14 @@ namespace Opc.Ua
         [DataMember(Name = "SpecifiedLists", IsRequired = false, Order = 1)]
         public uint SpecifiedLists
         {
-            get { return m_specifiedLists; }
-            set { m_specifiedLists = value; }
+            get
+            {
+                return m_specifiedLists;
+            }
+            set
+            {
+                m_specifiedLists = value;
+            }
         }
 
         /// <remarks />
@@ -4754,7 +5192,6 @@ namespace Opc.Ua
             {
                 return m_trustedCertificates;
             }
-
             set
             {
                 m_trustedCertificates = value;
@@ -4774,7 +5211,6 @@ namespace Opc.Ua
             {
                 return m_trustedCrls;
             }
-
             set
             {
                 m_trustedCrls = value;
@@ -4794,7 +5230,6 @@ namespace Opc.Ua
             {
                 return m_issuerCertificates;
             }
-
             set
             {
                 m_issuerCertificates = value;
@@ -4814,7 +5249,6 @@ namespace Opc.Ua
             {
                 return m_issuerCrls;
             }
-
             set
             {
                 m_issuerCrls = value;
@@ -4931,18 +5365,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfTrustListDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TrustListDataType")]
+    [CollectionDataContract(
+        Name = "ListOfTrustListDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "TrustListDataType"
+    )]
     public partial class TrustListDataTypeCollection : List<TrustListDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public TrustListDataTypeCollection() { }
+        public TrustListDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public TrustListDataTypeCollection(int capacity) : base(capacity) { }
+        public TrustListDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public TrustListDataTypeCollection(IEnumerable<TrustListDataType> collection) : base(collection) { }
+        public TrustListDataTypeCollection(IEnumerable<TrustListDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -5027,8 +5469,14 @@ namespace Opc.Ua
         [DataMember(Name = "ConfigurationVersion", IsRequired = false, Order = 1)]
         public uint ConfigurationVersion
         {
-            get { return m_configurationVersion; }
-            set { m_configurationVersion = value; }
+            get
+            {
+                return m_configurationVersion;
+            }
+            set
+            {
+                m_configurationVersion = value;
+            }
         }
 
         /// <remarks />
@@ -5039,7 +5487,6 @@ namespace Opc.Ua
             {
                 return m_configurationProperties;
             }
-
             set
             {
                 m_configurationProperties = value;
@@ -5071,7 +5518,11 @@ namespace Opc.Ua
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             encoder.WriteUInt32("ConfigurationVersion", ConfigurationVersion);
-            encoder.WriteEncodeableArray("ConfigurationProperties", ConfigurationProperties.ToArray(), typeof(KeyValuePair));
+            encoder.WriteEncodeableArray(
+                "ConfigurationProperties",
+                ConfigurationProperties.ToArray(),
+                typeof(KeyValuePair)
+            );
 
             encoder.PopNamespace();
         }
@@ -5082,7 +5533,8 @@ namespace Opc.Ua
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             ConfigurationVersion = decoder.ReadUInt32("ConfigurationVersion");
-            ConfigurationProperties = (KeyValuePairCollection)decoder.ReadEncodeableArray("ConfigurationProperties", typeof(KeyValuePair));
+            ConfigurationProperties = (KeyValuePairCollection)
+                decoder.ReadEncodeableArray("ConfigurationProperties", typeof(KeyValuePair));
 
             decoder.PopNamespace();
         }
@@ -5138,18 +5590,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfBaseConfigurationDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BaseConfigurationDataType")]
+    [CollectionDataContract(
+        Name = "ListOfBaseConfigurationDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "BaseConfigurationDataType"
+    )]
     public partial class BaseConfigurationDataTypeCollection : List<BaseConfigurationDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public BaseConfigurationDataTypeCollection() { }
+        public BaseConfigurationDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public BaseConfigurationDataTypeCollection(int capacity) : base(capacity) { }
+        public BaseConfigurationDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public BaseConfigurationDataTypeCollection(IEnumerable<BaseConfigurationDataType> collection) : base(collection) { }
+        public BaseConfigurationDataTypeCollection(IEnumerable<BaseConfigurationDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -5234,8 +5694,14 @@ namespace Opc.Ua
         [DataMember(Name = "Name", IsRequired = false, Order = 1)]
         public string Name
         {
-            get { return m_name; }
-            set { m_name = value; }
+            get
+            {
+                return m_name;
+            }
+            set
+            {
+                m_name = value;
+            }
         }
 
         /// <remarks />
@@ -5246,7 +5712,6 @@ namespace Opc.Ua
             {
                 return m_recordProperties;
             }
-
             set
             {
                 m_recordProperties = value;
@@ -5264,7 +5729,8 @@ namespace Opc.Ua
         public virtual ExpandedNodeId TypeId => DataTypeIds.BaseConfigurationRecordDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.BaseConfigurationRecordDataType_Encoding_DefaultBinary;
+        public virtual ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.BaseConfigurationRecordDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BaseConfigurationRecordDataType_Encoding_DefaultXml;
@@ -5289,7 +5755,8 @@ namespace Opc.Ua
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             Name = decoder.ReadString("Name");
-            RecordProperties = (KeyValuePairCollection)decoder.ReadEncodeableArray("RecordProperties", typeof(KeyValuePair));
+            RecordProperties = (KeyValuePairCollection)
+                decoder.ReadEncodeableArray("RecordProperties", typeof(KeyValuePair));
 
             decoder.PopNamespace();
         }
@@ -5345,23 +5812,33 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfBaseConfigurationRecordDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BaseConfigurationRecordDataType")]
+    [CollectionDataContract(
+        Name = "ListOfBaseConfigurationRecordDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "BaseConfigurationRecordDataType"
+    )]
     public partial class BaseConfigurationRecordDataTypeCollection : List<BaseConfigurationRecordDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public BaseConfigurationRecordDataTypeCollection() { }
+        public BaseConfigurationRecordDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public BaseConfigurationRecordDataTypeCollection(int capacity) : base(capacity) { }
+        public BaseConfigurationRecordDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public BaseConfigurationRecordDataTypeCollection(IEnumerable<BaseConfigurationRecordDataType> collection) : base(collection) { }
+        public BaseConfigurationRecordDataTypeCollection(IEnumerable<BaseConfigurationRecordDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator BaseConfigurationRecordDataTypeCollection(BaseConfigurationRecordDataType[] values)
+        public static implicit operator BaseConfigurationRecordDataTypeCollection(
+            BaseConfigurationRecordDataType[] values
+        )
         {
             if (values != null)
             {
@@ -5372,7 +5849,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator BaseConfigurationRecordDataType[](BaseConfigurationRecordDataTypeCollection values)
+        public static explicit operator BaseConfigurationRecordDataType[](
+            BaseConfigurationRecordDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -5443,8 +5922,14 @@ namespace Opc.Ua
         [DataMember(Name = "Purpose", IsRequired = false, Order = 1)]
         public NodeId Purpose
         {
-            get { return m_purpose; }
-            set { m_purpose = value; }
+            get
+            {
+                return m_purpose;
+            }
+            set
+            {
+                m_purpose = value;
+            }
         }
 
         /// <remarks />
@@ -5455,7 +5940,6 @@ namespace Opc.Ua
             {
                 return m_certificateTypes;
             }
-
             set
             {
                 m_certificateTypes = value;
@@ -5475,7 +5959,6 @@ namespace Opc.Ua
             {
                 return m_isCertificateAssigned;
             }
-
             set
             {
                 m_isCertificateAssigned = value;
@@ -5491,8 +5974,14 @@ namespace Opc.Ua
         [DataMember(Name = "ValidationOptions", IsRequired = false, Order = 4)]
         public uint ValidationOptions
         {
-            get { return m_validationOptions; }
-            set { m_validationOptions = value; }
+            get
+            {
+                return m_validationOptions;
+            }
+            set
+            {
+                m_validationOptions = value;
+            }
         }
         #endregion
 
@@ -5598,18 +6087,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfCertificateGroupDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "CertificateGroupDataType")]
+    [CollectionDataContract(
+        Name = "ListOfCertificateGroupDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "CertificateGroupDataType"
+    )]
     public partial class CertificateGroupDataTypeCollection : List<CertificateGroupDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public CertificateGroupDataTypeCollection() { }
+        public CertificateGroupDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public CertificateGroupDataTypeCollection(int capacity) : base(capacity) { }
+        public CertificateGroupDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public CertificateGroupDataTypeCollection(IEnumerable<CertificateGroupDataType> collection) : base(collection) { }
+        public CertificateGroupDataTypeCollection(IEnumerable<CertificateGroupDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -5694,16 +6191,28 @@ namespace Opc.Ua
         [DataMember(Name = "Path", IsRequired = false, Order = 1)]
         public string Path
         {
-            get { return m_path; }
-            set { m_path = value; }
+            get
+            {
+                return m_path;
+            }
+            set
+            {
+                m_path = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "UpdateType", IsRequired = false, Order = 2)]
         public ConfigurationUpdateType UpdateType
         {
-            get { return m_updateType; }
-            set { m_updateType = value; }
+            get
+            {
+                return m_updateType;
+            }
+            set
+            {
+                m_updateType = value;
+            }
         }
         #endregion
 
@@ -5712,7 +6221,8 @@ namespace Opc.Ua
         public virtual ExpandedNodeId TypeId => DataTypeIds.ConfigurationUpdateTargetType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ConfigurationUpdateTargetType_Encoding_DefaultBinary;
+        public virtual ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.ConfigurationUpdateTargetType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ConfigurationUpdateTargetType_Encoding_DefaultXml;
@@ -5793,18 +6303,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfConfigurationUpdateTargetType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ConfigurationUpdateTargetType")]
+    [CollectionDataContract(
+        Name = "ListOfConfigurationUpdateTargetType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ConfigurationUpdateTargetType"
+    )]
     public partial class ConfigurationUpdateTargetTypeCollection : List<ConfigurationUpdateTargetType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ConfigurationUpdateTargetTypeCollection() { }
+        public ConfigurationUpdateTargetTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public ConfigurationUpdateTargetTypeCollection(int capacity) : base(capacity) { }
+        public ConfigurationUpdateTargetTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ConfigurationUpdateTargetTypeCollection(IEnumerable<ConfigurationUpdateTargetType> collection) : base(collection) { }
+        public ConfigurationUpdateTargetTypeCollection(IEnumerable<ConfigurationUpdateTargetType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -5885,18 +6403,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfConfigurationUpdateType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ConfigurationUpdateType")]
+    [CollectionDataContract(
+        Name = "ListOfConfigurationUpdateType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ConfigurationUpdateType"
+    )]
     public partial class ConfigurationUpdateTypeCollection : List<ConfigurationUpdateType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ConfigurationUpdateTypeCollection() { }
+        public ConfigurationUpdateTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public ConfigurationUpdateTypeCollection(int capacity) : base(capacity) { }
+        public ConfigurationUpdateTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ConfigurationUpdateTypeCollection(IEnumerable<ConfigurationUpdateType> collection) : base(collection) { }
+        public ConfigurationUpdateTypeCollection(IEnumerable<ConfigurationUpdateType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -5982,24 +6508,42 @@ namespace Opc.Ua
         [DataMember(Name = "TargetId", IsRequired = false, Order = 1)]
         public NodeId TargetId
         {
-            get { return m_targetId; }
-            set { m_targetId = value; }
+            get
+            {
+                return m_targetId;
+            }
+            set
+            {
+                m_targetId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Error", IsRequired = false, Order = 2)]
         public StatusCode Error
         {
-            get { return m_error; }
-            set { m_error = value; }
+            get
+            {
+                return m_error;
+            }
+            set
+            {
+                m_error = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Message", IsRequired = false, Order = 3)]
         public LocalizedText Message
         {
-            get { return m_message; }
-            set { m_message = value; }
+            get
+            {
+                return m_message;
+            }
+            set
+            {
+                m_message = value;
+            }
         }
         #endregion
 
@@ -6095,18 +6639,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfTransactionErrorType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TransactionErrorType")]
+    [CollectionDataContract(
+        Name = "ListOfTransactionErrorType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "TransactionErrorType"
+    )]
     public partial class TransactionErrorTypeCollection : List<TransactionErrorType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public TransactionErrorTypeCollection() { }
+        public TransactionErrorTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public TransactionErrorTypeCollection(int capacity) : base(capacity) { }
+        public TransactionErrorTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public TransactionErrorTypeCollection(IEnumerable<TransactionErrorType> collection) : base(collection) { }
+        public TransactionErrorTypeCollection(IEnumerable<TransactionErrorType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -6200,7 +6752,6 @@ namespace Opc.Ua
             {
                 return m_applicationIdentity;
             }
-
             set
             {
                 m_applicationIdentity = value;
@@ -6220,7 +6771,6 @@ namespace Opc.Ua
             {
                 return m_certificateGroups;
             }
-
             set
             {
                 m_certificateGroups = value;
@@ -6240,7 +6790,6 @@ namespace Opc.Ua
             {
                 return m_serverEndpoints;
             }
-
             set
             {
                 m_serverEndpoints = value;
@@ -6260,7 +6809,6 @@ namespace Opc.Ua
             {
                 return m_clientEndpoints;
             }
-
             set
             {
                 m_clientEndpoints = value;
@@ -6280,7 +6828,6 @@ namespace Opc.Ua
             {
                 return m_securitySettings;
             }
-
             set
             {
                 m_securitySettings = value;
@@ -6300,7 +6847,6 @@ namespace Opc.Ua
             {
                 return m_userTokenSettings;
             }
-
             set
             {
                 m_userTokenSettings = value;
@@ -6320,7 +6866,6 @@ namespace Opc.Ua
             {
                 return m_authorizationServices;
             }
-
             set
             {
                 m_authorizationServices = value;
@@ -6338,13 +6883,15 @@ namespace Opc.Ua
         public override ExpandedNodeId TypeId => DataTypeIds.ApplicationConfigurationDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ApplicationConfigurationDataType_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.ApplicationConfigurationDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ApplicationConfigurationDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.ApplicationConfigurationDataType_Encoding_DefaultJson;
+        public override ExpandedNodeId JsonEncodingId =>
+            ObjectIds.ApplicationConfigurationDataType_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -6354,12 +6901,28 @@ namespace Opc.Ua
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             encoder.WriteEncodeable("ApplicationIdentity", ApplicationIdentity, typeof(ApplicationIdentityDataType));
-            encoder.WriteEncodeableArray("CertificateGroups", CertificateGroups.ToArray(), typeof(CertificateGroupDataType));
+            encoder.WriteEncodeableArray(
+                "CertificateGroups",
+                CertificateGroups.ToArray(),
+                typeof(CertificateGroupDataType)
+            );
             encoder.WriteEncodeableArray("ServerEndpoints", ServerEndpoints.ToArray(), typeof(ServerEndpointDataType));
             encoder.WriteEncodeableArray("ClientEndpoints", ClientEndpoints.ToArray(), typeof(EndpointDataType));
-            encoder.WriteEncodeableArray("SecuritySettings", SecuritySettings.ToArray(), typeof(SecuritySettingsDataType));
-            encoder.WriteEncodeableArray("UserTokenSettings", UserTokenSettings.ToArray(), typeof(UserTokenSettingsDataType));
-            encoder.WriteEncodeableArray("AuthorizationServices", AuthorizationServices.ToArray(), typeof(AuthorizationServiceConfigurationDataType));
+            encoder.WriteEncodeableArray(
+                "SecuritySettings",
+                SecuritySettings.ToArray(),
+                typeof(SecuritySettingsDataType)
+            );
+            encoder.WriteEncodeableArray(
+                "UserTokenSettings",
+                UserTokenSettings.ToArray(),
+                typeof(UserTokenSettingsDataType)
+            );
+            encoder.WriteEncodeableArray(
+                "AuthorizationServices",
+                AuthorizationServices.ToArray(),
+                typeof(AuthorizationServiceConfigurationDataType)
+            );
 
             encoder.PopNamespace();
         }
@@ -6371,13 +6934,20 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            ApplicationIdentity = (ApplicationIdentityDataType)decoder.ReadEncodeable("ApplicationIdentity", typeof(ApplicationIdentityDataType));
-            CertificateGroups = (CertificateGroupDataTypeCollection)decoder.ReadEncodeableArray("CertificateGroups", typeof(CertificateGroupDataType));
-            ServerEndpoints = (ServerEndpointDataTypeCollection)decoder.ReadEncodeableArray("ServerEndpoints", typeof(ServerEndpointDataType));
-            ClientEndpoints = (EndpointDataTypeCollection)decoder.ReadEncodeableArray("ClientEndpoints", typeof(EndpointDataType));
-            SecuritySettings = (SecuritySettingsDataTypeCollection)decoder.ReadEncodeableArray("SecuritySettings", typeof(SecuritySettingsDataType));
-            UserTokenSettings = (UserTokenSettingsDataTypeCollection)decoder.ReadEncodeableArray("UserTokenSettings", typeof(UserTokenSettingsDataType));
-            AuthorizationServices = (AuthorizationServiceConfigurationDataTypeCollection)decoder.ReadEncodeableArray("AuthorizationServices", typeof(AuthorizationServiceConfigurationDataType));
+            ApplicationIdentity = (ApplicationIdentityDataType)
+                decoder.ReadEncodeable("ApplicationIdentity", typeof(ApplicationIdentityDataType));
+            CertificateGroups = (CertificateGroupDataTypeCollection)
+                decoder.ReadEncodeableArray("CertificateGroups", typeof(CertificateGroupDataType));
+            ServerEndpoints = (ServerEndpointDataTypeCollection)
+                decoder.ReadEncodeableArray("ServerEndpoints", typeof(ServerEndpointDataType));
+            ClientEndpoints = (EndpointDataTypeCollection)
+                decoder.ReadEncodeableArray("ClientEndpoints", typeof(EndpointDataType));
+            SecuritySettings = (SecuritySettingsDataTypeCollection)
+                decoder.ReadEncodeableArray("SecuritySettings", typeof(SecuritySettingsDataType));
+            UserTokenSettings = (UserTokenSettingsDataTypeCollection)
+                decoder.ReadEncodeableArray("UserTokenSettings", typeof(UserTokenSettingsDataType));
+            AuthorizationServices = (AuthorizationServiceConfigurationDataTypeCollection)
+                decoder.ReadEncodeableArray("AuthorizationServices", typeof(AuthorizationServiceConfigurationDataType));
 
             decoder.PopNamespace();
         }
@@ -6432,7 +7002,8 @@ namespace Opc.Ua
             clone.m_clientEndpoints = (EndpointDataTypeCollection)Utils.Clone(this.m_clientEndpoints);
             clone.m_securitySettings = (SecuritySettingsDataTypeCollection)Utils.Clone(this.m_securitySettings);
             clone.m_userTokenSettings = (UserTokenSettingsDataTypeCollection)Utils.Clone(this.m_userTokenSettings);
-            clone.m_authorizationServices = (AuthorizationServiceConfigurationDataTypeCollection)Utils.Clone(this.m_authorizationServices);
+            clone.m_authorizationServices = (AuthorizationServiceConfigurationDataTypeCollection)
+                Utils.Clone(this.m_authorizationServices);
 
             return clone;
         }
@@ -6453,23 +7024,33 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfApplicationConfigurationDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ApplicationConfigurationDataType")]
+    [CollectionDataContract(
+        Name = "ListOfApplicationConfigurationDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ApplicationConfigurationDataType"
+    )]
     public partial class ApplicationConfigurationDataTypeCollection : List<ApplicationConfigurationDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ApplicationConfigurationDataTypeCollection() { }
+        public ApplicationConfigurationDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public ApplicationConfigurationDataTypeCollection(int capacity) : base(capacity) { }
+        public ApplicationConfigurationDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ApplicationConfigurationDataTypeCollection(IEnumerable<ApplicationConfigurationDataType> collection) : base(collection) { }
+        public ApplicationConfigurationDataTypeCollection(IEnumerable<ApplicationConfigurationDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator ApplicationConfigurationDataTypeCollection(ApplicationConfigurationDataType[] values)
+        public static implicit operator ApplicationConfigurationDataTypeCollection(
+            ApplicationConfigurationDataType[] values
+        )
         {
             if (values != null)
             {
@@ -6480,7 +7061,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator ApplicationConfigurationDataType[](ApplicationConfigurationDataTypeCollection values)
+        public static explicit operator ApplicationConfigurationDataType[](
+            ApplicationConfigurationDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -6502,7 +7085,9 @@ namespace Opc.Ua
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            ApplicationConfigurationDataTypeCollection clone = new ApplicationConfigurationDataTypeCollection(this.Count);
+            ApplicationConfigurationDataTypeCollection clone = new ApplicationConfigurationDataTypeCollection(
+                this.Count
+            );
 
             for (int ii = 0; ii < this.Count; ii++)
             {
@@ -6550,8 +7135,14 @@ namespace Opc.Ua
         [DataMember(Name = "ApplicationUri", IsRequired = false, Order = 1)]
         public string ApplicationUri
         {
-            get { return m_applicationUri; }
-            set { m_applicationUri = value; }
+            get
+            {
+                return m_applicationUri;
+            }
+            set
+            {
+                m_applicationUri = value;
+            }
         }
 
         /// <remarks />
@@ -6562,7 +7153,6 @@ namespace Opc.Ua
             {
                 return m_applicationNames;
             }
-
             set
             {
                 m_applicationNames = value;
@@ -6582,7 +7172,6 @@ namespace Opc.Ua
             {
                 return m_additionalServers;
             }
-
             set
             {
                 m_additionalServers = value;
@@ -6617,7 +7206,11 @@ namespace Opc.Ua
 
             encoder.WriteString("ApplicationUri", ApplicationUri);
             encoder.WriteLocalizedTextArray("ApplicationNames", ApplicationNames);
-            encoder.WriteEncodeableArray("AdditionalServers", AdditionalServers.ToArray(), typeof(ApplicationDescription));
+            encoder.WriteEncodeableArray(
+                "AdditionalServers",
+                AdditionalServers.ToArray(),
+                typeof(ApplicationDescription)
+            );
 
             encoder.PopNamespace();
         }
@@ -6631,7 +7224,8 @@ namespace Opc.Ua
 
             ApplicationUri = decoder.ReadString("ApplicationUri");
             ApplicationNames = decoder.ReadLocalizedTextArray("ApplicationNames");
-            AdditionalServers = (ApplicationDescriptionCollection)decoder.ReadEncodeableArray("AdditionalServers", typeof(ApplicationDescription));
+            AdditionalServers = (ApplicationDescriptionCollection)
+                decoder.ReadEncodeableArray("AdditionalServers", typeof(ApplicationDescription));
 
             decoder.PopNamespace();
         }
@@ -6691,18 +7285,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfApplicationIdentityDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ApplicationIdentityDataType")]
+    [CollectionDataContract(
+        Name = "ListOfApplicationIdentityDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ApplicationIdentityDataType"
+    )]
     public partial class ApplicationIdentityDataTypeCollection : List<ApplicationIdentityDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ApplicationIdentityDataTypeCollection() { }
+        public ApplicationIdentityDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public ApplicationIdentityDataTypeCollection(int capacity) : base(capacity) { }
+        public ApplicationIdentityDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ApplicationIdentityDataTypeCollection(IEnumerable<ApplicationIdentityDataType> collection) : base(collection) { }
+        public ApplicationIdentityDataTypeCollection(IEnumerable<ApplicationIdentityDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -6792,7 +7394,6 @@ namespace Opc.Ua
             {
                 return m_discoveryUrls;
             }
-
             set
             {
                 m_discoveryUrls = value;
@@ -6808,16 +7409,28 @@ namespace Opc.Ua
         [DataMember(Name = "NetworkName", IsRequired = false, Order = 2)]
         public string NetworkName
         {
-            get { return m_networkName; }
-            set { m_networkName = value; }
+            get
+            {
+                return m_networkName;
+            }
+            set
+            {
+                m_networkName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Port", IsRequired = false, Order = 3)]
         public ushort Port
         {
-            get { return m_port; }
-            set { m_port = value; }
+            get
+            {
+                return m_port;
+            }
+            set
+            {
+                m_port = value;
+            }
         }
         #endregion
 
@@ -6917,18 +7530,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfEndpointDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EndpointDataType")]
+    [CollectionDataContract(
+        Name = "ListOfEndpointDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "EndpointDataType"
+    )]
     public partial class EndpointDataTypeCollection : List<EndpointDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public EndpointDataTypeCollection() { }
+        public EndpointDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public EndpointDataTypeCollection(int capacity) : base(capacity) { }
+        public EndpointDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public EndpointDataTypeCollection(IEnumerable<EndpointDataType> collection) : base(collection) { }
+        public EndpointDataTypeCollection(IEnumerable<EndpointDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -7020,7 +7641,6 @@ namespace Opc.Ua
             {
                 return m_endpointUrls;
             }
-
             set
             {
                 m_endpointUrls = value;
@@ -7040,7 +7660,6 @@ namespace Opc.Ua
             {
                 return m_securitySettingNames;
             }
-
             set
             {
                 m_securitySettingNames = value;
@@ -7056,8 +7675,14 @@ namespace Opc.Ua
         [DataMember(Name = "TransportProfileUri", IsRequired = false, Order = 3)]
         public string TransportProfileUri
         {
-            get { return m_transportProfileUri; }
-            set { m_transportProfileUri = value; }
+            get
+            {
+                return m_transportProfileUri;
+            }
+            set
+            {
+                m_transportProfileUri = value;
+            }
         }
 
         /// <remarks />
@@ -7068,7 +7693,6 @@ namespace Opc.Ua
             {
                 return m_userTokenSettingNames;
             }
-
             set
             {
                 m_userTokenSettingNames = value;
@@ -7088,7 +7712,6 @@ namespace Opc.Ua
             {
                 return m_reverseConnectUrls;
             }
-
             set
             {
                 m_reverseConnectUrls = value;
@@ -7209,18 +7832,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfServerEndpointDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ServerEndpointDataType")]
+    [CollectionDataContract(
+        Name = "ListOfServerEndpointDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ServerEndpointDataType"
+    )]
     public partial class ServerEndpointDataTypeCollection : List<ServerEndpointDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ServerEndpointDataTypeCollection() { }
+        public ServerEndpointDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public ServerEndpointDataTypeCollection(int capacity) : base(capacity) { }
+        public ServerEndpointDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ServerEndpointDataTypeCollection(IEnumerable<ServerEndpointDataType> collection) : base(collection) { }
+        public ServerEndpointDataTypeCollection(IEnumerable<ServerEndpointDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -7310,7 +7941,6 @@ namespace Opc.Ua
             {
                 return m_securityModes;
             }
-
             set
             {
                 m_securityModes = value;
@@ -7330,7 +7960,6 @@ namespace Opc.Ua
             {
                 return m_securityPolicyUris;
             }
-
             set
             {
                 m_securityPolicyUris = value;
@@ -7346,8 +7975,14 @@ namespace Opc.Ua
         [DataMember(Name = "CertificateGroupName", IsRequired = false, Order = 3)]
         public string CertificateGroupName
         {
-            get { return m_certificateGroupName; }
-            set { m_certificateGroupName = value; }
+            get
+            {
+                return m_certificateGroupName;
+            }
+            set
+            {
+                m_certificateGroupName = value;
+            }
         }
         #endregion
 
@@ -7385,7 +8020,8 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            SecurityModes = (MessageSecurityModeCollection)decoder.ReadEnumeratedArray("SecurityModes", typeof(MessageSecurityMode));
+            SecurityModes = (MessageSecurityModeCollection)
+                decoder.ReadEnumeratedArray("SecurityModes", typeof(MessageSecurityMode));
             SecurityPolicyUris = decoder.ReadStringArray("SecurityPolicyUris");
             CertificateGroupName = decoder.ReadString("CertificateGroupName");
 
@@ -7447,18 +8083,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfSecuritySettingsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SecuritySettingsDataType")]
+    [CollectionDataContract(
+        Name = "ListOfSecuritySettingsDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "SecuritySettingsDataType"
+    )]
     public partial class SecuritySettingsDataTypeCollection : List<SecuritySettingsDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public SecuritySettingsDataTypeCollection() { }
+        public SecuritySettingsDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public SecuritySettingsDataTypeCollection(int capacity) : base(capacity) { }
+        public SecuritySettingsDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public SecuritySettingsDataTypeCollection(IEnumerable<SecuritySettingsDataType> collection) : base(collection) { }
+        public SecuritySettingsDataTypeCollection(IEnumerable<SecuritySettingsDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -7547,48 +8191,84 @@ namespace Opc.Ua
         [DataMember(Name = "TokenType", IsRequired = false, Order = 1)]
         public UserTokenType TokenType
         {
-            get { return m_tokenType; }
-            set { m_tokenType = value; }
+            get
+            {
+                return m_tokenType;
+            }
+            set
+            {
+                m_tokenType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IssuedTokenType", IsRequired = false, Order = 2)]
         public string IssuedTokenType
         {
-            get { return m_issuedTokenType; }
-            set { m_issuedTokenType = value; }
+            get
+            {
+                return m_issuedTokenType;
+            }
+            set
+            {
+                m_issuedTokenType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IssuerEndpointUrl", IsRequired = false, Order = 3)]
         public string IssuerEndpointUrl
         {
-            get { return m_issuerEndpointUrl; }
-            set { m_issuerEndpointUrl = value; }
+            get
+            {
+                return m_issuerEndpointUrl;
+            }
+            set
+            {
+                m_issuerEndpointUrl = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SecurityPolicyUri", IsRequired = false, Order = 4)]
         public string SecurityPolicyUri
         {
-            get { return m_securityPolicyUri; }
-            set { m_securityPolicyUri = value; }
+            get
+            {
+                return m_securityPolicyUri;
+            }
+            set
+            {
+                m_securityPolicyUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "CertificateGroupName", IsRequired = false, Order = 5)]
         public string CertificateGroupName
         {
-            get { return m_certificateGroupName; }
-            set { m_certificateGroupName = value; }
+            get
+            {
+                return m_certificateGroupName;
+            }
+            set
+            {
+                m_certificateGroupName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "AuthorizationServiceName", IsRequired = false, Order = 6)]
         public string AuthorizationServiceName
         {
-            get { return m_authorizationServiceName; }
-            set { m_authorizationServiceName = value; }
+            get
+            {
+                return m_authorizationServiceName;
+            }
+            set
+            {
+                m_authorizationServiceName = value;
+            }
         }
         #endregion
 
@@ -7706,18 +8386,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfUserTokenSettingsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UserTokenSettingsDataType")]
+    [CollectionDataContract(
+        Name = "ListOfUserTokenSettingsDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "UserTokenSettingsDataType"
+    )]
     public partial class UserTokenSettingsDataTypeCollection : List<UserTokenSettingsDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public UserTokenSettingsDataTypeCollection() { }
+        public UserTokenSettingsDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public UserTokenSettingsDataTypeCollection(int capacity) : base(capacity) { }
+        public UserTokenSettingsDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public UserTokenSettingsDataTypeCollection(IEnumerable<UserTokenSettingsDataType> collection) : base(collection) { }
+        public UserTokenSettingsDataTypeCollection(IEnumerable<UserTokenSettingsDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -7803,8 +8491,14 @@ namespace Opc.Ua
         [DataMember(Name = "ServiceUri", IsRequired = false, Order = 1)]
         public string ServiceUri
         {
-            get { return m_serviceUri; }
-            set { m_serviceUri = value; }
+            get
+            {
+                return m_serviceUri;
+            }
+            set
+            {
+                m_serviceUri = value;
+            }
         }
 
         /// <remarks />
@@ -7815,7 +8509,6 @@ namespace Opc.Ua
             {
                 return m_serviceCertificate;
             }
-
             set
             {
                 m_serviceCertificate = value;
@@ -7831,8 +8524,14 @@ namespace Opc.Ua
         [DataMember(Name = "IssuerEndpointSettings", IsRequired = false, Order = 3)]
         public string IssuerEndpointSettings
         {
-            get { return m_issuerEndpointSettings; }
-            set { m_issuerEndpointSettings = value; }
+            get
+            {
+                return m_issuerEndpointSettings;
+            }
+            set
+            {
+                m_issuerEndpointSettings = value;
+            }
         }
         #endregion
 
@@ -7841,13 +8540,16 @@ namespace Opc.Ua
         public override ExpandedNodeId TypeId => DataTypeIds.AuthorizationServiceConfigurationDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.AuthorizationServiceConfigurationDataType_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.AuthorizationServiceConfigurationDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId => ObjectIds.AuthorizationServiceConfigurationDataType_Encoding_DefaultXml;
+        public override ExpandedNodeId XmlEncodingId =>
+            ObjectIds.AuthorizationServiceConfigurationDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.AuthorizationServiceConfigurationDataType_Encoding_DefaultJson;
+        public override ExpandedNodeId JsonEncodingId =>
+            ObjectIds.AuthorizationServiceConfigurationDataType_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -7911,7 +8613,8 @@ namespace Opc.Ua
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            AuthorizationServiceConfigurationDataType clone = (AuthorizationServiceConfigurationDataType)base.MemberwiseClone();
+            AuthorizationServiceConfigurationDataType clone = (AuthorizationServiceConfigurationDataType)
+                base.MemberwiseClone();
 
             clone.m_serviceUri = (string)Utils.Clone(this.m_serviceUri);
             clone.m_serviceCertificate = (ByteStringCollection)Utils.Clone(this.m_serviceCertificate);
@@ -7932,23 +8635,37 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfAuthorizationServiceConfigurationDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AuthorizationServiceConfigurationDataType")]
-    public partial class AuthorizationServiceConfigurationDataTypeCollection : List<AuthorizationServiceConfigurationDataType>, ICloneable
+    [CollectionDataContract(
+        Name = "ListOfAuthorizationServiceConfigurationDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "AuthorizationServiceConfigurationDataType"
+    )]
+    public partial class AuthorizationServiceConfigurationDataTypeCollection
+        : List<AuthorizationServiceConfigurationDataType>,
+            ICloneable
     {
         #region Constructors
         /// <remarks />
-        public AuthorizationServiceConfigurationDataTypeCollection() { }
+        public AuthorizationServiceConfigurationDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public AuthorizationServiceConfigurationDataTypeCollection(int capacity) : base(capacity) { }
+        public AuthorizationServiceConfigurationDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public AuthorizationServiceConfigurationDataTypeCollection(IEnumerable<AuthorizationServiceConfigurationDataType> collection) : base(collection) { }
+        public AuthorizationServiceConfigurationDataTypeCollection(
+            IEnumerable<AuthorizationServiceConfigurationDataType> collection
+        )
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator AuthorizationServiceConfigurationDataTypeCollection(AuthorizationServiceConfigurationDataType[] values)
+        public static implicit operator AuthorizationServiceConfigurationDataTypeCollection(
+            AuthorizationServiceConfigurationDataType[] values
+        )
         {
             if (values != null)
             {
@@ -7959,7 +8676,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator AuthorizationServiceConfigurationDataType[](AuthorizationServiceConfigurationDataTypeCollection values)
+        public static explicit operator AuthorizationServiceConfigurationDataType[](
+            AuthorizationServiceConfigurationDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -7981,7 +8700,8 @@ namespace Opc.Ua
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            AuthorizationServiceConfigurationDataTypeCollection clone = new AuthorizationServiceConfigurationDataTypeCollection(this.Count);
+            AuthorizationServiceConfigurationDataTypeCollection clone =
+                new AuthorizationServiceConfigurationDataTypeCollection(this.Count);
 
             for (int ii = 0; ii < this.Count; ii++)
             {
@@ -8028,16 +8748,28 @@ namespace Opc.Ua
         [DataMember(Name = "Scale", IsRequired = false, Order = 1)]
         public short Scale
         {
-            get { return m_scale; }
-            set { m_scale = value; }
+            get
+            {
+                return m_scale;
+            }
+            set
+            {
+                m_scale = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Value", IsRequired = false, Order = 2)]
         public byte[] Value
         {
-            get { return m_value; }
-            set { m_value = value; }
+            get
+            {
+                return m_value;
+            }
+            set
+            {
+                m_value = value;
+            }
         }
         #endregion
 
@@ -8164,7 +8896,6 @@ namespace Opc.Ua
             {
                 return m_namespaces;
             }
-
             set
             {
                 m_namespaces = value;
@@ -8184,7 +8915,6 @@ namespace Opc.Ua
             {
                 return m_structureDataTypes;
             }
-
             set
             {
                 m_structureDataTypes = value;
@@ -8204,7 +8934,6 @@ namespace Opc.Ua
             {
                 return m_enumDataTypes;
             }
-
             set
             {
                 m_enumDataTypes = value;
@@ -8224,7 +8953,6 @@ namespace Opc.Ua
             {
                 return m_simpleDataTypes;
             }
-
             set
             {
                 m_simpleDataTypes = value;
@@ -8256,7 +8984,11 @@ namespace Opc.Ua
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             encoder.WriteStringArray("Namespaces", Namespaces);
-            encoder.WriteEncodeableArray("StructureDataTypes", StructureDataTypes.ToArray(), typeof(StructureDescription));
+            encoder.WriteEncodeableArray(
+                "StructureDataTypes",
+                StructureDataTypes.ToArray(),
+                typeof(StructureDescription)
+            );
             encoder.WriteEncodeableArray("EnumDataTypes", EnumDataTypes.ToArray(), typeof(EnumDescription));
             encoder.WriteEncodeableArray("SimpleDataTypes", SimpleDataTypes.ToArray(), typeof(SimpleTypeDescription));
 
@@ -8269,9 +9001,12 @@ namespace Opc.Ua
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             Namespaces = decoder.ReadStringArray("Namespaces");
-            StructureDataTypes = (StructureDescriptionCollection)decoder.ReadEncodeableArray("StructureDataTypes", typeof(StructureDescription));
-            EnumDataTypes = (EnumDescriptionCollection)decoder.ReadEncodeableArray("EnumDataTypes", typeof(EnumDescription));
-            SimpleDataTypes = (SimpleTypeDescriptionCollection)decoder.ReadEncodeableArray("SimpleDataTypes", typeof(SimpleTypeDescription));
+            StructureDataTypes = (StructureDescriptionCollection)
+                decoder.ReadEncodeableArray("StructureDataTypes", typeof(StructureDescription));
+            EnumDataTypes = (EnumDescriptionCollection)
+                decoder.ReadEncodeableArray("EnumDataTypes", typeof(EnumDescription));
+            SimpleDataTypes = (SimpleTypeDescriptionCollection)
+                decoder.ReadEncodeableArray("SimpleDataTypes", typeof(SimpleTypeDescription));
 
             decoder.PopNamespace();
         }
@@ -8335,18 +9070,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfDataTypeSchemaHeader", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataTypeSchemaHeader")]
+    [CollectionDataContract(
+        Name = "ListOfDataTypeSchemaHeader",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "DataTypeSchemaHeader"
+    )]
     public partial class DataTypeSchemaHeaderCollection : List<DataTypeSchemaHeader>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public DataTypeSchemaHeaderCollection() { }
+        public DataTypeSchemaHeaderCollection()
+        {
+        }
 
         /// <remarks />
-        public DataTypeSchemaHeaderCollection(int capacity) : base(capacity) { }
+        public DataTypeSchemaHeaderCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public DataTypeSchemaHeaderCollection(IEnumerable<DataTypeSchemaHeader> collection) : base(collection) { }
+        public DataTypeSchemaHeaderCollection(IEnumerable<DataTypeSchemaHeader> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -8431,16 +9174,28 @@ namespace Opc.Ua
         [DataMember(Name = "DataTypeId", IsRequired = false, Order = 1)]
         public NodeId DataTypeId
         {
-            get { return m_dataTypeId; }
-            set { m_dataTypeId = value; }
+            get
+            {
+                return m_dataTypeId;
+            }
+            set
+            {
+                m_dataTypeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Name", IsRequired = false, Order = 2)]
         public QualifiedName Name
         {
-            get { return m_name; }
-            set { m_name = value; }
+            get
+            {
+                return m_name;
+            }
+            set
+            {
+                m_name = value;
+            }
         }
         #endregion
 
@@ -8530,18 +9285,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfDataTypeDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataTypeDescription")]
+    [CollectionDataContract(
+        Name = "ListOfDataTypeDescription",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "DataTypeDescription"
+    )]
     public partial class DataTypeDescriptionCollection : List<DataTypeDescription>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public DataTypeDescriptionCollection() { }
+        public DataTypeDescriptionCollection()
+        {
+        }
 
         /// <remarks />
-        public DataTypeDescriptionCollection(int capacity) : base(capacity) { }
+        public DataTypeDescriptionCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public DataTypeDescriptionCollection(IEnumerable<DataTypeDescription> collection) : base(collection) { }
+        public DataTypeDescriptionCollection(IEnumerable<DataTypeDescription> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -8629,7 +9392,6 @@ namespace Opc.Ua
             {
                 return m_structureDefinition;
             }
-
             set
             {
                 m_structureDefinition = value;
@@ -8674,7 +9436,8 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            StructureDefinition = (StructureDefinition)decoder.ReadEncodeable("StructureDefinition", typeof(StructureDefinition));
+            StructureDefinition = (StructureDefinition)
+                decoder.ReadEncodeable("StructureDefinition", typeof(StructureDefinition));
 
             decoder.PopNamespace();
         }
@@ -8726,18 +9489,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfStructureDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "StructureDescription")]
+    [CollectionDataContract(
+        Name = "ListOfStructureDescription",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "StructureDescription"
+    )]
     public partial class StructureDescriptionCollection : List<StructureDescription>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public StructureDescriptionCollection() { }
+        public StructureDescriptionCollection()
+        {
+        }
 
         /// <remarks />
-        public StructureDescriptionCollection(int capacity) : base(capacity) { }
+        public StructureDescriptionCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public StructureDescriptionCollection(IEnumerable<StructureDescription> collection) : base(collection) { }
+        public StructureDescriptionCollection(IEnumerable<StructureDescription> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -8826,7 +9597,6 @@ namespace Opc.Ua
             {
                 return m_enumDefinition;
             }
-
             set
             {
                 m_enumDefinition = value;
@@ -8842,8 +9612,14 @@ namespace Opc.Ua
         [DataMember(Name = "BuiltInType", IsRequired = false, Order = 2)]
         public byte BuiltInType
         {
-            get { return m_builtInType; }
-            set { m_builtInType = value; }
+            get
+            {
+                return m_builtInType;
+            }
+            set
+            {
+                m_builtInType = value;
+            }
         }
         #endregion
 
@@ -8937,18 +9713,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfEnumDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EnumDescription")]
+    [CollectionDataContract(
+        Name = "ListOfEnumDescription",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "EnumDescription"
+    )]
     public partial class EnumDescriptionCollection : List<EnumDescription>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public EnumDescriptionCollection() { }
+        public EnumDescriptionCollection()
+        {
+        }
 
         /// <remarks />
-        public EnumDescriptionCollection(int capacity) : base(capacity) { }
+        public EnumDescriptionCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public EnumDescriptionCollection(IEnumerable<EnumDescription> collection) : base(collection) { }
+        public EnumDescriptionCollection(IEnumerable<EnumDescription> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -9033,16 +9817,28 @@ namespace Opc.Ua
         [DataMember(Name = "BaseDataType", IsRequired = false, Order = 1)]
         public NodeId BaseDataType
         {
-            get { return m_baseDataType; }
-            set { m_baseDataType = value; }
+            get
+            {
+                return m_baseDataType;
+            }
+            set
+            {
+                m_baseDataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "BuiltInType", IsRequired = false, Order = 2)]
         public byte BuiltInType
         {
-            get { return m_builtInType; }
-            set { m_builtInType = value; }
+            get
+            {
+                return m_builtInType;
+            }
+            set
+            {
+                m_builtInType = value;
+            }
         }
         #endregion
 
@@ -9136,18 +9932,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfSimpleTypeDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SimpleTypeDescription")]
+    [CollectionDataContract(
+        Name = "ListOfSimpleTypeDescription",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "SimpleTypeDescription"
+    )]
     public partial class SimpleTypeDescriptionCollection : List<SimpleTypeDescription>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public SimpleTypeDescriptionCollection() { }
+        public SimpleTypeDescriptionCollection()
+        {
+        }
 
         /// <remarks />
-        public SimpleTypeDescriptionCollection(int capacity) : base(capacity) { }
+        public SimpleTypeDescriptionCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public SimpleTypeDescriptionCollection(IEnumerable<SimpleTypeDescription> collection) : base(collection) { }
+        public SimpleTypeDescriptionCollection(IEnumerable<SimpleTypeDescription> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -9233,8 +10037,14 @@ namespace Opc.Ua
         [DataMember(Name = "SchemaLocation", IsRequired = false, Order = 1)]
         public string SchemaLocation
         {
-            get { return m_schemaLocation; }
-            set { m_schemaLocation = value; }
+            get
+            {
+                return m_schemaLocation;
+            }
+            set
+            {
+                m_schemaLocation = value;
+            }
         }
 
         /// <remarks />
@@ -9245,7 +10055,6 @@ namespace Opc.Ua
             {
                 return m_fileHeader;
             }
-
             set
             {
                 m_fileHeader = value;
@@ -9261,8 +10070,14 @@ namespace Opc.Ua
         [DataMember(Name = "Body", IsRequired = false, Order = 3)]
         public Variant Body
         {
-            get { return m_body; }
-            set { m_body = value; }
+            get
+            {
+                return m_body;
+            }
+            set
+            {
+                m_body = value;
+            }
         }
         #endregion
 
@@ -9362,18 +10177,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfUABinaryFileDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UABinaryFileDataType")]
+    [CollectionDataContract(
+        Name = "ListOfUABinaryFileDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "UABinaryFileDataType"
+    )]
     public partial class UABinaryFileDataTypeCollection : List<UABinaryFileDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public UABinaryFileDataTypeCollection() { }
+        public UABinaryFileDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public UABinaryFileDataTypeCollection(int capacity) : base(capacity) { }
+        public UABinaryFileDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public UABinaryFileDataTypeCollection(IEnumerable<UABinaryFileDataType> collection) : base(collection) { }
+        public UABinaryFileDataTypeCollection(IEnumerable<UABinaryFileDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -9458,16 +10281,28 @@ namespace Opc.Ua
         [DataMember(Name = "NamespaceUri", IsRequired = false, Order = 1)]
         public string NamespaceUri
         {
-            get { return m_namespaceUri; }
-            set { m_namespaceUri = value; }
+            get
+            {
+                return m_namespaceUri;
+            }
+            set
+            {
+                m_namespaceUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Name", IsRequired = false, Order = 2)]
         public string Name
         {
-            get { return m_name; }
-            set { m_name = value; }
+            get
+            {
+                return m_name;
+            }
+            set
+            {
+                m_name = value;
+            }
         }
         #endregion
 
@@ -9557,18 +10392,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfPortableQualifiedName", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PortableQualifiedName")]
+    [CollectionDataContract(
+        Name = "ListOfPortableQualifiedName",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "PortableQualifiedName"
+    )]
     public partial class PortableQualifiedNameCollection : List<PortableQualifiedName>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public PortableQualifiedNameCollection() { }
+        public PortableQualifiedNameCollection()
+        {
+        }
 
         /// <remarks />
-        public PortableQualifiedNameCollection(int capacity) : base(capacity) { }
+        public PortableQualifiedNameCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public PortableQualifiedNameCollection(IEnumerable<PortableQualifiedName> collection) : base(collection) { }
+        public PortableQualifiedNameCollection(IEnumerable<PortableQualifiedName> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -9653,16 +10496,28 @@ namespace Opc.Ua
         [DataMember(Name = "NamespaceUri", IsRequired = false, Order = 1)]
         public string NamespaceUri
         {
-            get { return m_namespaceUri; }
-            set { m_namespaceUri = value; }
+            get
+            {
+                return m_namespaceUri;
+            }
+            set
+            {
+                m_namespaceUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Identifier", IsRequired = false, Order = 2)]
         public NodeId Identifier
         {
-            get { return m_identifier; }
-            set { m_identifier = value; }
+            get
+            {
+                return m_identifier;
+            }
+            set
+            {
+                m_identifier = value;
+            }
         }
         #endregion
 
@@ -9752,18 +10607,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfPortableNodeId", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PortableNodeId")]
+    [CollectionDataContract(
+        Name = "ListOfPortableNodeId",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "PortableNodeId"
+    )]
     public partial class PortableNodeIdCollection : List<PortableNodeId>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public PortableNodeIdCollection() { }
+        public PortableNodeIdCollection()
+        {
+        }
 
         /// <remarks />
-        public PortableNodeIdCollection(int capacity) : base(capacity) { }
+        public PortableNodeIdCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public PortableNodeIdCollection(IEnumerable<PortableNodeId> collection) : base(collection) { }
+        public PortableNodeIdCollection(IEnumerable<PortableNodeId> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -9848,16 +10711,28 @@ namespace Opc.Ua
         [DataMember(Name = "Numerator", IsRequired = false, Order = 1)]
         public uint Numerator
         {
-            get { return m_numerator; }
-            set { m_numerator = value; }
+            get
+            {
+                return m_numerator;
+            }
+            set
+            {
+                m_numerator = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Denominator", IsRequired = false, Order = 2)]
         public uint Denominator
         {
-            get { return m_denominator; }
-            set { m_denominator = value; }
+            get
+            {
+                return m_denominator;
+            }
+            set
+            {
+                m_denominator = value;
+            }
         }
         #endregion
 
@@ -9947,18 +10822,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfUnsignedRationalNumber", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UnsignedRationalNumber")]
+    [CollectionDataContract(
+        Name = "ListOfUnsignedRationalNumber",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "UnsignedRationalNumber"
+    )]
     public partial class UnsignedRationalNumberCollection : List<UnsignedRationalNumber>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public UnsignedRationalNumberCollection() { }
+        public UnsignedRationalNumberCollection()
+        {
+        }
 
         /// <remarks />
-        public UnsignedRationalNumberCollection(int capacity) : base(capacity) { }
+        public UnsignedRationalNumberCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public UnsignedRationalNumberCollection(IEnumerable<UnsignedRationalNumber> collection) : base(collection) { }
+        public UnsignedRationalNumberCollection(IEnumerable<UnsignedRationalNumber> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -10043,18 +10926,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfPubSubState", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubState")]
+    [CollectionDataContract(
+        Name = "ListOfPubSubState",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "PubSubState"
+    )]
     public partial class PubSubStateCollection : List<PubSubState>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public PubSubStateCollection() { }
+        public PubSubStateCollection()
+        {
+        }
 
         /// <remarks />
-        public PubSubStateCollection(int capacity) : base(capacity) { }
+        public PubSubStateCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public PubSubStateCollection(IEnumerable<PubSubState> collection) : base(collection) { }
+        public PubSubStateCollection(IEnumerable<PubSubState> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -10142,16 +11033,28 @@ namespace Opc.Ua
         [DataMember(Name = "Name", IsRequired = false, Order = 1)]
         public string Name
         {
-            get { return m_name; }
-            set { m_name = value; }
+            get
+            {
+                return m_name;
+            }
+            set
+            {
+                m_name = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Description", IsRequired = false, Order = 2)]
         public LocalizedText Description
         {
-            get { return m_description; }
-            set { m_description = value; }
+            get
+            {
+                return m_description;
+            }
+            set
+            {
+                m_description = value;
+            }
         }
 
         /// <remarks />
@@ -10162,7 +11065,6 @@ namespace Opc.Ua
             {
                 return m_fields;
             }
-
             set
             {
                 m_fields = value;
@@ -10178,8 +11080,14 @@ namespace Opc.Ua
         [DataMember(Name = "DataSetClassId", IsRequired = false, Order = 4)]
         public Uuid DataSetClassId
         {
-            get { return m_dataSetClassId; }
-            set { m_dataSetClassId = value; }
+            get
+            {
+                return m_dataSetClassId;
+            }
+            set
+            {
+                m_dataSetClassId = value;
+            }
         }
 
         /// <remarks />
@@ -10190,7 +11098,6 @@ namespace Opc.Ua
             {
                 return m_configurationVersion;
             }
-
             set
             {
                 m_configurationVersion = value;
@@ -10243,7 +11150,8 @@ namespace Opc.Ua
             Description = decoder.ReadLocalizedText("Description");
             Fields = (FieldMetaDataCollection)decoder.ReadEncodeableArray("Fields", typeof(FieldMetaData));
             DataSetClassId = decoder.ReadGuid("DataSetClassId");
-            ConfigurationVersion = (ConfigurationVersionDataType)decoder.ReadEncodeable("ConfigurationVersion", typeof(ConfigurationVersionDataType));
+            ConfigurationVersion = (ConfigurationVersionDataType)
+                decoder.ReadEncodeable("ConfigurationVersion", typeof(ConfigurationVersionDataType));
 
             decoder.PopNamespace();
         }
@@ -10311,18 +11219,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfDataSetMetaDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetMetaDataType")]
+    [CollectionDataContract(
+        Name = "ListOfDataSetMetaDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "DataSetMetaDataType"
+    )]
     public partial class DataSetMetaDataTypeCollection : List<DataSetMetaDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public DataSetMetaDataTypeCollection() { }
+        public DataSetMetaDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public DataSetMetaDataTypeCollection(int capacity) : base(capacity) { }
+        public DataSetMetaDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public DataSetMetaDataTypeCollection(IEnumerable<DataSetMetaDataType> collection) : base(collection) { }
+        public DataSetMetaDataTypeCollection(IEnumerable<DataSetMetaDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -10415,48 +11331,84 @@ namespace Opc.Ua
         [DataMember(Name = "Name", IsRequired = false, Order = 1)]
         public string Name
         {
-            get { return m_name; }
-            set { m_name = value; }
+            get
+            {
+                return m_name;
+            }
+            set
+            {
+                m_name = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Description", IsRequired = false, Order = 2)]
         public LocalizedText Description
         {
-            get { return m_description; }
-            set { m_description = value; }
+            get
+            {
+                return m_description;
+            }
+            set
+            {
+                m_description = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "FieldFlags", IsRequired = false, Order = 3)]
         public ushort FieldFlags
         {
-            get { return m_fieldFlags; }
-            set { m_fieldFlags = value; }
+            get
+            {
+                return m_fieldFlags;
+            }
+            set
+            {
+                m_fieldFlags = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "BuiltInType", IsRequired = false, Order = 4)]
         public byte BuiltInType
         {
-            get { return m_builtInType; }
-            set { m_builtInType = value; }
+            get
+            {
+                return m_builtInType;
+            }
+            set
+            {
+                m_builtInType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataType", IsRequired = false, Order = 5)]
         public NodeId DataType
         {
-            get { return m_dataType; }
-            set { m_dataType = value; }
+            get
+            {
+                return m_dataType;
+            }
+            set
+            {
+                m_dataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ValueRank", IsRequired = false, Order = 6)]
         public int ValueRank
         {
-            get { return m_valueRank; }
-            set { m_valueRank = value; }
+            get
+            {
+                return m_valueRank;
+            }
+            set
+            {
+                m_valueRank = value;
+            }
         }
 
         /// <remarks />
@@ -10467,7 +11419,6 @@ namespace Opc.Ua
             {
                 return m_arrayDimensions;
             }
-
             set
             {
                 m_arrayDimensions = value;
@@ -10483,16 +11434,28 @@ namespace Opc.Ua
         [DataMember(Name = "MaxStringLength", IsRequired = false, Order = 8)]
         public uint MaxStringLength
         {
-            get { return m_maxStringLength; }
-            set { m_maxStringLength = value; }
+            get
+            {
+                return m_maxStringLength;
+            }
+            set
+            {
+                m_maxStringLength = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataSetFieldId", IsRequired = false, Order = 9)]
         public Uuid DataSetFieldId
         {
-            get { return m_dataSetFieldId; }
-            set { m_dataSetFieldId = value; }
+            get
+            {
+                return m_dataSetFieldId;
+            }
+            set
+            {
+                m_dataSetFieldId = value;
+            }
         }
 
         /// <remarks />
@@ -10503,7 +11466,6 @@ namespace Opc.Ua
             {
                 return m_properties;
             }
-
             set
             {
                 m_properties = value;
@@ -10650,18 +11612,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfFieldMetaData", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "FieldMetaData")]
+    [CollectionDataContract(
+        Name = "ListOfFieldMetaData",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "FieldMetaData"
+    )]
     public partial class FieldMetaDataCollection : List<FieldMetaData>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public FieldMetaDataCollection() { }
+        public FieldMetaDataCollection()
+        {
+        }
 
         /// <remarks />
-        public FieldMetaDataCollection(int capacity) : base(capacity) { }
+        public FieldMetaDataCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public FieldMetaDataCollection(IEnumerable<FieldMetaData> collection) : base(collection) { }
+        public FieldMetaDataCollection(IEnumerable<FieldMetaData> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -10766,16 +11736,28 @@ namespace Opc.Ua
         [DataMember(Name = "MajorVersion", IsRequired = false, Order = 1)]
         public uint MajorVersion
         {
-            get { return m_majorVersion; }
-            set { m_majorVersion = value; }
+            get
+            {
+                return m_majorVersion;
+            }
+            set
+            {
+                m_majorVersion = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MinorVersion", IsRequired = false, Order = 2)]
         public uint MinorVersion
         {
-            get { return m_minorVersion; }
-            set { m_minorVersion = value; }
+            get
+            {
+                return m_minorVersion;
+            }
+            set
+            {
+                m_minorVersion = value;
+            }
         }
         #endregion
 
@@ -10865,18 +11847,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfConfigurationVersionDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ConfigurationVersionDataType")]
+    [CollectionDataContract(
+        Name = "ListOfConfigurationVersionDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ConfigurationVersionDataType"
+    )]
     public partial class ConfigurationVersionDataTypeCollection : List<ConfigurationVersionDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ConfigurationVersionDataTypeCollection() { }
+        public ConfigurationVersionDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public ConfigurationVersionDataTypeCollection(int capacity) : base(capacity) { }
+        public ConfigurationVersionDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ConfigurationVersionDataTypeCollection(IEnumerable<ConfigurationVersionDataType> collection) : base(collection) { }
+        public ConfigurationVersionDataTypeCollection(IEnumerable<ConfigurationVersionDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -10964,8 +11954,14 @@ namespace Opc.Ua
         [DataMember(Name = "Name", IsRequired = false, Order = 1)]
         public string Name
         {
-            get { return m_name; }
-            set { m_name = value; }
+            get
+            {
+                return m_name;
+            }
+            set
+            {
+                m_name = value;
+            }
         }
 
         /// <remarks />
@@ -10976,7 +11972,6 @@ namespace Opc.Ua
             {
                 return m_dataSetFolder;
             }
-
             set
             {
                 m_dataSetFolder = value;
@@ -10996,7 +11991,6 @@ namespace Opc.Ua
             {
                 return m_dataSetMetaData;
             }
-
             set
             {
                 m_dataSetMetaData = value;
@@ -11016,7 +12010,6 @@ namespace Opc.Ua
             {
                 return m_extensionFields;
             }
-
             set
             {
                 m_extensionFields = value;
@@ -11032,8 +12025,14 @@ namespace Opc.Ua
         [DataMember(Name = "DataSetSource", IsRequired = false, Order = 5)]
         public ExtensionObject DataSetSource
         {
-            get { return m_dataSetSource; }
-            set { m_dataSetSource = value; }
+            get
+            {
+                return m_dataSetSource;
+            }
+            set
+            {
+                m_dataSetSource = value;
+            }
         }
         #endregion
 
@@ -11071,8 +12070,10 @@ namespace Opc.Ua
 
             Name = decoder.ReadString("Name");
             DataSetFolder = decoder.ReadStringArray("DataSetFolder");
-            DataSetMetaData = (DataSetMetaDataType)decoder.ReadEncodeable("DataSetMetaData", typeof(DataSetMetaDataType));
-            ExtensionFields = (KeyValuePairCollection)decoder.ReadEncodeableArray("ExtensionFields", typeof(KeyValuePair));
+            DataSetMetaData = (DataSetMetaDataType)
+                decoder.ReadEncodeable("DataSetMetaData", typeof(DataSetMetaDataType));
+            ExtensionFields = (KeyValuePairCollection)
+                decoder.ReadEncodeableArray("ExtensionFields", typeof(KeyValuePair));
             DataSetSource = decoder.ReadExtensionObject("DataSetSource");
 
             decoder.PopNamespace();
@@ -11141,18 +12142,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfPublishedDataSetDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedDataSetDataType")]
+    [CollectionDataContract(
+        Name = "ListOfPublishedDataSetDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "PublishedDataSetDataType"
+    )]
     public partial class PublishedDataSetDataTypeCollection : List<PublishedDataSetDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public PublishedDataSetDataTypeCollection() { }
+        public PublishedDataSetDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public PublishedDataSetDataTypeCollection(int capacity) : base(capacity) { }
+        public PublishedDataSetDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public PublishedDataSetDataTypeCollection(IEnumerable<PublishedDataSetDataType> collection) : base(collection) { }
+        public PublishedDataSetDataTypeCollection(IEnumerable<PublishedDataSetDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -11238,7 +12247,8 @@ namespace Opc.Ua
         public virtual ExpandedNodeId TypeId => DataTypeIds.PublishedDataSetSourceDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PublishedDataSetSourceDataType_Encoding_DefaultBinary;
+        public virtual ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.PublishedDataSetSourceDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PublishedDataSetSourceDataType_Encoding_DefaultXml;
@@ -11251,7 +12261,6 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -11259,7 +12268,6 @@ namespace Opc.Ua
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -11279,7 +12287,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return true;
         }
 
@@ -11294,7 +12301,6 @@ namespace Opc.Ua
         {
             PublishedDataSetSourceDataType clone = (PublishedDataSetSourceDataType)base.MemberwiseClone();
 
-
             return clone;
         }
         #endregion
@@ -11307,23 +12313,33 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfPublishedDataSetSourceDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedDataSetSourceDataType")]
+    [CollectionDataContract(
+        Name = "ListOfPublishedDataSetSourceDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "PublishedDataSetSourceDataType"
+    )]
     public partial class PublishedDataSetSourceDataTypeCollection : List<PublishedDataSetSourceDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public PublishedDataSetSourceDataTypeCollection() { }
+        public PublishedDataSetSourceDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public PublishedDataSetSourceDataTypeCollection(int capacity) : base(capacity) { }
+        public PublishedDataSetSourceDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public PublishedDataSetSourceDataTypeCollection(IEnumerable<PublishedDataSetSourceDataType> collection) : base(collection) { }
+        public PublishedDataSetSourceDataTypeCollection(IEnumerable<PublishedDataSetSourceDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator PublishedDataSetSourceDataTypeCollection(PublishedDataSetSourceDataType[] values)
+        public static implicit operator PublishedDataSetSourceDataTypeCollection(
+            PublishedDataSetSourceDataType[] values
+        )
         {
             if (values != null)
             {
@@ -11334,7 +12350,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator PublishedDataSetSourceDataType[](PublishedDataSetSourceDataTypeCollection values)
+        public static explicit operator PublishedDataSetSourceDataType[](
+            PublishedDataSetSourceDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -11409,56 +12427,98 @@ namespace Opc.Ua
         [DataMember(Name = "PublishedVariable", IsRequired = false, Order = 1)]
         public NodeId PublishedVariable
         {
-            get { return m_publishedVariable; }
-            set { m_publishedVariable = value; }
+            get
+            {
+                return m_publishedVariable;
+            }
+            set
+            {
+                m_publishedVariable = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "AttributeId", IsRequired = false, Order = 2)]
         public uint AttributeId
         {
-            get { return m_attributeId; }
-            set { m_attributeId = value; }
+            get
+            {
+                return m_attributeId;
+            }
+            set
+            {
+                m_attributeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SamplingIntervalHint", IsRequired = false, Order = 3)]
         public double SamplingIntervalHint
         {
-            get { return m_samplingIntervalHint; }
-            set { m_samplingIntervalHint = value; }
+            get
+            {
+                return m_samplingIntervalHint;
+            }
+            set
+            {
+                m_samplingIntervalHint = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DeadbandType", IsRequired = false, Order = 4)]
         public uint DeadbandType
         {
-            get { return m_deadbandType; }
-            set { m_deadbandType = value; }
+            get
+            {
+                return m_deadbandType;
+            }
+            set
+            {
+                m_deadbandType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DeadbandValue", IsRequired = false, Order = 5)]
         public double DeadbandValue
         {
-            get { return m_deadbandValue; }
-            set { m_deadbandValue = value; }
+            get
+            {
+                return m_deadbandValue;
+            }
+            set
+            {
+                m_deadbandValue = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IndexRange", IsRequired = false, Order = 6)]
         public string IndexRange
         {
-            get { return m_indexRange; }
-            set { m_indexRange = value; }
+            get
+            {
+                return m_indexRange;
+            }
+            set
+            {
+                m_indexRange = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SubstituteValue", IsRequired = false, Order = 7)]
         public Variant SubstituteValue
         {
-            get { return m_substituteValue; }
-            set { m_substituteValue = value; }
+            get
+            {
+                return m_substituteValue;
+            }
+            set
+            {
+                m_substituteValue = value;
+            }
         }
 
         /// <remarks />
@@ -11469,7 +12529,6 @@ namespace Opc.Ua
             {
                 return m_metaDataProperties;
             }
-
             set
             {
                 m_metaDataProperties = value;
@@ -11604,18 +12663,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfPublishedVariableDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedVariableDataType")]
+    [CollectionDataContract(
+        Name = "ListOfPublishedVariableDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "PublishedVariableDataType"
+    )]
     public partial class PublishedVariableDataTypeCollection : List<PublishedVariableDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public PublishedVariableDataTypeCollection() { }
+        public PublishedVariableDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public PublishedVariableDataTypeCollection(int capacity) : base(capacity) { }
+        public PublishedVariableDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public PublishedVariableDataTypeCollection(IEnumerable<PublishedVariableDataType> collection) : base(collection) { }
+        public PublishedVariableDataTypeCollection(IEnumerable<PublishedVariableDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -11703,7 +12770,6 @@ namespace Opc.Ua
             {
                 return m_publishedData;
             }
-
             set
             {
                 m_publishedData = value;
@@ -11748,7 +12814,8 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            PublishedData = (PublishedVariableDataTypeCollection)decoder.ReadEncodeableArray("PublishedData", typeof(PublishedVariableDataType));
+            PublishedData = (PublishedVariableDataTypeCollection)
+                decoder.ReadEncodeableArray("PublishedData", typeof(PublishedVariableDataType));
 
             decoder.PopNamespace();
         }
@@ -11800,18 +12867,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfPublishedDataItemsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedDataItemsDataType")]
+    [CollectionDataContract(
+        Name = "ListOfPublishedDataItemsDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "PublishedDataItemsDataType"
+    )]
     public partial class PublishedDataItemsDataTypeCollection : List<PublishedDataItemsDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public PublishedDataItemsDataTypeCollection() { }
+        public PublishedDataItemsDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public PublishedDataItemsDataTypeCollection(int capacity) : base(capacity) { }
+        public PublishedDataItemsDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public PublishedDataItemsDataTypeCollection(IEnumerable<PublishedDataItemsDataType> collection) : base(collection) { }
+        public PublishedDataItemsDataTypeCollection(IEnumerable<PublishedDataItemsDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -11897,8 +12972,14 @@ namespace Opc.Ua
         [DataMember(Name = "EventNotifier", IsRequired = false, Order = 1)]
         public NodeId EventNotifier
         {
-            get { return m_eventNotifier; }
-            set { m_eventNotifier = value; }
+            get
+            {
+                return m_eventNotifier;
+            }
+            set
+            {
+                m_eventNotifier = value;
+            }
         }
 
         /// <remarks />
@@ -11909,7 +12990,6 @@ namespace Opc.Ua
             {
                 return m_selectedFields;
             }
-
             set
             {
                 m_selectedFields = value;
@@ -11929,7 +13009,6 @@ namespace Opc.Ua
             {
                 return m_filter;
             }
-
             set
             {
                 m_filter = value;
@@ -11977,7 +13056,8 @@ namespace Opc.Ua
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             EventNotifier = decoder.ReadNodeId("EventNotifier");
-            SelectedFields = (SimpleAttributeOperandCollection)decoder.ReadEncodeableArray("SelectedFields", typeof(SimpleAttributeOperand));
+            SelectedFields = (SimpleAttributeOperandCollection)
+                decoder.ReadEncodeableArray("SelectedFields", typeof(SimpleAttributeOperand));
             Filter = (ContentFilter)decoder.ReadEncodeable("Filter", typeof(ContentFilter));
 
             decoder.PopNamespace();
@@ -12038,18 +13118,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfPublishedEventsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedEventsDataType")]
+    [CollectionDataContract(
+        Name = "ListOfPublishedEventsDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "PublishedEventsDataType"
+    )]
     public partial class PublishedEventsDataTypeCollection : List<PublishedEventsDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public PublishedEventsDataTypeCollection() { }
+        public PublishedEventsDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public PublishedEventsDataTypeCollection(int capacity) : base(capacity) { }
+        public PublishedEventsDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public PublishedEventsDataTypeCollection(IEnumerable<PublishedEventsDataType> collection) : base(collection) { }
+        public PublishedEventsDataTypeCollection(IEnumerable<PublishedEventsDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -12133,8 +13221,14 @@ namespace Opc.Ua
         [DataMember(Name = "CyclicDataSet", IsRequired = false, Order = 1)]
         public bool CyclicDataSet
         {
-            get { return m_cyclicDataSet; }
-            set { m_cyclicDataSet = value; }
+            get
+            {
+                return m_cyclicDataSet;
+            }
+            set
+            {
+                m_cyclicDataSet = value;
+            }
         }
         #endregion
 
@@ -12143,13 +13237,16 @@ namespace Opc.Ua
         public override ExpandedNodeId TypeId => DataTypeIds.PublishedDataSetCustomSourceDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.PublishedDataSetCustomSourceDataType_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.PublishedDataSetCustomSourceDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId => ObjectIds.PublishedDataSetCustomSourceDataType_Encoding_DefaultXml;
+        public override ExpandedNodeId XmlEncodingId =>
+            ObjectIds.PublishedDataSetCustomSourceDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.PublishedDataSetCustomSourceDataType_Encoding_DefaultJson;
+        public override ExpandedNodeId JsonEncodingId =>
+            ObjectIds.PublishedDataSetCustomSourceDataType_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -12222,23 +13319,37 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfPublishedDataSetCustomSourceDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedDataSetCustomSourceDataType")]
-    public partial class PublishedDataSetCustomSourceDataTypeCollection : List<PublishedDataSetCustomSourceDataType>, ICloneable
+    [CollectionDataContract(
+        Name = "ListOfPublishedDataSetCustomSourceDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "PublishedDataSetCustomSourceDataType"
+    )]
+    public partial class PublishedDataSetCustomSourceDataTypeCollection
+        : List<PublishedDataSetCustomSourceDataType>,
+            ICloneable
     {
         #region Constructors
         /// <remarks />
-        public PublishedDataSetCustomSourceDataTypeCollection() { }
+        public PublishedDataSetCustomSourceDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public PublishedDataSetCustomSourceDataTypeCollection(int capacity) : base(capacity) { }
+        public PublishedDataSetCustomSourceDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public PublishedDataSetCustomSourceDataTypeCollection(IEnumerable<PublishedDataSetCustomSourceDataType> collection) : base(collection) { }
+        public PublishedDataSetCustomSourceDataTypeCollection(
+            IEnumerable<PublishedDataSetCustomSourceDataType> collection
+        )
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator PublishedDataSetCustomSourceDataTypeCollection(PublishedDataSetCustomSourceDataType[] values)
+        public static implicit operator PublishedDataSetCustomSourceDataTypeCollection(
+            PublishedDataSetCustomSourceDataType[] values
+        )
         {
             if (values != null)
             {
@@ -12249,7 +13360,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator PublishedDataSetCustomSourceDataType[](PublishedDataSetCustomSourceDataTypeCollection values)
+        public static explicit operator PublishedDataSetCustomSourceDataType[](
+            PublishedDataSetCustomSourceDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -12271,7 +13384,9 @@ namespace Opc.Ua
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            PublishedDataSetCustomSourceDataTypeCollection clone = new PublishedDataSetCustomSourceDataTypeCollection(this.Count);
+            PublishedDataSetCustomSourceDataTypeCollection clone = new PublishedDataSetCustomSourceDataTypeCollection(
+                this.Count
+            );
 
             for (int ii = 0; ii < this.Count; ii++)
             {
@@ -12319,24 +13434,42 @@ namespace Opc.Ua
         [DataMember(Name = "ActionTargetId", IsRequired = false, Order = 1)]
         public ushort ActionTargetId
         {
-            get { return m_actionTargetId; }
-            set { m_actionTargetId = value; }
+            get
+            {
+                return m_actionTargetId;
+            }
+            set
+            {
+                m_actionTargetId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Name", IsRequired = false, Order = 2)]
         public string Name
         {
-            get { return m_name; }
-            set { m_name = value; }
+            get
+            {
+                return m_name;
+            }
+            set
+            {
+                m_name = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Description", IsRequired = false, Order = 3)]
         public LocalizedText Description
         {
-            get { return m_description; }
-            set { m_description = value; }
+            get
+            {
+                return m_description;
+            }
+            set
+            {
+                m_description = value;
+            }
         }
         #endregion
 
@@ -12432,18 +13565,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfActionTargetDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ActionTargetDataType")]
+    [CollectionDataContract(
+        Name = "ListOfActionTargetDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ActionTargetDataType"
+    )]
     public partial class ActionTargetDataTypeCollection : List<ActionTargetDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ActionTargetDataTypeCollection() { }
+        public ActionTargetDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public ActionTargetDataTypeCollection(int capacity) : base(capacity) { }
+        public ActionTargetDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ActionTargetDataTypeCollection(IEnumerable<ActionTargetDataType> collection) : base(collection) { }
+        public ActionTargetDataTypeCollection(IEnumerable<ActionTargetDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -12532,7 +13673,6 @@ namespace Opc.Ua
             {
                 return m_requestDataSetMetaData;
             }
-
             set
             {
                 m_requestDataSetMetaData = value;
@@ -12552,7 +13692,6 @@ namespace Opc.Ua
             {
                 return m_actionTargets;
             }
-
             set
             {
                 m_actionTargets = value;
@@ -12598,8 +13737,10 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            RequestDataSetMetaData = (DataSetMetaDataType)decoder.ReadEncodeable("RequestDataSetMetaData", typeof(DataSetMetaDataType));
-            ActionTargets = (ActionTargetDataTypeCollection)decoder.ReadEncodeableArray("ActionTargets", typeof(ActionTargetDataType));
+            RequestDataSetMetaData = (DataSetMetaDataType)
+                decoder.ReadEncodeable("RequestDataSetMetaData", typeof(DataSetMetaDataType));
+            ActionTargets = (ActionTargetDataTypeCollection)
+                decoder.ReadEncodeableArray("ActionTargets", typeof(ActionTargetDataType));
 
             decoder.PopNamespace();
         }
@@ -12655,18 +13796,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfPublishedActionDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedActionDataType")]
+    [CollectionDataContract(
+        Name = "ListOfPublishedActionDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "PublishedActionDataType"
+    )]
     public partial class PublishedActionDataTypeCollection : List<PublishedActionDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public PublishedActionDataTypeCollection() { }
+        public PublishedActionDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public PublishedActionDataTypeCollection(int capacity) : base(capacity) { }
+        public PublishedActionDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public PublishedActionDataTypeCollection(IEnumerable<PublishedActionDataType> collection) : base(collection) { }
+        public PublishedActionDataTypeCollection(IEnumerable<PublishedActionDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -12743,18 +13892,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfActionState", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ActionState")]
+    [CollectionDataContract(
+        Name = "ListOfActionState",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ActionState"
+    )]
     public partial class ActionStateCollection : List<ActionState>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ActionStateCollection() { }
+        public ActionStateCollection()
+        {
+        }
 
         /// <remarks />
-        public ActionStateCollection(int capacity) : base(capacity) { }
+        public ActionStateCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ActionStateCollection(IEnumerable<ActionState> collection) : base(collection) { }
+        public ActionStateCollection(IEnumerable<ActionState> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -12839,16 +13996,28 @@ namespace Opc.Ua
         [DataMember(Name = "ObjectId", IsRequired = false, Order = 1)]
         public NodeId ObjectId
         {
-            get { return m_objectId; }
-            set { m_objectId = value; }
+            get
+            {
+                return m_objectId;
+            }
+            set
+            {
+                m_objectId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MethodId", IsRequired = false, Order = 2)]
         public NodeId MethodId
         {
-            get { return m_methodId; }
-            set { m_methodId = value; }
+            get
+            {
+                return m_methodId;
+            }
+            set
+            {
+                m_methodId = value;
+            }
         }
         #endregion
 
@@ -12938,18 +14107,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfActionMethodDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ActionMethodDataType")]
+    [CollectionDataContract(
+        Name = "ListOfActionMethodDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ActionMethodDataType"
+    )]
     public partial class ActionMethodDataTypeCollection : List<ActionMethodDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ActionMethodDataTypeCollection() { }
+        public ActionMethodDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public ActionMethodDataTypeCollection(int capacity) : base(capacity) { }
+        public ActionMethodDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ActionMethodDataTypeCollection(IEnumerable<ActionMethodDataType> collection) : base(collection) { }
+        public ActionMethodDataTypeCollection(IEnumerable<ActionMethodDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -13037,7 +14214,6 @@ namespace Opc.Ua
             {
                 return m_actionMethods;
             }
-
             set
             {
                 m_actionMethods = value;
@@ -13055,7 +14231,8 @@ namespace Opc.Ua
         public override ExpandedNodeId TypeId => DataTypeIds.PublishedActionMethodDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.PublishedActionMethodDataType_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.PublishedActionMethodDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public override ExpandedNodeId XmlEncodingId => ObjectIds.PublishedActionMethodDataType_Encoding_DefaultXml;
@@ -13082,7 +14259,8 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            ActionMethods = (ActionMethodDataTypeCollection)decoder.ReadEncodeableArray("ActionMethods", typeof(ActionMethodDataType));
+            ActionMethods = (ActionMethodDataTypeCollection)
+                decoder.ReadEncodeableArray("ActionMethods", typeof(ActionMethodDataType));
 
             decoder.PopNamespace();
         }
@@ -13134,18 +14312,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfPublishedActionMethodDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedActionMethodDataType")]
+    [CollectionDataContract(
+        Name = "ListOfPublishedActionMethodDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "PublishedActionMethodDataType"
+    )]
     public partial class PublishedActionMethodDataTypeCollection : List<PublishedActionMethodDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public PublishedActionMethodDataTypeCollection() { }
+        public PublishedActionMethodDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public PublishedActionMethodDataTypeCollection(int capacity) : base(capacity) { }
+        public PublishedActionMethodDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public PublishedActionMethodDataTypeCollection(IEnumerable<PublishedActionMethodDataType> collection) : base(collection) { }
+        public PublishedActionMethodDataTypeCollection(IEnumerable<PublishedActionMethodDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -13239,18 +14425,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfDataSetFieldContentMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetFieldContentMask")]
+    [CollectionDataContract(
+        Name = "ListOfDataSetFieldContentMask",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "DataSetFieldContentMask"
+    )]
     public partial class DataSetFieldContentMaskCollection : List<DataSetFieldContentMask>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public DataSetFieldContentMaskCollection() { }
+        public DataSetFieldContentMaskCollection()
+        {
+        }
 
         /// <remarks />
-        public DataSetFieldContentMaskCollection(int capacity) : base(capacity) { }
+        public DataSetFieldContentMaskCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public DataSetFieldContentMaskCollection(IEnumerable<DataSetFieldContentMask> collection) : base(collection) { }
+        public DataSetFieldContentMaskCollection(IEnumerable<DataSetFieldContentMask> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -13342,48 +14536,84 @@ namespace Opc.Ua
         [DataMember(Name = "Name", IsRequired = false, Order = 1)]
         public string Name
         {
-            get { return m_name; }
-            set { m_name = value; }
+            get
+            {
+                return m_name;
+            }
+            set
+            {
+                m_name = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Enabled", IsRequired = false, Order = 2)]
         public bool Enabled
         {
-            get { return m_enabled; }
-            set { m_enabled = value; }
+            get
+            {
+                return m_enabled;
+            }
+            set
+            {
+                m_enabled = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataSetWriterId", IsRequired = false, Order = 3)]
         public ushort DataSetWriterId
         {
-            get { return m_dataSetWriterId; }
-            set { m_dataSetWriterId = value; }
+            get
+            {
+                return m_dataSetWriterId;
+            }
+            set
+            {
+                m_dataSetWriterId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataSetFieldContentMask", IsRequired = false, Order = 4)]
         public uint DataSetFieldContentMask
         {
-            get { return m_dataSetFieldContentMask; }
-            set { m_dataSetFieldContentMask = value; }
+            get
+            {
+                return m_dataSetFieldContentMask;
+            }
+            set
+            {
+                m_dataSetFieldContentMask = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "KeyFrameCount", IsRequired = false, Order = 5)]
         public uint KeyFrameCount
         {
-            get { return m_keyFrameCount; }
-            set { m_keyFrameCount = value; }
+            get
+            {
+                return m_keyFrameCount;
+            }
+            set
+            {
+                m_keyFrameCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataSetName", IsRequired = false, Order = 6)]
         public string DataSetName
         {
-            get { return m_dataSetName; }
-            set { m_dataSetName = value; }
+            get
+            {
+                return m_dataSetName;
+            }
+            set
+            {
+                m_dataSetName = value;
+            }
         }
 
         /// <remarks />
@@ -13394,7 +14624,6 @@ namespace Opc.Ua
             {
                 return m_dataSetWriterProperties;
             }
-
             set
             {
                 m_dataSetWriterProperties = value;
@@ -13410,16 +14639,28 @@ namespace Opc.Ua
         [DataMember(Name = "TransportSettings", IsRequired = false, Order = 8)]
         public ExtensionObject TransportSettings
         {
-            get { return m_transportSettings; }
-            set { m_transportSettings = value; }
+            get
+            {
+                return m_transportSettings;
+            }
+            set
+            {
+                m_transportSettings = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MessageSettings", IsRequired = false, Order = 9)]
         public ExtensionObject MessageSettings
         {
-            get { return m_messageSettings; }
-            set { m_messageSettings = value; }
+            get
+            {
+                return m_messageSettings;
+            }
+            set
+            {
+                m_messageSettings = value;
+            }
         }
         #endregion
 
@@ -13447,7 +14688,11 @@ namespace Opc.Ua
             encoder.WriteUInt32("DataSetFieldContentMask", DataSetFieldContentMask);
             encoder.WriteUInt32("KeyFrameCount", KeyFrameCount);
             encoder.WriteString("DataSetName", DataSetName);
-            encoder.WriteEncodeableArray("DataSetWriterProperties", DataSetWriterProperties.ToArray(), typeof(KeyValuePair));
+            encoder.WriteEncodeableArray(
+                "DataSetWriterProperties",
+                DataSetWriterProperties.ToArray(),
+                typeof(KeyValuePair)
+            );
             encoder.WriteExtensionObject("TransportSettings", TransportSettings);
             encoder.WriteExtensionObject("MessageSettings", MessageSettings);
 
@@ -13465,7 +14710,8 @@ namespace Opc.Ua
             DataSetFieldContentMask = decoder.ReadUInt32("DataSetFieldContentMask");
             KeyFrameCount = decoder.ReadUInt32("KeyFrameCount");
             DataSetName = decoder.ReadString("DataSetName");
-            DataSetWriterProperties = (KeyValuePairCollection)decoder.ReadEncodeableArray("DataSetWriterProperties", typeof(KeyValuePair));
+            DataSetWriterProperties = (KeyValuePairCollection)
+                decoder.ReadEncodeableArray("DataSetWriterProperties", typeof(KeyValuePair));
             TransportSettings = decoder.ReadExtensionObject("TransportSettings");
             MessageSettings = decoder.ReadExtensionObject("MessageSettings");
 
@@ -13551,18 +14797,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfDataSetWriterDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetWriterDataType")]
+    [CollectionDataContract(
+        Name = "ListOfDataSetWriterDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "DataSetWriterDataType"
+    )]
     public partial class DataSetWriterDataTypeCollection : List<DataSetWriterDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public DataSetWriterDataTypeCollection() { }
+        public DataSetWriterDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public DataSetWriterDataTypeCollection(int capacity) : base(capacity) { }
+        public DataSetWriterDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public DataSetWriterDataTypeCollection(IEnumerable<DataSetWriterDataType> collection) : base(collection) { }
+        public DataSetWriterDataTypeCollection(IEnumerable<DataSetWriterDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -13648,7 +14902,8 @@ namespace Opc.Ua
         public virtual ExpandedNodeId TypeId => DataTypeIds.DataSetWriterTransportDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DataSetWriterTransportDataType_Encoding_DefaultBinary;
+        public virtual ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.DataSetWriterTransportDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataSetWriterTransportDataType_Encoding_DefaultXml;
@@ -13661,7 +14916,6 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -13669,7 +14923,6 @@ namespace Opc.Ua
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -13689,7 +14942,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return true;
         }
 
@@ -13704,7 +14956,6 @@ namespace Opc.Ua
         {
             DataSetWriterTransportDataType clone = (DataSetWriterTransportDataType)base.MemberwiseClone();
 
-
             return clone;
         }
         #endregion
@@ -13717,23 +14968,33 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfDataSetWriterTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetWriterTransportDataType")]
+    [CollectionDataContract(
+        Name = "ListOfDataSetWriterTransportDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "DataSetWriterTransportDataType"
+    )]
     public partial class DataSetWriterTransportDataTypeCollection : List<DataSetWriterTransportDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public DataSetWriterTransportDataTypeCollection() { }
+        public DataSetWriterTransportDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public DataSetWriterTransportDataTypeCollection(int capacity) : base(capacity) { }
+        public DataSetWriterTransportDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public DataSetWriterTransportDataTypeCollection(IEnumerable<DataSetWriterTransportDataType> collection) : base(collection) { }
+        public DataSetWriterTransportDataTypeCollection(IEnumerable<DataSetWriterTransportDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator DataSetWriterTransportDataTypeCollection(DataSetWriterTransportDataType[] values)
+        public static implicit operator DataSetWriterTransportDataTypeCollection(
+            DataSetWriterTransportDataType[] values
+        )
         {
             if (values != null)
             {
@@ -13744,7 +15005,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator DataSetWriterTransportDataType[](DataSetWriterTransportDataTypeCollection values)
+        public static explicit operator DataSetWriterTransportDataType[](
+            DataSetWriterTransportDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -13827,7 +15090,6 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -13835,7 +15097,6 @@ namespace Opc.Ua
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -13855,7 +15116,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return true;
         }
 
@@ -13870,7 +15130,6 @@ namespace Opc.Ua
         {
             DataSetWriterMessageDataType clone = (DataSetWriterMessageDataType)base.MemberwiseClone();
 
-
             return clone;
         }
         #endregion
@@ -13883,18 +15142,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfDataSetWriterMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetWriterMessageDataType")]
+    [CollectionDataContract(
+        Name = "ListOfDataSetWriterMessageDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "DataSetWriterMessageDataType"
+    )]
     public partial class DataSetWriterMessageDataTypeCollection : List<DataSetWriterMessageDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public DataSetWriterMessageDataTypeCollection() { }
+        public DataSetWriterMessageDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public DataSetWriterMessageDataTypeCollection(int capacity) : base(capacity) { }
+        public DataSetWriterMessageDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public DataSetWriterMessageDataTypeCollection(IEnumerable<DataSetWriterMessageDataType> collection) : base(collection) { }
+        public DataSetWriterMessageDataTypeCollection(IEnumerable<DataSetWriterMessageDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -13984,32 +15251,56 @@ namespace Opc.Ua
         [DataMember(Name = "Name", IsRequired = false, Order = 1)]
         public string Name
         {
-            get { return m_name; }
-            set { m_name = value; }
+            get
+            {
+                return m_name;
+            }
+            set
+            {
+                m_name = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Enabled", IsRequired = false, Order = 2)]
         public bool Enabled
         {
-            get { return m_enabled; }
-            set { m_enabled = value; }
+            get
+            {
+                return m_enabled;
+            }
+            set
+            {
+                m_enabled = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SecurityMode", IsRequired = false, Order = 3)]
         public MessageSecurityMode SecurityMode
         {
-            get { return m_securityMode; }
-            set { m_securityMode = value; }
+            get
+            {
+                return m_securityMode;
+            }
+            set
+            {
+                m_securityMode = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SecurityGroupId", IsRequired = false, Order = 4)]
         public string SecurityGroupId
         {
-            get { return m_securityGroupId; }
-            set { m_securityGroupId = value; }
+            get
+            {
+                return m_securityGroupId;
+            }
+            set
+            {
+                m_securityGroupId = value;
+            }
         }
 
         /// <remarks />
@@ -14020,7 +15311,6 @@ namespace Opc.Ua
             {
                 return m_securityKeyServices;
             }
-
             set
             {
                 m_securityKeyServices = value;
@@ -14036,8 +15326,14 @@ namespace Opc.Ua
         [DataMember(Name = "MaxNetworkMessageSize", IsRequired = false, Order = 6)]
         public uint MaxNetworkMessageSize
         {
-            get { return m_maxNetworkMessageSize; }
-            set { m_maxNetworkMessageSize = value; }
+            get
+            {
+                return m_maxNetworkMessageSize;
+            }
+            set
+            {
+                m_maxNetworkMessageSize = value;
+            }
         }
 
         /// <remarks />
@@ -14048,7 +15344,6 @@ namespace Opc.Ua
             {
                 return m_groupProperties;
             }
-
             set
             {
                 m_groupProperties = value;
@@ -14083,7 +15378,11 @@ namespace Opc.Ua
             encoder.WriteBoolean("Enabled", Enabled);
             encoder.WriteEnumerated("SecurityMode", SecurityMode);
             encoder.WriteString("SecurityGroupId", SecurityGroupId);
-            encoder.WriteEncodeableArray("SecurityKeyServices", SecurityKeyServices.ToArray(), typeof(EndpointDescription));
+            encoder.WriteEncodeableArray(
+                "SecurityKeyServices",
+                SecurityKeyServices.ToArray(),
+                typeof(EndpointDescription)
+            );
             encoder.WriteUInt32("MaxNetworkMessageSize", MaxNetworkMessageSize);
             encoder.WriteEncodeableArray("GroupProperties", GroupProperties.ToArray(), typeof(KeyValuePair));
 
@@ -14099,9 +15398,11 @@ namespace Opc.Ua
             Enabled = decoder.ReadBoolean("Enabled");
             SecurityMode = (MessageSecurityMode)decoder.ReadEnumerated("SecurityMode", typeof(MessageSecurityMode));
             SecurityGroupId = decoder.ReadString("SecurityGroupId");
-            SecurityKeyServices = (EndpointDescriptionCollection)decoder.ReadEncodeableArray("SecurityKeyServices", typeof(EndpointDescription));
+            SecurityKeyServices = (EndpointDescriptionCollection)
+                decoder.ReadEncodeableArray("SecurityKeyServices", typeof(EndpointDescription));
             MaxNetworkMessageSize = decoder.ReadUInt32("MaxNetworkMessageSize");
-            GroupProperties = (KeyValuePairCollection)decoder.ReadEncodeableArray("GroupProperties", typeof(KeyValuePair));
+            GroupProperties = (KeyValuePairCollection)
+                decoder.ReadEncodeableArray("GroupProperties", typeof(KeyValuePair));
 
             decoder.PopNamespace();
         }
@@ -14177,18 +15478,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfPubSubGroupDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubGroupDataType")]
+    [CollectionDataContract(
+        Name = "ListOfPubSubGroupDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "PubSubGroupDataType"
+    )]
     public partial class PubSubGroupDataTypeCollection : List<PubSubGroupDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public PubSubGroupDataTypeCollection() { }
+        public PubSubGroupDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public PubSubGroupDataTypeCollection(int capacity) : base(capacity) { }
+        public PubSubGroupDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public PubSubGroupDataTypeCollection(IEnumerable<PubSubGroupDataType> collection) : base(collection) { }
+        public PubSubGroupDataTypeCollection(IEnumerable<PubSubGroupDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -14280,32 +15589,56 @@ namespace Opc.Ua
         [DataMember(Name = "WriterGroupId", IsRequired = false, Order = 1)]
         public ushort WriterGroupId
         {
-            get { return m_writerGroupId; }
-            set { m_writerGroupId = value; }
+            get
+            {
+                return m_writerGroupId;
+            }
+            set
+            {
+                m_writerGroupId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PublishingInterval", IsRequired = false, Order = 2)]
         public double PublishingInterval
         {
-            get { return m_publishingInterval; }
-            set { m_publishingInterval = value; }
+            get
+            {
+                return m_publishingInterval;
+            }
+            set
+            {
+                m_publishingInterval = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "KeepAliveTime", IsRequired = false, Order = 3)]
         public double KeepAliveTime
         {
-            get { return m_keepAliveTime; }
-            set { m_keepAliveTime = value; }
+            get
+            {
+                return m_keepAliveTime;
+            }
+            set
+            {
+                m_keepAliveTime = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Priority", IsRequired = false, Order = 4)]
         public byte Priority
         {
-            get { return m_priority; }
-            set { m_priority = value; }
+            get
+            {
+                return m_priority;
+            }
+            set
+            {
+                m_priority = value;
+            }
         }
 
         /// <remarks />
@@ -14316,7 +15649,6 @@ namespace Opc.Ua
             {
                 return m_localeIds;
             }
-
             set
             {
                 m_localeIds = value;
@@ -14332,24 +15664,42 @@ namespace Opc.Ua
         [DataMember(Name = "HeaderLayoutUri", IsRequired = false, Order = 6)]
         public string HeaderLayoutUri
         {
-            get { return m_headerLayoutUri; }
-            set { m_headerLayoutUri = value; }
+            get
+            {
+                return m_headerLayoutUri;
+            }
+            set
+            {
+                m_headerLayoutUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TransportSettings", IsRequired = false, Order = 7)]
         public ExtensionObject TransportSettings
         {
-            get { return m_transportSettings; }
-            set { m_transportSettings = value; }
+            get
+            {
+                return m_transportSettings;
+            }
+            set
+            {
+                m_transportSettings = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MessageSettings", IsRequired = false, Order = 8)]
         public ExtensionObject MessageSettings
         {
-            get { return m_messageSettings; }
-            set { m_messageSettings = value; }
+            get
+            {
+                return m_messageSettings;
+            }
+            set
+            {
+                m_messageSettings = value;
+            }
         }
 
         /// <remarks />
@@ -14360,7 +15710,6 @@ namespace Opc.Ua
             {
                 return m_dataSetWriters;
             }
-
             set
             {
                 m_dataSetWriters = value;
@@ -14421,7 +15770,8 @@ namespace Opc.Ua
             HeaderLayoutUri = decoder.ReadString("HeaderLayoutUri");
             TransportSettings = decoder.ReadExtensionObject("TransportSettings");
             MessageSettings = decoder.ReadExtensionObject("MessageSettings");
-            DataSetWriters = (DataSetWriterDataTypeCollection)decoder.ReadEncodeableArray("DataSetWriters", typeof(DataSetWriterDataType));
+            DataSetWriters = (DataSetWriterDataTypeCollection)
+                decoder.ReadEncodeableArray("DataSetWriters", typeof(DataSetWriterDataType));
 
             decoder.PopNamespace();
         }
@@ -14505,18 +15855,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfWriterGroupDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "WriterGroupDataType")]
+    [CollectionDataContract(
+        Name = "ListOfWriterGroupDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "WriterGroupDataType"
+    )]
     public partial class WriterGroupDataTypeCollection : List<WriterGroupDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public WriterGroupDataTypeCollection() { }
+        public WriterGroupDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public WriterGroupDataTypeCollection(int capacity) : base(capacity) { }
+        public WriterGroupDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public WriterGroupDataTypeCollection(IEnumerable<WriterGroupDataType> collection) : base(collection) { }
+        public WriterGroupDataTypeCollection(IEnumerable<WriterGroupDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -14615,7 +15973,6 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -14623,7 +15980,6 @@ namespace Opc.Ua
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -14643,7 +15999,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return true;
         }
 
@@ -14658,7 +16013,6 @@ namespace Opc.Ua
         {
             WriterGroupTransportDataType clone = (WriterGroupTransportDataType)base.MemberwiseClone();
 
-
             return clone;
         }
         #endregion
@@ -14671,18 +16025,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfWriterGroupTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "WriterGroupTransportDataType")]
+    [CollectionDataContract(
+        Name = "ListOfWriterGroupTransportDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "WriterGroupTransportDataType"
+    )]
     public partial class WriterGroupTransportDataTypeCollection : List<WriterGroupTransportDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public WriterGroupTransportDataTypeCollection() { }
+        public WriterGroupTransportDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public WriterGroupTransportDataTypeCollection(int capacity) : base(capacity) { }
+        public WriterGroupTransportDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public WriterGroupTransportDataTypeCollection(IEnumerable<WriterGroupTransportDataType> collection) : base(collection) { }
+        public WriterGroupTransportDataTypeCollection(IEnumerable<WriterGroupTransportDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -14781,7 +16143,6 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -14789,7 +16150,6 @@ namespace Opc.Ua
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -14809,7 +16169,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return true;
         }
 
@@ -14824,7 +16183,6 @@ namespace Opc.Ua
         {
             WriterGroupMessageDataType clone = (WriterGroupMessageDataType)base.MemberwiseClone();
 
-
             return clone;
         }
         #endregion
@@ -14837,18 +16195,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfWriterGroupMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "WriterGroupMessageDataType")]
+    [CollectionDataContract(
+        Name = "ListOfWriterGroupMessageDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "WriterGroupMessageDataType"
+    )]
     public partial class WriterGroupMessageDataTypeCollection : List<WriterGroupMessageDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public WriterGroupMessageDataTypeCollection() { }
+        public WriterGroupMessageDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public WriterGroupMessageDataTypeCollection(int capacity) : base(capacity) { }
+        public WriterGroupMessageDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public WriterGroupMessageDataTypeCollection(IEnumerable<WriterGroupMessageDataType> collection) : base(collection) { }
+        public WriterGroupMessageDataTypeCollection(IEnumerable<WriterGroupMessageDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -14940,40 +16306,70 @@ namespace Opc.Ua
         [DataMember(Name = "Name", IsRequired = false, Order = 1)]
         public string Name
         {
-            get { return m_name; }
-            set { m_name = value; }
+            get
+            {
+                return m_name;
+            }
+            set
+            {
+                m_name = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Enabled", IsRequired = false, Order = 2)]
         public bool Enabled
         {
-            get { return m_enabled; }
-            set { m_enabled = value; }
+            get
+            {
+                return m_enabled;
+            }
+            set
+            {
+                m_enabled = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
         public Variant PublisherId
         {
-            get { return m_publisherId; }
-            set { m_publisherId = value; }
+            get
+            {
+                return m_publisherId;
+            }
+            set
+            {
+                m_publisherId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TransportProfileUri", IsRequired = false, Order = 4)]
         public string TransportProfileUri
         {
-            get { return m_transportProfileUri; }
-            set { m_transportProfileUri = value; }
+            get
+            {
+                return m_transportProfileUri;
+            }
+            set
+            {
+                m_transportProfileUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Address", IsRequired = false, Order = 5)]
         public ExtensionObject Address
         {
-            get { return m_address; }
-            set { m_address = value; }
+            get
+            {
+                return m_address;
+            }
+            set
+            {
+                m_address = value;
+            }
         }
 
         /// <remarks />
@@ -14984,7 +16380,6 @@ namespace Opc.Ua
             {
                 return m_connectionProperties;
             }
-
             set
             {
                 m_connectionProperties = value;
@@ -15000,8 +16395,14 @@ namespace Opc.Ua
         [DataMember(Name = "TransportSettings", IsRequired = false, Order = 7)]
         public ExtensionObject TransportSettings
         {
-            get { return m_transportSettings; }
-            set { m_transportSettings = value; }
+            get
+            {
+                return m_transportSettings;
+            }
+            set
+            {
+                m_transportSettings = value;
+            }
         }
 
         /// <remarks />
@@ -15012,7 +16413,6 @@ namespace Opc.Ua
             {
                 return m_writerGroups;
             }
-
             set
             {
                 m_writerGroups = value;
@@ -15032,7 +16432,6 @@ namespace Opc.Ua
             {
                 return m_readerGroups;
             }
-
             set
             {
                 m_readerGroups = value;
@@ -15086,10 +16485,13 @@ namespace Opc.Ua
             PublisherId = decoder.ReadVariant("PublisherId");
             TransportProfileUri = decoder.ReadString("TransportProfileUri");
             Address = decoder.ReadExtensionObject("Address");
-            ConnectionProperties = (KeyValuePairCollection)decoder.ReadEncodeableArray("ConnectionProperties", typeof(KeyValuePair));
+            ConnectionProperties = (KeyValuePairCollection)
+                decoder.ReadEncodeableArray("ConnectionProperties", typeof(KeyValuePair));
             TransportSettings = decoder.ReadExtensionObject("TransportSettings");
-            WriterGroups = (WriterGroupDataTypeCollection)decoder.ReadEncodeableArray("WriterGroups", typeof(WriterGroupDataType));
-            ReaderGroups = (ReaderGroupDataTypeCollection)decoder.ReadEncodeableArray("ReaderGroups", typeof(ReaderGroupDataType));
+            WriterGroups = (WriterGroupDataTypeCollection)
+                decoder.ReadEncodeableArray("WriterGroups", typeof(WriterGroupDataType));
+            ReaderGroups = (ReaderGroupDataTypeCollection)
+                decoder.ReadEncodeableArray("ReaderGroups", typeof(ReaderGroupDataType));
 
             decoder.PopNamespace();
         }
@@ -15173,18 +16575,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfPubSubConnectionDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubConnectionDataType")]
+    [CollectionDataContract(
+        Name = "ListOfPubSubConnectionDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "PubSubConnectionDataType"
+    )]
     public partial class PubSubConnectionDataTypeCollection : List<PubSubConnectionDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public PubSubConnectionDataTypeCollection() { }
+        public PubSubConnectionDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public PubSubConnectionDataTypeCollection(int capacity) : base(capacity) { }
+        public PubSubConnectionDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public PubSubConnectionDataTypeCollection(IEnumerable<PubSubConnectionDataType> collection) : base(collection) { }
+        public PubSubConnectionDataTypeCollection(IEnumerable<PubSubConnectionDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -15283,7 +16693,6 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -15291,7 +16700,6 @@ namespace Opc.Ua
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -15311,7 +16719,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return true;
         }
 
@@ -15326,7 +16733,6 @@ namespace Opc.Ua
         {
             ConnectionTransportDataType clone = (ConnectionTransportDataType)base.MemberwiseClone();
 
-
             return clone;
         }
         #endregion
@@ -15339,18 +16745,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfConnectionTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ConnectionTransportDataType")]
+    [CollectionDataContract(
+        Name = "ListOfConnectionTransportDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ConnectionTransportDataType"
+    )]
     public partial class ConnectionTransportDataTypeCollection : List<ConnectionTransportDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ConnectionTransportDataTypeCollection() { }
+        public ConnectionTransportDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public ConnectionTransportDataTypeCollection(int capacity) : base(capacity) { }
+        public ConnectionTransportDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ConnectionTransportDataTypeCollection(IEnumerable<ConnectionTransportDataType> collection) : base(collection) { }
+        public ConnectionTransportDataTypeCollection(IEnumerable<ConnectionTransportDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -15434,8 +16848,14 @@ namespace Opc.Ua
         [DataMember(Name = "NetworkInterface", IsRequired = false, Order = 1)]
         public string NetworkInterface
         {
-            get { return m_networkInterface; }
-            set { m_networkInterface = value; }
+            get
+            {
+                return m_networkInterface;
+            }
+            set
+            {
+                m_networkInterface = value;
+            }
         }
         #endregion
 
@@ -15519,18 +16939,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfNetworkAddressDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NetworkAddressDataType")]
+    [CollectionDataContract(
+        Name = "ListOfNetworkAddressDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "NetworkAddressDataType"
+    )]
     public partial class NetworkAddressDataTypeCollection : List<NetworkAddressDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public NetworkAddressDataTypeCollection() { }
+        public NetworkAddressDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public NetworkAddressDataTypeCollection(int capacity) : base(capacity) { }
+        public NetworkAddressDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public NetworkAddressDataTypeCollection(IEnumerable<NetworkAddressDataType> collection) : base(collection) { }
+        public NetworkAddressDataTypeCollection(IEnumerable<NetworkAddressDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -15614,8 +17042,14 @@ namespace Opc.Ua
         [DataMember(Name = "Url", IsRequired = false, Order = 1)]
         public string Url
         {
-            get { return m_url; }
-            set { m_url = value; }
+            get
+            {
+                return m_url;
+            }
+            set
+            {
+                m_url = value;
+            }
         }
         #endregion
 
@@ -15703,18 +17137,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfNetworkAddressUrlDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NetworkAddressUrlDataType")]
+    [CollectionDataContract(
+        Name = "ListOfNetworkAddressUrlDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "NetworkAddressUrlDataType"
+    )]
     public partial class NetworkAddressUrlDataTypeCollection : List<NetworkAddressUrlDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public NetworkAddressUrlDataTypeCollection() { }
+        public NetworkAddressUrlDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public NetworkAddressUrlDataTypeCollection(int capacity) : base(capacity) { }
+        public NetworkAddressUrlDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public NetworkAddressUrlDataTypeCollection(IEnumerable<NetworkAddressUrlDataType> collection) : base(collection) { }
+        public NetworkAddressUrlDataTypeCollection(IEnumerable<NetworkAddressUrlDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -15800,16 +17242,28 @@ namespace Opc.Ua
         [DataMember(Name = "TransportSettings", IsRequired = false, Order = 1)]
         public ExtensionObject TransportSettings
         {
-            get { return m_transportSettings; }
-            set { m_transportSettings = value; }
+            get
+            {
+                return m_transportSettings;
+            }
+            set
+            {
+                m_transportSettings = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MessageSettings", IsRequired = false, Order = 2)]
         public ExtensionObject MessageSettings
         {
-            get { return m_messageSettings; }
-            set { m_messageSettings = value; }
+            get
+            {
+                return m_messageSettings;
+            }
+            set
+            {
+                m_messageSettings = value;
+            }
         }
 
         /// <remarks />
@@ -15820,7 +17274,6 @@ namespace Opc.Ua
             {
                 return m_dataSetReaders;
             }
-
             set
             {
                 m_dataSetReaders = value;
@@ -15869,7 +17322,8 @@ namespace Opc.Ua
 
             TransportSettings = decoder.ReadExtensionObject("TransportSettings");
             MessageSettings = decoder.ReadExtensionObject("MessageSettings");
-            DataSetReaders = (DataSetReaderDataTypeCollection)decoder.ReadEncodeableArray("DataSetReaders", typeof(DataSetReaderDataType));
+            DataSetReaders = (DataSetReaderDataTypeCollection)
+                decoder.ReadEncodeableArray("DataSetReaders", typeof(DataSetReaderDataType));
 
             decoder.PopNamespace();
         }
@@ -15929,18 +17383,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfReaderGroupDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReaderGroupDataType")]
+    [CollectionDataContract(
+        Name = "ListOfReaderGroupDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ReaderGroupDataType"
+    )]
     public partial class ReaderGroupDataTypeCollection : List<ReaderGroupDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ReaderGroupDataTypeCollection() { }
+        public ReaderGroupDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public ReaderGroupDataTypeCollection(int capacity) : base(capacity) { }
+        public ReaderGroupDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ReaderGroupDataTypeCollection(IEnumerable<ReaderGroupDataType> collection) : base(collection) { }
+        public ReaderGroupDataTypeCollection(IEnumerable<ReaderGroupDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -16039,7 +17501,6 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -16047,7 +17508,6 @@ namespace Opc.Ua
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -16067,7 +17527,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return true;
         }
 
@@ -16082,7 +17541,6 @@ namespace Opc.Ua
         {
             ReaderGroupTransportDataType clone = (ReaderGroupTransportDataType)base.MemberwiseClone();
 
-
             return clone;
         }
         #endregion
@@ -16095,18 +17553,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfReaderGroupTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReaderGroupTransportDataType")]
+    [CollectionDataContract(
+        Name = "ListOfReaderGroupTransportDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ReaderGroupTransportDataType"
+    )]
     public partial class ReaderGroupTransportDataTypeCollection : List<ReaderGroupTransportDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ReaderGroupTransportDataTypeCollection() { }
+        public ReaderGroupTransportDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public ReaderGroupTransportDataTypeCollection(int capacity) : base(capacity) { }
+        public ReaderGroupTransportDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ReaderGroupTransportDataTypeCollection(IEnumerable<ReaderGroupTransportDataType> collection) : base(collection) { }
+        public ReaderGroupTransportDataTypeCollection(IEnumerable<ReaderGroupTransportDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -16205,7 +17671,6 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -16213,7 +17678,6 @@ namespace Opc.Ua
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -16233,7 +17697,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return true;
         }
 
@@ -16248,7 +17711,6 @@ namespace Opc.Ua
         {
             ReaderGroupMessageDataType clone = (ReaderGroupMessageDataType)base.MemberwiseClone();
 
-
             return clone;
         }
         #endregion
@@ -16261,18 +17723,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfReaderGroupMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReaderGroupMessageDataType")]
+    [CollectionDataContract(
+        Name = "ListOfReaderGroupMessageDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ReaderGroupMessageDataType"
+    )]
     public partial class ReaderGroupMessageDataTypeCollection : List<ReaderGroupMessageDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ReaderGroupMessageDataTypeCollection() { }
+        public ReaderGroupMessageDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public ReaderGroupMessageDataTypeCollection(int capacity) : base(capacity) { }
+        public ReaderGroupMessageDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ReaderGroupMessageDataTypeCollection(IEnumerable<ReaderGroupMessageDataType> collection) : base(collection) { }
+        public ReaderGroupMessageDataTypeCollection(IEnumerable<ReaderGroupMessageDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -16372,40 +17842,70 @@ namespace Opc.Ua
         [DataMember(Name = "Name", IsRequired = false, Order = 1)]
         public string Name
         {
-            get { return m_name; }
-            set { m_name = value; }
+            get
+            {
+                return m_name;
+            }
+            set
+            {
+                m_name = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Enabled", IsRequired = false, Order = 2)]
         public bool Enabled
         {
-            get { return m_enabled; }
-            set { m_enabled = value; }
+            get
+            {
+                return m_enabled;
+            }
+            set
+            {
+                m_enabled = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
         public Variant PublisherId
         {
-            get { return m_publisherId; }
-            set { m_publisherId = value; }
+            get
+            {
+                return m_publisherId;
+            }
+            set
+            {
+                m_publisherId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "WriterGroupId", IsRequired = false, Order = 4)]
         public ushort WriterGroupId
         {
-            get { return m_writerGroupId; }
-            set { m_writerGroupId = value; }
+            get
+            {
+                return m_writerGroupId;
+            }
+            set
+            {
+                m_writerGroupId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataSetWriterId", IsRequired = false, Order = 5)]
         public ushort DataSetWriterId
         {
-            get { return m_dataSetWriterId; }
-            set { m_dataSetWriterId = value; }
+            get
+            {
+                return m_dataSetWriterId;
+            }
+            set
+            {
+                m_dataSetWriterId = value;
+            }
         }
 
         /// <remarks />
@@ -16416,7 +17916,6 @@ namespace Opc.Ua
             {
                 return m_dataSetMetaData;
             }
-
             set
             {
                 m_dataSetMetaData = value;
@@ -16432,48 +17931,84 @@ namespace Opc.Ua
         [DataMember(Name = "DataSetFieldContentMask", IsRequired = false, Order = 7)]
         public uint DataSetFieldContentMask
         {
-            get { return m_dataSetFieldContentMask; }
-            set { m_dataSetFieldContentMask = value; }
+            get
+            {
+                return m_dataSetFieldContentMask;
+            }
+            set
+            {
+                m_dataSetFieldContentMask = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MessageReceiveTimeout", IsRequired = false, Order = 8)]
         public double MessageReceiveTimeout
         {
-            get { return m_messageReceiveTimeout; }
-            set { m_messageReceiveTimeout = value; }
+            get
+            {
+                return m_messageReceiveTimeout;
+            }
+            set
+            {
+                m_messageReceiveTimeout = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "KeyFrameCount", IsRequired = false, Order = 9)]
         public uint KeyFrameCount
         {
-            get { return m_keyFrameCount; }
-            set { m_keyFrameCount = value; }
+            get
+            {
+                return m_keyFrameCount;
+            }
+            set
+            {
+                m_keyFrameCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "HeaderLayoutUri", IsRequired = false, Order = 10)]
         public string HeaderLayoutUri
         {
-            get { return m_headerLayoutUri; }
-            set { m_headerLayoutUri = value; }
+            get
+            {
+                return m_headerLayoutUri;
+            }
+            set
+            {
+                m_headerLayoutUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SecurityMode", IsRequired = false, Order = 11)]
         public MessageSecurityMode SecurityMode
         {
-            get { return m_securityMode; }
-            set { m_securityMode = value; }
+            get
+            {
+                return m_securityMode;
+            }
+            set
+            {
+                m_securityMode = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SecurityGroupId", IsRequired = false, Order = 12)]
         public string SecurityGroupId
         {
-            get { return m_securityGroupId; }
-            set { m_securityGroupId = value; }
+            get
+            {
+                return m_securityGroupId;
+            }
+            set
+            {
+                m_securityGroupId = value;
+            }
         }
 
         /// <remarks />
@@ -16484,7 +18019,6 @@ namespace Opc.Ua
             {
                 return m_securityKeyServices;
             }
-
             set
             {
                 m_securityKeyServices = value;
@@ -16504,7 +18038,6 @@ namespace Opc.Ua
             {
                 return m_dataSetReaderProperties;
             }
-
             set
             {
                 m_dataSetReaderProperties = value;
@@ -16520,24 +18053,42 @@ namespace Opc.Ua
         [DataMember(Name = "TransportSettings", IsRequired = false, Order = 15)]
         public ExtensionObject TransportSettings
         {
-            get { return m_transportSettings; }
-            set { m_transportSettings = value; }
+            get
+            {
+                return m_transportSettings;
+            }
+            set
+            {
+                m_transportSettings = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MessageSettings", IsRequired = false, Order = 16)]
         public ExtensionObject MessageSettings
         {
-            get { return m_messageSettings; }
-            set { m_messageSettings = value; }
+            get
+            {
+                return m_messageSettings;
+            }
+            set
+            {
+                m_messageSettings = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SubscribedDataSet", IsRequired = false, Order = 17)]
         public ExtensionObject SubscribedDataSet
         {
-            get { return m_subscribedDataSet; }
-            set { m_subscribedDataSet = value; }
+            get
+            {
+                return m_subscribedDataSet;
+            }
+            set
+            {
+                m_subscribedDataSet = value;
+            }
         }
         #endregion
 
@@ -16571,8 +18122,16 @@ namespace Opc.Ua
             encoder.WriteString("HeaderLayoutUri", HeaderLayoutUri);
             encoder.WriteEnumerated("SecurityMode", SecurityMode);
             encoder.WriteString("SecurityGroupId", SecurityGroupId);
-            encoder.WriteEncodeableArray("SecurityKeyServices", SecurityKeyServices.ToArray(), typeof(EndpointDescription));
-            encoder.WriteEncodeableArray("DataSetReaderProperties", DataSetReaderProperties.ToArray(), typeof(KeyValuePair));
+            encoder.WriteEncodeableArray(
+                "SecurityKeyServices",
+                SecurityKeyServices.ToArray(),
+                typeof(EndpointDescription)
+            );
+            encoder.WriteEncodeableArray(
+                "DataSetReaderProperties",
+                DataSetReaderProperties.ToArray(),
+                typeof(KeyValuePair)
+            );
             encoder.WriteExtensionObject("TransportSettings", TransportSettings);
             encoder.WriteExtensionObject("MessageSettings", MessageSettings);
             encoder.WriteExtensionObject("SubscribedDataSet", SubscribedDataSet);
@@ -16590,15 +18149,18 @@ namespace Opc.Ua
             PublisherId = decoder.ReadVariant("PublisherId");
             WriterGroupId = decoder.ReadUInt16("WriterGroupId");
             DataSetWriterId = decoder.ReadUInt16("DataSetWriterId");
-            DataSetMetaData = (DataSetMetaDataType)decoder.ReadEncodeable("DataSetMetaData", typeof(DataSetMetaDataType));
+            DataSetMetaData = (DataSetMetaDataType)
+                decoder.ReadEncodeable("DataSetMetaData", typeof(DataSetMetaDataType));
             DataSetFieldContentMask = decoder.ReadUInt32("DataSetFieldContentMask");
             MessageReceiveTimeout = decoder.ReadDouble("MessageReceiveTimeout");
             KeyFrameCount = decoder.ReadUInt32("KeyFrameCount");
             HeaderLayoutUri = decoder.ReadString("HeaderLayoutUri");
             SecurityMode = (MessageSecurityMode)decoder.ReadEnumerated("SecurityMode", typeof(MessageSecurityMode));
             SecurityGroupId = decoder.ReadString("SecurityGroupId");
-            SecurityKeyServices = (EndpointDescriptionCollection)decoder.ReadEncodeableArray("SecurityKeyServices", typeof(EndpointDescription));
-            DataSetReaderProperties = (KeyValuePairCollection)decoder.ReadEncodeableArray("DataSetReaderProperties", typeof(KeyValuePair));
+            SecurityKeyServices = (EndpointDescriptionCollection)
+                decoder.ReadEncodeableArray("SecurityKeyServices", typeof(EndpointDescription));
+            DataSetReaderProperties = (KeyValuePairCollection)
+                decoder.ReadEncodeableArray("DataSetReaderProperties", typeof(KeyValuePair));
             TransportSettings = decoder.ReadExtensionObject("TransportSettings");
             MessageSettings = decoder.ReadExtensionObject("MessageSettings");
             SubscribedDataSet = decoder.ReadExtensionObject("SubscribedDataSet");
@@ -16717,18 +18279,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfDataSetReaderDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetReaderDataType")]
+    [CollectionDataContract(
+        Name = "ListOfDataSetReaderDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "DataSetReaderDataType"
+    )]
     public partial class DataSetReaderDataTypeCollection : List<DataSetReaderDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public DataSetReaderDataTypeCollection() { }
+        public DataSetReaderDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public DataSetReaderDataTypeCollection(int capacity) : base(capacity) { }
+        public DataSetReaderDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public DataSetReaderDataTypeCollection(IEnumerable<DataSetReaderDataType> collection) : base(collection) { }
+        public DataSetReaderDataTypeCollection(IEnumerable<DataSetReaderDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -16814,7 +18384,8 @@ namespace Opc.Ua
         public virtual ExpandedNodeId TypeId => DataTypeIds.DataSetReaderTransportDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DataSetReaderTransportDataType_Encoding_DefaultBinary;
+        public virtual ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.DataSetReaderTransportDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataSetReaderTransportDataType_Encoding_DefaultXml;
@@ -16827,7 +18398,6 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -16835,7 +18405,6 @@ namespace Opc.Ua
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -16855,7 +18424,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return true;
         }
 
@@ -16870,7 +18438,6 @@ namespace Opc.Ua
         {
             DataSetReaderTransportDataType clone = (DataSetReaderTransportDataType)base.MemberwiseClone();
 
-
             return clone;
         }
         #endregion
@@ -16883,23 +18450,33 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfDataSetReaderTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetReaderTransportDataType")]
+    [CollectionDataContract(
+        Name = "ListOfDataSetReaderTransportDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "DataSetReaderTransportDataType"
+    )]
     public partial class DataSetReaderTransportDataTypeCollection : List<DataSetReaderTransportDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public DataSetReaderTransportDataTypeCollection() { }
+        public DataSetReaderTransportDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public DataSetReaderTransportDataTypeCollection(int capacity) : base(capacity) { }
+        public DataSetReaderTransportDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public DataSetReaderTransportDataTypeCollection(IEnumerable<DataSetReaderTransportDataType> collection) : base(collection) { }
+        public DataSetReaderTransportDataTypeCollection(IEnumerable<DataSetReaderTransportDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator DataSetReaderTransportDataTypeCollection(DataSetReaderTransportDataType[] values)
+        public static implicit operator DataSetReaderTransportDataTypeCollection(
+            DataSetReaderTransportDataType[] values
+        )
         {
             if (values != null)
             {
@@ -16910,7 +18487,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator DataSetReaderTransportDataType[](DataSetReaderTransportDataTypeCollection values)
+        public static explicit operator DataSetReaderTransportDataType[](
+            DataSetReaderTransportDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -16993,7 +18572,6 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -17001,7 +18579,6 @@ namespace Opc.Ua
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -17021,7 +18598,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return true;
         }
 
@@ -17036,7 +18612,6 @@ namespace Opc.Ua
         {
             DataSetReaderMessageDataType clone = (DataSetReaderMessageDataType)base.MemberwiseClone();
 
-
             return clone;
         }
         #endregion
@@ -17049,18 +18624,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfDataSetReaderMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetReaderMessageDataType")]
+    [CollectionDataContract(
+        Name = "ListOfDataSetReaderMessageDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "DataSetReaderMessageDataType"
+    )]
     public partial class DataSetReaderMessageDataTypeCollection : List<DataSetReaderMessageDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public DataSetReaderMessageDataTypeCollection() { }
+        public DataSetReaderMessageDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public DataSetReaderMessageDataTypeCollection(int capacity) : base(capacity) { }
+        public DataSetReaderMessageDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public DataSetReaderMessageDataTypeCollection(IEnumerable<DataSetReaderMessageDataType> collection) : base(collection) { }
+        public DataSetReaderMessageDataTypeCollection(IEnumerable<DataSetReaderMessageDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -17159,7 +18742,6 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -17167,7 +18749,6 @@ namespace Opc.Ua
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -17187,7 +18768,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return true;
         }
 
@@ -17202,7 +18782,6 @@ namespace Opc.Ua
         {
             SubscribedDataSetDataType clone = (SubscribedDataSetDataType)base.MemberwiseClone();
 
-
             return clone;
         }
         #endregion
@@ -17215,18 +18794,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfSubscribedDataSetDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SubscribedDataSetDataType")]
+    [CollectionDataContract(
+        Name = "ListOfSubscribedDataSetDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "SubscribedDataSetDataType"
+    )]
     public partial class SubscribedDataSetDataTypeCollection : List<SubscribedDataSetDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public SubscribedDataSetDataTypeCollection() { }
+        public SubscribedDataSetDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public SubscribedDataSetDataTypeCollection(int capacity) : base(capacity) { }
+        public SubscribedDataSetDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public SubscribedDataSetDataTypeCollection(IEnumerable<SubscribedDataSetDataType> collection) : base(collection) { }
+        public SubscribedDataSetDataTypeCollection(IEnumerable<SubscribedDataSetDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -17314,7 +18901,6 @@ namespace Opc.Ua
             {
                 return m_targetVariables;
             }
-
             set
             {
                 m_targetVariables = value;
@@ -17359,7 +18945,8 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            TargetVariables = (FieldTargetDataTypeCollection)decoder.ReadEncodeableArray("TargetVariables", typeof(FieldTargetDataType));
+            TargetVariables = (FieldTargetDataTypeCollection)
+                decoder.ReadEncodeableArray("TargetVariables", typeof(FieldTargetDataType));
 
             decoder.PopNamespace();
         }
@@ -17411,18 +18998,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfTargetVariablesDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TargetVariablesDataType")]
+    [CollectionDataContract(
+        Name = "ListOfTargetVariablesDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "TargetVariablesDataType"
+    )]
     public partial class TargetVariablesDataTypeCollection : List<TargetVariablesDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public TargetVariablesDataTypeCollection() { }
+        public TargetVariablesDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public TargetVariablesDataTypeCollection(int capacity) : base(capacity) { }
+        public TargetVariablesDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public TargetVariablesDataTypeCollection(IEnumerable<TargetVariablesDataType> collection) : base(collection) { }
+        public TargetVariablesDataTypeCollection(IEnumerable<TargetVariablesDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -17512,56 +19107,98 @@ namespace Opc.Ua
         [DataMember(Name = "DataSetFieldId", IsRequired = false, Order = 1)]
         public Uuid DataSetFieldId
         {
-            get { return m_dataSetFieldId; }
-            set { m_dataSetFieldId = value; }
+            get
+            {
+                return m_dataSetFieldId;
+            }
+            set
+            {
+                m_dataSetFieldId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ReceiverIndexRange", IsRequired = false, Order = 2)]
         public string ReceiverIndexRange
         {
-            get { return m_receiverIndexRange; }
-            set { m_receiverIndexRange = value; }
+            get
+            {
+                return m_receiverIndexRange;
+            }
+            set
+            {
+                m_receiverIndexRange = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TargetNodeId", IsRequired = false, Order = 3)]
         public NodeId TargetNodeId
         {
-            get { return m_targetNodeId; }
-            set { m_targetNodeId = value; }
+            get
+            {
+                return m_targetNodeId;
+            }
+            set
+            {
+                m_targetNodeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "AttributeId", IsRequired = false, Order = 4)]
         public uint AttributeId
         {
-            get { return m_attributeId; }
-            set { m_attributeId = value; }
+            get
+            {
+                return m_attributeId;
+            }
+            set
+            {
+                m_attributeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "WriteIndexRange", IsRequired = false, Order = 5)]
         public string WriteIndexRange
         {
-            get { return m_writeIndexRange; }
-            set { m_writeIndexRange = value; }
+            get
+            {
+                return m_writeIndexRange;
+            }
+            set
+            {
+                m_writeIndexRange = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "OverrideValueHandling", IsRequired = false, Order = 6)]
         public OverrideValueHandling OverrideValueHandling
         {
-            get { return m_overrideValueHandling; }
-            set { m_overrideValueHandling = value; }
+            get
+            {
+                return m_overrideValueHandling;
+            }
+            set
+            {
+                m_overrideValueHandling = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "OverrideValue", IsRequired = false, Order = 7)]
         public Variant OverrideValue
         {
-            get { return m_overrideValue; }
-            set { m_overrideValue = value; }
+            get
+            {
+                return m_overrideValue;
+            }
+            set
+            {
+                m_overrideValue = value;
+            }
         }
         #endregion
 
@@ -17604,7 +19241,8 @@ namespace Opc.Ua
             TargetNodeId = decoder.ReadNodeId("TargetNodeId");
             AttributeId = decoder.ReadUInt32("AttributeId");
             WriteIndexRange = decoder.ReadString("WriteIndexRange");
-            OverrideValueHandling = (OverrideValueHandling)decoder.ReadEnumerated("OverrideValueHandling", typeof(OverrideValueHandling));
+            OverrideValueHandling = (OverrideValueHandling)
+                decoder.ReadEnumerated("OverrideValueHandling", typeof(OverrideValueHandling));
             OverrideValue = decoder.ReadVariant("OverrideValue");
 
             decoder.PopNamespace();
@@ -17681,18 +19319,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfFieldTargetDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "FieldTargetDataType")]
+    [CollectionDataContract(
+        Name = "ListOfFieldTargetDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "FieldTargetDataType"
+    )]
     public partial class FieldTargetDataTypeCollection : List<FieldTargetDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public FieldTargetDataTypeCollection() { }
+        public FieldTargetDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public FieldTargetDataTypeCollection(int capacity) : base(capacity) { }
+        public FieldTargetDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public FieldTargetDataTypeCollection(IEnumerable<FieldTargetDataType> collection) : base(collection) { }
+        public FieldTargetDataTypeCollection(IEnumerable<FieldTargetDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -17769,18 +19415,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfOverrideValueHandling", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "OverrideValueHandling")]
+    [CollectionDataContract(
+        Name = "ListOfOverrideValueHandling",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "OverrideValueHandling"
+    )]
     public partial class OverrideValueHandlingCollection : List<OverrideValueHandling>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public OverrideValueHandlingCollection() { }
+        public OverrideValueHandlingCollection()
+        {
+        }
 
         /// <remarks />
-        public OverrideValueHandlingCollection(int capacity) : base(capacity) { }
+        public OverrideValueHandlingCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public OverrideValueHandlingCollection(IEnumerable<OverrideValueHandling> collection) : base(collection) { }
+        public OverrideValueHandlingCollection(IEnumerable<OverrideValueHandling> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -17865,8 +19519,14 @@ namespace Opc.Ua
         [DataMember(Name = "ParentNodeName", IsRequired = false, Order = 1)]
         public string ParentNodeName
         {
-            get { return m_parentNodeName; }
-            set { m_parentNodeName = value; }
+            get
+            {
+                return m_parentNodeName;
+            }
+            set
+            {
+                m_parentNodeName = value;
+            }
         }
 
         /// <remarks />
@@ -17877,7 +19537,6 @@ namespace Opc.Ua
             {
                 return m_rolePermissions;
             }
-
             set
             {
                 m_rolePermissions = value;
@@ -17895,7 +19554,8 @@ namespace Opc.Ua
         public override ExpandedNodeId TypeId => DataTypeIds.SubscribedDataSetMirrorDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.SubscribedDataSetMirrorDataType_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.SubscribedDataSetMirrorDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public override ExpandedNodeId XmlEncodingId => ObjectIds.SubscribedDataSetMirrorDataType_Encoding_DefaultXml;
@@ -17924,7 +19584,8 @@ namespace Opc.Ua
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             ParentNodeName = decoder.ReadString("ParentNodeName");
-            RolePermissions = (RolePermissionTypeCollection)decoder.ReadEncodeableArray("RolePermissions", typeof(RolePermissionType));
+            RolePermissions = (RolePermissionTypeCollection)
+                decoder.ReadEncodeableArray("RolePermissions", typeof(RolePermissionType));
 
             decoder.PopNamespace();
         }
@@ -17980,23 +19641,33 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfSubscribedDataSetMirrorDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SubscribedDataSetMirrorDataType")]
+    [CollectionDataContract(
+        Name = "ListOfSubscribedDataSetMirrorDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "SubscribedDataSetMirrorDataType"
+    )]
     public partial class SubscribedDataSetMirrorDataTypeCollection : List<SubscribedDataSetMirrorDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public SubscribedDataSetMirrorDataTypeCollection() { }
+        public SubscribedDataSetMirrorDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public SubscribedDataSetMirrorDataTypeCollection(int capacity) : base(capacity) { }
+        public SubscribedDataSetMirrorDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public SubscribedDataSetMirrorDataTypeCollection(IEnumerable<SubscribedDataSetMirrorDataType> collection) : base(collection) { }
+        public SubscribedDataSetMirrorDataTypeCollection(IEnumerable<SubscribedDataSetMirrorDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator SubscribedDataSetMirrorDataTypeCollection(SubscribedDataSetMirrorDataType[] values)
+        public static implicit operator SubscribedDataSetMirrorDataTypeCollection(
+            SubscribedDataSetMirrorDataType[] values
+        )
         {
             if (values != null)
             {
@@ -18007,7 +19678,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator SubscribedDataSetMirrorDataType[](SubscribedDataSetMirrorDataTypeCollection values)
+        public static explicit operator SubscribedDataSetMirrorDataType[](
+            SubscribedDataSetMirrorDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -18081,7 +19754,6 @@ namespace Opc.Ua
             {
                 return m_publishedDataSets;
             }
-
             set
             {
                 m_publishedDataSets = value;
@@ -18101,7 +19773,6 @@ namespace Opc.Ua
             {
                 return m_connections;
             }
-
             set
             {
                 m_connections = value;
@@ -18117,8 +19788,14 @@ namespace Opc.Ua
         [DataMember(Name = "Enabled", IsRequired = false, Order = 3)]
         public bool Enabled
         {
-            get { return m_enabled; }
-            set { m_enabled = value; }
+            get
+            {
+                return m_enabled;
+            }
+            set
+            {
+                m_enabled = value;
+            }
         }
         #endregion
 
@@ -18140,7 +19817,11 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            encoder.WriteEncodeableArray("PublishedDataSets", PublishedDataSets.ToArray(), typeof(PublishedDataSetDataType));
+            encoder.WriteEncodeableArray(
+                "PublishedDataSets",
+                PublishedDataSets.ToArray(),
+                typeof(PublishedDataSetDataType)
+            );
             encoder.WriteEncodeableArray("Connections", Connections.ToArray(), typeof(PubSubConnectionDataType));
             encoder.WriteBoolean("Enabled", Enabled);
 
@@ -18152,8 +19833,10 @@ namespace Opc.Ua
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            PublishedDataSets = (PublishedDataSetDataTypeCollection)decoder.ReadEncodeableArray("PublishedDataSets", typeof(PublishedDataSetDataType));
-            Connections = (PubSubConnectionDataTypeCollection)decoder.ReadEncodeableArray("Connections", typeof(PubSubConnectionDataType));
+            PublishedDataSets = (PublishedDataSetDataTypeCollection)
+                decoder.ReadEncodeableArray("PublishedDataSets", typeof(PublishedDataSetDataType));
+            Connections = (PubSubConnectionDataTypeCollection)
+                decoder.ReadEncodeableArray("Connections", typeof(PubSubConnectionDataType));
             Enabled = decoder.ReadBoolean("Enabled");
 
             decoder.PopNamespace();
@@ -18214,18 +19897,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfPubSubConfigurationDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubConfigurationDataType")]
+    [CollectionDataContract(
+        Name = "ListOfPubSubConfigurationDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "PubSubConfigurationDataType"
+    )]
     public partial class PubSubConfigurationDataTypeCollection : List<PubSubConfigurationDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public PubSubConfigurationDataTypeCollection() { }
+        public PubSubConfigurationDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public PubSubConfigurationDataTypeCollection(int capacity) : base(capacity) { }
+        public PubSubConfigurationDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public PubSubConfigurationDataTypeCollection(IEnumerable<PubSubConfigurationDataType> collection) : base(collection) { }
+        public PubSubConfigurationDataTypeCollection(IEnumerable<PubSubConfigurationDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -18309,8 +20000,14 @@ namespace Opc.Ua
         [DataMember(Name = "DataSetName", IsRequired = false, Order = 1)]
         public string DataSetName
         {
-            get { return m_dataSetName; }
-            set { m_dataSetName = value; }
+            get
+            {
+                return m_dataSetName;
+            }
+            set
+            {
+                m_dataSetName = value;
+            }
         }
         #endregion
 
@@ -18319,13 +20016,16 @@ namespace Opc.Ua
         public override ExpandedNodeId TypeId => DataTypeIds.StandaloneSubscribedDataSetRefDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.StandaloneSubscribedDataSetRefDataType_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.StandaloneSubscribedDataSetRefDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId => ObjectIds.StandaloneSubscribedDataSetRefDataType_Encoding_DefaultXml;
+        public override ExpandedNodeId XmlEncodingId =>
+            ObjectIds.StandaloneSubscribedDataSetRefDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.StandaloneSubscribedDataSetRefDataType_Encoding_DefaultJson;
+        public override ExpandedNodeId JsonEncodingId =>
+            ObjectIds.StandaloneSubscribedDataSetRefDataType_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -18381,7 +20081,8 @@ namespace Opc.Ua
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            StandaloneSubscribedDataSetRefDataType clone = (StandaloneSubscribedDataSetRefDataType)base.MemberwiseClone();
+            StandaloneSubscribedDataSetRefDataType clone = (StandaloneSubscribedDataSetRefDataType)
+                base.MemberwiseClone();
 
             clone.m_dataSetName = (string)Utils.Clone(this.m_dataSetName);
 
@@ -18398,23 +20099,37 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfStandaloneSubscribedDataSetRefDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "StandaloneSubscribedDataSetRefDataType")]
-    public partial class StandaloneSubscribedDataSetRefDataTypeCollection : List<StandaloneSubscribedDataSetRefDataType>, ICloneable
+    [CollectionDataContract(
+        Name = "ListOfStandaloneSubscribedDataSetRefDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "StandaloneSubscribedDataSetRefDataType"
+    )]
+    public partial class StandaloneSubscribedDataSetRefDataTypeCollection
+        : List<StandaloneSubscribedDataSetRefDataType>,
+            ICloneable
     {
         #region Constructors
         /// <remarks />
-        public StandaloneSubscribedDataSetRefDataTypeCollection() { }
+        public StandaloneSubscribedDataSetRefDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public StandaloneSubscribedDataSetRefDataTypeCollection(int capacity) : base(capacity) { }
+        public StandaloneSubscribedDataSetRefDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public StandaloneSubscribedDataSetRefDataTypeCollection(IEnumerable<StandaloneSubscribedDataSetRefDataType> collection) : base(collection) { }
+        public StandaloneSubscribedDataSetRefDataTypeCollection(
+            IEnumerable<StandaloneSubscribedDataSetRefDataType> collection
+        )
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator StandaloneSubscribedDataSetRefDataTypeCollection(StandaloneSubscribedDataSetRefDataType[] values)
+        public static implicit operator StandaloneSubscribedDataSetRefDataTypeCollection(
+            StandaloneSubscribedDataSetRefDataType[] values
+        )
         {
             if (values != null)
             {
@@ -18425,7 +20140,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator StandaloneSubscribedDataSetRefDataType[](StandaloneSubscribedDataSetRefDataTypeCollection values)
+        public static explicit operator StandaloneSubscribedDataSetRefDataType[](
+            StandaloneSubscribedDataSetRefDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -18447,7 +20164,8 @@ namespace Opc.Ua
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            StandaloneSubscribedDataSetRefDataTypeCollection clone = new StandaloneSubscribedDataSetRefDataTypeCollection(this.Count);
+            StandaloneSubscribedDataSetRefDataTypeCollection clone =
+                new StandaloneSubscribedDataSetRefDataTypeCollection(this.Count);
 
             for (int ii = 0; ii < this.Count; ii++)
             {
@@ -18496,8 +20214,14 @@ namespace Opc.Ua
         [DataMember(Name = "Name", IsRequired = false, Order = 1)]
         public string Name
         {
-            get { return m_name; }
-            set { m_name = value; }
+            get
+            {
+                return m_name;
+            }
+            set
+            {
+                m_name = value;
+            }
         }
 
         /// <remarks />
@@ -18508,7 +20232,6 @@ namespace Opc.Ua
             {
                 return m_dataSetFolder;
             }
-
             set
             {
                 m_dataSetFolder = value;
@@ -18528,7 +20251,6 @@ namespace Opc.Ua
             {
                 return m_dataSetMetaData;
             }
-
             set
             {
                 m_dataSetMetaData = value;
@@ -18544,8 +20266,14 @@ namespace Opc.Ua
         [DataMember(Name = "SubscribedDataSet", IsRequired = false, Order = 4)]
         public ExtensionObject SubscribedDataSet
         {
-            get { return m_subscribedDataSet; }
-            set { m_subscribedDataSet = value; }
+            get
+            {
+                return m_subscribedDataSet;
+            }
+            set
+            {
+                m_subscribedDataSet = value;
+            }
         }
         #endregion
 
@@ -18554,13 +20282,16 @@ namespace Opc.Ua
         public override ExpandedNodeId TypeId => DataTypeIds.StandaloneSubscribedDataSetDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.StandaloneSubscribedDataSetDataType_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.StandaloneSubscribedDataSetDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId => ObjectIds.StandaloneSubscribedDataSetDataType_Encoding_DefaultXml;
+        public override ExpandedNodeId XmlEncodingId =>
+            ObjectIds.StandaloneSubscribedDataSetDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.StandaloneSubscribedDataSetDataType_Encoding_DefaultJson;
+        public override ExpandedNodeId JsonEncodingId =>
+            ObjectIds.StandaloneSubscribedDataSetDataType_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -18586,7 +20317,8 @@ namespace Opc.Ua
 
             Name = decoder.ReadString("Name");
             DataSetFolder = decoder.ReadStringArray("DataSetFolder");
-            DataSetMetaData = (DataSetMetaDataType)decoder.ReadEncodeable("DataSetMetaData", typeof(DataSetMetaDataType));
+            DataSetMetaData = (DataSetMetaDataType)
+                decoder.ReadEncodeable("DataSetMetaData", typeof(DataSetMetaDataType));
             SubscribedDataSet = decoder.ReadExtensionObject("SubscribedDataSet");
 
             decoder.PopNamespace();
@@ -18651,23 +20383,37 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfStandaloneSubscribedDataSetDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "StandaloneSubscribedDataSetDataType")]
-    public partial class StandaloneSubscribedDataSetDataTypeCollection : List<StandaloneSubscribedDataSetDataType>, ICloneable
+    [CollectionDataContract(
+        Name = "ListOfStandaloneSubscribedDataSetDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "StandaloneSubscribedDataSetDataType"
+    )]
+    public partial class StandaloneSubscribedDataSetDataTypeCollection
+        : List<StandaloneSubscribedDataSetDataType>,
+            ICloneable
     {
         #region Constructors
         /// <remarks />
-        public StandaloneSubscribedDataSetDataTypeCollection() { }
+        public StandaloneSubscribedDataSetDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public StandaloneSubscribedDataSetDataTypeCollection(int capacity) : base(capacity) { }
+        public StandaloneSubscribedDataSetDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public StandaloneSubscribedDataSetDataTypeCollection(IEnumerable<StandaloneSubscribedDataSetDataType> collection) : base(collection) { }
+        public StandaloneSubscribedDataSetDataTypeCollection(
+            IEnumerable<StandaloneSubscribedDataSetDataType> collection
+        )
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator StandaloneSubscribedDataSetDataTypeCollection(StandaloneSubscribedDataSetDataType[] values)
+        public static implicit operator StandaloneSubscribedDataSetDataTypeCollection(
+            StandaloneSubscribedDataSetDataType[] values
+        )
         {
             if (values != null)
             {
@@ -18678,7 +20424,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator StandaloneSubscribedDataSetDataType[](StandaloneSubscribedDataSetDataTypeCollection values)
+        public static explicit operator StandaloneSubscribedDataSetDataType[](
+            StandaloneSubscribedDataSetDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -18700,7 +20448,9 @@ namespace Opc.Ua
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            StandaloneSubscribedDataSetDataTypeCollection clone = new StandaloneSubscribedDataSetDataTypeCollection(this.Count);
+            StandaloneSubscribedDataSetDataTypeCollection clone = new StandaloneSubscribedDataSetDataTypeCollection(
+                this.Count
+            );
 
             for (int ii = 0; ii < this.Count; ii++)
             {
@@ -18754,8 +20504,14 @@ namespace Opc.Ua
         [DataMember(Name = "Name", IsRequired = false, Order = 1)]
         public string Name
         {
-            get { return m_name; }
-            set { m_name = value; }
+            get
+            {
+                return m_name;
+            }
+            set
+            {
+                m_name = value;
+            }
         }
 
         /// <remarks />
@@ -18766,7 +20522,6 @@ namespace Opc.Ua
             {
                 return m_securityGroupFolder;
             }
-
             set
             {
                 m_securityGroupFolder = value;
@@ -18782,40 +20537,70 @@ namespace Opc.Ua
         [DataMember(Name = "KeyLifetime", IsRequired = false, Order = 3)]
         public double KeyLifetime
         {
-            get { return m_keyLifetime; }
-            set { m_keyLifetime = value; }
+            get
+            {
+                return m_keyLifetime;
+            }
+            set
+            {
+                m_keyLifetime = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SecurityPolicyUri", IsRequired = false, Order = 4)]
         public string SecurityPolicyUri
         {
-            get { return m_securityPolicyUri; }
-            set { m_securityPolicyUri = value; }
+            get
+            {
+                return m_securityPolicyUri;
+            }
+            set
+            {
+                m_securityPolicyUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MaxFutureKeyCount", IsRequired = false, Order = 5)]
         public uint MaxFutureKeyCount
         {
-            get { return m_maxFutureKeyCount; }
-            set { m_maxFutureKeyCount = value; }
+            get
+            {
+                return m_maxFutureKeyCount;
+            }
+            set
+            {
+                m_maxFutureKeyCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MaxPastKeyCount", IsRequired = false, Order = 6)]
         public uint MaxPastKeyCount
         {
-            get { return m_maxPastKeyCount; }
-            set { m_maxPastKeyCount = value; }
+            get
+            {
+                return m_maxPastKeyCount;
+            }
+            set
+            {
+                m_maxPastKeyCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SecurityGroupId", IsRequired = false, Order = 7)]
         public string SecurityGroupId
         {
-            get { return m_securityGroupId; }
-            set { m_securityGroupId = value; }
+            get
+            {
+                return m_securityGroupId;
+            }
+            set
+            {
+                m_securityGroupId = value;
+            }
         }
 
         /// <remarks />
@@ -18826,7 +20611,6 @@ namespace Opc.Ua
             {
                 return m_rolePermissions;
             }
-
             set
             {
                 m_rolePermissions = value;
@@ -18846,7 +20630,6 @@ namespace Opc.Ua
             {
                 return m_groupProperties;
             }
-
             set
             {
                 m_groupProperties = value;
@@ -18902,8 +20685,10 @@ namespace Opc.Ua
             MaxFutureKeyCount = decoder.ReadUInt32("MaxFutureKeyCount");
             MaxPastKeyCount = decoder.ReadUInt32("MaxPastKeyCount");
             SecurityGroupId = decoder.ReadString("SecurityGroupId");
-            RolePermissions = (RolePermissionTypeCollection)decoder.ReadEncodeableArray("RolePermissions", typeof(RolePermissionType));
-            GroupProperties = (KeyValuePairCollection)decoder.ReadEncodeableArray("GroupProperties", typeof(KeyValuePair));
+            RolePermissions = (RolePermissionTypeCollection)
+                decoder.ReadEncodeableArray("RolePermissions", typeof(RolePermissionType));
+            GroupProperties = (KeyValuePairCollection)
+                decoder.ReadEncodeableArray("GroupProperties", typeof(KeyValuePair));
 
             decoder.PopNamespace();
         }
@@ -18987,18 +20772,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfSecurityGroupDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SecurityGroupDataType")]
+    [CollectionDataContract(
+        Name = "ListOfSecurityGroupDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "SecurityGroupDataType"
+    )]
     public partial class SecurityGroupDataTypeCollection : List<SecurityGroupDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public SecurityGroupDataTypeCollection() { }
+        public SecurityGroupDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public SecurityGroupDataTypeCollection(int capacity) : base(capacity) { }
+        public SecurityGroupDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public SecurityGroupDataTypeCollection(IEnumerable<SecurityGroupDataType> collection) : base(collection) { }
+        public SecurityGroupDataTypeCollection(IEnumerable<SecurityGroupDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -19090,8 +20883,14 @@ namespace Opc.Ua
         [DataMember(Name = "ApplicationUri", IsRequired = false, Order = 1)]
         public string ApplicationUri
         {
-            get { return m_applicationUri; }
-            set { m_applicationUri = value; }
+            get
+            {
+                return m_applicationUri;
+            }
+            set
+            {
+                m_applicationUri = value;
+            }
         }
 
         /// <remarks />
@@ -19102,7 +20901,6 @@ namespace Opc.Ua
             {
                 return m_pushTargetFolder;
             }
-
             set
             {
                 m_pushTargetFolder = value;
@@ -19118,16 +20916,28 @@ namespace Opc.Ua
         [DataMember(Name = "EndpointUrl", IsRequired = false, Order = 3)]
         public string EndpointUrl
         {
-            get { return m_endpointUrl; }
-            set { m_endpointUrl = value; }
+            get
+            {
+                return m_endpointUrl;
+            }
+            set
+            {
+                m_endpointUrl = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SecurityPolicyUri", IsRequired = false, Order = 4)]
         public string SecurityPolicyUri
         {
-            get { return m_securityPolicyUri; }
-            set { m_securityPolicyUri = value; }
+            get
+            {
+                return m_securityPolicyUri;
+            }
+            set
+            {
+                m_securityPolicyUri = value;
+            }
         }
 
         /// <remarks />
@@ -19138,7 +20948,6 @@ namespace Opc.Ua
             {
                 return m_userTokenType;
             }
-
             set
             {
                 m_userTokenType = value;
@@ -19154,16 +20963,28 @@ namespace Opc.Ua
         [DataMember(Name = "RequestedKeyCount", IsRequired = false, Order = 6)]
         public ushort RequestedKeyCount
         {
-            get { return m_requestedKeyCount; }
-            set { m_requestedKeyCount = value; }
+            get
+            {
+                return m_requestedKeyCount;
+            }
+            set
+            {
+                m_requestedKeyCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RetryInterval", IsRequired = false, Order = 7)]
         public double RetryInterval
         {
-            get { return m_retryInterval; }
-            set { m_retryInterval = value; }
+            get
+            {
+                return m_retryInterval;
+            }
+            set
+            {
+                m_retryInterval = value;
+            }
         }
 
         /// <remarks />
@@ -19174,7 +20995,6 @@ namespace Opc.Ua
             {
                 return m_pushTargetProperties;
             }
-
             set
             {
                 m_pushTargetProperties = value;
@@ -19194,7 +21014,6 @@ namespace Opc.Ua
             {
                 return m_securityGroups;
             }
-
             set
             {
                 m_securityGroups = value;
@@ -19250,7 +21069,8 @@ namespace Opc.Ua
             UserTokenType = (UserTokenPolicy)decoder.ReadEncodeable("UserTokenType", typeof(UserTokenPolicy));
             RequestedKeyCount = decoder.ReadUInt16("RequestedKeyCount");
             RetryInterval = decoder.ReadDouble("RetryInterval");
-            PushTargetProperties = (KeyValuePairCollection)decoder.ReadEncodeableArray("PushTargetProperties", typeof(KeyValuePair));
+            PushTargetProperties = (KeyValuePairCollection)
+                decoder.ReadEncodeableArray("PushTargetProperties", typeof(KeyValuePair));
             SecurityGroups = decoder.ReadStringArray("SecurityGroups");
 
             decoder.PopNamespace();
@@ -19335,18 +21155,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfPubSubKeyPushTargetDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubKeyPushTargetDataType")]
+    [CollectionDataContract(
+        Name = "ListOfPubSubKeyPushTargetDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "PubSubKeyPushTargetDataType"
+    )]
     public partial class PubSubKeyPushTargetDataTypeCollection : List<PubSubKeyPushTargetDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public PubSubKeyPushTargetDataTypeCollection() { }
+        public PubSubKeyPushTargetDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public PubSubKeyPushTargetDataTypeCollection(int capacity) : base(capacity) { }
+        public PubSubKeyPushTargetDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public PubSubKeyPushTargetDataTypeCollection(IEnumerable<PubSubKeyPushTargetDataType> collection) : base(collection) { }
+        public PubSubKeyPushTargetDataTypeCollection(IEnumerable<PubSubKeyPushTargetDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -19440,7 +21268,6 @@ namespace Opc.Ua
             {
                 return m_subscribedDataSets;
             }
-
             set
             {
                 m_subscribedDataSets = value;
@@ -19460,7 +21287,6 @@ namespace Opc.Ua
             {
                 return m_dataSetClasses;
             }
-
             set
             {
                 m_dataSetClasses = value;
@@ -19480,7 +21306,6 @@ namespace Opc.Ua
             {
                 return m_defaultSecurityKeyServices;
             }
-
             set
             {
                 m_defaultSecurityKeyServices = value;
@@ -19500,7 +21325,6 @@ namespace Opc.Ua
             {
                 return m_securityGroups;
             }
-
             set
             {
                 m_securityGroups = value;
@@ -19520,7 +21344,6 @@ namespace Opc.Ua
             {
                 return m_pubSubKeyPushTargets;
             }
-
             set
             {
                 m_pubSubKeyPushTargets = value;
@@ -19536,8 +21359,14 @@ namespace Opc.Ua
         [DataMember(Name = "ConfigurationVersion", IsRequired = false, Order = 6)]
         public uint ConfigurationVersion
         {
-            get { return m_configurationVersion; }
-            set { m_configurationVersion = value; }
+            get
+            {
+                return m_configurationVersion;
+            }
+            set
+            {
+                m_configurationVersion = value;
+            }
         }
 
         /// <remarks />
@@ -19548,7 +21377,6 @@ namespace Opc.Ua
             {
                 return m_configurationProperties;
             }
-
             set
             {
                 m_configurationProperties = value;
@@ -19566,7 +21394,8 @@ namespace Opc.Ua
         public override ExpandedNodeId TypeId => DataTypeIds.PubSubConfiguration2DataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.PubSubConfiguration2DataType_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.PubSubConfiguration2DataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public override ExpandedNodeId XmlEncodingId => ObjectIds.PubSubConfiguration2DataType_Encoding_DefaultXml;
@@ -19581,13 +21410,29 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            encoder.WriteEncodeableArray("SubscribedDataSets", SubscribedDataSets.ToArray(), typeof(StandaloneSubscribedDataSetDataType));
+            encoder.WriteEncodeableArray(
+                "SubscribedDataSets",
+                SubscribedDataSets.ToArray(),
+                typeof(StandaloneSubscribedDataSetDataType)
+            );
             encoder.WriteEncodeableArray("DataSetClasses", DataSetClasses.ToArray(), typeof(DataSetMetaDataType));
-            encoder.WriteEncodeableArray("DefaultSecurityKeyServices", DefaultSecurityKeyServices.ToArray(), typeof(EndpointDescription));
+            encoder.WriteEncodeableArray(
+                "DefaultSecurityKeyServices",
+                DefaultSecurityKeyServices.ToArray(),
+                typeof(EndpointDescription)
+            );
             encoder.WriteEncodeableArray("SecurityGroups", SecurityGroups.ToArray(), typeof(SecurityGroupDataType));
-            encoder.WriteEncodeableArray("PubSubKeyPushTargets", PubSubKeyPushTargets.ToArray(), typeof(PubSubKeyPushTargetDataType));
+            encoder.WriteEncodeableArray(
+                "PubSubKeyPushTargets",
+                PubSubKeyPushTargets.ToArray(),
+                typeof(PubSubKeyPushTargetDataType)
+            );
             encoder.WriteUInt32("ConfigurationVersion", ConfigurationVersion);
-            encoder.WriteEncodeableArray("ConfigurationProperties", ConfigurationProperties.ToArray(), typeof(KeyValuePair));
+            encoder.WriteEncodeableArray(
+                "ConfigurationProperties",
+                ConfigurationProperties.ToArray(),
+                typeof(KeyValuePair)
+            );
 
             encoder.PopNamespace();
         }
@@ -19599,13 +21444,19 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            SubscribedDataSets = (StandaloneSubscribedDataSetDataTypeCollection)decoder.ReadEncodeableArray("SubscribedDataSets", typeof(StandaloneSubscribedDataSetDataType));
-            DataSetClasses = (DataSetMetaDataTypeCollection)decoder.ReadEncodeableArray("DataSetClasses", typeof(DataSetMetaDataType));
-            DefaultSecurityKeyServices = (EndpointDescriptionCollection)decoder.ReadEncodeableArray("DefaultSecurityKeyServices", typeof(EndpointDescription));
-            SecurityGroups = (SecurityGroupDataTypeCollection)decoder.ReadEncodeableArray("SecurityGroups", typeof(SecurityGroupDataType));
-            PubSubKeyPushTargets = (PubSubKeyPushTargetDataTypeCollection)decoder.ReadEncodeableArray("PubSubKeyPushTargets", typeof(PubSubKeyPushTargetDataType));
+            SubscribedDataSets = (StandaloneSubscribedDataSetDataTypeCollection)
+                decoder.ReadEncodeableArray("SubscribedDataSets", typeof(StandaloneSubscribedDataSetDataType));
+            DataSetClasses = (DataSetMetaDataTypeCollection)
+                decoder.ReadEncodeableArray("DataSetClasses", typeof(DataSetMetaDataType));
+            DefaultSecurityKeyServices = (EndpointDescriptionCollection)
+                decoder.ReadEncodeableArray("DefaultSecurityKeyServices", typeof(EndpointDescription));
+            SecurityGroups = (SecurityGroupDataTypeCollection)
+                decoder.ReadEncodeableArray("SecurityGroups", typeof(SecurityGroupDataType));
+            PubSubKeyPushTargets = (PubSubKeyPushTargetDataTypeCollection)
+                decoder.ReadEncodeableArray("PubSubKeyPushTargets", typeof(PubSubKeyPushTargetDataType));
             ConfigurationVersion = decoder.ReadUInt32("ConfigurationVersion");
-            ConfigurationProperties = (KeyValuePairCollection)decoder.ReadEncodeableArray("ConfigurationProperties", typeof(KeyValuePair));
+            ConfigurationProperties = (KeyValuePairCollection)
+                decoder.ReadEncodeableArray("ConfigurationProperties", typeof(KeyValuePair));
 
             decoder.PopNamespace();
         }
@@ -19654,11 +21505,14 @@ namespace Opc.Ua
         {
             PubSubConfiguration2DataType clone = (PubSubConfiguration2DataType)base.MemberwiseClone();
 
-            clone.m_subscribedDataSets = (StandaloneSubscribedDataSetDataTypeCollection)Utils.Clone(this.m_subscribedDataSets);
+            clone.m_subscribedDataSets = (StandaloneSubscribedDataSetDataTypeCollection)
+                Utils.Clone(this.m_subscribedDataSets);
             clone.m_dataSetClasses = (DataSetMetaDataTypeCollection)Utils.Clone(this.m_dataSetClasses);
-            clone.m_defaultSecurityKeyServices = (EndpointDescriptionCollection)Utils.Clone(this.m_defaultSecurityKeyServices);
+            clone.m_defaultSecurityKeyServices = (EndpointDescriptionCollection)
+                Utils.Clone(this.m_defaultSecurityKeyServices);
             clone.m_securityGroups = (SecurityGroupDataTypeCollection)Utils.Clone(this.m_securityGroups);
-            clone.m_pubSubKeyPushTargets = (PubSubKeyPushTargetDataTypeCollection)Utils.Clone(this.m_pubSubKeyPushTargets);
+            clone.m_pubSubKeyPushTargets = (PubSubKeyPushTargetDataTypeCollection)
+                Utils.Clone(this.m_pubSubKeyPushTargets);
             clone.m_configurationVersion = (uint)Utils.Clone(this.m_configurationVersion);
             clone.m_configurationProperties = (KeyValuePairCollection)Utils.Clone(this.m_configurationProperties);
 
@@ -19681,18 +21535,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfPubSubConfiguration2DataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubConfiguration2DataType")]
+    [CollectionDataContract(
+        Name = "ListOfPubSubConfiguration2DataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "PubSubConfiguration2DataType"
+    )]
     public partial class PubSubConfiguration2DataTypeCollection : List<PubSubConfiguration2DataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public PubSubConfiguration2DataTypeCollection() { }
+        public PubSubConfiguration2DataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public PubSubConfiguration2DataTypeCollection(int capacity) : base(capacity) { }
+        public PubSubConfiguration2DataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public PubSubConfiguration2DataTypeCollection(IEnumerable<PubSubConfiguration2DataType> collection) : base(collection) { }
+        public PubSubConfiguration2DataTypeCollection(IEnumerable<PubSubConfiguration2DataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -19769,18 +21631,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfDataSetOrderingType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetOrderingType")]
+    [CollectionDataContract(
+        Name = "ListOfDataSetOrderingType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "DataSetOrderingType"
+    )]
     public partial class DataSetOrderingTypeCollection : List<DataSetOrderingType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public DataSetOrderingTypeCollection() { }
+        public DataSetOrderingTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public DataSetOrderingTypeCollection(int capacity) : base(capacity) { }
+        public DataSetOrderingTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public DataSetOrderingTypeCollection(IEnumerable<DataSetOrderingType> collection) : base(collection) { }
+        public DataSetOrderingTypeCollection(IEnumerable<DataSetOrderingType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -19894,18 +21764,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfUadpNetworkMessageContentMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UadpNetworkMessageContentMask")]
+    [CollectionDataContract(
+        Name = "ListOfUadpNetworkMessageContentMask",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "UadpNetworkMessageContentMask"
+    )]
     public partial class UadpNetworkMessageContentMaskCollection : List<UadpNetworkMessageContentMask>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public UadpNetworkMessageContentMaskCollection() { }
+        public UadpNetworkMessageContentMaskCollection()
+        {
+        }
 
         /// <remarks />
-        public UadpNetworkMessageContentMaskCollection(int capacity) : base(capacity) { }
+        public UadpNetworkMessageContentMaskCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public UadpNetworkMessageContentMaskCollection(IEnumerable<UadpNetworkMessageContentMask> collection) : base(collection) { }
+        public UadpNetworkMessageContentMaskCollection(IEnumerable<UadpNetworkMessageContentMask> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -19993,32 +21871,56 @@ namespace Opc.Ua
         [DataMember(Name = "GroupVersion", IsRequired = false, Order = 1)]
         public uint GroupVersion
         {
-            get { return m_groupVersion; }
-            set { m_groupVersion = value; }
+            get
+            {
+                return m_groupVersion;
+            }
+            set
+            {
+                m_groupVersion = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataSetOrdering", IsRequired = false, Order = 2)]
         public DataSetOrderingType DataSetOrdering
         {
-            get { return m_dataSetOrdering; }
-            set { m_dataSetOrdering = value; }
+            get
+            {
+                return m_dataSetOrdering;
+            }
+            set
+            {
+                m_dataSetOrdering = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "NetworkMessageContentMask", IsRequired = false, Order = 3)]
         public uint NetworkMessageContentMask
         {
-            get { return m_networkMessageContentMask; }
-            set { m_networkMessageContentMask = value; }
+            get
+            {
+                return m_networkMessageContentMask;
+            }
+            set
+            {
+                m_networkMessageContentMask = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SamplingOffset", IsRequired = false, Order = 4)]
         public double SamplingOffset
         {
-            get { return m_samplingOffset; }
-            set { m_samplingOffset = value; }
+            get
+            {
+                return m_samplingOffset;
+            }
+            set
+            {
+                m_samplingOffset = value;
+            }
         }
 
         /// <remarks />
@@ -20029,7 +21931,6 @@ namespace Opc.Ua
             {
                 return m_publishingOffset;
             }
-
             set
             {
                 m_publishingOffset = value;
@@ -20047,7 +21948,8 @@ namespace Opc.Ua
         public override ExpandedNodeId TypeId => DataTypeIds.UadpWriterGroupMessageDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.UadpWriterGroupMessageDataType_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.UadpWriterGroupMessageDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public override ExpandedNodeId XmlEncodingId => ObjectIds.UadpWriterGroupMessageDataType_Encoding_DefaultXml;
@@ -20079,7 +21981,8 @@ namespace Opc.Ua
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             GroupVersion = decoder.ReadUInt32("GroupVersion");
-            DataSetOrdering = (DataSetOrderingType)decoder.ReadEnumerated("DataSetOrdering", typeof(DataSetOrderingType));
+            DataSetOrdering = (DataSetOrderingType)
+                decoder.ReadEnumerated("DataSetOrdering", typeof(DataSetOrderingType));
             NetworkMessageContentMask = decoder.ReadUInt32("NetworkMessageContentMask");
             SamplingOffset = decoder.ReadDouble("SamplingOffset");
             PublishingOffset = decoder.ReadDoubleArray("PublishingOffset");
@@ -20150,23 +22053,33 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfUadpWriterGroupMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UadpWriterGroupMessageDataType")]
+    [CollectionDataContract(
+        Name = "ListOfUadpWriterGroupMessageDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "UadpWriterGroupMessageDataType"
+    )]
     public partial class UadpWriterGroupMessageDataTypeCollection : List<UadpWriterGroupMessageDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public UadpWriterGroupMessageDataTypeCollection() { }
+        public UadpWriterGroupMessageDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public UadpWriterGroupMessageDataTypeCollection(int capacity) : base(capacity) { }
+        public UadpWriterGroupMessageDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public UadpWriterGroupMessageDataTypeCollection(IEnumerable<UadpWriterGroupMessageDataType> collection) : base(collection) { }
+        public UadpWriterGroupMessageDataTypeCollection(IEnumerable<UadpWriterGroupMessageDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator UadpWriterGroupMessageDataTypeCollection(UadpWriterGroupMessageDataType[] values)
+        public static implicit operator UadpWriterGroupMessageDataTypeCollection(
+            UadpWriterGroupMessageDataType[] values
+        )
         {
             if (values != null)
             {
@@ -20177,7 +22090,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator UadpWriterGroupMessageDataType[](UadpWriterGroupMessageDataTypeCollection values)
+        public static explicit operator UadpWriterGroupMessageDataType[](
+            UadpWriterGroupMessageDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -20255,18 +22170,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfUadpDataSetMessageContentMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UadpDataSetMessageContentMask")]
+    [CollectionDataContract(
+        Name = "ListOfUadpDataSetMessageContentMask",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "UadpDataSetMessageContentMask"
+    )]
     public partial class UadpDataSetMessageContentMaskCollection : List<UadpDataSetMessageContentMask>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public UadpDataSetMessageContentMaskCollection() { }
+        public UadpDataSetMessageContentMaskCollection()
+        {
+        }
 
         /// <remarks />
-        public UadpDataSetMessageContentMaskCollection(int capacity) : base(capacity) { }
+        public UadpDataSetMessageContentMaskCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public UadpDataSetMessageContentMaskCollection(IEnumerable<UadpDataSetMessageContentMask> collection) : base(collection) { }
+        public UadpDataSetMessageContentMaskCollection(IEnumerable<UadpDataSetMessageContentMask> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -20353,32 +22276,56 @@ namespace Opc.Ua
         [DataMember(Name = "DataSetMessageContentMask", IsRequired = false, Order = 1)]
         public uint DataSetMessageContentMask
         {
-            get { return m_dataSetMessageContentMask; }
-            set { m_dataSetMessageContentMask = value; }
+            get
+            {
+                return m_dataSetMessageContentMask;
+            }
+            set
+            {
+                m_dataSetMessageContentMask = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ConfiguredSize", IsRequired = false, Order = 2)]
         public ushort ConfiguredSize
         {
-            get { return m_configuredSize; }
-            set { m_configuredSize = value; }
+            get
+            {
+                return m_configuredSize;
+            }
+            set
+            {
+                m_configuredSize = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "NetworkMessageNumber", IsRequired = false, Order = 3)]
         public ushort NetworkMessageNumber
         {
-            get { return m_networkMessageNumber; }
-            set { m_networkMessageNumber = value; }
+            get
+            {
+                return m_networkMessageNumber;
+            }
+            set
+            {
+                m_networkMessageNumber = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataSetOffset", IsRequired = false, Order = 4)]
         public ushort DataSetOffset
         {
-            get { return m_dataSetOffset; }
-            set { m_dataSetOffset = value; }
+            get
+            {
+                return m_dataSetOffset;
+            }
+            set
+            {
+                m_dataSetOffset = value;
+            }
         }
         #endregion
 
@@ -20387,13 +22334,15 @@ namespace Opc.Ua
         public override ExpandedNodeId TypeId => DataTypeIds.UadpDataSetWriterMessageDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.UadpDataSetWriterMessageDataType_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.UadpDataSetWriterMessageDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public override ExpandedNodeId XmlEncodingId => ObjectIds.UadpDataSetWriterMessageDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.UadpDataSetWriterMessageDataType_Encoding_DefaultJson;
+        public override ExpandedNodeId JsonEncodingId =>
+            ObjectIds.UadpDataSetWriterMessageDataType_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -20484,23 +22433,33 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfUadpDataSetWriterMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UadpDataSetWriterMessageDataType")]
+    [CollectionDataContract(
+        Name = "ListOfUadpDataSetWriterMessageDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "UadpDataSetWriterMessageDataType"
+    )]
     public partial class UadpDataSetWriterMessageDataTypeCollection : List<UadpDataSetWriterMessageDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public UadpDataSetWriterMessageDataTypeCollection() { }
+        public UadpDataSetWriterMessageDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public UadpDataSetWriterMessageDataTypeCollection(int capacity) : base(capacity) { }
+        public UadpDataSetWriterMessageDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public UadpDataSetWriterMessageDataTypeCollection(IEnumerable<UadpDataSetWriterMessageDataType> collection) : base(collection) { }
+        public UadpDataSetWriterMessageDataTypeCollection(IEnumerable<UadpDataSetWriterMessageDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator UadpDataSetWriterMessageDataTypeCollection(UadpDataSetWriterMessageDataType[] values)
+        public static implicit operator UadpDataSetWriterMessageDataTypeCollection(
+            UadpDataSetWriterMessageDataType[] values
+        )
         {
             if (values != null)
             {
@@ -20511,7 +22470,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator UadpDataSetWriterMessageDataType[](UadpDataSetWriterMessageDataTypeCollection values)
+        public static explicit operator UadpDataSetWriterMessageDataType[](
+            UadpDataSetWriterMessageDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -20533,7 +22494,9 @@ namespace Opc.Ua
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            UadpDataSetWriterMessageDataTypeCollection clone = new UadpDataSetWriterMessageDataTypeCollection(this.Count);
+            UadpDataSetWriterMessageDataTypeCollection clone = new UadpDataSetWriterMessageDataTypeCollection(
+                this.Count
+            );
 
             for (int ii = 0; ii < this.Count; ii++)
             {
@@ -20587,72 +22550,126 @@ namespace Opc.Ua
         [DataMember(Name = "GroupVersion", IsRequired = false, Order = 1)]
         public uint GroupVersion
         {
-            get { return m_groupVersion; }
-            set { m_groupVersion = value; }
+            get
+            {
+                return m_groupVersion;
+            }
+            set
+            {
+                m_groupVersion = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "NetworkMessageNumber", IsRequired = false, Order = 2)]
         public ushort NetworkMessageNumber
         {
-            get { return m_networkMessageNumber; }
-            set { m_networkMessageNumber = value; }
+            get
+            {
+                return m_networkMessageNumber;
+            }
+            set
+            {
+                m_networkMessageNumber = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataSetOffset", IsRequired = false, Order = 3)]
         public ushort DataSetOffset
         {
-            get { return m_dataSetOffset; }
-            set { m_dataSetOffset = value; }
+            get
+            {
+                return m_dataSetOffset;
+            }
+            set
+            {
+                m_dataSetOffset = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataSetClassId", IsRequired = false, Order = 4)]
         public Uuid DataSetClassId
         {
-            get { return m_dataSetClassId; }
-            set { m_dataSetClassId = value; }
+            get
+            {
+                return m_dataSetClassId;
+            }
+            set
+            {
+                m_dataSetClassId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "NetworkMessageContentMask", IsRequired = false, Order = 5)]
         public uint NetworkMessageContentMask
         {
-            get { return m_networkMessageContentMask; }
-            set { m_networkMessageContentMask = value; }
+            get
+            {
+                return m_networkMessageContentMask;
+            }
+            set
+            {
+                m_networkMessageContentMask = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataSetMessageContentMask", IsRequired = false, Order = 6)]
         public uint DataSetMessageContentMask
         {
-            get { return m_dataSetMessageContentMask; }
-            set { m_dataSetMessageContentMask = value; }
+            get
+            {
+                return m_dataSetMessageContentMask;
+            }
+            set
+            {
+                m_dataSetMessageContentMask = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PublishingInterval", IsRequired = false, Order = 7)]
         public double PublishingInterval
         {
-            get { return m_publishingInterval; }
-            set { m_publishingInterval = value; }
+            get
+            {
+                return m_publishingInterval;
+            }
+            set
+            {
+                m_publishingInterval = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ReceiveOffset", IsRequired = false, Order = 8)]
         public double ReceiveOffset
         {
-            get { return m_receiveOffset; }
-            set { m_receiveOffset = value; }
+            get
+            {
+                return m_receiveOffset;
+            }
+            set
+            {
+                m_receiveOffset = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ProcessingOffset", IsRequired = false, Order = 9)]
         public double ProcessingOffset
         {
-            get { return m_processingOffset; }
-            set { m_processingOffset = value; }
+            get
+            {
+                return m_processingOffset;
+            }
+            set
+            {
+                m_processingOffset = value;
+            }
         }
         #endregion
 
@@ -20661,13 +22678,15 @@ namespace Opc.Ua
         public override ExpandedNodeId TypeId => DataTypeIds.UadpDataSetReaderMessageDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.UadpDataSetReaderMessageDataType_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.UadpDataSetReaderMessageDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public override ExpandedNodeId XmlEncodingId => ObjectIds.UadpDataSetReaderMessageDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.UadpDataSetReaderMessageDataType_Encoding_DefaultJson;
+        public override ExpandedNodeId JsonEncodingId =>
+            ObjectIds.UadpDataSetReaderMessageDataType_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -20788,23 +22807,33 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfUadpDataSetReaderMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UadpDataSetReaderMessageDataType")]
+    [CollectionDataContract(
+        Name = "ListOfUadpDataSetReaderMessageDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "UadpDataSetReaderMessageDataType"
+    )]
     public partial class UadpDataSetReaderMessageDataTypeCollection : List<UadpDataSetReaderMessageDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public UadpDataSetReaderMessageDataTypeCollection() { }
+        public UadpDataSetReaderMessageDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public UadpDataSetReaderMessageDataTypeCollection(int capacity) : base(capacity) { }
+        public UadpDataSetReaderMessageDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public UadpDataSetReaderMessageDataTypeCollection(IEnumerable<UadpDataSetReaderMessageDataType> collection) : base(collection) { }
+        public UadpDataSetReaderMessageDataTypeCollection(IEnumerable<UadpDataSetReaderMessageDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator UadpDataSetReaderMessageDataTypeCollection(UadpDataSetReaderMessageDataType[] values)
+        public static implicit operator UadpDataSetReaderMessageDataTypeCollection(
+            UadpDataSetReaderMessageDataType[] values
+        )
         {
             if (values != null)
             {
@@ -20815,7 +22844,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator UadpDataSetReaderMessageDataType[](UadpDataSetReaderMessageDataTypeCollection values)
+        public static explicit operator UadpDataSetReaderMessageDataType[](
+            UadpDataSetReaderMessageDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -20837,7 +22868,9 @@ namespace Opc.Ua
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            UadpDataSetReaderMessageDataTypeCollection clone = new UadpDataSetReaderMessageDataTypeCollection(this.Count);
+            UadpDataSetReaderMessageDataTypeCollection clone = new UadpDataSetReaderMessageDataTypeCollection(
+                this.Count
+            );
 
             for (int ii = 0; ii < this.Count; ii++)
             {
@@ -20897,18 +22930,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfJsonNetworkMessageContentMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonNetworkMessageContentMask")]
+    [CollectionDataContract(
+        Name = "ListOfJsonNetworkMessageContentMask",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "JsonNetworkMessageContentMask"
+    )]
     public partial class JsonNetworkMessageContentMaskCollection : List<JsonNetworkMessageContentMask>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public JsonNetworkMessageContentMaskCollection() { }
+        public JsonNetworkMessageContentMaskCollection()
+        {
+        }
 
         /// <remarks />
-        public JsonNetworkMessageContentMaskCollection(int capacity) : base(capacity) { }
+        public JsonNetworkMessageContentMaskCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public JsonNetworkMessageContentMaskCollection(IEnumerable<JsonNetworkMessageContentMask> collection) : base(collection) { }
+        public JsonNetworkMessageContentMaskCollection(IEnumerable<JsonNetworkMessageContentMask> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -20992,8 +23033,14 @@ namespace Opc.Ua
         [DataMember(Name = "NetworkMessageContentMask", IsRequired = false, Order = 1)]
         public uint NetworkMessageContentMask
         {
-            get { return m_networkMessageContentMask; }
-            set { m_networkMessageContentMask = value; }
+            get
+            {
+                return m_networkMessageContentMask;
+            }
+            set
+            {
+                m_networkMessageContentMask = value;
+            }
         }
         #endregion
 
@@ -21002,7 +23049,8 @@ namespace Opc.Ua
         public override ExpandedNodeId TypeId => DataTypeIds.JsonWriterGroupMessageDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.JsonWriterGroupMessageDataType_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.JsonWriterGroupMessageDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public override ExpandedNodeId XmlEncodingId => ObjectIds.JsonWriterGroupMessageDataType_Encoding_DefaultXml;
@@ -21081,23 +23129,33 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfJsonWriterGroupMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonWriterGroupMessageDataType")]
+    [CollectionDataContract(
+        Name = "ListOfJsonWriterGroupMessageDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "JsonWriterGroupMessageDataType"
+    )]
     public partial class JsonWriterGroupMessageDataTypeCollection : List<JsonWriterGroupMessageDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public JsonWriterGroupMessageDataTypeCollection() { }
+        public JsonWriterGroupMessageDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public JsonWriterGroupMessageDataTypeCollection(int capacity) : base(capacity) { }
+        public JsonWriterGroupMessageDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public JsonWriterGroupMessageDataTypeCollection(IEnumerable<JsonWriterGroupMessageDataType> collection) : base(collection) { }
+        public JsonWriterGroupMessageDataTypeCollection(IEnumerable<JsonWriterGroupMessageDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator JsonWriterGroupMessageDataTypeCollection(JsonWriterGroupMessageDataType[] values)
+        public static implicit operator JsonWriterGroupMessageDataTypeCollection(
+            JsonWriterGroupMessageDataType[] values
+        )
         {
             if (values != null)
             {
@@ -21108,7 +23166,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator JsonWriterGroupMessageDataType[](JsonWriterGroupMessageDataTypeCollection values)
+        public static explicit operator JsonWriterGroupMessageDataType[](
+            JsonWriterGroupMessageDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -21210,18 +23270,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfJsonDataSetMessageContentMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonDataSetMessageContentMask")]
+    [CollectionDataContract(
+        Name = "ListOfJsonDataSetMessageContentMask",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "JsonDataSetMessageContentMask"
+    )]
     public partial class JsonDataSetMessageContentMaskCollection : List<JsonDataSetMessageContentMask>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public JsonDataSetMessageContentMaskCollection() { }
+        public JsonDataSetMessageContentMaskCollection()
+        {
+        }
 
         /// <remarks />
-        public JsonDataSetMessageContentMaskCollection(int capacity) : base(capacity) { }
+        public JsonDataSetMessageContentMaskCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public JsonDataSetMessageContentMaskCollection(IEnumerable<JsonDataSetMessageContentMask> collection) : base(collection) { }
+        public JsonDataSetMessageContentMaskCollection(IEnumerable<JsonDataSetMessageContentMask> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -21305,8 +23373,14 @@ namespace Opc.Ua
         [DataMember(Name = "DataSetMessageContentMask", IsRequired = false, Order = 1)]
         public uint DataSetMessageContentMask
         {
-            get { return m_dataSetMessageContentMask; }
-            set { m_dataSetMessageContentMask = value; }
+            get
+            {
+                return m_dataSetMessageContentMask;
+            }
+            set
+            {
+                m_dataSetMessageContentMask = value;
+            }
         }
         #endregion
 
@@ -21315,13 +23389,15 @@ namespace Opc.Ua
         public override ExpandedNodeId TypeId => DataTypeIds.JsonDataSetWriterMessageDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.JsonDataSetWriterMessageDataType_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.JsonDataSetWriterMessageDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public override ExpandedNodeId XmlEncodingId => ObjectIds.JsonDataSetWriterMessageDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.JsonDataSetWriterMessageDataType_Encoding_DefaultJson;
+        public override ExpandedNodeId JsonEncodingId =>
+            ObjectIds.JsonDataSetWriterMessageDataType_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -21394,23 +23470,33 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfJsonDataSetWriterMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonDataSetWriterMessageDataType")]
+    [CollectionDataContract(
+        Name = "ListOfJsonDataSetWriterMessageDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "JsonDataSetWriterMessageDataType"
+    )]
     public partial class JsonDataSetWriterMessageDataTypeCollection : List<JsonDataSetWriterMessageDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public JsonDataSetWriterMessageDataTypeCollection() { }
+        public JsonDataSetWriterMessageDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public JsonDataSetWriterMessageDataTypeCollection(int capacity) : base(capacity) { }
+        public JsonDataSetWriterMessageDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public JsonDataSetWriterMessageDataTypeCollection(IEnumerable<JsonDataSetWriterMessageDataType> collection) : base(collection) { }
+        public JsonDataSetWriterMessageDataTypeCollection(IEnumerable<JsonDataSetWriterMessageDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator JsonDataSetWriterMessageDataTypeCollection(JsonDataSetWriterMessageDataType[] values)
+        public static implicit operator JsonDataSetWriterMessageDataTypeCollection(
+            JsonDataSetWriterMessageDataType[] values
+        )
         {
             if (values != null)
             {
@@ -21421,7 +23507,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator JsonDataSetWriterMessageDataType[](JsonDataSetWriterMessageDataTypeCollection values)
+        public static explicit operator JsonDataSetWriterMessageDataType[](
+            JsonDataSetWriterMessageDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -21443,7 +23531,9 @@ namespace Opc.Ua
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            JsonDataSetWriterMessageDataTypeCollection clone = new JsonDataSetWriterMessageDataTypeCollection(this.Count);
+            JsonDataSetWriterMessageDataTypeCollection clone = new JsonDataSetWriterMessageDataTypeCollection(
+                this.Count
+            );
 
             for (int ii = 0; ii < this.Count; ii++)
             {
@@ -21490,16 +23580,28 @@ namespace Opc.Ua
         [DataMember(Name = "NetworkMessageContentMask", IsRequired = false, Order = 1)]
         public uint NetworkMessageContentMask
         {
-            get { return m_networkMessageContentMask; }
-            set { m_networkMessageContentMask = value; }
+            get
+            {
+                return m_networkMessageContentMask;
+            }
+            set
+            {
+                m_networkMessageContentMask = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataSetMessageContentMask", IsRequired = false, Order = 2)]
         public uint DataSetMessageContentMask
         {
-            get { return m_dataSetMessageContentMask; }
-            set { m_dataSetMessageContentMask = value; }
+            get
+            {
+                return m_dataSetMessageContentMask;
+            }
+            set
+            {
+                m_dataSetMessageContentMask = value;
+            }
         }
         #endregion
 
@@ -21508,13 +23610,15 @@ namespace Opc.Ua
         public override ExpandedNodeId TypeId => DataTypeIds.JsonDataSetReaderMessageDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.JsonDataSetReaderMessageDataType_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.JsonDataSetReaderMessageDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public override ExpandedNodeId XmlEncodingId => ObjectIds.JsonDataSetReaderMessageDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.JsonDataSetReaderMessageDataType_Encoding_DefaultJson;
+        public override ExpandedNodeId JsonEncodingId =>
+            ObjectIds.JsonDataSetReaderMessageDataType_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -21593,23 +23697,33 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfJsonDataSetReaderMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonDataSetReaderMessageDataType")]
+    [CollectionDataContract(
+        Name = "ListOfJsonDataSetReaderMessageDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "JsonDataSetReaderMessageDataType"
+    )]
     public partial class JsonDataSetReaderMessageDataTypeCollection : List<JsonDataSetReaderMessageDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public JsonDataSetReaderMessageDataTypeCollection() { }
+        public JsonDataSetReaderMessageDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public JsonDataSetReaderMessageDataTypeCollection(int capacity) : base(capacity) { }
+        public JsonDataSetReaderMessageDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public JsonDataSetReaderMessageDataTypeCollection(IEnumerable<JsonDataSetReaderMessageDataType> collection) : base(collection) { }
+        public JsonDataSetReaderMessageDataTypeCollection(IEnumerable<JsonDataSetReaderMessageDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator JsonDataSetReaderMessageDataTypeCollection(JsonDataSetReaderMessageDataType[] values)
+        public static implicit operator JsonDataSetReaderMessageDataTypeCollection(
+            JsonDataSetReaderMessageDataType[] values
+        )
         {
             if (values != null)
             {
@@ -21620,7 +23734,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator JsonDataSetReaderMessageDataType[](JsonDataSetReaderMessageDataTypeCollection values)
+        public static explicit operator JsonDataSetReaderMessageDataType[](
+            JsonDataSetReaderMessageDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -21642,7 +23758,9 @@ namespace Opc.Ua
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            JsonDataSetReaderMessageDataTypeCollection clone = new JsonDataSetReaderMessageDataTypeCollection(this.Count);
+            JsonDataSetReaderMessageDataTypeCollection clone = new JsonDataSetReaderMessageDataTypeCollection(
+                this.Count
+            );
 
             for (int ii = 0; ii < this.Count; ii++)
             {
@@ -21703,7 +23821,6 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -21711,7 +23828,6 @@ namespace Opc.Ua
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -21731,7 +23847,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return true;
         }
 
@@ -21746,7 +23861,6 @@ namespace Opc.Ua
         {
             QosDataType clone = (QosDataType)base.MemberwiseClone();
 
-
             return clone;
         }
         #endregion
@@ -21759,18 +23873,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfQosDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "QosDataType")]
+    [CollectionDataContract(
+        Name = "ListOfQosDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "QosDataType"
+    )]
     public partial class QosDataTypeCollection : List<QosDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public QosDataTypeCollection() { }
+        public QosDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public QosDataTypeCollection(int capacity) : base(capacity) { }
+        public QosDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public QosDataTypeCollection(IEnumerable<QosDataType> collection) : base(collection) { }
+        public QosDataTypeCollection(IEnumerable<QosDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -21871,7 +23993,6 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -21881,7 +24002,6 @@ namespace Opc.Ua
             base.Decode(decoder);
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -21901,7 +24021,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return base.IsEqual(encodeable);
         }
 
@@ -21916,7 +24035,6 @@ namespace Opc.Ua
         {
             TransmitQosDataType clone = (TransmitQosDataType)base.MemberwiseClone();
 
-
             return clone;
         }
         #endregion
@@ -21929,18 +24047,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfTransmitQosDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TransmitQosDataType")]
+    [CollectionDataContract(
+        Name = "ListOfTransmitQosDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "TransmitQosDataType"
+    )]
     public partial class TransmitQosDataTypeCollection : List<TransmitQosDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public TransmitQosDataTypeCollection() { }
+        public TransmitQosDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public TransmitQosDataTypeCollection(int capacity) : base(capacity) { }
+        public TransmitQosDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public TransmitQosDataTypeCollection(IEnumerable<TransmitQosDataType> collection) : base(collection) { }
+        public TransmitQosDataTypeCollection(IEnumerable<TransmitQosDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -22024,8 +24150,14 @@ namespace Opc.Ua
         [DataMember(Name = "PriorityLabel", IsRequired = false, Order = 1)]
         public string PriorityLabel
         {
-            get { return m_priorityLabel; }
-            set { m_priorityLabel = value; }
+            get
+            {
+                return m_priorityLabel;
+            }
+            set
+            {
+                m_priorityLabel = value;
+            }
         }
         #endregion
 
@@ -22113,18 +24245,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfTransmitQosPriorityDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TransmitQosPriorityDataType")]
+    [CollectionDataContract(
+        Name = "ListOfTransmitQosPriorityDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "TransmitQosPriorityDataType"
+    )]
     public partial class TransmitQosPriorityDataTypeCollection : List<TransmitQosPriorityDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public TransmitQosPriorityDataTypeCollection() { }
+        public TransmitQosPriorityDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public TransmitQosPriorityDataTypeCollection(int capacity) : base(capacity) { }
+        public TransmitQosPriorityDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public TransmitQosPriorityDataTypeCollection(IEnumerable<TransmitQosPriorityDataType> collection) : base(collection) { }
+        public TransmitQosPriorityDataTypeCollection(IEnumerable<TransmitQosPriorityDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -22225,7 +24365,6 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -22235,7 +24374,6 @@ namespace Opc.Ua
             base.Decode(decoder);
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -22255,7 +24393,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return base.IsEqual(encodeable);
         }
 
@@ -22270,7 +24407,6 @@ namespace Opc.Ua
         {
             ReceiveQosDataType clone = (ReceiveQosDataType)base.MemberwiseClone();
 
-
             return clone;
         }
         #endregion
@@ -22283,18 +24419,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfReceiveQosDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReceiveQosDataType")]
+    [CollectionDataContract(
+        Name = "ListOfReceiveQosDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ReceiveQosDataType"
+    )]
     public partial class ReceiveQosDataTypeCollection : List<ReceiveQosDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ReceiveQosDataTypeCollection() { }
+        public ReceiveQosDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public ReceiveQosDataTypeCollection(int capacity) : base(capacity) { }
+        public ReceiveQosDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ReceiveQosDataTypeCollection(IEnumerable<ReceiveQosDataType> collection) : base(collection) { }
+        public ReceiveQosDataTypeCollection(IEnumerable<ReceiveQosDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -22378,8 +24522,14 @@ namespace Opc.Ua
         [DataMember(Name = "PriorityLabel", IsRequired = false, Order = 1)]
         public string PriorityLabel
         {
-            get { return m_priorityLabel; }
-            set { m_priorityLabel = value; }
+            get
+            {
+                return m_priorityLabel;
+            }
+            set
+            {
+                m_priorityLabel = value;
+            }
         }
         #endregion
 
@@ -22467,18 +24617,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfReceiveQosPriorityDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReceiveQosPriorityDataType")]
+    [CollectionDataContract(
+        Name = "ListOfReceiveQosPriorityDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ReceiveQosPriorityDataType"
+    )]
     public partial class ReceiveQosPriorityDataTypeCollection : List<ReceiveQosPriorityDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ReceiveQosPriorityDataTypeCollection() { }
+        public ReceiveQosPriorityDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public ReceiveQosPriorityDataTypeCollection(int capacity) : base(capacity) { }
+        public ReceiveQosPriorityDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ReceiveQosPriorityDataTypeCollection(IEnumerable<ReceiveQosPriorityDataType> collection) : base(collection) { }
+        public ReceiveQosPriorityDataTypeCollection(IEnumerable<ReceiveQosPriorityDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -22562,8 +24720,14 @@ namespace Opc.Ua
         [DataMember(Name = "DiscoveryAddress", IsRequired = false, Order = 1)]
         public ExtensionObject DiscoveryAddress
         {
-            get { return m_discoveryAddress; }
-            set { m_discoveryAddress = value; }
+            get
+            {
+                return m_discoveryAddress;
+            }
+            set
+            {
+                m_discoveryAddress = value;
+            }
         }
         #endregion
 
@@ -22572,13 +24736,16 @@ namespace Opc.Ua
         public override ExpandedNodeId TypeId => DataTypeIds.DatagramConnectionTransportDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.DatagramConnectionTransportDataType_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.DatagramConnectionTransportDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId => ObjectIds.DatagramConnectionTransportDataType_Encoding_DefaultXml;
+        public override ExpandedNodeId XmlEncodingId =>
+            ObjectIds.DatagramConnectionTransportDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.DatagramConnectionTransportDataType_Encoding_DefaultJson;
+        public override ExpandedNodeId JsonEncodingId =>
+            ObjectIds.DatagramConnectionTransportDataType_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -22651,23 +24818,37 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfDatagramConnectionTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DatagramConnectionTransportDataType")]
-    public partial class DatagramConnectionTransportDataTypeCollection : List<DatagramConnectionTransportDataType>, ICloneable
+    [CollectionDataContract(
+        Name = "ListOfDatagramConnectionTransportDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "DatagramConnectionTransportDataType"
+    )]
+    public partial class DatagramConnectionTransportDataTypeCollection
+        : List<DatagramConnectionTransportDataType>,
+            ICloneable
     {
         #region Constructors
         /// <remarks />
-        public DatagramConnectionTransportDataTypeCollection() { }
+        public DatagramConnectionTransportDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public DatagramConnectionTransportDataTypeCollection(int capacity) : base(capacity) { }
+        public DatagramConnectionTransportDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public DatagramConnectionTransportDataTypeCollection(IEnumerable<DatagramConnectionTransportDataType> collection) : base(collection) { }
+        public DatagramConnectionTransportDataTypeCollection(
+            IEnumerable<DatagramConnectionTransportDataType> collection
+        )
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator DatagramConnectionTransportDataTypeCollection(DatagramConnectionTransportDataType[] values)
+        public static implicit operator DatagramConnectionTransportDataTypeCollection(
+            DatagramConnectionTransportDataType[] values
+        )
         {
             if (values != null)
             {
@@ -22678,7 +24859,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator DatagramConnectionTransportDataType[](DatagramConnectionTransportDataTypeCollection values)
+        public static explicit operator DatagramConnectionTransportDataType[](
+            DatagramConnectionTransportDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -22700,7 +24883,9 @@ namespace Opc.Ua
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            DatagramConnectionTransportDataTypeCollection clone = new DatagramConnectionTransportDataTypeCollection(this.Count);
+            DatagramConnectionTransportDataTypeCollection clone = new DatagramConnectionTransportDataTypeCollection(
+                this.Count
+            );
 
             for (int ii = 0; ii < this.Count; ii++)
             {
@@ -22749,32 +24934,56 @@ namespace Opc.Ua
         [DataMember(Name = "DiscoveryAnnounceRate", IsRequired = false, Order = 1)]
         public uint DiscoveryAnnounceRate
         {
-            get { return m_discoveryAnnounceRate; }
-            set { m_discoveryAnnounceRate = value; }
+            get
+            {
+                return m_discoveryAnnounceRate;
+            }
+            set
+            {
+                m_discoveryAnnounceRate = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DiscoveryMaxMessageSize", IsRequired = false, Order = 2)]
         public uint DiscoveryMaxMessageSize
         {
-            get { return m_discoveryMaxMessageSize; }
-            set { m_discoveryMaxMessageSize = value; }
+            get
+            {
+                return m_discoveryMaxMessageSize;
+            }
+            set
+            {
+                m_discoveryMaxMessageSize = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "QosCategory", IsRequired = false, Order = 3)]
         public string QosCategory
         {
-            get { return m_qosCategory; }
-            set { m_qosCategory = value; }
+            get
+            {
+                return m_qosCategory;
+            }
+            set
+            {
+                m_qosCategory = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DatagramQos", IsRequired = false, Order = 4)]
         public ExtensionObjectCollection DatagramQos
         {
-            get { return m_datagramQos; }
-            set { m_datagramQos = value; }
+            get
+            {
+                return m_datagramQos;
+            }
+            set
+            {
+                m_datagramQos = value;
+            }
         }
         #endregion
 
@@ -22783,13 +24992,16 @@ namespace Opc.Ua
         public override ExpandedNodeId TypeId => DataTypeIds.DatagramConnectionTransport2DataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.DatagramConnectionTransport2DataType_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.DatagramConnectionTransport2DataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId => ObjectIds.DatagramConnectionTransport2DataType_Encoding_DefaultXml;
+        public override ExpandedNodeId XmlEncodingId =>
+            ObjectIds.DatagramConnectionTransport2DataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.DatagramConnectionTransport2DataType_Encoding_DefaultJson;
+        public override ExpandedNodeId JsonEncodingId =>
+            ObjectIds.DatagramConnectionTransport2DataType_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -22880,23 +25092,37 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfDatagramConnectionTransport2DataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DatagramConnectionTransport2DataType")]
-    public partial class DatagramConnectionTransport2DataTypeCollection : List<DatagramConnectionTransport2DataType>, ICloneable
+    [CollectionDataContract(
+        Name = "ListOfDatagramConnectionTransport2DataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "DatagramConnectionTransport2DataType"
+    )]
+    public partial class DatagramConnectionTransport2DataTypeCollection
+        : List<DatagramConnectionTransport2DataType>,
+            ICloneable
     {
         #region Constructors
         /// <remarks />
-        public DatagramConnectionTransport2DataTypeCollection() { }
+        public DatagramConnectionTransport2DataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public DatagramConnectionTransport2DataTypeCollection(int capacity) : base(capacity) { }
+        public DatagramConnectionTransport2DataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public DatagramConnectionTransport2DataTypeCollection(IEnumerable<DatagramConnectionTransport2DataType> collection) : base(collection) { }
+        public DatagramConnectionTransport2DataTypeCollection(
+            IEnumerable<DatagramConnectionTransport2DataType> collection
+        )
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator DatagramConnectionTransport2DataTypeCollection(DatagramConnectionTransport2DataType[] values)
+        public static implicit operator DatagramConnectionTransport2DataTypeCollection(
+            DatagramConnectionTransport2DataType[] values
+        )
         {
             if (values != null)
             {
@@ -22907,7 +25133,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator DatagramConnectionTransport2DataType[](DatagramConnectionTransport2DataTypeCollection values)
+        public static explicit operator DatagramConnectionTransport2DataType[](
+            DatagramConnectionTransport2DataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -22929,7 +25157,9 @@ namespace Opc.Ua
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            DatagramConnectionTransport2DataTypeCollection clone = new DatagramConnectionTransport2DataTypeCollection(this.Count);
+            DatagramConnectionTransport2DataTypeCollection clone = new DatagramConnectionTransport2DataTypeCollection(
+                this.Count
+            );
 
             for (int ii = 0; ii < this.Count; ii++)
             {
@@ -22976,16 +25206,28 @@ namespace Opc.Ua
         [DataMember(Name = "MessageRepeatCount", IsRequired = false, Order = 1)]
         public byte MessageRepeatCount
         {
-            get { return m_messageRepeatCount; }
-            set { m_messageRepeatCount = value; }
+            get
+            {
+                return m_messageRepeatCount;
+            }
+            set
+            {
+                m_messageRepeatCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MessageRepeatDelay", IsRequired = false, Order = 2)]
         public double MessageRepeatDelay
         {
-            get { return m_messageRepeatDelay; }
-            set { m_messageRepeatDelay = value; }
+            get
+            {
+                return m_messageRepeatDelay;
+            }
+            set
+            {
+                m_messageRepeatDelay = value;
+            }
         }
         #endregion
 
@@ -22994,13 +25236,16 @@ namespace Opc.Ua
         public override ExpandedNodeId TypeId => DataTypeIds.DatagramWriterGroupTransportDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.DatagramWriterGroupTransportDataType_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.DatagramWriterGroupTransportDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId => ObjectIds.DatagramWriterGroupTransportDataType_Encoding_DefaultXml;
+        public override ExpandedNodeId XmlEncodingId =>
+            ObjectIds.DatagramWriterGroupTransportDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.DatagramWriterGroupTransportDataType_Encoding_DefaultJson;
+        public override ExpandedNodeId JsonEncodingId =>
+            ObjectIds.DatagramWriterGroupTransportDataType_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -23079,23 +25324,37 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfDatagramWriterGroupTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DatagramWriterGroupTransportDataType")]
-    public partial class DatagramWriterGroupTransportDataTypeCollection : List<DatagramWriterGroupTransportDataType>, ICloneable
+    [CollectionDataContract(
+        Name = "ListOfDatagramWriterGroupTransportDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "DatagramWriterGroupTransportDataType"
+    )]
+    public partial class DatagramWriterGroupTransportDataTypeCollection
+        : List<DatagramWriterGroupTransportDataType>,
+            ICloneable
     {
         #region Constructors
         /// <remarks />
-        public DatagramWriterGroupTransportDataTypeCollection() { }
+        public DatagramWriterGroupTransportDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public DatagramWriterGroupTransportDataTypeCollection(int capacity) : base(capacity) { }
+        public DatagramWriterGroupTransportDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public DatagramWriterGroupTransportDataTypeCollection(IEnumerable<DatagramWriterGroupTransportDataType> collection) : base(collection) { }
+        public DatagramWriterGroupTransportDataTypeCollection(
+            IEnumerable<DatagramWriterGroupTransportDataType> collection
+        )
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator DatagramWriterGroupTransportDataTypeCollection(DatagramWriterGroupTransportDataType[] values)
+        public static implicit operator DatagramWriterGroupTransportDataTypeCollection(
+            DatagramWriterGroupTransportDataType[] values
+        )
         {
             if (values != null)
             {
@@ -23106,7 +25365,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator DatagramWriterGroupTransportDataType[](DatagramWriterGroupTransportDataTypeCollection values)
+        public static explicit operator DatagramWriterGroupTransportDataType[](
+            DatagramWriterGroupTransportDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -23128,7 +25389,9 @@ namespace Opc.Ua
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            DatagramWriterGroupTransportDataTypeCollection clone = new DatagramWriterGroupTransportDataTypeCollection(this.Count);
+            DatagramWriterGroupTransportDataTypeCollection clone = new DatagramWriterGroupTransportDataTypeCollection(
+                this.Count
+            );
 
             for (int ii = 0; ii < this.Count; ii++)
             {
@@ -23178,40 +25441,70 @@ namespace Opc.Ua
         [DataMember(Name = "Address", IsRequired = false, Order = 1)]
         public ExtensionObject Address
         {
-            get { return m_address; }
-            set { m_address = value; }
+            get
+            {
+                return m_address;
+            }
+            set
+            {
+                m_address = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "QosCategory", IsRequired = false, Order = 2)]
         public string QosCategory
         {
-            get { return m_qosCategory; }
-            set { m_qosCategory = value; }
+            get
+            {
+                return m_qosCategory;
+            }
+            set
+            {
+                m_qosCategory = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DatagramQos", IsRequired = false, Order = 3)]
         public ExtensionObjectCollection DatagramQos
         {
-            get { return m_datagramQos; }
-            set { m_datagramQos = value; }
+            get
+            {
+                return m_datagramQos;
+            }
+            set
+            {
+                m_datagramQos = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DiscoveryAnnounceRate", IsRequired = false, Order = 4)]
         public uint DiscoveryAnnounceRate
         {
-            get { return m_discoveryAnnounceRate; }
-            set { m_discoveryAnnounceRate = value; }
+            get
+            {
+                return m_discoveryAnnounceRate;
+            }
+            set
+            {
+                m_discoveryAnnounceRate = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Topic", IsRequired = false, Order = 5)]
         public string Topic
         {
-            get { return m_topic; }
-            set { m_topic = value; }
+            get
+            {
+                return m_topic;
+            }
+            set
+            {
+                m_topic = value;
+            }
         }
         #endregion
 
@@ -23220,13 +25513,16 @@ namespace Opc.Ua
         public override ExpandedNodeId TypeId => DataTypeIds.DatagramWriterGroupTransport2DataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.DatagramWriterGroupTransport2DataType_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.DatagramWriterGroupTransport2DataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId => ObjectIds.DatagramWriterGroupTransport2DataType_Encoding_DefaultXml;
+        public override ExpandedNodeId XmlEncodingId =>
+            ObjectIds.DatagramWriterGroupTransport2DataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.DatagramWriterGroupTransport2DataType_Encoding_DefaultJson;
+        public override ExpandedNodeId JsonEncodingId =>
+            ObjectIds.DatagramWriterGroupTransport2DataType_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -23323,23 +25619,37 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfDatagramWriterGroupTransport2DataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DatagramWriterGroupTransport2DataType")]
-    public partial class DatagramWriterGroupTransport2DataTypeCollection : List<DatagramWriterGroupTransport2DataType>, ICloneable
+    [CollectionDataContract(
+        Name = "ListOfDatagramWriterGroupTransport2DataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "DatagramWriterGroupTransport2DataType"
+    )]
+    public partial class DatagramWriterGroupTransport2DataTypeCollection
+        : List<DatagramWriterGroupTransport2DataType>,
+            ICloneable
     {
         #region Constructors
         /// <remarks />
-        public DatagramWriterGroupTransport2DataTypeCollection() { }
+        public DatagramWriterGroupTransport2DataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public DatagramWriterGroupTransport2DataTypeCollection(int capacity) : base(capacity) { }
+        public DatagramWriterGroupTransport2DataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public DatagramWriterGroupTransport2DataTypeCollection(IEnumerable<DatagramWriterGroupTransport2DataType> collection) : base(collection) { }
+        public DatagramWriterGroupTransport2DataTypeCollection(
+            IEnumerable<DatagramWriterGroupTransport2DataType> collection
+        )
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator DatagramWriterGroupTransport2DataTypeCollection(DatagramWriterGroupTransport2DataType[] values)
+        public static implicit operator DatagramWriterGroupTransport2DataTypeCollection(
+            DatagramWriterGroupTransport2DataType[] values
+        )
         {
             if (values != null)
             {
@@ -23350,7 +25660,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator DatagramWriterGroupTransport2DataType[](DatagramWriterGroupTransport2DataTypeCollection values)
+        public static explicit operator DatagramWriterGroupTransport2DataType[](
+            DatagramWriterGroupTransport2DataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -23372,7 +25684,9 @@ namespace Opc.Ua
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            DatagramWriterGroupTransport2DataTypeCollection clone = new DatagramWriterGroupTransport2DataTypeCollection(this.Count);
+            DatagramWriterGroupTransport2DataTypeCollection clone = new DatagramWriterGroupTransport2DataTypeCollection(
+                this.Count
+            );
 
             for (int ii = 0; ii < this.Count; ii++)
             {
@@ -23421,32 +25735,56 @@ namespace Opc.Ua
         [DataMember(Name = "Address", IsRequired = false, Order = 1)]
         public ExtensionObject Address
         {
-            get { return m_address; }
-            set { m_address = value; }
+            get
+            {
+                return m_address;
+            }
+            set
+            {
+                m_address = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "QosCategory", IsRequired = false, Order = 2)]
         public string QosCategory
         {
-            get { return m_qosCategory; }
-            set { m_qosCategory = value; }
+            get
+            {
+                return m_qosCategory;
+            }
+            set
+            {
+                m_qosCategory = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DatagramQos", IsRequired = false, Order = 3)]
         public ExtensionObjectCollection DatagramQos
         {
-            get { return m_datagramQos; }
-            set { m_datagramQos = value; }
+            get
+            {
+                return m_datagramQos;
+            }
+            set
+            {
+                m_datagramQos = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Topic", IsRequired = false, Order = 4)]
         public string Topic
         {
-            get { return m_topic; }
-            set { m_topic = value; }
+            get
+            {
+                return m_topic;
+            }
+            set
+            {
+                m_topic = value;
+            }
         }
         #endregion
 
@@ -23455,13 +25793,16 @@ namespace Opc.Ua
         public override ExpandedNodeId TypeId => DataTypeIds.DatagramDataSetReaderTransportDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.DatagramDataSetReaderTransportDataType_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.DatagramDataSetReaderTransportDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId => ObjectIds.DatagramDataSetReaderTransportDataType_Encoding_DefaultXml;
+        public override ExpandedNodeId XmlEncodingId =>
+            ObjectIds.DatagramDataSetReaderTransportDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.DatagramDataSetReaderTransportDataType_Encoding_DefaultJson;
+        public override ExpandedNodeId JsonEncodingId =>
+            ObjectIds.DatagramDataSetReaderTransportDataType_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -23529,7 +25870,8 @@ namespace Opc.Ua
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            DatagramDataSetReaderTransportDataType clone = (DatagramDataSetReaderTransportDataType)base.MemberwiseClone();
+            DatagramDataSetReaderTransportDataType clone = (DatagramDataSetReaderTransportDataType)
+                base.MemberwiseClone();
 
             clone.m_address = (ExtensionObject)Utils.Clone(this.m_address);
             clone.m_qosCategory = (string)Utils.Clone(this.m_qosCategory);
@@ -23552,23 +25894,37 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfDatagramDataSetReaderTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DatagramDataSetReaderTransportDataType")]
-    public partial class DatagramDataSetReaderTransportDataTypeCollection : List<DatagramDataSetReaderTransportDataType>, ICloneable
+    [CollectionDataContract(
+        Name = "ListOfDatagramDataSetReaderTransportDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "DatagramDataSetReaderTransportDataType"
+    )]
+    public partial class DatagramDataSetReaderTransportDataTypeCollection
+        : List<DatagramDataSetReaderTransportDataType>,
+            ICloneable
     {
         #region Constructors
         /// <remarks />
-        public DatagramDataSetReaderTransportDataTypeCollection() { }
+        public DatagramDataSetReaderTransportDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public DatagramDataSetReaderTransportDataTypeCollection(int capacity) : base(capacity) { }
+        public DatagramDataSetReaderTransportDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public DatagramDataSetReaderTransportDataTypeCollection(IEnumerable<DatagramDataSetReaderTransportDataType> collection) : base(collection) { }
+        public DatagramDataSetReaderTransportDataTypeCollection(
+            IEnumerable<DatagramDataSetReaderTransportDataType> collection
+        )
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator DatagramDataSetReaderTransportDataTypeCollection(DatagramDataSetReaderTransportDataType[] values)
+        public static implicit operator DatagramDataSetReaderTransportDataTypeCollection(
+            DatagramDataSetReaderTransportDataType[] values
+        )
         {
             if (values != null)
             {
@@ -23579,7 +25935,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator DatagramDataSetReaderTransportDataType[](DatagramDataSetReaderTransportDataTypeCollection values)
+        public static explicit operator DatagramDataSetReaderTransportDataType[](
+            DatagramDataSetReaderTransportDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -23601,7 +25959,8 @@ namespace Opc.Ua
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            DatagramDataSetReaderTransportDataTypeCollection clone = new DatagramDataSetReaderTransportDataTypeCollection(this.Count);
+            DatagramDataSetReaderTransportDataTypeCollection clone =
+                new DatagramDataSetReaderTransportDataTypeCollection(this.Count);
 
             for (int ii = 0; ii < this.Count; ii++)
             {
@@ -23651,8 +26010,14 @@ namespace Opc.Ua
         [DataMember(Name = "ClientCipherSuite", IsRequired = false, Order = 1)]
         public string ClientCipherSuite
         {
-            get { return m_clientCipherSuite; }
-            set { m_clientCipherSuite = value; }
+            get
+            {
+                return m_clientCipherSuite;
+            }
+            set
+            {
+                m_clientCipherSuite = value;
+            }
         }
 
         /// <remarks />
@@ -23663,7 +26028,6 @@ namespace Opc.Ua
             {
                 return m_serverCipherSuites;
             }
-
             set
             {
                 m_serverCipherSuites = value;
@@ -23679,24 +26043,42 @@ namespace Opc.Ua
         [DataMember(Name = "ZeroRTT", IsRequired = false, Order = 3)]
         public bool ZeroRTT
         {
-            get { return m_zeroRTT; }
-            set { m_zeroRTT = value; }
+            get
+            {
+                return m_zeroRTT;
+            }
+            set
+            {
+                m_zeroRTT = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "CertificateGroupId", IsRequired = false, Order = 4)]
         public NodeId CertificateGroupId
         {
-            get { return m_certificateGroupId; }
-            set { m_certificateGroupId = value; }
+            get
+            {
+                return m_certificateGroupId;
+            }
+            set
+            {
+                m_certificateGroupId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "VerifyClientCertificate", IsRequired = false, Order = 5)]
         public bool VerifyClientCertificate
         {
-            get { return m_verifyClientCertificate; }
-            set { m_verifyClientCertificate = value; }
+            get
+            {
+                return m_verifyClientCertificate;
+            }
+            set
+            {
+                m_verifyClientCertificate = value;
+            }
         }
         #endregion
 
@@ -23804,18 +26186,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfDtlsPubSubConnectionDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DtlsPubSubConnectionDataType")]
+    [CollectionDataContract(
+        Name = "ListOfDtlsPubSubConnectionDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "DtlsPubSubConnectionDataType"
+    )]
     public partial class DtlsPubSubConnectionDataTypeCollection : List<DtlsPubSubConnectionDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public DtlsPubSubConnectionDataTypeCollection() { }
+        public DtlsPubSubConnectionDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public DtlsPubSubConnectionDataTypeCollection(int capacity) : base(capacity) { }
+        public DtlsPubSubConnectionDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public DtlsPubSubConnectionDataTypeCollection(IEnumerable<DtlsPubSubConnectionDataType> collection) : base(collection) { }
+        public DtlsPubSubConnectionDataTypeCollection(IEnumerable<DtlsPubSubConnectionDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -23900,16 +26290,28 @@ namespace Opc.Ua
         [DataMember(Name = "ResourceUri", IsRequired = false, Order = 1)]
         public string ResourceUri
         {
-            get { return m_resourceUri; }
-            set { m_resourceUri = value; }
+            get
+            {
+                return m_resourceUri;
+            }
+            set
+            {
+                m_resourceUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "AuthenticationProfileUri", IsRequired = false, Order = 2)]
         public string AuthenticationProfileUri
         {
-            get { return m_authenticationProfileUri; }
-            set { m_authenticationProfileUri = value; }
+            get
+            {
+                return m_authenticationProfileUri;
+            }
+            set
+            {
+                m_authenticationProfileUri = value;
+            }
         }
         #endregion
 
@@ -23918,13 +26320,15 @@ namespace Opc.Ua
         public override ExpandedNodeId TypeId => DataTypeIds.BrokerConnectionTransportDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.BrokerConnectionTransportDataType_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.BrokerConnectionTransportDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public override ExpandedNodeId XmlEncodingId => ObjectIds.BrokerConnectionTransportDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.BrokerConnectionTransportDataType_Encoding_DefaultJson;
+        public override ExpandedNodeId JsonEncodingId =>
+            ObjectIds.BrokerConnectionTransportDataType_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -24003,23 +26407,35 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfBrokerConnectionTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrokerConnectionTransportDataType")]
-    public partial class BrokerConnectionTransportDataTypeCollection : List<BrokerConnectionTransportDataType>, ICloneable
+    [CollectionDataContract(
+        Name = "ListOfBrokerConnectionTransportDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "BrokerConnectionTransportDataType"
+    )]
+    public partial class BrokerConnectionTransportDataTypeCollection
+        : List<BrokerConnectionTransportDataType>,
+            ICloneable
     {
         #region Constructors
         /// <remarks />
-        public BrokerConnectionTransportDataTypeCollection() { }
+        public BrokerConnectionTransportDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public BrokerConnectionTransportDataTypeCollection(int capacity) : base(capacity) { }
+        public BrokerConnectionTransportDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public BrokerConnectionTransportDataTypeCollection(IEnumerable<BrokerConnectionTransportDataType> collection) : base(collection) { }
+        public BrokerConnectionTransportDataTypeCollection(IEnumerable<BrokerConnectionTransportDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator BrokerConnectionTransportDataTypeCollection(BrokerConnectionTransportDataType[] values)
+        public static implicit operator BrokerConnectionTransportDataTypeCollection(
+            BrokerConnectionTransportDataType[] values
+        )
         {
             if (values != null)
             {
@@ -24030,7 +26446,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator BrokerConnectionTransportDataType[](BrokerConnectionTransportDataTypeCollection values)
+        public static explicit operator BrokerConnectionTransportDataType[](
+            BrokerConnectionTransportDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -24052,7 +26470,9 @@ namespace Opc.Ua
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            BrokerConnectionTransportDataTypeCollection clone = new BrokerConnectionTransportDataTypeCollection(this.Count);
+            BrokerConnectionTransportDataTypeCollection clone = new BrokerConnectionTransportDataTypeCollection(
+                this.Count
+            );
 
             for (int ii = 0; ii < this.Count; ii++)
             {
@@ -24099,23 +26519,33 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfBrokerTransportQualityOfService", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrokerTransportQualityOfService")]
+    [CollectionDataContract(
+        Name = "ListOfBrokerTransportQualityOfService",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "BrokerTransportQualityOfService"
+    )]
     public partial class BrokerTransportQualityOfServiceCollection : List<BrokerTransportQualityOfService>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public BrokerTransportQualityOfServiceCollection() { }
+        public BrokerTransportQualityOfServiceCollection()
+        {
+        }
 
         /// <remarks />
-        public BrokerTransportQualityOfServiceCollection(int capacity) : base(capacity) { }
+        public BrokerTransportQualityOfServiceCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public BrokerTransportQualityOfServiceCollection(IEnumerable<BrokerTransportQualityOfService> collection) : base(collection) { }
+        public BrokerTransportQualityOfServiceCollection(IEnumerable<BrokerTransportQualityOfService> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator BrokerTransportQualityOfServiceCollection(BrokerTransportQualityOfService[] values)
+        public static implicit operator BrokerTransportQualityOfServiceCollection(
+            BrokerTransportQualityOfService[] values
+        )
         {
             if (values != null)
             {
@@ -24126,7 +26556,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator BrokerTransportQualityOfService[](BrokerTransportQualityOfServiceCollection values)
+        public static explicit operator BrokerTransportQualityOfService[](
+            BrokerTransportQualityOfServiceCollection values
+        )
         {
             if (values != null)
             {
@@ -24197,32 +26629,56 @@ namespace Opc.Ua
         [DataMember(Name = "QueueName", IsRequired = false, Order = 1)]
         public string QueueName
         {
-            get { return m_queueName; }
-            set { m_queueName = value; }
+            get
+            {
+                return m_queueName;
+            }
+            set
+            {
+                m_queueName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ResourceUri", IsRequired = false, Order = 2)]
         public string ResourceUri
         {
-            get { return m_resourceUri; }
-            set { m_resourceUri = value; }
+            get
+            {
+                return m_resourceUri;
+            }
+            set
+            {
+                m_resourceUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "AuthenticationProfileUri", IsRequired = false, Order = 3)]
         public string AuthenticationProfileUri
         {
-            get { return m_authenticationProfileUri; }
-            set { m_authenticationProfileUri = value; }
+            get
+            {
+                return m_authenticationProfileUri;
+            }
+            set
+            {
+                m_authenticationProfileUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RequestedDeliveryGuarantee", IsRequired = false, Order = 4)]
         public BrokerTransportQualityOfService RequestedDeliveryGuarantee
         {
-            get { return m_requestedDeliveryGuarantee; }
-            set { m_requestedDeliveryGuarantee = value; }
+            get
+            {
+                return m_requestedDeliveryGuarantee;
+            }
+            set
+            {
+                m_requestedDeliveryGuarantee = value;
+            }
         }
         #endregion
 
@@ -24231,13 +26687,16 @@ namespace Opc.Ua
         public override ExpandedNodeId TypeId => DataTypeIds.BrokerWriterGroupTransportDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.BrokerWriterGroupTransportDataType_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.BrokerWriterGroupTransportDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId => ObjectIds.BrokerWriterGroupTransportDataType_Encoding_DefaultXml;
+        public override ExpandedNodeId XmlEncodingId =>
+            ObjectIds.BrokerWriterGroupTransportDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.BrokerWriterGroupTransportDataType_Encoding_DefaultJson;
+        public override ExpandedNodeId JsonEncodingId =>
+            ObjectIds.BrokerWriterGroupTransportDataType_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -24264,7 +26723,8 @@ namespace Opc.Ua
             QueueName = decoder.ReadString("QueueName");
             ResourceUri = decoder.ReadString("ResourceUri");
             AuthenticationProfileUri = decoder.ReadString("AuthenticationProfileUri");
-            RequestedDeliveryGuarantee = (BrokerTransportQualityOfService)decoder.ReadEnumerated("RequestedDeliveryGuarantee", typeof(BrokerTransportQualityOfService));
+            RequestedDeliveryGuarantee = (BrokerTransportQualityOfService)
+                decoder.ReadEnumerated("RequestedDeliveryGuarantee", typeof(BrokerTransportQualityOfService));
 
             decoder.PopNamespace();
         }
@@ -24310,7 +26770,8 @@ namespace Opc.Ua
             clone.m_queueName = (string)Utils.Clone(this.m_queueName);
             clone.m_resourceUri = (string)Utils.Clone(this.m_resourceUri);
             clone.m_authenticationProfileUri = (string)Utils.Clone(this.m_authenticationProfileUri);
-            clone.m_requestedDeliveryGuarantee = (BrokerTransportQualityOfService)Utils.Clone(this.m_requestedDeliveryGuarantee);
+            clone.m_requestedDeliveryGuarantee = (BrokerTransportQualityOfService)
+                Utils.Clone(this.m_requestedDeliveryGuarantee);
 
             return clone;
         }
@@ -24328,23 +26789,35 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfBrokerWriterGroupTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrokerWriterGroupTransportDataType")]
-    public partial class BrokerWriterGroupTransportDataTypeCollection : List<BrokerWriterGroupTransportDataType>, ICloneable
+    [CollectionDataContract(
+        Name = "ListOfBrokerWriterGroupTransportDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "BrokerWriterGroupTransportDataType"
+    )]
+    public partial class BrokerWriterGroupTransportDataTypeCollection
+        : List<BrokerWriterGroupTransportDataType>,
+            ICloneable
     {
         #region Constructors
         /// <remarks />
-        public BrokerWriterGroupTransportDataTypeCollection() { }
+        public BrokerWriterGroupTransportDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public BrokerWriterGroupTransportDataTypeCollection(int capacity) : base(capacity) { }
+        public BrokerWriterGroupTransportDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public BrokerWriterGroupTransportDataTypeCollection(IEnumerable<BrokerWriterGroupTransportDataType> collection) : base(collection) { }
+        public BrokerWriterGroupTransportDataTypeCollection(IEnumerable<BrokerWriterGroupTransportDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator BrokerWriterGroupTransportDataTypeCollection(BrokerWriterGroupTransportDataType[] values)
+        public static implicit operator BrokerWriterGroupTransportDataTypeCollection(
+            BrokerWriterGroupTransportDataType[] values
+        )
         {
             if (values != null)
             {
@@ -24355,7 +26828,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator BrokerWriterGroupTransportDataType[](BrokerWriterGroupTransportDataTypeCollection values)
+        public static explicit operator BrokerWriterGroupTransportDataType[](
+            BrokerWriterGroupTransportDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -24377,7 +26852,9 @@ namespace Opc.Ua
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            BrokerWriterGroupTransportDataTypeCollection clone = new BrokerWriterGroupTransportDataTypeCollection(this.Count);
+            BrokerWriterGroupTransportDataTypeCollection clone = new BrokerWriterGroupTransportDataTypeCollection(
+                this.Count
+            );
 
             for (int ii = 0; ii < this.Count; ii++)
             {
@@ -24428,48 +26905,84 @@ namespace Opc.Ua
         [DataMember(Name = "QueueName", IsRequired = false, Order = 1)]
         public string QueueName
         {
-            get { return m_queueName; }
-            set { m_queueName = value; }
+            get
+            {
+                return m_queueName;
+            }
+            set
+            {
+                m_queueName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ResourceUri", IsRequired = false, Order = 2)]
         public string ResourceUri
         {
-            get { return m_resourceUri; }
-            set { m_resourceUri = value; }
+            get
+            {
+                return m_resourceUri;
+            }
+            set
+            {
+                m_resourceUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "AuthenticationProfileUri", IsRequired = false, Order = 3)]
         public string AuthenticationProfileUri
         {
-            get { return m_authenticationProfileUri; }
-            set { m_authenticationProfileUri = value; }
+            get
+            {
+                return m_authenticationProfileUri;
+            }
+            set
+            {
+                m_authenticationProfileUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RequestedDeliveryGuarantee", IsRequired = false, Order = 4)]
         public BrokerTransportQualityOfService RequestedDeliveryGuarantee
         {
-            get { return m_requestedDeliveryGuarantee; }
-            set { m_requestedDeliveryGuarantee = value; }
+            get
+            {
+                return m_requestedDeliveryGuarantee;
+            }
+            set
+            {
+                m_requestedDeliveryGuarantee = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MetaDataQueueName", IsRequired = false, Order = 5)]
         public string MetaDataQueueName
         {
-            get { return m_metaDataQueueName; }
-            set { m_metaDataQueueName = value; }
+            get
+            {
+                return m_metaDataQueueName;
+            }
+            set
+            {
+                m_metaDataQueueName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MetaDataUpdateTime", IsRequired = false, Order = 6)]
         public double MetaDataUpdateTime
         {
-            get { return m_metaDataUpdateTime; }
-            set { m_metaDataUpdateTime = value; }
+            get
+            {
+                return m_metaDataUpdateTime;
+            }
+            set
+            {
+                m_metaDataUpdateTime = value;
+            }
         }
         #endregion
 
@@ -24478,13 +26991,16 @@ namespace Opc.Ua
         public override ExpandedNodeId TypeId => DataTypeIds.BrokerDataSetWriterTransportDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.BrokerDataSetWriterTransportDataType_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.BrokerDataSetWriterTransportDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId => ObjectIds.BrokerDataSetWriterTransportDataType_Encoding_DefaultXml;
+        public override ExpandedNodeId XmlEncodingId =>
+            ObjectIds.BrokerDataSetWriterTransportDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.BrokerDataSetWriterTransportDataType_Encoding_DefaultJson;
+        public override ExpandedNodeId JsonEncodingId =>
+            ObjectIds.BrokerDataSetWriterTransportDataType_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -24513,7 +27029,8 @@ namespace Opc.Ua
             QueueName = decoder.ReadString("QueueName");
             ResourceUri = decoder.ReadString("ResourceUri");
             AuthenticationProfileUri = decoder.ReadString("AuthenticationProfileUri");
-            RequestedDeliveryGuarantee = (BrokerTransportQualityOfService)decoder.ReadEnumerated("RequestedDeliveryGuarantee", typeof(BrokerTransportQualityOfService));
+            RequestedDeliveryGuarantee = (BrokerTransportQualityOfService)
+                decoder.ReadEnumerated("RequestedDeliveryGuarantee", typeof(BrokerTransportQualityOfService));
             MetaDataQueueName = decoder.ReadString("MetaDataQueueName");
             MetaDataUpdateTime = decoder.ReadDouble("MetaDataUpdateTime");
 
@@ -24565,7 +27082,8 @@ namespace Opc.Ua
             clone.m_queueName = (string)Utils.Clone(this.m_queueName);
             clone.m_resourceUri = (string)Utils.Clone(this.m_resourceUri);
             clone.m_authenticationProfileUri = (string)Utils.Clone(this.m_authenticationProfileUri);
-            clone.m_requestedDeliveryGuarantee = (BrokerTransportQualityOfService)Utils.Clone(this.m_requestedDeliveryGuarantee);
+            clone.m_requestedDeliveryGuarantee = (BrokerTransportQualityOfService)
+                Utils.Clone(this.m_requestedDeliveryGuarantee);
             clone.m_metaDataQueueName = (string)Utils.Clone(this.m_metaDataQueueName);
             clone.m_metaDataUpdateTime = (double)Utils.Clone(this.m_metaDataUpdateTime);
 
@@ -24587,23 +27105,37 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfBrokerDataSetWriterTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrokerDataSetWriterTransportDataType")]
-    public partial class BrokerDataSetWriterTransportDataTypeCollection : List<BrokerDataSetWriterTransportDataType>, ICloneable
+    [CollectionDataContract(
+        Name = "ListOfBrokerDataSetWriterTransportDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "BrokerDataSetWriterTransportDataType"
+    )]
+    public partial class BrokerDataSetWriterTransportDataTypeCollection
+        : List<BrokerDataSetWriterTransportDataType>,
+            ICloneable
     {
         #region Constructors
         /// <remarks />
-        public BrokerDataSetWriterTransportDataTypeCollection() { }
+        public BrokerDataSetWriterTransportDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public BrokerDataSetWriterTransportDataTypeCollection(int capacity) : base(capacity) { }
+        public BrokerDataSetWriterTransportDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public BrokerDataSetWriterTransportDataTypeCollection(IEnumerable<BrokerDataSetWriterTransportDataType> collection) : base(collection) { }
+        public BrokerDataSetWriterTransportDataTypeCollection(
+            IEnumerable<BrokerDataSetWriterTransportDataType> collection
+        )
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator BrokerDataSetWriterTransportDataTypeCollection(BrokerDataSetWriterTransportDataType[] values)
+        public static implicit operator BrokerDataSetWriterTransportDataTypeCollection(
+            BrokerDataSetWriterTransportDataType[] values
+        )
         {
             if (values != null)
             {
@@ -24614,7 +27146,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator BrokerDataSetWriterTransportDataType[](BrokerDataSetWriterTransportDataTypeCollection values)
+        public static explicit operator BrokerDataSetWriterTransportDataType[](
+            BrokerDataSetWriterTransportDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -24636,7 +27170,9 @@ namespace Opc.Ua
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            BrokerDataSetWriterTransportDataTypeCollection clone = new BrokerDataSetWriterTransportDataTypeCollection(this.Count);
+            BrokerDataSetWriterTransportDataTypeCollection clone = new BrokerDataSetWriterTransportDataTypeCollection(
+                this.Count
+            );
 
             for (int ii = 0; ii < this.Count; ii++)
             {
@@ -24686,40 +27222,70 @@ namespace Opc.Ua
         [DataMember(Name = "QueueName", IsRequired = false, Order = 1)]
         public string QueueName
         {
-            get { return m_queueName; }
-            set { m_queueName = value; }
+            get
+            {
+                return m_queueName;
+            }
+            set
+            {
+                m_queueName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ResourceUri", IsRequired = false, Order = 2)]
         public string ResourceUri
         {
-            get { return m_resourceUri; }
-            set { m_resourceUri = value; }
+            get
+            {
+                return m_resourceUri;
+            }
+            set
+            {
+                m_resourceUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "AuthenticationProfileUri", IsRequired = false, Order = 3)]
         public string AuthenticationProfileUri
         {
-            get { return m_authenticationProfileUri; }
-            set { m_authenticationProfileUri = value; }
+            get
+            {
+                return m_authenticationProfileUri;
+            }
+            set
+            {
+                m_authenticationProfileUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RequestedDeliveryGuarantee", IsRequired = false, Order = 4)]
         public BrokerTransportQualityOfService RequestedDeliveryGuarantee
         {
-            get { return m_requestedDeliveryGuarantee; }
-            set { m_requestedDeliveryGuarantee = value; }
+            get
+            {
+                return m_requestedDeliveryGuarantee;
+            }
+            set
+            {
+                m_requestedDeliveryGuarantee = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MetaDataQueueName", IsRequired = false, Order = 5)]
         public string MetaDataQueueName
         {
-            get { return m_metaDataQueueName; }
-            set { m_metaDataQueueName = value; }
+            get
+            {
+                return m_metaDataQueueName;
+            }
+            set
+            {
+                m_metaDataQueueName = value;
+            }
         }
         #endregion
 
@@ -24728,13 +27294,16 @@ namespace Opc.Ua
         public override ExpandedNodeId TypeId => DataTypeIds.BrokerDataSetReaderTransportDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public override ExpandedNodeId BinaryEncodingId => ObjectIds.BrokerDataSetReaderTransportDataType_Encoding_DefaultBinary;
+        public override ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.BrokerDataSetReaderTransportDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public override ExpandedNodeId XmlEncodingId => ObjectIds.BrokerDataSetReaderTransportDataType_Encoding_DefaultXml;
+        public override ExpandedNodeId XmlEncodingId =>
+            ObjectIds.BrokerDataSetReaderTransportDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.BrokerDataSetReaderTransportDataType_Encoding_DefaultJson;
+        public override ExpandedNodeId JsonEncodingId =>
+            ObjectIds.BrokerDataSetReaderTransportDataType_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
@@ -24762,7 +27331,8 @@ namespace Opc.Ua
             QueueName = decoder.ReadString("QueueName");
             ResourceUri = decoder.ReadString("ResourceUri");
             AuthenticationProfileUri = decoder.ReadString("AuthenticationProfileUri");
-            RequestedDeliveryGuarantee = (BrokerTransportQualityOfService)decoder.ReadEnumerated("RequestedDeliveryGuarantee", typeof(BrokerTransportQualityOfService));
+            RequestedDeliveryGuarantee = (BrokerTransportQualityOfService)
+                decoder.ReadEnumerated("RequestedDeliveryGuarantee", typeof(BrokerTransportQualityOfService));
             MetaDataQueueName = decoder.ReadString("MetaDataQueueName");
 
             decoder.PopNamespace();
@@ -24811,7 +27381,8 @@ namespace Opc.Ua
             clone.m_queueName = (string)Utils.Clone(this.m_queueName);
             clone.m_resourceUri = (string)Utils.Clone(this.m_resourceUri);
             clone.m_authenticationProfileUri = (string)Utils.Clone(this.m_authenticationProfileUri);
-            clone.m_requestedDeliveryGuarantee = (BrokerTransportQualityOfService)Utils.Clone(this.m_requestedDeliveryGuarantee);
+            clone.m_requestedDeliveryGuarantee = (BrokerTransportQualityOfService)
+                Utils.Clone(this.m_requestedDeliveryGuarantee);
             clone.m_metaDataQueueName = (string)Utils.Clone(this.m_metaDataQueueName);
 
             return clone;
@@ -24831,23 +27402,37 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfBrokerDataSetReaderTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrokerDataSetReaderTransportDataType")]
-    public partial class BrokerDataSetReaderTransportDataTypeCollection : List<BrokerDataSetReaderTransportDataType>, ICloneable
+    [CollectionDataContract(
+        Name = "ListOfBrokerDataSetReaderTransportDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "BrokerDataSetReaderTransportDataType"
+    )]
+    public partial class BrokerDataSetReaderTransportDataTypeCollection
+        : List<BrokerDataSetReaderTransportDataType>,
+            ICloneable
     {
         #region Constructors
         /// <remarks />
-        public BrokerDataSetReaderTransportDataTypeCollection() { }
+        public BrokerDataSetReaderTransportDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public BrokerDataSetReaderTransportDataTypeCollection(int capacity) : base(capacity) { }
+        public BrokerDataSetReaderTransportDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public BrokerDataSetReaderTransportDataTypeCollection(IEnumerable<BrokerDataSetReaderTransportDataType> collection) : base(collection) { }
+        public BrokerDataSetReaderTransportDataTypeCollection(
+            IEnumerable<BrokerDataSetReaderTransportDataType> collection
+        )
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator BrokerDataSetReaderTransportDataTypeCollection(BrokerDataSetReaderTransportDataType[] values)
+        public static implicit operator BrokerDataSetReaderTransportDataTypeCollection(
+            BrokerDataSetReaderTransportDataType[] values
+        )
         {
             if (values != null)
             {
@@ -24858,7 +27443,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator BrokerDataSetReaderTransportDataType[](BrokerDataSetReaderTransportDataTypeCollection values)
+        public static explicit operator BrokerDataSetReaderTransportDataType[](
+            BrokerDataSetReaderTransportDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -24880,7 +27467,9 @@ namespace Opc.Ua
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            BrokerDataSetReaderTransportDataTypeCollection clone = new BrokerDataSetReaderTransportDataTypeCollection(this.Count);
+            BrokerDataSetReaderTransportDataTypeCollection clone = new BrokerDataSetReaderTransportDataTypeCollection(
+                this.Count
+            );
 
             for (int ii = 0; ii < this.Count; ii++)
             {
@@ -24964,18 +27553,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfPubSubConfigurationRefMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubConfigurationRefMask")]
+    [CollectionDataContract(
+        Name = "ListOfPubSubConfigurationRefMask",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "PubSubConfigurationRefMask"
+    )]
     public partial class PubSubConfigurationRefMaskCollection : List<PubSubConfigurationRefMask>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public PubSubConfigurationRefMaskCollection() { }
+        public PubSubConfigurationRefMaskCollection()
+        {
+        }
 
         /// <remarks />
-        public PubSubConfigurationRefMaskCollection(int capacity) : base(capacity) { }
+        public PubSubConfigurationRefMaskCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public PubSubConfigurationRefMaskCollection(IEnumerable<PubSubConfigurationRefMask> collection) : base(collection) { }
+        public PubSubConfigurationRefMaskCollection(IEnumerable<PubSubConfigurationRefMask> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -25062,32 +27659,56 @@ namespace Opc.Ua
         [DataMember(Name = "ConfigurationMask", IsRequired = false, Order = 1)]
         public uint ConfigurationMask
         {
-            get { return m_configurationMask; }
-            set { m_configurationMask = value; }
+            get
+            {
+                return m_configurationMask;
+            }
+            set
+            {
+                m_configurationMask = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ElementIndex", IsRequired = false, Order = 2)]
         public ushort ElementIndex
         {
-            get { return m_elementIndex; }
-            set { m_elementIndex = value; }
+            get
+            {
+                return m_elementIndex;
+            }
+            set
+            {
+                m_elementIndex = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ConnectionIndex", IsRequired = false, Order = 3)]
         public ushort ConnectionIndex
         {
-            get { return m_connectionIndex; }
-            set { m_connectionIndex = value; }
+            get
+            {
+                return m_connectionIndex;
+            }
+            set
+            {
+                m_connectionIndex = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "GroupIndex", IsRequired = false, Order = 4)]
         public ushort GroupIndex
         {
-            get { return m_groupIndex; }
-            set { m_groupIndex = value; }
+            get
+            {
+                return m_groupIndex;
+            }
+            set
+            {
+                m_groupIndex = value;
+            }
         }
         #endregion
 
@@ -25096,7 +27717,8 @@ namespace Opc.Ua
         public virtual ExpandedNodeId TypeId => DataTypeIds.PubSubConfigurationRefDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PubSubConfigurationRefDataType_Encoding_DefaultBinary;
+        public virtual ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.PubSubConfigurationRefDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PubSubConfigurationRefDataType_Encoding_DefaultXml;
@@ -25189,23 +27811,33 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfPubSubConfigurationRefDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubConfigurationRefDataType")]
+    [CollectionDataContract(
+        Name = "ListOfPubSubConfigurationRefDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "PubSubConfigurationRefDataType"
+    )]
     public partial class PubSubConfigurationRefDataTypeCollection : List<PubSubConfigurationRefDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public PubSubConfigurationRefDataTypeCollection() { }
+        public PubSubConfigurationRefDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public PubSubConfigurationRefDataTypeCollection(int capacity) : base(capacity) { }
+        public PubSubConfigurationRefDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public PubSubConfigurationRefDataTypeCollection(IEnumerable<PubSubConfigurationRefDataType> collection) : base(collection) { }
+        public PubSubConfigurationRefDataTypeCollection(IEnumerable<PubSubConfigurationRefDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator PubSubConfigurationRefDataTypeCollection(PubSubConfigurationRefDataType[] values)
+        public static implicit operator PubSubConfigurationRefDataTypeCollection(
+            PubSubConfigurationRefDataType[] values
+        )
         {
             if (values != null)
             {
@@ -25216,7 +27848,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator PubSubConfigurationRefDataType[](PubSubConfigurationRefDataTypeCollection values)
+        public static explicit operator PubSubConfigurationRefDataType[](
+            PubSubConfigurationRefDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -25290,7 +27924,6 @@ namespace Opc.Ua
             {
                 return m_configurationElement;
             }
-
             set
             {
                 m_configurationElement = value;
@@ -25306,16 +27939,28 @@ namespace Opc.Ua
         [DataMember(Name = "Name", IsRequired = false, Order = 2)]
         public string Name
         {
-            get { return m_name; }
-            set { m_name = value; }
+            get
+            {
+                return m_name;
+            }
+            set
+            {
+                m_name = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Identifier", IsRequired = false, Order = 3)]
         public Variant Identifier
         {
-            get { return m_identifier; }
-            set { m_identifier = value; }
+            get
+            {
+                return m_identifier;
+            }
+            set
+            {
+                m_identifier = value;
+            }
         }
         #endregion
 
@@ -25324,7 +27969,8 @@ namespace Opc.Ua
         public virtual ExpandedNodeId TypeId => DataTypeIds.PubSubConfigurationValueDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PubSubConfigurationValueDataType_Encoding_DefaultBinary;
+        public virtual ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.PubSubConfigurationValueDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PubSubConfigurationValueDataType_Encoding_DefaultXml;
@@ -25337,7 +27983,11 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            encoder.WriteEncodeable("ConfigurationElement", ConfigurationElement, typeof(PubSubConfigurationRefDataType));
+            encoder.WriteEncodeable(
+                "ConfigurationElement",
+                ConfigurationElement,
+                typeof(PubSubConfigurationRefDataType)
+            );
             encoder.WriteString("Name", Name);
             encoder.WriteVariant("Identifier", Identifier);
 
@@ -25349,7 +27999,8 @@ namespace Opc.Ua
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            ConfigurationElement = (PubSubConfigurationRefDataType)decoder.ReadEncodeable("ConfigurationElement", typeof(PubSubConfigurationRefDataType));
+            ConfigurationElement = (PubSubConfigurationRefDataType)
+                decoder.ReadEncodeable("ConfigurationElement", typeof(PubSubConfigurationRefDataType));
             Name = decoder.ReadString("Name");
             Identifier = decoder.ReadVariant("Identifier");
 
@@ -25411,23 +28062,33 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfPubSubConfigurationValueDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubConfigurationValueDataType")]
+    [CollectionDataContract(
+        Name = "ListOfPubSubConfigurationValueDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "PubSubConfigurationValueDataType"
+    )]
     public partial class PubSubConfigurationValueDataTypeCollection : List<PubSubConfigurationValueDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public PubSubConfigurationValueDataTypeCollection() { }
+        public PubSubConfigurationValueDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public PubSubConfigurationValueDataTypeCollection(int capacity) : base(capacity) { }
+        public PubSubConfigurationValueDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public PubSubConfigurationValueDataTypeCollection(IEnumerable<PubSubConfigurationValueDataType> collection) : base(collection) { }
+        public PubSubConfigurationValueDataTypeCollection(IEnumerable<PubSubConfigurationValueDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator PubSubConfigurationValueDataTypeCollection(PubSubConfigurationValueDataType[] values)
+        public static implicit operator PubSubConfigurationValueDataTypeCollection(
+            PubSubConfigurationValueDataType[] values
+        )
         {
             if (values != null)
             {
@@ -25438,7 +28099,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator PubSubConfigurationValueDataType[](PubSubConfigurationValueDataTypeCollection values)
+        public static explicit operator PubSubConfigurationValueDataType[](
+            PubSubConfigurationValueDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -25460,7 +28123,9 @@ namespace Opc.Ua
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            PubSubConfigurationValueDataTypeCollection clone = new PubSubConfigurationValueDataTypeCollection(this.Count);
+            PubSubConfigurationValueDataTypeCollection clone = new PubSubConfigurationValueDataTypeCollection(
+                this.Count
+            );
 
             for (int ii = 0; ii < this.Count; ii++)
             {
@@ -25507,18 +28172,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfDiagnosticsLevel", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DiagnosticsLevel")]
+    [CollectionDataContract(
+        Name = "ListOfDiagnosticsLevel",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "DiagnosticsLevel"
+    )]
     public partial class DiagnosticsLevelCollection : List<DiagnosticsLevel>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public DiagnosticsLevelCollection() { }
+        public DiagnosticsLevelCollection()
+        {
+        }
 
         /// <remarks />
-        public DiagnosticsLevelCollection(int capacity) : base(capacity) { }
+        public DiagnosticsLevelCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public DiagnosticsLevelCollection(IEnumerable<DiagnosticsLevel> collection) : base(collection) { }
+        public DiagnosticsLevelCollection(IEnumerable<DiagnosticsLevel> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -25591,23 +28264,37 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfPubSubDiagnosticsCounterClassification", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubDiagnosticsCounterClassification")]
-    public partial class PubSubDiagnosticsCounterClassificationCollection : List<PubSubDiagnosticsCounterClassification>, ICloneable
+    [CollectionDataContract(
+        Name = "ListOfPubSubDiagnosticsCounterClassification",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "PubSubDiagnosticsCounterClassification"
+    )]
+    public partial class PubSubDiagnosticsCounterClassificationCollection
+        : List<PubSubDiagnosticsCounterClassification>,
+            ICloneable
     {
         #region Constructors
         /// <remarks />
-        public PubSubDiagnosticsCounterClassificationCollection() { }
+        public PubSubDiagnosticsCounterClassificationCollection()
+        {
+        }
 
         /// <remarks />
-        public PubSubDiagnosticsCounterClassificationCollection(int capacity) : base(capacity) { }
+        public PubSubDiagnosticsCounterClassificationCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public PubSubDiagnosticsCounterClassificationCollection(IEnumerable<PubSubDiagnosticsCounterClassification> collection) : base(collection) { }
+        public PubSubDiagnosticsCounterClassificationCollection(
+            IEnumerable<PubSubDiagnosticsCounterClassification> collection
+        )
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator PubSubDiagnosticsCounterClassificationCollection(PubSubDiagnosticsCounterClassification[] values)
+        public static implicit operator PubSubDiagnosticsCounterClassificationCollection(
+            PubSubDiagnosticsCounterClassification[] values
+        )
         {
             if (values != null)
             {
@@ -25618,7 +28305,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator PubSubDiagnosticsCounterClassification[](PubSubDiagnosticsCounterClassificationCollection values)
+        public static explicit operator PubSubDiagnosticsCounterClassification[](
+            PubSubDiagnosticsCounterClassificationCollection values
+        )
         {
             if (values != null)
             {
@@ -25640,7 +28329,8 @@ namespace Opc.Ua
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            PubSubDiagnosticsCounterClassificationCollection clone = new PubSubDiagnosticsCounterClassificationCollection(this.Count);
+            PubSubDiagnosticsCounterClassificationCollection clone =
+                new PubSubDiagnosticsCounterClassificationCollection(this.Count);
 
             for (int ii = 0; ii < this.Count; ii++)
             {
@@ -25691,48 +28381,84 @@ namespace Opc.Ua
         [DataMember(Name = "MessageId", IsRequired = false, Order = 1)]
         public string MessageId
         {
-            get { return m_messageId; }
-            set { m_messageId = value; }
+            get
+            {
+                return m_messageId;
+            }
+            set
+            {
+                m_messageId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MessageType", IsRequired = false, Order = 2)]
         public string MessageType
         {
-            get { return m_messageType; }
-            set { m_messageType = value; }
+            get
+            {
+                return m_messageType;
+            }
+            set
+            {
+                m_messageType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
         public string PublisherId
         {
-            get { return m_publisherId; }
-            set { m_publisherId = value; }
+            get
+            {
+                return m_publisherId;
+            }
+            set
+            {
+                m_publisherId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "WriterGroupName", IsRequired = false, Order = 4)]
         public string WriterGroupName
         {
-            get { return m_writerGroupName; }
-            set { m_writerGroupName = value; }
+            get
+            {
+                return m_writerGroupName;
+            }
+            set
+            {
+                m_writerGroupName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataSetClassId", IsRequired = false, Order = 5)]
         public string DataSetClassId
         {
-            get { return m_dataSetClassId; }
-            set { m_dataSetClassId = value; }
+            get
+            {
+                return m_dataSetClassId;
+            }
+            set
+            {
+                m_dataSetClassId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Messages", IsRequired = false, Order = 6)]
         public Variant Messages
         {
-            get { return m_messages; }
-            set { m_messages = value; }
+            get
+            {
+                return m_messages;
+            }
+            set
+            {
+                m_messages = value;
+            }
         }
         #endregion
 
@@ -25886,40 +28612,70 @@ namespace Opc.Ua
         [DataMember(Name = "DataSetWriterId", IsRequired = false, Order = 1)]
         public ushort DataSetWriterId
         {
-            get { return m_dataSetWriterId; }
-            set { m_dataSetWriterId = value; }
+            get
+            {
+                return m_dataSetWriterId;
+            }
+            set
+            {
+                m_dataSetWriterId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataSetWriterName", IsRequired = false, Order = 2)]
         public string DataSetWriterName
         {
-            get { return m_dataSetWriterName; }
-            set { m_dataSetWriterName = value; }
+            get
+            {
+                return m_dataSetWriterName;
+            }
+            set
+            {
+                m_dataSetWriterName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
         public string PublisherId
         {
-            get { return m_publisherId; }
-            set { m_publisherId = value; }
+            get
+            {
+                return m_publisherId;
+            }
+            set
+            {
+                m_publisherId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "WriterGroupName", IsRequired = false, Order = 4)]
         public string WriterGroupName
         {
-            get { return m_writerGroupName; }
-            set { m_writerGroupName = value; }
+            get
+            {
+                return m_writerGroupName;
+            }
+            set
+            {
+                m_writerGroupName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SequenceNumber", IsRequired = false, Order = 5)]
         public uint SequenceNumber
         {
-            get { return m_sequenceNumber; }
-            set { m_sequenceNumber = value; }
+            get
+            {
+                return m_sequenceNumber;
+            }
+            set
+            {
+                m_sequenceNumber = value;
+            }
         }
 
         /// <remarks />
@@ -25930,7 +28686,6 @@ namespace Opc.Ua
             {
                 return m_metaDataVersion;
             }
-
             set
             {
                 m_metaDataVersion = value;
@@ -25946,40 +28701,70 @@ namespace Opc.Ua
         [DataMember(Name = "MinorVersion", IsRequired = false, Order = 7)]
         public uint MinorVersion
         {
-            get { return m_minorVersion; }
-            set { m_minorVersion = value; }
+            get
+            {
+                return m_minorVersion;
+            }
+            set
+            {
+                m_minorVersion = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Timestamp", IsRequired = false, Order = 8)]
         public DateTime Timestamp
         {
-            get { return m_timestamp; }
-            set { m_timestamp = value; }
+            get
+            {
+                return m_timestamp;
+            }
+            set
+            {
+                m_timestamp = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Status", IsRequired = false, Order = 9)]
         public StatusCode Status
         {
-            get { return m_status; }
-            set { m_status = value; }
+            get
+            {
+                return m_status;
+            }
+            set
+            {
+                m_status = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MessageType", IsRequired = false, Order = 10)]
         public string MessageType
         {
-            get { return m_messageType; }
-            set { m_messageType = value; }
+            get
+            {
+                return m_messageType;
+            }
+            set
+            {
+                m_messageType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Payload", IsRequired = false, Order = 11)]
         public ExtensionObject Payload
         {
-            get { return m_payload; }
-            set { m_payload = value; }
+            get
+            {
+                return m_payload;
+            }
+            set
+            {
+                m_payload = value;
+            }
         }
         #endregion
 
@@ -26026,7 +28811,8 @@ namespace Opc.Ua
             PublisherId = decoder.ReadString("PublisherId");
             WriterGroupName = decoder.ReadString("WriterGroupName");
             SequenceNumber = decoder.ReadUInt32("SequenceNumber");
-            MetaDataVersion = (ConfigurationVersionDataType)decoder.ReadEncodeable("MetaDataVersion", typeof(ConfigurationVersionDataType));
+            MetaDataVersion = (ConfigurationVersionDataType)
+                decoder.ReadEncodeable("MetaDataVersion", typeof(ConfigurationVersionDataType));
             MinorVersion = decoder.ReadUInt32("MinorVersion");
             Timestamp = decoder.ReadDateTime("Timestamp");
             Status = decoder.ReadStatusCode("Status");
@@ -26160,56 +28946,98 @@ namespace Opc.Ua
         [DataMember(Name = "MessageId", IsRequired = false, Order = 1)]
         public string MessageId
         {
-            get { return m_messageId; }
-            set { m_messageId = value; }
+            get
+            {
+                return m_messageId;
+            }
+            set
+            {
+                m_messageId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MessageType", IsRequired = false, Order = 2)]
         public string MessageType
         {
-            get { return m_messageType; }
-            set { m_messageType = value; }
+            get
+            {
+                return m_messageType;
+            }
+            set
+            {
+                m_messageType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
         public string PublisherId
         {
-            get { return m_publisherId; }
-            set { m_publisherId = value; }
+            get
+            {
+                return m_publisherId;
+            }
+            set
+            {
+                m_publisherId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataSetWriterId", IsRequired = false, Order = 4)]
         public ushort DataSetWriterId
         {
-            get { return m_dataSetWriterId; }
-            set { m_dataSetWriterId = value; }
+            get
+            {
+                return m_dataSetWriterId;
+            }
+            set
+            {
+                m_dataSetWriterId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "WriterGroupName", IsRequired = false, Order = 5)]
         public string WriterGroupName
         {
-            get { return m_writerGroupName; }
-            set { m_writerGroupName = value; }
+            get
+            {
+                return m_writerGroupName;
+            }
+            set
+            {
+                m_writerGroupName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataSetWriterName", IsRequired = false, Order = 6)]
         public string DataSetWriterName
         {
-            get { return m_dataSetWriterName; }
-            set { m_dataSetWriterName = value; }
+            get
+            {
+                return m_dataSetWriterName;
+            }
+            set
+            {
+                m_dataSetWriterName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Timestamp", IsRequired = false, Order = 7)]
         public DateTime Timestamp
         {
-            get { return m_timestamp; }
-            set { m_timestamp = value; }
+            get
+            {
+                return m_timestamp;
+            }
+            set
+            {
+                m_timestamp = value;
+            }
         }
 
         /// <remarks />
@@ -26220,7 +29048,6 @@ namespace Opc.Ua
             {
                 return m_metaData;
             }
-
             set
             {
                 m_metaData = value;
@@ -26390,32 +29217,56 @@ namespace Opc.Ua
         [DataMember(Name = "MessageId", IsRequired = false, Order = 1)]
         public string MessageId
         {
-            get { return m_messageId; }
-            set { m_messageId = value; }
+            get
+            {
+                return m_messageId;
+            }
+            set
+            {
+                m_messageId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MessageType", IsRequired = false, Order = 2)]
         public string MessageType
         {
-            get { return m_messageType; }
-            set { m_messageType = value; }
+            get
+            {
+                return m_messageType;
+            }
+            set
+            {
+                m_messageType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
         public string PublisherId
         {
-            get { return m_publisherId; }
-            set { m_publisherId = value; }
+            get
+            {
+                return m_publisherId;
+            }
+            set
+            {
+                m_publisherId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Timestamp", IsRequired = false, Order = 4)]
         public DateTime Timestamp
         {
-            get { return m_timestamp; }
-            set { m_timestamp = value; }
+            get
+            {
+                return m_timestamp;
+            }
+            set
+            {
+                m_timestamp = value;
+            }
         }
 
         /// <remarks />
@@ -26426,7 +29277,6 @@ namespace Opc.Ua
             {
                 return m_description;
             }
-
             set
             {
                 m_description = value;
@@ -26446,7 +29296,6 @@ namespace Opc.Ua
             {
                 return m_serverCapabilities;
             }
-
             set
             {
                 m_serverCapabilities = value;
@@ -26604,32 +29453,56 @@ namespace Opc.Ua
         [DataMember(Name = "MessageId", IsRequired = false, Order = 1)]
         public string MessageId
         {
-            get { return m_messageId; }
-            set { m_messageId = value; }
+            get
+            {
+                return m_messageId;
+            }
+            set
+            {
+                m_messageId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MessageType", IsRequired = false, Order = 2)]
         public string MessageType
         {
-            get { return m_messageType; }
-            set { m_messageType = value; }
+            get
+            {
+                return m_messageType;
+            }
+            set
+            {
+                m_messageType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
         public string PublisherId
         {
-            get { return m_publisherId; }
-            set { m_publisherId = value; }
+            get
+            {
+                return m_publisherId;
+            }
+            set
+            {
+                m_publisherId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Timestamp", IsRequired = false, Order = 4)]
         public DateTime Timestamp
         {
-            get { return m_timestamp; }
-            set { m_timestamp = value; }
+            get
+            {
+                return m_timestamp;
+            }
+            set
+            {
+                m_timestamp = value;
+            }
         }
 
         /// <remarks />
@@ -26640,7 +29513,6 @@ namespace Opc.Ua
             {
                 return m_description;
             }
-
             set
             {
                 m_description = value;
@@ -26660,7 +29532,6 @@ namespace Opc.Ua
             {
                 return m_endpoints;
             }
-
             set
             {
                 m_endpoints = value;
@@ -26711,7 +29582,8 @@ namespace Opc.Ua
             PublisherId = decoder.ReadString("PublisherId");
             Timestamp = decoder.ReadDateTime("Timestamp");
             Description = (ApplicationDescription)decoder.ReadEncodeable("Description", typeof(ApplicationDescription));
-            Endpoints = (EndpointDescriptionCollection)decoder.ReadEncodeableArray("Endpoints", typeof(EndpointDescription));
+            Endpoints = (EndpointDescriptionCollection)
+                decoder.ReadEncodeableArray("Endpoints", typeof(EndpointDescription));
 
             decoder.PopNamespace();
         }
@@ -26819,56 +29691,98 @@ namespace Opc.Ua
         [DataMember(Name = "MessageId", IsRequired = false, Order = 1)]
         public string MessageId
         {
-            get { return m_messageId; }
-            set { m_messageId = value; }
+            get
+            {
+                return m_messageId;
+            }
+            set
+            {
+                m_messageId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MessageType", IsRequired = false, Order = 2)]
         public string MessageType
         {
-            get { return m_messageType; }
-            set { m_messageType = value; }
+            get
+            {
+                return m_messageType;
+            }
+            set
+            {
+                m_messageType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
         public string PublisherId
         {
-            get { return m_publisherId; }
-            set { m_publisherId = value; }
+            get
+            {
+                return m_publisherId;
+            }
+            set
+            {
+                m_publisherId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Timestamp", IsRequired = false, Order = 4)]
         public DateTime Timestamp
         {
-            get { return m_timestamp; }
-            set { m_timestamp = value; }
+            get
+            {
+                return m_timestamp;
+            }
+            set
+            {
+                m_timestamp = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IsCyclic", IsRequired = false, Order = 5)]
         public bool IsCyclic
         {
-            get { return m_isCyclic; }
-            set { m_isCyclic = value; }
+            get
+            {
+                return m_isCyclic;
+            }
+            set
+            {
+                m_isCyclic = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Status", IsRequired = false, Order = 6)]
         public PubSubState Status
         {
-            get { return m_status; }
-            set { m_status = value; }
+            get
+            {
+                return m_status;
+            }
+            set
+            {
+                m_status = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "NextReportTime", IsRequired = false, Order = 7)]
         public DateTime NextReportTime
         {
-            get { return m_nextReportTime; }
-            set { m_nextReportTime = value; }
+            get
+            {
+                return m_nextReportTime;
+            }
+            set
+            {
+                m_nextReportTime = value;
+            }
         }
         #endregion
 
@@ -27022,32 +29936,56 @@ namespace Opc.Ua
         [DataMember(Name = "MessageId", IsRequired = false, Order = 1)]
         public string MessageId
         {
-            get { return m_messageId; }
-            set { m_messageId = value; }
+            get
+            {
+                return m_messageId;
+            }
+            set
+            {
+                m_messageId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MessageType", IsRequired = false, Order = 2)]
         public string MessageType
         {
-            get { return m_messageType; }
-            set { m_messageType = value; }
+            get
+            {
+                return m_messageType;
+            }
+            set
+            {
+                m_messageType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
         public string PublisherId
         {
-            get { return m_publisherId; }
-            set { m_publisherId = value; }
+            get
+            {
+                return m_publisherId;
+            }
+            set
+            {
+                m_publisherId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Timestamp", IsRequired = false, Order = 4)]
         public DateTime Timestamp
         {
-            get { return m_timestamp; }
-            set { m_timestamp = value; }
+            get
+            {
+                return m_timestamp;
+            }
+            set
+            {
+                m_timestamp = value;
+            }
         }
 
         /// <remarks />
@@ -27058,7 +29996,6 @@ namespace Opc.Ua
             {
                 return m_connection;
             }
-
             set
             {
                 m_connection = value;
@@ -27107,7 +30044,8 @@ namespace Opc.Ua
             MessageType = decoder.ReadString("MessageType");
             PublisherId = decoder.ReadString("PublisherId");
             Timestamp = decoder.ReadDateTime("Timestamp");
-            Connection = (PubSubConnectionDataType)decoder.ReadEncodeable("Connection", typeof(PubSubConnectionDataType));
+            Connection = (PubSubConnectionDataType)
+                decoder.ReadEncodeable("Connection", typeof(PubSubConnectionDataType));
 
             decoder.PopNamespace();
         }
@@ -27214,48 +30152,84 @@ namespace Opc.Ua
         [DataMember(Name = "MessageId", IsRequired = false, Order = 1)]
         public string MessageId
         {
-            get { return m_messageId; }
-            set { m_messageId = value; }
+            get
+            {
+                return m_messageId;
+            }
+            set
+            {
+                m_messageId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MessageType", IsRequired = false, Order = 2)]
         public string MessageType
         {
-            get { return m_messageType; }
-            set { m_messageType = value; }
+            get
+            {
+                return m_messageType;
+            }
+            set
+            {
+                m_messageType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
         public string PublisherId
         {
-            get { return m_publisherId; }
-            set { m_publisherId = value; }
+            get
+            {
+                return m_publisherId;
+            }
+            set
+            {
+                m_publisherId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataSetWriterId", IsRequired = false, Order = 4)]
         public ushort DataSetWriterId
         {
-            get { return m_dataSetWriterId; }
-            set { m_dataSetWriterId = value; }
+            get
+            {
+                return m_dataSetWriterId;
+            }
+            set
+            {
+                m_dataSetWriterId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataSetWriterName", IsRequired = false, Order = 5)]
         public string DataSetWriterName
         {
-            get { return m_dataSetWriterName; }
-            set { m_dataSetWriterName = value; }
+            get
+            {
+                return m_dataSetWriterName;
+            }
+            set
+            {
+                m_dataSetWriterName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Timestamp", IsRequired = false, Order = 6)]
         public DateTime Timestamp
         {
-            get { return m_timestamp; }
-            set { m_timestamp = value; }
+            get
+            {
+                return m_timestamp;
+            }
+            set
+            {
+                m_timestamp = value;
+            }
         }
 
         /// <remarks />
@@ -27266,7 +30240,6 @@ namespace Opc.Ua
             {
                 return m_actionTargets;
             }
-
             set
             {
                 m_actionTargets = value;
@@ -27286,7 +30259,6 @@ namespace Opc.Ua
             {
                 return m_request;
             }
-
             set
             {
                 m_request = value;
@@ -27306,7 +30278,6 @@ namespace Opc.Ua
             {
                 return m_response;
             }
-
             set
             {
                 m_response = value;
@@ -27326,7 +30297,6 @@ namespace Opc.Ua
             {
                 return m_actionMethods;
             }
-
             set
             {
                 m_actionMethods = value;
@@ -27382,10 +30352,12 @@ namespace Opc.Ua
             DataSetWriterId = decoder.ReadUInt16("DataSetWriterId");
             DataSetWriterName = decoder.ReadString("DataSetWriterName");
             Timestamp = decoder.ReadDateTime("Timestamp");
-            ActionTargets = (ActionTargetDataTypeCollection)decoder.ReadEncodeableArray("ActionTargets", typeof(ActionTargetDataType));
+            ActionTargets = (ActionTargetDataTypeCollection)
+                decoder.ReadEncodeableArray("ActionTargets", typeof(ActionTargetDataType));
             Request = (DataSetMetaDataType)decoder.ReadEncodeable("Request", typeof(DataSetMetaDataType));
             Response = (DataSetMetaDataType)decoder.ReadEncodeable("Response", typeof(DataSetMetaDataType));
-            ActionMethods = (ActionMethodDataTypeCollection)decoder.ReadEncodeableArray("ActionMethods", typeof(ActionMethodDataType));
+            ActionMethods = (ActionMethodDataTypeCollection)
+                decoder.ReadEncodeableArray("ActionMethods", typeof(ActionMethodDataType));
 
             decoder.PopNamespace();
         }
@@ -27507,32 +30479,56 @@ namespace Opc.Ua
         [DataMember(Name = "MessageId", IsRequired = false, Order = 1)]
         public string MessageId
         {
-            get { return m_messageId; }
-            set { m_messageId = value; }
+            get
+            {
+                return m_messageId;
+            }
+            set
+            {
+                m_messageId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MessageType", IsRequired = false, Order = 2)]
         public string MessageType
         {
-            get { return m_messageType; }
-            set { m_messageType = value; }
+            get
+            {
+                return m_messageType;
+            }
+            set
+            {
+                m_messageType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
         public string PublisherId
         {
-            get { return m_publisherId; }
-            set { m_publisherId = value; }
+            get
+            {
+                return m_publisherId;
+            }
+            set
+            {
+                m_publisherId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Timestamp", IsRequired = false, Order = 4)]
         public DateTime Timestamp
         {
-            get { return m_timestamp; }
-            set { m_timestamp = value; }
+            get
+            {
+                return m_timestamp;
+            }
+            set
+            {
+                m_timestamp = value;
+            }
         }
 
         /// <remarks />
@@ -27543,7 +30539,6 @@ namespace Opc.Ua
             {
                 return m_connection;
             }
-
             set
             {
                 m_connection = value;
@@ -27592,7 +30587,8 @@ namespace Opc.Ua
             MessageType = decoder.ReadString("MessageType");
             PublisherId = decoder.ReadString("PublisherId");
             Timestamp = decoder.ReadDateTime("Timestamp");
-            Connection = (PubSubConnectionDataType)decoder.ReadEncodeable("Connection", typeof(PubSubConnectionDataType));
+            Connection = (PubSubConnectionDataType)
+                decoder.ReadEncodeable("Connection", typeof(PubSubConnectionDataType));
 
             decoder.PopNamespace();
         }
@@ -27698,72 +30694,126 @@ namespace Opc.Ua
         [DataMember(Name = "MessageId", IsRequired = false, Order = 1)]
         public string MessageId
         {
-            get { return m_messageId; }
-            set { m_messageId = value; }
+            get
+            {
+                return m_messageId;
+            }
+            set
+            {
+                m_messageId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MessageType", IsRequired = false, Order = 2)]
         public string MessageType
         {
-            get { return m_messageType; }
-            set { m_messageType = value; }
+            get
+            {
+                return m_messageType;
+            }
+            set
+            {
+                m_messageType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PublisherId", IsRequired = false, Order = 3)]
         public string PublisherId
         {
-            get { return m_publisherId; }
-            set { m_publisherId = value; }
+            get
+            {
+                return m_publisherId;
+            }
+            set
+            {
+                m_publisherId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Timestamp", IsRequired = false, Order = 4)]
         public DateTime Timestamp
         {
-            get { return m_timestamp; }
-            set { m_timestamp = value; }
+            get
+            {
+                return m_timestamp;
+            }
+            set
+            {
+                m_timestamp = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ResponseAddress", IsRequired = false, Order = 5)]
         public string ResponseAddress
         {
-            get { return m_responseAddress; }
-            set { m_responseAddress = value; }
+            get
+            {
+                return m_responseAddress;
+            }
+            set
+            {
+                m_responseAddress = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "CorrelationData", IsRequired = false, Order = 6)]
         public byte[] CorrelationData
         {
-            get { return m_correlationData; }
-            set { m_correlationData = value; }
+            get
+            {
+                return m_correlationData;
+            }
+            set
+            {
+                m_correlationData = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RequestorId", IsRequired = false, Order = 7)]
         public string RequestorId
         {
-            get { return m_requestorId; }
-            set { m_requestorId = value; }
+            get
+            {
+                return m_requestorId;
+            }
+            set
+            {
+                m_requestorId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TimeoutHint", IsRequired = false, Order = 8)]
         public double TimeoutHint
         {
-            get { return m_timeoutHint; }
-            set { m_timeoutHint = value; }
+            get
+            {
+                return m_timeoutHint;
+            }
+            set
+            {
+                m_timeoutHint = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Messages", IsRequired = false, Order = 9)]
         public ExtensionObjectCollection Messages
         {
-            get { return m_messages; }
-            set { m_messages = value; }
+            get
+            {
+                return m_messages;
+            }
+            set
+            {
+                m_messages = value;
+            }
         }
         #endregion
 
@@ -27935,32 +30985,56 @@ namespace Opc.Ua
         [DataMember(Name = "DataSetWriterId", IsRequired = false, Order = 1)]
         public ushort DataSetWriterId
         {
-            get { return m_dataSetWriterId; }
-            set { m_dataSetWriterId = value; }
+            get
+            {
+                return m_dataSetWriterId;
+            }
+            set
+            {
+                m_dataSetWriterId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ActionTargetId", IsRequired = false, Order = 2)]
         public ushort ActionTargetId
         {
-            get { return m_actionTargetId; }
-            set { m_actionTargetId = value; }
+            get
+            {
+                return m_actionTargetId;
+            }
+            set
+            {
+                m_actionTargetId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataSetWriterName", IsRequired = false, Order = 3)]
         public string DataSetWriterName
         {
-            get { return m_dataSetWriterName; }
-            set { m_dataSetWriterName = value; }
+            get
+            {
+                return m_dataSetWriterName;
+            }
+            set
+            {
+                m_dataSetWriterName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "WriterGroupName", IsRequired = false, Order = 4)]
         public string WriterGroupName
         {
-            get { return m_writerGroupName; }
-            set { m_writerGroupName = value; }
+            get
+            {
+                return m_writerGroupName;
+            }
+            set
+            {
+                m_writerGroupName = value;
+            }
         }
 
         /// <remarks />
@@ -27971,7 +31045,6 @@ namespace Opc.Ua
             {
                 return m_metaDataVersion;
             }
-
             set
             {
                 m_metaDataVersion = value;
@@ -27987,48 +31060,84 @@ namespace Opc.Ua
         [DataMember(Name = "MinorVersion", IsRequired = false, Order = 6)]
         public uint MinorVersion
         {
-            get { return m_minorVersion; }
-            set { m_minorVersion = value; }
+            get
+            {
+                return m_minorVersion;
+            }
+            set
+            {
+                m_minorVersion = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Timestamp", IsRequired = false, Order = 7)]
         public DateTime Timestamp
         {
-            get { return m_timestamp; }
-            set { m_timestamp = value; }
+            get
+            {
+                return m_timestamp;
+            }
+            set
+            {
+                m_timestamp = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MessageType", IsRequired = false, Order = 8)]
         public string MessageType
         {
-            get { return m_messageType; }
-            set { m_messageType = value; }
+            get
+            {
+                return m_messageType;
+            }
+            set
+            {
+                m_messageType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RequestId", IsRequired = false, Order = 9)]
         public ushort RequestId
         {
-            get { return m_requestId; }
-            set { m_requestId = value; }
+            get
+            {
+                return m_requestId;
+            }
+            set
+            {
+                m_requestId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ActionState", IsRequired = false, Order = 10)]
         public ActionState ActionState
         {
-            get { return m_actionState; }
-            set { m_actionState = value; }
+            get
+            {
+                return m_actionState;
+            }
+            set
+            {
+                m_actionState = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Payload", IsRequired = false, Order = 11)]
         public ExtensionObject Payload
         {
-            get { return m_payload; }
-            set { m_payload = value; }
+            get
+            {
+                return m_payload;
+            }
+            set
+            {
+                m_payload = value;
+            }
         }
         #endregion
 
@@ -28074,7 +31183,8 @@ namespace Opc.Ua
             ActionTargetId = decoder.ReadUInt16("ActionTargetId");
             DataSetWriterName = decoder.ReadString("DataSetWriterName");
             WriterGroupName = decoder.ReadString("WriterGroupName");
-            MetaDataVersion = (ConfigurationVersionDataType)decoder.ReadEncodeable("MetaDataVersion", typeof(ConfigurationVersionDataType));
+            MetaDataVersion = (ConfigurationVersionDataType)
+                decoder.ReadEncodeable("MetaDataVersion", typeof(ConfigurationVersionDataType));
             MinorVersion = decoder.ReadUInt32("MinorVersion");
             Timestamp = decoder.ReadDateTime("Timestamp");
             MessageType = decoder.ReadString("MessageType");
@@ -28213,32 +31323,56 @@ namespace Opc.Ua
         [DataMember(Name = "DataSetWriterId", IsRequired = false, Order = 1)]
         public ushort DataSetWriterId
         {
-            get { return m_dataSetWriterId; }
-            set { m_dataSetWriterId = value; }
+            get
+            {
+                return m_dataSetWriterId;
+            }
+            set
+            {
+                m_dataSetWriterId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ActionTargetId", IsRequired = false, Order = 2)]
         public ushort ActionTargetId
         {
-            get { return m_actionTargetId; }
-            set { m_actionTargetId = value; }
+            get
+            {
+                return m_actionTargetId;
+            }
+            set
+            {
+                m_actionTargetId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataSetWriterName", IsRequired = false, Order = 3)]
         public string DataSetWriterName
         {
-            get { return m_dataSetWriterName; }
-            set { m_dataSetWriterName = value; }
+            get
+            {
+                return m_dataSetWriterName;
+            }
+            set
+            {
+                m_dataSetWriterName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "WriterGroupName", IsRequired = false, Order = 4)]
         public string WriterGroupName
         {
-            get { return m_writerGroupName; }
-            set { m_writerGroupName = value; }
+            get
+            {
+                return m_writerGroupName;
+            }
+            set
+            {
+                m_writerGroupName = value;
+            }
         }
 
         /// <remarks />
@@ -28249,7 +31383,6 @@ namespace Opc.Ua
             {
                 return m_metaDataVersion;
             }
-
             set
             {
                 m_metaDataVersion = value;
@@ -28265,56 +31398,98 @@ namespace Opc.Ua
         [DataMember(Name = "MinorVersion", IsRequired = false, Order = 6)]
         public uint MinorVersion
         {
-            get { return m_minorVersion; }
-            set { m_minorVersion = value; }
+            get
+            {
+                return m_minorVersion;
+            }
+            set
+            {
+                m_minorVersion = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Timestamp", IsRequired = false, Order = 7)]
         public DateTime Timestamp
         {
-            get { return m_timestamp; }
-            set { m_timestamp = value; }
+            get
+            {
+                return m_timestamp;
+            }
+            set
+            {
+                m_timestamp = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Status", IsRequired = false, Order = 8)]
         public StatusCode Status
         {
-            get { return m_status; }
-            set { m_status = value; }
+            get
+            {
+                return m_status;
+            }
+            set
+            {
+                m_status = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MessageType", IsRequired = false, Order = 9)]
         public string MessageType
         {
-            get { return m_messageType; }
-            set { m_messageType = value; }
+            get
+            {
+                return m_messageType;
+            }
+            set
+            {
+                m_messageType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RequestId", IsRequired = false, Order = 10)]
         public ushort RequestId
         {
-            get { return m_requestId; }
-            set { m_requestId = value; }
+            get
+            {
+                return m_requestId;
+            }
+            set
+            {
+                m_requestId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ActionState", IsRequired = false, Order = 11)]
         public ActionState ActionState
         {
-            get { return m_actionState; }
-            set { m_actionState = value; }
+            get
+            {
+                return m_actionState;
+            }
+            set
+            {
+                m_actionState = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Payload", IsRequired = false, Order = 12)]
         public ExtensionObject Payload
         {
-            get { return m_payload; }
-            set { m_payload = value; }
+            get
+            {
+                return m_payload;
+            }
+            set
+            {
+                m_payload = value;
+            }
         }
         #endregion
 
@@ -28361,7 +31536,8 @@ namespace Opc.Ua
             ActionTargetId = decoder.ReadUInt16("ActionTargetId");
             DataSetWriterName = decoder.ReadString("DataSetWriterName");
             WriterGroupName = decoder.ReadString("WriterGroupName");
-            MetaDataVersion = (ConfigurationVersionDataType)decoder.ReadEncodeable("MetaDataVersion", typeof(ConfigurationVersionDataType));
+            MetaDataVersion = (ConfigurationVersionDataType)
+                decoder.ReadEncodeable("MetaDataVersion", typeof(ConfigurationVersionDataType));
             MinorVersion = decoder.ReadUInt32("MinorVersion");
             Timestamp = decoder.ReadDateTime("Timestamp");
             Status = decoder.ReadStatusCode("Status");
@@ -28495,8 +31671,14 @@ namespace Opc.Ua
         [DataMember(Name = "AliasName", IsRequired = false, Order = 1)]
         public QualifiedName AliasName
         {
-            get { return m_aliasName; }
-            set { m_aliasName = value; }
+            get
+            {
+                return m_aliasName;
+            }
+            set
+            {
+                m_aliasName = value;
+            }
         }
 
         /// <remarks />
@@ -28507,7 +31689,6 @@ namespace Opc.Ua
             {
                 return m_referencedNodes;
             }
-
             set
             {
                 m_referencedNodes = value;
@@ -28606,18 +31787,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfAliasNameDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AliasNameDataType")]
+    [CollectionDataContract(
+        Name = "ListOfAliasNameDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "AliasNameDataType"
+    )]
     public partial class AliasNameDataTypeCollection : List<AliasNameDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public AliasNameDataTypeCollection() { }
+        public AliasNameDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public AliasNameDataTypeCollection(int capacity) : base(capacity) { }
+        public AliasNameDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public AliasNameDataTypeCollection(IEnumerable<AliasNameDataType> collection) : base(collection) { }
+        public AliasNameDataTypeCollection(IEnumerable<AliasNameDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -28723,18 +31912,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfPasswordOptionsMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PasswordOptionsMask")]
+    [CollectionDataContract(
+        Name = "ListOfPasswordOptionsMask",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "PasswordOptionsMask"
+    )]
     public partial class PasswordOptionsMaskCollection : List<PasswordOptionsMask>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public PasswordOptionsMaskCollection() { }
+        public PasswordOptionsMaskCollection()
+        {
+        }
 
         /// <remarks />
-        public PasswordOptionsMaskCollection(int capacity) : base(capacity) { }
+        public PasswordOptionsMaskCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public PasswordOptionsMaskCollection(IEnumerable<PasswordOptionsMask> collection) : base(collection) { }
+        public PasswordOptionsMaskCollection(IEnumerable<PasswordOptionsMask> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -28820,18 +32017,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfUserConfigurationMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UserConfigurationMask")]
+    [CollectionDataContract(
+        Name = "ListOfUserConfigurationMask",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "UserConfigurationMask"
+    )]
     public partial class UserConfigurationMaskCollection : List<UserConfigurationMask>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public UserConfigurationMaskCollection() { }
+        public UserConfigurationMaskCollection()
+        {
+        }
 
         /// <remarks />
-        public UserConfigurationMaskCollection(int capacity) : base(capacity) { }
+        public UserConfigurationMaskCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public UserConfigurationMaskCollection(IEnumerable<UserConfigurationMask> collection) : base(collection) { }
+        public UserConfigurationMaskCollection(IEnumerable<UserConfigurationMask> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -28917,24 +32122,42 @@ namespace Opc.Ua
         [DataMember(Name = "UserName", IsRequired = false, Order = 1)]
         public string UserName
         {
-            get { return m_userName; }
-            set { m_userName = value; }
+            get
+            {
+                return m_userName;
+            }
+            set
+            {
+                m_userName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "UserConfiguration", IsRequired = false, Order = 2)]
         public uint UserConfiguration
         {
-            get { return m_userConfiguration; }
-            set { m_userConfiguration = value; }
+            get
+            {
+                return m_userConfiguration;
+            }
+            set
+            {
+                m_userConfiguration = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Description", IsRequired = false, Order = 3)]
         public string Description
         {
-            get { return m_description; }
-            set { m_description = value; }
+            get
+            {
+                return m_description;
+            }
+            set
+            {
+                m_description = value;
+            }
         }
         #endregion
 
@@ -29030,18 +32253,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfUserManagementDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UserManagementDataType")]
+    [CollectionDataContract(
+        Name = "ListOfUserManagementDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "UserManagementDataType"
+    )]
     public partial class UserManagementDataTypeCollection : List<UserManagementDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public UserManagementDataTypeCollection() { }
+        public UserManagementDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public UserManagementDataTypeCollection(int capacity) : base(capacity) { }
+        public UserManagementDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public UserManagementDataTypeCollection(IEnumerable<UserManagementDataType> collection) : base(collection) { }
+        public UserManagementDataTypeCollection(IEnumerable<UserManagementDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -29123,13 +32354,17 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <remarks />
-        public DuplexCollection() { }
+        public DuplexCollection()
+        {
+        }
 
         /// <remarks />
-        public DuplexCollection(int capacity) : base(capacity) { }
+        public DuplexCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public DuplexCollection(IEnumerable<Duplex> collection) : base(collection) { }
+        public DuplexCollection(IEnumerable<Duplex> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -29206,18 +32441,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfInterfaceAdminStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "InterfaceAdminStatus")]
+    [CollectionDataContract(
+        Name = "ListOfInterfaceAdminStatus",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "InterfaceAdminStatus"
+    )]
     public partial class InterfaceAdminStatusCollection : List<InterfaceAdminStatus>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public InterfaceAdminStatusCollection() { }
+        public InterfaceAdminStatusCollection()
+        {
+        }
 
         /// <remarks />
-        public InterfaceAdminStatusCollection(int capacity) : base(capacity) { }
+        public InterfaceAdminStatusCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public InterfaceAdminStatusCollection(IEnumerable<InterfaceAdminStatus> collection) : base(collection) { }
+        public InterfaceAdminStatusCollection(IEnumerable<InterfaceAdminStatus> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -29310,18 +32553,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfInterfaceOperStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "InterfaceOperStatus")]
+    [CollectionDataContract(
+        Name = "ListOfInterfaceOperStatus",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "InterfaceOperStatus"
+    )]
     public partial class InterfaceOperStatusCollection : List<InterfaceOperStatus>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public InterfaceOperStatusCollection() { }
+        public InterfaceOperStatusCollection()
+        {
+        }
 
         /// <remarks />
-        public InterfaceOperStatusCollection(int capacity) : base(capacity) { }
+        public InterfaceOperStatusCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public InterfaceOperStatusCollection(IEnumerable<InterfaceOperStatus> collection) : base(collection) { }
+        public InterfaceOperStatusCollection(IEnumerable<InterfaceOperStatus> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -29406,18 +32657,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfNegotiationStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NegotiationStatus")]
+    [CollectionDataContract(
+        Name = "ListOfNegotiationStatus",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "NegotiationStatus"
+    )]
     public partial class NegotiationStatusCollection : List<NegotiationStatus>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public NegotiationStatusCollection() { }
+        public NegotiationStatusCollection()
+        {
+        }
 
         /// <remarks />
-        public NegotiationStatusCollection(int capacity) : base(capacity) { }
+        public NegotiationStatusCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public NegotiationStatusCollection(IEnumerable<NegotiationStatus> collection) : base(collection) { }
+        public NegotiationStatusCollection(IEnumerable<NegotiationStatus> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -29586,18 +32845,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfTsnFailureCode", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TsnFailureCode")]
+    [CollectionDataContract(
+        Name = "ListOfTsnFailureCode",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "TsnFailureCode"
+    )]
     public partial class TsnFailureCodeCollection : List<TsnFailureCode>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public TsnFailureCodeCollection() { }
+        public TsnFailureCodeCollection()
+        {
+        }
 
         /// <remarks />
-        public TsnFailureCodeCollection(int capacity) : base(capacity) { }
+        public TsnFailureCodeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public TsnFailureCodeCollection(IEnumerable<TsnFailureCode> collection) : base(collection) { }
+        public TsnFailureCodeCollection(IEnumerable<TsnFailureCode> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -29682,18 +32949,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfTsnStreamState", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TsnStreamState")]
+    [CollectionDataContract(
+        Name = "ListOfTsnStreamState",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "TsnStreamState"
+    )]
     public partial class TsnStreamStateCollection : List<TsnStreamState>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public TsnStreamStateCollection() { }
+        public TsnStreamStateCollection()
+        {
+        }
 
         /// <remarks />
-        public TsnStreamStateCollection(int capacity) : base(capacity) { }
+        public TsnStreamStateCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public TsnStreamStateCollection(IEnumerable<TsnStreamState> collection) : base(collection) { }
+        public TsnStreamStateCollection(IEnumerable<TsnStreamState> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -29770,18 +33045,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfTsnTalkerStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TsnTalkerStatus")]
+    [CollectionDataContract(
+        Name = "ListOfTsnTalkerStatus",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "TsnTalkerStatus"
+    )]
     public partial class TsnTalkerStatusCollection : List<TsnTalkerStatus>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public TsnTalkerStatusCollection() { }
+        public TsnTalkerStatusCollection()
+        {
+        }
 
         /// <remarks />
-        public TsnTalkerStatusCollection(int capacity) : base(capacity) { }
+        public TsnTalkerStatusCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public TsnTalkerStatusCollection(IEnumerable<TsnTalkerStatus> collection) : base(collection) { }
+        public TsnTalkerStatusCollection(IEnumerable<TsnTalkerStatus> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -29862,18 +33145,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfTsnListenerStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TsnListenerStatus")]
+    [CollectionDataContract(
+        Name = "ListOfTsnListenerStatus",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "TsnListenerStatus"
+    )]
     public partial class TsnListenerStatusCollection : List<TsnListenerStatus>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public TsnListenerStatusCollection() { }
+        public TsnListenerStatusCollection()
+        {
+        }
 
         /// <remarks />
-        public TsnListenerStatusCollection(int capacity) : base(capacity) { }
+        public TsnListenerStatusCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public TsnListenerStatusCollection(IEnumerable<TsnListenerStatus> collection) : base(collection) { }
+        public TsnListenerStatusCollection(IEnumerable<TsnListenerStatus> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -29966,18 +33257,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfChassisIdSubtype", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ChassisIdSubtype")]
+    [CollectionDataContract(
+        Name = "ListOfChassisIdSubtype",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ChassisIdSubtype"
+    )]
     public partial class ChassisIdSubtypeCollection : List<ChassisIdSubtype>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ChassisIdSubtypeCollection() { }
+        public ChassisIdSubtypeCollection()
+        {
+        }
 
         /// <remarks />
-        public ChassisIdSubtypeCollection(int capacity) : base(capacity) { }
+        public ChassisIdSubtypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ChassisIdSubtypeCollection(IEnumerable<ChassisIdSubtype> collection) : base(collection) { }
+        public ChassisIdSubtypeCollection(IEnumerable<ChassisIdSubtype> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -30070,18 +33369,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfPortIdSubtype", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PortIdSubtype")]
+    [CollectionDataContract(
+        Name = "ListOfPortIdSubtype",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "PortIdSubtype"
+    )]
     public partial class PortIdSubtypeCollection : List<PortIdSubtype>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public PortIdSubtypeCollection() { }
+        public PortIdSubtypeCollection()
+        {
+        }
 
         /// <remarks />
-        public PortIdSubtypeCollection(int capacity) : base(capacity) { }
+        public PortIdSubtypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public PortIdSubtypeCollection(IEnumerable<PortIdSubtype> collection) : base(collection) { }
+        public PortIdSubtypeCollection(IEnumerable<PortIdSubtype> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -30162,18 +33469,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfManAddrIfSubtype", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ManAddrIfSubtype")]
+    [CollectionDataContract(
+        Name = "ListOfManAddrIfSubtype",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ManAddrIfSubtype"
+    )]
     public partial class ManAddrIfSubtypeCollection : List<ManAddrIfSubtype>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ManAddrIfSubtypeCollection() { }
+        public ManAddrIfSubtypeCollection()
+        {
+        }
 
         /// <remarks />
-        public ManAddrIfSubtypeCollection(int capacity) : base(capacity) { }
+        public ManAddrIfSubtypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ManAddrIfSubtypeCollection(IEnumerable<ManAddrIfSubtype> collection) : base(collection) { }
+        public ManAddrIfSubtypeCollection(IEnumerable<ManAddrIfSubtype> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -30260,32 +33575,56 @@ namespace Opc.Ua
         [DataMember(Name = "MappingUri", IsRequired = false, Order = 1)]
         public string MappingUri
         {
-            get { return m_mappingUri; }
-            set { m_mappingUri = value; }
+            get
+            {
+                return m_mappingUri;
+            }
+            set
+            {
+                m_mappingUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PriorityLabel", IsRequired = false, Order = 2)]
         public string PriorityLabel
         {
-            get { return m_priorityLabel; }
-            set { m_priorityLabel = value; }
+            get
+            {
+                return m_priorityLabel;
+            }
+            set
+            {
+                m_priorityLabel = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PriorityValue_PCP", IsRequired = false, Order = 3)]
         public byte PriorityValue_PCP
         {
-            get { return m_priorityValue_PCP; }
-            set { m_priorityValue_PCP = value; }
+            get
+            {
+                return m_priorityValue_PCP;
+            }
+            set
+            {
+                m_priorityValue_PCP = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PriorityValue_DSCP", IsRequired = false, Order = 4)]
         public uint PriorityValue_DSCP
         {
-            get { return m_priorityValue_DSCP; }
-            set { m_priorityValue_DSCP = value; }
+            get
+            {
+                return m_priorityValue_DSCP;
+            }
+            set
+            {
+                m_priorityValue_DSCP = value;
+            }
         }
         #endregion
 
@@ -30387,18 +33726,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfPriorityMappingEntryType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PriorityMappingEntryType")]
+    [CollectionDataContract(
+        Name = "ListOfPriorityMappingEntryType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "PriorityMappingEntryType"
+    )]
     public partial class PriorityMappingEntryTypeCollection : List<PriorityMappingEntryType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public PriorityMappingEntryTypeCollection() { }
+        public PriorityMappingEntryTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public PriorityMappingEntryTypeCollection(int capacity) : base(capacity) { }
+        public PriorityMappingEntryTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public PriorityMappingEntryTypeCollection(IEnumerable<PriorityMappingEntryType> collection) : base(collection) { }
+        public PriorityMappingEntryTypeCollection(IEnumerable<PriorityMappingEntryType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -30487,48 +33834,84 @@ namespace Opc.Ua
         [DataMember(Name = "AddressSubtype", IsRequired = false, Order = 1)]
         public uint AddressSubtype
         {
-            get { return m_addressSubtype; }
-            set { m_addressSubtype = value; }
+            get
+            {
+                return m_addressSubtype;
+            }
+            set
+            {
+                m_addressSubtype = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ManAddress", IsRequired = false, Order = 2)]
         public string ManAddress
         {
-            get { return m_manAddress; }
-            set { m_manAddress = value; }
+            get
+            {
+                return m_manAddress;
+            }
+            set
+            {
+                m_manAddress = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TxEnable", IsRequired = false, Order = 3)]
         public bool TxEnable
         {
-            get { return m_txEnable; }
-            set { m_txEnable = value; }
+            get
+            {
+                return m_txEnable;
+            }
+            set
+            {
+                m_txEnable = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "AddrLen", IsRequired = false, Order = 4)]
         public uint AddrLen
         {
-            get { return m_addrLen; }
-            set { m_addrLen = value; }
+            get
+            {
+                return m_addrLen;
+            }
+            set
+            {
+                m_addrLen = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IfSubtype", IsRequired = false, Order = 5)]
         public ManAddrIfSubtype IfSubtype
         {
-            get { return m_ifSubtype; }
-            set { m_ifSubtype = value; }
+            get
+            {
+                return m_ifSubtype;
+            }
+            set
+            {
+                m_ifSubtype = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IfId", IsRequired = false, Order = 6)]
         public uint IfId
         {
-            get { return m_ifId; }
-            set { m_ifId = value; }
+            get
+            {
+                return m_ifId;
+            }
+            set
+            {
+                m_ifId = value;
+            }
         }
         #endregion
 
@@ -30537,7 +33920,8 @@ namespace Opc.Ua
         public virtual ExpandedNodeId TypeId => DataTypeIds.LldpManagementAddressTxPortType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.LldpManagementAddressTxPortType_Encoding_DefaultBinary;
+        public virtual ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.LldpManagementAddressTxPortType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.LldpManagementAddressTxPortType_Encoding_DefaultXml;
@@ -30642,23 +34026,33 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfLldpManagementAddressTxPortType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "LldpManagementAddressTxPortType")]
+    [CollectionDataContract(
+        Name = "ListOfLldpManagementAddressTxPortType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "LldpManagementAddressTxPortType"
+    )]
     public partial class LldpManagementAddressTxPortTypeCollection : List<LldpManagementAddressTxPortType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public LldpManagementAddressTxPortTypeCollection() { }
+        public LldpManagementAddressTxPortTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public LldpManagementAddressTxPortTypeCollection(int capacity) : base(capacity) { }
+        public LldpManagementAddressTxPortTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public LldpManagementAddressTxPortTypeCollection(IEnumerable<LldpManagementAddressTxPortType> collection) : base(collection) { }
+        public LldpManagementAddressTxPortTypeCollection(IEnumerable<LldpManagementAddressTxPortType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator LldpManagementAddressTxPortTypeCollection(LldpManagementAddressTxPortType[] values)
+        public static implicit operator LldpManagementAddressTxPortTypeCollection(
+            LldpManagementAddressTxPortType[] values
+        )
         {
             if (values != null)
             {
@@ -30669,7 +34063,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator LldpManagementAddressTxPortType[](LldpManagementAddressTxPortTypeCollection values)
+        public static explicit operator LldpManagementAddressTxPortType[](
+            LldpManagementAddressTxPortTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -30740,32 +34136,56 @@ namespace Opc.Ua
         [DataMember(Name = "AddressSubtype", IsRequired = false, Order = 1)]
         public uint AddressSubtype
         {
-            get { return m_addressSubtype; }
-            set { m_addressSubtype = value; }
+            get
+            {
+                return m_addressSubtype;
+            }
+            set
+            {
+                m_addressSubtype = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Address", IsRequired = false, Order = 2)]
         public string Address
         {
-            get { return m_address; }
-            set { m_address = value; }
+            get
+            {
+                return m_address;
+            }
+            set
+            {
+                m_address = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IfSubtype", IsRequired = false, Order = 3)]
         public ManAddrIfSubtype IfSubtype
         {
-            get { return m_ifSubtype; }
-            set { m_ifSubtype = value; }
+            get
+            {
+                return m_ifSubtype;
+            }
+            set
+            {
+                m_ifSubtype = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IfId", IsRequired = false, Order = 4)]
         public uint IfId
         {
-            get { return m_ifId; }
-            set { m_ifId = value; }
+            get
+            {
+                return m_ifId;
+            }
+            set
+            {
+                m_ifId = value;
+            }
         }
         #endregion
 
@@ -30867,18 +34287,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfLldpManagementAddressType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "LldpManagementAddressType")]
+    [CollectionDataContract(
+        Name = "ListOfLldpManagementAddressType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "LldpManagementAddressType"
+    )]
     public partial class LldpManagementAddressTypeCollection : List<LldpManagementAddressType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public LldpManagementAddressTypeCollection() { }
+        public LldpManagementAddressTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public LldpManagementAddressTypeCollection(int capacity) : base(capacity) { }
+        public LldpManagementAddressTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public LldpManagementAddressTypeCollection(IEnumerable<LldpManagementAddressType> collection) : base(collection) { }
+        public LldpManagementAddressTypeCollection(IEnumerable<LldpManagementAddressType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -30963,16 +34391,28 @@ namespace Opc.Ua
         [DataMember(Name = "TlvType", IsRequired = false, Order = 1)]
         public uint TlvType
         {
-            get { return m_tlvType; }
-            set { m_tlvType = value; }
+            get
+            {
+                return m_tlvType;
+            }
+            set
+            {
+                m_tlvType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TlvInfo", IsRequired = false, Order = 2)]
         public byte[] TlvInfo
         {
-            get { return m_tlvInfo; }
-            set { m_tlvInfo = value; }
+            get
+            {
+                return m_tlvInfo;
+            }
+            set
+            {
+                m_tlvInfo = value;
+            }
         }
         #endregion
 
@@ -31062,18 +34502,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfLldpTlvType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "LldpTlvType")]
+    [CollectionDataContract(
+        Name = "ListOfLldpTlvType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "LldpTlvType"
+    )]
     public partial class LldpTlvTypeCollection : List<LldpTlvType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public LldpTlvTypeCollection() { }
+        public LldpTlvTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public LldpTlvTypeCollection(int capacity) : base(capacity) { }
+        public LldpTlvTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public LldpTlvTypeCollection(IEnumerable<LldpTlvType> collection) : base(collection) { }
+        public LldpTlvTypeCollection(IEnumerable<LldpTlvType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -31187,18 +34635,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfLldpSystemCapabilitiesMap", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "LldpSystemCapabilitiesMap")]
+    [CollectionDataContract(
+        Name = "ListOfLldpSystemCapabilitiesMap",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "LldpSystemCapabilitiesMap"
+    )]
     public partial class LldpSystemCapabilitiesMapCollection : List<LldpSystemCapabilitiesMap>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public LldpSystemCapabilitiesMapCollection() { }
+        public LldpSystemCapabilitiesMapCollection()
+        {
+        }
 
         /// <remarks />
-        public LldpSystemCapabilitiesMapCollection(int capacity) : base(capacity) { }
+        public LldpSystemCapabilitiesMapCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public LldpSystemCapabilitiesMapCollection(IEnumerable<LldpSystemCapabilitiesMap> collection) : base(collection) { }
+        public LldpSystemCapabilitiesMapCollection(IEnumerable<LldpSystemCapabilitiesMap> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -31285,32 +34741,56 @@ namespace Opc.Ua
         [DataMember(Name = "SourceNode", IsRequired = false, Order = 1)]
         public NodeId SourceNode
         {
-            get { return m_sourceNode; }
-            set { m_sourceNode = value; }
+            get
+            {
+                return m_sourceNode;
+            }
+            set
+            {
+                m_sourceNode = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ReferenceType", IsRequired = false, Order = 2)]
         public NodeId ReferenceType
         {
-            get { return m_referenceType; }
-            set { m_referenceType = value; }
+            get
+            {
+                return m_referenceType;
+            }
+            set
+            {
+                m_referenceType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IsForward", IsRequired = false, Order = 3)]
         public bool IsForward
         {
-            get { return m_isForward; }
-            set { m_isForward = value; }
+            get
+            {
+                return m_isForward;
+            }
+            set
+            {
+                m_isForward = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TargetNode", IsRequired = false, Order = 4)]
         public ExpandedNodeId TargetNode
         {
-            get { return m_targetNode; }
-            set { m_targetNode = value; }
+            get
+            {
+                return m_targetNode;
+            }
+            set
+            {
+                m_targetNode = value;
+            }
         }
         #endregion
 
@@ -31412,18 +34892,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfReferenceDescriptionDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReferenceDescriptionDataType")]
+    [CollectionDataContract(
+        Name = "ListOfReferenceDescriptionDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ReferenceDescriptionDataType"
+    )]
     public partial class ReferenceDescriptionDataTypeCollection : List<ReferenceDescriptionDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ReferenceDescriptionDataTypeCollection() { }
+        public ReferenceDescriptionDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public ReferenceDescriptionDataTypeCollection(int capacity) : base(capacity) { }
+        public ReferenceDescriptionDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ReferenceDescriptionDataTypeCollection(IEnumerable<ReferenceDescriptionDataType> collection) : base(collection) { }
+        public ReferenceDescriptionDataTypeCollection(IEnumerable<ReferenceDescriptionDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -31509,24 +34997,42 @@ namespace Opc.Ua
         [DataMember(Name = "ReferenceType", IsRequired = false, Order = 1)]
         public NodeId ReferenceType
         {
-            get { return m_referenceType; }
-            set { m_referenceType = value; }
+            get
+            {
+                return m_referenceType;
+            }
+            set
+            {
+                m_referenceType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IsForward", IsRequired = false, Order = 2)]
         public bool IsForward
         {
-            get { return m_isForward; }
-            set { m_isForward = value; }
+            get
+            {
+                return m_isForward;
+            }
+            set
+            {
+                m_isForward = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TargetNode", IsRequired = false, Order = 3)]
         public ExpandedNodeId TargetNode
         {
-            get { return m_targetNode; }
-            set { m_targetNode = value; }
+            get
+            {
+                return m_targetNode;
+            }
+            set
+            {
+                m_targetNode = value;
+            }
         }
         #endregion
 
@@ -31622,18 +35128,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfReferenceListEntryDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReferenceListEntryDataType")]
+    [CollectionDataContract(
+        Name = "ListOfReferenceListEntryDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ReferenceListEntryDataType"
+    )]
     public partial class ReferenceListEntryDataTypeCollection : List<ReferenceListEntryDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ReferenceListEntryDataTypeCollection() { }
+        public ReferenceListEntryDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public ReferenceListEntryDataTypeCollection(int capacity) : base(capacity) { }
+        public ReferenceListEntryDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ReferenceListEntryDataTypeCollection(IEnumerable<ReferenceListEntryDataType> collection) : base(collection) { }
+        public ReferenceListEntryDataTypeCollection(IEnumerable<ReferenceListEntryDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -31689,19 +35203,23 @@ namespace Opc.Ua
 #if (!OPCUA_EXCLUDE_LogRecord)
     /// <remarks />
     /// <exclude />
-
     public enum LogRecordFields : uint
     {
         /// <remarks />
         None = 0,
+
         /// <remarks />
         EventType = 0x1,
+
         /// <remarks />
         SourceNode = 0x2,
+
         /// <remarks />
         SourceName = 0x4,
+
         /// <remarks />
         TraceContext = 0x8,
+
         /// <remarks />
         AdditionalData = 0x10,
     }
@@ -31742,54 +35260,93 @@ namespace Opc.Ua
         #region Public Properties
         /// <remarks />
         [DataMember(Name = "EncodingMask", IsRequired = true, Order = 0)]
-        public virtual uint EncodingMask { get; set; }
+        public virtual uint EncodingMask
+        {
+            get; set;
+        }
 
         /// <remarks />
         [DataMember(Name = "Time", IsRequired = false, Order = 1)]
         public DateTime Time
         {
-            get { return m_time; }
-            set { m_time = value; }
+            get
+            {
+                return m_time;
+            }
+            set
+            {
+                m_time = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Severity", IsRequired = false, Order = 2)]
         public ushort Severity
         {
-            get { return m_severity; }
-            set { m_severity = value; }
+            get
+            {
+                return m_severity;
+            }
+            set
+            {
+                m_severity = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "EventType", IsRequired = false, Order = 3)]
         public NodeId EventType
         {
-            get { return m_eventType; }
-            set { m_eventType = value; }
+            get
+            {
+                return m_eventType;
+            }
+            set
+            {
+                m_eventType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SourceNode", IsRequired = false, Order = 4)]
         public NodeId SourceNode
         {
-            get { return m_sourceNode; }
-            set { m_sourceNode = value; }
+            get
+            {
+                return m_sourceNode;
+            }
+            set
+            {
+                m_sourceNode = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SourceName", IsRequired = false, Order = 5)]
         public string SourceName
         {
-            get { return m_sourceName; }
-            set { m_sourceName = value; }
+            get
+            {
+                return m_sourceName;
+            }
+            set
+            {
+                m_sourceName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Message", IsRequired = false, Order = 6)]
         public LocalizedText Message
         {
-            get { return m_message; }
-            set { m_message = value; }
+            get
+            {
+                return m_message;
+            }
+            set
+            {
+                m_message = value;
+            }
         }
 
         /// <remarks />
@@ -31800,7 +35357,6 @@ namespace Opc.Ua
             {
                 return m_traceContext;
             }
-
             set
             {
                 m_traceContext = value;
@@ -31820,7 +35376,6 @@ namespace Opc.Ua
             {
                 return m_additionalData;
             }
-
             set
             {
                 m_additionalData = value;
@@ -31886,9 +35441,11 @@ namespace Opc.Ua
                 SourceName = decoder.ReadString("SourceName");
             Message = decoder.ReadLocalizedText("Message");
             if ((EncodingMask & (uint)LogRecordFields.TraceContext) != 0)
-                TraceContext = (TraceContextDataType)decoder.ReadEncodeable("TraceContext", typeof(TraceContextDataType));
+                TraceContext = (TraceContextDataType)
+                    decoder.ReadEncodeable("TraceContext", typeof(TraceContextDataType));
             if ((EncodingMask & (uint)LogRecordFields.AdditionalData) != 0)
-                AdditionalData = (NameValuePairCollection)decoder.ReadEncodeableArray("AdditionalData", typeof(NameValuePair));
+                AdditionalData = (NameValuePairCollection)
+                    decoder.ReadEncodeableArray("AdditionalData", typeof(NameValuePair));
 
             decoder.PopNamespace();
         }
@@ -31977,7 +35534,9 @@ namespace Opc.Ua
         private TraceContextDataType m_traceContext;
         private NameValuePairCollection m_additionalData;
 
-        private static readonly string[] m_FieldNames = Enum.GetNames(typeof(LogRecordFields)).Where(x => x != nameof(LogRecordFields.None)).ToArray();
+        private static readonly string[] m_FieldNames = Enum.GetNames(typeof(LogRecordFields))
+            .Where(x => x != nameof(LogRecordFields.None))
+            .ToArray();
         #endregion
     }
 
@@ -31990,13 +35549,17 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <remarks />
-        public LogRecordCollection() { }
+        public LogRecordCollection()
+        {
+        }
 
         /// <remarks />
-        public LogRecordCollection(int capacity) : base(capacity) { }
+        public LogRecordCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public LogRecordCollection(IEnumerable<LogRecord> collection) : base(collection) { }
+        public LogRecordCollection(IEnumerable<LogRecord> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -32084,7 +35647,6 @@ namespace Opc.Ua
             {
                 return m_logRecordArray;
             }
-
             set
             {
                 m_logRecordArray = value;
@@ -32177,18 +35739,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfLogRecordsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "LogRecordsDataType")]
+    [CollectionDataContract(
+        Name = "ListOfLogRecordsDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "LogRecordsDataType"
+    )]
     public partial class LogRecordsDataTypeCollection : List<LogRecordsDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public LogRecordsDataTypeCollection() { }
+        public LogRecordsDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public LogRecordsDataTypeCollection(int capacity) : base(capacity) { }
+        public LogRecordsDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public LogRecordsDataTypeCollection(IEnumerable<LogRecordsDataType> collection) : base(collection) { }
+        public LogRecordsDataTypeCollection(IEnumerable<LogRecordsDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -32273,16 +35843,28 @@ namespace Opc.Ua
         [DataMember(Name = "TraceId", IsRequired = false, Order = 1)]
         public Uuid TraceId
         {
-            get { return m_traceId; }
-            set { m_traceId = value; }
+            get
+            {
+                return m_traceId;
+            }
+            set
+            {
+                m_traceId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SpanId", IsRequired = false, Order = 2)]
         public ulong SpanId
         {
-            get { return m_spanId; }
-            set { m_spanId = value; }
+            get
+            {
+                return m_spanId;
+            }
+            set
+            {
+                m_spanId = value;
+            }
         }
         #endregion
 
@@ -32372,18 +35954,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfSpanContextDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SpanContextDataType")]
+    [CollectionDataContract(
+        Name = "ListOfSpanContextDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "SpanContextDataType"
+    )]
     public partial class SpanContextDataTypeCollection : List<SpanContextDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public SpanContextDataTypeCollection() { }
+        public SpanContextDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public SpanContextDataTypeCollection(int capacity) : base(capacity) { }
+        public SpanContextDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public SpanContextDataTypeCollection(IEnumerable<SpanContextDataType> collection) : base(collection) { }
+        public SpanContextDataTypeCollection(IEnumerable<SpanContextDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -32468,16 +36058,28 @@ namespace Opc.Ua
         [DataMember(Name = "ParentSpanId", IsRequired = false, Order = 1)]
         public ulong ParentSpanId
         {
-            get { return m_parentSpanId; }
-            set { m_parentSpanId = value; }
+            get
+            {
+                return m_parentSpanId;
+            }
+            set
+            {
+                m_parentSpanId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ParentIdentifier", IsRequired = false, Order = 2)]
         public string ParentIdentifier
         {
-            get { return m_parentIdentifier; }
-            set { m_parentIdentifier = value; }
+            get
+            {
+                return m_parentIdentifier;
+            }
+            set
+            {
+                m_parentIdentifier = value;
+            }
         }
         #endregion
 
@@ -32571,18 +36173,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfTraceContextDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TraceContextDataType")]
+    [CollectionDataContract(
+        Name = "ListOfTraceContextDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "TraceContextDataType"
+    )]
     public partial class TraceContextDataTypeCollection : List<TraceContextDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public TraceContextDataTypeCollection() { }
+        public TraceContextDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public TraceContextDataTypeCollection(int capacity) : base(capacity) { }
+        public TraceContextDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public TraceContextDataTypeCollection(IEnumerable<TraceContextDataType> collection) : base(collection) { }
+        public TraceContextDataTypeCollection(IEnumerable<TraceContextDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -32667,16 +36277,28 @@ namespace Opc.Ua
         [DataMember(Name = "Name", IsRequired = false, Order = 1)]
         public string Name
         {
-            get { return m_name; }
-            set { m_name = value; }
+            get
+            {
+                return m_name;
+            }
+            set
+            {
+                m_name = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Value", IsRequired = false, Order = 2)]
         public Variant Value
         {
-            get { return m_value; }
-            set { m_value = value; }
+            get
+            {
+                return m_value;
+            }
+            set
+            {
+                m_value = value;
+            }
         }
         #endregion
 
@@ -32766,18 +36388,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfNameValuePair", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NameValuePair")]
+    [CollectionDataContract(
+        Name = "ListOfNameValuePair",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "NameValuePair"
+    )]
     public partial class NameValuePairCollection : List<NameValuePair>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public NameValuePairCollection() { }
+        public NameValuePairCollection()
+        {
+        }
 
         /// <remarks />
-        public NameValuePairCollection(int capacity) : base(capacity) { }
+        public NameValuePairCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public NameValuePairCollection(IEnumerable<NameValuePair> collection) : base(collection) { }
+        public NameValuePairCollection(IEnumerable<NameValuePair> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -32867,18 +36497,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfLogRecordMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "LogRecordMask")]
+    [CollectionDataContract(
+        Name = "ListOfLogRecordMask",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "LogRecordMask"
+    )]
     public partial class LogRecordMaskCollection : List<LogRecordMask>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public LogRecordMaskCollection() { }
+        public LogRecordMaskCollection()
+        {
+        }
 
         /// <remarks />
-        public LogRecordMaskCollection(int capacity) : base(capacity) { }
+        public LogRecordMaskCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public LogRecordMaskCollection(IEnumerable<LogRecordMask> collection) : base(collection) { }
+        public LogRecordMaskCollection(IEnumerable<LogRecordMask> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -32964,13 +36602,17 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <remarks />
-        public IdTypeCollection() { }
+        public IdTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public IdTypeCollection(int capacity) : base(capacity) { }
+        public IdTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public IdTypeCollection(IEnumerable<IdType> collection) : base(collection) { }
+        public IdTypeCollection(IEnumerable<IdType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -33358,16 +37000,28 @@ namespace Opc.Ua
         [DataMember(Name = "RoleId", IsRequired = false, Order = 1)]
         public NodeId RoleId
         {
-            get { return m_roleId; }
-            set { m_roleId = value; }
+            get
+            {
+                return m_roleId;
+            }
+            set
+            {
+                m_roleId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Permissions", IsRequired = false, Order = 2)]
         public uint Permissions
         {
-            get { return m_permissions; }
-            set { m_permissions = value; }
+            get
+            {
+                return m_permissions;
+            }
+            set
+            {
+                m_permissions = value;
+            }
         }
         #endregion
 
@@ -33457,18 +37111,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfRolePermissionType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RolePermissionType")]
+    [CollectionDataContract(
+        Name = "ListOfRolePermissionType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "RolePermissionType"
+    )]
     public partial class RolePermissionTypeCollection : List<RolePermissionType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public RolePermissionTypeCollection() { }
+        public RolePermissionTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public RolePermissionTypeCollection(int capacity) : base(capacity) { }
+        public RolePermissionTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public RolePermissionTypeCollection(IEnumerable<RolePermissionType> collection) : base(collection) { }
+        public RolePermissionTypeCollection(IEnumerable<RolePermissionType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -33567,7 +37229,6 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -33575,7 +37236,6 @@ namespace Opc.Ua
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -33595,7 +37255,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return true;
         }
 
@@ -33610,7 +37269,6 @@ namespace Opc.Ua
         {
             DataTypeDefinition clone = (DataTypeDefinition)base.MemberwiseClone();
 
-
             return clone;
         }
         #endregion
@@ -33623,18 +37281,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfDataTypeDefinition", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataTypeDefinition")]
+    [CollectionDataContract(
+        Name = "ListOfDataTypeDefinition",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "DataTypeDefinition"
+    )]
     public partial class DataTypeDefinitionCollection : List<DataTypeDefinition>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public DataTypeDefinitionCollection() { }
+        public DataTypeDefinitionCollection()
+        {
+        }
 
         /// <remarks />
-        public DataTypeDefinitionCollection(int capacity) : base(capacity) { }
+        public DataTypeDefinitionCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public DataTypeDefinitionCollection(IEnumerable<DataTypeDefinition> collection) : base(collection) { }
+        public DataTypeDefinitionCollection(IEnumerable<DataTypeDefinition> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -33755,32 +37421,56 @@ namespace Opc.Ua
         [DataMember(Name = "Name", IsRequired = false, Order = 1)]
         public string Name
         {
-            get { return m_name; }
-            set { m_name = value; }
+            get
+            {
+                return m_name;
+            }
+            set
+            {
+                m_name = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Description", IsRequired = false, Order = 2)]
         public LocalizedText Description
         {
-            get { return m_description; }
-            set { m_description = value; }
+            get
+            {
+                return m_description;
+            }
+            set
+            {
+                m_description = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataType", IsRequired = false, Order = 3)]
         public NodeId DataType
         {
-            get { return m_dataType; }
-            set { m_dataType = value; }
+            get
+            {
+                return m_dataType;
+            }
+            set
+            {
+                m_dataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ValueRank", IsRequired = false, Order = 4)]
         public int ValueRank
         {
-            get { return m_valueRank; }
-            set { m_valueRank = value; }
+            get
+            {
+                return m_valueRank;
+            }
+            set
+            {
+                m_valueRank = value;
+            }
         }
 
         /// <remarks />
@@ -33791,7 +37481,6 @@ namespace Opc.Ua
             {
                 return m_arrayDimensions;
             }
-
             set
             {
                 m_arrayDimensions = value;
@@ -33807,16 +37496,28 @@ namespace Opc.Ua
         [DataMember(Name = "MaxStringLength", IsRequired = false, Order = 6)]
         public uint MaxStringLength
         {
-            get { return m_maxStringLength; }
-            set { m_maxStringLength = value; }
+            get
+            {
+                return m_maxStringLength;
+            }
+            set
+            {
+                m_maxStringLength = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IsOptional", IsRequired = false, Order = 7)]
         public bool IsOptional
         {
-            get { return m_isOptional; }
-            set { m_isOptional = value; }
+            get
+            {
+                return m_isOptional;
+            }
+            set
+            {
+                m_isOptional = value;
+            }
         }
         #endregion
 
@@ -33936,18 +37637,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfStructureField", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "StructureField")]
+    [CollectionDataContract(
+        Name = "ListOfStructureField",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "StructureField"
+    )]
     public partial class StructureFieldCollection : List<StructureField>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public StructureFieldCollection() { }
+        public StructureFieldCollection()
+        {
+        }
 
         /// <remarks />
-        public StructureFieldCollection(int capacity) : base(capacity) { }
+        public StructureFieldCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public StructureFieldCollection(IEnumerable<StructureField> collection) : base(collection) { }
+        public StructureFieldCollection(IEnumerable<StructureField> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -34034,24 +37743,42 @@ namespace Opc.Ua
         [DataMember(Name = "DefaultEncodingId", IsRequired = false, Order = 1)]
         public NodeId DefaultEncodingId
         {
-            get { return m_defaultEncodingId; }
-            set { m_defaultEncodingId = value; }
+            get
+            {
+                return m_defaultEncodingId;
+            }
+            set
+            {
+                m_defaultEncodingId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "BaseDataType", IsRequired = false, Order = 2)]
         public NodeId BaseDataType
         {
-            get { return m_baseDataType; }
-            set { m_baseDataType = value; }
+            get
+            {
+                return m_baseDataType;
+            }
+            set
+            {
+                m_baseDataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "StructureType", IsRequired = false, Order = 3)]
         public StructureType StructureType
         {
-            get { return m_structureType; }
-            set { m_structureType = value; }
+            get
+            {
+                return m_structureType;
+            }
+            set
+            {
+                m_structureType = value;
+            }
         }
 
         /// <remarks />
@@ -34062,7 +37789,6 @@ namespace Opc.Ua
             {
                 return m_fields;
             }
-
             set
             {
                 m_fields = value;
@@ -34177,18 +37903,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfStructureDefinition", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "StructureDefinition")]
+    [CollectionDataContract(
+        Name = "ListOfStructureDefinition",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "StructureDefinition"
+    )]
     public partial class StructureDefinitionCollection : List<StructureDefinition>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public StructureDefinitionCollection() { }
+        public StructureDefinitionCollection()
+        {
+        }
 
         /// <remarks />
-        public StructureDefinitionCollection(int capacity) : base(capacity) { }
+        public StructureDefinitionCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public StructureDefinitionCollection(IEnumerable<StructureDefinition> collection) : base(collection) { }
+        public StructureDefinitionCollection(IEnumerable<StructureDefinition> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -34276,7 +38010,6 @@ namespace Opc.Ua
             {
                 return m_fields;
             }
-
             set
             {
                 m_fields = value;
@@ -34373,18 +38106,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfEnumDefinition", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EnumDefinition")]
+    [CollectionDataContract(
+        Name = "ListOfEnumDefinition",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "EnumDefinition"
+    )]
     public partial class EnumDefinitionCollection : List<EnumDefinition>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public EnumDefinitionCollection() { }
+        public EnumDefinitionCollection()
+        {
+        }
 
         /// <remarks />
-        public EnumDefinitionCollection(int capacity) : base(capacity) { }
+        public EnumDefinitionCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public EnumDefinitionCollection(IEnumerable<EnumDefinition> collection) : base(collection) { }
+        public EnumDefinitionCollection(IEnumerable<EnumDefinition> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -34478,56 +38219,98 @@ namespace Opc.Ua
         [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
         public NodeId NodeId
         {
-            get { return m_nodeId; }
-            set { m_nodeId = value; }
+            get
+            {
+                return m_nodeId;
+            }
+            set
+            {
+                m_nodeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "NodeClass", IsRequired = false, Order = 2)]
         public NodeClass NodeClass
         {
-            get { return m_nodeClass; }
-            set { m_nodeClass = value; }
+            get
+            {
+                return m_nodeClass;
+            }
+            set
+            {
+                m_nodeClass = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "BrowseName", IsRequired = false, Order = 3)]
         public QualifiedName BrowseName
         {
-            get { return m_browseName; }
-            set { m_browseName = value; }
+            get
+            {
+                return m_browseName;
+            }
+            set
+            {
+                m_browseName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DisplayName", IsRequired = false, Order = 4)]
         public LocalizedText DisplayName
         {
-            get { return m_displayName; }
-            set { m_displayName = value; }
+            get
+            {
+                return m_displayName;
+            }
+            set
+            {
+                m_displayName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Description", IsRequired = false, Order = 5)]
         public LocalizedText Description
         {
-            get { return m_description; }
-            set { m_description = value; }
+            get
+            {
+                return m_description;
+            }
+            set
+            {
+                m_description = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "WriteMask", IsRequired = false, Order = 6)]
         public uint WriteMask
         {
-            get { return m_writeMask; }
-            set { m_writeMask = value; }
+            get
+            {
+                return m_writeMask;
+            }
+            set
+            {
+                m_writeMask = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "UserWriteMask", IsRequired = false, Order = 7)]
         public uint UserWriteMask
         {
-            get { return m_userWriteMask; }
-            set { m_userWriteMask = value; }
+            get
+            {
+                return m_userWriteMask;
+            }
+            set
+            {
+                m_userWriteMask = value;
+            }
         }
 
         /// <remarks />
@@ -34538,7 +38321,6 @@ namespace Opc.Ua
             {
                 return m_rolePermissions;
             }
-
             set
             {
                 m_rolePermissions = value;
@@ -34558,7 +38340,6 @@ namespace Opc.Ua
             {
                 return m_userRolePermissions;
             }
-
             set
             {
                 m_userRolePermissions = value;
@@ -34574,8 +38355,14 @@ namespace Opc.Ua
         [DataMember(Name = "AccessRestrictions", IsRequired = false, Order = 10)]
         public ushort AccessRestrictions
         {
-            get { return m_accessRestrictions; }
-            set { m_accessRestrictions = value; }
+            get
+            {
+                return m_accessRestrictions;
+            }
+            set
+            {
+                m_accessRestrictions = value;
+            }
         }
 
         /// <remarks />
@@ -34586,7 +38373,6 @@ namespace Opc.Ua
             {
                 return m_references;
             }
-
             set
             {
                 m_references = value;
@@ -34625,7 +38411,11 @@ namespace Opc.Ua
             encoder.WriteUInt32("WriteMask", WriteMask);
             encoder.WriteUInt32("UserWriteMask", UserWriteMask);
             encoder.WriteEncodeableArray("RolePermissions", RolePermissions.ToArray(), typeof(RolePermissionType));
-            encoder.WriteEncodeableArray("UserRolePermissions", UserRolePermissions.ToArray(), typeof(RolePermissionType));
+            encoder.WriteEncodeableArray(
+                "UserRolePermissions",
+                UserRolePermissions.ToArray(),
+                typeof(RolePermissionType)
+            );
             encoder.WriteUInt16("AccessRestrictions", AccessRestrictions);
             encoder.WriteEncodeableArray("References", References.ToArray(), typeof(ReferenceNode));
 
@@ -34644,8 +38434,10 @@ namespace Opc.Ua
             Description = decoder.ReadLocalizedText("Description");
             WriteMask = decoder.ReadUInt32("WriteMask");
             UserWriteMask = decoder.ReadUInt32("UserWriteMask");
-            RolePermissions = (RolePermissionTypeCollection)decoder.ReadEncodeableArray("RolePermissions", typeof(RolePermissionType));
-            UserRolePermissions = (RolePermissionTypeCollection)decoder.ReadEncodeableArray("UserRolePermissions", typeof(RolePermissionType));
+            RolePermissions = (RolePermissionTypeCollection)
+                decoder.ReadEncodeableArray("RolePermissions", typeof(RolePermissionType));
+            UserRolePermissions = (RolePermissionTypeCollection)
+                decoder.ReadEncodeableArray("UserRolePermissions", typeof(RolePermissionType));
             AccessRestrictions = decoder.ReadUInt16("AccessRestrictions");
             References = (ReferenceNodeCollection)decoder.ReadEncodeableArray("References", typeof(ReferenceNode));
 
@@ -34744,13 +38536,17 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <remarks />
-        public NodeCollection() { }
+        public NodeCollection()
+        {
+        }
 
         /// <remarks />
-        public NodeCollection(int capacity) : base(capacity) { }
+        public NodeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public NodeCollection(IEnumerable<Node> collection) : base(collection) { }
+        public NodeCollection(IEnumerable<Node> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -34851,7 +38647,6 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -34861,7 +38656,6 @@ namespace Opc.Ua
             base.Decode(decoder);
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -34881,7 +38675,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return base.IsEqual(encodeable);
         }
 
@@ -34895,7 +38688,6 @@ namespace Opc.Ua
         public new object MemberwiseClone()
         {
             InstanceNode clone = (InstanceNode)base.MemberwiseClone();
-
 
             return clone;
         }
@@ -34956,7 +38748,6 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -34966,7 +38757,6 @@ namespace Opc.Ua
             base.Decode(decoder);
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -34986,7 +38776,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return base.IsEqual(encodeable);
         }
 
@@ -35000,7 +38789,6 @@ namespace Opc.Ua
         public new object MemberwiseClone()
         {
             TypeNode clone = (TypeNode)base.MemberwiseClone();
-
 
             return clone;
         }
@@ -35044,8 +38832,14 @@ namespace Opc.Ua
         [DataMember(Name = "EventNotifier", IsRequired = false, Order = 1)]
         public byte EventNotifier
         {
-            get { return m_eventNotifier; }
-            set { m_eventNotifier = value; }
+            get
+            {
+                return m_eventNotifier;
+            }
+            set
+            {
+                m_eventNotifier = value;
+            }
         }
         #endregion
 
@@ -35163,8 +38957,14 @@ namespace Opc.Ua
         [DataMember(Name = "IsAbstract", IsRequired = false, Order = 1)]
         public bool IsAbstract
         {
-            get { return m_isAbstract; }
-            set { m_isAbstract = value; }
+            get
+            {
+                return m_isAbstract;
+            }
+            set
+            {
+                m_isAbstract = value;
+            }
         }
         #endregion
 
@@ -35290,24 +39090,42 @@ namespace Opc.Ua
         [DataMember(Name = "Value", IsRequired = false, Order = 1)]
         public Variant Value
         {
-            get { return m_value; }
-            set { m_value = value; }
+            get
+            {
+                return m_value;
+            }
+            set
+            {
+                m_value = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataType", IsRequired = false, Order = 2)]
         public NodeId DataType
         {
-            get { return m_dataType; }
-            set { m_dataType = value; }
+            get
+            {
+                return m_dataType;
+            }
+            set
+            {
+                m_dataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ValueRank", IsRequired = false, Order = 3)]
         public int ValueRank
         {
-            get { return m_valueRank; }
-            set { m_valueRank = value; }
+            get
+            {
+                return m_valueRank;
+            }
+            set
+            {
+                m_valueRank = value;
+            }
         }
 
         /// <remarks />
@@ -35318,7 +39136,6 @@ namespace Opc.Ua
             {
                 return m_arrayDimensions;
             }
-
             set
             {
                 m_arrayDimensions = value;
@@ -35334,40 +39151,70 @@ namespace Opc.Ua
         [DataMember(Name = "AccessLevel", IsRequired = false, Order = 5)]
         public byte AccessLevel
         {
-            get { return m_accessLevel; }
-            set { m_accessLevel = value; }
+            get
+            {
+                return m_accessLevel;
+            }
+            set
+            {
+                m_accessLevel = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "UserAccessLevel", IsRequired = false, Order = 6)]
         public byte UserAccessLevel
         {
-            get { return m_userAccessLevel; }
-            set { m_userAccessLevel = value; }
+            get
+            {
+                return m_userAccessLevel;
+            }
+            set
+            {
+                m_userAccessLevel = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MinimumSamplingInterval", IsRequired = false, Order = 7)]
         public double MinimumSamplingInterval
         {
-            get { return m_minimumSamplingInterval; }
-            set { m_minimumSamplingInterval = value; }
+            get
+            {
+                return m_minimumSamplingInterval;
+            }
+            set
+            {
+                m_minimumSamplingInterval = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Historizing", IsRequired = false, Order = 8)]
         public bool Historizing
         {
-            get { return m_historizing; }
-            set { m_historizing = value; }
+            get
+            {
+                return m_historizing;
+            }
+            set
+            {
+                m_historizing = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "AccessLevelEx", IsRequired = false, Order = 9)]
         public uint AccessLevelEx
         {
-            get { return m_accessLevelEx; }
-            set { m_accessLevelEx = value; }
+            get
+            {
+                return m_accessLevelEx;
+            }
+            set
+            {
+                m_accessLevelEx = value;
+            }
         }
         #endregion
 
@@ -35537,24 +39384,42 @@ namespace Opc.Ua
         [DataMember(Name = "Value", IsRequired = false, Order = 1)]
         public Variant Value
         {
-            get { return m_value; }
-            set { m_value = value; }
+            get
+            {
+                return m_value;
+            }
+            set
+            {
+                m_value = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataType", IsRequired = false, Order = 2)]
         public NodeId DataType
         {
-            get { return m_dataType; }
-            set { m_dataType = value; }
+            get
+            {
+                return m_dataType;
+            }
+            set
+            {
+                m_dataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ValueRank", IsRequired = false, Order = 3)]
         public int ValueRank
         {
-            get { return m_valueRank; }
-            set { m_valueRank = value; }
+            get
+            {
+                return m_valueRank;
+            }
+            set
+            {
+                m_valueRank = value;
+            }
         }
 
         /// <remarks />
@@ -35565,7 +39430,6 @@ namespace Opc.Ua
             {
                 return m_arrayDimensions;
             }
-
             set
             {
                 m_arrayDimensions = value;
@@ -35581,8 +39445,14 @@ namespace Opc.Ua
         [DataMember(Name = "IsAbstract", IsRequired = false, Order = 5)]
         public bool IsAbstract
         {
-            get { return m_isAbstract; }
-            set { m_isAbstract = value; }
+            get
+            {
+                return m_isAbstract;
+            }
+            set
+            {
+                m_isAbstract = value;
+            }
         }
         #endregion
 
@@ -35726,24 +39596,42 @@ namespace Opc.Ua
         [DataMember(Name = "IsAbstract", IsRequired = false, Order = 1)]
         public bool IsAbstract
         {
-            get { return m_isAbstract; }
-            set { m_isAbstract = value; }
+            get
+            {
+                return m_isAbstract;
+            }
+            set
+            {
+                m_isAbstract = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Symmetric", IsRequired = false, Order = 2)]
         public bool Symmetric
         {
-            get { return m_symmetric; }
-            set { m_symmetric = value; }
+            get
+            {
+                return m_symmetric;
+            }
+            set
+            {
+                m_symmetric = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "InverseName", IsRequired = false, Order = 3)]
         public LocalizedText InverseName
         {
-            get { return m_inverseName; }
-            set { m_inverseName = value; }
+            get
+            {
+                return m_inverseName;
+            }
+            set
+            {
+                m_inverseName = value;
+            }
         }
         #endregion
 
@@ -35874,16 +39762,28 @@ namespace Opc.Ua
         [DataMember(Name = "Executable", IsRequired = false, Order = 1)]
         public bool Executable
         {
-            get { return m_executable; }
-            set { m_executable = value; }
+            get
+            {
+                return m_executable;
+            }
+            set
+            {
+                m_executable = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "UserExecutable", IsRequired = false, Order = 2)]
         public bool UserExecutable
         {
-            get { return m_userExecutable; }
-            set { m_userExecutable = value; }
+            get
+            {
+                return m_userExecutable;
+            }
+            set
+            {
+                m_userExecutable = value;
+            }
         }
         #endregion
 
@@ -36008,16 +39908,28 @@ namespace Opc.Ua
         [DataMember(Name = "ContainsNoLoops", IsRequired = false, Order = 1)]
         public bool ContainsNoLoops
         {
-            get { return m_containsNoLoops; }
-            set { m_containsNoLoops = value; }
+            get
+            {
+                return m_containsNoLoops;
+            }
+            set
+            {
+                m_containsNoLoops = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "EventNotifier", IsRequired = false, Order = 2)]
         public byte EventNotifier
         {
-            get { return m_eventNotifier; }
-            set { m_eventNotifier = value; }
+            get
+            {
+                return m_eventNotifier;
+            }
+            set
+            {
+                m_eventNotifier = value;
+            }
         }
         #endregion
 
@@ -36142,16 +40054,28 @@ namespace Opc.Ua
         [DataMember(Name = "IsAbstract", IsRequired = false, Order = 1)]
         public bool IsAbstract
         {
-            get { return m_isAbstract; }
-            set { m_isAbstract = value; }
+            get
+            {
+                return m_isAbstract;
+            }
+            set
+            {
+                m_isAbstract = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataTypeDefinition", IsRequired = false, Order = 2)]
         public ExtensionObject DataTypeDefinition
         {
-            get { return m_dataTypeDefinition; }
-            set { m_dataTypeDefinition = value; }
+            get
+            {
+                return m_dataTypeDefinition;
+            }
+            set
+            {
+                m_dataTypeDefinition = value;
+            }
         }
         #endregion
 
@@ -36277,24 +40201,42 @@ namespace Opc.Ua
         [DataMember(Name = "ReferenceTypeId", IsRequired = false, Order = 1)]
         public NodeId ReferenceTypeId
         {
-            get { return m_referenceTypeId; }
-            set { m_referenceTypeId = value; }
+            get
+            {
+                return m_referenceTypeId;
+            }
+            set
+            {
+                m_referenceTypeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IsInverse", IsRequired = false, Order = 2)]
         public bool IsInverse
         {
-            get { return m_isInverse; }
-            set { m_isInverse = value; }
+            get
+            {
+                return m_isInverse;
+            }
+            set
+            {
+                m_isInverse = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TargetId", IsRequired = false, Order = 3)]
         public ExpandedNodeId TargetId
         {
-            get { return m_targetId; }
-            set { m_targetId = value; }
+            get
+            {
+                return m_targetId;
+            }
+            set
+            {
+                m_targetId = value;
+            }
         }
         #endregion
 
@@ -36390,18 +40332,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfReferenceNode", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReferenceNode")]
+    [CollectionDataContract(
+        Name = "ListOfReferenceNode",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ReferenceNode"
+    )]
     public partial class ReferenceNodeCollection : List<ReferenceNode>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ReferenceNodeCollection() { }
+        public ReferenceNodeCollection()
+        {
+        }
 
         /// <remarks />
-        public ReferenceNodeCollection(int capacity) : base(capacity) { }
+        public ReferenceNodeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ReferenceNodeCollection(IEnumerable<ReferenceNode> collection) : base(collection) { }
+        public ReferenceNodeCollection(IEnumerable<ReferenceNode> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -36489,24 +40439,42 @@ namespace Opc.Ua
         [DataMember(Name = "Name", IsRequired = false, Order = 1)]
         public string Name
         {
-            get { return m_name; }
-            set { m_name = value; }
+            get
+            {
+                return m_name;
+            }
+            set
+            {
+                m_name = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataType", IsRequired = false, Order = 2)]
         public NodeId DataType
         {
-            get { return m_dataType; }
-            set { m_dataType = value; }
+            get
+            {
+                return m_dataType;
+            }
+            set
+            {
+                m_dataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ValueRank", IsRequired = false, Order = 3)]
         public int ValueRank
         {
-            get { return m_valueRank; }
-            set { m_valueRank = value; }
+            get
+            {
+                return m_valueRank;
+            }
+            set
+            {
+                m_valueRank = value;
+            }
         }
 
         /// <remarks />
@@ -36517,7 +40485,6 @@ namespace Opc.Ua
             {
                 return m_arrayDimensions;
             }
-
             set
             {
                 m_arrayDimensions = value;
@@ -36533,8 +40500,14 @@ namespace Opc.Ua
         [DataMember(Name = "Description", IsRequired = false, Order = 5)]
         public LocalizedText Description
         {
-            get { return m_description; }
-            set { m_description = value; }
+            get
+            {
+                return m_description;
+            }
+            set
+            {
+                m_description = value;
+            }
         }
         #endregion
 
@@ -36647,13 +40620,17 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <remarks />
-        public ArgumentCollection() { }
+        public ArgumentCollection()
+        {
+        }
 
         /// <remarks />
-        public ArgumentCollection(int capacity) : base(capacity) { }
+        public ArgumentCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ArgumentCollection(IEnumerable<Argument> collection) : base(collection) { }
+        public ArgumentCollection(IEnumerable<Argument> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -36739,24 +40716,42 @@ namespace Opc.Ua
         [DataMember(Name = "Value", IsRequired = false, Order = 1)]
         public long Value
         {
-            get { return m_value; }
-            set { m_value = value; }
+            get
+            {
+                return m_value;
+            }
+            set
+            {
+                m_value = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DisplayName", IsRequired = false, Order = 2)]
         public LocalizedText DisplayName
         {
-            get { return m_displayName; }
-            set { m_displayName = value; }
+            get
+            {
+                return m_displayName;
+            }
+            set
+            {
+                m_displayName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Description", IsRequired = false, Order = 3)]
         public LocalizedText Description
         {
-            get { return m_description; }
-            set { m_description = value; }
+            get
+            {
+                return m_description;
+            }
+            set
+            {
+                m_description = value;
+            }
         }
         #endregion
 
@@ -36852,18 +40847,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfEnumValueType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EnumValueType")]
+    [CollectionDataContract(
+        Name = "ListOfEnumValueType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "EnumValueType"
+    )]
     public partial class EnumValueTypeCollection : List<EnumValueType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public EnumValueTypeCollection() { }
+        public EnumValueTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public EnumValueTypeCollection(int capacity) : base(capacity) { }
+        public EnumValueTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public EnumValueTypeCollection(IEnumerable<EnumValueType> collection) : base(collection) { }
+        public EnumValueTypeCollection(IEnumerable<EnumValueType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -36947,8 +40950,14 @@ namespace Opc.Ua
         [DataMember(Name = "Name", IsRequired = false, Order = 1)]
         public string Name
         {
-            get { return m_name; }
-            set { m_name = value; }
+            get
+            {
+                return m_name;
+            }
+            set
+            {
+                m_name = value;
+            }
         }
         #endregion
 
@@ -37041,13 +41050,17 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <remarks />
-        public EnumFieldCollection() { }
+        public EnumFieldCollection()
+        {
+        }
 
         /// <remarks />
-        public EnumFieldCollection(int capacity) : base(capacity) { }
+        public EnumFieldCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public EnumFieldCollection(IEnumerable<EnumField> collection) : base(collection) { }
+        public EnumFieldCollection(IEnumerable<EnumField> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -37132,16 +41145,28 @@ namespace Opc.Ua
         [DataMember(Name = "Value", IsRequired = false, Order = 1)]
         public byte[] Value
         {
-            get { return m_value; }
-            set { m_value = value; }
+            get
+            {
+                return m_value;
+            }
+            set
+            {
+                m_value = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ValidBits", IsRequired = false, Order = 2)]
         public byte[] ValidBits
         {
-            get { return m_validBits; }
-            set { m_validBits = value; }
+            get
+            {
+                return m_validBits;
+            }
+            set
+            {
+                m_validBits = value;
+            }
         }
         #endregion
 
@@ -37236,13 +41261,17 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <remarks />
-        public OptionSetCollection() { }
+        public OptionSetCollection()
+        {
+        }
 
         /// <remarks />
-        public OptionSetCollection(int capacity) : base(capacity) { }
+        public OptionSetCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public OptionSetCollection(IEnumerable<OptionSet> collection) : base(collection) { }
+        public OptionSetCollection(IEnumerable<OptionSet> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -37327,16 +41356,28 @@ namespace Opc.Ua
         [DataMember(Name = "Offset", IsRequired = false, Order = 1)]
         public short Offset
         {
-            get { return m_offset; }
-            set { m_offset = value; }
+            get
+            {
+                return m_offset;
+            }
+            set
+            {
+                m_offset = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DaylightSavingInOffset", IsRequired = false, Order = 2)]
         public bool DaylightSavingInOffset
         {
-            get { return m_daylightSavingInOffset; }
-            set { m_daylightSavingInOffset = value; }
+            get
+            {
+                return m_daylightSavingInOffset;
+            }
+            set
+            {
+                m_daylightSavingInOffset = value;
+            }
         }
         #endregion
 
@@ -37426,18 +41467,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfTimeZoneDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TimeZoneDataType")]
+    [CollectionDataContract(
+        Name = "ListOfTimeZoneDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "TimeZoneDataType"
+    )]
     public partial class TimeZoneDataTypeCollection : List<TimeZoneDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public TimeZoneDataTypeCollection() { }
+        public TimeZoneDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public TimeZoneDataTypeCollection(int capacity) : base(capacity) { }
+        public TimeZoneDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public TimeZoneDataTypeCollection(IEnumerable<TimeZoneDataType> collection) : base(collection) { }
+        public TimeZoneDataTypeCollection(IEnumerable<TimeZoneDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -37554,48 +41603,84 @@ namespace Opc.Ua
         [DataMember(Name = "ApplicationUri", IsRequired = false, Order = 1)]
         public string ApplicationUri
         {
-            get { return m_applicationUri; }
-            set { m_applicationUri = value; }
+            get
+            {
+                return m_applicationUri;
+            }
+            set
+            {
+                m_applicationUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ProductUri", IsRequired = false, Order = 2)]
         public string ProductUri
         {
-            get { return m_productUri; }
-            set { m_productUri = value; }
+            get
+            {
+                return m_productUri;
+            }
+            set
+            {
+                m_productUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ApplicationName", IsRequired = false, Order = 3)]
         public LocalizedText ApplicationName
         {
-            get { return m_applicationName; }
-            set { m_applicationName = value; }
+            get
+            {
+                return m_applicationName;
+            }
+            set
+            {
+                m_applicationName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ApplicationType", IsRequired = false, Order = 4)]
         public ApplicationType ApplicationType
         {
-            get { return m_applicationType; }
-            set { m_applicationType = value; }
+            get
+            {
+                return m_applicationType;
+            }
+            set
+            {
+                m_applicationType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "GatewayServerUri", IsRequired = false, Order = 5)]
         public string GatewayServerUri
         {
-            get { return m_gatewayServerUri; }
-            set { m_gatewayServerUri = value; }
+            get
+            {
+                return m_gatewayServerUri;
+            }
+            set
+            {
+                m_gatewayServerUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DiscoveryProfileUri", IsRequired = false, Order = 6)]
         public string DiscoveryProfileUri
         {
-            get { return m_discoveryProfileUri; }
-            set { m_discoveryProfileUri = value; }
+            get
+            {
+                return m_discoveryProfileUri;
+            }
+            set
+            {
+                m_discoveryProfileUri = value;
+            }
         }
 
         /// <remarks />
@@ -37606,7 +41691,6 @@ namespace Opc.Ua
             {
                 return m_discoveryUrls;
             }
-
             set
             {
                 m_discoveryUrls = value;
@@ -37735,18 +41819,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfApplicationDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ApplicationDescription")]
+    [CollectionDataContract(
+        Name = "ListOfApplicationDescription",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ApplicationDescription"
+    )]
     public partial class ApplicationDescriptionCollection : List<ApplicationDescription>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ApplicationDescriptionCollection() { }
+        public ApplicationDescriptionCollection()
+        {
+        }
 
         /// <remarks />
-        public ApplicationDescriptionCollection(int capacity) : base(capacity) { }
+        public ApplicationDescriptionCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ApplicationDescriptionCollection(IEnumerable<ApplicationDescription> collection) : base(collection) { }
+        public ApplicationDescriptionCollection(IEnumerable<ApplicationDescription> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -37836,56 +41928,98 @@ namespace Opc.Ua
         [DataMember(Name = "AuthenticationToken", IsRequired = false, Order = 1)]
         public NodeId AuthenticationToken
         {
-            get { return m_authenticationToken; }
-            set { m_authenticationToken = value; }
+            get
+            {
+                return m_authenticationToken;
+            }
+            set
+            {
+                m_authenticationToken = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Timestamp", IsRequired = false, Order = 2)]
         public DateTime Timestamp
         {
-            get { return m_timestamp; }
-            set { m_timestamp = value; }
+            get
+            {
+                return m_timestamp;
+            }
+            set
+            {
+                m_timestamp = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RequestHandle", IsRequired = false, Order = 3)]
         public uint RequestHandle
         {
-            get { return m_requestHandle; }
-            set { m_requestHandle = value; }
+            get
+            {
+                return m_requestHandle;
+            }
+            set
+            {
+                m_requestHandle = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ReturnDiagnostics", IsRequired = false, Order = 4)]
         public uint ReturnDiagnostics
         {
-            get { return m_returnDiagnostics; }
-            set { m_returnDiagnostics = value; }
+            get
+            {
+                return m_returnDiagnostics;
+            }
+            set
+            {
+                m_returnDiagnostics = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "AuditEntryId", IsRequired = false, Order = 5)]
         public string AuditEntryId
         {
-            get { return m_auditEntryId; }
-            set { m_auditEntryId = value; }
+            get
+            {
+                return m_auditEntryId;
+            }
+            set
+            {
+                m_auditEntryId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TimeoutHint", IsRequired = false, Order = 6)]
         public uint TimeoutHint
         {
-            get { return m_timeoutHint; }
-            set { m_timeoutHint = value; }
+            get
+            {
+                return m_timeoutHint;
+            }
+            set
+            {
+                m_timeoutHint = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "AdditionalHeader", IsRequired = false, Order = 7)]
         public ExtensionObject AdditionalHeader
         {
-            get { return m_additionalHeader; }
-            set { m_additionalHeader = value; }
+            get
+            {
+                return m_additionalHeader;
+            }
+            set
+            {
+                m_additionalHeader = value;
+            }
         }
         #endregion
 
@@ -38040,32 +42174,56 @@ namespace Opc.Ua
         [DataMember(Name = "Timestamp", IsRequired = false, Order = 1)]
         public DateTime Timestamp
         {
-            get { return m_timestamp; }
-            set { m_timestamp = value; }
+            get
+            {
+                return m_timestamp;
+            }
+            set
+            {
+                m_timestamp = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RequestHandle", IsRequired = false, Order = 2)]
         public uint RequestHandle
         {
-            get { return m_requestHandle; }
-            set { m_requestHandle = value; }
+            get
+            {
+                return m_requestHandle;
+            }
+            set
+            {
+                m_requestHandle = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ServiceResult", IsRequired = false, Order = 3)]
         public StatusCode ServiceResult
         {
-            get { return m_serviceResult; }
-            set { m_serviceResult = value; }
+            get
+            {
+                return m_serviceResult;
+            }
+            set
+            {
+                m_serviceResult = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ServiceDiagnostics", IsRequired = false, Order = 4)]
         public DiagnosticInfo ServiceDiagnostics
         {
-            get { return m_serviceDiagnostics; }
-            set { m_serviceDiagnostics = value; }
+            get
+            {
+                return m_serviceDiagnostics;
+            }
+            set
+            {
+                m_serviceDiagnostics = value;
+            }
         }
 
         /// <remarks />
@@ -38076,7 +42234,6 @@ namespace Opc.Ua
             {
                 return m_stringTable;
             }
-
             set
             {
                 m_stringTable = value;
@@ -38092,8 +42249,14 @@ namespace Opc.Ua
         [DataMember(Name = "AdditionalHeader", IsRequired = false, Order = 6)]
         public ExtensionObject AdditionalHeader
         {
-            get { return m_additionalHeader; }
-            set { m_additionalHeader = value; }
+            get
+            {
+                return m_additionalHeader;
+            }
+            set
+            {
+                m_additionalHeader = value;
+            }
         }
         #endregion
 
@@ -38241,7 +42404,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -38368,8 +42530,14 @@ namespace Opc.Ua
         [DataMember(Name = "UrisVersion", IsRequired = false, Order = 1)]
         public uint UrisVersion
         {
-            get { return m_urisVersion; }
-            set { m_urisVersion = value; }
+            get
+            {
+                return m_urisVersion;
+            }
+            set
+            {
+                m_urisVersion = value;
+            }
         }
 
         /// <remarks />
@@ -38380,7 +42548,6 @@ namespace Opc.Ua
             {
                 return m_namespaceUris;
             }
-
             set
             {
                 m_namespaceUris = value;
@@ -38400,7 +42567,6 @@ namespace Opc.Ua
             {
                 return m_serverUris;
             }
-
             set
             {
                 m_serverUris = value;
@@ -38420,7 +42586,6 @@ namespace Opc.Ua
             {
                 return m_localeIds;
             }
-
             set
             {
                 m_localeIds = value;
@@ -38436,8 +42601,14 @@ namespace Opc.Ua
         [DataMember(Name = "ServiceId", IsRequired = false, Order = 5)]
         public uint ServiceId
         {
-            get { return m_serviceId; }
-            set { m_serviceId = value; }
+            get
+            {
+                return m_serviceId;
+            }
+            set
+            {
+                m_serviceId = value;
+            }
         }
         #endregion
 
@@ -38581,7 +42752,6 @@ namespace Opc.Ua
             {
                 return m_namespaceUris;
             }
-
             set
             {
                 m_namespaceUris = value;
@@ -38601,7 +42771,6 @@ namespace Opc.Ua
             {
                 return m_serverUris;
             }
-
             set
             {
                 m_serverUris = value;
@@ -38617,8 +42786,14 @@ namespace Opc.Ua
         [DataMember(Name = "ServiceId", IsRequired = false, Order = 3)]
         public uint ServiceId
         {
-            get { return m_serviceId; }
-            set { m_serviceId = value; }
+            get
+            {
+                return m_serviceId;
+            }
+            set
+            {
+                m_serviceId = value;
+            }
         }
         #endregion
 
@@ -38627,7 +42802,8 @@ namespace Opc.Ua
         public virtual ExpandedNodeId TypeId => DataTypeIds.SessionlessInvokeResponseType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SessionlessInvokeResponseType_Encoding_DefaultBinary;
+        public virtual ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.SessionlessInvokeResponseType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SessionlessInvokeResponseType_Encoding_DefaultXml;
@@ -38751,7 +42927,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -38767,8 +42942,14 @@ namespace Opc.Ua
         [DataMember(Name = "EndpointUrl", IsRequired = false, Order = 2)]
         public string EndpointUrl
         {
-            get { return m_endpointUrl; }
-            set { m_endpointUrl = value; }
+            get
+            {
+                return m_endpointUrl;
+            }
+            set
+            {
+                m_endpointUrl = value;
+            }
         }
 
         /// <remarks />
@@ -38779,7 +42960,6 @@ namespace Opc.Ua
             {
                 return m_localeIds;
             }
-
             set
             {
                 m_localeIds = value;
@@ -38799,7 +42979,6 @@ namespace Opc.Ua
             {
                 return m_serverUris;
             }
-
             set
             {
                 m_serverUris = value;
@@ -38945,7 +43124,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -38965,7 +43143,6 @@ namespace Opc.Ua
             {
                 return m_servers;
             }
-
             set
             {
                 m_servers = value;
@@ -39008,7 +43185,8 @@ namespace Opc.Ua
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             ResponseHeader = (ResponseHeader)decoder.ReadEncodeable("ResponseHeader", typeof(ResponseHeader));
-            Servers = (ApplicationDescriptionCollection)decoder.ReadEncodeableArray("Servers", typeof(ApplicationDescription));
+            Servers = (ApplicationDescriptionCollection)
+                decoder.ReadEncodeableArray("Servers", typeof(ApplicationDescription));
 
             decoder.PopNamespace();
         }
@@ -39097,24 +43275,42 @@ namespace Opc.Ua
         [DataMember(Name = "RecordId", IsRequired = false, Order = 1)]
         public uint RecordId
         {
-            get { return m_recordId; }
-            set { m_recordId = value; }
+            get
+            {
+                return m_recordId;
+            }
+            set
+            {
+                m_recordId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ServerName", IsRequired = false, Order = 2)]
         public string ServerName
         {
-            get { return m_serverName; }
-            set { m_serverName = value; }
+            get
+            {
+                return m_serverName;
+            }
+            set
+            {
+                m_serverName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DiscoveryUrl", IsRequired = false, Order = 3)]
         public string DiscoveryUrl
         {
-            get { return m_discoveryUrl; }
-            set { m_discoveryUrl = value; }
+            get
+            {
+                return m_discoveryUrl;
+            }
+            set
+            {
+                m_discoveryUrl = value;
+            }
         }
 
         /// <remarks />
@@ -39125,7 +43321,6 @@ namespace Opc.Ua
             {
                 return m_serverCapabilities;
             }
-
             set
             {
                 m_serverCapabilities = value;
@@ -39236,18 +43431,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfServerOnNetwork", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ServerOnNetwork")]
+    [CollectionDataContract(
+        Name = "ListOfServerOnNetwork",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ServerOnNetwork"
+    )]
     public partial class ServerOnNetworkCollection : List<ServerOnNetwork>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ServerOnNetworkCollection() { }
+        public ServerOnNetworkCollection()
+        {
+        }
 
         /// <remarks />
-        public ServerOnNetworkCollection(int capacity) : base(capacity) { }
+        public ServerOnNetworkCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ServerOnNetworkCollection(IEnumerable<ServerOnNetwork> collection) : base(collection) { }
+        public ServerOnNetworkCollection(IEnumerable<ServerOnNetwork> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -39338,7 +43541,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -39354,16 +43556,28 @@ namespace Opc.Ua
         [DataMember(Name = "StartingRecordId", IsRequired = false, Order = 2)]
         public uint StartingRecordId
         {
-            get { return m_startingRecordId; }
-            set { m_startingRecordId = value; }
+            get
+            {
+                return m_startingRecordId;
+            }
+            set
+            {
+                m_startingRecordId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MaxRecordsToReturn", IsRequired = false, Order = 3)]
         public uint MaxRecordsToReturn
         {
-            get { return m_maxRecordsToReturn; }
-            set { m_maxRecordsToReturn = value; }
+            get
+            {
+                return m_maxRecordsToReturn;
+            }
+            set
+            {
+                m_maxRecordsToReturn = value;
+            }
         }
 
         /// <remarks />
@@ -39374,7 +43588,6 @@ namespace Opc.Ua
             {
                 return m_serverCapabilityFilter;
             }
-
             set
             {
                 m_serverCapabilityFilter = value;
@@ -39521,7 +43734,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -39537,8 +43749,14 @@ namespace Opc.Ua
         [DataMember(Name = "LastCounterResetTime", IsRequired = false, Order = 2)]
         public DateTime LastCounterResetTime
         {
-            get { return m_lastCounterResetTime; }
-            set { m_lastCounterResetTime = value; }
+            get
+            {
+                return m_lastCounterResetTime;
+            }
+            set
+            {
+                m_lastCounterResetTime = value;
+            }
         }
 
         /// <remarks />
@@ -39549,7 +43767,6 @@ namespace Opc.Ua
             {
                 return m_servers;
             }
-
             set
             {
                 m_servers = value;
@@ -39681,18 +43898,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfMessageSecurityMode", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MessageSecurityMode")]
+    [CollectionDataContract(
+        Name = "ListOfMessageSecurityMode",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "MessageSecurityMode"
+    )]
     public partial class MessageSecurityModeCollection : List<MessageSecurityMode>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public MessageSecurityModeCollection() { }
+        public MessageSecurityModeCollection()
+        {
+        }
 
         /// <remarks />
-        public MessageSecurityModeCollection(int capacity) : base(capacity) { }
+        public MessageSecurityModeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public MessageSecurityModeCollection(IEnumerable<MessageSecurityMode> collection) : base(collection) { }
+        public MessageSecurityModeCollection(IEnumerable<MessageSecurityMode> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -39807,40 +44032,70 @@ namespace Opc.Ua
         [DataMember(Name = "PolicyId", IsRequired = false, Order = 1)]
         public string PolicyId
         {
-            get { return m_policyId; }
-            set { m_policyId = value; }
+            get
+            {
+                return m_policyId;
+            }
+            set
+            {
+                m_policyId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TokenType", IsRequired = false, Order = 2)]
         public UserTokenType TokenType
         {
-            get { return m_tokenType; }
-            set { m_tokenType = value; }
+            get
+            {
+                return m_tokenType;
+            }
+            set
+            {
+                m_tokenType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IssuedTokenType", IsRequired = false, Order = 3)]
         public string IssuedTokenType
         {
-            get { return m_issuedTokenType; }
-            set { m_issuedTokenType = value; }
+            get
+            {
+                return m_issuedTokenType;
+            }
+            set
+            {
+                m_issuedTokenType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IssuerEndpointUrl", IsRequired = false, Order = 4)]
         public string IssuerEndpointUrl
         {
-            get { return m_issuerEndpointUrl; }
-            set { m_issuerEndpointUrl = value; }
+            get
+            {
+                return m_issuerEndpointUrl;
+            }
+            set
+            {
+                m_issuerEndpointUrl = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SecurityPolicyUri", IsRequired = false, Order = 5)]
         public string SecurityPolicyUri
         {
-            get { return m_securityPolicyUri; }
-            set { m_securityPolicyUri = value; }
+            get
+            {
+                return m_securityPolicyUri;
+            }
+            set
+            {
+                m_securityPolicyUri = value;
+            }
         }
         #endregion
 
@@ -39948,18 +44203,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfUserTokenPolicy", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UserTokenPolicy")]
+    [CollectionDataContract(
+        Name = "ListOfUserTokenPolicy",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "UserTokenPolicy"
+    )]
     public partial class UserTokenPolicyCollection : List<UserTokenPolicy>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public UserTokenPolicyCollection() { }
+        public UserTokenPolicyCollection()
+        {
+        }
 
         /// <remarks />
-        public UserTokenPolicyCollection(int capacity) : base(capacity) { }
+        public UserTokenPolicyCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public UserTokenPolicyCollection(IEnumerable<UserTokenPolicy> collection) : base(collection) { }
+        public UserTokenPolicyCollection(IEnumerable<UserTokenPolicy> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -40050,8 +44313,14 @@ namespace Opc.Ua
         [DataMember(Name = "EndpointUrl", IsRequired = false, Order = 1)]
         public string EndpointUrl
         {
-            get { return m_endpointUrl; }
-            set { m_endpointUrl = value; }
+            get
+            {
+                return m_endpointUrl;
+            }
+            set
+            {
+                m_endpointUrl = value;
+            }
         }
 
         /// <remarks />
@@ -40062,7 +44331,6 @@ namespace Opc.Ua
             {
                 return m_server;
             }
-
             set
             {
                 m_server = value;
@@ -40078,24 +44346,42 @@ namespace Opc.Ua
         [DataMember(Name = "ServerCertificate", IsRequired = false, Order = 3)]
         public byte[] ServerCertificate
         {
-            get { return m_serverCertificate; }
-            set { m_serverCertificate = value; }
+            get
+            {
+                return m_serverCertificate;
+            }
+            set
+            {
+                m_serverCertificate = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SecurityMode", IsRequired = false, Order = 4)]
         public MessageSecurityMode SecurityMode
         {
-            get { return m_securityMode; }
-            set { m_securityMode = value; }
+            get
+            {
+                return m_securityMode;
+            }
+            set
+            {
+                m_securityMode = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SecurityPolicyUri", IsRequired = false, Order = 5)]
         public string SecurityPolicyUri
         {
-            get { return m_securityPolicyUri; }
-            set { m_securityPolicyUri = value; }
+            get
+            {
+                return m_securityPolicyUri;
+            }
+            set
+            {
+                m_securityPolicyUri = value;
+            }
         }
 
         /// <remarks />
@@ -40106,7 +44392,6 @@ namespace Opc.Ua
             {
                 return m_userIdentityTokens;
             }
-
             set
             {
                 m_userIdentityTokens = value;
@@ -40122,16 +44407,28 @@ namespace Opc.Ua
         [DataMember(Name = "TransportProfileUri", IsRequired = false, Order = 7)]
         public string TransportProfileUri
         {
-            get { return m_transportProfileUri; }
-            set { m_transportProfileUri = value; }
+            get
+            {
+                return m_transportProfileUri;
+            }
+            set
+            {
+                m_transportProfileUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SecurityLevel", IsRequired = false, Order = 8)]
         public byte SecurityLevel
         {
-            get { return m_securityLevel; }
-            set { m_securityLevel = value; }
+            get
+            {
+                return m_securityLevel;
+            }
+            set
+            {
+                m_securityLevel = value;
+            }
         }
         #endregion
 
@@ -40175,7 +44472,8 @@ namespace Opc.Ua
             ServerCertificate = decoder.ReadByteString("ServerCertificate");
             SecurityMode = (MessageSecurityMode)decoder.ReadEnumerated("SecurityMode", typeof(MessageSecurityMode));
             SecurityPolicyUri = decoder.ReadString("SecurityPolicyUri");
-            UserIdentityTokens = (UserTokenPolicyCollection)decoder.ReadEncodeableArray("UserIdentityTokens", typeof(UserTokenPolicy));
+            UserIdentityTokens = (UserTokenPolicyCollection)
+                decoder.ReadEncodeableArray("UserIdentityTokens", typeof(UserTokenPolicy));
             TransportProfileUri = decoder.ReadString("TransportProfileUri");
             SecurityLevel = decoder.ReadByte("SecurityLevel");
 
@@ -40257,18 +44555,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfEndpointDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EndpointDescription")]
+    [CollectionDataContract(
+        Name = "ListOfEndpointDescription",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "EndpointDescription"
+    )]
     public partial class EndpointDescriptionCollection : List<EndpointDescription>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public EndpointDescriptionCollection() { }
+        public EndpointDescriptionCollection()
+        {
+        }
 
         /// <remarks />
-        public EndpointDescriptionCollection(int capacity) : base(capacity) { }
+        public EndpointDescriptionCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public EndpointDescriptionCollection(IEnumerable<EndpointDescription> collection) : base(collection) { }
+        public EndpointDescriptionCollection(IEnumerable<EndpointDescription> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -40359,7 +44665,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -40375,8 +44680,14 @@ namespace Opc.Ua
         [DataMember(Name = "EndpointUrl", IsRequired = false, Order = 2)]
         public string EndpointUrl
         {
-            get { return m_endpointUrl; }
-            set { m_endpointUrl = value; }
+            get
+            {
+                return m_endpointUrl;
+            }
+            set
+            {
+                m_endpointUrl = value;
+            }
         }
 
         /// <remarks />
@@ -40387,7 +44698,6 @@ namespace Opc.Ua
             {
                 return m_localeIds;
             }
-
             set
             {
                 m_localeIds = value;
@@ -40407,7 +44717,6 @@ namespace Opc.Ua
             {
                 return m_profileUris;
             }
-
             set
             {
                 m_profileUris = value;
@@ -40553,7 +44862,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -40573,7 +44881,6 @@ namespace Opc.Ua
             {
                 return m_endpoints;
             }
-
             set
             {
                 m_endpoints = value;
@@ -40616,7 +44923,8 @@ namespace Opc.Ua
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             ResponseHeader = (ResponseHeader)decoder.ReadEncodeable("ResponseHeader", typeof(ResponseHeader));
-            Endpoints = (EndpointDescriptionCollection)decoder.ReadEncodeableArray("Endpoints", typeof(EndpointDescription));
+            Endpoints = (EndpointDescriptionCollection)
+                decoder.ReadEncodeableArray("Endpoints", typeof(EndpointDescription));
 
             decoder.PopNamespace();
         }
@@ -40709,16 +45017,28 @@ namespace Opc.Ua
         [DataMember(Name = "ServerUri", IsRequired = false, Order = 1)]
         public string ServerUri
         {
-            get { return m_serverUri; }
-            set { m_serverUri = value; }
+            get
+            {
+                return m_serverUri;
+            }
+            set
+            {
+                m_serverUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ProductUri", IsRequired = false, Order = 2)]
         public string ProductUri
         {
-            get { return m_productUri; }
-            set { m_productUri = value; }
+            get
+            {
+                return m_productUri;
+            }
+            set
+            {
+                m_productUri = value;
+            }
         }
 
         /// <remarks />
@@ -40729,7 +45049,6 @@ namespace Opc.Ua
             {
                 return m_serverNames;
             }
-
             set
             {
                 m_serverNames = value;
@@ -40745,16 +45064,28 @@ namespace Opc.Ua
         [DataMember(Name = "ServerType", IsRequired = false, Order = 4)]
         public ApplicationType ServerType
         {
-            get { return m_serverType; }
-            set { m_serverType = value; }
+            get
+            {
+                return m_serverType;
+            }
+            set
+            {
+                m_serverType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "GatewayServerUri", IsRequired = false, Order = 5)]
         public string GatewayServerUri
         {
-            get { return m_gatewayServerUri; }
-            set { m_gatewayServerUri = value; }
+            get
+            {
+                return m_gatewayServerUri;
+            }
+            set
+            {
+                m_gatewayServerUri = value;
+            }
         }
 
         /// <remarks />
@@ -40765,7 +45096,6 @@ namespace Opc.Ua
             {
                 return m_discoveryUrls;
             }
-
             set
             {
                 m_discoveryUrls = value;
@@ -40781,16 +45111,28 @@ namespace Opc.Ua
         [DataMember(Name = "SemaphoreFilePath", IsRequired = false, Order = 7)]
         public string SemaphoreFilePath
         {
-            get { return m_semaphoreFilePath; }
-            set { m_semaphoreFilePath = value; }
+            get
+            {
+                return m_semaphoreFilePath;
+            }
+            set
+            {
+                m_semaphoreFilePath = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IsOnline", IsRequired = false, Order = 8)]
         public bool IsOnline
         {
-            get { return m_isOnline; }
-            set { m_isOnline = value; }
+            get
+            {
+                return m_isOnline;
+            }
+            set
+            {
+                m_isOnline = value;
+            }
         }
         #endregion
 
@@ -40916,18 +45258,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfRegisteredServer", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RegisteredServer")]
+    [CollectionDataContract(
+        Name = "ListOfRegisteredServer",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "RegisteredServer"
+    )]
     public partial class RegisteredServerCollection : List<RegisteredServer>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public RegisteredServerCollection() { }
+        public RegisteredServerCollection()
+        {
+        }
 
         /// <remarks />
-        public RegisteredServerCollection(int capacity) : base(capacity) { }
+        public RegisteredServerCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public RegisteredServerCollection(IEnumerable<RegisteredServer> collection) : base(collection) { }
+        public RegisteredServerCollection(IEnumerable<RegisteredServer> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -41016,7 +45366,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -41036,7 +45385,6 @@ namespace Opc.Ua
             {
                 return m_server;
             }
-
             set
             {
                 m_server = value;
@@ -41169,7 +45517,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -41307,7 +45654,6 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -41315,7 +45661,6 @@ namespace Opc.Ua
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -41335,7 +45680,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return true;
         }
 
@@ -41349,7 +45693,6 @@ namespace Opc.Ua
         public new object MemberwiseClone()
         {
             DiscoveryConfiguration clone = (DiscoveryConfiguration)base.MemberwiseClone();
-
 
             return clone;
         }
@@ -41394,8 +45737,14 @@ namespace Opc.Ua
         [DataMember(Name = "MdnsServerName", IsRequired = false, Order = 1)]
         public string MdnsServerName
         {
-            get { return m_mdnsServerName; }
-            set { m_mdnsServerName = value; }
+            get
+            {
+                return m_mdnsServerName;
+            }
+            set
+            {
+                m_mdnsServerName = value;
+            }
         }
 
         /// <remarks />
@@ -41406,7 +45755,6 @@ namespace Opc.Ua
             {
                 return m_serverCapabilities;
             }
-
             set
             {
                 m_serverCapabilities = value;
@@ -41545,7 +45893,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -41565,7 +45912,6 @@ namespace Opc.Ua
             {
                 return m_server;
             }
-
             set
             {
                 m_server = value;
@@ -41585,7 +45931,6 @@ namespace Opc.Ua
             {
                 return m_discoveryConfiguration;
             }
-
             set
             {
                 m_discoveryConfiguration = value;
@@ -41726,7 +46071,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -41746,7 +46090,6 @@ namespace Opc.Ua
             {
                 return m_configurationResults;
             }
-
             set
             {
                 m_configurationResults = value;
@@ -41766,7 +46109,6 @@ namespace Opc.Ua
             {
                 return m_diagnosticInfos;
             }
-
             set
             {
                 m_diagnosticInfos = value;
@@ -41923,32 +46265,56 @@ namespace Opc.Ua
         [DataMember(Name = "ChannelId", IsRequired = false, Order = 1)]
         public uint ChannelId
         {
-            get { return m_channelId; }
-            set { m_channelId = value; }
+            get
+            {
+                return m_channelId;
+            }
+            set
+            {
+                m_channelId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TokenId", IsRequired = false, Order = 2)]
         public uint TokenId
         {
-            get { return m_tokenId; }
-            set { m_tokenId = value; }
+            get
+            {
+                return m_tokenId;
+            }
+            set
+            {
+                m_tokenId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "CreatedAt", IsRequired = false, Order = 3)]
         public DateTime CreatedAt
         {
-            get { return m_createdAt; }
-            set { m_createdAt = value; }
+            get
+            {
+                return m_createdAt;
+            }
+            set
+            {
+                m_createdAt = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RevisedLifetime", IsRequired = false, Order = 4)]
         public uint RevisedLifetime
         {
-            get { return m_revisedLifetime; }
-            set { m_revisedLifetime = value; }
+            get
+            {
+                return m_revisedLifetime;
+            }
+            set
+            {
+                m_revisedLifetime = value;
+            }
         }
         #endregion
 
@@ -42089,7 +46455,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -42105,40 +46470,70 @@ namespace Opc.Ua
         [DataMember(Name = "ClientProtocolVersion", IsRequired = false, Order = 2)]
         public uint ClientProtocolVersion
         {
-            get { return m_clientProtocolVersion; }
-            set { m_clientProtocolVersion = value; }
+            get
+            {
+                return m_clientProtocolVersion;
+            }
+            set
+            {
+                m_clientProtocolVersion = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RequestType", IsRequired = false, Order = 3)]
         public SecurityTokenRequestType RequestType
         {
-            get { return m_requestType; }
-            set { m_requestType = value; }
+            get
+            {
+                return m_requestType;
+            }
+            set
+            {
+                m_requestType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SecurityMode", IsRequired = false, Order = 4)]
         public MessageSecurityMode SecurityMode
         {
-            get { return m_securityMode; }
-            set { m_securityMode = value; }
+            get
+            {
+                return m_securityMode;
+            }
+            set
+            {
+                m_securityMode = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ClientNonce", IsRequired = false, Order = 5)]
         public byte[] ClientNonce
         {
-            get { return m_clientNonce; }
-            set { m_clientNonce = value; }
+            get
+            {
+                return m_clientNonce;
+            }
+            set
+            {
+                m_clientNonce = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RequestedLifetime", IsRequired = false, Order = 6)]
         public uint RequestedLifetime
         {
-            get { return m_requestedLifetime; }
-            set { m_requestedLifetime = value; }
+            get
+            {
+                return m_requestedLifetime;
+            }
+            set
+            {
+                m_requestedLifetime = value;
+            }
         }
         #endregion
 
@@ -42177,7 +46572,8 @@ namespace Opc.Ua
 
             RequestHeader = (RequestHeader)decoder.ReadEncodeable("RequestHeader", typeof(RequestHeader));
             ClientProtocolVersion = decoder.ReadUInt32("ClientProtocolVersion");
-            RequestType = (SecurityTokenRequestType)decoder.ReadEnumerated("RequestType", typeof(SecurityTokenRequestType));
+            RequestType = (SecurityTokenRequestType)
+                decoder.ReadEnumerated("RequestType", typeof(SecurityTokenRequestType));
             SecurityMode = (MessageSecurityMode)decoder.ReadEnumerated("SecurityMode", typeof(MessageSecurityMode));
             ClientNonce = decoder.ReadByteString("ClientNonce");
             RequestedLifetime = decoder.ReadUInt32("RequestedLifetime");
@@ -42289,7 +46685,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -42305,8 +46700,14 @@ namespace Opc.Ua
         [DataMember(Name = "ServerProtocolVersion", IsRequired = false, Order = 2)]
         public uint ServerProtocolVersion
         {
-            get { return m_serverProtocolVersion; }
-            set { m_serverProtocolVersion = value; }
+            get
+            {
+                return m_serverProtocolVersion;
+            }
+            set
+            {
+                m_serverProtocolVersion = value;
+            }
         }
 
         /// <remarks />
@@ -42317,7 +46718,6 @@ namespace Opc.Ua
             {
                 return m_securityToken;
             }
-
             set
             {
                 m_securityToken = value;
@@ -42333,8 +46733,14 @@ namespace Opc.Ua
         [DataMember(Name = "ServerNonce", IsRequired = false, Order = 4)]
         public byte[] ServerNonce
         {
-            get { return m_serverNonce; }
-            set { m_serverNonce = value; }
+            get
+            {
+                return m_serverNonce;
+            }
+            set
+            {
+                m_serverNonce = value;
+            }
         }
         #endregion
 
@@ -42470,7 +46876,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -42597,7 +47002,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -42721,16 +47125,28 @@ namespace Opc.Ua
         [DataMember(Name = "CertificateData", IsRequired = false, Order = 1)]
         public byte[] CertificateData
         {
-            get { return m_certificateData; }
-            set { m_certificateData = value; }
+            get
+            {
+                return m_certificateData;
+            }
+            set
+            {
+                m_certificateData = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Signature", IsRequired = false, Order = 2)]
         public byte[] Signature
         {
-            get { return m_signature; }
-            set { m_signature = value; }
+            get
+            {
+                return m_signature;
+            }
+            set
+            {
+                m_signature = value;
+            }
         }
         #endregion
 
@@ -42820,18 +47236,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfSignedSoftwareCertificate", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SignedSoftwareCertificate")]
+    [CollectionDataContract(
+        Name = "ListOfSignedSoftwareCertificate",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "SignedSoftwareCertificate"
+    )]
     public partial class SignedSoftwareCertificateCollection : List<SignedSoftwareCertificate>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public SignedSoftwareCertificateCollection() { }
+        public SignedSoftwareCertificateCollection()
+        {
+        }
 
         /// <remarks />
-        public SignedSoftwareCertificateCollection(int capacity) : base(capacity) { }
+        public SignedSoftwareCertificateCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public SignedSoftwareCertificateCollection(IEnumerable<SignedSoftwareCertificate> collection) : base(collection) { }
+        public SignedSoftwareCertificateCollection(IEnumerable<SignedSoftwareCertificate> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -42916,16 +47340,28 @@ namespace Opc.Ua
         [DataMember(Name = "Algorithm", IsRequired = false, Order = 1)]
         public string Algorithm
         {
-            get { return m_algorithm; }
-            set { m_algorithm = value; }
+            get
+            {
+                return m_algorithm;
+            }
+            set
+            {
+                m_algorithm = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Signature", IsRequired = false, Order = 2)]
         public byte[] Signature
         {
-            get { return m_signature; }
-            set { m_signature = value; }
+            get
+            {
+                return m_signature;
+            }
+            set
+            {
+                m_signature = value;
+            }
         }
         #endregion
 
@@ -43057,7 +47493,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -43077,7 +47512,6 @@ namespace Opc.Ua
             {
                 return m_clientDescription;
             }
-
             set
             {
                 m_clientDescription = value;
@@ -43093,56 +47527,98 @@ namespace Opc.Ua
         [DataMember(Name = "ServerUri", IsRequired = false, Order = 3)]
         public string ServerUri
         {
-            get { return m_serverUri; }
-            set { m_serverUri = value; }
+            get
+            {
+                return m_serverUri;
+            }
+            set
+            {
+                m_serverUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "EndpointUrl", IsRequired = false, Order = 4)]
         public string EndpointUrl
         {
-            get { return m_endpointUrl; }
-            set { m_endpointUrl = value; }
+            get
+            {
+                return m_endpointUrl;
+            }
+            set
+            {
+                m_endpointUrl = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SessionName", IsRequired = false, Order = 5)]
         public string SessionName
         {
-            get { return m_sessionName; }
-            set { m_sessionName = value; }
+            get
+            {
+                return m_sessionName;
+            }
+            set
+            {
+                m_sessionName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ClientNonce", IsRequired = false, Order = 6)]
         public byte[] ClientNonce
         {
-            get { return m_clientNonce; }
-            set { m_clientNonce = value; }
+            get
+            {
+                return m_clientNonce;
+            }
+            set
+            {
+                m_clientNonce = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ClientCertificate", IsRequired = false, Order = 7)]
         public byte[] ClientCertificate
         {
-            get { return m_clientCertificate; }
-            set { m_clientCertificate = value; }
+            get
+            {
+                return m_clientCertificate;
+            }
+            set
+            {
+                m_clientCertificate = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RequestedSessionTimeout", IsRequired = false, Order = 8)]
         public double RequestedSessionTimeout
         {
-            get { return m_requestedSessionTimeout; }
-            set { m_requestedSessionTimeout = value; }
+            get
+            {
+                return m_requestedSessionTimeout;
+            }
+            set
+            {
+                m_requestedSessionTimeout = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MaxResponseMessageSize", IsRequired = false, Order = 9)]
         public uint MaxResponseMessageSize
         {
-            get { return m_maxResponseMessageSize; }
-            set { m_maxResponseMessageSize = value; }
+            get
+            {
+                return m_maxResponseMessageSize;
+            }
+            set
+            {
+                m_maxResponseMessageSize = value;
+            }
         }
         #endregion
 
@@ -43183,7 +47659,8 @@ namespace Opc.Ua
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             RequestHeader = (RequestHeader)decoder.ReadEncodeable("RequestHeader", typeof(RequestHeader));
-            ClientDescription = (ApplicationDescription)decoder.ReadEncodeable("ClientDescription", typeof(ApplicationDescription));
+            ClientDescription = (ApplicationDescription)
+                decoder.ReadEncodeable("ClientDescription", typeof(ApplicationDescription));
             ServerUri = decoder.ReadString("ServerUri");
             EndpointUrl = decoder.ReadString("EndpointUrl");
             SessionName = decoder.ReadString("SessionName");
@@ -43317,7 +47794,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -43333,40 +47809,70 @@ namespace Opc.Ua
         [DataMember(Name = "SessionId", IsRequired = false, Order = 2)]
         public NodeId SessionId
         {
-            get { return m_sessionId; }
-            set { m_sessionId = value; }
+            get
+            {
+                return m_sessionId;
+            }
+            set
+            {
+                m_sessionId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "AuthenticationToken", IsRequired = false, Order = 3)]
         public NodeId AuthenticationToken
         {
-            get { return m_authenticationToken; }
-            set { m_authenticationToken = value; }
+            get
+            {
+                return m_authenticationToken;
+            }
+            set
+            {
+                m_authenticationToken = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RevisedSessionTimeout", IsRequired = false, Order = 4)]
         public double RevisedSessionTimeout
         {
-            get { return m_revisedSessionTimeout; }
-            set { m_revisedSessionTimeout = value; }
+            get
+            {
+                return m_revisedSessionTimeout;
+            }
+            set
+            {
+                m_revisedSessionTimeout = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ServerNonce", IsRequired = false, Order = 5)]
         public byte[] ServerNonce
         {
-            get { return m_serverNonce; }
-            set { m_serverNonce = value; }
+            get
+            {
+                return m_serverNonce;
+            }
+            set
+            {
+                m_serverNonce = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ServerCertificate", IsRequired = false, Order = 6)]
         public byte[] ServerCertificate
         {
-            get { return m_serverCertificate; }
-            set { m_serverCertificate = value; }
+            get
+            {
+                return m_serverCertificate;
+            }
+            set
+            {
+                m_serverCertificate = value;
+            }
         }
 
         /// <remarks />
@@ -43377,7 +47883,6 @@ namespace Opc.Ua
             {
                 return m_serverEndpoints;
             }
-
             set
             {
                 m_serverEndpoints = value;
@@ -43397,7 +47902,6 @@ namespace Opc.Ua
             {
                 return m_serverSoftwareCertificates;
             }
-
             set
             {
                 m_serverSoftwareCertificates = value;
@@ -43417,7 +47921,6 @@ namespace Opc.Ua
             {
                 return m_serverSignature;
             }
-
             set
             {
                 m_serverSignature = value;
@@ -43433,8 +47936,14 @@ namespace Opc.Ua
         [DataMember(Name = "MaxRequestMessageSize", IsRequired = false, Order = 10)]
         public uint MaxRequestMessageSize
         {
-            get { return m_maxRequestMessageSize; }
-            set { m_maxRequestMessageSize = value; }
+            get
+            {
+                return m_maxRequestMessageSize;
+            }
+            set
+            {
+                m_maxRequestMessageSize = value;
+            }
         }
         #endregion
 
@@ -43463,7 +47972,11 @@ namespace Opc.Ua
             encoder.WriteByteString("ServerNonce", ServerNonce);
             encoder.WriteByteString("ServerCertificate", ServerCertificate);
             encoder.WriteEncodeableArray("ServerEndpoints", ServerEndpoints.ToArray(), typeof(EndpointDescription));
-            encoder.WriteEncodeableArray("ServerSoftwareCertificates", ServerSoftwareCertificates.ToArray(), typeof(SignedSoftwareCertificate));
+            encoder.WriteEncodeableArray(
+                "ServerSoftwareCertificates",
+                ServerSoftwareCertificates.ToArray(),
+                typeof(SignedSoftwareCertificate)
+            );
             encoder.WriteEncodeable("ServerSignature", ServerSignature, typeof(SignatureData));
             encoder.WriteUInt32("MaxRequestMessageSize", MaxRequestMessageSize);
 
@@ -43481,8 +47994,10 @@ namespace Opc.Ua
             RevisedSessionTimeout = decoder.ReadDouble("RevisedSessionTimeout");
             ServerNonce = decoder.ReadByteString("ServerNonce");
             ServerCertificate = decoder.ReadByteString("ServerCertificate");
-            ServerEndpoints = (EndpointDescriptionCollection)decoder.ReadEncodeableArray("ServerEndpoints", typeof(EndpointDescription));
-            ServerSoftwareCertificates = (SignedSoftwareCertificateCollection)decoder.ReadEncodeableArray("ServerSoftwareCertificates", typeof(SignedSoftwareCertificate));
+            ServerEndpoints = (EndpointDescriptionCollection)
+                decoder.ReadEncodeableArray("ServerEndpoints", typeof(EndpointDescription));
+            ServerSoftwareCertificates = (SignedSoftwareCertificateCollection)
+                decoder.ReadEncodeableArray("ServerSoftwareCertificates", typeof(SignedSoftwareCertificate));
             ServerSignature = (SignatureData)decoder.ReadEncodeable("ServerSignature", typeof(SignatureData));
             MaxRequestMessageSize = decoder.ReadUInt32("MaxRequestMessageSize");
 
@@ -43546,7 +48061,8 @@ namespace Opc.Ua
             clone.m_serverNonce = (byte[])Utils.Clone(this.m_serverNonce);
             clone.m_serverCertificate = (byte[])Utils.Clone(this.m_serverCertificate);
             clone.m_serverEndpoints = (EndpointDescriptionCollection)Utils.Clone(this.m_serverEndpoints);
-            clone.m_serverSoftwareCertificates = (SignedSoftwareCertificateCollection)Utils.Clone(this.m_serverSoftwareCertificates);
+            clone.m_serverSoftwareCertificates = (SignedSoftwareCertificateCollection)
+                Utils.Clone(this.m_serverSoftwareCertificates);
             clone.m_serverSignature = (SignatureData)Utils.Clone(this.m_serverSignature);
             clone.m_maxRequestMessageSize = (uint)Utils.Clone(this.m_maxRequestMessageSize);
 
@@ -43602,8 +48118,14 @@ namespace Opc.Ua
         [DataMember(Name = "PolicyId", IsRequired = false, Order = 1)]
         public string PolicyId
         {
-            get { return m_policyId; }
-            set { m_policyId = value; }
+            get
+            {
+                return m_policyId;
+            }
+            set
+            {
+                m_policyId = value;
+            }
         }
         #endregion
 
@@ -43734,7 +48256,6 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -43744,7 +48265,6 @@ namespace Opc.Ua
             base.Decode(decoder);
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -43764,7 +48284,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return base.IsEqual(encodeable);
         }
 
@@ -43778,7 +48297,6 @@ namespace Opc.Ua
         public new object MemberwiseClone()
         {
             AnonymousIdentityToken clone = (AnonymousIdentityToken)base.MemberwiseClone();
-
 
             return clone;
         }
@@ -43824,24 +48342,42 @@ namespace Opc.Ua
         [DataMember(Name = "UserName", IsRequired = false, Order = 1)]
         public string UserName
         {
-            get { return m_userName; }
-            set { m_userName = value; }
+            get
+            {
+                return m_userName;
+            }
+            set
+            {
+                m_userName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Password", IsRequired = false, Order = 2)]
         public byte[] Password
         {
-            get { return m_password; }
-            set { m_password = value; }
+            get
+            {
+                return m_password;
+            }
+            set
+            {
+                m_password = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "EncryptionAlgorithm", IsRequired = false, Order = 3)]
         public string EncryptionAlgorithm
         {
-            get { return m_encryptionAlgorithm; }
-            set { m_encryptionAlgorithm = value; }
+            get
+            {
+                return m_encryptionAlgorithm;
+            }
+            set
+            {
+                m_encryptionAlgorithm = value;
+            }
         }
         #endregion
 
@@ -43971,8 +48507,14 @@ namespace Opc.Ua
         [DataMember(Name = "CertificateData", IsRequired = false, Order = 1)]
         public byte[] CertificateData
         {
-            get { return m_certificateData; }
-            set { m_certificateData = value; }
+            get
+            {
+                return m_certificateData;
+            }
+            set
+            {
+                m_certificateData = value;
+            }
         }
         #endregion
 
@@ -44091,16 +48633,28 @@ namespace Opc.Ua
         [DataMember(Name = "TokenData", IsRequired = false, Order = 1)]
         public byte[] TokenData
         {
-            get { return m_tokenData; }
-            set { m_tokenData = value; }
+            get
+            {
+                return m_tokenData;
+            }
+            set
+            {
+                m_tokenData = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "EncryptionAlgorithm", IsRequired = false, Order = 2)]
         public string EncryptionAlgorithm
         {
-            get { return m_encryptionAlgorithm; }
-            set { m_encryptionAlgorithm = value; }
+            get
+            {
+                return m_encryptionAlgorithm;
+            }
+            set
+            {
+                m_encryptionAlgorithm = value;
+            }
         }
         #endregion
 
@@ -44233,7 +48787,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -44253,7 +48806,6 @@ namespace Opc.Ua
             {
                 return m_clientSignature;
             }
-
             set
             {
                 m_clientSignature = value;
@@ -44273,7 +48825,6 @@ namespace Opc.Ua
             {
                 return m_clientSoftwareCertificates;
             }
-
             set
             {
                 m_clientSoftwareCertificates = value;
@@ -44293,7 +48844,6 @@ namespace Opc.Ua
             {
                 return m_localeIds;
             }
-
             set
             {
                 m_localeIds = value;
@@ -44309,8 +48859,14 @@ namespace Opc.Ua
         [DataMember(Name = "UserIdentityToken", IsRequired = false, Order = 5)]
         public ExtensionObject UserIdentityToken
         {
-            get { return m_userIdentityToken; }
-            set { m_userIdentityToken = value; }
+            get
+            {
+                return m_userIdentityToken;
+            }
+            set
+            {
+                m_userIdentityToken = value;
+            }
         }
 
         /// <remarks />
@@ -44321,7 +48877,6 @@ namespace Opc.Ua
             {
                 return m_userTokenSignature;
             }
-
             set
             {
                 m_userTokenSignature = value;
@@ -44354,7 +48909,11 @@ namespace Opc.Ua
 
             encoder.WriteEncodeable("RequestHeader", RequestHeader, typeof(RequestHeader));
             encoder.WriteEncodeable("ClientSignature", ClientSignature, typeof(SignatureData));
-            encoder.WriteEncodeableArray("ClientSoftwareCertificates", ClientSoftwareCertificates.ToArray(), typeof(SignedSoftwareCertificate));
+            encoder.WriteEncodeableArray(
+                "ClientSoftwareCertificates",
+                ClientSoftwareCertificates.ToArray(),
+                typeof(SignedSoftwareCertificate)
+            );
             encoder.WriteStringArray("LocaleIds", LocaleIds);
             encoder.WriteExtensionObject("UserIdentityToken", UserIdentityToken);
             encoder.WriteEncodeable("UserTokenSignature", UserTokenSignature, typeof(SignatureData));
@@ -44369,7 +48928,8 @@ namespace Opc.Ua
 
             RequestHeader = (RequestHeader)decoder.ReadEncodeable("RequestHeader", typeof(RequestHeader));
             ClientSignature = (SignatureData)decoder.ReadEncodeable("ClientSignature", typeof(SignatureData));
-            ClientSoftwareCertificates = (SignedSoftwareCertificateCollection)decoder.ReadEncodeableArray("ClientSoftwareCertificates", typeof(SignedSoftwareCertificate));
+            ClientSoftwareCertificates = (SignedSoftwareCertificateCollection)
+                decoder.ReadEncodeableArray("ClientSoftwareCertificates", typeof(SignedSoftwareCertificate));
             LocaleIds = decoder.ReadStringArray("LocaleIds");
             UserIdentityToken = decoder.ReadExtensionObject("UserIdentityToken");
             UserTokenSignature = (SignatureData)decoder.ReadEncodeable("UserTokenSignature", typeof(SignatureData));
@@ -44421,7 +48981,8 @@ namespace Opc.Ua
 
             clone.m_requestHeader = (RequestHeader)Utils.Clone(this.m_requestHeader);
             clone.m_clientSignature = (SignatureData)Utils.Clone(this.m_clientSignature);
-            clone.m_clientSoftwareCertificates = (SignedSoftwareCertificateCollection)Utils.Clone(this.m_clientSoftwareCertificates);
+            clone.m_clientSoftwareCertificates = (SignedSoftwareCertificateCollection)
+                Utils.Clone(this.m_clientSoftwareCertificates);
             clone.m_localeIds = (StringCollection)Utils.Clone(this.m_localeIds);
             clone.m_userIdentityToken = (ExtensionObject)Utils.Clone(this.m_userIdentityToken);
             clone.m_userTokenSignature = (SignatureData)Utils.Clone(this.m_userTokenSignature);
@@ -44481,7 +49042,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -44497,8 +49057,14 @@ namespace Opc.Ua
         [DataMember(Name = "ServerNonce", IsRequired = false, Order = 2)]
         public byte[] ServerNonce
         {
-            get { return m_serverNonce; }
-            set { m_serverNonce = value; }
+            get
+            {
+                return m_serverNonce;
+            }
+            set
+            {
+                m_serverNonce = value;
+            }
         }
 
         /// <remarks />
@@ -44509,7 +49075,6 @@ namespace Opc.Ua
             {
                 return m_results;
             }
-
             set
             {
                 m_results = value;
@@ -44529,7 +49094,6 @@ namespace Opc.Ua
             {
                 return m_diagnosticInfos;
             }
-
             set
             {
                 m_diagnosticInfos = value;
@@ -44675,7 +49239,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -44691,8 +49254,14 @@ namespace Opc.Ua
         [DataMember(Name = "DeleteSubscriptions", IsRequired = false, Order = 2)]
         public bool DeleteSubscriptions
         {
-            get { return m_deleteSubscriptions; }
-            set { m_deleteSubscriptions = value; }
+            get
+            {
+                return m_deleteSubscriptions;
+            }
+            set
+            {
+                m_deleteSubscriptions = value;
+            }
         }
         #endregion
 
@@ -44816,7 +49385,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -44944,7 +49512,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -44960,8 +49527,14 @@ namespace Opc.Ua
         [DataMember(Name = "RequestHandle", IsRequired = false, Order = 2)]
         public uint RequestHandle
         {
-            get { return m_requestHandle; }
-            set { m_requestHandle = value; }
+            get
+            {
+                return m_requestHandle;
+            }
+            set
+            {
+                m_requestHandle = value;
+            }
         }
         #endregion
 
@@ -45086,7 +49659,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -45102,8 +49674,14 @@ namespace Opc.Ua
         [DataMember(Name = "CancelCount", IsRequired = false, Order = 2)]
         public uint CancelCount
         {
-            get { return m_cancelCount; }
-            set { m_cancelCount = value; }
+            get
+            {
+                return m_cancelCount;
+            }
+            set
+            {
+                m_cancelCount = value;
+            }
         }
         #endregion
 
@@ -45378,40 +49956,70 @@ namespace Opc.Ua
         [DataMember(Name = "SpecifiedAttributes", IsRequired = false, Order = 1)]
         public uint SpecifiedAttributes
         {
-            get { return m_specifiedAttributes; }
-            set { m_specifiedAttributes = value; }
+            get
+            {
+                return m_specifiedAttributes;
+            }
+            set
+            {
+                m_specifiedAttributes = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DisplayName", IsRequired = false, Order = 2)]
         public LocalizedText DisplayName
         {
-            get { return m_displayName; }
-            set { m_displayName = value; }
+            get
+            {
+                return m_displayName;
+            }
+            set
+            {
+                m_displayName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Description", IsRequired = false, Order = 3)]
         public LocalizedText Description
         {
-            get { return m_description; }
-            set { m_description = value; }
+            get
+            {
+                return m_description;
+            }
+            set
+            {
+                m_description = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "WriteMask", IsRequired = false, Order = 4)]
         public uint WriteMask
         {
-            get { return m_writeMask; }
-            set { m_writeMask = value; }
+            get
+            {
+                return m_writeMask;
+            }
+            set
+            {
+                m_writeMask = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "UserWriteMask", IsRequired = false, Order = 5)]
         public uint UserWriteMask
         {
-            get { return m_userWriteMask; }
-            set { m_userWriteMask = value; }
+            get
+            {
+                return m_userWriteMask;
+            }
+            set
+            {
+                m_userWriteMask = value;
+            }
         }
         #endregion
 
@@ -45549,8 +50157,14 @@ namespace Opc.Ua
         [DataMember(Name = "EventNotifier", IsRequired = false, Order = 1)]
         public byte EventNotifier
         {
-            get { return m_eventNotifier; }
-            set { m_eventNotifier = value; }
+            get
+            {
+                return m_eventNotifier;
+            }
+            set
+            {
+                m_eventNotifier = value;
+            }
         }
         #endregion
 
@@ -45675,24 +50289,42 @@ namespace Opc.Ua
         [DataMember(Name = "Value", IsRequired = false, Order = 1)]
         public Variant Value
         {
-            get { return m_value; }
-            set { m_value = value; }
+            get
+            {
+                return m_value;
+            }
+            set
+            {
+                m_value = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataType", IsRequired = false, Order = 2)]
         public NodeId DataType
         {
-            get { return m_dataType; }
-            set { m_dataType = value; }
+            get
+            {
+                return m_dataType;
+            }
+            set
+            {
+                m_dataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ValueRank", IsRequired = false, Order = 3)]
         public int ValueRank
         {
-            get { return m_valueRank; }
-            set { m_valueRank = value; }
+            get
+            {
+                return m_valueRank;
+            }
+            set
+            {
+                m_valueRank = value;
+            }
         }
 
         /// <remarks />
@@ -45703,7 +50335,6 @@ namespace Opc.Ua
             {
                 return m_arrayDimensions;
             }
-
             set
             {
                 m_arrayDimensions = value;
@@ -45719,32 +50350,56 @@ namespace Opc.Ua
         [DataMember(Name = "AccessLevel", IsRequired = false, Order = 5)]
         public byte AccessLevel
         {
-            get { return m_accessLevel; }
-            set { m_accessLevel = value; }
+            get
+            {
+                return m_accessLevel;
+            }
+            set
+            {
+                m_accessLevel = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "UserAccessLevel", IsRequired = false, Order = 6)]
         public byte UserAccessLevel
         {
-            get { return m_userAccessLevel; }
-            set { m_userAccessLevel = value; }
+            get
+            {
+                return m_userAccessLevel;
+            }
+            set
+            {
+                m_userAccessLevel = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MinimumSamplingInterval", IsRequired = false, Order = 7)]
         public double MinimumSamplingInterval
         {
-            get { return m_minimumSamplingInterval; }
-            set { m_minimumSamplingInterval = value; }
+            get
+            {
+                return m_minimumSamplingInterval;
+            }
+            set
+            {
+                m_minimumSamplingInterval = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Historizing", IsRequired = false, Order = 8)]
         public bool Historizing
         {
-            get { return m_historizing; }
-            set { m_historizing = value; }
+            get
+            {
+                return m_historizing;
+            }
+            set
+            {
+                m_historizing = value;
+            }
         }
         #endregion
 
@@ -45905,16 +50560,28 @@ namespace Opc.Ua
         [DataMember(Name = "Executable", IsRequired = false, Order = 1)]
         public bool Executable
         {
-            get { return m_executable; }
-            set { m_executable = value; }
+            get
+            {
+                return m_executable;
+            }
+            set
+            {
+                m_executable = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "UserExecutable", IsRequired = false, Order = 2)]
         public bool UserExecutable
         {
-            get { return m_userExecutable; }
-            set { m_userExecutable = value; }
+            get
+            {
+                return m_userExecutable;
+            }
+            set
+            {
+                m_userExecutable = value;
+            }
         }
         #endregion
 
@@ -46038,8 +50705,14 @@ namespace Opc.Ua
         [DataMember(Name = "IsAbstract", IsRequired = false, Order = 1)]
         public bool IsAbstract
         {
-            get { return m_isAbstract; }
-            set { m_isAbstract = value; }
+            get
+            {
+                return m_isAbstract;
+            }
+            set
+            {
+                m_isAbstract = value;
+            }
         }
         #endregion
 
@@ -46161,24 +50834,42 @@ namespace Opc.Ua
         [DataMember(Name = "Value", IsRequired = false, Order = 1)]
         public Variant Value
         {
-            get { return m_value; }
-            set { m_value = value; }
+            get
+            {
+                return m_value;
+            }
+            set
+            {
+                m_value = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataType", IsRequired = false, Order = 2)]
         public NodeId DataType
         {
-            get { return m_dataType; }
-            set { m_dataType = value; }
+            get
+            {
+                return m_dataType;
+            }
+            set
+            {
+                m_dataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ValueRank", IsRequired = false, Order = 3)]
         public int ValueRank
         {
-            get { return m_valueRank; }
-            set { m_valueRank = value; }
+            get
+            {
+                return m_valueRank;
+            }
+            set
+            {
+                m_valueRank = value;
+            }
         }
 
         /// <remarks />
@@ -46189,7 +50880,6 @@ namespace Opc.Ua
             {
                 return m_arrayDimensions;
             }
-
             set
             {
                 m_arrayDimensions = value;
@@ -46205,8 +50895,14 @@ namespace Opc.Ua
         [DataMember(Name = "IsAbstract", IsRequired = false, Order = 5)]
         public bool IsAbstract
         {
-            get { return m_isAbstract; }
-            set { m_isAbstract = value; }
+            get
+            {
+                return m_isAbstract;
+            }
+            set
+            {
+                m_isAbstract = value;
+            }
         }
         #endregion
 
@@ -46350,24 +51046,42 @@ namespace Opc.Ua
         [DataMember(Name = "IsAbstract", IsRequired = false, Order = 1)]
         public bool IsAbstract
         {
-            get { return m_isAbstract; }
-            set { m_isAbstract = value; }
+            get
+            {
+                return m_isAbstract;
+            }
+            set
+            {
+                m_isAbstract = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Symmetric", IsRequired = false, Order = 2)]
         public bool Symmetric
         {
-            get { return m_symmetric; }
-            set { m_symmetric = value; }
+            get
+            {
+                return m_symmetric;
+            }
+            set
+            {
+                m_symmetric = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "InverseName", IsRequired = false, Order = 3)]
         public LocalizedText InverseName
         {
-            get { return m_inverseName; }
-            set { m_inverseName = value; }
+            get
+            {
+                return m_inverseName;
+            }
+            set
+            {
+                m_inverseName = value;
+            }
         }
         #endregion
 
@@ -46497,8 +51211,14 @@ namespace Opc.Ua
         [DataMember(Name = "IsAbstract", IsRequired = false, Order = 1)]
         public bool IsAbstract
         {
-            get { return m_isAbstract; }
-            set { m_isAbstract = value; }
+            get
+            {
+                return m_isAbstract;
+            }
+            set
+            {
+                m_isAbstract = value;
+            }
         }
         #endregion
 
@@ -46617,16 +51337,28 @@ namespace Opc.Ua
         [DataMember(Name = "ContainsNoLoops", IsRequired = false, Order = 1)]
         public bool ContainsNoLoops
         {
-            get { return m_containsNoLoops; }
-            set { m_containsNoLoops = value; }
+            get
+            {
+                return m_containsNoLoops;
+            }
+            set
+            {
+                m_containsNoLoops = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "EventNotifier", IsRequired = false, Order = 2)]
         public byte EventNotifier
         {
-            get { return m_eventNotifier; }
-            set { m_eventNotifier = value; }
+            get
+            {
+                return m_eventNotifier;
+            }
+            set
+            {
+                m_eventNotifier = value;
+            }
         }
         #endregion
 
@@ -46751,16 +51483,28 @@ namespace Opc.Ua
         [DataMember(Name = "AttributeId", IsRequired = false, Order = 1)]
         public uint AttributeId
         {
-            get { return m_attributeId; }
-            set { m_attributeId = value; }
+            get
+            {
+                return m_attributeId;
+            }
+            set
+            {
+                m_attributeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Value", IsRequired = false, Order = 2)]
         public Variant Value
         {
-            get { return m_value; }
-            set { m_value = value; }
+            get
+            {
+                return m_value;
+            }
+            set
+            {
+                m_value = value;
+            }
         }
         #endregion
 
@@ -46850,18 +51594,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfGenericAttributeValue", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "GenericAttributeValue")]
+    [CollectionDataContract(
+        Name = "ListOfGenericAttributeValue",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "GenericAttributeValue"
+    )]
     public partial class GenericAttributeValueCollection : List<GenericAttributeValue>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public GenericAttributeValueCollection() { }
+        public GenericAttributeValueCollection()
+        {
+        }
 
         /// <remarks />
-        public GenericAttributeValueCollection(int capacity) : base(capacity) { }
+        public GenericAttributeValueCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public GenericAttributeValueCollection(IEnumerable<GenericAttributeValue> collection) : base(collection) { }
+        public GenericAttributeValueCollection(IEnumerable<GenericAttributeValue> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -46949,7 +51701,6 @@ namespace Opc.Ua
             {
                 return m_attributeValues;
             }
-
             set
             {
                 m_attributeValues = value;
@@ -46994,7 +51745,8 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            AttributeValues = (GenericAttributeValueCollection)decoder.ReadEncodeableArray("AttributeValues", typeof(GenericAttributeValue));
+            AttributeValues = (GenericAttributeValueCollection)
+                decoder.ReadEncodeableArray("AttributeValues", typeof(GenericAttributeValue));
 
             decoder.PopNamespace();
         }
@@ -47082,56 +51834,98 @@ namespace Opc.Ua
         [DataMember(Name = "ParentNodeId", IsRequired = false, Order = 1)]
         public ExpandedNodeId ParentNodeId
         {
-            get { return m_parentNodeId; }
-            set { m_parentNodeId = value; }
+            get
+            {
+                return m_parentNodeId;
+            }
+            set
+            {
+                m_parentNodeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ReferenceTypeId", IsRequired = false, Order = 2)]
         public NodeId ReferenceTypeId
         {
-            get { return m_referenceTypeId; }
-            set { m_referenceTypeId = value; }
+            get
+            {
+                return m_referenceTypeId;
+            }
+            set
+            {
+                m_referenceTypeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RequestedNewNodeId", IsRequired = false, Order = 3)]
         public ExpandedNodeId RequestedNewNodeId
         {
-            get { return m_requestedNewNodeId; }
-            set { m_requestedNewNodeId = value; }
+            get
+            {
+                return m_requestedNewNodeId;
+            }
+            set
+            {
+                m_requestedNewNodeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "BrowseName", IsRequired = false, Order = 4)]
         public QualifiedName BrowseName
         {
-            get { return m_browseName; }
-            set { m_browseName = value; }
+            get
+            {
+                return m_browseName;
+            }
+            set
+            {
+                m_browseName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "NodeClass", IsRequired = false, Order = 5)]
         public NodeClass NodeClass
         {
-            get { return m_nodeClass; }
-            set { m_nodeClass = value; }
+            get
+            {
+                return m_nodeClass;
+            }
+            set
+            {
+                m_nodeClass = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "NodeAttributes", IsRequired = false, Order = 6)]
         public ExtensionObject NodeAttributes
         {
-            get { return m_nodeAttributes; }
-            set { m_nodeAttributes = value; }
+            get
+            {
+                return m_nodeAttributes;
+            }
+            set
+            {
+                m_nodeAttributes = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TypeDefinition", IsRequired = false, Order = 7)]
         public ExpandedNodeId TypeDefinition
         {
-            get { return m_typeDefinition; }
-            set { m_typeDefinition = value; }
+            get
+            {
+                return m_typeDefinition;
+            }
+            set
+            {
+                m_typeDefinition = value;
+            }
         }
         #endregion
 
@@ -47251,18 +52045,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfAddNodesItem", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AddNodesItem")]
+    [CollectionDataContract(
+        Name = "ListOfAddNodesItem",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "AddNodesItem"
+    )]
     public partial class AddNodesItemCollection : List<AddNodesItem>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public AddNodesItemCollection() { }
+        public AddNodesItemCollection()
+        {
+        }
 
         /// <remarks />
-        public AddNodesItemCollection(int capacity) : base(capacity) { }
+        public AddNodesItemCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public AddNodesItemCollection(IEnumerable<AddNodesItem> collection) : base(collection) { }
+        public AddNodesItemCollection(IEnumerable<AddNodesItem> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -47347,16 +52149,28 @@ namespace Opc.Ua
         [DataMember(Name = "StatusCode", IsRequired = false, Order = 1)]
         public StatusCode StatusCode
         {
-            get { return m_statusCode; }
-            set { m_statusCode = value; }
+            get
+            {
+                return m_statusCode;
+            }
+            set
+            {
+                m_statusCode = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "AddedNodeId", IsRequired = false, Order = 2)]
         public NodeId AddedNodeId
         {
-            get { return m_addedNodeId; }
-            set { m_addedNodeId = value; }
+            get
+            {
+                return m_addedNodeId;
+            }
+            set
+            {
+                m_addedNodeId = value;
+            }
         }
         #endregion
 
@@ -47446,18 +52260,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfAddNodesResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AddNodesResult")]
+    [CollectionDataContract(
+        Name = "ListOfAddNodesResult",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "AddNodesResult"
+    )]
     public partial class AddNodesResultCollection : List<AddNodesResult>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public AddNodesResultCollection() { }
+        public AddNodesResultCollection()
+        {
+        }
 
         /// <remarks />
-        public AddNodesResultCollection(int capacity) : base(capacity) { }
+        public AddNodesResultCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public AddNodesResultCollection(IEnumerable<AddNodesResult> collection) : base(collection) { }
+        public AddNodesResultCollection(IEnumerable<AddNodesResult> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -47546,7 +52368,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -47566,7 +52387,6 @@ namespace Opc.Ua
             {
                 return m_nodesToAdd;
             }
-
             set
             {
                 m_nodesToAdd = value;
@@ -47701,7 +52521,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -47721,7 +52540,6 @@ namespace Opc.Ua
             {
                 return m_results;
             }
-
             set
             {
                 m_results = value;
@@ -47741,7 +52559,6 @@ namespace Opc.Ua
             {
                 return m_diagnosticInfos;
             }
-
             set
             {
                 m_diagnosticInfos = value;
@@ -47881,48 +52698,84 @@ namespace Opc.Ua
         [DataMember(Name = "SourceNodeId", IsRequired = false, Order = 1)]
         public NodeId SourceNodeId
         {
-            get { return m_sourceNodeId; }
-            set { m_sourceNodeId = value; }
+            get
+            {
+                return m_sourceNodeId;
+            }
+            set
+            {
+                m_sourceNodeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ReferenceTypeId", IsRequired = false, Order = 2)]
         public NodeId ReferenceTypeId
         {
-            get { return m_referenceTypeId; }
-            set { m_referenceTypeId = value; }
+            get
+            {
+                return m_referenceTypeId;
+            }
+            set
+            {
+                m_referenceTypeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IsForward", IsRequired = false, Order = 3)]
         public bool IsForward
         {
-            get { return m_isForward; }
-            set { m_isForward = value; }
+            get
+            {
+                return m_isForward;
+            }
+            set
+            {
+                m_isForward = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TargetServerUri", IsRequired = false, Order = 4)]
         public string TargetServerUri
         {
-            get { return m_targetServerUri; }
-            set { m_targetServerUri = value; }
+            get
+            {
+                return m_targetServerUri;
+            }
+            set
+            {
+                m_targetServerUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TargetNodeId", IsRequired = false, Order = 5)]
         public ExpandedNodeId TargetNodeId
         {
-            get { return m_targetNodeId; }
-            set { m_targetNodeId = value; }
+            get
+            {
+                return m_targetNodeId;
+            }
+            set
+            {
+                m_targetNodeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TargetNodeClass", IsRequired = false, Order = 6)]
         public NodeClass TargetNodeClass
         {
-            get { return m_targetNodeClass; }
-            set { m_targetNodeClass = value; }
+            get
+            {
+                return m_targetNodeClass;
+            }
+            set
+            {
+                m_targetNodeClass = value;
+            }
         }
         #endregion
 
@@ -48036,18 +52889,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfAddReferencesItem", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AddReferencesItem")]
+    [CollectionDataContract(
+        Name = "ListOfAddReferencesItem",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "AddReferencesItem"
+    )]
     public partial class AddReferencesItemCollection : List<AddReferencesItem>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public AddReferencesItemCollection() { }
+        public AddReferencesItemCollection()
+        {
+        }
 
         /// <remarks />
-        public AddReferencesItemCollection(int capacity) : base(capacity) { }
+        public AddReferencesItemCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public AddReferencesItemCollection(IEnumerable<AddReferencesItem> collection) : base(collection) { }
+        public AddReferencesItemCollection(IEnumerable<AddReferencesItem> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -48136,7 +52997,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -48156,7 +53016,6 @@ namespace Opc.Ua
             {
                 return m_referencesToAdd;
             }
-
             set
             {
                 m_referencesToAdd = value;
@@ -48199,7 +53058,8 @@ namespace Opc.Ua
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             RequestHeader = (RequestHeader)decoder.ReadEncodeable("RequestHeader", typeof(RequestHeader));
-            ReferencesToAdd = (AddReferencesItemCollection)decoder.ReadEncodeableArray("ReferencesToAdd", typeof(AddReferencesItem));
+            ReferencesToAdd = (AddReferencesItemCollection)
+                decoder.ReadEncodeableArray("ReferencesToAdd", typeof(AddReferencesItem));
 
             decoder.PopNamespace();
         }
@@ -48291,7 +53151,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -48311,7 +53170,6 @@ namespace Opc.Ua
             {
                 return m_results;
             }
-
             set
             {
                 m_results = value;
@@ -48331,7 +53189,6 @@ namespace Opc.Ua
             {
                 return m_diagnosticInfos;
             }
-
             set
             {
                 m_diagnosticInfos = value;
@@ -48467,16 +53324,28 @@ namespace Opc.Ua
         [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
         public NodeId NodeId
         {
-            get { return m_nodeId; }
-            set { m_nodeId = value; }
+            get
+            {
+                return m_nodeId;
+            }
+            set
+            {
+                m_nodeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DeleteTargetReferences", IsRequired = false, Order = 2)]
         public bool DeleteTargetReferences
         {
-            get { return m_deleteTargetReferences; }
-            set { m_deleteTargetReferences = value; }
+            get
+            {
+                return m_deleteTargetReferences;
+            }
+            set
+            {
+                m_deleteTargetReferences = value;
+            }
         }
         #endregion
 
@@ -48566,18 +53435,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfDeleteNodesItem", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DeleteNodesItem")]
+    [CollectionDataContract(
+        Name = "ListOfDeleteNodesItem",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "DeleteNodesItem"
+    )]
     public partial class DeleteNodesItemCollection : List<DeleteNodesItem>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public DeleteNodesItemCollection() { }
+        public DeleteNodesItemCollection()
+        {
+        }
 
         /// <remarks />
-        public DeleteNodesItemCollection(int capacity) : base(capacity) { }
+        public DeleteNodesItemCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public DeleteNodesItemCollection(IEnumerable<DeleteNodesItem> collection) : base(collection) { }
+        public DeleteNodesItemCollection(IEnumerable<DeleteNodesItem> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -48666,7 +53543,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -48686,7 +53562,6 @@ namespace Opc.Ua
             {
                 return m_nodesToDelete;
             }
-
             set
             {
                 m_nodesToDelete = value;
@@ -48729,7 +53604,8 @@ namespace Opc.Ua
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             RequestHeader = (RequestHeader)decoder.ReadEncodeable("RequestHeader", typeof(RequestHeader));
-            NodesToDelete = (DeleteNodesItemCollection)decoder.ReadEncodeableArray("NodesToDelete", typeof(DeleteNodesItem));
+            NodesToDelete = (DeleteNodesItemCollection)
+                decoder.ReadEncodeableArray("NodesToDelete", typeof(DeleteNodesItem));
 
             decoder.PopNamespace();
         }
@@ -48821,7 +53697,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -48841,7 +53716,6 @@ namespace Opc.Ua
             {
                 return m_results;
             }
-
             set
             {
                 m_results = value;
@@ -48861,7 +53735,6 @@ namespace Opc.Ua
             {
                 return m_diagnosticInfos;
             }
-
             set
             {
                 m_diagnosticInfos = value;
@@ -49000,40 +53873,70 @@ namespace Opc.Ua
         [DataMember(Name = "SourceNodeId", IsRequired = false, Order = 1)]
         public NodeId SourceNodeId
         {
-            get { return m_sourceNodeId; }
-            set { m_sourceNodeId = value; }
+            get
+            {
+                return m_sourceNodeId;
+            }
+            set
+            {
+                m_sourceNodeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ReferenceTypeId", IsRequired = false, Order = 2)]
         public NodeId ReferenceTypeId
         {
-            get { return m_referenceTypeId; }
-            set { m_referenceTypeId = value; }
+            get
+            {
+                return m_referenceTypeId;
+            }
+            set
+            {
+                m_referenceTypeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IsForward", IsRequired = false, Order = 3)]
         public bool IsForward
         {
-            get { return m_isForward; }
-            set { m_isForward = value; }
+            get
+            {
+                return m_isForward;
+            }
+            set
+            {
+                m_isForward = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TargetNodeId", IsRequired = false, Order = 4)]
         public ExpandedNodeId TargetNodeId
         {
-            get { return m_targetNodeId; }
-            set { m_targetNodeId = value; }
+            get
+            {
+                return m_targetNodeId;
+            }
+            set
+            {
+                m_targetNodeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DeleteBidirectional", IsRequired = false, Order = 5)]
         public bool DeleteBidirectional
         {
-            get { return m_deleteBidirectional; }
-            set { m_deleteBidirectional = value; }
+            get
+            {
+                return m_deleteBidirectional;
+            }
+            set
+            {
+                m_deleteBidirectional = value;
+            }
         }
         #endregion
 
@@ -49141,18 +54044,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfDeleteReferencesItem", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DeleteReferencesItem")]
+    [CollectionDataContract(
+        Name = "ListOfDeleteReferencesItem",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "DeleteReferencesItem"
+    )]
     public partial class DeleteReferencesItemCollection : List<DeleteReferencesItem>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public DeleteReferencesItemCollection() { }
+        public DeleteReferencesItemCollection()
+        {
+        }
 
         /// <remarks />
-        public DeleteReferencesItemCollection(int capacity) : base(capacity) { }
+        public DeleteReferencesItemCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public DeleteReferencesItemCollection(IEnumerable<DeleteReferencesItem> collection) : base(collection) { }
+        public DeleteReferencesItemCollection(IEnumerable<DeleteReferencesItem> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -49241,7 +54152,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -49261,7 +54171,6 @@ namespace Opc.Ua
             {
                 return m_referencesToDelete;
             }
-
             set
             {
                 m_referencesToDelete = value;
@@ -49293,7 +54202,11 @@ namespace Opc.Ua
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             encoder.WriteEncodeable("RequestHeader", RequestHeader, typeof(RequestHeader));
-            encoder.WriteEncodeableArray("ReferencesToDelete", ReferencesToDelete.ToArray(), typeof(DeleteReferencesItem));
+            encoder.WriteEncodeableArray(
+                "ReferencesToDelete",
+                ReferencesToDelete.ToArray(),
+                typeof(DeleteReferencesItem)
+            );
 
             encoder.PopNamespace();
         }
@@ -49304,7 +54217,8 @@ namespace Opc.Ua
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             RequestHeader = (RequestHeader)decoder.ReadEncodeable("RequestHeader", typeof(RequestHeader));
-            ReferencesToDelete = (DeleteReferencesItemCollection)decoder.ReadEncodeableArray("ReferencesToDelete", typeof(DeleteReferencesItem));
+            ReferencesToDelete = (DeleteReferencesItemCollection)
+                decoder.ReadEncodeableArray("ReferencesToDelete", typeof(DeleteReferencesItem));
 
             decoder.PopNamespace();
         }
@@ -49396,7 +54310,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -49416,7 +54329,6 @@ namespace Opc.Ua
             {
                 return m_results;
             }
-
             set
             {
                 m_results = value;
@@ -49436,7 +54348,6 @@ namespace Opc.Ua
             {
                 return m_diagnosticInfos;
             }
-
             set
             {
                 m_diagnosticInfos = value;
@@ -49720,24 +54631,42 @@ namespace Opc.Ua
         [DataMember(Name = "ViewId", IsRequired = false, Order = 1)]
         public NodeId ViewId
         {
-            get { return m_viewId; }
-            set { m_viewId = value; }
+            get
+            {
+                return m_viewId;
+            }
+            set
+            {
+                m_viewId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Timestamp", IsRequired = false, Order = 2)]
         public DateTime Timestamp
         {
-            get { return m_timestamp; }
-            set { m_timestamp = value; }
+            get
+            {
+                return m_timestamp;
+            }
+            set
+            {
+                m_timestamp = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ViewVersion", IsRequired = false, Order = 3)]
         public uint ViewVersion
         {
-            get { return m_viewVersion; }
-            set { m_viewVersion = value; }
+            get
+            {
+                return m_viewVersion;
+            }
+            set
+            {
+                m_viewVersion = value;
+            }
         }
         #endregion
 
@@ -49868,48 +54797,84 @@ namespace Opc.Ua
         [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
         public NodeId NodeId
         {
-            get { return m_nodeId; }
-            set { m_nodeId = value; }
+            get
+            {
+                return m_nodeId;
+            }
+            set
+            {
+                m_nodeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "BrowseDirection", IsRequired = false, Order = 2)]
         public BrowseDirection BrowseDirection
         {
-            get { return m_browseDirection; }
-            set { m_browseDirection = value; }
+            get
+            {
+                return m_browseDirection;
+            }
+            set
+            {
+                m_browseDirection = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ReferenceTypeId", IsRequired = false, Order = 3)]
         public NodeId ReferenceTypeId
         {
-            get { return m_referenceTypeId; }
-            set { m_referenceTypeId = value; }
+            get
+            {
+                return m_referenceTypeId;
+            }
+            set
+            {
+                m_referenceTypeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IncludeSubtypes", IsRequired = false, Order = 4)]
         public bool IncludeSubtypes
         {
-            get { return m_includeSubtypes; }
-            set { m_includeSubtypes = value; }
+            get
+            {
+                return m_includeSubtypes;
+            }
+            set
+            {
+                m_includeSubtypes = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "NodeClassMask", IsRequired = false, Order = 5)]
         public uint NodeClassMask
         {
-            get { return m_nodeClassMask; }
-            set { m_nodeClassMask = value; }
+            get
+            {
+                return m_nodeClassMask;
+            }
+            set
+            {
+                m_nodeClassMask = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ResultMask", IsRequired = false, Order = 6)]
         public uint ResultMask
         {
-            get { return m_resultMask; }
-            set { m_resultMask = value; }
+            get
+            {
+                return m_resultMask;
+            }
+            set
+            {
+                m_resultMask = value;
+            }
         }
         #endregion
 
@@ -50023,18 +54988,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfBrowseDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrowseDescription")]
+    [CollectionDataContract(
+        Name = "ListOfBrowseDescription",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "BrowseDescription"
+    )]
     public partial class BrowseDescriptionCollection : List<BrowseDescription>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public BrowseDescriptionCollection() { }
+        public BrowseDescriptionCollection()
+        {
+        }
 
         /// <remarks />
-        public BrowseDescriptionCollection(int capacity) : base(capacity) { }
+        public BrowseDescriptionCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public BrowseDescriptionCollection(IEnumerable<BrowseDescription> collection) : base(collection) { }
+        public BrowseDescriptionCollection(IEnumerable<BrowseDescription> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -50175,56 +55148,98 @@ namespace Opc.Ua
         [DataMember(Name = "ReferenceTypeId", IsRequired = false, Order = 1)]
         public NodeId ReferenceTypeId
         {
-            get { return m_referenceTypeId; }
-            set { m_referenceTypeId = value; }
+            get
+            {
+                return m_referenceTypeId;
+            }
+            set
+            {
+                m_referenceTypeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IsForward", IsRequired = false, Order = 2)]
         public bool IsForward
         {
-            get { return m_isForward; }
-            set { m_isForward = value; }
+            get
+            {
+                return m_isForward;
+            }
+            set
+            {
+                m_isForward = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "NodeId", IsRequired = false, Order = 3)]
         public ExpandedNodeId NodeId
         {
-            get { return m_nodeId; }
-            set { m_nodeId = value; }
+            get
+            {
+                return m_nodeId;
+            }
+            set
+            {
+                m_nodeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "BrowseName", IsRequired = false, Order = 4)]
         public QualifiedName BrowseName
         {
-            get { return m_browseName; }
-            set { m_browseName = value; }
+            get
+            {
+                return m_browseName;
+            }
+            set
+            {
+                m_browseName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DisplayName", IsRequired = false, Order = 5)]
         public LocalizedText DisplayName
         {
-            get { return m_displayName; }
-            set { m_displayName = value; }
+            get
+            {
+                return m_displayName;
+            }
+            set
+            {
+                m_displayName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "NodeClass", IsRequired = false, Order = 6)]
         public NodeClass NodeClass
         {
-            get { return m_nodeClass; }
-            set { m_nodeClass = value; }
+            get
+            {
+                return m_nodeClass;
+            }
+            set
+            {
+                m_nodeClass = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TypeDefinition", IsRequired = false, Order = 7)]
         public ExpandedNodeId TypeDefinition
         {
-            get { return m_typeDefinition; }
-            set { m_typeDefinition = value; }
+            get
+            {
+                return m_typeDefinition;
+            }
+            set
+            {
+                m_typeDefinition = value;
+            }
         }
         #endregion
 
@@ -50344,18 +55359,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfReferenceDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReferenceDescription")]
+    [CollectionDataContract(
+        Name = "ListOfReferenceDescription",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ReferenceDescription"
+    )]
     public partial class ReferenceDescriptionCollection : List<ReferenceDescription>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ReferenceDescriptionCollection() { }
+        public ReferenceDescriptionCollection()
+        {
+        }
 
         /// <remarks />
-        public ReferenceDescriptionCollection(int capacity) : base(capacity) { }
+        public ReferenceDescriptionCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ReferenceDescriptionCollection(IEnumerable<ReferenceDescription> collection) : base(collection) { }
+        public ReferenceDescriptionCollection(IEnumerable<ReferenceDescription> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -50441,16 +55464,28 @@ namespace Opc.Ua
         [DataMember(Name = "StatusCode", IsRequired = false, Order = 1)]
         public StatusCode StatusCode
         {
-            get { return m_statusCode; }
-            set { m_statusCode = value; }
+            get
+            {
+                return m_statusCode;
+            }
+            set
+            {
+                m_statusCode = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ContinuationPoint", IsRequired = false, Order = 2)]
         public byte[] ContinuationPoint
         {
-            get { return m_continuationPoint; }
-            set { m_continuationPoint = value; }
+            get
+            {
+                return m_continuationPoint;
+            }
+            set
+            {
+                m_continuationPoint = value;
+            }
         }
 
         /// <remarks />
@@ -50461,7 +55496,6 @@ namespace Opc.Ua
             {
                 return m_references;
             }
-
             set
             {
                 m_references = value;
@@ -50506,7 +55540,8 @@ namespace Opc.Ua
 
             StatusCode = decoder.ReadStatusCode("StatusCode");
             ContinuationPoint = decoder.ReadByteString("ContinuationPoint");
-            References = (ReferenceDescriptionCollection)decoder.ReadEncodeableArray("References", typeof(ReferenceDescription));
+            References = (ReferenceDescriptionCollection)
+                decoder.ReadEncodeableArray("References", typeof(ReferenceDescription));
 
             decoder.PopNamespace();
         }
@@ -50566,18 +55601,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfBrowseResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrowseResult")]
+    [CollectionDataContract(
+        Name = "ListOfBrowseResult",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "BrowseResult"
+    )]
     public partial class BrowseResultCollection : List<BrowseResult>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public BrowseResultCollection() { }
+        public BrowseResultCollection()
+        {
+        }
 
         /// <remarks />
-        public BrowseResultCollection(int capacity) : base(capacity) { }
+        public BrowseResultCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public BrowseResultCollection(IEnumerable<BrowseResult> collection) : base(collection) { }
+        public BrowseResultCollection(IEnumerable<BrowseResult> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -50668,7 +55711,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -50688,7 +55730,6 @@ namespace Opc.Ua
             {
                 return m_view;
             }
-
             set
             {
                 m_view = value;
@@ -50704,8 +55745,14 @@ namespace Opc.Ua
         [DataMember(Name = "RequestedMaxReferencesPerNode", IsRequired = false, Order = 3)]
         public uint RequestedMaxReferencesPerNode
         {
-            get { return m_requestedMaxReferencesPerNode; }
-            set { m_requestedMaxReferencesPerNode = value; }
+            get
+            {
+                return m_requestedMaxReferencesPerNode;
+            }
+            set
+            {
+                m_requestedMaxReferencesPerNode = value;
+            }
         }
 
         /// <remarks />
@@ -50716,7 +55763,6 @@ namespace Opc.Ua
             {
                 return m_nodesToBrowse;
             }
-
             set
             {
                 m_nodesToBrowse = value;
@@ -50763,7 +55809,8 @@ namespace Opc.Ua
             RequestHeader = (RequestHeader)decoder.ReadEncodeable("RequestHeader", typeof(RequestHeader));
             View = (ViewDescription)decoder.ReadEncodeable("View", typeof(ViewDescription));
             RequestedMaxReferencesPerNode = decoder.ReadUInt32("RequestedMaxReferencesPerNode");
-            NodesToBrowse = (BrowseDescriptionCollection)decoder.ReadEncodeableArray("NodesToBrowse", typeof(BrowseDescription));
+            NodesToBrowse = (BrowseDescriptionCollection)
+                decoder.ReadEncodeableArray("NodesToBrowse", typeof(BrowseDescription));
 
             decoder.PopNamespace();
         }
@@ -50863,7 +55910,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -50883,7 +55929,6 @@ namespace Opc.Ua
             {
                 return m_results;
             }
-
             set
             {
                 m_results = value;
@@ -50903,7 +55948,6 @@ namespace Opc.Ua
             {
                 return m_diagnosticInfos;
             }
-
             set
             {
                 m_diagnosticInfos = value;
@@ -51044,7 +56088,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -51060,8 +56103,14 @@ namespace Opc.Ua
         [DataMember(Name = "ReleaseContinuationPoints", IsRequired = false, Order = 2)]
         public bool ReleaseContinuationPoints
         {
-            get { return m_releaseContinuationPoints; }
-            set { m_releaseContinuationPoints = value; }
+            get
+            {
+                return m_releaseContinuationPoints;
+            }
+            set
+            {
+                m_releaseContinuationPoints = value;
+            }
         }
 
         /// <remarks />
@@ -51072,7 +56121,6 @@ namespace Opc.Ua
             {
                 return m_continuationPoints;
             }
-
             set
             {
                 m_continuationPoints = value;
@@ -51213,7 +56261,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -51233,7 +56280,6 @@ namespace Opc.Ua
             {
                 return m_results;
             }
-
             set
             {
                 m_results = value;
@@ -51253,7 +56299,6 @@ namespace Opc.Ua
             {
                 return m_diagnosticInfos;
             }
-
             set
             {
                 m_diagnosticInfos = value;
@@ -51391,32 +56436,56 @@ namespace Opc.Ua
         [DataMember(Name = "ReferenceTypeId", IsRequired = false, Order = 1)]
         public NodeId ReferenceTypeId
         {
-            get { return m_referenceTypeId; }
-            set { m_referenceTypeId = value; }
+            get
+            {
+                return m_referenceTypeId;
+            }
+            set
+            {
+                m_referenceTypeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IsInverse", IsRequired = false, Order = 2)]
         public bool IsInverse
         {
-            get { return m_isInverse; }
-            set { m_isInverse = value; }
+            get
+            {
+                return m_isInverse;
+            }
+            set
+            {
+                m_isInverse = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IncludeSubtypes", IsRequired = false, Order = 3)]
         public bool IncludeSubtypes
         {
-            get { return m_includeSubtypes; }
-            set { m_includeSubtypes = value; }
+            get
+            {
+                return m_includeSubtypes;
+            }
+            set
+            {
+                m_includeSubtypes = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TargetName", IsRequired = false, Order = 4)]
         public QualifiedName TargetName
         {
-            get { return m_targetName; }
-            set { m_targetName = value; }
+            get
+            {
+                return m_targetName;
+            }
+            set
+            {
+                m_targetName = value;
+            }
         }
         #endregion
 
@@ -51518,18 +56587,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfRelativePathElement", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RelativePathElement")]
+    [CollectionDataContract(
+        Name = "ListOfRelativePathElement",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "RelativePathElement"
+    )]
     public partial class RelativePathElementCollection : List<RelativePathElement>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public RelativePathElementCollection() { }
+        public RelativePathElementCollection()
+        {
+        }
 
         /// <remarks />
-        public RelativePathElementCollection(int capacity) : base(capacity) { }
+        public RelativePathElementCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public RelativePathElementCollection(IEnumerable<RelativePathElement> collection) : base(collection) { }
+        public RelativePathElementCollection(IEnumerable<RelativePathElement> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -51617,7 +56694,6 @@ namespace Opc.Ua
             {
                 return m_elements;
             }
-
             set
             {
                 m_elements = value;
@@ -51658,7 +56734,8 @@ namespace Opc.Ua
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            Elements = (RelativePathElementCollection)decoder.ReadEncodeableArray("Elements", typeof(RelativePathElement));
+            Elements = (RelativePathElementCollection)
+                decoder.ReadEncodeableArray("Elements", typeof(RelativePathElement));
 
             decoder.PopNamespace();
         }
@@ -51741,8 +56818,14 @@ namespace Opc.Ua
         [DataMember(Name = "StartingNode", IsRequired = false, Order = 1)]
         public NodeId StartingNode
         {
-            get { return m_startingNode; }
-            set { m_startingNode = value; }
+            get
+            {
+                return m_startingNode;
+            }
+            set
+            {
+                m_startingNode = value;
+            }
         }
 
         /// <remarks />
@@ -51753,7 +56836,6 @@ namespace Opc.Ua
             {
                 return m_relativePath;
             }
-
             set
             {
                 m_relativePath = value;
@@ -51857,13 +56939,17 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <remarks />
-        public BrowsePathCollection() { }
+        public BrowsePathCollection()
+        {
+        }
 
         /// <remarks />
-        public BrowsePathCollection(int capacity) : base(capacity) { }
+        public BrowsePathCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public BrowsePathCollection(IEnumerable<BrowsePath> collection) : base(collection) { }
+        public BrowsePathCollection(IEnumerable<BrowsePath> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -51948,16 +57034,28 @@ namespace Opc.Ua
         [DataMember(Name = "TargetId", IsRequired = false, Order = 1)]
         public ExpandedNodeId TargetId
         {
-            get { return m_targetId; }
-            set { m_targetId = value; }
+            get
+            {
+                return m_targetId;
+            }
+            set
+            {
+                m_targetId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RemainingPathIndex", IsRequired = false, Order = 2)]
         public uint RemainingPathIndex
         {
-            get { return m_remainingPathIndex; }
-            set { m_remainingPathIndex = value; }
+            get
+            {
+                return m_remainingPathIndex;
+            }
+            set
+            {
+                m_remainingPathIndex = value;
+            }
         }
         #endregion
 
@@ -52047,18 +57145,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfBrowsePathTarget", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrowsePathTarget")]
+    [CollectionDataContract(
+        Name = "ListOfBrowsePathTarget",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "BrowsePathTarget"
+    )]
     public partial class BrowsePathTargetCollection : List<BrowsePathTarget>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public BrowsePathTargetCollection() { }
+        public BrowsePathTargetCollection()
+        {
+        }
 
         /// <remarks />
-        public BrowsePathTargetCollection(int capacity) : base(capacity) { }
+        public BrowsePathTargetCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public BrowsePathTargetCollection(IEnumerable<BrowsePathTarget> collection) : base(collection) { }
+        public BrowsePathTargetCollection(IEnumerable<BrowsePathTarget> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -52143,8 +57249,14 @@ namespace Opc.Ua
         [DataMember(Name = "StatusCode", IsRequired = false, Order = 1)]
         public StatusCode StatusCode
         {
-            get { return m_statusCode; }
-            set { m_statusCode = value; }
+            get
+            {
+                return m_statusCode;
+            }
+            set
+            {
+                m_statusCode = value;
+            }
         }
 
         /// <remarks />
@@ -52155,7 +57267,6 @@ namespace Opc.Ua
             {
                 return m_targets;
             }
-
             set
             {
                 m_targets = value;
@@ -52254,18 +57365,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfBrowsePathResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrowsePathResult")]
+    [CollectionDataContract(
+        Name = "ListOfBrowsePathResult",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "BrowsePathResult"
+    )]
     public partial class BrowsePathResultCollection : List<BrowsePathResult>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public BrowsePathResultCollection() { }
+        public BrowsePathResultCollection()
+        {
+        }
 
         /// <remarks />
-        public BrowsePathResultCollection(int capacity) : base(capacity) { }
+        public BrowsePathResultCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public BrowsePathResultCollection(IEnumerable<BrowsePathResult> collection) : base(collection) { }
+        public BrowsePathResultCollection(IEnumerable<BrowsePathResult> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -52354,7 +57473,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -52374,7 +57492,6 @@ namespace Opc.Ua
             {
                 return m_browsePaths;
             }
-
             set
             {
                 m_browsePaths = value;
@@ -52392,13 +57509,16 @@ namespace Opc.Ua
         public virtual ExpandedNodeId TypeId => DataTypeIds.TranslateBrowsePathsToNodeIdsRequest;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.TranslateBrowsePathsToNodeIdsRequest_Encoding_DefaultBinary;
+        public virtual ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.TranslateBrowsePathsToNodeIdsRequest_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TranslateBrowsePathsToNodeIdsRequest_Encoding_DefaultXml;
+        public virtual ExpandedNodeId XmlEncodingId =>
+            ObjectIds.TranslateBrowsePathsToNodeIdsRequest_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.TranslateBrowsePathsToNodeIdsRequest_Encoding_DefaultJson;
+        public virtual ExpandedNodeId JsonEncodingId =>
+            ObjectIds.TranslateBrowsePathsToNodeIdsRequest_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -52509,7 +57629,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -52529,7 +57648,6 @@ namespace Opc.Ua
             {
                 return m_results;
             }
-
             set
             {
                 m_results = value;
@@ -52549,7 +57667,6 @@ namespace Opc.Ua
             {
                 return m_diagnosticInfos;
             }
-
             set
             {
                 m_diagnosticInfos = value;
@@ -52567,13 +57684,16 @@ namespace Opc.Ua
         public virtual ExpandedNodeId TypeId => DataTypeIds.TranslateBrowsePathsToNodeIdsResponse;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.TranslateBrowsePathsToNodeIdsResponse_Encoding_DefaultBinary;
+        public virtual ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.TranslateBrowsePathsToNodeIdsResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TranslateBrowsePathsToNodeIdsResponse_Encoding_DefaultXml;
+        public virtual ExpandedNodeId XmlEncodingId =>
+            ObjectIds.TranslateBrowsePathsToNodeIdsResponse_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.TranslateBrowsePathsToNodeIdsResponse_Encoding_DefaultJson;
+        public virtual ExpandedNodeId JsonEncodingId =>
+            ObjectIds.TranslateBrowsePathsToNodeIdsResponse_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -52689,7 +57809,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -52709,7 +57828,6 @@ namespace Opc.Ua
             {
                 return m_nodesToRegister;
             }
-
             set
             {
                 m_nodesToRegister = value;
@@ -52843,7 +57961,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -52863,7 +57980,6 @@ namespace Opc.Ua
             {
                 return m_registeredNodeIds;
             }
-
             set
             {
                 m_registeredNodeIds = value;
@@ -52997,7 +58113,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -53017,7 +58132,6 @@ namespace Opc.Ua
             {
                 return m_nodesToUnregister;
             }
-
             set
             {
                 m_nodesToUnregister = value;
@@ -53150,7 +58264,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -53281,72 +58394,126 @@ namespace Opc.Ua
         [DataMember(Name = "OperationTimeout", IsRequired = false, Order = 1)]
         public int OperationTimeout
         {
-            get { return m_operationTimeout; }
-            set { m_operationTimeout = value; }
+            get
+            {
+                return m_operationTimeout;
+            }
+            set
+            {
+                m_operationTimeout = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "UseBinaryEncoding", IsRequired = false, Order = 2)]
         public bool UseBinaryEncoding
         {
-            get { return m_useBinaryEncoding; }
-            set { m_useBinaryEncoding = value; }
+            get
+            {
+                return m_useBinaryEncoding;
+            }
+            set
+            {
+                m_useBinaryEncoding = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MaxStringLength", IsRequired = false, Order = 3)]
         public int MaxStringLength
         {
-            get { return m_maxStringLength; }
-            set { m_maxStringLength = value; }
+            get
+            {
+                return m_maxStringLength;
+            }
+            set
+            {
+                m_maxStringLength = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MaxByteStringLength", IsRequired = false, Order = 4)]
         public int MaxByteStringLength
         {
-            get { return m_maxByteStringLength; }
-            set { m_maxByteStringLength = value; }
+            get
+            {
+                return m_maxByteStringLength;
+            }
+            set
+            {
+                m_maxByteStringLength = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MaxArrayLength", IsRequired = false, Order = 5)]
         public int MaxArrayLength
         {
-            get { return m_maxArrayLength; }
-            set { m_maxArrayLength = value; }
+            get
+            {
+                return m_maxArrayLength;
+            }
+            set
+            {
+                m_maxArrayLength = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MaxMessageSize", IsRequired = false, Order = 6)]
         public int MaxMessageSize
         {
-            get { return m_maxMessageSize; }
-            set { m_maxMessageSize = value; }
+            get
+            {
+                return m_maxMessageSize;
+            }
+            set
+            {
+                m_maxMessageSize = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MaxBufferSize", IsRequired = false, Order = 7)]
         public int MaxBufferSize
         {
-            get { return m_maxBufferSize; }
-            set { m_maxBufferSize = value; }
+            get
+            {
+                return m_maxBufferSize;
+            }
+            set
+            {
+                m_maxBufferSize = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ChannelLifetime", IsRequired = false, Order = 8)]
         public int ChannelLifetime
         {
-            get { return m_channelLifetime; }
-            set { m_channelLifetime = value; }
+            get
+            {
+                return m_channelLifetime;
+            }
+            set
+            {
+                m_channelLifetime = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SecurityTokenLifetime", IsRequired = false, Order = 9)]
         public int SecurityTokenLifetime
         {
-            get { return m_securityTokenLifetime; }
-            set { m_securityTokenLifetime = value; }
+            get
+            {
+                return m_securityTokenLifetime;
+            }
+            set
+            {
+                m_securityTokenLifetime = value;
+            }
         }
         #endregion
 
@@ -53478,18 +58645,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfEndpointConfiguration", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EndpointConfiguration")]
+    [CollectionDataContract(
+        Name = "ListOfEndpointConfiguration",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "EndpointConfiguration"
+    )]
     public partial class EndpointConfigurationCollection : List<EndpointConfiguration>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public EndpointConfigurationCollection() { }
+        public EndpointConfigurationCollection()
+        {
+        }
 
         /// <remarks />
-        public EndpointConfigurationCollection(int capacity) : base(capacity) { }
+        public EndpointConfigurationCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public EndpointConfigurationCollection(IEnumerable<EndpointConfiguration> collection) : base(collection) { }
+        public EndpointConfigurationCollection(IEnumerable<EndpointConfiguration> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -53579,7 +58754,6 @@ namespace Opc.Ua
             {
                 return m_relativePath;
             }
-
             set
             {
                 m_relativePath = value;
@@ -53595,16 +58769,28 @@ namespace Opc.Ua
         [DataMember(Name = "AttributeId", IsRequired = false, Order = 2)]
         public uint AttributeId
         {
-            get { return m_attributeId; }
-            set { m_attributeId = value; }
+            get
+            {
+                return m_attributeId;
+            }
+            set
+            {
+                m_attributeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IndexRange", IsRequired = false, Order = 3)]
         public string IndexRange
         {
-            get { return m_indexRange; }
-            set { m_indexRange = value; }
+            get
+            {
+                return m_indexRange;
+            }
+            set
+            {
+                m_indexRange = value;
+            }
         }
         #endregion
 
@@ -53700,18 +58886,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfQueryDataDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "QueryDataDescription")]
+    [CollectionDataContract(
+        Name = "ListOfQueryDataDescription",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "QueryDataDescription"
+    )]
     public partial class QueryDataDescriptionCollection : List<QueryDataDescription>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public QueryDataDescriptionCollection() { }
+        public QueryDataDescriptionCollection()
+        {
+        }
 
         /// <remarks />
-        public QueryDataDescriptionCollection(int capacity) : base(capacity) { }
+        public QueryDataDescriptionCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public QueryDataDescriptionCollection(IEnumerable<QueryDataDescription> collection) : base(collection) { }
+        public QueryDataDescriptionCollection(IEnumerable<QueryDataDescription> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -53797,16 +58991,28 @@ namespace Opc.Ua
         [DataMember(Name = "TypeDefinitionNode", IsRequired = false, Order = 1)]
         public ExpandedNodeId TypeDefinitionNode
         {
-            get { return m_typeDefinitionNode; }
-            set { m_typeDefinitionNode = value; }
+            get
+            {
+                return m_typeDefinitionNode;
+            }
+            set
+            {
+                m_typeDefinitionNode = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IncludeSubTypes", IsRequired = false, Order = 2)]
         public bool IncludeSubTypes
         {
-            get { return m_includeSubTypes; }
-            set { m_includeSubTypes = value; }
+            get
+            {
+                return m_includeSubTypes;
+            }
+            set
+            {
+                m_includeSubTypes = value;
+            }
         }
 
         /// <remarks />
@@ -53817,7 +59023,6 @@ namespace Opc.Ua
             {
                 return m_dataToReturn;
             }
-
             set
             {
                 m_dataToReturn = value;
@@ -53862,7 +59067,8 @@ namespace Opc.Ua
 
             TypeDefinitionNode = decoder.ReadExpandedNodeId("TypeDefinitionNode");
             IncludeSubTypes = decoder.ReadBoolean("IncludeSubTypes");
-            DataToReturn = (QueryDataDescriptionCollection)decoder.ReadEncodeableArray("DataToReturn", typeof(QueryDataDescription));
+            DataToReturn = (QueryDataDescriptionCollection)
+                decoder.ReadEncodeableArray("DataToReturn", typeof(QueryDataDescription));
 
             decoder.PopNamespace();
         }
@@ -53922,18 +59128,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfNodeTypeDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NodeTypeDescription")]
+    [CollectionDataContract(
+        Name = "ListOfNodeTypeDescription",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "NodeTypeDescription"
+    )]
     public partial class NodeTypeDescriptionCollection : List<NodeTypeDescription>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public NodeTypeDescriptionCollection() { }
+        public NodeTypeDescriptionCollection()
+        {
+        }
 
         /// <remarks />
-        public NodeTypeDescriptionCollection(int capacity) : base(capacity) { }
+        public NodeTypeDescriptionCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public NodeTypeDescriptionCollection(IEnumerable<NodeTypeDescription> collection) : base(collection) { }
+        public NodeTypeDescriptionCollection(IEnumerable<NodeTypeDescription> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -54102,16 +59316,28 @@ namespace Opc.Ua
         [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
         public ExpandedNodeId NodeId
         {
-            get { return m_nodeId; }
-            set { m_nodeId = value; }
+            get
+            {
+                return m_nodeId;
+            }
+            set
+            {
+                m_nodeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TypeDefinitionNode", IsRequired = false, Order = 2)]
         public ExpandedNodeId TypeDefinitionNode
         {
-            get { return m_typeDefinitionNode; }
-            set { m_typeDefinitionNode = value; }
+            get
+            {
+                return m_typeDefinitionNode;
+            }
+            set
+            {
+                m_typeDefinitionNode = value;
+            }
         }
 
         /// <remarks />
@@ -54122,7 +59348,6 @@ namespace Opc.Ua
             {
                 return m_values;
             }
-
             set
             {
                 m_values = value;
@@ -54227,18 +59452,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfQueryDataSet", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "QueryDataSet")]
+    [CollectionDataContract(
+        Name = "ListOfQueryDataSet",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "QueryDataSet"
+    )]
     public partial class QueryDataSetCollection : List<QueryDataSet>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public QueryDataSetCollection() { }
+        public QueryDataSetCollection()
+        {
+        }
 
         /// <remarks />
-        public QueryDataSetCollection(int capacity) : base(capacity) { }
+        public QueryDataSetCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public QueryDataSetCollection(IEnumerable<QueryDataSet> collection) : base(collection) { }
+        public QueryDataSetCollection(IEnumerable<QueryDataSet> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -54325,24 +59558,42 @@ namespace Opc.Ua
         [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
         public NodeId NodeId
         {
-            get { return m_nodeId; }
-            set { m_nodeId = value; }
+            get
+            {
+                return m_nodeId;
+            }
+            set
+            {
+                m_nodeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ReferenceTypeId", IsRequired = false, Order = 2)]
         public NodeId ReferenceTypeId
         {
-            get { return m_referenceTypeId; }
-            set { m_referenceTypeId = value; }
+            get
+            {
+                return m_referenceTypeId;
+            }
+            set
+            {
+                m_referenceTypeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IsForward", IsRequired = false, Order = 3)]
         public bool IsForward
         {
-            get { return m_isForward; }
-            set { m_isForward = value; }
+            get
+            {
+                return m_isForward;
+            }
+            set
+            {
+                m_isForward = value;
+            }
         }
 
         /// <remarks />
@@ -54353,7 +59604,6 @@ namespace Opc.Ua
             {
                 return m_referencedNodeIds;
             }
-
             set
             {
                 m_referencedNodeIds = value;
@@ -54464,18 +59714,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfNodeReference", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NodeReference")]
+    [CollectionDataContract(
+        Name = "ListOfNodeReference",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "NodeReference"
+    )]
     public partial class NodeReferenceCollection : List<NodeReference>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public NodeReferenceCollection() { }
+        public NodeReferenceCollection()
+        {
+        }
 
         /// <remarks />
-        public NodeReferenceCollection(int capacity) : base(capacity) { }
+        public NodeReferenceCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public NodeReferenceCollection(IEnumerable<NodeReference> collection) : base(collection) { }
+        public NodeReferenceCollection(IEnumerable<NodeReference> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -54560,8 +59818,14 @@ namespace Opc.Ua
         [DataMember(Name = "FilterOperator", IsRequired = false, Order = 1)]
         public FilterOperator FilterOperator
         {
-            get { return m_filterOperator; }
-            set { m_filterOperator = value; }
+            get
+            {
+                return m_filterOperator;
+            }
+            set
+            {
+                m_filterOperator = value;
+            }
         }
 
         /// <remarks />
@@ -54572,7 +59836,6 @@ namespace Opc.Ua
             {
                 return m_filterOperands;
             }
-
             set
             {
                 m_filterOperands = value;
@@ -54671,18 +59934,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfContentFilterElement", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ContentFilterElement")]
+    [CollectionDataContract(
+        Name = "ListOfContentFilterElement",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ContentFilterElement"
+    )]
     public partial class ContentFilterElementCollection : List<ContentFilterElement>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ContentFilterElementCollection() { }
+        public ContentFilterElementCollection()
+        {
+        }
 
         /// <remarks />
-        public ContentFilterElementCollection(int capacity) : base(capacity) { }
+        public ContentFilterElementCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ContentFilterElementCollection(IEnumerable<ContentFilterElement> collection) : base(collection) { }
+        public ContentFilterElementCollection(IEnumerable<ContentFilterElement> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -54770,7 +60041,6 @@ namespace Opc.Ua
             {
                 return m_elements;
             }
-
             set
             {
                 m_elements = value;
@@ -54811,7 +60081,8 @@ namespace Opc.Ua
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            Elements = (ContentFilterElementCollection)decoder.ReadEncodeableArray("Elements", typeof(ContentFilterElement));
+            Elements = (ContentFilterElementCollection)
+                decoder.ReadEncodeableArray("Elements", typeof(ContentFilterElement));
 
             decoder.PopNamespace();
         }
@@ -54863,18 +60134,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfContentFilter", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ContentFilter")]
+    [CollectionDataContract(
+        Name = "ListOfContentFilter",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ContentFilter"
+    )]
     public partial class ContentFilterCollection : List<ContentFilter>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ContentFilterCollection() { }
+        public ContentFilterCollection()
+        {
+        }
 
         /// <remarks />
-        public ContentFilterCollection(int capacity) : base(capacity) { }
+        public ContentFilterCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ContentFilterCollection(IEnumerable<ContentFilter> collection) : base(collection) { }
+        public ContentFilterCollection(IEnumerable<ContentFilter> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -54973,7 +60252,6 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -54981,7 +60259,6 @@ namespace Opc.Ua
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -55001,7 +60278,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return true;
         }
 
@@ -55015,7 +60291,6 @@ namespace Opc.Ua
         public new object MemberwiseClone()
         {
             FilterOperand clone = (FilterOperand)base.MemberwiseClone();
-
 
             return clone;
         }
@@ -55059,8 +60334,14 @@ namespace Opc.Ua
         [DataMember(Name = "Index", IsRequired = false, Order = 1)]
         public uint Index
         {
-            get { return m_index; }
-            set { m_index = value; }
+            get
+            {
+                return m_index;
+            }
+            set
+            {
+                m_index = value;
+            }
         }
         #endregion
 
@@ -55178,8 +60459,14 @@ namespace Opc.Ua
         [DataMember(Name = "Value", IsRequired = false, Order = 1)]
         public Variant Value
         {
-            get { return m_value; }
-            set { m_value = value; }
+            get
+            {
+                return m_value;
+            }
+            set
+            {
+                m_value = value;
+            }
         }
         #endregion
 
@@ -55301,16 +60588,28 @@ namespace Opc.Ua
         [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
         public NodeId NodeId
         {
-            get { return m_nodeId; }
-            set { m_nodeId = value; }
+            get
+            {
+                return m_nodeId;
+            }
+            set
+            {
+                m_nodeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Alias", IsRequired = false, Order = 2)]
         public string Alias
         {
-            get { return m_alias; }
-            set { m_alias = value; }
+            get
+            {
+                return m_alias;
+            }
+            set
+            {
+                m_alias = value;
+            }
         }
 
         /// <remarks />
@@ -55321,7 +60620,6 @@ namespace Opc.Ua
             {
                 return m_browsePath;
             }
-
             set
             {
                 m_browsePath = value;
@@ -55337,16 +60635,28 @@ namespace Opc.Ua
         [DataMember(Name = "AttributeId", IsRequired = false, Order = 4)]
         public uint AttributeId
         {
-            get { return m_attributeId; }
-            set { m_attributeId = value; }
+            get
+            {
+                return m_attributeId;
+            }
+            set
+            {
+                m_attributeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IndexRange", IsRequired = false, Order = 5)]
         public string IndexRange
         {
-            get { return m_indexRange; }
-            set { m_indexRange = value; }
+            get
+            {
+                return m_indexRange;
+            }
+            set
+            {
+                m_indexRange = value;
+            }
         }
         #endregion
 
@@ -55491,8 +60801,14 @@ namespace Opc.Ua
         [DataMember(Name = "TypeDefinitionId", IsRequired = false, Order = 1)]
         public NodeId TypeDefinitionId
         {
-            get { return m_typeDefinitionId; }
-            set { m_typeDefinitionId = value; }
+            get
+            {
+                return m_typeDefinitionId;
+            }
+            set
+            {
+                m_typeDefinitionId = value;
+            }
         }
 
         /// <remarks />
@@ -55503,7 +60819,6 @@ namespace Opc.Ua
             {
                 return m_browsePath;
             }
-
             set
             {
                 m_browsePath = value;
@@ -55519,16 +60834,28 @@ namespace Opc.Ua
         [DataMember(Name = "AttributeId", IsRequired = false, Order = 3)]
         public uint AttributeId
         {
-            get { return m_attributeId; }
-            set { m_attributeId = value; }
+            get
+            {
+                return m_attributeId;
+            }
+            set
+            {
+                m_attributeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IndexRange", IsRequired = false, Order = 4)]
         public string IndexRange
         {
-            get { return m_indexRange; }
-            set { m_indexRange = value; }
+            get
+            {
+                return m_indexRange;
+            }
+            set
+            {
+                m_indexRange = value;
+            }
         }
         #endregion
 
@@ -55634,18 +60961,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfSimpleAttributeOperand", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SimpleAttributeOperand")]
+    [CollectionDataContract(
+        Name = "ListOfSimpleAttributeOperand",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "SimpleAttributeOperand"
+    )]
     public partial class SimpleAttributeOperandCollection : List<SimpleAttributeOperand>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public SimpleAttributeOperandCollection() { }
+        public SimpleAttributeOperandCollection()
+        {
+        }
 
         /// <remarks />
-        public SimpleAttributeOperandCollection(int capacity) : base(capacity) { }
+        public SimpleAttributeOperandCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public SimpleAttributeOperandCollection(IEnumerable<SimpleAttributeOperand> collection) : base(collection) { }
+        public SimpleAttributeOperandCollection(IEnumerable<SimpleAttributeOperand> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -55731,8 +61066,14 @@ namespace Opc.Ua
         [DataMember(Name = "StatusCode", IsRequired = false, Order = 1)]
         public StatusCode StatusCode
         {
-            get { return m_statusCode; }
-            set { m_statusCode = value; }
+            get
+            {
+                return m_statusCode;
+            }
+            set
+            {
+                m_statusCode = value;
+            }
         }
 
         /// <remarks />
@@ -55743,7 +61084,6 @@ namespace Opc.Ua
             {
                 return m_operandStatusCodes;
             }
-
             set
             {
                 m_operandStatusCodes = value;
@@ -55763,7 +61103,6 @@ namespace Opc.Ua
             {
                 return m_operandDiagnosticInfos;
             }
-
             set
             {
                 m_operandDiagnosticInfos = value;
@@ -55868,18 +61207,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfContentFilterElementResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ContentFilterElementResult")]
+    [CollectionDataContract(
+        Name = "ListOfContentFilterElementResult",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ContentFilterElementResult"
+    )]
     public partial class ContentFilterElementResultCollection : List<ContentFilterElementResult>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ContentFilterElementResultCollection() { }
+        public ContentFilterElementResultCollection()
+        {
+        }
 
         /// <remarks />
-        public ContentFilterElementResultCollection(int capacity) : base(capacity) { }
+        public ContentFilterElementResultCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ContentFilterElementResultCollection(IEnumerable<ContentFilterElementResult> collection) : base(collection) { }
+        public ContentFilterElementResultCollection(IEnumerable<ContentFilterElementResult> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -55968,7 +61315,6 @@ namespace Opc.Ua
             {
                 return m_elementResults;
             }
-
             set
             {
                 m_elementResults = value;
@@ -55988,7 +61334,6 @@ namespace Opc.Ua
             {
                 return m_elementDiagnosticInfos;
             }
-
             set
             {
                 m_elementDiagnosticInfos = value;
@@ -56019,7 +61364,11 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            encoder.WriteEncodeableArray("ElementResults", ElementResults.ToArray(), typeof(ContentFilterElementResult));
+            encoder.WriteEncodeableArray(
+                "ElementResults",
+                ElementResults.ToArray(),
+                typeof(ContentFilterElementResult)
+            );
             encoder.WriteDiagnosticInfoArray("ElementDiagnosticInfos", ElementDiagnosticInfos);
 
             encoder.PopNamespace();
@@ -56030,7 +61379,8 @@ namespace Opc.Ua
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            ElementResults = (ContentFilterElementResultCollection)decoder.ReadEncodeableArray("ElementResults", typeof(ContentFilterElementResult));
+            ElementResults = (ContentFilterElementResultCollection)
+                decoder.ReadEncodeableArray("ElementResults", typeof(ContentFilterElementResult));
             ElementDiagnosticInfos = decoder.ReadDiagnosticInfoArray("ElementDiagnosticInfos");
 
             decoder.PopNamespace();
@@ -56119,8 +61469,14 @@ namespace Opc.Ua
         [DataMember(Name = "StatusCode", IsRequired = false, Order = 1)]
         public StatusCode StatusCode
         {
-            get { return m_statusCode; }
-            set { m_statusCode = value; }
+            get
+            {
+                return m_statusCode;
+            }
+            set
+            {
+                m_statusCode = value;
+            }
         }
 
         /// <remarks />
@@ -56131,7 +61487,6 @@ namespace Opc.Ua
             {
                 return m_dataStatusCodes;
             }
-
             set
             {
                 m_dataStatusCodes = value;
@@ -56151,7 +61506,6 @@ namespace Opc.Ua
             {
                 return m_dataDiagnosticInfos;
             }
-
             set
             {
                 m_dataDiagnosticInfos = value;
@@ -56256,18 +61610,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfParsingResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ParsingResult")]
+    [CollectionDataContract(
+        Name = "ListOfParsingResult",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ParsingResult"
+    )]
     public partial class ParsingResultCollection : List<ParsingResult>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ParsingResultCollection() { }
+        public ParsingResultCollection()
+        {
+        }
 
         /// <remarks />
-        public ParsingResultCollection(int capacity) : base(capacity) { }
+        public ParsingResultCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ParsingResultCollection(IEnumerable<ParsingResult> collection) : base(collection) { }
+        public ParsingResultCollection(IEnumerable<ParsingResult> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -56360,7 +61722,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -56380,7 +61741,6 @@ namespace Opc.Ua
             {
                 return m_view;
             }
-
             set
             {
                 m_view = value;
@@ -56400,7 +61760,6 @@ namespace Opc.Ua
             {
                 return m_nodeTypes;
             }
-
             set
             {
                 m_nodeTypes = value;
@@ -56420,7 +61779,6 @@ namespace Opc.Ua
             {
                 return m_filter;
             }
-
             set
             {
                 m_filter = value;
@@ -56436,16 +61794,28 @@ namespace Opc.Ua
         [DataMember(Name = "MaxDataSetsToReturn", IsRequired = false, Order = 5)]
         public uint MaxDataSetsToReturn
         {
-            get { return m_maxDataSetsToReturn; }
-            set { m_maxDataSetsToReturn = value; }
+            get
+            {
+                return m_maxDataSetsToReturn;
+            }
+            set
+            {
+                m_maxDataSetsToReturn = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MaxReferencesToReturn", IsRequired = false, Order = 6)]
         public uint MaxReferencesToReturn
         {
-            get { return m_maxReferencesToReturn; }
-            set { m_maxReferencesToReturn = value; }
+            get
+            {
+                return m_maxReferencesToReturn;
+            }
+            set
+            {
+                m_maxReferencesToReturn = value;
+            }
         }
         #endregion
 
@@ -56484,7 +61854,8 @@ namespace Opc.Ua
 
             RequestHeader = (RequestHeader)decoder.ReadEncodeable("RequestHeader", typeof(RequestHeader));
             View = (ViewDescription)decoder.ReadEncodeable("View", typeof(ViewDescription));
-            NodeTypes = (NodeTypeDescriptionCollection)decoder.ReadEncodeableArray("NodeTypes", typeof(NodeTypeDescription));
+            NodeTypes = (NodeTypeDescriptionCollection)
+                decoder.ReadEncodeableArray("NodeTypes", typeof(NodeTypeDescription));
             Filter = (ContentFilter)decoder.ReadEncodeable("Filter", typeof(ContentFilter));
             MaxDataSetsToReturn = decoder.ReadUInt32("MaxDataSetsToReturn");
             MaxReferencesToReturn = decoder.ReadUInt32("MaxReferencesToReturn");
@@ -56598,7 +61969,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -56618,7 +61988,6 @@ namespace Opc.Ua
             {
                 return m_queryDataSets;
             }
-
             set
             {
                 m_queryDataSets = value;
@@ -56634,8 +62003,14 @@ namespace Opc.Ua
         [DataMember(Name = "ContinuationPoint", IsRequired = false, Order = 3)]
         public byte[] ContinuationPoint
         {
-            get { return m_continuationPoint; }
-            set { m_continuationPoint = value; }
+            get
+            {
+                return m_continuationPoint;
+            }
+            set
+            {
+                m_continuationPoint = value;
+            }
         }
 
         /// <remarks />
@@ -56646,7 +62021,6 @@ namespace Opc.Ua
             {
                 return m_parsingResults;
             }
-
             set
             {
                 m_parsingResults = value;
@@ -56666,7 +62040,6 @@ namespace Opc.Ua
             {
                 return m_diagnosticInfos;
             }
-
             set
             {
                 m_diagnosticInfos = value;
@@ -56686,7 +62059,6 @@ namespace Opc.Ua
             {
                 return m_filterResult;
             }
-
             set
             {
                 m_filterResult = value;
@@ -56735,7 +62107,8 @@ namespace Opc.Ua
             ResponseHeader = (ResponseHeader)decoder.ReadEncodeable("ResponseHeader", typeof(ResponseHeader));
             QueryDataSets = (QueryDataSetCollection)decoder.ReadEncodeableArray("QueryDataSets", typeof(QueryDataSet));
             ContinuationPoint = decoder.ReadByteString("ContinuationPoint");
-            ParsingResults = (ParsingResultCollection)decoder.ReadEncodeableArray("ParsingResults", typeof(ParsingResult));
+            ParsingResults = (ParsingResultCollection)
+                decoder.ReadEncodeableArray("ParsingResults", typeof(ParsingResult));
             DiagnosticInfos = decoder.ReadDiagnosticInfoArray("DiagnosticInfos");
             FilterResult = (ContentFilterResult)decoder.ReadEncodeable("FilterResult", typeof(ContentFilterResult));
 
@@ -56845,7 +62218,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -56861,16 +62233,28 @@ namespace Opc.Ua
         [DataMember(Name = "ReleaseContinuationPoint", IsRequired = false, Order = 2)]
         public bool ReleaseContinuationPoint
         {
-            get { return m_releaseContinuationPoint; }
-            set { m_releaseContinuationPoint = value; }
+            get
+            {
+                return m_releaseContinuationPoint;
+            }
+            set
+            {
+                m_releaseContinuationPoint = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ContinuationPoint", IsRequired = false, Order = 3)]
         public byte[] ContinuationPoint
         {
-            get { return m_continuationPoint; }
-            set { m_continuationPoint = value; }
+            get
+            {
+                return m_continuationPoint;
+            }
+            set
+            {
+                m_continuationPoint = value;
+            }
         }
         #endregion
 
@@ -57002,7 +62386,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -57022,7 +62405,6 @@ namespace Opc.Ua
             {
                 return m_queryDataSets;
             }
-
             set
             {
                 m_queryDataSets = value;
@@ -57038,8 +62420,14 @@ namespace Opc.Ua
         [DataMember(Name = "RevisedContinuationPoint", IsRequired = false, Order = 3)]
         public byte[] RevisedContinuationPoint
         {
-            get { return m_revisedContinuationPoint; }
-            set { m_revisedContinuationPoint = value; }
+            get
+            {
+                return m_revisedContinuationPoint;
+            }
+            set
+            {
+                m_revisedContinuationPoint = value;
+            }
         }
         #endregion
 
@@ -57199,32 +62587,56 @@ namespace Opc.Ua
         [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
         public NodeId NodeId
         {
-            get { return m_nodeId; }
-            set { m_nodeId = value; }
+            get
+            {
+                return m_nodeId;
+            }
+            set
+            {
+                m_nodeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "AttributeId", IsRequired = false, Order = 2)]
         public uint AttributeId
         {
-            get { return m_attributeId; }
-            set { m_attributeId = value; }
+            get
+            {
+                return m_attributeId;
+            }
+            set
+            {
+                m_attributeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IndexRange", IsRequired = false, Order = 3)]
         public string IndexRange
         {
-            get { return m_indexRange; }
-            set { m_indexRange = value; }
+            get
+            {
+                return m_indexRange;
+            }
+            set
+            {
+                m_indexRange = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataEncoding", IsRequired = false, Order = 4)]
         public QualifiedName DataEncoding
         {
-            get { return m_dataEncoding; }
-            set { m_dataEncoding = value; }
+            get
+            {
+                return m_dataEncoding;
+            }
+            set
+            {
+                m_dataEncoding = value;
+            }
         }
         #endregion
 
@@ -57326,18 +62738,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfReadValueId", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReadValueId")]
+    [CollectionDataContract(
+        Name = "ListOfReadValueId",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ReadValueId"
+    )]
     public partial class ReadValueIdCollection : List<ReadValueId>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ReadValueIdCollection() { }
+        public ReadValueIdCollection()
+        {
+        }
 
         /// <remarks />
-        public ReadValueIdCollection(int capacity) : base(capacity) { }
+        public ReadValueIdCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ReadValueIdCollection(IEnumerable<ReadValueId> collection) : base(collection) { }
+        public ReadValueIdCollection(IEnumerable<ReadValueId> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -57428,7 +62848,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -57444,16 +62863,28 @@ namespace Opc.Ua
         [DataMember(Name = "MaxAge", IsRequired = false, Order = 2)]
         public double MaxAge
         {
-            get { return m_maxAge; }
-            set { m_maxAge = value; }
+            get
+            {
+                return m_maxAge;
+            }
+            set
+            {
+                m_maxAge = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TimestampsToReturn", IsRequired = false, Order = 3)]
         public TimestampsToReturn TimestampsToReturn
         {
-            get { return m_timestampsToReturn; }
-            set { m_timestampsToReturn = value; }
+            get
+            {
+                return m_timestampsToReturn;
+            }
+            set
+            {
+                m_timestampsToReturn = value;
+            }
         }
 
         /// <remarks />
@@ -57464,7 +62895,6 @@ namespace Opc.Ua
             {
                 return m_nodesToRead;
             }
-
             set
             {
                 m_nodesToRead = value;
@@ -57510,7 +62940,8 @@ namespace Opc.Ua
 
             RequestHeader = (RequestHeader)decoder.ReadEncodeable("RequestHeader", typeof(RequestHeader));
             MaxAge = decoder.ReadDouble("MaxAge");
-            TimestampsToReturn = (TimestampsToReturn)decoder.ReadEnumerated("TimestampsToReturn", typeof(TimestampsToReturn));
+            TimestampsToReturn = (TimestampsToReturn)
+                decoder.ReadEnumerated("TimestampsToReturn", typeof(TimestampsToReturn));
             NodesToRead = (ReadValueIdCollection)decoder.ReadEncodeableArray("NodesToRead", typeof(ReadValueId));
 
             decoder.PopNamespace();
@@ -57611,7 +63042,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -57631,7 +63061,6 @@ namespace Opc.Ua
             {
                 return m_results;
             }
-
             set
             {
                 m_results = value;
@@ -57651,7 +63080,6 @@ namespace Opc.Ua
             {
                 return m_diagnosticInfos;
             }
-
             set
             {
                 m_diagnosticInfos = value;
@@ -57789,32 +63217,56 @@ namespace Opc.Ua
         [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
         public NodeId NodeId
         {
-            get { return m_nodeId; }
-            set { m_nodeId = value; }
+            get
+            {
+                return m_nodeId;
+            }
+            set
+            {
+                m_nodeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IndexRange", IsRequired = false, Order = 2)]
         public string IndexRange
         {
-            get { return m_indexRange; }
-            set { m_indexRange = value; }
+            get
+            {
+                return m_indexRange;
+            }
+            set
+            {
+                m_indexRange = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataEncoding", IsRequired = false, Order = 3)]
         public QualifiedName DataEncoding
         {
-            get { return m_dataEncoding; }
-            set { m_dataEncoding = value; }
+            get
+            {
+                return m_dataEncoding;
+            }
+            set
+            {
+                m_dataEncoding = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ContinuationPoint", IsRequired = false, Order = 4)]
         public byte[] ContinuationPoint
         {
-            get { return m_continuationPoint; }
-            set { m_continuationPoint = value; }
+            get
+            {
+                return m_continuationPoint;
+            }
+            set
+            {
+                m_continuationPoint = value;
+            }
         }
         #endregion
 
@@ -57916,18 +63368,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfHistoryReadValueId", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "HistoryReadValueId")]
+    [CollectionDataContract(
+        Name = "ListOfHistoryReadValueId",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "HistoryReadValueId"
+    )]
     public partial class HistoryReadValueIdCollection : List<HistoryReadValueId>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public HistoryReadValueIdCollection() { }
+        public HistoryReadValueIdCollection()
+        {
+        }
 
         /// <remarks />
-        public HistoryReadValueIdCollection(int capacity) : base(capacity) { }
+        public HistoryReadValueIdCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public HistoryReadValueIdCollection(IEnumerable<HistoryReadValueId> collection) : base(collection) { }
+        public HistoryReadValueIdCollection(IEnumerable<HistoryReadValueId> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -58013,24 +63473,42 @@ namespace Opc.Ua
         [DataMember(Name = "StatusCode", IsRequired = false, Order = 1)]
         public StatusCode StatusCode
         {
-            get { return m_statusCode; }
-            set { m_statusCode = value; }
+            get
+            {
+                return m_statusCode;
+            }
+            set
+            {
+                m_statusCode = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ContinuationPoint", IsRequired = false, Order = 2)]
         public byte[] ContinuationPoint
         {
-            get { return m_continuationPoint; }
-            set { m_continuationPoint = value; }
+            get
+            {
+                return m_continuationPoint;
+            }
+            set
+            {
+                m_continuationPoint = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "HistoryData", IsRequired = false, Order = 3)]
         public ExtensionObject HistoryData
         {
-            get { return m_historyData; }
-            set { m_historyData = value; }
+            get
+            {
+                return m_historyData;
+            }
+            set
+            {
+                m_historyData = value;
+            }
         }
         #endregion
 
@@ -58126,18 +63604,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfHistoryReadResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "HistoryReadResult")]
+    [CollectionDataContract(
+        Name = "ListOfHistoryReadResult",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "HistoryReadResult"
+    )]
     public partial class HistoryReadResultCollection : List<HistoryReadResult>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public HistoryReadResultCollection() { }
+        public HistoryReadResultCollection()
+        {
+        }
 
         /// <remarks />
-        public HistoryReadResultCollection(int capacity) : base(capacity) { }
+        public HistoryReadResultCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public HistoryReadResultCollection(IEnumerable<HistoryReadResult> collection) : base(collection) { }
+        public HistoryReadResultCollection(IEnumerable<HistoryReadResult> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -58236,7 +63722,6 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -58244,7 +63729,6 @@ namespace Opc.Ua
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -58264,7 +63748,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return true;
         }
 
@@ -58278,7 +63761,6 @@ namespace Opc.Ua
         public new object MemberwiseClone()
         {
             HistoryReadDetails clone = (HistoryReadDetails)base.MemberwiseClone();
-
 
             return clone;
         }
@@ -58325,24 +63807,42 @@ namespace Opc.Ua
         [DataMember(Name = "NumValuesPerNode", IsRequired = false, Order = 1)]
         public uint NumValuesPerNode
         {
-            get { return m_numValuesPerNode; }
-            set { m_numValuesPerNode = value; }
+            get
+            {
+                return m_numValuesPerNode;
+            }
+            set
+            {
+                m_numValuesPerNode = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "StartTime", IsRequired = false, Order = 2)]
         public DateTime StartTime
         {
-            get { return m_startTime; }
-            set { m_startTime = value; }
+            get
+            {
+                return m_startTime;
+            }
+            set
+            {
+                m_startTime = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "EndTime", IsRequired = false, Order = 3)]
         public DateTime EndTime
         {
-            get { return m_endTime; }
-            set { m_endTime = value; }
+            get
+            {
+                return m_endTime;
+            }
+            set
+            {
+                m_endTime = value;
+            }
         }
 
         /// <remarks />
@@ -58353,7 +63853,6 @@ namespace Opc.Ua
             {
                 return m_filter;
             }
-
             set
             {
                 m_filter = value;
@@ -58498,8 +63997,14 @@ namespace Opc.Ua
         [DataMember(Name = "ReadModified", IsRequired = false, Order = 1)]
         public bool ReadModified
         {
-            get { return m_readModified; }
-            set { m_readModified = value; }
+            get
+            {
+                return m_readModified;
+            }
+            set
+            {
+                m_readModified = value;
+            }
         }
         #endregion
 
@@ -58637,8 +64142,14 @@ namespace Opc.Ua
         [DataMember(Name = "SortOrder", IsRequired = false, Order = 1)]
         public SortOrderType SortOrder
         {
-            get { return m_sortOrder; }
-            set { m_sortOrder = value; }
+            get
+            {
+                return m_sortOrder;
+            }
+            set
+            {
+                m_sortOrder = value;
+            }
         }
 
         /// <remarks />
@@ -58649,7 +64160,6 @@ namespace Opc.Ua
             {
                 return m_eventField;
             }
-
             set
             {
                 m_eventField = value;
@@ -58748,18 +64258,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfSortRuleElement", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SortRuleElement")]
+    [CollectionDataContract(
+        Name = "ListOfSortRuleElement",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "SortRuleElement"
+    )]
     public partial class SortRuleElementCollection : List<SortRuleElement>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public SortRuleElementCollection() { }
+        public SortRuleElementCollection()
+        {
+        }
 
         /// <remarks />
-        public SortRuleElementCollection(int capacity) : base(capacity) { }
+        public SortRuleElementCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public SortRuleElementCollection(IEnumerable<SortRuleElement> collection) : base(collection) { }
+        public SortRuleElementCollection(IEnumerable<SortRuleElement> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -58847,7 +64365,6 @@ namespace Opc.Ua
             {
                 return m_sortClause;
             }
-
             set
             {
                 m_sortClause = value;
@@ -58978,40 +64495,70 @@ namespace Opc.Ua
         [DataMember(Name = "IsReadModified", IsRequired = false, Order = 1)]
         public bool IsReadModified
         {
-            get { return m_isReadModified; }
-            set { m_isReadModified = value; }
+            get
+            {
+                return m_isReadModified;
+            }
+            set
+            {
+                m_isReadModified = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "StartTime", IsRequired = false, Order = 2)]
         public DateTime StartTime
         {
-            get { return m_startTime; }
-            set { m_startTime = value; }
+            get
+            {
+                return m_startTime;
+            }
+            set
+            {
+                m_startTime = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "EndTime", IsRequired = false, Order = 3)]
         public DateTime EndTime
         {
-            get { return m_endTime; }
-            set { m_endTime = value; }
+            get
+            {
+                return m_endTime;
+            }
+            set
+            {
+                m_endTime = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "NumValuesPerNode", IsRequired = false, Order = 4)]
         public uint NumValuesPerNode
         {
-            get { return m_numValuesPerNode; }
-            set { m_numValuesPerNode = value; }
+            get
+            {
+                return m_numValuesPerNode;
+            }
+            set
+            {
+                m_numValuesPerNode = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ReturnBounds", IsRequired = false, Order = 5)]
         public bool ReturnBounds
         {
-            get { return m_returnBounds; }
-            set { m_returnBounds = value; }
+            get
+            {
+                return m_returnBounds;
+            }
+            set
+            {
+                m_returnBounds = value;
+            }
         }
         #endregion
 
@@ -59157,24 +64704,42 @@ namespace Opc.Ua
         [DataMember(Name = "StartTime", IsRequired = false, Order = 1)]
         public DateTime StartTime
         {
-            get { return m_startTime; }
-            set { m_startTime = value; }
+            get
+            {
+                return m_startTime;
+            }
+            set
+            {
+                m_startTime = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "EndTime", IsRequired = false, Order = 2)]
         public DateTime EndTime
         {
-            get { return m_endTime; }
-            set { m_endTime = value; }
+            get
+            {
+                return m_endTime;
+            }
+            set
+            {
+                m_endTime = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ProcessingInterval", IsRequired = false, Order = 3)]
         public double ProcessingInterval
         {
-            get { return m_processingInterval; }
-            set { m_processingInterval = value; }
+            get
+            {
+                return m_processingInterval;
+            }
+            set
+            {
+                m_processingInterval = value;
+            }
         }
 
         /// <remarks />
@@ -59185,7 +64750,6 @@ namespace Opc.Ua
             {
                 return m_aggregateType;
             }
-
             set
             {
                 m_aggregateType = value;
@@ -59205,7 +64769,6 @@ namespace Opc.Ua
             {
                 return m_aggregateConfiguration;
             }
-
             set
             {
                 m_aggregateConfiguration = value;
@@ -59258,7 +64821,8 @@ namespace Opc.Ua
             EndTime = decoder.ReadDateTime("EndTime");
             ProcessingInterval = decoder.ReadDouble("ProcessingInterval");
             AggregateType = decoder.ReadNodeIdArray("AggregateType");
-            AggregateConfiguration = (AggregateConfiguration)decoder.ReadEncodeable("AggregateConfiguration", typeof(AggregateConfiguration));
+            AggregateConfiguration = (AggregateConfiguration)
+                decoder.ReadEncodeable("AggregateConfiguration", typeof(AggregateConfiguration));
 
             decoder.PopNamespace();
         }
@@ -59361,7 +64925,6 @@ namespace Opc.Ua
             {
                 return m_reqTimes;
             }
-
             set
             {
                 m_reqTimes = value;
@@ -59377,8 +64940,14 @@ namespace Opc.Ua
         [DataMember(Name = "UseSimpleBounds", IsRequired = false, Order = 2)]
         public bool UseSimpleBounds
         {
-            get { return m_useSimpleBounds; }
-            set { m_useSimpleBounds = value; }
+            get
+            {
+                return m_useSimpleBounds;
+            }
+            set
+            {
+                m_useSimpleBounds = value;
+            }
         }
         #endregion
 
@@ -59506,7 +65075,6 @@ namespace Opc.Ua
             {
                 return m_reqTimes;
             }
-
             set
             {
                 m_reqTimes = value;
@@ -59637,7 +65205,6 @@ namespace Opc.Ua
             {
                 return m_dataValues;
             }
-
             set
             {
                 m_dataValues = value;
@@ -59762,24 +65329,42 @@ namespace Opc.Ua
         [DataMember(Name = "ModificationTime", IsRequired = false, Order = 1)]
         public DateTime ModificationTime
         {
-            get { return m_modificationTime; }
-            set { m_modificationTime = value; }
+            get
+            {
+                return m_modificationTime;
+            }
+            set
+            {
+                m_modificationTime = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "UpdateType", IsRequired = false, Order = 2)]
         public HistoryUpdateType UpdateType
         {
-            get { return m_updateType; }
-            set { m_updateType = value; }
+            get
+            {
+                return m_updateType;
+            }
+            set
+            {
+                m_updateType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "UserName", IsRequired = false, Order = 3)]
         public string UserName
         {
-            get { return m_userName; }
-            set { m_userName = value; }
+            get
+            {
+                return m_userName;
+            }
+            set
+            {
+                m_userName = value;
+            }
         }
         #endregion
 
@@ -59875,18 +65460,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfModificationInfo", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ModificationInfo")]
+    [CollectionDataContract(
+        Name = "ListOfModificationInfo",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ModificationInfo"
+    )]
     public partial class ModificationInfoCollection : List<ModificationInfo>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ModificationInfoCollection() { }
+        public ModificationInfoCollection()
+        {
+        }
 
         /// <remarks />
-        public ModificationInfoCollection(int capacity) : base(capacity) { }
+        public ModificationInfoCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ModificationInfoCollection(IEnumerable<ModificationInfo> collection) : base(collection) { }
+        public ModificationInfoCollection(IEnumerable<ModificationInfo> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -59974,7 +65567,6 @@ namespace Opc.Ua
             {
                 return m_modificationInfos;
             }
-
             set
             {
                 m_modificationInfos = value;
@@ -60019,7 +65611,8 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            ModificationInfos = (ModificationInfoCollection)decoder.ReadEncodeableArray("ModificationInfos", typeof(ModificationInfo));
+            ModificationInfos = (ModificationInfoCollection)
+                decoder.ReadEncodeableArray("ModificationInfos", typeof(ModificationInfo));
 
             decoder.PopNamespace();
         }
@@ -60105,7 +65698,6 @@ namespace Opc.Ua
             {
                 return m_events;
             }
-
             set
             {
                 m_events = value;
@@ -60146,7 +65738,8 @@ namespace Opc.Ua
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            Events = (HistoryEventFieldListCollection)decoder.ReadEncodeableArray("Events", typeof(HistoryEventFieldList));
+            Events = (HistoryEventFieldListCollection)
+                decoder.ReadEncodeableArray("Events", typeof(HistoryEventFieldList));
 
             decoder.PopNamespace();
         }
@@ -60232,7 +65825,6 @@ namespace Opc.Ua
             {
                 return m_modificationInfos;
             }
-
             set
             {
                 m_modificationInfos = value;
@@ -60277,7 +65869,8 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            ModificationInfos = (ModificationInfoCollection)decoder.ReadEncodeableArray("ModificationInfos", typeof(ModificationInfo));
+            ModificationInfos = (ModificationInfoCollection)
+                decoder.ReadEncodeableArray("ModificationInfos", typeof(ModificationInfo));
 
             decoder.PopNamespace();
         }
@@ -60367,7 +65960,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -60383,24 +65975,42 @@ namespace Opc.Ua
         [DataMember(Name = "HistoryReadDetails", IsRequired = false, Order = 2)]
         public ExtensionObject HistoryReadDetails
         {
-            get { return m_historyReadDetails; }
-            set { m_historyReadDetails = value; }
+            get
+            {
+                return m_historyReadDetails;
+            }
+            set
+            {
+                m_historyReadDetails = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TimestampsToReturn", IsRequired = false, Order = 3)]
         public TimestampsToReturn TimestampsToReturn
         {
-            get { return m_timestampsToReturn; }
-            set { m_timestampsToReturn = value; }
+            get
+            {
+                return m_timestampsToReturn;
+            }
+            set
+            {
+                m_timestampsToReturn = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ReleaseContinuationPoints", IsRequired = false, Order = 4)]
         public bool ReleaseContinuationPoints
         {
-            get { return m_releaseContinuationPoints; }
-            set { m_releaseContinuationPoints = value; }
+            get
+            {
+                return m_releaseContinuationPoints;
+            }
+            set
+            {
+                m_releaseContinuationPoints = value;
+            }
         }
 
         /// <remarks />
@@ -60411,7 +66021,6 @@ namespace Opc.Ua
             {
                 return m_nodesToRead;
             }
-
             set
             {
                 m_nodesToRead = value;
@@ -60458,9 +66067,11 @@ namespace Opc.Ua
 
             RequestHeader = (RequestHeader)decoder.ReadEncodeable("RequestHeader", typeof(RequestHeader));
             HistoryReadDetails = decoder.ReadExtensionObject("HistoryReadDetails");
-            TimestampsToReturn = (TimestampsToReturn)decoder.ReadEnumerated("TimestampsToReturn", typeof(TimestampsToReturn));
+            TimestampsToReturn = (TimestampsToReturn)
+                decoder.ReadEnumerated("TimestampsToReturn", typeof(TimestampsToReturn));
             ReleaseContinuationPoints = decoder.ReadBoolean("ReleaseContinuationPoints");
-            NodesToRead = (HistoryReadValueIdCollection)decoder.ReadEncodeableArray("NodesToRead", typeof(HistoryReadValueId));
+            NodesToRead = (HistoryReadValueIdCollection)
+                decoder.ReadEncodeableArray("NodesToRead", typeof(HistoryReadValueId));
 
             decoder.PopNamespace();
         }
@@ -60564,7 +66175,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -60584,7 +66194,6 @@ namespace Opc.Ua
             {
                 return m_results;
             }
-
             set
             {
                 m_results = value;
@@ -60604,7 +66213,6 @@ namespace Opc.Ua
             {
                 return m_diagnosticInfos;
             }
-
             set
             {
                 m_diagnosticInfos = value;
@@ -60742,32 +66350,56 @@ namespace Opc.Ua
         [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
         public NodeId NodeId
         {
-            get { return m_nodeId; }
-            set { m_nodeId = value; }
+            get
+            {
+                return m_nodeId;
+            }
+            set
+            {
+                m_nodeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "AttributeId", IsRequired = false, Order = 2)]
         public uint AttributeId
         {
-            get { return m_attributeId; }
-            set { m_attributeId = value; }
+            get
+            {
+                return m_attributeId;
+            }
+            set
+            {
+                m_attributeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IndexRange", IsRequired = false, Order = 3)]
         public string IndexRange
         {
-            get { return m_indexRange; }
-            set { m_indexRange = value; }
+            get
+            {
+                return m_indexRange;
+            }
+            set
+            {
+                m_indexRange = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Value", IsRequired = false, Order = 4)]
         public DataValue Value
         {
-            get { return m_value; }
-            set { m_value = value; }
+            get
+            {
+                return m_value;
+            }
+            set
+            {
+                m_value = value;
+            }
         }
         #endregion
 
@@ -60874,13 +66506,17 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <remarks />
-        public WriteValueCollection() { }
+        public WriteValueCollection()
+        {
+        }
 
         /// <remarks />
-        public WriteValueCollection(int capacity) : base(capacity) { }
+        public WriteValueCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public WriteValueCollection(IEnumerable<WriteValue> collection) : base(collection) { }
+        public WriteValueCollection(IEnumerable<WriteValue> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -60969,7 +66605,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -60989,7 +66624,6 @@ namespace Opc.Ua
             {
                 return m_nodesToWrite;
             }
-
             set
             {
                 m_nodesToWrite = value;
@@ -61124,7 +66758,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -61144,7 +66777,6 @@ namespace Opc.Ua
             {
                 return m_results;
             }
-
             set
             {
                 m_results = value;
@@ -61164,7 +66796,6 @@ namespace Opc.Ua
             {
                 return m_diagnosticInfos;
             }
-
             set
             {
                 m_diagnosticInfos = value;
@@ -61314,7 +66945,6 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -61322,7 +66952,6 @@ namespace Opc.Ua
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -61342,7 +66971,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return true;
         }
 
@@ -61356,7 +66984,6 @@ namespace Opc.Ua
         public new object MemberwiseClone()
         {
             HistoryUpdateDetails clone = (HistoryUpdateDetails)base.MemberwiseClone();
-
 
             return clone;
         }
@@ -61456,16 +67083,28 @@ namespace Opc.Ua
         [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
         public override NodeId NodeId
         {
-            get { return m_nodeId; }
-            set { m_nodeId = value; }
+            get
+            {
+                return m_nodeId;
+            }
+            set
+            {
+                m_nodeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PerformInsertReplace", IsRequired = false, Order = 2)]
         public PerformUpdateType PerformInsertReplace
         {
-            get { return m_performInsertReplace; }
-            set { m_performInsertReplace = value; }
+            get
+            {
+                return m_performInsertReplace;
+            }
+            set
+            {
+                m_performInsertReplace = value;
+            }
         }
 
         /// <remarks />
@@ -61476,7 +67115,6 @@ namespace Opc.Ua
             {
                 return m_updateValues;
             }
-
             set
             {
                 m_updateValues = value;
@@ -61524,7 +67162,8 @@ namespace Opc.Ua
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             NodeId = decoder.ReadNodeId("NodeId");
-            PerformInsertReplace = (PerformUpdateType)decoder.ReadEnumerated("PerformInsertReplace", typeof(PerformUpdateType));
+            PerformInsertReplace = (PerformUpdateType)
+                decoder.ReadEnumerated("PerformInsertReplace", typeof(PerformUpdateType));
             UpdateValues = decoder.ReadDataValueArray("UpdateValues");
 
             decoder.PopNamespace();
@@ -61617,16 +67256,28 @@ namespace Opc.Ua
         [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
         public override NodeId NodeId
         {
-            get { return m_nodeId; }
-            set { m_nodeId = value; }
+            get
+            {
+                return m_nodeId;
+            }
+            set
+            {
+                m_nodeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PerformInsertReplace", IsRequired = false, Order = 2)]
         public PerformUpdateType PerformInsertReplace
         {
-            get { return m_performInsertReplace; }
-            set { m_performInsertReplace = value; }
+            get
+            {
+                return m_performInsertReplace;
+            }
+            set
+            {
+                m_performInsertReplace = value;
+            }
         }
 
         /// <remarks />
@@ -61637,7 +67288,6 @@ namespace Opc.Ua
             {
                 return m_updateValues;
             }
-
             set
             {
                 m_updateValues = value;
@@ -61685,7 +67335,8 @@ namespace Opc.Ua
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             NodeId = decoder.ReadNodeId("NodeId");
-            PerformInsertReplace = (PerformUpdateType)decoder.ReadEnumerated("PerformInsertReplace", typeof(PerformUpdateType));
+            PerformInsertReplace = (PerformUpdateType)
+                decoder.ReadEnumerated("PerformInsertReplace", typeof(PerformUpdateType));
             UpdateValues = decoder.ReadDataValueArray("UpdateValues");
 
             decoder.PopNamespace();
@@ -61779,16 +67430,28 @@ namespace Opc.Ua
         [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
         public override NodeId NodeId
         {
-            get { return m_nodeId; }
-            set { m_nodeId = value; }
+            get
+            {
+                return m_nodeId;
+            }
+            set
+            {
+                m_nodeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PerformInsertReplace", IsRequired = false, Order = 2)]
         public PerformUpdateType PerformInsertReplace
         {
-            get { return m_performInsertReplace; }
-            set { m_performInsertReplace = value; }
+            get
+            {
+                return m_performInsertReplace;
+            }
+            set
+            {
+                m_performInsertReplace = value;
+            }
         }
 
         /// <remarks />
@@ -61799,7 +67462,6 @@ namespace Opc.Ua
             {
                 return m_filter;
             }
-
             set
             {
                 m_filter = value;
@@ -61819,7 +67481,6 @@ namespace Opc.Ua
             {
                 return m_eventData;
             }
-
             set
             {
                 m_eventData = value;
@@ -61868,9 +67529,11 @@ namespace Opc.Ua
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             NodeId = decoder.ReadNodeId("NodeId");
-            PerformInsertReplace = (PerformUpdateType)decoder.ReadEnumerated("PerformInsertReplace", typeof(PerformUpdateType));
+            PerformInsertReplace = (PerformUpdateType)
+                decoder.ReadEnumerated("PerformInsertReplace", typeof(PerformUpdateType));
             Filter = (EventFilter)decoder.ReadEncodeable("Filter", typeof(EventFilter));
-            EventData = (HistoryEventFieldListCollection)decoder.ReadEncodeableArray("EventData", typeof(HistoryEventFieldList));
+            EventData = (HistoryEventFieldListCollection)
+                decoder.ReadEncodeableArray("EventData", typeof(HistoryEventFieldList));
 
             decoder.PopNamespace();
         }
@@ -61967,32 +67630,56 @@ namespace Opc.Ua
         [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
         public override NodeId NodeId
         {
-            get { return m_nodeId; }
-            set { m_nodeId = value; }
+            get
+            {
+                return m_nodeId;
+            }
+            set
+            {
+                m_nodeId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IsDeleteModified", IsRequired = false, Order = 2)]
         public bool IsDeleteModified
         {
-            get { return m_isDeleteModified; }
-            set { m_isDeleteModified = value; }
+            get
+            {
+                return m_isDeleteModified;
+            }
+            set
+            {
+                m_isDeleteModified = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "StartTime", IsRequired = false, Order = 3)]
         public DateTime StartTime
         {
-            get { return m_startTime; }
-            set { m_startTime = value; }
+            get
+            {
+                return m_startTime;
+            }
+            set
+            {
+                m_startTime = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "EndTime", IsRequired = false, Order = 4)]
         public DateTime EndTime
         {
-            get { return m_endTime; }
-            set { m_endTime = value; }
+            get
+            {
+                return m_endTime;
+            }
+            set
+            {
+                m_endTime = value;
+            }
         }
         #endregion
 
@@ -62129,8 +67816,14 @@ namespace Opc.Ua
         [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
         public override NodeId NodeId
         {
-            get { return m_nodeId; }
-            set { m_nodeId = value; }
+            get
+            {
+                return m_nodeId;
+            }
+            set
+            {
+                m_nodeId = value;
+            }
         }
 
         /// <remarks />
@@ -62141,7 +67834,6 @@ namespace Opc.Ua
             {
                 return m_reqTimes;
             }
-
             set
             {
                 m_reqTimes = value;
@@ -62275,8 +67967,14 @@ namespace Opc.Ua
         [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
         public override NodeId NodeId
         {
-            get { return m_nodeId; }
-            set { m_nodeId = value; }
+            get
+            {
+                return m_nodeId;
+            }
+            set
+            {
+                m_nodeId = value;
+            }
         }
 
         /// <remarks />
@@ -62287,7 +67985,6 @@ namespace Opc.Ua
             {
                 return m_eventIds;
             }
-
             set
             {
                 m_eventIds = value;
@@ -62422,8 +68119,14 @@ namespace Opc.Ua
         [DataMember(Name = "StatusCode", IsRequired = false, Order = 1)]
         public StatusCode StatusCode
         {
-            get { return m_statusCode; }
-            set { m_statusCode = value; }
+            get
+            {
+                return m_statusCode;
+            }
+            set
+            {
+                m_statusCode = value;
+            }
         }
 
         /// <remarks />
@@ -62434,7 +68137,6 @@ namespace Opc.Ua
             {
                 return m_operationResults;
             }
-
             set
             {
                 m_operationResults = value;
@@ -62454,7 +68156,6 @@ namespace Opc.Ua
             {
                 return m_diagnosticInfos;
             }
-
             set
             {
                 m_diagnosticInfos = value;
@@ -62559,18 +68260,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfHistoryUpdateResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "HistoryUpdateResult")]
+    [CollectionDataContract(
+        Name = "ListOfHistoryUpdateResult",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "HistoryUpdateResult"
+    )]
     public partial class HistoryUpdateResultCollection : List<HistoryUpdateResult>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public HistoryUpdateResultCollection() { }
+        public HistoryUpdateResultCollection()
+        {
+        }
 
         /// <remarks />
-        public HistoryUpdateResultCollection(int capacity) : base(capacity) { }
+        public HistoryUpdateResultCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public HistoryUpdateResultCollection(IEnumerable<HistoryUpdateResult> collection) : base(collection) { }
+        public HistoryUpdateResultCollection(IEnumerable<HistoryUpdateResult> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -62659,7 +68368,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -62679,7 +68387,6 @@ namespace Opc.Ua
             {
                 return m_historyUpdateDetails;
             }
-
             set
             {
                 m_historyUpdateDetails = value;
@@ -62814,7 +68521,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -62834,7 +68540,6 @@ namespace Opc.Ua
             {
                 return m_results;
             }
-
             set
             {
                 m_results = value;
@@ -62854,7 +68559,6 @@ namespace Opc.Ua
             {
                 return m_diagnosticInfos;
             }
-
             set
             {
                 m_diagnosticInfos = value;
@@ -62898,7 +68602,8 @@ namespace Opc.Ua
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             ResponseHeader = (ResponseHeader)decoder.ReadEncodeable("ResponseHeader", typeof(ResponseHeader));
-            Results = (HistoryUpdateResultCollection)decoder.ReadEncodeableArray("Results", typeof(HistoryUpdateResult));
+            Results = (HistoryUpdateResultCollection)
+                decoder.ReadEncodeableArray("Results", typeof(HistoryUpdateResult));
             DiagnosticInfos = decoder.ReadDiagnosticInfoArray("DiagnosticInfos");
 
             decoder.PopNamespace();
@@ -62991,16 +68696,28 @@ namespace Opc.Ua
         [DataMember(Name = "ObjectId", IsRequired = false, Order = 1)]
         public NodeId ObjectId
         {
-            get { return m_objectId; }
-            set { m_objectId = value; }
+            get
+            {
+                return m_objectId;
+            }
+            set
+            {
+                m_objectId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MethodId", IsRequired = false, Order = 2)]
         public NodeId MethodId
         {
-            get { return m_methodId; }
-            set { m_methodId = value; }
+            get
+            {
+                return m_methodId;
+            }
+            set
+            {
+                m_methodId = value;
+            }
         }
 
         /// <remarks />
@@ -63011,7 +68728,6 @@ namespace Opc.Ua
             {
                 return m_inputArguments;
             }
-
             set
             {
                 m_inputArguments = value;
@@ -63116,18 +68832,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfCallMethodRequest", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "CallMethodRequest")]
+    [CollectionDataContract(
+        Name = "ListOfCallMethodRequest",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "CallMethodRequest"
+    )]
     public partial class CallMethodRequestCollection : List<CallMethodRequest>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public CallMethodRequestCollection() { }
+        public CallMethodRequestCollection()
+        {
+        }
 
         /// <remarks />
-        public CallMethodRequestCollection(int capacity) : base(capacity) { }
+        public CallMethodRequestCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public CallMethodRequestCollection(IEnumerable<CallMethodRequest> collection) : base(collection) { }
+        public CallMethodRequestCollection(IEnumerable<CallMethodRequest> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -63214,8 +68938,14 @@ namespace Opc.Ua
         [DataMember(Name = "StatusCode", IsRequired = false, Order = 1)]
         public StatusCode StatusCode
         {
-            get { return m_statusCode; }
-            set { m_statusCode = value; }
+            get
+            {
+                return m_statusCode;
+            }
+            set
+            {
+                m_statusCode = value;
+            }
         }
 
         /// <remarks />
@@ -63226,7 +68956,6 @@ namespace Opc.Ua
             {
                 return m_inputArgumentResults;
             }
-
             set
             {
                 m_inputArgumentResults = value;
@@ -63246,7 +68975,6 @@ namespace Opc.Ua
             {
                 return m_inputArgumentDiagnosticInfos;
             }
-
             set
             {
                 m_inputArgumentDiagnosticInfos = value;
@@ -63266,7 +68994,6 @@ namespace Opc.Ua
             {
                 return m_outputArguments;
             }
-
             set
             {
                 m_outputArguments = value;
@@ -63358,7 +69085,8 @@ namespace Opc.Ua
 
             clone.m_statusCode = (StatusCode)Utils.Clone(this.m_statusCode);
             clone.m_inputArgumentResults = (StatusCodeCollection)Utils.Clone(this.m_inputArgumentResults);
-            clone.m_inputArgumentDiagnosticInfos = (DiagnosticInfoCollection)Utils.Clone(this.m_inputArgumentDiagnosticInfos);
+            clone.m_inputArgumentDiagnosticInfos = (DiagnosticInfoCollection)
+                Utils.Clone(this.m_inputArgumentDiagnosticInfos);
             clone.m_outputArguments = (VariantCollection)Utils.Clone(this.m_outputArguments);
 
             return clone;
@@ -63377,18 +69105,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfCallMethodResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "CallMethodResult")]
+    [CollectionDataContract(
+        Name = "ListOfCallMethodResult",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "CallMethodResult"
+    )]
     public partial class CallMethodResultCollection : List<CallMethodResult>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public CallMethodResultCollection() { }
+        public CallMethodResultCollection()
+        {
+        }
 
         /// <remarks />
-        public CallMethodResultCollection(int capacity) : base(capacity) { }
+        public CallMethodResultCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public CallMethodResultCollection(IEnumerable<CallMethodResult> collection) : base(collection) { }
+        public CallMethodResultCollection(IEnumerable<CallMethodResult> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -63477,7 +69213,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -63497,7 +69232,6 @@ namespace Opc.Ua
             {
                 return m_methodsToCall;
             }
-
             set
             {
                 m_methodsToCall = value;
@@ -63540,7 +69274,8 @@ namespace Opc.Ua
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             RequestHeader = (RequestHeader)decoder.ReadEncodeable("RequestHeader", typeof(RequestHeader));
-            MethodsToCall = (CallMethodRequestCollection)decoder.ReadEncodeableArray("MethodsToCall", typeof(CallMethodRequest));
+            MethodsToCall = (CallMethodRequestCollection)
+                decoder.ReadEncodeableArray("MethodsToCall", typeof(CallMethodRequest));
 
             decoder.PopNamespace();
         }
@@ -63632,7 +69367,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -63652,7 +69386,6 @@ namespace Opc.Ua
             {
                 return m_results;
             }
-
             set
             {
                 m_results = value;
@@ -63672,7 +69405,6 @@ namespace Opc.Ua
             {
                 return m_diagnosticInfos;
             }
-
             set
             {
                 m_diagnosticInfos = value;
@@ -63891,7 +69623,6 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -63899,7 +69630,6 @@ namespace Opc.Ua
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -63919,7 +69649,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return true;
         }
 
@@ -63933,7 +69662,6 @@ namespace Opc.Ua
         public new object MemberwiseClone()
         {
             MonitoringFilter clone = (MonitoringFilter)base.MemberwiseClone();
-
 
             return clone;
         }
@@ -63979,24 +69707,42 @@ namespace Opc.Ua
         [DataMember(Name = "Trigger", IsRequired = false, Order = 1)]
         public DataChangeTrigger Trigger
         {
-            get { return m_trigger; }
-            set { m_trigger = value; }
+            get
+            {
+                return m_trigger;
+            }
+            set
+            {
+                m_trigger = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DeadbandType", IsRequired = false, Order = 2)]
         public uint DeadbandType
         {
-            get { return m_deadbandType; }
-            set { m_deadbandType = value; }
+            get
+            {
+                return m_deadbandType;
+            }
+            set
+            {
+                m_deadbandType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DeadbandValue", IsRequired = false, Order = 3)]
         public double DeadbandValue
         {
-            get { return m_deadbandValue; }
-            set { m_deadbandValue = value; }
+            get
+            {
+                return m_deadbandValue;
+            }
+            set
+            {
+                m_deadbandValue = value;
+            }
         }
         #endregion
 
@@ -64131,7 +69877,6 @@ namespace Opc.Ua
             {
                 return m_selectClauses;
             }
-
             set
             {
                 m_selectClauses = value;
@@ -64151,7 +69896,6 @@ namespace Opc.Ua
             {
                 return m_whereClause;
             }
-
             set
             {
                 m_whereClause = value;
@@ -64197,7 +69941,8 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            SelectClauses = (SimpleAttributeOperandCollection)decoder.ReadEncodeableArray("SelectClauses", typeof(SimpleAttributeOperand));
+            SelectClauses = (SimpleAttributeOperandCollection)
+                decoder.ReadEncodeableArray("SelectClauses", typeof(SimpleAttributeOperand));
             WhereClause = (ContentFilter)decoder.ReadEncodeable("WhereClause", typeof(ContentFilter));
 
             decoder.PopNamespace();
@@ -64288,40 +70033,70 @@ namespace Opc.Ua
         [DataMember(Name = "UseServerCapabilitiesDefaults", IsRequired = false, Order = 1)]
         public bool UseServerCapabilitiesDefaults
         {
-            get { return m_useServerCapabilitiesDefaults; }
-            set { m_useServerCapabilitiesDefaults = value; }
+            get
+            {
+                return m_useServerCapabilitiesDefaults;
+            }
+            set
+            {
+                m_useServerCapabilitiesDefaults = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TreatUncertainAsBad", IsRequired = false, Order = 2)]
         public bool TreatUncertainAsBad
         {
-            get { return m_treatUncertainAsBad; }
-            set { m_treatUncertainAsBad = value; }
+            get
+            {
+                return m_treatUncertainAsBad;
+            }
+            set
+            {
+                m_treatUncertainAsBad = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PercentDataBad", IsRequired = false, Order = 3)]
         public byte PercentDataBad
         {
-            get { return m_percentDataBad; }
-            set { m_percentDataBad = value; }
+            get
+            {
+                return m_percentDataBad;
+            }
+            set
+            {
+                m_percentDataBad = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PercentDataGood", IsRequired = false, Order = 4)]
         public byte PercentDataGood
         {
-            get { return m_percentDataGood; }
-            set { m_percentDataGood = value; }
+            get
+            {
+                return m_percentDataGood;
+            }
+            set
+            {
+                m_percentDataGood = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "UseSlopedExtrapolation", IsRequired = false, Order = 5)]
         public bool UseSlopedExtrapolation
         {
-            get { return m_useSlopedExtrapolation; }
-            set { m_useSlopedExtrapolation = value; }
+            get
+            {
+                return m_useSlopedExtrapolation;
+            }
+            set
+            {
+                m_useSlopedExtrapolation = value;
+            }
         }
         #endregion
 
@@ -64462,24 +70237,42 @@ namespace Opc.Ua
         [DataMember(Name = "StartTime", IsRequired = false, Order = 1)]
         public DateTime StartTime
         {
-            get { return m_startTime; }
-            set { m_startTime = value; }
+            get
+            {
+                return m_startTime;
+            }
+            set
+            {
+                m_startTime = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "AggregateType", IsRequired = false, Order = 2)]
         public NodeId AggregateType
         {
-            get { return m_aggregateType; }
-            set { m_aggregateType = value; }
+            get
+            {
+                return m_aggregateType;
+            }
+            set
+            {
+                m_aggregateType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ProcessingInterval", IsRequired = false, Order = 3)]
         public double ProcessingInterval
         {
-            get { return m_processingInterval; }
-            set { m_processingInterval = value; }
+            get
+            {
+                return m_processingInterval;
+            }
+            set
+            {
+                m_processingInterval = value;
+            }
         }
 
         /// <remarks />
@@ -64490,7 +70283,6 @@ namespace Opc.Ua
             {
                 return m_aggregateConfiguration;
             }
-
             set
             {
                 m_aggregateConfiguration = value;
@@ -64541,7 +70333,8 @@ namespace Opc.Ua
             StartTime = decoder.ReadDateTime("StartTime");
             AggregateType = decoder.ReadNodeId("AggregateType");
             ProcessingInterval = decoder.ReadDouble("ProcessingInterval");
-            AggregateConfiguration = (AggregateConfiguration)decoder.ReadEncodeable("AggregateConfiguration", typeof(AggregateConfiguration));
+            AggregateConfiguration = (AggregateConfiguration)
+                decoder.ReadEncodeable("AggregateConfiguration", typeof(AggregateConfiguration));
 
             decoder.PopNamespace();
         }
@@ -64650,7 +70443,6 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -64658,7 +70450,6 @@ namespace Opc.Ua
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -64678,7 +70469,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return true;
         }
 
@@ -64692,7 +70482,6 @@ namespace Opc.Ua
         public new object MemberwiseClone()
         {
             MonitoringFilterResult clone = (MonitoringFilterResult)base.MemberwiseClone();
-
 
             return clone;
         }
@@ -64742,7 +70531,6 @@ namespace Opc.Ua
             {
                 return m_selectClauseResults;
             }
-
             set
             {
                 m_selectClauseResults = value;
@@ -64762,7 +70550,6 @@ namespace Opc.Ua
             {
                 return m_selectClauseDiagnosticInfos;
             }
-
             set
             {
                 m_selectClauseDiagnosticInfos = value;
@@ -64782,7 +70569,6 @@ namespace Opc.Ua
             {
                 return m_whereClauseResult;
             }
-
             set
             {
                 m_whereClauseResult = value;
@@ -64831,7 +70617,8 @@ namespace Opc.Ua
 
             SelectClauseResults = decoder.ReadStatusCodeArray("SelectClauseResults");
             SelectClauseDiagnosticInfos = decoder.ReadDiagnosticInfoArray("SelectClauseDiagnosticInfos");
-            WhereClauseResult = (ContentFilterResult)decoder.ReadEncodeable("WhereClauseResult", typeof(ContentFilterResult));
+            WhereClauseResult = (ContentFilterResult)
+                decoder.ReadEncodeable("WhereClauseResult", typeof(ContentFilterResult));
 
             decoder.PopNamespace();
         }
@@ -64873,7 +70660,8 @@ namespace Opc.Ua
             EventFilterResult clone = (EventFilterResult)base.MemberwiseClone();
 
             clone.m_selectClauseResults = (StatusCodeCollection)Utils.Clone(this.m_selectClauseResults);
-            clone.m_selectClauseDiagnosticInfos = (DiagnosticInfoCollection)Utils.Clone(this.m_selectClauseDiagnosticInfos);
+            clone.m_selectClauseDiagnosticInfos = (DiagnosticInfoCollection)
+                Utils.Clone(this.m_selectClauseDiagnosticInfos);
             clone.m_whereClauseResult = (ContentFilterResult)Utils.Clone(this.m_whereClauseResult);
 
             return clone;
@@ -64923,16 +70711,28 @@ namespace Opc.Ua
         [DataMember(Name = "RevisedStartTime", IsRequired = false, Order = 1)]
         public DateTime RevisedStartTime
         {
-            get { return m_revisedStartTime; }
-            set { m_revisedStartTime = value; }
+            get
+            {
+                return m_revisedStartTime;
+            }
+            set
+            {
+                m_revisedStartTime = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RevisedProcessingInterval", IsRequired = false, Order = 2)]
         public double RevisedProcessingInterval
         {
-            get { return m_revisedProcessingInterval; }
-            set { m_revisedProcessingInterval = value; }
+            get
+            {
+                return m_revisedProcessingInterval;
+            }
+            set
+            {
+                m_revisedProcessingInterval = value;
+            }
         }
 
         /// <remarks />
@@ -64943,7 +70743,6 @@ namespace Opc.Ua
             {
                 return m_revisedAggregateConfiguration;
             }
-
             set
             {
                 m_revisedAggregateConfiguration = value;
@@ -64978,7 +70777,11 @@ namespace Opc.Ua
 
             encoder.WriteDateTime("RevisedStartTime", RevisedStartTime);
             encoder.WriteDouble("RevisedProcessingInterval", RevisedProcessingInterval);
-            encoder.WriteEncodeable("RevisedAggregateConfiguration", RevisedAggregateConfiguration, typeof(AggregateConfiguration));
+            encoder.WriteEncodeable(
+                "RevisedAggregateConfiguration",
+                RevisedAggregateConfiguration,
+                typeof(AggregateConfiguration)
+            );
 
             encoder.PopNamespace();
         }
@@ -64992,7 +70795,8 @@ namespace Opc.Ua
 
             RevisedStartTime = decoder.ReadDateTime("RevisedStartTime");
             RevisedProcessingInterval = decoder.ReadDouble("RevisedProcessingInterval");
-            RevisedAggregateConfiguration = (AggregateConfiguration)decoder.ReadEncodeable("RevisedAggregateConfiguration", typeof(AggregateConfiguration));
+            RevisedAggregateConfiguration = (AggregateConfiguration)
+                decoder.ReadEncodeable("RevisedAggregateConfiguration", typeof(AggregateConfiguration));
 
             decoder.PopNamespace();
         }
@@ -65035,7 +70839,8 @@ namespace Opc.Ua
 
             clone.m_revisedStartTime = (DateTime)Utils.Clone(this.m_revisedStartTime);
             clone.m_revisedProcessingInterval = (double)Utils.Clone(this.m_revisedProcessingInterval);
-            clone.m_revisedAggregateConfiguration = (AggregateConfiguration)Utils.Clone(this.m_revisedAggregateConfiguration);
+            clone.m_revisedAggregateConfiguration = (AggregateConfiguration)
+                Utils.Clone(this.m_revisedAggregateConfiguration);
 
             return clone;
         }
@@ -65086,40 +70891,70 @@ namespace Opc.Ua
         [DataMember(Name = "ClientHandle", IsRequired = false, Order = 1)]
         public uint ClientHandle
         {
-            get { return m_clientHandle; }
-            set { m_clientHandle = value; }
+            get
+            {
+                return m_clientHandle;
+            }
+            set
+            {
+                m_clientHandle = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SamplingInterval", IsRequired = false, Order = 2)]
         public double SamplingInterval
         {
-            get { return m_samplingInterval; }
-            set { m_samplingInterval = value; }
+            get
+            {
+                return m_samplingInterval;
+            }
+            set
+            {
+                m_samplingInterval = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Filter", IsRequired = false, Order = 3)]
         public ExtensionObject Filter
         {
-            get { return m_filter; }
-            set { m_filter = value; }
+            get
+            {
+                return m_filter;
+            }
+            set
+            {
+                m_filter = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "QueueSize", IsRequired = false, Order = 4)]
         public uint QueueSize
         {
-            get { return m_queueSize; }
-            set { m_queueSize = value; }
+            get
+            {
+                return m_queueSize;
+            }
+            set
+            {
+                m_queueSize = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DiscardOldest", IsRequired = false, Order = 5)]
         public bool DiscardOldest
         {
-            get { return m_discardOldest; }
-            set { m_discardOldest = value; }
+            get
+            {
+                return m_discardOldest;
+            }
+            set
+            {
+                m_discardOldest = value;
+            }
         }
         #endregion
 
@@ -65263,7 +71098,6 @@ namespace Opc.Ua
             {
                 return m_itemToMonitor;
             }
-
             set
             {
                 m_itemToMonitor = value;
@@ -65279,8 +71113,14 @@ namespace Opc.Ua
         [DataMember(Name = "MonitoringMode", IsRequired = false, Order = 2)]
         public MonitoringMode MonitoringMode
         {
-            get { return m_monitoringMode; }
-            set { m_monitoringMode = value; }
+            get
+            {
+                return m_monitoringMode;
+            }
+            set
+            {
+                m_monitoringMode = value;
+            }
         }
 
         /// <remarks />
@@ -65291,7 +71131,6 @@ namespace Opc.Ua
             {
                 return m_requestedParameters;
             }
-
             set
             {
                 m_requestedParameters = value;
@@ -65336,7 +71175,8 @@ namespace Opc.Ua
 
             ItemToMonitor = (ReadValueId)decoder.ReadEncodeable("ItemToMonitor", typeof(ReadValueId));
             MonitoringMode = (MonitoringMode)decoder.ReadEnumerated("MonitoringMode", typeof(MonitoringMode));
-            RequestedParameters = (MonitoringParameters)decoder.ReadEncodeable("RequestedParameters", typeof(MonitoringParameters));
+            RequestedParameters = (MonitoringParameters)
+                decoder.ReadEncodeable("RequestedParameters", typeof(MonitoringParameters));
 
             decoder.PopNamespace();
         }
@@ -65396,18 +71236,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfMonitoredItemCreateRequest", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MonitoredItemCreateRequest")]
+    [CollectionDataContract(
+        Name = "ListOfMonitoredItemCreateRequest",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "MonitoredItemCreateRequest"
+    )]
     public partial class MonitoredItemCreateRequestCollection : List<MonitoredItemCreateRequest>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public MonitoredItemCreateRequestCollection() { }
+        public MonitoredItemCreateRequestCollection()
+        {
+        }
 
         /// <remarks />
-        public MonitoredItemCreateRequestCollection(int capacity) : base(capacity) { }
+        public MonitoredItemCreateRequestCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public MonitoredItemCreateRequestCollection(IEnumerable<MonitoredItemCreateRequest> collection) : base(collection) { }
+        public MonitoredItemCreateRequestCollection(IEnumerable<MonitoredItemCreateRequest> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -65495,40 +71343,70 @@ namespace Opc.Ua
         [DataMember(Name = "StatusCode", IsRequired = false, Order = 1)]
         public StatusCode StatusCode
         {
-            get { return m_statusCode; }
-            set { m_statusCode = value; }
+            get
+            {
+                return m_statusCode;
+            }
+            set
+            {
+                m_statusCode = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MonitoredItemId", IsRequired = false, Order = 2)]
         public uint MonitoredItemId
         {
-            get { return m_monitoredItemId; }
-            set { m_monitoredItemId = value; }
+            get
+            {
+                return m_monitoredItemId;
+            }
+            set
+            {
+                m_monitoredItemId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RevisedSamplingInterval", IsRequired = false, Order = 3)]
         public double RevisedSamplingInterval
         {
-            get { return m_revisedSamplingInterval; }
-            set { m_revisedSamplingInterval = value; }
+            get
+            {
+                return m_revisedSamplingInterval;
+            }
+            set
+            {
+                m_revisedSamplingInterval = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RevisedQueueSize", IsRequired = false, Order = 4)]
         public uint RevisedQueueSize
         {
-            get { return m_revisedQueueSize; }
-            set { m_revisedQueueSize = value; }
+            get
+            {
+                return m_revisedQueueSize;
+            }
+            set
+            {
+                m_revisedQueueSize = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "FilterResult", IsRequired = false, Order = 5)]
         public ExtensionObject FilterResult
         {
-            get { return m_filterResult; }
-            set { m_filterResult = value; }
+            get
+            {
+                return m_filterResult;
+            }
+            set
+            {
+                m_filterResult = value;
+            }
         }
         #endregion
 
@@ -65636,18 +71514,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfMonitoredItemCreateResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MonitoredItemCreateResult")]
+    [CollectionDataContract(
+        Name = "ListOfMonitoredItemCreateResult",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "MonitoredItemCreateResult"
+    )]
     public partial class MonitoredItemCreateResultCollection : List<MonitoredItemCreateResult>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public MonitoredItemCreateResultCollection() { }
+        public MonitoredItemCreateResultCollection()
+        {
+        }
 
         /// <remarks />
-        public MonitoredItemCreateResultCollection(int capacity) : base(capacity) { }
+        public MonitoredItemCreateResultCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public MonitoredItemCreateResultCollection(IEnumerable<MonitoredItemCreateResult> collection) : base(collection) { }
+        public MonitoredItemCreateResultCollection(IEnumerable<MonitoredItemCreateResult> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -65738,7 +71624,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -65754,16 +71639,28 @@ namespace Opc.Ua
         [DataMember(Name = "SubscriptionId", IsRequired = false, Order = 2)]
         public uint SubscriptionId
         {
-            get { return m_subscriptionId; }
-            set { m_subscriptionId = value; }
+            get
+            {
+                return m_subscriptionId;
+            }
+            set
+            {
+                m_subscriptionId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TimestampsToReturn", IsRequired = false, Order = 3)]
         public TimestampsToReturn TimestampsToReturn
         {
-            get { return m_timestampsToReturn; }
-            set { m_timestampsToReturn = value; }
+            get
+            {
+                return m_timestampsToReturn;
+            }
+            set
+            {
+                m_timestampsToReturn = value;
+            }
         }
 
         /// <remarks />
@@ -65774,7 +71671,6 @@ namespace Opc.Ua
             {
                 return m_itemsToCreate;
             }
-
             set
             {
                 m_itemsToCreate = value;
@@ -65820,8 +71716,10 @@ namespace Opc.Ua
 
             RequestHeader = (RequestHeader)decoder.ReadEncodeable("RequestHeader", typeof(RequestHeader));
             SubscriptionId = decoder.ReadUInt32("SubscriptionId");
-            TimestampsToReturn = (TimestampsToReturn)decoder.ReadEnumerated("TimestampsToReturn", typeof(TimestampsToReturn));
-            ItemsToCreate = (MonitoredItemCreateRequestCollection)decoder.ReadEncodeableArray("ItemsToCreate", typeof(MonitoredItemCreateRequest));
+            TimestampsToReturn = (TimestampsToReturn)
+                decoder.ReadEnumerated("TimestampsToReturn", typeof(TimestampsToReturn));
+            ItemsToCreate = (MonitoredItemCreateRequestCollection)
+                decoder.ReadEncodeableArray("ItemsToCreate", typeof(MonitoredItemCreateRequest));
 
             decoder.PopNamespace();
         }
@@ -65921,7 +71819,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -65941,7 +71838,6 @@ namespace Opc.Ua
             {
                 return m_results;
             }
-
             set
             {
                 m_results = value;
@@ -65961,7 +71857,6 @@ namespace Opc.Ua
             {
                 return m_diagnosticInfos;
             }
-
             set
             {
                 m_diagnosticInfos = value;
@@ -66005,7 +71900,8 @@ namespace Opc.Ua
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             ResponseHeader = (ResponseHeader)decoder.ReadEncodeable("ResponseHeader", typeof(ResponseHeader));
-            Results = (MonitoredItemCreateResultCollection)decoder.ReadEncodeableArray("Results", typeof(MonitoredItemCreateResult));
+            Results = (MonitoredItemCreateResultCollection)
+                decoder.ReadEncodeableArray("Results", typeof(MonitoredItemCreateResult));
             DiagnosticInfos = decoder.ReadDiagnosticInfoArray("DiagnosticInfos");
 
             decoder.PopNamespace();
@@ -66097,8 +71993,14 @@ namespace Opc.Ua
         [DataMember(Name = "MonitoredItemId", IsRequired = false, Order = 1)]
         public uint MonitoredItemId
         {
-            get { return m_monitoredItemId; }
-            set { m_monitoredItemId = value; }
+            get
+            {
+                return m_monitoredItemId;
+            }
+            set
+            {
+                m_monitoredItemId = value;
+            }
         }
 
         /// <remarks />
@@ -66109,7 +72011,6 @@ namespace Opc.Ua
             {
                 return m_requestedParameters;
             }
-
             set
             {
                 m_requestedParameters = value;
@@ -66152,7 +72053,8 @@ namespace Opc.Ua
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             MonitoredItemId = decoder.ReadUInt32("MonitoredItemId");
-            RequestedParameters = (MonitoringParameters)decoder.ReadEncodeable("RequestedParameters", typeof(MonitoringParameters));
+            RequestedParameters = (MonitoringParameters)
+                decoder.ReadEncodeable("RequestedParameters", typeof(MonitoringParameters));
 
             decoder.PopNamespace();
         }
@@ -66208,18 +72110,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfMonitoredItemModifyRequest", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MonitoredItemModifyRequest")]
+    [CollectionDataContract(
+        Name = "ListOfMonitoredItemModifyRequest",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "MonitoredItemModifyRequest"
+    )]
     public partial class MonitoredItemModifyRequestCollection : List<MonitoredItemModifyRequest>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public MonitoredItemModifyRequestCollection() { }
+        public MonitoredItemModifyRequestCollection()
+        {
+        }
 
         /// <remarks />
-        public MonitoredItemModifyRequestCollection(int capacity) : base(capacity) { }
+        public MonitoredItemModifyRequestCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public MonitoredItemModifyRequestCollection(IEnumerable<MonitoredItemModifyRequest> collection) : base(collection) { }
+        public MonitoredItemModifyRequestCollection(IEnumerable<MonitoredItemModifyRequest> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -66306,32 +72216,56 @@ namespace Opc.Ua
         [DataMember(Name = "StatusCode", IsRequired = false, Order = 1)]
         public StatusCode StatusCode
         {
-            get { return m_statusCode; }
-            set { m_statusCode = value; }
+            get
+            {
+                return m_statusCode;
+            }
+            set
+            {
+                m_statusCode = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RevisedSamplingInterval", IsRequired = false, Order = 2)]
         public double RevisedSamplingInterval
         {
-            get { return m_revisedSamplingInterval; }
-            set { m_revisedSamplingInterval = value; }
+            get
+            {
+                return m_revisedSamplingInterval;
+            }
+            set
+            {
+                m_revisedSamplingInterval = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RevisedQueueSize", IsRequired = false, Order = 3)]
         public uint RevisedQueueSize
         {
-            get { return m_revisedQueueSize; }
-            set { m_revisedQueueSize = value; }
+            get
+            {
+                return m_revisedQueueSize;
+            }
+            set
+            {
+                m_revisedQueueSize = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "FilterResult", IsRequired = false, Order = 4)]
         public ExtensionObject FilterResult
         {
-            get { return m_filterResult; }
-            set { m_filterResult = value; }
+            get
+            {
+                return m_filterResult;
+            }
+            set
+            {
+                m_filterResult = value;
+            }
         }
         #endregion
 
@@ -66433,18 +72367,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfMonitoredItemModifyResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MonitoredItemModifyResult")]
+    [CollectionDataContract(
+        Name = "ListOfMonitoredItemModifyResult",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "MonitoredItemModifyResult"
+    )]
     public partial class MonitoredItemModifyResultCollection : List<MonitoredItemModifyResult>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public MonitoredItemModifyResultCollection() { }
+        public MonitoredItemModifyResultCollection()
+        {
+        }
 
         /// <remarks />
-        public MonitoredItemModifyResultCollection(int capacity) : base(capacity) { }
+        public MonitoredItemModifyResultCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public MonitoredItemModifyResultCollection(IEnumerable<MonitoredItemModifyResult> collection) : base(collection) { }
+        public MonitoredItemModifyResultCollection(IEnumerable<MonitoredItemModifyResult> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -66535,7 +72477,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -66551,16 +72492,28 @@ namespace Opc.Ua
         [DataMember(Name = "SubscriptionId", IsRequired = false, Order = 2)]
         public uint SubscriptionId
         {
-            get { return m_subscriptionId; }
-            set { m_subscriptionId = value; }
+            get
+            {
+                return m_subscriptionId;
+            }
+            set
+            {
+                m_subscriptionId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TimestampsToReturn", IsRequired = false, Order = 3)]
         public TimestampsToReturn TimestampsToReturn
         {
-            get { return m_timestampsToReturn; }
-            set { m_timestampsToReturn = value; }
+            get
+            {
+                return m_timestampsToReturn;
+            }
+            set
+            {
+                m_timestampsToReturn = value;
+            }
         }
 
         /// <remarks />
@@ -66571,7 +72524,6 @@ namespace Opc.Ua
             {
                 return m_itemsToModify;
             }
-
             set
             {
                 m_itemsToModify = value;
@@ -66617,8 +72569,10 @@ namespace Opc.Ua
 
             RequestHeader = (RequestHeader)decoder.ReadEncodeable("RequestHeader", typeof(RequestHeader));
             SubscriptionId = decoder.ReadUInt32("SubscriptionId");
-            TimestampsToReturn = (TimestampsToReturn)decoder.ReadEnumerated("TimestampsToReturn", typeof(TimestampsToReturn));
-            ItemsToModify = (MonitoredItemModifyRequestCollection)decoder.ReadEncodeableArray("ItemsToModify", typeof(MonitoredItemModifyRequest));
+            TimestampsToReturn = (TimestampsToReturn)
+                decoder.ReadEnumerated("TimestampsToReturn", typeof(TimestampsToReturn));
+            ItemsToModify = (MonitoredItemModifyRequestCollection)
+                decoder.ReadEncodeableArray("ItemsToModify", typeof(MonitoredItemModifyRequest));
 
             decoder.PopNamespace();
         }
@@ -66718,7 +72672,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -66738,7 +72691,6 @@ namespace Opc.Ua
             {
                 return m_results;
             }
-
             set
             {
                 m_results = value;
@@ -66758,7 +72710,6 @@ namespace Opc.Ua
             {
                 return m_diagnosticInfos;
             }
-
             set
             {
                 m_diagnosticInfos = value;
@@ -66802,7 +72753,8 @@ namespace Opc.Ua
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             ResponseHeader = (ResponseHeader)decoder.ReadEncodeable("ResponseHeader", typeof(ResponseHeader));
-            Results = (MonitoredItemModifyResultCollection)decoder.ReadEncodeableArray("Results", typeof(MonitoredItemModifyResult));
+            Results = (MonitoredItemModifyResultCollection)
+                decoder.ReadEncodeableArray("Results", typeof(MonitoredItemModifyResult));
             DiagnosticInfos = decoder.ReadDiagnosticInfoArray("DiagnosticInfos");
 
             decoder.PopNamespace();
@@ -66900,7 +72852,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -66916,16 +72867,28 @@ namespace Opc.Ua
         [DataMember(Name = "SubscriptionId", IsRequired = false, Order = 2)]
         public uint SubscriptionId
         {
-            get { return m_subscriptionId; }
-            set { m_subscriptionId = value; }
+            get
+            {
+                return m_subscriptionId;
+            }
+            set
+            {
+                m_subscriptionId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MonitoringMode", IsRequired = false, Order = 3)]
         public MonitoringMode MonitoringMode
         {
-            get { return m_monitoringMode; }
-            set { m_monitoringMode = value; }
+            get
+            {
+                return m_monitoringMode;
+            }
+            set
+            {
+                m_monitoringMode = value;
+            }
         }
 
         /// <remarks />
@@ -66936,7 +72899,6 @@ namespace Opc.Ua
             {
                 return m_monitoredItemIds;
             }
-
             set
             {
                 m_monitoredItemIds = value;
@@ -67083,7 +73045,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -67103,7 +73064,6 @@ namespace Opc.Ua
             {
                 return m_results;
             }
-
             set
             {
                 m_results = value;
@@ -67123,7 +73083,6 @@ namespace Opc.Ua
             {
                 return m_diagnosticInfos;
             }
-
             set
             {
                 m_diagnosticInfos = value;
@@ -67266,7 +73225,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -67282,16 +73240,28 @@ namespace Opc.Ua
         [DataMember(Name = "SubscriptionId", IsRequired = false, Order = 2)]
         public uint SubscriptionId
         {
-            get { return m_subscriptionId; }
-            set { m_subscriptionId = value; }
+            get
+            {
+                return m_subscriptionId;
+            }
+            set
+            {
+                m_subscriptionId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TriggeringItemId", IsRequired = false, Order = 3)]
         public uint TriggeringItemId
         {
-            get { return m_triggeringItemId; }
-            set { m_triggeringItemId = value; }
+            get
+            {
+                return m_triggeringItemId;
+            }
+            set
+            {
+                m_triggeringItemId = value;
+            }
         }
 
         /// <remarks />
@@ -67302,7 +73272,6 @@ namespace Opc.Ua
             {
                 return m_linksToAdd;
             }
-
             set
             {
                 m_linksToAdd = value;
@@ -67322,7 +73291,6 @@ namespace Opc.Ua
             {
                 return m_linksToRemove;
             }
-
             set
             {
                 m_linksToRemove = value;
@@ -67477,7 +73445,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -67497,7 +73464,6 @@ namespace Opc.Ua
             {
                 return m_addResults;
             }
-
             set
             {
                 m_addResults = value;
@@ -67517,7 +73483,6 @@ namespace Opc.Ua
             {
                 return m_addDiagnosticInfos;
             }
-
             set
             {
                 m_addDiagnosticInfos = value;
@@ -67537,7 +73502,6 @@ namespace Opc.Ua
             {
                 return m_removeResults;
             }
-
             set
             {
                 m_removeResults = value;
@@ -67557,7 +73521,6 @@ namespace Opc.Ua
             {
                 return m_removeDiagnosticInfos;
             }
-
             set
             {
                 m_removeDiagnosticInfos = value;
@@ -67710,7 +73673,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -67726,8 +73688,14 @@ namespace Opc.Ua
         [DataMember(Name = "SubscriptionId", IsRequired = false, Order = 2)]
         public uint SubscriptionId
         {
-            get { return m_subscriptionId; }
-            set { m_subscriptionId = value; }
+            get
+            {
+                return m_subscriptionId;
+            }
+            set
+            {
+                m_subscriptionId = value;
+            }
         }
 
         /// <remarks />
@@ -67738,7 +73706,6 @@ namespace Opc.Ua
             {
                 return m_monitoredItemIds;
             }
-
             set
             {
                 m_monitoredItemIds = value;
@@ -67879,7 +73846,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -67899,7 +73865,6 @@ namespace Opc.Ua
             {
                 return m_results;
             }
-
             set
             {
                 m_results = value;
@@ -67919,7 +73884,6 @@ namespace Opc.Ua
             {
                 return m_diagnosticInfos;
             }
-
             set
             {
                 m_diagnosticInfos = value;
@@ -68064,7 +74028,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -68080,48 +74043,84 @@ namespace Opc.Ua
         [DataMember(Name = "RequestedPublishingInterval", IsRequired = false, Order = 2)]
         public double RequestedPublishingInterval
         {
-            get { return m_requestedPublishingInterval; }
-            set { m_requestedPublishingInterval = value; }
+            get
+            {
+                return m_requestedPublishingInterval;
+            }
+            set
+            {
+                m_requestedPublishingInterval = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RequestedLifetimeCount", IsRequired = false, Order = 3)]
         public uint RequestedLifetimeCount
         {
-            get { return m_requestedLifetimeCount; }
-            set { m_requestedLifetimeCount = value; }
+            get
+            {
+                return m_requestedLifetimeCount;
+            }
+            set
+            {
+                m_requestedLifetimeCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RequestedMaxKeepAliveCount", IsRequired = false, Order = 4)]
         public uint RequestedMaxKeepAliveCount
         {
-            get { return m_requestedMaxKeepAliveCount; }
-            set { m_requestedMaxKeepAliveCount = value; }
+            get
+            {
+                return m_requestedMaxKeepAliveCount;
+            }
+            set
+            {
+                m_requestedMaxKeepAliveCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MaxNotificationsPerPublish", IsRequired = false, Order = 5)]
         public uint MaxNotificationsPerPublish
         {
-            get { return m_maxNotificationsPerPublish; }
-            set { m_maxNotificationsPerPublish = value; }
+            get
+            {
+                return m_maxNotificationsPerPublish;
+            }
+            set
+            {
+                m_maxNotificationsPerPublish = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PublishingEnabled", IsRequired = false, Order = 6)]
         public bool PublishingEnabled
         {
-            get { return m_publishingEnabled; }
-            set { m_publishingEnabled = value; }
+            get
+            {
+                return m_publishingEnabled;
+            }
+            set
+            {
+                m_publishingEnabled = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Priority", IsRequired = false, Order = 7)]
         public byte Priority
         {
-            get { return m_priority; }
-            set { m_priority = value; }
+            get
+            {
+                return m_priority;
+            }
+            set
+            {
+                m_priority = value;
+            }
         }
         #endregion
 
@@ -68279,7 +74278,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -68295,32 +74293,56 @@ namespace Opc.Ua
         [DataMember(Name = "SubscriptionId", IsRequired = false, Order = 2)]
         public uint SubscriptionId
         {
-            get { return m_subscriptionId; }
-            set { m_subscriptionId = value; }
+            get
+            {
+                return m_subscriptionId;
+            }
+            set
+            {
+                m_subscriptionId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RevisedPublishingInterval", IsRequired = false, Order = 3)]
         public double RevisedPublishingInterval
         {
-            get { return m_revisedPublishingInterval; }
-            set { m_revisedPublishingInterval = value; }
+            get
+            {
+                return m_revisedPublishingInterval;
+            }
+            set
+            {
+                m_revisedPublishingInterval = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RevisedLifetimeCount", IsRequired = false, Order = 4)]
         public uint RevisedLifetimeCount
         {
-            get { return m_revisedLifetimeCount; }
-            set { m_revisedLifetimeCount = value; }
+            get
+            {
+                return m_revisedLifetimeCount;
+            }
+            set
+            {
+                m_revisedLifetimeCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RevisedMaxKeepAliveCount", IsRequired = false, Order = 5)]
         public uint RevisedMaxKeepAliveCount
         {
-            get { return m_revisedMaxKeepAliveCount; }
-            set { m_revisedMaxKeepAliveCount = value; }
+            get
+            {
+                return m_revisedMaxKeepAliveCount;
+            }
+            set
+            {
+                m_revisedMaxKeepAliveCount = value;
+            }
         }
         #endregion
 
@@ -68468,7 +74490,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -68484,48 +74505,84 @@ namespace Opc.Ua
         [DataMember(Name = "SubscriptionId", IsRequired = false, Order = 2)]
         public uint SubscriptionId
         {
-            get { return m_subscriptionId; }
-            set { m_subscriptionId = value; }
+            get
+            {
+                return m_subscriptionId;
+            }
+            set
+            {
+                m_subscriptionId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RequestedPublishingInterval", IsRequired = false, Order = 3)]
         public double RequestedPublishingInterval
         {
-            get { return m_requestedPublishingInterval; }
-            set { m_requestedPublishingInterval = value; }
+            get
+            {
+                return m_requestedPublishingInterval;
+            }
+            set
+            {
+                m_requestedPublishingInterval = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RequestedLifetimeCount", IsRequired = false, Order = 4)]
         public uint RequestedLifetimeCount
         {
-            get { return m_requestedLifetimeCount; }
-            set { m_requestedLifetimeCount = value; }
+            get
+            {
+                return m_requestedLifetimeCount;
+            }
+            set
+            {
+                m_requestedLifetimeCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RequestedMaxKeepAliveCount", IsRequired = false, Order = 5)]
         public uint RequestedMaxKeepAliveCount
         {
-            get { return m_requestedMaxKeepAliveCount; }
-            set { m_requestedMaxKeepAliveCount = value; }
+            get
+            {
+                return m_requestedMaxKeepAliveCount;
+            }
+            set
+            {
+                m_requestedMaxKeepAliveCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MaxNotificationsPerPublish", IsRequired = false, Order = 6)]
         public uint MaxNotificationsPerPublish
         {
-            get { return m_maxNotificationsPerPublish; }
-            set { m_maxNotificationsPerPublish = value; }
+            get
+            {
+                return m_maxNotificationsPerPublish;
+            }
+            set
+            {
+                m_maxNotificationsPerPublish = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Priority", IsRequired = false, Order = 7)]
         public byte Priority
         {
-            get { return m_priority; }
-            set { m_priority = value; }
+            get
+            {
+                return m_priority;
+            }
+            set
+            {
+                m_priority = value;
+            }
         }
         #endregion
 
@@ -68682,7 +74739,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -68698,24 +74754,42 @@ namespace Opc.Ua
         [DataMember(Name = "RevisedPublishingInterval", IsRequired = false, Order = 2)]
         public double RevisedPublishingInterval
         {
-            get { return m_revisedPublishingInterval; }
-            set { m_revisedPublishingInterval = value; }
+            get
+            {
+                return m_revisedPublishingInterval;
+            }
+            set
+            {
+                m_revisedPublishingInterval = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RevisedLifetimeCount", IsRequired = false, Order = 3)]
         public uint RevisedLifetimeCount
         {
-            get { return m_revisedLifetimeCount; }
-            set { m_revisedLifetimeCount = value; }
+            get
+            {
+                return m_revisedLifetimeCount;
+            }
+            set
+            {
+                m_revisedLifetimeCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RevisedMaxKeepAliveCount", IsRequired = false, Order = 4)]
         public uint RevisedMaxKeepAliveCount
         {
-            get { return m_revisedMaxKeepAliveCount; }
-            set { m_revisedMaxKeepAliveCount = value; }
+            get
+            {
+                return m_revisedMaxKeepAliveCount;
+            }
+            set
+            {
+                m_revisedMaxKeepAliveCount = value;
+            }
         }
         #endregion
 
@@ -68853,7 +74927,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -68869,8 +74942,14 @@ namespace Opc.Ua
         [DataMember(Name = "PublishingEnabled", IsRequired = false, Order = 2)]
         public bool PublishingEnabled
         {
-            get { return m_publishingEnabled; }
-            set { m_publishingEnabled = value; }
+            get
+            {
+                return m_publishingEnabled;
+            }
+            set
+            {
+                m_publishingEnabled = value;
+            }
         }
 
         /// <remarks />
@@ -68881,7 +74960,6 @@ namespace Opc.Ua
             {
                 return m_subscriptionIds;
             }
-
             set
             {
                 m_subscriptionIds = value;
@@ -69022,7 +75100,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -69042,7 +75119,6 @@ namespace Opc.Ua
             {
                 return m_results;
             }
-
             set
             {
                 m_results = value;
@@ -69062,7 +75138,6 @@ namespace Opc.Ua
             {
                 return m_diagnosticInfos;
             }
-
             set
             {
                 m_diagnosticInfos = value;
@@ -69199,16 +75274,28 @@ namespace Opc.Ua
         [DataMember(Name = "SequenceNumber", IsRequired = false, Order = 1)]
         public uint SequenceNumber
         {
-            get { return m_sequenceNumber; }
-            set { m_sequenceNumber = value; }
+            get
+            {
+                return m_sequenceNumber;
+            }
+            set
+            {
+                m_sequenceNumber = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PublishTime", IsRequired = false, Order = 2)]
         public DateTime PublishTime
         {
-            get { return m_publishTime; }
-            set { m_publishTime = value; }
+            get
+            {
+                return m_publishTime;
+            }
+            set
+            {
+                m_publishTime = value;
+            }
         }
 
         /// <remarks />
@@ -69219,7 +75306,6 @@ namespace Opc.Ua
             {
                 return m_notificationData;
             }
-
             set
             {
                 m_notificationData = value;
@@ -69369,7 +75455,6 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-
             encoder.PopNamespace();
         }
 
@@ -69377,7 +75462,6 @@ namespace Opc.Ua
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
 
             decoder.PopNamespace();
         }
@@ -69397,7 +75481,6 @@ namespace Opc.Ua
                 return false;
             }
 
-
             return true;
         }
 
@@ -69411,7 +75494,6 @@ namespace Opc.Ua
         public new object MemberwiseClone()
         {
             NotificationData clone = (NotificationData)base.MemberwiseClone();
-
 
             return clone;
         }
@@ -69460,7 +75542,6 @@ namespace Opc.Ua
             {
                 return m_monitoredItems;
             }
-
             set
             {
                 m_monitoredItems = value;
@@ -69480,7 +75561,6 @@ namespace Opc.Ua
             {
                 return m_diagnosticInfos;
             }
-
             set
             {
                 m_diagnosticInfos = value;
@@ -69526,7 +75606,8 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            MonitoredItems = (MonitoredItemNotificationCollection)decoder.ReadEncodeableArray("MonitoredItems", typeof(MonitoredItemNotification));
+            MonitoredItems = (MonitoredItemNotificationCollection)
+                decoder.ReadEncodeableArray("MonitoredItems", typeof(MonitoredItemNotification));
             DiagnosticInfos = decoder.ReadDiagnosticInfoArray("DiagnosticInfos");
 
             decoder.PopNamespace();
@@ -69614,16 +75695,28 @@ namespace Opc.Ua
         [DataMember(Name = "ClientHandle", IsRequired = false, Order = 1)]
         public uint ClientHandle
         {
-            get { return m_clientHandle; }
-            set { m_clientHandle = value; }
+            get
+            {
+                return m_clientHandle;
+            }
+            set
+            {
+                m_clientHandle = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Value", IsRequired = false, Order = 2)]
         public DataValue Value
         {
-            get { return m_value; }
-            set { m_value = value; }
+            get
+            {
+                return m_value;
+            }
+            set
+            {
+                m_value = value;
+            }
         }
         #endregion
 
@@ -69713,18 +75806,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfMonitoredItemNotification", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MonitoredItemNotification")]
+    [CollectionDataContract(
+        Name = "ListOfMonitoredItemNotification",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "MonitoredItemNotification"
+    )]
     public partial class MonitoredItemNotificationCollection : List<MonitoredItemNotification>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public MonitoredItemNotificationCollection() { }
+        public MonitoredItemNotificationCollection()
+        {
+        }
 
         /// <remarks />
-        public MonitoredItemNotificationCollection(int capacity) : base(capacity) { }
+        public MonitoredItemNotificationCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public MonitoredItemNotificationCollection(IEnumerable<MonitoredItemNotification> collection) : base(collection) { }
+        public MonitoredItemNotificationCollection(IEnumerable<MonitoredItemNotification> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -69812,7 +75913,6 @@ namespace Opc.Ua
             {
                 return m_events;
             }
-
             set
             {
                 m_events = value;
@@ -69940,8 +76040,14 @@ namespace Opc.Ua
         [DataMember(Name = "ClientHandle", IsRequired = false, Order = 1)]
         public uint ClientHandle
         {
-            get { return m_clientHandle; }
-            set { m_clientHandle = value; }
+            get
+            {
+                return m_clientHandle;
+            }
+            set
+            {
+                m_clientHandle = value;
+            }
         }
 
         /// <remarks />
@@ -69952,7 +76058,6 @@ namespace Opc.Ua
             {
                 return m_eventFields;
             }
-
             set
             {
                 m_eventFields = value;
@@ -70051,18 +76156,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfEventFieldList", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EventFieldList")]
+    [CollectionDataContract(
+        Name = "ListOfEventFieldList",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "EventFieldList"
+    )]
     public partial class EventFieldListCollection : List<EventFieldList>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public EventFieldListCollection() { }
+        public EventFieldListCollection()
+        {
+        }
 
         /// <remarks />
-        public EventFieldListCollection(int capacity) : base(capacity) { }
+        public EventFieldListCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public EventFieldListCollection(IEnumerable<EventFieldList> collection) : base(collection) { }
+        public EventFieldListCollection(IEnumerable<EventFieldList> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -70150,7 +76263,6 @@ namespace Opc.Ua
             {
                 return m_eventFields;
             }
-
             set
             {
                 m_eventFields = value;
@@ -70243,18 +76355,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfHistoryEventFieldList", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "HistoryEventFieldList")]
+    [CollectionDataContract(
+        Name = "ListOfHistoryEventFieldList",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "HistoryEventFieldList"
+    )]
     public partial class HistoryEventFieldListCollection : List<HistoryEventFieldList>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public HistoryEventFieldListCollection() { }
+        public HistoryEventFieldListCollection()
+        {
+        }
 
         /// <remarks />
-        public HistoryEventFieldListCollection(int capacity) : base(capacity) { }
+        public HistoryEventFieldListCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public HistoryEventFieldListCollection(IEnumerable<HistoryEventFieldList> collection) : base(collection) { }
+        public HistoryEventFieldListCollection(IEnumerable<HistoryEventFieldList> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -70339,16 +76459,28 @@ namespace Opc.Ua
         [DataMember(Name = "Status", IsRequired = false, Order = 1)]
         public StatusCode Status
         {
-            get { return m_status; }
-            set { m_status = value; }
+            get
+            {
+                return m_status;
+            }
+            set
+            {
+                m_status = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DiagnosticInfo", IsRequired = false, Order = 2)]
         public DiagnosticInfo DiagnosticInfo
         {
-            get { return m_diagnosticInfo; }
-            set { m_diagnosticInfo = value; }
+            get
+            {
+                return m_diagnosticInfo;
+            }
+            set
+            {
+                m_diagnosticInfo = value;
+            }
         }
         #endregion
 
@@ -70473,16 +76605,28 @@ namespace Opc.Ua
         [DataMember(Name = "SubscriptionId", IsRequired = false, Order = 1)]
         public uint SubscriptionId
         {
-            get { return m_subscriptionId; }
-            set { m_subscriptionId = value; }
+            get
+            {
+                return m_subscriptionId;
+            }
+            set
+            {
+                m_subscriptionId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SequenceNumber", IsRequired = false, Order = 2)]
         public uint SequenceNumber
         {
-            get { return m_sequenceNumber; }
-            set { m_sequenceNumber = value; }
+            get
+            {
+                return m_sequenceNumber;
+            }
+            set
+            {
+                m_sequenceNumber = value;
+            }
         }
         #endregion
 
@@ -70572,18 +76716,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfSubscriptionAcknowledgement", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SubscriptionAcknowledgement")]
+    [CollectionDataContract(
+        Name = "ListOfSubscriptionAcknowledgement",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "SubscriptionAcknowledgement"
+    )]
     public partial class SubscriptionAcknowledgementCollection : List<SubscriptionAcknowledgement>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public SubscriptionAcknowledgementCollection() { }
+        public SubscriptionAcknowledgementCollection()
+        {
+        }
 
         /// <remarks />
-        public SubscriptionAcknowledgementCollection(int capacity) : base(capacity) { }
+        public SubscriptionAcknowledgementCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public SubscriptionAcknowledgementCollection(IEnumerable<SubscriptionAcknowledgement> collection) : base(collection) { }
+        public SubscriptionAcknowledgementCollection(IEnumerable<SubscriptionAcknowledgement> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -70672,7 +76824,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -70692,7 +76843,6 @@ namespace Opc.Ua
             {
                 return m_subscriptionAcknowledgements;
             }
-
             set
             {
                 m_subscriptionAcknowledgements = value;
@@ -70724,7 +76874,11 @@ namespace Opc.Ua
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             encoder.WriteEncodeable("RequestHeader", RequestHeader, typeof(RequestHeader));
-            encoder.WriteEncodeableArray("SubscriptionAcknowledgements", SubscriptionAcknowledgements.ToArray(), typeof(SubscriptionAcknowledgement));
+            encoder.WriteEncodeableArray(
+                "SubscriptionAcknowledgements",
+                SubscriptionAcknowledgements.ToArray(),
+                typeof(SubscriptionAcknowledgement)
+            );
 
             encoder.PopNamespace();
         }
@@ -70735,7 +76889,8 @@ namespace Opc.Ua
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             RequestHeader = (RequestHeader)decoder.ReadEncodeable("RequestHeader", typeof(RequestHeader));
-            SubscriptionAcknowledgements = (SubscriptionAcknowledgementCollection)decoder.ReadEncodeableArray("SubscriptionAcknowledgements", typeof(SubscriptionAcknowledgement));
+            SubscriptionAcknowledgements = (SubscriptionAcknowledgementCollection)
+                decoder.ReadEncodeableArray("SubscriptionAcknowledgements", typeof(SubscriptionAcknowledgement));
 
             decoder.PopNamespace();
         }
@@ -70775,7 +76930,8 @@ namespace Opc.Ua
             PublishRequest clone = (PublishRequest)base.MemberwiseClone();
 
             clone.m_requestHeader = (RequestHeader)Utils.Clone(this.m_requestHeader);
-            clone.m_subscriptionAcknowledgements = (SubscriptionAcknowledgementCollection)Utils.Clone(this.m_subscriptionAcknowledgements);
+            clone.m_subscriptionAcknowledgements = (SubscriptionAcknowledgementCollection)
+                Utils.Clone(this.m_subscriptionAcknowledgements);
 
             return clone;
         }
@@ -70831,7 +76987,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -70847,8 +77002,14 @@ namespace Opc.Ua
         [DataMember(Name = "SubscriptionId", IsRequired = false, Order = 2)]
         public uint SubscriptionId
         {
-            get { return m_subscriptionId; }
-            set { m_subscriptionId = value; }
+            get
+            {
+                return m_subscriptionId;
+            }
+            set
+            {
+                m_subscriptionId = value;
+            }
         }
 
         /// <remarks />
@@ -70859,7 +77020,6 @@ namespace Opc.Ua
             {
                 return m_availableSequenceNumbers;
             }
-
             set
             {
                 m_availableSequenceNumbers = value;
@@ -70875,8 +77035,14 @@ namespace Opc.Ua
         [DataMember(Name = "MoreNotifications", IsRequired = false, Order = 4)]
         public bool MoreNotifications
         {
-            get { return m_moreNotifications; }
-            set { m_moreNotifications = value; }
+            get
+            {
+                return m_moreNotifications;
+            }
+            set
+            {
+                m_moreNotifications = value;
+            }
         }
 
         /// <remarks />
@@ -70887,7 +77053,6 @@ namespace Opc.Ua
             {
                 return m_notificationMessage;
             }
-
             set
             {
                 m_notificationMessage = value;
@@ -70907,7 +77072,6 @@ namespace Opc.Ua
             {
                 return m_results;
             }
-
             set
             {
                 m_results = value;
@@ -70927,7 +77091,6 @@ namespace Opc.Ua
             {
                 return m_diagnosticInfos;
             }
-
             set
             {
                 m_diagnosticInfos = value;
@@ -70978,7 +77141,8 @@ namespace Opc.Ua
             SubscriptionId = decoder.ReadUInt32("SubscriptionId");
             AvailableSequenceNumbers = decoder.ReadUInt32Array("AvailableSequenceNumbers");
             MoreNotifications = decoder.ReadBoolean("MoreNotifications");
-            NotificationMessage = (NotificationMessage)decoder.ReadEncodeable("NotificationMessage", typeof(NotificationMessage));
+            NotificationMessage = (NotificationMessage)
+                decoder.ReadEncodeable("NotificationMessage", typeof(NotificationMessage));
             Results = decoder.ReadStatusCodeArray("Results");
             DiagnosticInfos = decoder.ReadDiagnosticInfoArray("DiagnosticInfos");
 
@@ -71092,7 +77256,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -71108,16 +77271,28 @@ namespace Opc.Ua
         [DataMember(Name = "SubscriptionId", IsRequired = false, Order = 2)]
         public uint SubscriptionId
         {
-            get { return m_subscriptionId; }
-            set { m_subscriptionId = value; }
+            get
+            {
+                return m_subscriptionId;
+            }
+            set
+            {
+                m_subscriptionId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RetransmitSequenceNumber", IsRequired = false, Order = 3)]
         public uint RetransmitSequenceNumber
         {
-            get { return m_retransmitSequenceNumber; }
-            set { m_retransmitSequenceNumber = value; }
+            get
+            {
+                return m_retransmitSequenceNumber;
+            }
+            set
+            {
+                m_retransmitSequenceNumber = value;
+            }
         }
         #endregion
 
@@ -71248,7 +77423,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -71268,7 +77442,6 @@ namespace Opc.Ua
             {
                 return m_notificationMessage;
             }
-
             set
             {
                 m_notificationMessage = value;
@@ -71311,7 +77484,8 @@ namespace Opc.Ua
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             ResponseHeader = (ResponseHeader)decoder.ReadEncodeable("ResponseHeader", typeof(ResponseHeader));
-            NotificationMessage = (NotificationMessage)decoder.ReadEncodeable("NotificationMessage", typeof(NotificationMessage));
+            NotificationMessage = (NotificationMessage)
+                decoder.ReadEncodeable("NotificationMessage", typeof(NotificationMessage));
 
             decoder.PopNamespace();
         }
@@ -71398,8 +77572,14 @@ namespace Opc.Ua
         [DataMember(Name = "StatusCode", IsRequired = false, Order = 1)]
         public StatusCode StatusCode
         {
-            get { return m_statusCode; }
-            set { m_statusCode = value; }
+            get
+            {
+                return m_statusCode;
+            }
+            set
+            {
+                m_statusCode = value;
+            }
         }
 
         /// <remarks />
@@ -71410,7 +77590,6 @@ namespace Opc.Ua
             {
                 return m_availableSequenceNumbers;
             }
-
             set
             {
                 m_availableSequenceNumbers = value;
@@ -71509,18 +77688,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfTransferResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TransferResult")]
+    [CollectionDataContract(
+        Name = "ListOfTransferResult",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "TransferResult"
+    )]
     public partial class TransferResultCollection : List<TransferResult>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public TransferResultCollection() { }
+        public TransferResultCollection()
+        {
+        }
 
         /// <remarks />
-        public TransferResultCollection(int capacity) : base(capacity) { }
+        public TransferResultCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public TransferResultCollection(IEnumerable<TransferResult> collection) : base(collection) { }
+        public TransferResultCollection(IEnumerable<TransferResult> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -71610,7 +77797,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -71630,7 +77816,6 @@ namespace Opc.Ua
             {
                 return m_subscriptionIds;
             }
-
             set
             {
                 m_subscriptionIds = value;
@@ -71646,8 +77831,14 @@ namespace Opc.Ua
         [DataMember(Name = "SendInitialValues", IsRequired = false, Order = 3)]
         public bool SendInitialValues
         {
-            get { return m_sendInitialValues; }
-            set { m_sendInitialValues = value; }
+            get
+            {
+                return m_sendInitialValues;
+            }
+            set
+            {
+                m_sendInitialValues = value;
+            }
         }
         #endregion
 
@@ -71779,7 +77970,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -71799,7 +77989,6 @@ namespace Opc.Ua
             {
                 return m_results;
             }
-
             set
             {
                 m_results = value;
@@ -71819,7 +78008,6 @@ namespace Opc.Ua
             {
                 return m_diagnosticInfos;
             }
-
             set
             {
                 m_diagnosticInfos = value;
@@ -71837,7 +78025,8 @@ namespace Opc.Ua
         public virtual ExpandedNodeId TypeId => DataTypeIds.TransferSubscriptionsResponse;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.TransferSubscriptionsResponse_Encoding_DefaultBinary;
+        public virtual ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.TransferSubscriptionsResponse_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TransferSubscriptionsResponse_Encoding_DefaultXml;
@@ -71959,7 +78148,6 @@ namespace Opc.Ua
             {
                 return m_requestHeader;
             }
-
             set
             {
                 m_requestHeader = value;
@@ -71979,7 +78167,6 @@ namespace Opc.Ua
             {
                 return m_subscriptionIds;
             }
-
             set
             {
                 m_subscriptionIds = value;
@@ -72114,7 +78301,6 @@ namespace Opc.Ua
             {
                 return m_responseHeader;
             }
-
             set
             {
                 m_responseHeader = value;
@@ -72134,7 +78320,6 @@ namespace Opc.Ua
             {
                 return m_results;
             }
-
             set
             {
                 m_results = value;
@@ -72154,7 +78339,6 @@ namespace Opc.Ua
             {
                 return m_diagnosticInfos;
             }
-
             set
             {
                 m_diagnosticInfos = value;
@@ -72294,48 +78478,84 @@ namespace Opc.Ua
         [DataMember(Name = "ProductUri", IsRequired = false, Order = 1)]
         public string ProductUri
         {
-            get { return m_productUri; }
-            set { m_productUri = value; }
+            get
+            {
+                return m_productUri;
+            }
+            set
+            {
+                m_productUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ManufacturerName", IsRequired = false, Order = 2)]
         public string ManufacturerName
         {
-            get { return m_manufacturerName; }
-            set { m_manufacturerName = value; }
+            get
+            {
+                return m_manufacturerName;
+            }
+            set
+            {
+                m_manufacturerName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ProductName", IsRequired = false, Order = 3)]
         public string ProductName
         {
-            get { return m_productName; }
-            set { m_productName = value; }
+            get
+            {
+                return m_productName;
+            }
+            set
+            {
+                m_productName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SoftwareVersion", IsRequired = false, Order = 4)]
         public string SoftwareVersion
         {
-            get { return m_softwareVersion; }
-            set { m_softwareVersion = value; }
+            get
+            {
+                return m_softwareVersion;
+            }
+            set
+            {
+                m_softwareVersion = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "BuildNumber", IsRequired = false, Order = 5)]
         public string BuildNumber
         {
-            get { return m_buildNumber; }
-            set { m_buildNumber = value; }
+            get
+            {
+                return m_buildNumber;
+            }
+            set
+            {
+                m_buildNumber = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "BuildDate", IsRequired = false, Order = 6)]
         public DateTime BuildDate
         {
-            get { return m_buildDate; }
-            set { m_buildDate = value; }
+            get
+            {
+                return m_buildDate;
+            }
+            set
+            {
+                m_buildDate = value;
+            }
         }
         #endregion
 
@@ -72559,24 +78779,42 @@ namespace Opc.Ua
         [DataMember(Name = "ServerId", IsRequired = false, Order = 1)]
         public string ServerId
         {
-            get { return m_serverId; }
-            set { m_serverId = value; }
+            get
+            {
+                return m_serverId;
+            }
+            set
+            {
+                m_serverId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ServiceLevel", IsRequired = false, Order = 2)]
         public byte ServiceLevel
         {
-            get { return m_serviceLevel; }
-            set { m_serviceLevel = value; }
+            get
+            {
+                return m_serviceLevel;
+            }
+            set
+            {
+                m_serviceLevel = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ServerState", IsRequired = false, Order = 3)]
         public ServerState ServerState
         {
-            get { return m_serverState; }
-            set { m_serverState = value; }
+            get
+            {
+                return m_serverState;
+            }
+            set
+            {
+                m_serverState = value;
+            }
         }
         #endregion
 
@@ -72672,18 +78910,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfRedundantServerDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RedundantServerDataType")]
+    [CollectionDataContract(
+        Name = "ListOfRedundantServerDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "RedundantServerDataType"
+    )]
     public partial class RedundantServerDataTypeCollection : List<RedundantServerDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public RedundantServerDataTypeCollection() { }
+        public RedundantServerDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public RedundantServerDataTypeCollection(int capacity) : base(capacity) { }
+        public RedundantServerDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public RedundantServerDataTypeCollection(IEnumerable<RedundantServerDataType> collection) : base(collection) { }
+        public RedundantServerDataTypeCollection(IEnumerable<RedundantServerDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -72771,7 +79017,6 @@ namespace Opc.Ua
             {
                 return m_endpointUrlList;
             }
-
             set
             {
                 m_endpointUrlList = value;
@@ -72864,18 +79109,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfEndpointUrlListDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EndpointUrlListDataType")]
+    [CollectionDataContract(
+        Name = "ListOfEndpointUrlListDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "EndpointUrlListDataType"
+    )]
     public partial class EndpointUrlListDataTypeCollection : List<EndpointUrlListDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public EndpointUrlListDataTypeCollection() { }
+        public EndpointUrlListDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public EndpointUrlListDataTypeCollection(int capacity) : base(capacity) { }
+        public EndpointUrlListDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public EndpointUrlListDataTypeCollection(IEnumerable<EndpointUrlListDataType> collection) : base(collection) { }
+        public EndpointUrlListDataTypeCollection(IEnumerable<EndpointUrlListDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -72960,8 +79213,14 @@ namespace Opc.Ua
         [DataMember(Name = "ServerUri", IsRequired = false, Order = 1)]
         public string ServerUri
         {
-            get { return m_serverUri; }
-            set { m_serverUri = value; }
+            get
+            {
+                return m_serverUri;
+            }
+            set
+            {
+                m_serverUri = value;
+            }
         }
 
         /// <remarks />
@@ -72972,7 +79231,6 @@ namespace Opc.Ua
             {
                 return m_networkPaths;
             }
-
             set
             {
                 m_networkPaths = value;
@@ -73015,7 +79273,8 @@ namespace Opc.Ua
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
             ServerUri = decoder.ReadString("ServerUri");
-            NetworkPaths = (EndpointUrlListDataTypeCollection)decoder.ReadEncodeableArray("NetworkPaths", typeof(EndpointUrlListDataType));
+            NetworkPaths = (EndpointUrlListDataTypeCollection)
+                decoder.ReadEncodeableArray("NetworkPaths", typeof(EndpointUrlListDataType));
 
             decoder.PopNamespace();
         }
@@ -73071,18 +79330,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfNetworkGroupDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NetworkGroupDataType")]
+    [CollectionDataContract(
+        Name = "ListOfNetworkGroupDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "NetworkGroupDataType"
+    )]
     public partial class NetworkGroupDataTypeCollection : List<NetworkGroupDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public NetworkGroupDataTypeCollection() { }
+        public NetworkGroupDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public NetworkGroupDataTypeCollection(int capacity) : base(capacity) { }
+        public NetworkGroupDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public NetworkGroupDataTypeCollection(IEnumerable<NetworkGroupDataType> collection) : base(collection) { }
+        public NetworkGroupDataTypeCollection(IEnumerable<NetworkGroupDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -73169,32 +79436,56 @@ namespace Opc.Ua
         [DataMember(Name = "SamplingInterval", IsRequired = false, Order = 1)]
         public double SamplingInterval
         {
-            get { return m_samplingInterval; }
-            set { m_samplingInterval = value; }
+            get
+            {
+                return m_samplingInterval;
+            }
+            set
+            {
+                m_samplingInterval = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MonitoredItemCount", IsRequired = false, Order = 2)]
         public uint MonitoredItemCount
         {
-            get { return m_monitoredItemCount; }
-            set { m_monitoredItemCount = value; }
+            get
+            {
+                return m_monitoredItemCount;
+            }
+            set
+            {
+                m_monitoredItemCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MaxMonitoredItemCount", IsRequired = false, Order = 3)]
         public uint MaxMonitoredItemCount
         {
-            get { return m_maxMonitoredItemCount; }
-            set { m_maxMonitoredItemCount = value; }
+            get
+            {
+                return m_maxMonitoredItemCount;
+            }
+            set
+            {
+                m_maxMonitoredItemCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DisabledMonitoredItemCount", IsRequired = false, Order = 4)]
         public uint DisabledMonitoredItemCount
         {
-            get { return m_disabledMonitoredItemCount; }
-            set { m_disabledMonitoredItemCount = value; }
+            get
+            {
+                return m_disabledMonitoredItemCount;
+            }
+            set
+            {
+                m_disabledMonitoredItemCount = value;
+            }
         }
         #endregion
 
@@ -73203,13 +79494,16 @@ namespace Opc.Ua
         public virtual ExpandedNodeId TypeId => DataTypeIds.SamplingIntervalDiagnosticsDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SamplingIntervalDiagnosticsDataType_Encoding_DefaultBinary;
+        public virtual ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.SamplingIntervalDiagnosticsDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SamplingIntervalDiagnosticsDataType_Encoding_DefaultXml;
+        public virtual ExpandedNodeId XmlEncodingId =>
+            ObjectIds.SamplingIntervalDiagnosticsDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SamplingIntervalDiagnosticsDataType_Encoding_DefaultJson;
+        public virtual ExpandedNodeId JsonEncodingId =>
+            ObjectIds.SamplingIntervalDiagnosticsDataType_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -73296,23 +79590,37 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfSamplingIntervalDiagnosticsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SamplingIntervalDiagnosticsDataType")]
-    public partial class SamplingIntervalDiagnosticsDataTypeCollection : List<SamplingIntervalDiagnosticsDataType>, ICloneable
+    [CollectionDataContract(
+        Name = "ListOfSamplingIntervalDiagnosticsDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "SamplingIntervalDiagnosticsDataType"
+    )]
+    public partial class SamplingIntervalDiagnosticsDataTypeCollection
+        : List<SamplingIntervalDiagnosticsDataType>,
+            ICloneable
     {
         #region Constructors
         /// <remarks />
-        public SamplingIntervalDiagnosticsDataTypeCollection() { }
+        public SamplingIntervalDiagnosticsDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public SamplingIntervalDiagnosticsDataTypeCollection(int capacity) : base(capacity) { }
+        public SamplingIntervalDiagnosticsDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public SamplingIntervalDiagnosticsDataTypeCollection(IEnumerable<SamplingIntervalDiagnosticsDataType> collection) : base(collection) { }
+        public SamplingIntervalDiagnosticsDataTypeCollection(
+            IEnumerable<SamplingIntervalDiagnosticsDataType> collection
+        )
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator SamplingIntervalDiagnosticsDataTypeCollection(SamplingIntervalDiagnosticsDataType[] values)
+        public static implicit operator SamplingIntervalDiagnosticsDataTypeCollection(
+            SamplingIntervalDiagnosticsDataType[] values
+        )
         {
             if (values != null)
             {
@@ -73323,7 +79631,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator SamplingIntervalDiagnosticsDataType[](SamplingIntervalDiagnosticsDataTypeCollection values)
+        public static explicit operator SamplingIntervalDiagnosticsDataType[](
+            SamplingIntervalDiagnosticsDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -73345,7 +79655,9 @@ namespace Opc.Ua
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            SamplingIntervalDiagnosticsDataTypeCollection clone = new SamplingIntervalDiagnosticsDataTypeCollection(this.Count);
+            SamplingIntervalDiagnosticsDataTypeCollection clone = new SamplingIntervalDiagnosticsDataTypeCollection(
+                this.Count
+            );
 
             for (int ii = 0; ii < this.Count; ii++)
             {
@@ -73402,96 +79714,168 @@ namespace Opc.Ua
         [DataMember(Name = "ServerViewCount", IsRequired = false, Order = 1)]
         public uint ServerViewCount
         {
-            get { return m_serverViewCount; }
-            set { m_serverViewCount = value; }
+            get
+            {
+                return m_serverViewCount;
+            }
+            set
+            {
+                m_serverViewCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "CurrentSessionCount", IsRequired = false, Order = 2)]
         public uint CurrentSessionCount
         {
-            get { return m_currentSessionCount; }
-            set { m_currentSessionCount = value; }
+            get
+            {
+                return m_currentSessionCount;
+            }
+            set
+            {
+                m_currentSessionCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "CumulatedSessionCount", IsRequired = false, Order = 3)]
         public uint CumulatedSessionCount
         {
-            get { return m_cumulatedSessionCount; }
-            set { m_cumulatedSessionCount = value; }
+            get
+            {
+                return m_cumulatedSessionCount;
+            }
+            set
+            {
+                m_cumulatedSessionCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SecurityRejectedSessionCount", IsRequired = false, Order = 4)]
         public uint SecurityRejectedSessionCount
         {
-            get { return m_securityRejectedSessionCount; }
-            set { m_securityRejectedSessionCount = value; }
+            get
+            {
+                return m_securityRejectedSessionCount;
+            }
+            set
+            {
+                m_securityRejectedSessionCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RejectedSessionCount", IsRequired = false, Order = 5)]
         public uint RejectedSessionCount
         {
-            get { return m_rejectedSessionCount; }
-            set { m_rejectedSessionCount = value; }
+            get
+            {
+                return m_rejectedSessionCount;
+            }
+            set
+            {
+                m_rejectedSessionCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SessionTimeoutCount", IsRequired = false, Order = 6)]
         public uint SessionTimeoutCount
         {
-            get { return m_sessionTimeoutCount; }
-            set { m_sessionTimeoutCount = value; }
+            get
+            {
+                return m_sessionTimeoutCount;
+            }
+            set
+            {
+                m_sessionTimeoutCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SessionAbortCount", IsRequired = false, Order = 7)]
         public uint SessionAbortCount
         {
-            get { return m_sessionAbortCount; }
-            set { m_sessionAbortCount = value; }
+            get
+            {
+                return m_sessionAbortCount;
+            }
+            set
+            {
+                m_sessionAbortCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "CurrentSubscriptionCount", IsRequired = false, Order = 8)]
         public uint CurrentSubscriptionCount
         {
-            get { return m_currentSubscriptionCount; }
-            set { m_currentSubscriptionCount = value; }
+            get
+            {
+                return m_currentSubscriptionCount;
+            }
+            set
+            {
+                m_currentSubscriptionCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "CumulatedSubscriptionCount", IsRequired = false, Order = 9)]
         public uint CumulatedSubscriptionCount
         {
-            get { return m_cumulatedSubscriptionCount; }
-            set { m_cumulatedSubscriptionCount = value; }
+            get
+            {
+                return m_cumulatedSubscriptionCount;
+            }
+            set
+            {
+                m_cumulatedSubscriptionCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PublishingIntervalCount", IsRequired = false, Order = 10)]
         public uint PublishingIntervalCount
         {
-            get { return m_publishingIntervalCount; }
-            set { m_publishingIntervalCount = value; }
+            get
+            {
+                return m_publishingIntervalCount;
+            }
+            set
+            {
+                m_publishingIntervalCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SecurityRejectedRequestsCount", IsRequired = false, Order = 11)]
         public uint SecurityRejectedRequestsCount
         {
-            get { return m_securityRejectedRequestsCount; }
-            set { m_securityRejectedRequestsCount = value; }
+            get
+            {
+                return m_securityRejectedRequestsCount;
+            }
+            set
+            {
+                m_securityRejectedRequestsCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RejectedRequestsCount", IsRequired = false, Order = 12)]
         public uint RejectedRequestsCount
         {
-            get { return m_rejectedRequestsCount; }
-            set { m_rejectedRequestsCount = value; }
+            get
+            {
+                return m_rejectedRequestsCount;
+            }
+            set
+            {
+                m_rejectedRequestsCount = value;
+            }
         }
         #endregion
 
@@ -73500,7 +79884,8 @@ namespace Opc.Ua
         public virtual ExpandedNodeId TypeId => DataTypeIds.ServerDiagnosticsSummaryDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ServerDiagnosticsSummaryDataType_Encoding_DefaultBinary;
+        public virtual ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.ServerDiagnosticsSummaryDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ServerDiagnosticsSummaryDataType_Encoding_DefaultXml;
@@ -73676,24 +80061,42 @@ namespace Opc.Ua
         [DataMember(Name = "StartTime", IsRequired = false, Order = 1)]
         public DateTime StartTime
         {
-            get { return m_startTime; }
-            set { m_startTime = value; }
+            get
+            {
+                return m_startTime;
+            }
+            set
+            {
+                m_startTime = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "CurrentTime", IsRequired = false, Order = 2)]
         public DateTime CurrentTime
         {
-            get { return m_currentTime; }
-            set { m_currentTime = value; }
+            get
+            {
+                return m_currentTime;
+            }
+            set
+            {
+                m_currentTime = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "State", IsRequired = false, Order = 3)]
         public ServerState State
         {
-            get { return m_state; }
-            set { m_state = value; }
+            get
+            {
+                return m_state;
+            }
+            set
+            {
+                m_state = value;
+            }
         }
 
         /// <remarks />
@@ -73704,7 +80107,6 @@ namespace Opc.Ua
             {
                 return m_buildInfo;
             }
-
             set
             {
                 m_buildInfo = value;
@@ -73720,16 +80122,28 @@ namespace Opc.Ua
         [DataMember(Name = "SecondsTillShutdown", IsRequired = false, Order = 5)]
         public uint SecondsTillShutdown
         {
-            get { return m_secondsTillShutdown; }
-            set { m_secondsTillShutdown = value; }
+            get
+            {
+                return m_secondsTillShutdown;
+            }
+            set
+            {
+                m_secondsTillShutdown = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ShutdownReason", IsRequired = false, Order = 6)]
         public LocalizedText ShutdownReason
         {
-            get { return m_shutdownReason; }
-            set { m_shutdownReason = value; }
+            get
+            {
+                return m_shutdownReason;
+            }
+            set
+            {
+                m_shutdownReason = value;
+            }
         }
         #endregion
 
@@ -73915,16 +80329,28 @@ namespace Opc.Ua
         [DataMember(Name = "SessionId", IsRequired = false, Order = 1)]
         public NodeId SessionId
         {
-            get { return m_sessionId; }
-            set { m_sessionId = value; }
+            get
+            {
+                return m_sessionId;
+            }
+            set
+            {
+                m_sessionId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SessionName", IsRequired = false, Order = 2)]
         public string SessionName
         {
-            get { return m_sessionName; }
-            set { m_sessionName = value; }
+            get
+            {
+                return m_sessionName;
+            }
+            set
+            {
+                m_sessionName = value;
+            }
         }
 
         /// <remarks />
@@ -73935,7 +80361,6 @@ namespace Opc.Ua
             {
                 return m_clientDescription;
             }
-
             set
             {
                 m_clientDescription = value;
@@ -73951,16 +80376,28 @@ namespace Opc.Ua
         [DataMember(Name = "ServerUri", IsRequired = false, Order = 4)]
         public string ServerUri
         {
-            get { return m_serverUri; }
-            set { m_serverUri = value; }
+            get
+            {
+                return m_serverUri;
+            }
+            set
+            {
+                m_serverUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "EndpointUrl", IsRequired = false, Order = 5)]
         public string EndpointUrl
         {
-            get { return m_endpointUrl; }
-            set { m_endpointUrl = value; }
+            get
+            {
+                return m_endpointUrl;
+            }
+            set
+            {
+                m_endpointUrl = value;
+            }
         }
 
         /// <remarks />
@@ -73971,7 +80408,6 @@ namespace Opc.Ua
             {
                 return m_localeIds;
             }
-
             set
             {
                 m_localeIds = value;
@@ -73987,56 +80423,98 @@ namespace Opc.Ua
         [DataMember(Name = "ActualSessionTimeout", IsRequired = false, Order = 7)]
         public double ActualSessionTimeout
         {
-            get { return m_actualSessionTimeout; }
-            set { m_actualSessionTimeout = value; }
+            get
+            {
+                return m_actualSessionTimeout;
+            }
+            set
+            {
+                m_actualSessionTimeout = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MaxResponseMessageSize", IsRequired = false, Order = 8)]
         public uint MaxResponseMessageSize
         {
-            get { return m_maxResponseMessageSize; }
-            set { m_maxResponseMessageSize = value; }
+            get
+            {
+                return m_maxResponseMessageSize;
+            }
+            set
+            {
+                m_maxResponseMessageSize = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ClientConnectionTime", IsRequired = false, Order = 9)]
         public DateTime ClientConnectionTime
         {
-            get { return m_clientConnectionTime; }
-            set { m_clientConnectionTime = value; }
+            get
+            {
+                return m_clientConnectionTime;
+            }
+            set
+            {
+                m_clientConnectionTime = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ClientLastContactTime", IsRequired = false, Order = 10)]
         public DateTime ClientLastContactTime
         {
-            get { return m_clientLastContactTime; }
-            set { m_clientLastContactTime = value; }
+            get
+            {
+                return m_clientLastContactTime;
+            }
+            set
+            {
+                m_clientLastContactTime = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "CurrentSubscriptionsCount", IsRequired = false, Order = 11)]
         public uint CurrentSubscriptionsCount
         {
-            get { return m_currentSubscriptionsCount; }
-            set { m_currentSubscriptionsCount = value; }
+            get
+            {
+                return m_currentSubscriptionsCount;
+            }
+            set
+            {
+                m_currentSubscriptionsCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "CurrentMonitoredItemsCount", IsRequired = false, Order = 12)]
         public uint CurrentMonitoredItemsCount
         {
-            get { return m_currentMonitoredItemsCount; }
-            set { m_currentMonitoredItemsCount = value; }
+            get
+            {
+                return m_currentMonitoredItemsCount;
+            }
+            set
+            {
+                m_currentMonitoredItemsCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "CurrentPublishRequestsInQueue", IsRequired = false, Order = 13)]
         public uint CurrentPublishRequestsInQueue
         {
-            get { return m_currentPublishRequestsInQueue; }
-            set { m_currentPublishRequestsInQueue = value; }
+            get
+            {
+                return m_currentPublishRequestsInQueue;
+            }
+            set
+            {
+                m_currentPublishRequestsInQueue = value;
+            }
         }
 
         /// <remarks />
@@ -74047,7 +80525,6 @@ namespace Opc.Ua
             {
                 return m_totalRequestCount;
             }
-
             set
             {
                 m_totalRequestCount = value;
@@ -74063,8 +80540,14 @@ namespace Opc.Ua
         [DataMember(Name = "UnauthorizedRequestCount", IsRequired = false, Order = 15)]
         public uint UnauthorizedRequestCount
         {
-            get { return m_unauthorizedRequestCount; }
-            set { m_unauthorizedRequestCount = value; }
+            get
+            {
+                return m_unauthorizedRequestCount;
+            }
+            set
+            {
+                m_unauthorizedRequestCount = value;
+            }
         }
 
         /// <remarks />
@@ -74075,7 +80558,6 @@ namespace Opc.Ua
             {
                 return m_readCount;
             }
-
             set
             {
                 m_readCount = value;
@@ -74095,7 +80577,6 @@ namespace Opc.Ua
             {
                 return m_historyReadCount;
             }
-
             set
             {
                 m_historyReadCount = value;
@@ -74115,7 +80596,6 @@ namespace Opc.Ua
             {
                 return m_writeCount;
             }
-
             set
             {
                 m_writeCount = value;
@@ -74135,7 +80615,6 @@ namespace Opc.Ua
             {
                 return m_historyUpdateCount;
             }
-
             set
             {
                 m_historyUpdateCount = value;
@@ -74155,7 +80634,6 @@ namespace Opc.Ua
             {
                 return m_callCount;
             }
-
             set
             {
                 m_callCount = value;
@@ -74175,7 +80653,6 @@ namespace Opc.Ua
             {
                 return m_createMonitoredItemsCount;
             }
-
             set
             {
                 m_createMonitoredItemsCount = value;
@@ -74195,7 +80672,6 @@ namespace Opc.Ua
             {
                 return m_modifyMonitoredItemsCount;
             }
-
             set
             {
                 m_modifyMonitoredItemsCount = value;
@@ -74215,7 +80691,6 @@ namespace Opc.Ua
             {
                 return m_setMonitoringModeCount;
             }
-
             set
             {
                 m_setMonitoringModeCount = value;
@@ -74235,7 +80710,6 @@ namespace Opc.Ua
             {
                 return m_setTriggeringCount;
             }
-
             set
             {
                 m_setTriggeringCount = value;
@@ -74255,7 +80729,6 @@ namespace Opc.Ua
             {
                 return m_deleteMonitoredItemsCount;
             }
-
             set
             {
                 m_deleteMonitoredItemsCount = value;
@@ -74275,7 +80748,6 @@ namespace Opc.Ua
             {
                 return m_createSubscriptionCount;
             }
-
             set
             {
                 m_createSubscriptionCount = value;
@@ -74295,7 +80767,6 @@ namespace Opc.Ua
             {
                 return m_modifySubscriptionCount;
             }
-
             set
             {
                 m_modifySubscriptionCount = value;
@@ -74315,7 +80786,6 @@ namespace Opc.Ua
             {
                 return m_setPublishingModeCount;
             }
-
             set
             {
                 m_setPublishingModeCount = value;
@@ -74335,7 +80805,6 @@ namespace Opc.Ua
             {
                 return m_publishCount;
             }
-
             set
             {
                 m_publishCount = value;
@@ -74355,7 +80824,6 @@ namespace Opc.Ua
             {
                 return m_republishCount;
             }
-
             set
             {
                 m_republishCount = value;
@@ -74375,7 +80843,6 @@ namespace Opc.Ua
             {
                 return m_transferSubscriptionsCount;
             }
-
             set
             {
                 m_transferSubscriptionsCount = value;
@@ -74395,7 +80862,6 @@ namespace Opc.Ua
             {
                 return m_deleteSubscriptionsCount;
             }
-
             set
             {
                 m_deleteSubscriptionsCount = value;
@@ -74415,7 +80881,6 @@ namespace Opc.Ua
             {
                 return m_addNodesCount;
             }
-
             set
             {
                 m_addNodesCount = value;
@@ -74435,7 +80900,6 @@ namespace Opc.Ua
             {
                 return m_addReferencesCount;
             }
-
             set
             {
                 m_addReferencesCount = value;
@@ -74455,7 +80919,6 @@ namespace Opc.Ua
             {
                 return m_deleteNodesCount;
             }
-
             set
             {
                 m_deleteNodesCount = value;
@@ -74475,7 +80938,6 @@ namespace Opc.Ua
             {
                 return m_deleteReferencesCount;
             }
-
             set
             {
                 m_deleteReferencesCount = value;
@@ -74495,7 +80957,6 @@ namespace Opc.Ua
             {
                 return m_browseCount;
             }
-
             set
             {
                 m_browseCount = value;
@@ -74515,7 +80976,6 @@ namespace Opc.Ua
             {
                 return m_browseNextCount;
             }
-
             set
             {
                 m_browseNextCount = value;
@@ -74535,7 +80995,6 @@ namespace Opc.Ua
             {
                 return m_translateBrowsePathsToNodeIdsCount;
             }
-
             set
             {
                 m_translateBrowsePathsToNodeIdsCount = value;
@@ -74555,7 +81014,6 @@ namespace Opc.Ua
             {
                 return m_queryFirstCount;
             }
-
             set
             {
                 m_queryFirstCount = value;
@@ -74575,7 +81033,6 @@ namespace Opc.Ua
             {
                 return m_queryNextCount;
             }
-
             set
             {
                 m_queryNextCount = value;
@@ -74595,7 +81052,6 @@ namespace Opc.Ua
             {
                 return m_registerNodesCount;
             }
-
             set
             {
                 m_registerNodesCount = value;
@@ -74615,7 +81071,6 @@ namespace Opc.Ua
             {
                 return m_unregisterNodesCount;
             }
-
             set
             {
                 m_unregisterNodesCount = value;
@@ -74666,25 +81121,49 @@ namespace Opc.Ua
             encoder.WriteEncodeable("WriteCount", WriteCount, typeof(ServiceCounterDataType));
             encoder.WriteEncodeable("HistoryUpdateCount", HistoryUpdateCount, typeof(ServiceCounterDataType));
             encoder.WriteEncodeable("CallCount", CallCount, typeof(ServiceCounterDataType));
-            encoder.WriteEncodeable("CreateMonitoredItemsCount", CreateMonitoredItemsCount, typeof(ServiceCounterDataType));
-            encoder.WriteEncodeable("ModifyMonitoredItemsCount", ModifyMonitoredItemsCount, typeof(ServiceCounterDataType));
+            encoder.WriteEncodeable(
+                "CreateMonitoredItemsCount",
+                CreateMonitoredItemsCount,
+                typeof(ServiceCounterDataType)
+            );
+            encoder.WriteEncodeable(
+                "ModifyMonitoredItemsCount",
+                ModifyMonitoredItemsCount,
+                typeof(ServiceCounterDataType)
+            );
             encoder.WriteEncodeable("SetMonitoringModeCount", SetMonitoringModeCount, typeof(ServiceCounterDataType));
             encoder.WriteEncodeable("SetTriggeringCount", SetTriggeringCount, typeof(ServiceCounterDataType));
-            encoder.WriteEncodeable("DeleteMonitoredItemsCount", DeleteMonitoredItemsCount, typeof(ServiceCounterDataType));
+            encoder.WriteEncodeable(
+                "DeleteMonitoredItemsCount",
+                DeleteMonitoredItemsCount,
+                typeof(ServiceCounterDataType)
+            );
             encoder.WriteEncodeable("CreateSubscriptionCount", CreateSubscriptionCount, typeof(ServiceCounterDataType));
             encoder.WriteEncodeable("ModifySubscriptionCount", ModifySubscriptionCount, typeof(ServiceCounterDataType));
             encoder.WriteEncodeable("SetPublishingModeCount", SetPublishingModeCount, typeof(ServiceCounterDataType));
             encoder.WriteEncodeable("PublishCount", PublishCount, typeof(ServiceCounterDataType));
             encoder.WriteEncodeable("RepublishCount", RepublishCount, typeof(ServiceCounterDataType));
-            encoder.WriteEncodeable("TransferSubscriptionsCount", TransferSubscriptionsCount, typeof(ServiceCounterDataType));
-            encoder.WriteEncodeable("DeleteSubscriptionsCount", DeleteSubscriptionsCount, typeof(ServiceCounterDataType));
+            encoder.WriteEncodeable(
+                "TransferSubscriptionsCount",
+                TransferSubscriptionsCount,
+                typeof(ServiceCounterDataType)
+            );
+            encoder.WriteEncodeable(
+                "DeleteSubscriptionsCount",
+                DeleteSubscriptionsCount,
+                typeof(ServiceCounterDataType)
+            );
             encoder.WriteEncodeable("AddNodesCount", AddNodesCount, typeof(ServiceCounterDataType));
             encoder.WriteEncodeable("AddReferencesCount", AddReferencesCount, typeof(ServiceCounterDataType));
             encoder.WriteEncodeable("DeleteNodesCount", DeleteNodesCount, typeof(ServiceCounterDataType));
             encoder.WriteEncodeable("DeleteReferencesCount", DeleteReferencesCount, typeof(ServiceCounterDataType));
             encoder.WriteEncodeable("BrowseCount", BrowseCount, typeof(ServiceCounterDataType));
             encoder.WriteEncodeable("BrowseNextCount", BrowseNextCount, typeof(ServiceCounterDataType));
-            encoder.WriteEncodeable("TranslateBrowsePathsToNodeIdsCount", TranslateBrowsePathsToNodeIdsCount, typeof(ServiceCounterDataType));
+            encoder.WriteEncodeable(
+                "TranslateBrowsePathsToNodeIdsCount",
+                TranslateBrowsePathsToNodeIdsCount,
+                typeof(ServiceCounterDataType)
+            );
             encoder.WriteEncodeable("QueryFirstCount", QueryFirstCount, typeof(ServiceCounterDataType));
             encoder.WriteEncodeable("QueryNextCount", QueryNextCount, typeof(ServiceCounterDataType));
             encoder.WriteEncodeable("RegisterNodesCount", RegisterNodesCount, typeof(ServiceCounterDataType));
@@ -74700,7 +81179,8 @@ namespace Opc.Ua
 
             SessionId = decoder.ReadNodeId("SessionId");
             SessionName = decoder.ReadString("SessionName");
-            ClientDescription = (ApplicationDescription)decoder.ReadEncodeable("ClientDescription", typeof(ApplicationDescription));
+            ClientDescription = (ApplicationDescription)
+                decoder.ReadEncodeable("ClientDescription", typeof(ApplicationDescription));
             ServerUri = decoder.ReadString("ServerUri");
             EndpointUrl = decoder.ReadString("EndpointUrl");
             LocaleIds = decoder.ReadStringArray("LocaleIds");
@@ -74711,36 +81191,61 @@ namespace Opc.Ua
             CurrentSubscriptionsCount = decoder.ReadUInt32("CurrentSubscriptionsCount");
             CurrentMonitoredItemsCount = decoder.ReadUInt32("CurrentMonitoredItemsCount");
             CurrentPublishRequestsInQueue = decoder.ReadUInt32("CurrentPublishRequestsInQueue");
-            TotalRequestCount = (ServiceCounterDataType)decoder.ReadEncodeable("TotalRequestCount", typeof(ServiceCounterDataType));
+            TotalRequestCount = (ServiceCounterDataType)
+                decoder.ReadEncodeable("TotalRequestCount", typeof(ServiceCounterDataType));
             UnauthorizedRequestCount = decoder.ReadUInt32("UnauthorizedRequestCount");
             ReadCount = (ServiceCounterDataType)decoder.ReadEncodeable("ReadCount", typeof(ServiceCounterDataType));
-            HistoryReadCount = (ServiceCounterDataType)decoder.ReadEncodeable("HistoryReadCount", typeof(ServiceCounterDataType));
+            HistoryReadCount = (ServiceCounterDataType)
+                decoder.ReadEncodeable("HistoryReadCount", typeof(ServiceCounterDataType));
             WriteCount = (ServiceCounterDataType)decoder.ReadEncodeable("WriteCount", typeof(ServiceCounterDataType));
-            HistoryUpdateCount = (ServiceCounterDataType)decoder.ReadEncodeable("HistoryUpdateCount", typeof(ServiceCounterDataType));
+            HistoryUpdateCount = (ServiceCounterDataType)
+                decoder.ReadEncodeable("HistoryUpdateCount", typeof(ServiceCounterDataType));
             CallCount = (ServiceCounterDataType)decoder.ReadEncodeable("CallCount", typeof(ServiceCounterDataType));
-            CreateMonitoredItemsCount = (ServiceCounterDataType)decoder.ReadEncodeable("CreateMonitoredItemsCount", typeof(ServiceCounterDataType));
-            ModifyMonitoredItemsCount = (ServiceCounterDataType)decoder.ReadEncodeable("ModifyMonitoredItemsCount", typeof(ServiceCounterDataType));
-            SetMonitoringModeCount = (ServiceCounterDataType)decoder.ReadEncodeable("SetMonitoringModeCount", typeof(ServiceCounterDataType));
-            SetTriggeringCount = (ServiceCounterDataType)decoder.ReadEncodeable("SetTriggeringCount", typeof(ServiceCounterDataType));
-            DeleteMonitoredItemsCount = (ServiceCounterDataType)decoder.ReadEncodeable("DeleteMonitoredItemsCount", typeof(ServiceCounterDataType));
-            CreateSubscriptionCount = (ServiceCounterDataType)decoder.ReadEncodeable("CreateSubscriptionCount", typeof(ServiceCounterDataType));
-            ModifySubscriptionCount = (ServiceCounterDataType)decoder.ReadEncodeable("ModifySubscriptionCount", typeof(ServiceCounterDataType));
-            SetPublishingModeCount = (ServiceCounterDataType)decoder.ReadEncodeable("SetPublishingModeCount", typeof(ServiceCounterDataType));
-            PublishCount = (ServiceCounterDataType)decoder.ReadEncodeable("PublishCount", typeof(ServiceCounterDataType));
-            RepublishCount = (ServiceCounterDataType)decoder.ReadEncodeable("RepublishCount", typeof(ServiceCounterDataType));
-            TransferSubscriptionsCount = (ServiceCounterDataType)decoder.ReadEncodeable("TransferSubscriptionsCount", typeof(ServiceCounterDataType));
-            DeleteSubscriptionsCount = (ServiceCounterDataType)decoder.ReadEncodeable("DeleteSubscriptionsCount", typeof(ServiceCounterDataType));
-            AddNodesCount = (ServiceCounterDataType)decoder.ReadEncodeable("AddNodesCount", typeof(ServiceCounterDataType));
-            AddReferencesCount = (ServiceCounterDataType)decoder.ReadEncodeable("AddReferencesCount", typeof(ServiceCounterDataType));
-            DeleteNodesCount = (ServiceCounterDataType)decoder.ReadEncodeable("DeleteNodesCount", typeof(ServiceCounterDataType));
-            DeleteReferencesCount = (ServiceCounterDataType)decoder.ReadEncodeable("DeleteReferencesCount", typeof(ServiceCounterDataType));
+            CreateMonitoredItemsCount = (ServiceCounterDataType)
+                decoder.ReadEncodeable("CreateMonitoredItemsCount", typeof(ServiceCounterDataType));
+            ModifyMonitoredItemsCount = (ServiceCounterDataType)
+                decoder.ReadEncodeable("ModifyMonitoredItemsCount", typeof(ServiceCounterDataType));
+            SetMonitoringModeCount = (ServiceCounterDataType)
+                decoder.ReadEncodeable("SetMonitoringModeCount", typeof(ServiceCounterDataType));
+            SetTriggeringCount = (ServiceCounterDataType)
+                decoder.ReadEncodeable("SetTriggeringCount", typeof(ServiceCounterDataType));
+            DeleteMonitoredItemsCount = (ServiceCounterDataType)
+                decoder.ReadEncodeable("DeleteMonitoredItemsCount", typeof(ServiceCounterDataType));
+            CreateSubscriptionCount = (ServiceCounterDataType)
+                decoder.ReadEncodeable("CreateSubscriptionCount", typeof(ServiceCounterDataType));
+            ModifySubscriptionCount = (ServiceCounterDataType)
+                decoder.ReadEncodeable("ModifySubscriptionCount", typeof(ServiceCounterDataType));
+            SetPublishingModeCount = (ServiceCounterDataType)
+                decoder.ReadEncodeable("SetPublishingModeCount", typeof(ServiceCounterDataType));
+            PublishCount = (ServiceCounterDataType)
+                decoder.ReadEncodeable("PublishCount", typeof(ServiceCounterDataType));
+            RepublishCount = (ServiceCounterDataType)
+                decoder.ReadEncodeable("RepublishCount", typeof(ServiceCounterDataType));
+            TransferSubscriptionsCount = (ServiceCounterDataType)
+                decoder.ReadEncodeable("TransferSubscriptionsCount", typeof(ServiceCounterDataType));
+            DeleteSubscriptionsCount = (ServiceCounterDataType)
+                decoder.ReadEncodeable("DeleteSubscriptionsCount", typeof(ServiceCounterDataType));
+            AddNodesCount = (ServiceCounterDataType)
+                decoder.ReadEncodeable("AddNodesCount", typeof(ServiceCounterDataType));
+            AddReferencesCount = (ServiceCounterDataType)
+                decoder.ReadEncodeable("AddReferencesCount", typeof(ServiceCounterDataType));
+            DeleteNodesCount = (ServiceCounterDataType)
+                decoder.ReadEncodeable("DeleteNodesCount", typeof(ServiceCounterDataType));
+            DeleteReferencesCount = (ServiceCounterDataType)
+                decoder.ReadEncodeable("DeleteReferencesCount", typeof(ServiceCounterDataType));
             BrowseCount = (ServiceCounterDataType)decoder.ReadEncodeable("BrowseCount", typeof(ServiceCounterDataType));
-            BrowseNextCount = (ServiceCounterDataType)decoder.ReadEncodeable("BrowseNextCount", typeof(ServiceCounterDataType));
-            TranslateBrowsePathsToNodeIdsCount = (ServiceCounterDataType)decoder.ReadEncodeable("TranslateBrowsePathsToNodeIdsCount", typeof(ServiceCounterDataType));
-            QueryFirstCount = (ServiceCounterDataType)decoder.ReadEncodeable("QueryFirstCount", typeof(ServiceCounterDataType));
-            QueryNextCount = (ServiceCounterDataType)decoder.ReadEncodeable("QueryNextCount", typeof(ServiceCounterDataType));
-            RegisterNodesCount = (ServiceCounterDataType)decoder.ReadEncodeable("RegisterNodesCount", typeof(ServiceCounterDataType));
-            UnregisterNodesCount = (ServiceCounterDataType)decoder.ReadEncodeable("UnregisterNodesCount", typeof(ServiceCounterDataType));
+            BrowseNextCount = (ServiceCounterDataType)
+                decoder.ReadEncodeable("BrowseNextCount", typeof(ServiceCounterDataType));
+            TranslateBrowsePathsToNodeIdsCount = (ServiceCounterDataType)
+                decoder.ReadEncodeable("TranslateBrowsePathsToNodeIdsCount", typeof(ServiceCounterDataType));
+            QueryFirstCount = (ServiceCounterDataType)
+                decoder.ReadEncodeable("QueryFirstCount", typeof(ServiceCounterDataType));
+            QueryNextCount = (ServiceCounterDataType)
+                decoder.ReadEncodeable("QueryNextCount", typeof(ServiceCounterDataType));
+            RegisterNodesCount = (ServiceCounterDataType)
+                decoder.ReadEncodeable("RegisterNodesCount", typeof(ServiceCounterDataType));
+            UnregisterNodesCount = (ServiceCounterDataType)
+                decoder.ReadEncodeable("UnregisterNodesCount", typeof(ServiceCounterDataType));
 
             decoder.PopNamespace();
         }
@@ -74899,7 +81404,8 @@ namespace Opc.Ua
             clone.m_deleteReferencesCount = (ServiceCounterDataType)Utils.Clone(this.m_deleteReferencesCount);
             clone.m_browseCount = (ServiceCounterDataType)Utils.Clone(this.m_browseCount);
             clone.m_browseNextCount = (ServiceCounterDataType)Utils.Clone(this.m_browseNextCount);
-            clone.m_translateBrowsePathsToNodeIdsCount = (ServiceCounterDataType)Utils.Clone(this.m_translateBrowsePathsToNodeIdsCount);
+            clone.m_translateBrowsePathsToNodeIdsCount = (ServiceCounterDataType)
+                Utils.Clone(this.m_translateBrowsePathsToNodeIdsCount);
             clone.m_queryFirstCount = (ServiceCounterDataType)Utils.Clone(this.m_queryFirstCount);
             clone.m_queryNextCount = (ServiceCounterDataType)Utils.Clone(this.m_queryNextCount);
             clone.m_registerNodesCount = (ServiceCounterDataType)Utils.Clone(this.m_registerNodesCount);
@@ -74960,18 +81466,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfSessionDiagnosticsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SessionDiagnosticsDataType")]
+    [CollectionDataContract(
+        Name = "ListOfSessionDiagnosticsDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "SessionDiagnosticsDataType"
+    )]
     public partial class SessionDiagnosticsDataTypeCollection : List<SessionDiagnosticsDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public SessionDiagnosticsDataTypeCollection() { }
+        public SessionDiagnosticsDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public SessionDiagnosticsDataTypeCollection(int capacity) : base(capacity) { }
+        public SessionDiagnosticsDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public SessionDiagnosticsDataTypeCollection(IEnumerable<SessionDiagnosticsDataType> collection) : base(collection) { }
+        public SessionDiagnosticsDataTypeCollection(IEnumerable<SessionDiagnosticsDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -75063,16 +81577,28 @@ namespace Opc.Ua
         [DataMember(Name = "SessionId", IsRequired = false, Order = 1)]
         public NodeId SessionId
         {
-            get { return m_sessionId; }
-            set { m_sessionId = value; }
+            get
+            {
+                return m_sessionId;
+            }
+            set
+            {
+                m_sessionId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ClientUserIdOfSession", IsRequired = false, Order = 2)]
         public string ClientUserIdOfSession
         {
-            get { return m_clientUserIdOfSession; }
-            set { m_clientUserIdOfSession = value; }
+            get
+            {
+                return m_clientUserIdOfSession;
+            }
+            set
+            {
+                m_clientUserIdOfSession = value;
+            }
         }
 
         /// <remarks />
@@ -75083,7 +81609,6 @@ namespace Opc.Ua
             {
                 return m_clientUserIdHistory;
             }
-
             set
             {
                 m_clientUserIdHistory = value;
@@ -75099,48 +81624,84 @@ namespace Opc.Ua
         [DataMember(Name = "AuthenticationMechanism", IsRequired = false, Order = 4)]
         public string AuthenticationMechanism
         {
-            get { return m_authenticationMechanism; }
-            set { m_authenticationMechanism = value; }
+            get
+            {
+                return m_authenticationMechanism;
+            }
+            set
+            {
+                m_authenticationMechanism = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Encoding", IsRequired = false, Order = 5)]
         public string Encoding
         {
-            get { return m_encoding; }
-            set { m_encoding = value; }
+            get
+            {
+                return m_encoding;
+            }
+            set
+            {
+                m_encoding = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TransportProtocol", IsRequired = false, Order = 6)]
         public string TransportProtocol
         {
-            get { return m_transportProtocol; }
-            set { m_transportProtocol = value; }
+            get
+            {
+                return m_transportProtocol;
+            }
+            set
+            {
+                m_transportProtocol = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SecurityMode", IsRequired = false, Order = 7)]
         public MessageSecurityMode SecurityMode
         {
-            get { return m_securityMode; }
-            set { m_securityMode = value; }
+            get
+            {
+                return m_securityMode;
+            }
+            set
+            {
+                m_securityMode = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SecurityPolicyUri", IsRequired = false, Order = 8)]
         public string SecurityPolicyUri
         {
-            get { return m_securityPolicyUri; }
-            set { m_securityPolicyUri = value; }
+            get
+            {
+                return m_securityPolicyUri;
+            }
+            set
+            {
+                m_securityPolicyUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ClientCertificate", IsRequired = false, Order = 9)]
         public byte[] ClientCertificate
         {
-            get { return m_clientCertificate; }
-            set { m_clientCertificate = value; }
+            get
+            {
+                return m_clientCertificate;
+            }
+            set
+            {
+                m_clientCertificate = value;
+            }
         }
         #endregion
 
@@ -75149,13 +81710,15 @@ namespace Opc.Ua
         public virtual ExpandedNodeId TypeId => DataTypeIds.SessionSecurityDiagnosticsDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SessionSecurityDiagnosticsDataType_Encoding_DefaultBinary;
+        public virtual ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.SessionSecurityDiagnosticsDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SessionSecurityDiagnosticsDataType_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SessionSecurityDiagnosticsDataType_Encoding_DefaultJson;
+        public virtual ExpandedNodeId JsonEncodingId =>
+            ObjectIds.SessionSecurityDiagnosticsDataType_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -75272,23 +81835,35 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfSessionSecurityDiagnosticsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SessionSecurityDiagnosticsDataType")]
-    public partial class SessionSecurityDiagnosticsDataTypeCollection : List<SessionSecurityDiagnosticsDataType>, ICloneable
+    [CollectionDataContract(
+        Name = "ListOfSessionSecurityDiagnosticsDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "SessionSecurityDiagnosticsDataType"
+    )]
+    public partial class SessionSecurityDiagnosticsDataTypeCollection
+        : List<SessionSecurityDiagnosticsDataType>,
+            ICloneable
     {
         #region Constructors
         /// <remarks />
-        public SessionSecurityDiagnosticsDataTypeCollection() { }
+        public SessionSecurityDiagnosticsDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public SessionSecurityDiagnosticsDataTypeCollection(int capacity) : base(capacity) { }
+        public SessionSecurityDiagnosticsDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public SessionSecurityDiagnosticsDataTypeCollection(IEnumerable<SessionSecurityDiagnosticsDataType> collection) : base(collection) { }
+        public SessionSecurityDiagnosticsDataTypeCollection(IEnumerable<SessionSecurityDiagnosticsDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator SessionSecurityDiagnosticsDataTypeCollection(SessionSecurityDiagnosticsDataType[] values)
+        public static implicit operator SessionSecurityDiagnosticsDataTypeCollection(
+            SessionSecurityDiagnosticsDataType[] values
+        )
         {
             if (values != null)
             {
@@ -75299,7 +81874,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator SessionSecurityDiagnosticsDataType[](SessionSecurityDiagnosticsDataTypeCollection values)
+        public static explicit operator SessionSecurityDiagnosticsDataType[](
+            SessionSecurityDiagnosticsDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -75321,7 +81898,9 @@ namespace Opc.Ua
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            SessionSecurityDiagnosticsDataTypeCollection clone = new SessionSecurityDiagnosticsDataTypeCollection(this.Count);
+            SessionSecurityDiagnosticsDataTypeCollection clone = new SessionSecurityDiagnosticsDataTypeCollection(
+                this.Count
+            );
 
             for (int ii = 0; ii < this.Count; ii++)
             {
@@ -75368,16 +81947,28 @@ namespace Opc.Ua
         [DataMember(Name = "TotalCount", IsRequired = false, Order = 1)]
         public uint TotalCount
         {
-            get { return m_totalCount; }
-            set { m_totalCount = value; }
+            get
+            {
+                return m_totalCount;
+            }
+            set
+            {
+                m_totalCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ErrorCount", IsRequired = false, Order = 2)]
         public uint ErrorCount
         {
-            get { return m_errorCount; }
-            set { m_errorCount = value; }
+            get
+            {
+                return m_errorCount;
+            }
+            set
+            {
+                m_errorCount = value;
+            }
         }
         #endregion
 
@@ -75498,16 +82089,28 @@ namespace Opc.Ua
         [DataMember(Name = "StatusCode", IsRequired = false, Order = 1)]
         public StatusCode StatusCode
         {
-            get { return m_statusCode; }
-            set { m_statusCode = value; }
+            get
+            {
+                return m_statusCode;
+            }
+            set
+            {
+                m_statusCode = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DiagnosticInfo", IsRequired = false, Order = 2)]
         public DiagnosticInfo DiagnosticInfo
         {
-            get { return m_diagnosticInfo; }
-            set { m_diagnosticInfo = value; }
+            get
+            {
+                return m_diagnosticInfo;
+            }
+            set
+            {
+                m_diagnosticInfo = value;
+            }
         }
         #endregion
 
@@ -75597,18 +82200,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfStatusResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "StatusResult")]
+    [CollectionDataContract(
+        Name = "ListOfStatusResult",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "StatusResult"
+    )]
     public partial class StatusResultCollection : List<StatusResult>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public StatusResultCollection() { }
+        public StatusResultCollection()
+        {
+        }
 
         /// <remarks />
-        public StatusResultCollection(int capacity) : base(capacity) { }
+        public StatusResultCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public StatusResultCollection(IEnumerable<StatusResult> collection) : base(collection) { }
+        public StatusResultCollection(IEnumerable<StatusResult> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -75722,248 +82333,434 @@ namespace Opc.Ua
         [DataMember(Name = "SessionId", IsRequired = false, Order = 1)]
         public NodeId SessionId
         {
-            get { return m_sessionId; }
-            set { m_sessionId = value; }
+            get
+            {
+                return m_sessionId;
+            }
+            set
+            {
+                m_sessionId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SubscriptionId", IsRequired = false, Order = 2)]
         public uint SubscriptionId
         {
-            get { return m_subscriptionId; }
-            set { m_subscriptionId = value; }
+            get
+            {
+                return m_subscriptionId;
+            }
+            set
+            {
+                m_subscriptionId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Priority", IsRequired = false, Order = 3)]
         public byte Priority
         {
-            get { return m_priority; }
-            set { m_priority = value; }
+            get
+            {
+                return m_priority;
+            }
+            set
+            {
+                m_priority = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PublishingInterval", IsRequired = false, Order = 4)]
         public double PublishingInterval
         {
-            get { return m_publishingInterval; }
-            set { m_publishingInterval = value; }
+            get
+            {
+                return m_publishingInterval;
+            }
+            set
+            {
+                m_publishingInterval = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MaxKeepAliveCount", IsRequired = false, Order = 5)]
         public uint MaxKeepAliveCount
         {
-            get { return m_maxKeepAliveCount; }
-            set { m_maxKeepAliveCount = value; }
+            get
+            {
+                return m_maxKeepAliveCount;
+            }
+            set
+            {
+                m_maxKeepAliveCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MaxLifetimeCount", IsRequired = false, Order = 6)]
         public uint MaxLifetimeCount
         {
-            get { return m_maxLifetimeCount; }
-            set { m_maxLifetimeCount = value; }
+            get
+            {
+                return m_maxLifetimeCount;
+            }
+            set
+            {
+                m_maxLifetimeCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MaxNotificationsPerPublish", IsRequired = false, Order = 7)]
         public uint MaxNotificationsPerPublish
         {
-            get { return m_maxNotificationsPerPublish; }
-            set { m_maxNotificationsPerPublish = value; }
+            get
+            {
+                return m_maxNotificationsPerPublish;
+            }
+            set
+            {
+                m_maxNotificationsPerPublish = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PublishingEnabled", IsRequired = false, Order = 8)]
         public bool PublishingEnabled
         {
-            get { return m_publishingEnabled; }
-            set { m_publishingEnabled = value; }
+            get
+            {
+                return m_publishingEnabled;
+            }
+            set
+            {
+                m_publishingEnabled = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ModifyCount", IsRequired = false, Order = 9)]
         public uint ModifyCount
         {
-            get { return m_modifyCount; }
-            set { m_modifyCount = value; }
+            get
+            {
+                return m_modifyCount;
+            }
+            set
+            {
+                m_modifyCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "EnableCount", IsRequired = false, Order = 10)]
         public uint EnableCount
         {
-            get { return m_enableCount; }
-            set { m_enableCount = value; }
+            get
+            {
+                return m_enableCount;
+            }
+            set
+            {
+                m_enableCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DisableCount", IsRequired = false, Order = 11)]
         public uint DisableCount
         {
-            get { return m_disableCount; }
-            set { m_disableCount = value; }
+            get
+            {
+                return m_disableCount;
+            }
+            set
+            {
+                m_disableCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RepublishRequestCount", IsRequired = false, Order = 12)]
         public uint RepublishRequestCount
         {
-            get { return m_republishRequestCount; }
-            set { m_republishRequestCount = value; }
+            get
+            {
+                return m_republishRequestCount;
+            }
+            set
+            {
+                m_republishRequestCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RepublishMessageRequestCount", IsRequired = false, Order = 13)]
         public uint RepublishMessageRequestCount
         {
-            get { return m_republishMessageRequestCount; }
-            set { m_republishMessageRequestCount = value; }
+            get
+            {
+                return m_republishMessageRequestCount;
+            }
+            set
+            {
+                m_republishMessageRequestCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "RepublishMessageCount", IsRequired = false, Order = 14)]
         public uint RepublishMessageCount
         {
-            get { return m_republishMessageCount; }
-            set { m_republishMessageCount = value; }
+            get
+            {
+                return m_republishMessageCount;
+            }
+            set
+            {
+                m_republishMessageCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TransferRequestCount", IsRequired = false, Order = 15)]
         public uint TransferRequestCount
         {
-            get { return m_transferRequestCount; }
-            set { m_transferRequestCount = value; }
+            get
+            {
+                return m_transferRequestCount;
+            }
+            set
+            {
+                m_transferRequestCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TransferredToAltClientCount", IsRequired = false, Order = 16)]
         public uint TransferredToAltClientCount
         {
-            get { return m_transferredToAltClientCount; }
-            set { m_transferredToAltClientCount = value; }
+            get
+            {
+                return m_transferredToAltClientCount;
+            }
+            set
+            {
+                m_transferredToAltClientCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "TransferredToSameClientCount", IsRequired = false, Order = 17)]
         public uint TransferredToSameClientCount
         {
-            get { return m_transferredToSameClientCount; }
-            set { m_transferredToSameClientCount = value; }
+            get
+            {
+                return m_transferredToSameClientCount;
+            }
+            set
+            {
+                m_transferredToSameClientCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "PublishRequestCount", IsRequired = false, Order = 18)]
         public uint PublishRequestCount
         {
-            get { return m_publishRequestCount; }
-            set { m_publishRequestCount = value; }
+            get
+            {
+                return m_publishRequestCount;
+            }
+            set
+            {
+                m_publishRequestCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DataChangeNotificationsCount", IsRequired = false, Order = 19)]
         public uint DataChangeNotificationsCount
         {
-            get { return m_dataChangeNotificationsCount; }
-            set { m_dataChangeNotificationsCount = value; }
+            get
+            {
+                return m_dataChangeNotificationsCount;
+            }
+            set
+            {
+                m_dataChangeNotificationsCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "EventNotificationsCount", IsRequired = false, Order = 20)]
         public uint EventNotificationsCount
         {
-            get { return m_eventNotificationsCount; }
-            set { m_eventNotificationsCount = value; }
+            get
+            {
+                return m_eventNotificationsCount;
+            }
+            set
+            {
+                m_eventNotificationsCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "NotificationsCount", IsRequired = false, Order = 21)]
         public uint NotificationsCount
         {
-            get { return m_notificationsCount; }
-            set { m_notificationsCount = value; }
+            get
+            {
+                return m_notificationsCount;
+            }
+            set
+            {
+                m_notificationsCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "LatePublishRequestCount", IsRequired = false, Order = 22)]
         public uint LatePublishRequestCount
         {
-            get { return m_latePublishRequestCount; }
-            set { m_latePublishRequestCount = value; }
+            get
+            {
+                return m_latePublishRequestCount;
+            }
+            set
+            {
+                m_latePublishRequestCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "CurrentKeepAliveCount", IsRequired = false, Order = 23)]
         public uint CurrentKeepAliveCount
         {
-            get { return m_currentKeepAliveCount; }
-            set { m_currentKeepAliveCount = value; }
+            get
+            {
+                return m_currentKeepAliveCount;
+            }
+            set
+            {
+                m_currentKeepAliveCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "CurrentLifetimeCount", IsRequired = false, Order = 24)]
         public uint CurrentLifetimeCount
         {
-            get { return m_currentLifetimeCount; }
-            set { m_currentLifetimeCount = value; }
+            get
+            {
+                return m_currentLifetimeCount;
+            }
+            set
+            {
+                m_currentLifetimeCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "UnacknowledgedMessageCount", IsRequired = false, Order = 25)]
         public uint UnacknowledgedMessageCount
         {
-            get { return m_unacknowledgedMessageCount; }
-            set { m_unacknowledgedMessageCount = value; }
+            get
+            {
+                return m_unacknowledgedMessageCount;
+            }
+            set
+            {
+                m_unacknowledgedMessageCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DiscardedMessageCount", IsRequired = false, Order = 26)]
         public uint DiscardedMessageCount
         {
-            get { return m_discardedMessageCount; }
-            set { m_discardedMessageCount = value; }
+            get
+            {
+                return m_discardedMessageCount;
+            }
+            set
+            {
+                m_discardedMessageCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MonitoredItemCount", IsRequired = false, Order = 27)]
         public uint MonitoredItemCount
         {
-            get { return m_monitoredItemCount; }
-            set { m_monitoredItemCount = value; }
+            get
+            {
+                return m_monitoredItemCount;
+            }
+            set
+            {
+                m_monitoredItemCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DisabledMonitoredItemCount", IsRequired = false, Order = 28)]
         public uint DisabledMonitoredItemCount
         {
-            get { return m_disabledMonitoredItemCount; }
-            set { m_disabledMonitoredItemCount = value; }
+            get
+            {
+                return m_disabledMonitoredItemCount;
+            }
+            set
+            {
+                m_disabledMonitoredItemCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "MonitoringQueueOverflowCount", IsRequired = false, Order = 29)]
         public uint MonitoringQueueOverflowCount
         {
-            get { return m_monitoringQueueOverflowCount; }
-            set { m_monitoringQueueOverflowCount = value; }
+            get
+            {
+                return m_monitoringQueueOverflowCount;
+            }
+            set
+            {
+                m_monitoringQueueOverflowCount = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "NextSequenceNumber", IsRequired = false, Order = 30)]
         public uint NextSequenceNumber
         {
-            get { return m_nextSequenceNumber; }
-            set { m_nextSequenceNumber = value; }
+            get
+            {
+                return m_nextSequenceNumber;
+            }
+            set
+            {
+                m_nextSequenceNumber = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "EventQueueOverflowCount", IsRequired = false, Order = 31)]
         public uint EventQueueOverflowCount
         {
-            get { return m_eventQueueOverflowCount; }
-            set { m_eventQueueOverflowCount = value; }
+            get
+            {
+                return m_eventQueueOverflowCount;
+            }
+            set
+            {
+                m_eventQueueOverflowCount = value;
+            }
         }
         #endregion
 
@@ -75972,7 +82769,8 @@ namespace Opc.Ua
         public virtual ExpandedNodeId TypeId => DataTypeIds.SubscriptionDiagnosticsDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SubscriptionDiagnosticsDataType_Encoding_DefaultBinary;
+        public virtual ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.SubscriptionDiagnosticsDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SubscriptionDiagnosticsDataType_Encoding_DefaultXml;
@@ -76227,23 +83025,33 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfSubscriptionDiagnosticsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SubscriptionDiagnosticsDataType")]
+    [CollectionDataContract(
+        Name = "ListOfSubscriptionDiagnosticsDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "SubscriptionDiagnosticsDataType"
+    )]
     public partial class SubscriptionDiagnosticsDataTypeCollection : List<SubscriptionDiagnosticsDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public SubscriptionDiagnosticsDataTypeCollection() { }
+        public SubscriptionDiagnosticsDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public SubscriptionDiagnosticsDataTypeCollection(int capacity) : base(capacity) { }
+        public SubscriptionDiagnosticsDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public SubscriptionDiagnosticsDataTypeCollection(IEnumerable<SubscriptionDiagnosticsDataType> collection) : base(collection) { }
+        public SubscriptionDiagnosticsDataTypeCollection(IEnumerable<SubscriptionDiagnosticsDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator SubscriptionDiagnosticsDataTypeCollection(SubscriptionDiagnosticsDataType[] values)
+        public static implicit operator SubscriptionDiagnosticsDataTypeCollection(
+            SubscriptionDiagnosticsDataType[] values
+        )
         {
             if (values != null)
             {
@@ -76254,7 +83062,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator SubscriptionDiagnosticsDataType[](SubscriptionDiagnosticsDataTypeCollection values)
+        public static explicit operator SubscriptionDiagnosticsDataType[](
+            SubscriptionDiagnosticsDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -76355,24 +83165,42 @@ namespace Opc.Ua
         [DataMember(Name = "Affected", IsRequired = false, Order = 1)]
         public NodeId Affected
         {
-            get { return m_affected; }
-            set { m_affected = value; }
+            get
+            {
+                return m_affected;
+            }
+            set
+            {
+                m_affected = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "AffectedType", IsRequired = false, Order = 2)]
         public NodeId AffectedType
         {
-            get { return m_affectedType; }
-            set { m_affectedType = value; }
+            get
+            {
+                return m_affectedType;
+            }
+            set
+            {
+                m_affectedType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Verb", IsRequired = false, Order = 3)]
         public byte Verb
         {
-            get { return m_verb; }
-            set { m_verb = value; }
+            get
+            {
+                return m_verb;
+            }
+            set
+            {
+                m_verb = value;
+            }
         }
         #endregion
 
@@ -76468,18 +83296,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfModelChangeStructureDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ModelChangeStructureDataType")]
+    [CollectionDataContract(
+        Name = "ListOfModelChangeStructureDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ModelChangeStructureDataType"
+    )]
     public partial class ModelChangeStructureDataTypeCollection : List<ModelChangeStructureDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ModelChangeStructureDataTypeCollection() { }
+        public ModelChangeStructureDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public ModelChangeStructureDataTypeCollection(int capacity) : base(capacity) { }
+        public ModelChangeStructureDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ModelChangeStructureDataTypeCollection(IEnumerable<ModelChangeStructureDataType> collection) : base(collection) { }
+        public ModelChangeStructureDataTypeCollection(IEnumerable<ModelChangeStructureDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -76564,16 +83400,28 @@ namespace Opc.Ua
         [DataMember(Name = "Affected", IsRequired = false, Order = 1)]
         public NodeId Affected
         {
-            get { return m_affected; }
-            set { m_affected = value; }
+            get
+            {
+                return m_affected;
+            }
+            set
+            {
+                m_affected = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "AffectedType", IsRequired = false, Order = 2)]
         public NodeId AffectedType
         {
-            get { return m_affectedType; }
-            set { m_affectedType = value; }
+            get
+            {
+                return m_affectedType;
+            }
+            set
+            {
+                m_affectedType = value;
+            }
         }
         #endregion
 
@@ -76582,7 +83430,8 @@ namespace Opc.Ua
         public virtual ExpandedNodeId TypeId => DataTypeIds.SemanticChangeStructureDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SemanticChangeStructureDataType_Encoding_DefaultBinary;
+        public virtual ExpandedNodeId BinaryEncodingId =>
+            ObjectIds.SemanticChangeStructureDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SemanticChangeStructureDataType_Encoding_DefaultXml;
@@ -76663,23 +83512,33 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfSemanticChangeStructureDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SemanticChangeStructureDataType")]
+    [CollectionDataContract(
+        Name = "ListOfSemanticChangeStructureDataType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "SemanticChangeStructureDataType"
+    )]
     public partial class SemanticChangeStructureDataTypeCollection : List<SemanticChangeStructureDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public SemanticChangeStructureDataTypeCollection() { }
+        public SemanticChangeStructureDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public SemanticChangeStructureDataTypeCollection(int capacity) : base(capacity) { }
+        public SemanticChangeStructureDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public SemanticChangeStructureDataTypeCollection(IEnumerable<SemanticChangeStructureDataType> collection) : base(collection) { }
+        public SemanticChangeStructureDataTypeCollection(IEnumerable<SemanticChangeStructureDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator SemanticChangeStructureDataTypeCollection(SemanticChangeStructureDataType[] values)
+        public static implicit operator SemanticChangeStructureDataTypeCollection(
+            SemanticChangeStructureDataType[] values
+        )
         {
             if (values != null)
             {
@@ -76690,7 +83549,9 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public static explicit operator SemanticChangeStructureDataType[](SemanticChangeStructureDataTypeCollection values)
+        public static explicit operator SemanticChangeStructureDataType[](
+            SemanticChangeStructureDataTypeCollection values
+        )
         {
             if (values != null)
             {
@@ -76759,16 +83620,28 @@ namespace Opc.Ua
         [DataMember(Name = "Low", IsRequired = false, Order = 1)]
         public double Low
         {
-            get { return m_low; }
-            set { m_low = value; }
+            get
+            {
+                return m_low;
+            }
+            set
+            {
+                m_low = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "High", IsRequired = false, Order = 2)]
         public double High
         {
-            get { return m_high; }
-            set { m_high = value; }
+            get
+            {
+                return m_high;
+            }
+            set
+            {
+                m_high = value;
+            }
         }
         #endregion
 
@@ -76863,13 +83736,17 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <remarks />
-        public RangeCollection() { }
+        public RangeCollection()
+        {
+        }
 
         /// <remarks />
-        public RangeCollection(int capacity) : base(capacity) { }
+        public RangeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public RangeCollection(IEnumerable<Range> collection) : base(collection) { }
+        public RangeCollection(IEnumerable<Range> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -76956,32 +83833,56 @@ namespace Opc.Ua
         [DataMember(Name = "NamespaceUri", IsRequired = false, Order = 1)]
         public string NamespaceUri
         {
-            get { return m_namespaceUri; }
-            set { m_namespaceUri = value; }
+            get
+            {
+                return m_namespaceUri;
+            }
+            set
+            {
+                m_namespaceUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "UnitId", IsRequired = false, Order = 2)]
         public int UnitId
         {
-            get { return m_unitId; }
-            set { m_unitId = value; }
+            get
+            {
+                return m_unitId;
+            }
+            set
+            {
+                m_unitId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DisplayName", IsRequired = false, Order = 3)]
         public LocalizedText DisplayName
         {
-            get { return m_displayName; }
-            set { m_displayName = value; }
+            get
+            {
+                return m_displayName;
+            }
+            set
+            {
+                m_displayName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Description", IsRequired = false, Order = 4)]
         public LocalizedText Description
         {
-            get { return m_description; }
-            set { m_description = value; }
+            get
+            {
+                return m_description;
+            }
+            set
+            {
+                m_description = value;
+            }
         }
         #endregion
 
@@ -77083,18 +83984,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfEUInformation", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EUInformation")]
+    [CollectionDataContract(
+        Name = "ListOfEUInformation",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "EUInformation"
+    )]
     public partial class EUInformationCollection : List<EUInformation>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public EUInformationCollection() { }
+        public EUInformationCollection()
+        {
+        }
 
         /// <remarks />
-        public EUInformationCollection(int capacity) : base(capacity) { }
+        public EUInformationCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public EUInformationCollection(IEnumerable<EUInformation> collection) : base(collection) { }
+        public EUInformationCollection(IEnumerable<EUInformation> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -77171,18 +84080,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfAxisScaleEnumeration", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AxisScaleEnumeration")]
+    [CollectionDataContract(
+        Name = "ListOfAxisScaleEnumeration",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "AxisScaleEnumeration"
+    )]
     public partial class AxisScaleEnumerationCollection : List<AxisScaleEnumeration>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public AxisScaleEnumerationCollection() { }
+        public AxisScaleEnumerationCollection()
+        {
+        }
 
         /// <remarks />
-        public AxisScaleEnumerationCollection(int capacity) : base(capacity) { }
+        public AxisScaleEnumerationCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public AxisScaleEnumerationCollection(IEnumerable<AxisScaleEnumeration> collection) : base(collection) { }
+        public AxisScaleEnumerationCollection(IEnumerable<AxisScaleEnumeration> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -77267,16 +84184,28 @@ namespace Opc.Ua
         [DataMember(Name = "Real", IsRequired = false, Order = 1)]
         public float Real
         {
-            get { return m_real; }
-            set { m_real = value; }
+            get
+            {
+                return m_real;
+            }
+            set
+            {
+                m_real = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Imaginary", IsRequired = false, Order = 2)]
         public float Imaginary
         {
-            get { return m_imaginary; }
-            set { m_imaginary = value; }
+            get
+            {
+                return m_imaginary;
+            }
+            set
+            {
+                m_imaginary = value;
+            }
         }
         #endregion
 
@@ -77366,18 +84295,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfComplexNumberType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ComplexNumberType")]
+    [CollectionDataContract(
+        Name = "ListOfComplexNumberType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "ComplexNumberType"
+    )]
     public partial class ComplexNumberTypeCollection : List<ComplexNumberType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ComplexNumberTypeCollection() { }
+        public ComplexNumberTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public ComplexNumberTypeCollection(int capacity) : base(capacity) { }
+        public ComplexNumberTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ComplexNumberTypeCollection(IEnumerable<ComplexNumberType> collection) : base(collection) { }
+        public ComplexNumberTypeCollection(IEnumerable<ComplexNumberType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -77462,16 +84399,28 @@ namespace Opc.Ua
         [DataMember(Name = "Real", IsRequired = false, Order = 1)]
         public double Real
         {
-            get { return m_real; }
-            set { m_real = value; }
+            get
+            {
+                return m_real;
+            }
+            set
+            {
+                m_real = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Imaginary", IsRequired = false, Order = 2)]
         public double Imaginary
         {
-            get { return m_imaginary; }
-            set { m_imaginary = value; }
+            get
+            {
+                return m_imaginary;
+            }
+            set
+            {
+                m_imaginary = value;
+            }
         }
         #endregion
 
@@ -77561,18 +84510,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfDoubleComplexNumberType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DoubleComplexNumberType")]
+    [CollectionDataContract(
+        Name = "ListOfDoubleComplexNumberType",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "DoubleComplexNumberType"
+    )]
     public partial class DoubleComplexNumberTypeCollection : List<DoubleComplexNumberType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public DoubleComplexNumberTypeCollection() { }
+        public DoubleComplexNumberTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public DoubleComplexNumberTypeCollection(int capacity) : base(capacity) { }
+        public DoubleComplexNumberTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public DoubleComplexNumberTypeCollection(IEnumerable<DoubleComplexNumberType> collection) : base(collection) { }
+        public DoubleComplexNumberTypeCollection(IEnumerable<DoubleComplexNumberType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -77664,7 +84621,6 @@ namespace Opc.Ua
             {
                 return m_engineeringUnits;
             }
-
             set
             {
                 m_engineeringUnits = value;
@@ -77684,7 +84640,6 @@ namespace Opc.Ua
             {
                 return m_eURange;
             }
-
             set
             {
                 m_eURange = value;
@@ -77700,16 +84655,28 @@ namespace Opc.Ua
         [DataMember(Name = "Title", IsRequired = false, Order = 3)]
         public LocalizedText Title
         {
-            get { return m_title; }
-            set { m_title = value; }
+            get
+            {
+                return m_title;
+            }
+            set
+            {
+                m_title = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "AxisScaleType", IsRequired = false, Order = 4)]
         public AxisScaleEnumeration AxisScaleType
         {
-            get { return m_axisScaleType; }
-            set { m_axisScaleType = value; }
+            get
+            {
+                return m_axisScaleType;
+            }
+            set
+            {
+                m_axisScaleType = value;
+            }
         }
 
         /// <remarks />
@@ -77720,7 +84687,6 @@ namespace Opc.Ua
             {
                 return m_axisSteps;
             }
-
             set
             {
                 m_axisSteps = value;
@@ -77837,18 +84803,26 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfAxisInformation", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AxisInformation")]
+    [CollectionDataContract(
+        Name = "ListOfAxisInformation",
+        Namespace = Opc.Ua.Namespaces.OpcUaXsd,
+        ItemName = "AxisInformation"
+    )]
     public partial class AxisInformationCollection : List<AxisInformation>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public AxisInformationCollection() { }
+        public AxisInformationCollection()
+        {
+        }
 
         /// <remarks />
-        public AxisInformationCollection(int capacity) : base(capacity) { }
+        public AxisInformationCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public AxisInformationCollection(IEnumerable<AxisInformation> collection) : base(collection) { }
+        public AxisInformationCollection(IEnumerable<AxisInformation> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -77933,16 +84907,28 @@ namespace Opc.Ua
         [DataMember(Name = "X", IsRequired = false, Order = 1)]
         public double X
         {
-            get { return m_x; }
-            set { m_x = value; }
+            get
+            {
+                return m_x;
+            }
+            set
+            {
+                m_x = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Value", IsRequired = false, Order = 2)]
         public float Value
         {
-            get { return m_value; }
-            set { m_value = value; }
+            get
+            {
+                return m_value;
+            }
+            set
+            {
+                m_value = value;
+            }
         }
         #endregion
 
@@ -78037,13 +85023,17 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <remarks />
-        public XVTypeCollection() { }
+        public XVTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public XVTypeCollection(int capacity) : base(capacity) { }
+        public XVTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public XVTypeCollection(IEnumerable<XVType> collection) : base(collection) { }
+        public XVTypeCollection(IEnumerable<XVType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -78136,48 +85126,84 @@ namespace Opc.Ua
         [DataMember(Name = "CreateSessionId", IsRequired = false, Order = 1)]
         public NodeId CreateSessionId
         {
-            get { return m_createSessionId; }
-            set { m_createSessionId = value; }
+            get
+            {
+                return m_createSessionId;
+            }
+            set
+            {
+                m_createSessionId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "CreateClientName", IsRequired = false, Order = 2)]
         public string CreateClientName
         {
-            get { return m_createClientName; }
-            set { m_createClientName = value; }
+            get
+            {
+                return m_createClientName;
+            }
+            set
+            {
+                m_createClientName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "InvocationCreationTime", IsRequired = false, Order = 3)]
         public DateTime InvocationCreationTime
         {
-            get { return m_invocationCreationTime; }
-            set { m_invocationCreationTime = value; }
+            get
+            {
+                return m_invocationCreationTime;
+            }
+            set
+            {
+                m_invocationCreationTime = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "LastTransitionTime", IsRequired = false, Order = 4)]
         public DateTime LastTransitionTime
         {
-            get { return m_lastTransitionTime; }
-            set { m_lastTransitionTime = value; }
+            get
+            {
+                return m_lastTransitionTime;
+            }
+            set
+            {
+                m_lastTransitionTime = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "LastMethodCall", IsRequired = false, Order = 5)]
         public string LastMethodCall
         {
-            get { return m_lastMethodCall; }
-            set { m_lastMethodCall = value; }
+            get
+            {
+                return m_lastMethodCall;
+            }
+            set
+            {
+                m_lastMethodCall = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "LastMethodSessionId", IsRequired = false, Order = 6)]
         public NodeId LastMethodSessionId
         {
-            get { return m_lastMethodSessionId; }
-            set { m_lastMethodSessionId = value; }
+            get
+            {
+                return m_lastMethodSessionId;
+            }
+            set
+            {
+                m_lastMethodSessionId = value;
+            }
         }
 
         /// <remarks />
@@ -78188,7 +85214,6 @@ namespace Opc.Ua
             {
                 return m_lastMethodInputArguments;
             }
-
             set
             {
                 m_lastMethodInputArguments = value;
@@ -78208,7 +85233,6 @@ namespace Opc.Ua
             {
                 return m_lastMethodOutputArguments;
             }
-
             set
             {
                 m_lastMethodOutputArguments = value;
@@ -78224,8 +85248,14 @@ namespace Opc.Ua
         [DataMember(Name = "LastMethodCallTime", IsRequired = false, Order = 9)]
         public DateTime LastMethodCallTime
         {
-            get { return m_lastMethodCallTime; }
-            set { m_lastMethodCallTime = value; }
+            get
+            {
+                return m_lastMethodCallTime;
+            }
+            set
+            {
+                m_lastMethodCallTime = value;
+            }
         }
 
         /// <remarks />
@@ -78236,7 +85266,6 @@ namespace Opc.Ua
             {
                 return m_lastMethodReturnStatus;
             }
-
             set
             {
                 m_lastMethodReturnStatus = value;
@@ -78273,8 +85302,16 @@ namespace Opc.Ua
             encoder.WriteDateTime("LastTransitionTime", LastTransitionTime);
             encoder.WriteString("LastMethodCall", LastMethodCall);
             encoder.WriteNodeId("LastMethodSessionId", LastMethodSessionId);
-            encoder.WriteEncodeableArray("LastMethodInputArguments", LastMethodInputArguments.ToArray(), typeof(Argument));
-            encoder.WriteEncodeableArray("LastMethodOutputArguments", LastMethodOutputArguments.ToArray(), typeof(Argument));
+            encoder.WriteEncodeableArray(
+                "LastMethodInputArguments",
+                LastMethodInputArguments.ToArray(),
+                typeof(Argument)
+            );
+            encoder.WriteEncodeableArray(
+                "LastMethodOutputArguments",
+                LastMethodOutputArguments.ToArray(),
+                typeof(Argument)
+            );
             encoder.WriteDateTime("LastMethodCallTime", LastMethodCallTime);
             encoder.WriteEncodeable("LastMethodReturnStatus", LastMethodReturnStatus, typeof(StatusResult));
 
@@ -78292,10 +85329,13 @@ namespace Opc.Ua
             LastTransitionTime = decoder.ReadDateTime("LastTransitionTime");
             LastMethodCall = decoder.ReadString("LastMethodCall");
             LastMethodSessionId = decoder.ReadNodeId("LastMethodSessionId");
-            LastMethodInputArguments = (ArgumentCollection)decoder.ReadEncodeableArray("LastMethodInputArguments", typeof(Argument));
-            LastMethodOutputArguments = (ArgumentCollection)decoder.ReadEncodeableArray("LastMethodOutputArguments", typeof(Argument));
+            LastMethodInputArguments = (ArgumentCollection)
+                decoder.ReadEncodeableArray("LastMethodInputArguments", typeof(Argument));
+            LastMethodOutputArguments = (ArgumentCollection)
+                decoder.ReadEncodeableArray("LastMethodOutputArguments", typeof(Argument));
             LastMethodCallTime = decoder.ReadDateTime("LastMethodCallTime");
-            LastMethodReturnStatus = (StatusResult)decoder.ReadEncodeable("LastMethodReturnStatus", typeof(StatusResult));
+            LastMethodReturnStatus = (StatusResult)
+                decoder.ReadEncodeable("LastMethodReturnStatus", typeof(StatusResult));
 
             decoder.PopNamespace();
         }
@@ -78424,48 +85464,84 @@ namespace Opc.Ua
         [DataMember(Name = "CreateSessionId", IsRequired = false, Order = 1)]
         public NodeId CreateSessionId
         {
-            get { return m_createSessionId; }
-            set { m_createSessionId = value; }
+            get
+            {
+                return m_createSessionId;
+            }
+            set
+            {
+                m_createSessionId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "CreateClientName", IsRequired = false, Order = 2)]
         public string CreateClientName
         {
-            get { return m_createClientName; }
-            set { m_createClientName = value; }
+            get
+            {
+                return m_createClientName;
+            }
+            set
+            {
+                m_createClientName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "InvocationCreationTime", IsRequired = false, Order = 3)]
         public DateTime InvocationCreationTime
         {
-            get { return m_invocationCreationTime; }
-            set { m_invocationCreationTime = value; }
+            get
+            {
+                return m_invocationCreationTime;
+            }
+            set
+            {
+                m_invocationCreationTime = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "LastTransitionTime", IsRequired = false, Order = 4)]
         public DateTime LastTransitionTime
         {
-            get { return m_lastTransitionTime; }
-            set { m_lastTransitionTime = value; }
+            get
+            {
+                return m_lastTransitionTime;
+            }
+            set
+            {
+                m_lastTransitionTime = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "LastMethodCall", IsRequired = false, Order = 5)]
         public string LastMethodCall
         {
-            get { return m_lastMethodCall; }
-            set { m_lastMethodCall = value; }
+            get
+            {
+                return m_lastMethodCall;
+            }
+            set
+            {
+                m_lastMethodCall = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "LastMethodSessionId", IsRequired = false, Order = 6)]
         public NodeId LastMethodSessionId
         {
-            get { return m_lastMethodSessionId; }
-            set { m_lastMethodSessionId = value; }
+            get
+            {
+                return m_lastMethodSessionId;
+            }
+            set
+            {
+                m_lastMethodSessionId = value;
+            }
         }
 
         /// <remarks />
@@ -78476,7 +85552,6 @@ namespace Opc.Ua
             {
                 return m_lastMethodInputArguments;
             }
-
             set
             {
                 m_lastMethodInputArguments = value;
@@ -78496,7 +85571,6 @@ namespace Opc.Ua
             {
                 return m_lastMethodOutputArguments;
             }
-
             set
             {
                 m_lastMethodOutputArguments = value;
@@ -78516,7 +85590,6 @@ namespace Opc.Ua
             {
                 return m_lastMethodInputValues;
             }
-
             set
             {
                 m_lastMethodInputValues = value;
@@ -78536,7 +85609,6 @@ namespace Opc.Ua
             {
                 return m_lastMethodOutputValues;
             }
-
             set
             {
                 m_lastMethodOutputValues = value;
@@ -78552,16 +85624,28 @@ namespace Opc.Ua
         [DataMember(Name = "LastMethodCallTime", IsRequired = false, Order = 11)]
         public DateTime LastMethodCallTime
         {
-            get { return m_lastMethodCallTime; }
-            set { m_lastMethodCallTime = value; }
+            get
+            {
+                return m_lastMethodCallTime;
+            }
+            set
+            {
+                m_lastMethodCallTime = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "LastMethodReturnStatus", IsRequired = false, Order = 12)]
         public StatusCode LastMethodReturnStatus
         {
-            get { return m_lastMethodReturnStatus; }
-            set { m_lastMethodReturnStatus = value; }
+            get
+            {
+                return m_lastMethodReturnStatus;
+            }
+            set
+            {
+                m_lastMethodReturnStatus = value;
+            }
         }
         #endregion
 
@@ -78589,8 +85673,16 @@ namespace Opc.Ua
             encoder.WriteDateTime("LastTransitionTime", LastTransitionTime);
             encoder.WriteString("LastMethodCall", LastMethodCall);
             encoder.WriteNodeId("LastMethodSessionId", LastMethodSessionId);
-            encoder.WriteEncodeableArray("LastMethodInputArguments", LastMethodInputArguments.ToArray(), typeof(Argument));
-            encoder.WriteEncodeableArray("LastMethodOutputArguments", LastMethodOutputArguments.ToArray(), typeof(Argument));
+            encoder.WriteEncodeableArray(
+                "LastMethodInputArguments",
+                LastMethodInputArguments.ToArray(),
+                typeof(Argument)
+            );
+            encoder.WriteEncodeableArray(
+                "LastMethodOutputArguments",
+                LastMethodOutputArguments.ToArray(),
+                typeof(Argument)
+            );
             encoder.WriteVariantArray("LastMethodInputValues", LastMethodInputValues);
             encoder.WriteVariantArray("LastMethodOutputValues", LastMethodOutputValues);
             encoder.WriteDateTime("LastMethodCallTime", LastMethodCallTime);
@@ -78610,8 +85702,10 @@ namespace Opc.Ua
             LastTransitionTime = decoder.ReadDateTime("LastTransitionTime");
             LastMethodCall = decoder.ReadString("LastMethodCall");
             LastMethodSessionId = decoder.ReadNodeId("LastMethodSessionId");
-            LastMethodInputArguments = (ArgumentCollection)decoder.ReadEncodeableArray("LastMethodInputArguments", typeof(Argument));
-            LastMethodOutputArguments = (ArgumentCollection)decoder.ReadEncodeableArray("LastMethodOutputArguments", typeof(Argument));
+            LastMethodInputArguments = (ArgumentCollection)
+                decoder.ReadEncodeableArray("LastMethodInputArguments", typeof(Argument));
+            LastMethodOutputArguments = (ArgumentCollection)
+                decoder.ReadEncodeableArray("LastMethodOutputArguments", typeof(Argument));
             LastMethodInputValues = decoder.ReadVariantArray("LastMethodInputValues");
             LastMethodOutputValues = decoder.ReadVariantArray("LastMethodOutputValues");
             LastMethodCallTime = decoder.ReadDateTime("LastMethodCallTime");
@@ -78743,24 +85837,42 @@ namespace Opc.Ua
         [DataMember(Name = "Message", IsRequired = false, Order = 1)]
         public string Message
         {
-            get { return m_message; }
-            set { m_message = value; }
+            get
+            {
+                return m_message;
+            }
+            set
+            {
+                m_message = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "UserName", IsRequired = false, Order = 2)]
         public string UserName
         {
-            get { return m_userName; }
-            set { m_userName = value; }
+            get
+            {
+                return m_userName;
+            }
+            set
+            {
+                m_userName = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "AnnotationTime", IsRequired = false, Order = 3)]
         public DateTime AnnotationTime
         {
-            get { return m_annotationTime; }
-            set { m_annotationTime = value; }
+            get
+            {
+                return m_annotationTime;
+            }
+            set
+            {
+                m_annotationTime = value;
+            }
         }
         #endregion
 

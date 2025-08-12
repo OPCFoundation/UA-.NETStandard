@@ -40,9 +40,11 @@ namespace Opc.Ua.PubSub.Transport
     internal static class MqttClientCreator
     {
 #if !NET8_0_OR_GREATER
-        private static readonly Lazy<MqttFactory> s_mqttClientFactory = new(() => new MqttFactory());
+        private static readonly Lazy<MqttFactory> s_mqttClientFactory = new(
+            () => new MqttFactory());
 #else
-        private static readonly Lazy<MqttClientFactory> s_mqttClientFactory = new(() => new MqttClientFactory());
+        private static readonly Lazy<MqttClientFactory> s_mqttClientFactory = new(
+            () => new MqttClientFactory());
 #endif
 
         /// <summary>
@@ -52,7 +54,6 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="mqttClientOptions">The client options for MQTT broker connection</param>
         /// <param name="receiveMessageHandler">The receiver message handler</param>
         /// <param name="topicFilter">The topics to which to subscribe</param>
-        /// <returns></returns>
         internal static async Task<IMqttClient> GetMqttClientAsync(
             int reconnectInterval,
             MqttClientOptions mqttClientOptions,
@@ -125,7 +126,8 @@ namespace Opc.Ua.PubSub.Transport
                         e.Reason,
                         e.ClientWasConnected
                     );
-                    await ConnectAsync(reconnectInterval, mqttClientOptions, mqttClient).ConfigureAwait(false);
+                    await ConnectAsync(reconnectInterval, mqttClientOptions, mqttClient)
+                        .ConfigureAwait(false);
                 }
                 catch (Exception excOnDisconnect)
                 {
@@ -137,7 +139,8 @@ namespace Opc.Ua.PubSub.Transport
                 }
             };
 
-            await ConnectAsync(reconnectInterval, mqttClientOptions, mqttClient).ConfigureAwait(false);
+            await ConnectAsync(reconnectInterval, mqttClientOptions, mqttClient).ConfigureAwait(
+                false);
 
             return mqttClient;
         }
@@ -145,9 +148,6 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Perform the connection to the MQTTBroker
         /// </summary>
-        /// <param name="reconnectInterval"></param>
-        /// <param name="mqttClientOptions"></param>
-        /// <param name="mqttClient"></param>
         private static async Task ConnectAsync(
             int reconnectInterval,
             MqttClientOptions mqttClientOptions,
@@ -161,7 +161,9 @@ namespace Opc.Ua.PubSub.Transport
                     .ConfigureAwait(false);
                 if (MqttClientConnectResultCode.Success == result.ResultCode)
                 {
-                    Utils.Trace("MQTT client {0} successfully connected", mqttClient?.Options?.ClientId);
+                    Utils.Trace(
+                        "MQTT client {0} successfully connected",
+                        mqttClient?.Options?.ClientId);
                 }
                 else
                 {

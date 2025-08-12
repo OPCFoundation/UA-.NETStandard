@@ -34,7 +34,8 @@ using Opc.Ua.Types.Redaction;
 
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {
-    [TestFixture, Category("Utils")]
+    [TestFixture]
+    [Category("Utils")]
     internal class SimpleRedactionStrategyTests
     {
         [SetUp]
@@ -65,7 +66,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void NegativeMinimumLengthThrows()
         {
             Assert.That(
-                Assert.Throws<ArgumentOutOfRangeException>(() => _ = new SimpleRedactionStrategy(-1, 0)).ParamName,
+                Assert.Throws<ArgumentOutOfRangeException>(
+                    () => _ = new SimpleRedactionStrategy(-1, 0)).ParamName,
                 Is.EqualTo("minLength")
             );
         }
@@ -74,7 +76,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void MaximumLengthLowerThanNegativeOneThrows()
         {
             Assert.That(
-                Assert.Throws<ArgumentOutOfRangeException>(() => _ = new SimpleRedactionStrategy(12, -2)).ParamName,
+                Assert.Throws<ArgumentOutOfRangeException>(
+                    () => _ = new SimpleRedactionStrategy(12, -2)).ParamName,
                 Is.EqualTo("maxLength")
             );
         }
@@ -121,7 +124,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RedactUriBuilder()
         {
-            RedactionWrapper<UriBuilder> redacted = Redact.Create(new UriBuilder("test.com/index.html"));
+            RedactionWrapper<UriBuilder> redacted = Redact.Create(
+                new UriBuilder("test.com/index.html"));
 
             Assert.That(redacted.ToString(), Is.EqualTo("http://********/index.html"));
         }

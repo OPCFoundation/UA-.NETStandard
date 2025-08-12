@@ -77,7 +77,9 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Create a complex type from a StructureDefinition.
         /// Available since OPC UA V1.04 in the DataTypeDefinition attribute.
         /// </summary>
-        IComplexTypeFieldBuilder AddStructuredType(QualifiedName name, StructureDefinition structureDefinition);
+        IComplexTypeFieldBuilder AddStructuredType(
+            QualifiedName name,
+            StructureDefinition structureDefinition);
     }
 
     /// <summary>
@@ -109,4 +111,4 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         Type CreateType();
     }
-} //namespace
+}

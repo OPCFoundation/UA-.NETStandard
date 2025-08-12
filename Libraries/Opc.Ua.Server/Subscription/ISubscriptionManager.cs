@@ -178,7 +178,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Republishes a previously published notification message.
         /// </summary>
-        NotificationMessage Republish(OperationContext context, uint subscriptionId, uint retransmitSequenceNumber);
+        NotificationMessage Republish(
+            OperationContext context,
+            uint subscriptionId,
+            uint retransmitSequenceNumber);
 
         /// <summary>
         /// Updates the triggers for the monitored item.

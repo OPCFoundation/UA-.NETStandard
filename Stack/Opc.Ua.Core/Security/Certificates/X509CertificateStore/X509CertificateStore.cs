@@ -71,7 +71,9 @@ namespace Opc.Ua
 
             if (string.IsNullOrEmpty(location))
             {
-                throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Store Location cannot be empty.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadUnexpectedError,
+                    "Store Location cannot be empty.");
             }
 
             // extract store name.
@@ -88,9 +90,12 @@ namespace Opc.Ua
             // extract store location.
             string storeLocation = location[..index];
             bool found = false;
-            foreach (StoreLocation availableLocation in new[] { StoreLocation.LocalMachine, StoreLocation.CurrentUser })
+            foreach (StoreLocation availableLocation in new[] {
+                StoreLocation.LocalMachine,
+                StoreLocation.CurrentUser })
             {
-                if (availableLocation.ToString().Equals(storeLocation, StringComparison.OrdinalIgnoreCase))
+                if (availableLocation.ToString()
+                    .Equals(storeLocation, StringComparison.OrdinalIgnoreCase))
                 {
                     m_storeLocation = availableLocation;
                     found = true;
@@ -99,9 +104,12 @@ namespace Opc.Ua
             if (!found)
             {
                 var message = new StringBuilder();
-                message.AppendLine("Store location specified not available.");
-                message.AppendLine("Store location={0}");
-                throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, message.ToString(), storeLocation);
+                message.AppendLine("Store location specified not available.")
+                    .AppendLine("Store location={0}");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadUnexpectedError,
+                    message.ToString(),
+                    storeLocation);
             }
 
             m_storeName = location[(index + 1)..];
@@ -145,7 +153,10 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task AddAsync(X509Certificate2 certificate, string password = null, CancellationToken ct = default)
+        public Task AddAsync(
+            X509Certificate2 certificate,
+            string password = null,
+            CancellationToken ct = default)
         {
             if (certificate == null)
             {
@@ -160,13 +171,16 @@ namespace Opc.Ua
                     if (certificate.HasPrivateKey && !NoPrivateKeys)
                     {
                         // X509Store needs a persisted private key
-                        X509Certificate2 persistedCertificate = X509Utils.CreateCopyWithPrivateKey(certificate, true);
+                        X509Certificate2 persistedCertificate = X509Utils.CreateCopyWithPrivateKey(
+                            certificate,
+                            true);
                         store.Add(persistedCertificate);
                     }
                     else if (certificate.HasPrivateKey && NoPrivateKeys)
                     {
                         // ensure no private key is added to store
-                        using X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(certificate.RawData);
+                        using X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(
+                            certificate.RawData);
                         store.Add(publicKey);
                     }
                     else
@@ -174,7 +188,10 @@ namespace Opc.Ua
                         store.Add(certificate);
                     }
 
-                    Utils.LogCertificate("Added certificate to X509Store {0}.", certificate, store.Name);
+                    Utils.LogCertificate(
+                        "Added certificate to X509Store {0}.",
+                        certificate,
+                        store.Name);
                 }
             }
 
@@ -215,7 +232,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task<X509Certificate2Collection> FindByThumbprintAsync(string thumbprint, CancellationToken ct = default)
+        public Task<X509Certificate2Collection> FindByThumbprintAsync(
+            string thumbprint,
+            CancellationToken ct = default)
         {
             using var store = new X509Store(m_storeName, m_storeLocation);
             store.Open(OpenFlags.ReadOnly);
@@ -322,8 +341,8 @@ namespace Opc.Ua
                 }
 
                 if (
-                    crl.ThisUpdate <= DateTime.UtcNow
-                    && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow)
+                    crl.ThisUpdate <= DateTime.UtcNow &&
+                    (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow)
                 )
                 {
                     crlExpired = false;
@@ -380,7 +399,9 @@ namespace Opc.Ua
         /// <inheritdoc/>
         /// <remarks>CRLs are only supported on Windows Platform.</remarks>
         [Obsolete("Use EnumerateCRLsAsync instead.")]
-        public Task<X509CRLCollection> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
+        public Task<X509CRLCollection> EnumerateCRLs(
+            X509Certificate2 issuer,
+            bool validateUpdateTime = true)
         {
             return EnumerateCRLsAsync(issuer, validateUpdateTime);
         }
@@ -415,10 +436,10 @@ namespace Opc.Ua
                 }
 
                 if (
-                    !validateUpdateTime
-                    || (
-                        crl.ThisUpdate <= DateTime.UtcNow
-                        && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow)
+                    !validateUpdateTime ||
+                    (
+                        crl.ThisUpdate <= DateTime.UtcNow &&
+                        (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow)
                     )
                 )
                 {
@@ -451,12 +472,13 @@ namespace Opc.Ua
             }
 
             X509Certificate2 issuer = null;
-            X509Certificate2Collection certificates = await EnumerateAsync(ct).ConfigureAwait(false);
+            X509Certificate2Collection certificates = await EnumerateAsync(ct).ConfigureAwait(
+                false);
             foreach (X509Certificate2 certificate in certificates)
             {
                 if (
-                    X509Utils.CompareDistinguishedName(certificate.SubjectName, crl.IssuerName)
-                    && crl.VerifySignature(certificate, false)
+                    X509Utils.CompareDistinguishedName(certificate.SubjectName, crl.IssuerName) &&
+                    crl.VerifySignature(certificate, false)
                 )
                 {
                     issuer = certificate;

@@ -118,7 +118,10 @@ namespace Opc.Ua
         /// <param name="value">The value.</param>
         /// <param name="throwOnError">if set to <c>true</c> throw an exception on error.</param>
         /// <returns>If not overridden returns <paramref name="value"/>.</returns>
-        protected virtual object ExtractValueFromVariant(ISystemContext context, object value, bool throwOnError)
+        protected virtual object ExtractValueFromVariant(
+            ISystemContext context,
+            object value,
+            bool throwOnError)
         {
             return value;
         }
@@ -173,7 +176,10 @@ namespace Opc.Ua
         /// If throwOnError is <c>false</c> the default value for the type is returned if the value is not valid.
         /// </remarks>
         /// <exception cref="ServiceResultException">If cannot convert <paramref name="value"/>.</exception>
-        public static object ExtractValueFromVariant<T>(ISystemContext context, object value, bool throwOnError)
+        public static object ExtractValueFromVariant<T>(
+            ISystemContext context,
+            object value,
+            bool throwOnError)
         {
             if (value == null)
             {
@@ -217,8 +223,8 @@ namespace Opc.Ua
                 // check for array of extensions.
 
                 if (
-                    value is IList<ExtensionObject> extensions
-                    && typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(elementType.GetTypeInfo())
+                    value is IList<ExtensionObject> extensions &&
+                    typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(elementType.GetTypeInfo())
                 )
                 {
                     var encodeables = Array.CreateInstance(elementType, extensions.Count);
@@ -237,7 +243,11 @@ namespace Opc.Ua
                             continue;
                         }
 
-                        object element = DecodeExtensionObject(context, elementType, extensions[ii], throwOnError);
+                        object element = DecodeExtensionObject(
+                            context,
+                            elementType,
+                            extensions[ii],
+                            throwOnError);
 
                         if (element != null)
                         {
@@ -359,6 +369,7 @@ namespace Opc.Ua
         /// <param name="extension">The ExtensionObject to convert.</param>
         /// <param name="throwOnError">Whether to throw an exception on error.</param>
         /// <returns>The decoded instance. Null on error.</returns>
+        /// <exception cref="ServiceResultException"></exception>
         public static object DecodeExtensionObject(
             ISystemContext context,
             Type targetType,
@@ -384,7 +395,7 @@ namespace Opc.Ua
                         {
                             NamespaceUris = context.NamespaceUris,
                             ServerUris = context.ServerUris,
-                            Factory = context.EncodeableFactory,
+                            Factory = context.EncodeableFactory
                         };
                     }
 
@@ -447,8 +458,8 @@ namespace Opc.Ua
         public static T CheckTypeBeforeCast<T>(object value, bool throwOnError)
         {
             if (
-                (value == null && typeof(T).GetTypeInfo().IsValueType)
-                || (value != null && !typeof(T).IsInstanceOfType(value))
+                (value == null && typeof(T).GetTypeInfo().IsValueType) ||
+                (value != null && !typeof(T).IsInstanceOfType(value))
             )
             {
                 if (throwOnError)
@@ -662,7 +673,11 @@ namespace Opc.Ua
         /// The type of access granted to the current user.
         /// </summary>
         /// <value>The user access level.</value>
-        [DataMember(Name = "UserAccessLevel", Order = 5, IsRequired = false, EmitDefaultValue = false)]
+        [DataMember(
+            Name = "UserAccessLevel",
+            Order = 5,
+            IsRequired = false,
+            EmitDefaultValue = false)]
         public byte UserAccessLevel
         {
             get => m_userAccessLevel;
@@ -681,7 +696,11 @@ namespace Opc.Ua
         /// The minimum sampling interval supported by the variable.
         /// </summary>
         /// <value>The minimum sampling interval.</value>
-        [DataMember(Name = "MinimumSamplingInterval", Order = 6, IsRequired = false, EmitDefaultValue = false)]
+        [DataMember(
+            Name = "MinimumSamplingInterval",
+            Order = 6,
+            IsRequired = false,
+            EmitDefaultValue = false)]
         public double MinimumSamplingInterval
         {
             get => m_minimumSamplingInterval;
@@ -719,7 +738,11 @@ namespace Opc.Ua
         /// A bit mask specifying how the value may be accessed.
         /// </summary>
         /// <value>The extended access level.</value>
-        [DataMember(Name = "AccessLevelEx", Order = 8, IsRequired = false, EmitDefaultValue = false)]
+        [DataMember(
+            Name = "AccessLevelEx",
+            Order = 8,
+            IsRequired = false,
+            EmitDefaultValue = false)]
         public uint AccessLevelEx
         {
             get => m_accessLevel;
@@ -978,7 +1001,9 @@ namespace Opc.Ua
 
                 if (!isValueType)
                 {
-                    BuiltInType builtInType = DataTypes.GetBuiltInType(m_dataType, context.TypeTable);
+                    BuiltInType builtInType = DataTypes.GetBuiltInType(
+                        m_dataType,
+                        context.TypeTable);
 
                     if (TypeInfo.IsValueType(builtInType))
                     {
@@ -1085,7 +1110,10 @@ namespace Opc.Ua
         /// <param name="context">The context that describes how access the system containing the data..</param>
         /// <param name="encoder">The encoder to write to.</param>
         /// <param name="attributesToSave">The masks indicating what attributes to write.</param>
-        public override void Save(ISystemContext context, BinaryEncoder encoder, AttributesToSave attributesToSave)
+        public override void Save(
+            ISystemContext context,
+            BinaryEncoder encoder,
+            AttributesToSave attributesToSave)
         {
             base.Save(context, encoder, attributesToSave);
 
@@ -1141,7 +1169,10 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         /// <param name="decoder">The decoder.</param>
         /// <param name="attributesToLoad">The attributes to load.</param>
-        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attributesToLoad)
+        public override void Update(
+            ISystemContext context,
+            BinaryDecoder decoder,
+            AttributesToSave attributesToLoad)
         {
             base.Update(context, decoder, attributesToLoad);
 
@@ -1252,7 +1283,9 @@ namespace Opc.Ua
             {
                 try
                 {
-                    arrayDimensions[ii] = Convert.ToUInt32(fields[ii], CultureInfo.InvariantCulture);
+                    arrayDimensions[ii] = Convert.ToUInt32(
+                        fields[ii],
+                        CultureInfo.InvariantCulture);
                 }
                 catch
                 {
@@ -1269,7 +1302,10 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         /// <param name="statusCode">The status code.</param>
         /// <param name="timestamp">The timestamp. Not updated if set to DateTime.Min</param>
-        public override void SetStatusCode(ISystemContext context, StatusCode statusCode, DateTime timestamp)
+        public override void SetStatusCode(
+            ISystemContext context,
+            StatusCode statusCode,
+            DateTime timestamp)
         {
             base.SetStatusCode(context, statusCode, timestamp);
 
@@ -1317,7 +1353,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.ValueRank:
                     int valueRank = m_valueRank;
 
@@ -1334,11 +1369,11 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.ArrayDimensions:
                     IList<uint> arrayDimensions = m_arrayDimensions;
 
-                    NodeAttributeEventHandler<IList<uint>> onReadArrayDimensions = OnReadArrayDimensions;
+                    NodeAttributeEventHandler<IList<uint>> onReadArrayDimensions
+                        = OnReadArrayDimensions;
 
                     if (onReadArrayDimensions != null)
                     {
@@ -1351,7 +1386,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.AccessLevel:
                     byte accessLevel = AccessLevel;
 
@@ -1368,7 +1402,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.AccessLevelEx:
                     uint accessLevelEx = m_accessLevel;
 
@@ -1385,7 +1418,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.UserAccessLevel:
                     byte userAccessLevel = m_userAccessLevel;
 
@@ -1402,15 +1434,18 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.MinimumSamplingInterval:
                     double minimumSamplingInterval = m_minimumSamplingInterval;
 
-                    NodeAttributeEventHandler<double> onReadMinimumSamplingInterval = OnReadMinimumSamplingInterval;
+                    NodeAttributeEventHandler<double> onReadMinimumSamplingInterval
+                        = OnReadMinimumSamplingInterval;
 
                     if (onReadMinimumSamplingInterval != null)
                     {
-                        result = onReadMinimumSamplingInterval(context, this, ref minimumSamplingInterval);
+                        result = onReadMinimumSamplingInterval(
+                            context,
+                            this,
+                            ref minimumSamplingInterval);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1419,7 +1454,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.Historizing:
                     bool historizing = m_historizing;
 
@@ -1560,7 +1594,6 @@ namespace Opc.Ua
         /// <param name="indexRange">The index range.</param>
         /// <param name="dataEncoding">The data encoding.</param>
         /// <param name="value">The value.</param>
-        /// <returns></returns>
         public static ServiceResult ApplyIndexRangeAndDataEncoding(
             ISystemContext context,
             NumericRange indexRange,
@@ -1588,10 +1621,13 @@ namespace Opc.Ua
                 {
                     NamespaceUris = context.NamespaceUris,
                     ServerUris = context.ServerUris,
-                    Factory = context.EncodeableFactory,
+                    Factory = context.EncodeableFactory
                 };
 
-                result = EncodeableObject.ApplyDataEncoding(messageContext, dataEncoding, ref value);
+                result = EncodeableObject.ApplyDataEncoding(
+                    messageContext,
+                    dataEncoding,
+                    ref value);
 
                 if (ServiceResult.IsBad(result))
                 {
@@ -1612,7 +1648,10 @@ namespace Opc.Ua
         /// An instance of the <see cref="ServiceResult"/> containing the status code and diagnostic info for the operation.
         /// ServiceResult.Good if successful. Detailed error information otherwise.
         /// </returns>
-        protected override ServiceResult WriteNonValueAttribute(ISystemContext context, uint attributeId, object value)
+        protected override ServiceResult WriteNonValueAttribute(
+            ISystemContext context,
+            uint attributeId,
+            object value)
         {
             ServiceResult result = null;
 
@@ -1642,7 +1681,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.ValueRank:
                     int? valueRankRef = value as int?;
 
@@ -1671,7 +1709,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.ArrayDimensions:
                     var arrayDimensions = value as IList<uint>;
 
@@ -1680,7 +1717,8 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<IList<uint>> onWriteArrayDimensions = OnWriteArrayDimensions;
+                    NodeAttributeEventHandler<IList<uint>> onWriteArrayDimensions
+                        = OnWriteArrayDimensions;
 
                     if (onWriteArrayDimensions != null)
                     {
@@ -1700,7 +1738,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.AccessLevel:
                     byte? accessLevelRef = value as byte?;
 
@@ -1729,7 +1766,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.UserAccessLevel:
                     byte? userAccessLevelRef = value as byte?;
 
@@ -1758,7 +1794,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.MinimumSamplingInterval:
                     double? minimumSamplingIntervalRef = value as double?;
 
@@ -1774,11 +1809,15 @@ namespace Opc.Ua
 
                     double minimumSamplingInterval = minimumSamplingIntervalRef.Value;
 
-                    NodeAttributeEventHandler<double> onWriteMinimumSamplingInterval = OnWriteMinimumSamplingInterval;
+                    NodeAttributeEventHandler<double> onWriteMinimumSamplingInterval
+                        = OnWriteMinimumSamplingInterval;
 
                     if (onWriteMinimumSamplingInterval != null)
                     {
-                        result = onWriteMinimumSamplingInterval(context, this, ref minimumSamplingInterval);
+                        result = onWriteMinimumSamplingInterval(
+                            context,
+                            this,
+                            ref minimumSamplingInterval);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1787,7 +1826,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.Historizing:
                     bool? historizingRef = value as bool?;
 
@@ -1863,7 +1901,14 @@ namespace Opc.Ua
             // check if the write behavior has been overridden.
             if (onWriteValue != null)
             {
-                result = onWriteValue(context, this, indexRange, null, ref value, ref statusCode, ref sourceTimestamp);
+                result = onWriteValue(
+                    context,
+                    this,
+                    indexRange,
+                    null,
+                    ref value,
+                    ref statusCode,
+                    ref sourceTimestamp);
 
                 if (ServiceResult.IsBad(result))
                 {
@@ -2054,6 +2099,7 @@ namespace Opc.Ua
     /// <summary>
     /// A typed base class for all data variable nodes.
     /// </summary>
+    /// <typeparam name="T"></typeparam>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class PropertyState<T> : PropertyState
     {
@@ -2082,7 +2128,10 @@ namespace Opc.Ua
         /// <summary>
         /// Sets the value to its default value if it is not valid.
         /// </summary>
-        protected override object ExtractValueFromVariant(ISystemContext context, object value, bool throwOnError)
+        protected override object ExtractValueFromVariant(
+            ISystemContext context,
+            object value,
+            bool throwOnError)
         {
             return ExtractValueFromVariant<T>(context, value, throwOnError);
         }
@@ -2236,6 +2285,7 @@ namespace Opc.Ua
     /// <summary>
     /// A typed base class for all data variable nodes.
     /// </summary>
+    /// <typeparam name="T"></typeparam>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class BaseDataVariableState<T> : BaseDataVariableState
     {
@@ -2272,7 +2322,10 @@ namespace Opc.Ua
         /// If throwOnError is false the default value for the type is returned if the value is not valid.
         /// </remarks>
         /// <returns>Returns value of the <c>T</c> type</returns>
-        protected override object ExtractValueFromVariant(ISystemContext context, object value, bool throwOnError)
+        protected override object ExtractValueFromVariant(
+            ISystemContext context,
+            object value,
+            bool throwOnError)
         {
             return ExtractValueFromVariant<T>(context, value, throwOnError);
         }
@@ -2529,6 +2582,6 @@ namespace Opc.Ua
         /// <summary>
         /// Data is copied when it is written and when it is read.
         /// </summary>
-        Always = CopyOnWrite | CopyOnRead,
+        Always = CopyOnWrite | CopyOnRead
     }
 }

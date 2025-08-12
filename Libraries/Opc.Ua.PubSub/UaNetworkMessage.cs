@@ -73,7 +73,9 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Create instance of <see cref="UaNetworkMessage"/>.
         /// </summary>
-        protected UaNetworkMessage(WriterGroupDataType writerGroupConfiguration, DataSetMetaDataType metadata)
+        protected UaNetworkMessage(
+            WriterGroupDataType writerGroupConfiguration,
+            DataSetMetaDataType metadata)
         {
             WriterGroupConfiguration = writerGroupConfiguration;
             m_uaDataSetMessages = [];
@@ -102,7 +104,7 @@ namespace Opc.Ua.PubSub
                     return null;
                 }
 
-                return (m_dataSetWriterId != 0) ? m_dataSetWriterId : null;
+                return m_dataSetWriterId != 0 ? m_dataSetWriterId : null;
             }
             set => m_dataSetWriterId = value ?? 0;
         }
@@ -143,9 +145,6 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Decodes the message
         /// </summary>
-        /// <param name="messageContext"></param>
-        /// <param name="message"></param>
-        /// <param name="dataSetReaders"></param>
         public abstract void Decode(
             IServiceMessageContext messageContext,
             byte[] message,
@@ -155,7 +154,6 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// The DataSetDecodeErrorOccurred event handler
         /// </summary>
-        /// <param name="e"></param>
         protected virtual void OnDataSetDecodeErrorOccurred(DataSetDecodeErrorEventArgs e)
         {
             DataSetDecodeErrorOccurred?.Invoke(this, e);

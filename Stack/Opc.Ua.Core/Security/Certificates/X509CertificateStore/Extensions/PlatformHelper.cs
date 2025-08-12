@@ -50,8 +50,9 @@ namespace Opc.Ua.X509StoreExtensions
             }
             OperatingSystem version = Environment.OSVersion;
             s_isWindowsWithCrlSupport =
-                version.Platform == PlatformID.Win32NT
-                && ((version.Version.Major > 5) || (version.Version.Major == 5 && version.Version.Minor >= 1));
+                version.Platform == PlatformID.Win32NT &&
+                ((version.Version.Major > 5) ||
+                    (version.Version.Major == 5 && version.Version.Minor >= 1));
             return s_isWindowsWithCrlSupport.Value;
         }
     }

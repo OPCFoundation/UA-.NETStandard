@@ -26,7 +26,11 @@ namespace Opc.Ua
         /// <param name="context">The system context with the encodeable factory.</param>
         /// <param name="typeId">The type id of the Data Type.</param>
         /// <param name="dataEncoding">The data encoding to apply to the default encoding id.</param>
-        public void SetDefaultEncodingId(ISystemContext context, NodeId typeId, QualifiedName dataEncoding)
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        public void SetDefaultEncodingId(
+            ISystemContext context,
+            NodeId typeId,
+            QualifiedName dataEncoding)
         {
             if (context == null)
             {
@@ -43,15 +47,20 @@ namespace Opc.Ua
             Type systemType = context.EncodeableFactory?.GetSystemType(
                 NodeId.ToExpandedNodeId(typeId, context.NamespaceUris)
             );
-            if (systemType != null && Activator.CreateInstance(systemType) is IEncodeable encodeable)
+            if (systemType != null &&
+                Activator.CreateInstance(systemType) is IEncodeable encodeable)
             {
                 if (dataEncoding == null || dataEncoding.Name == BrowseNames.DefaultBinary)
                 {
-                    DefaultEncodingId = ExpandedNodeId.ToNodeId(encodeable.BinaryEncodingId, context.NamespaceUris);
+                    DefaultEncodingId = ExpandedNodeId.ToNodeId(
+                        encodeable.BinaryEncodingId,
+                        context.NamespaceUris);
                 }
                 else if (dataEncoding.Name == BrowseNames.DefaultXml)
                 {
-                    DefaultEncodingId = ExpandedNodeId.ToNodeId(encodeable.XmlEncodingId, context.NamespaceUris);
+                    DefaultEncodingId = ExpandedNodeId.ToNodeId(
+                        encodeable.XmlEncodingId,
+                        context.NamespaceUris);
                 }
             }
         }

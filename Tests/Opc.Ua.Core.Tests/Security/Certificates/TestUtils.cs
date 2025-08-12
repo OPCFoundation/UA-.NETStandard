@@ -50,13 +50,12 @@ namespace Opc.Ua.Core.Tests
         /// <summary>
         /// A common method to clean up the test trust list.
         /// </summary>
-        /// <param name="store"></param>
-        /// <param name="dispose"></param>
         public static async Task CleanupTrustListAsync(ICertificateStore store, bool dispose = true)
         {
             if (store != null)
             {
-                System.Security.Cryptography.X509Certificates.X509Certificate2Collection certs = await store
+                System.Security.Cryptography.X509Certificates.X509Certificate2Collection certs
+                    = await store
                     .EnumerateAsync()
                     .ConfigureAwait(false);
                 foreach (System.Security.Cryptography.X509Certificates.X509Certificate2 cert in certs)

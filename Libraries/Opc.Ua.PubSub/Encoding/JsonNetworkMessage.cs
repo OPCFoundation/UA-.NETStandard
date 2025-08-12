@@ -51,7 +51,9 @@ namespace Opc.Ua.PubSub.Encoding
         /// Create new instance of <see cref="JsonNetworkMessage"/>
         /// </summary>
         public JsonNetworkMessage()
-            : this(null, []) { }
+            : this(null, [])
+        {
+        }
 
         /// <summary>
         /// Create new instance of <see cref="JsonNetworkMessage"/> as a DataSet message
@@ -62,7 +64,9 @@ namespace Opc.Ua.PubSub.Encoding
             WriterGroupDataType writerGroupConfiguration,
             List<JsonDataSetMessage> jsonDataSetMessages
         )
-            : base(writerGroupConfiguration, jsonDataSetMessages?.ConvertAll<UaDataSetMessage>(x => x) ?? [])
+            : base(
+                writerGroupConfiguration,
+                jsonDataSetMessages?.ConvertAll<UaDataSetMessage>(x => x) ?? [])
         {
             MessageId = Guid.NewGuid().ToString();
             MessageType = kDataSetMessageType;
@@ -74,7 +78,9 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Create new instance of <see cref="JsonNetworkMessage"/> as a DataSetMetaData message
         /// </summary>
-        public JsonNetworkMessage(WriterGroupDataType writerGroupConfiguration, DataSetMetaDataType metadata)
+        public JsonNetworkMessage(
+            WriterGroupDataType writerGroupConfiguration,
+            DataSetMetaDataType metadata)
             : base(writerGroupConfiguration, metadata)
         {
             MessageId = Guid.NewGuid().ToString();
@@ -137,12 +143,13 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Set network message content mask
         /// </summary>
-        /// <param name="networkMessageContentMask"></param>
-        public void SetNetworkMessageContentMask(JsonNetworkMessageContentMask networkMessageContentMask)
+        public void SetNetworkMessageContentMask(
+            JsonNetworkMessageContentMask networkMessageContentMask)
         {
             NetworkMessageContentMask = networkMessageContentMask;
 
-            foreach (JsonDataSetMessage jsonDataSetMessage in DataSetMessages.Cast<JsonDataSetMessage>())
+            foreach (JsonDataSetMessage jsonDataSetMessage in DataSetMessages
+                .Cast<JsonDataSetMessage>())
             {
                 jsonDataSetMessage.HasDataSetMessageHeader = HasDataSetMessageHeader;
             }
@@ -166,7 +173,9 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="stream">The stream to use.</param>
         public override void Encode(IServiceMessageContext messageContext, Stream stream)
         {
-            bool topLevelIsArray = !HasNetworkMessageHeader && !HasSingleDataSetMessage && !IsMetaDataMessage;
+            bool topLevelIsArray = !HasNetworkMessageHeader &&
+                !HasSingleDataSetMessage &&
+                !IsMetaDataMessage;
 
             using var encoder = new JsonEncoder(messageContext, true, topLevelIsArray, stream);
             if (IsMetaDataMessage)
@@ -224,9 +233,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decodes the message
         /// </summary>
-        /// <param name="context"></param>
-        /// <param name="message"></param>
-        /// <param name="dataSetReaders"></param>
         public override void Decode(
             IServiceMessageContext context,
             byte[] message,
@@ -253,6 +259,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encodes the object in a binary stream.
         /// </summary>
+        /// <exception cref="ArgumentException"><paramref name="jsonEncoder"/></exception>
         private void Encode(IJsonEncoder jsonEncoder)
         {
             if (jsonEncoder == null)
@@ -284,8 +291,9 @@ namespace Opc.Ua.PubSub.Encoding
                 }
 
                 if (
-                    (NetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetClassId) != 0
-                    && HasSingleDataSetMessage
+                    (NetworkMessageContentMask &
+                        JsonNetworkMessageContentMask.DataSetClassId) != 0 &&
+                    HasSingleDataSetMessage
                 )
                 {
                     var jsonDataSetMessage = DataSetMessages[0] as JsonDataSetMessage;
@@ -361,7 +369,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encode Network Message Header
         /// </summary>
-        /// <param name="jsonDecoder"></param>
         private void DecodeNetworkMessageHeader(JsonDecoder jsonDecoder)
         {
             if (jsonDecoder.ReadField(nameof(MessageId), out _))
@@ -432,13 +439,14 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decode the jsonDecoder content as a MetaData message
         /// </summary>
-        /// <param name="jsonDecoder"></param>
         private void DecodeMetaDataMessage(JsonDecoder jsonDecoder)
         {
             try
             {
                 m_metadata =
-                    jsonDecoder.ReadEncodeable(kFieldMetaData, typeof(DataSetMetaDataType)) as DataSetMetaDataType;
+                    jsonDecoder.ReadEncodeable(
+                        kFieldMetaData,
+                        typeof(DataSetMetaDataType)) as DataSetMetaDataType;
             }
             catch (Exception ex)
             {
@@ -450,10 +458,9 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decode the stream from decoder parameter and produce a Dataset
         /// </summary>
-        /// <param name="jsonDecoder"></param>
-        /// <param name="dataSetReaders"></param>
-        /// <returns></returns>
-        private void DecodeSubscribedDataSets(JsonDecoder jsonDecoder, IList<DataSetReaderDataType> dataSetReaders)
+        private void DecodeSubscribedDataSets(
+            JsonDecoder jsonDecoder,
+            IList<DataSetReaderDataType> dataSetReaders)
         {
             if (dataSetReaders == null || dataSetReaders.Count == 0)
             {
@@ -470,7 +477,9 @@ namespace Opc.Ua.PubSub.Encoding
                 if (m_jsonNetworkMessageType == JSONNetworkMessageType.DataSetMetaData)
                 {
                     m_metadata =
-                        jsonDecoder.ReadEncodeable(kFieldMetaData, typeof(DataSetMetaDataType)) as DataSetMetaDataType;
+                        jsonDecoder.ReadEncodeable(
+                            kFieldMetaData,
+                            typeof(DataSetMetaDataType)) as DataSetMetaDataType;
                     return;
                 }
 
@@ -491,9 +500,12 @@ namespace Opc.Ua.PubSub.Encoding
                     }
                     // publisher id
                     else if (
-                        (NetworkMessageContentMask & JsonNetworkMessageContentMask.PublisherId) != 0
-                        && PublisherId != null
-                        && PublisherId.Equals(dataSetReader.PublisherId.Value.ToString(), StringComparison.Ordinal)
+                        (NetworkMessageContentMask &
+                            JsonNetworkMessageContentMask.PublisherId) != 0 &&
+                        PublisherId != null &&
+                        PublisherId.Equals(
+                            dataSetReader.PublisherId.Value.ToString(),
+                            StringComparison.Ordinal)
                     )
                     {
                         dataSetReadersFiltered.Add(dataSetReader);
@@ -505,10 +517,9 @@ namespace Opc.Ua.PubSub.Encoding
                 }
                 dataSetReaders = dataSetReadersFiltered;
 
-                object messagesToken = null;
                 List<object> messagesList = null;
                 string messagesListName = string.Empty;
-                if (jsonDecoder.ReadField(kFieldMessages, out messagesToken))
+                if (jsonDecoder.ReadField(kFieldMessages, out object messagesToken))
                 {
                     messagesList = messagesToken as List<object>;
                     if (messagesList == null)
@@ -547,7 +558,8 @@ namespace Opc.Ua.PubSub.Encoding
                         }
                         var networkMessageContentMask = (JsonNetworkMessageContentMask)
                             jsonMessageSettings.NetworkMessageContentMask;
-                        if ((networkMessageContentMask & NetworkMessageContentMask) != NetworkMessageContentMask)
+                        if ((networkMessageContentMask &
+                            NetworkMessageContentMask) != NetworkMessageContentMask)
                         {
                             // The reader MessageSettings.NetworkMessageContentMask is not set up correctly
                             continue;
@@ -557,14 +569,15 @@ namespace Opc.Ua.PubSub.Encoding
                         var jsonDataSetMessage = new JsonDataSetMessage
                         {
                             DataSetMessageContentMask = (JsonDataSetMessageContentMask)
-                                jsonMessageSettings.DataSetMessageContentMask,
+                                jsonMessageSettings.DataSetMessageContentMask
                         };
                         jsonDataSetMessage.SetFieldContentMask(
                             (DataSetFieldContentMask)dataSetReader.DataSetFieldContentMask
                         );
                         // set the flag that indicates if dataset message shall have a header
                         jsonDataSetMessage.HasDataSetMessageHeader =
-                            (networkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0;
+                            (networkMessageContentMask &
+                                JsonNetworkMessageContentMask.DataSetMessageHeader) != 0;
 
                         jsonDataSetMessage.DecodePossibleDataSetReader(
                             jsonDecoder,
@@ -576,7 +589,8 @@ namespace Opc.Ua.PubSub.Encoding
                         {
                             m_uaDataSetMessages.Add(jsonDataSetMessage);
                         }
-                        else if (jsonDataSetMessage.DecodeErrorReason == DataSetDecodeErrorReason.MetadataMajorVersion)
+                        else if (jsonDataSetMessage
+                            .DecodeErrorReason == DataSetDecodeErrorReason.MetadataMajorVersion)
                         {
                             OnDataSetDecodeErrorOccurred(
                                 new DataSetDecodeErrorEventArgs(

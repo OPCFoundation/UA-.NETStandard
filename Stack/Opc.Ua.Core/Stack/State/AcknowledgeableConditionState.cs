@@ -193,7 +193,11 @@ namespace Opc.Ua
                 e.SetChildValue(context, BrowseNames.SourceName, "Method/Acknowledge", false);
 
                 e.SetChildValue(context, BrowseNames.MethodId, method.NodeId, false);
-                e.SetChildValue(context, BrowseNames.InputArguments, new object[] { eventId, comment }, false);
+                e.SetChildValue(
+                    context,
+                    BrowseNames.InputArguments,
+                    new object[] { eventId, comment },
+                    false);
 
                 e.SetChildValue(context, BrowseNames.ConditionEventId, eventId, false);
                 e.SetChildValue(context, BrowseNames.Comment, comment, false);
@@ -251,7 +255,10 @@ namespace Opc.Ua
         /// <param name="context">The system context.</param>
         protected virtual void UpdateStateAfterAcknowledge(ISystemContext context)
         {
-            var state = new TranslationInfo("ConditionStateAcknowledged", "en-US", ConditionStateNames.Acknowledged);
+            var state = new TranslationInfo(
+                "ConditionStateAcknowledged",
+                "en-US",
+                ConditionStateNames.Acknowledged);
 
             AckedState.Value = new LocalizedText(state);
             AckedState.Id.Value = true;
@@ -340,7 +347,10 @@ namespace Opc.Ua
                 // raise the audit event.
                 var e = new AuditConditionConfirmEventState(null);
 
-                var info = new TranslationInfo("AuditConditionConfirm", "en-US", "The Confirm method was called.");
+                var info = new TranslationInfo(
+                    "AuditConditionConfirm",
+                    "en-US",
+                    "The Confirm method was called.");
 
                 e.Initialize(
                     context,
@@ -355,7 +365,11 @@ namespace Opc.Ua
                 e.SetChildValue(context, BrowseNames.SourceName, "Method/Confirm", false);
 
                 e.SetChildValue(context, BrowseNames.MethodId, method.NodeId, false);
-                e.SetChildValue(context, BrowseNames.InputArguments, new object[] { eventId, comment }, false);
+                e.SetChildValue(
+                    context,
+                    BrowseNames.InputArguments,
+                    new object[] { eventId, comment },
+                    false);
 
                 e.SetChildValue(context, BrowseNames.ConditionEventId, eventId, false);
                 e.SetChildValue(context, BrowseNames.Comment, comment, false);
@@ -415,7 +429,10 @@ namespace Opc.Ua
         {
             if (ConfirmedState != null)
             {
-                var state = new TranslationInfo("ConditionStateConfirmed", "en-US", ConditionStateNames.Confirmed);
+                var state = new TranslationInfo(
+                    "ConditionStateConfirmed",
+                    "en-US",
+                    ConditionStateNames.Confirmed);
 
                 ConfirmedState.Value = new LocalizedText(state);
                 ConfirmedState.Id.Value = true;
@@ -437,7 +454,10 @@ namespace Opc.Ua
         {
             if (ConfirmedState != null)
             {
-                var state = new TranslationInfo("ConditionStateUnconfirmed", "en-US", ConditionStateNames.Unconfirmed);
+                var state = new TranslationInfo(
+                    "ConditionStateUnconfirmed",
+                    "en-US",
+                    ConditionStateNames.Unconfirmed);
 
                 ConfirmedState.Value = new LocalizedText(state);
                 ConfirmedState.Id.Value = false;

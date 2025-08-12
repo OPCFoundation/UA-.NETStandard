@@ -166,9 +166,9 @@ namespace Opc.Ua
 
             // check subtypes if possible.
             if (
-                IncludeSubtypes
-                && SystemContext != null
-                && SystemContext.TypeTable.IsTypeOf(referenceType, ReferenceType)
+                IncludeSubtypes &&
+                SystemContext != null &&
+                SystemContext.TypeTable.IsTypeOf(referenceType, ReferenceType)
             )
             {
                 return true;

@@ -70,9 +70,12 @@ namespace Opc.Ua.Server.Tests
             EndpointDescriptionCollection endpoints = server.GetEndpoints();
             EndpointDescription endpoint =
                 endpoints.FirstOrDefault(e =>
-                    e.TransportProfileUri.Equals(Profiles.UaTcpTransport, StringComparison.Ordinal)
-                    || e.TransportProfileUri.Equals(Profiles.HttpsBinaryTransport, StringComparison.Ordinal)
-                ) ?? throw new Exception("Unsupported transport profile.");
+                    e.TransportProfileUri
+                        .Equals(Profiles.UaTcpTransport, StringComparison.Ordinal) ||
+                    e.TransportProfileUri
+                        .Equals(Profiles.HttpsBinaryTransport, StringComparison.Ordinal)
+                ) ??
+                throw new Exception("Unsupported transport profile.");
 
             // fake profiles
             if (useSecurity)
@@ -87,7 +90,8 @@ namespace Opc.Ua.Server.Tests
             }
 
             // set security context
-            SecureChannelContext.Current = new SecureChannelContext(sessionName, endpoint, RequestEncoding.Binary);
+            SecureChannelContext.Current
+                = new SecureChannelContext(sessionName, endpoint, RequestEncoding.Binary);
             var requestHeader = new RequestHeader();
 
             // Create session
@@ -120,7 +124,7 @@ namespace Opc.Ua.Server.Tests
                 signatureData,
                 [],
                 [],
-                (identityToken != null) ? new ExtensionObject(identityToken) : null,
+                identityToken != null ? new ExtensionObject(identityToken) : null,
                 null,
                 out serverNonce,
                 out StatusCodeCollection results,
@@ -147,17 +151,23 @@ namespace Opc.Ua.Server.Tests
         /// Validate the response of a service call.
         /// </summary>
         /// <param name="header">The response header of the service call.</param>
+        /// <exception cref="ServiceResultException"></exception>
         public static void ValidateResponse(ResponseHeader header)
         {
             if (header == null)
             {
-                throw new ServiceResultException(StatusCodes.BadUnknownResponse, "Null header in response.");
+                throw new ServiceResultException(
+                    StatusCodes.BadUnknownResponse,
+                    "Null header in response.");
             }
 
             if (StatusCode.IsBad(header.ServiceResult))
             {
                 throw new ServiceResultException(
-                    new ServiceResult(header.ServiceResult, header.ServiceDiagnostics, header.StringTable)
+                    new ServiceResult(
+                        header.ServiceResult,
+                        header.ServiceDiagnostics,
+                        header.StringTable)
                 );
             }
         }
@@ -173,6 +183,8 @@ namespace Opc.Ua.Server.Tests
         /// <param name="header">The response header of the service call.</param>
         /// <param name="response">The list of returned values by the service call.</param>
         /// <param name="request">The list of requests passed to the service call.</param>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static void ValidateResponse(ResponseHeader header, IList response, IList request)
         {
             ValidateResponse(header);
@@ -199,6 +211,7 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         /// <param name="response">The diagnostic info response.</param>
         /// <param name="request">The request items of the service call.</param>
+        /// <exception cref="ServiceResultException"></exception>
         public static void ValidateDiagnosticInfos(
             DiagnosticInfoCollection response,
             IList request,
@@ -221,13 +234,14 @@ namespace Opc.Ua.Server.Tests
                 {
                     for (int ii = 0; ii < response.Count; ii++)
                     {
-                        if (response[ii] is DiagnosticInfo diagnosticInfo && !diagnosticInfo.IsNullDiagnosticInfo)
+                        if (response[ii] is DiagnosticInfo diagnosticInfo &&
+                            !diagnosticInfo.IsNullDiagnosticInfo)
                         {
                             if (
-                                diagnosticInfo.NamespaceUri >= stringTable.Count
-                                || diagnosticInfo.SymbolicId >= stringTable.Count
-                                || diagnosticInfo.Locale >= stringTable.Count
-                                || diagnosticInfo.LocalizedText >= stringTable.Count
+                                diagnosticInfo.NamespaceUri >= stringTable.Count ||
+                                diagnosticInfo.SymbolicId >= stringTable.Count ||
+                                diagnosticInfo.Locale >= stringTable.Count ||
+                                diagnosticInfo.LocalizedText >= stringTable.Count
                             )
                             {
                                 throw new ServiceResultException(
@@ -235,7 +249,11 @@ namespace Opc.Ua.Server.Tests
                                     "The server forgot to fill in string table for the DiagnosticInfos array correctly when returning an operation level error."
                                 );
                             }
-                            var serviceResult = new ServiceResult(StatusCodes.Good, ii, response, stringTable);
+                            var serviceResult = new ServiceResult(
+                                StatusCodes.Good,
+                                ii,
+                                response,
+                                stringTable);
                             Utils.LogInfo("DiagnosticInfo: {0}", serviceResult.ToString());
                         }
                     }
@@ -269,7 +287,8 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         /// <param name="browseResultCollection">The browse result collection to use.</param>
         /// <returns>The collection of continuation points for the BrowseNext service.</returns>
-        public static ByteStringCollection PrepareBrowseNext(BrowseResultCollection browseResultCollection)
+        public static ByteStringCollection PrepareBrowseNext(
+            BrowseResultCollection browseResultCollection)
         {
             var continuationPoints = new ByteStringCollection();
             foreach (BrowseResult browseResult in browseResultCollection)
@@ -313,7 +332,7 @@ namespace Opc.Ua.Server.Tests
                 { Attributes.RolePermissions, null },
                 { Attributes.UserRolePermissions, null },
                 { Attributes.AccessRestrictions, null },
-                { Attributes.AccessLevelEx, null },
+                { Attributes.AccessLevelEx, null }
             }
         );
 
@@ -323,7 +342,10 @@ namespace Opc.Ua.Server.Tests
         public static int GetNextFreeIPPort()
         {
             var endpoint = new IPEndPoint(IPAddress.Any, 0);
-            using var socket = new Socket(endpoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+            using var socket = new Socket(
+                endpoint.AddressFamily,
+                SocketType.Stream,
+                ProtocolType.Tcp);
             socket.Bind(endpoint);
             if (socket.LocalEndPoint is IPEndPoint ep)
             {

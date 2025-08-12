@@ -176,7 +176,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Set the ECC security policy URI
         /// </summary>
-        /// <param name="securityPolicyUri"></param>
         void SetEccUserTokenSecurityPolicy(string securityPolicyUri);
 
         /// <summary>

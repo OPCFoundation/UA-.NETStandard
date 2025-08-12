@@ -55,7 +55,10 @@ namespace Opc.Ua
         /// <summary>
         /// Sets the value to its default value if it is not valid.
         /// </summary>
-        protected virtual object ExtractValueFromVariant(ISystemContext context, object value, bool throwOnError)
+        protected virtual object ExtractValueFromVariant(
+            ISystemContext context,
+            object value,
+            bool throwOnError)
         {
             return value;
         }
@@ -246,7 +249,9 @@ namespace Opc.Ua
 
             if (ArrayDimensions != null)
             {
-                encoder.WriteString("ArrayDimensions", BaseVariableState.ArrayDimensionsToXml(ArrayDimensions));
+                encoder.WriteString(
+                    "ArrayDimensions",
+                    BaseVariableState.ArrayDimensionsToXml(ArrayDimensions));
             }
 
             encoder.PopNamespace();
@@ -280,7 +285,8 @@ namespace Opc.Ua
 
             if (decoder.Peek("ArrayDimensions"))
             {
-                ArrayDimensions = BaseVariableState.ArrayDimensionsFromXml(decoder.ReadString("ArrayDimensions"));
+                ArrayDimensions = BaseVariableState.ArrayDimensionsFromXml(
+                    decoder.ReadString("ArrayDimensions"));
             }
 
             decoder.PopNamespace();
@@ -324,7 +330,10 @@ namespace Opc.Ua
         /// <param name="context">The context user.</param>
         /// <param name="encoder">The encoder to write to.</param>
         /// <param name="attributesToSave">The masks indicating what attributes to write.</param>
-        public override void Save(ISystemContext context, BinaryEncoder encoder, AttributesToSave attributesToSave)
+        public override void Save(
+            ISystemContext context,
+            BinaryEncoder encoder,
+            AttributesToSave attributesToSave)
         {
             base.Save(context, encoder, attributesToSave);
 
@@ -355,7 +364,10 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         /// <param name="decoder">The decoder.</param>
         /// <param name="attributesToLoad">The attributes to load.</param>
-        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attributesToLoad)
+        public override void Update(
+            ISystemContext context,
+            BinaryDecoder decoder,
+            AttributesToSave attributesToLoad)
         {
             base.Update(context, decoder, attributesToLoad);
 
@@ -418,7 +430,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.ValueRank:
                     int valueRank = m_valueRank;
 
@@ -435,11 +446,11 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.ArrayDimensions:
                     IList<uint> arrayDimensions = m_arrayDimensions;
 
-                    NodeAttributeEventHandler<IList<uint>> onReadArrayDimensions = OnReadArrayDimensions;
+                    NodeAttributeEventHandler<IList<uint>> onReadArrayDimensions
+                        = OnReadArrayDimensions;
 
                     if (onReadArrayDimensions != null)
                     {
@@ -496,7 +507,11 @@ namespace Opc.Ua
             }
 
             // apply the index range and encoding.
-            result = BaseVariableState.ApplyIndexRangeAndDataEncoding(context, indexRange, dataEncoding, ref value);
+            result = BaseVariableState.ApplyIndexRangeAndDataEncoding(
+                context,
+                indexRange,
+                dataEncoding,
+                ref value);
 
             if (ServiceResult.IsBad(result))
             {
@@ -515,7 +530,10 @@ namespace Opc.Ua
         /// <summary>
         /// Write the value for any non-value attribute.
         /// </summary>
-        protected override ServiceResult WriteNonValueAttribute(ISystemContext context, uint attributeId, object value)
+        protected override ServiceResult WriteNonValueAttribute(
+            ISystemContext context,
+            uint attributeId,
+            object value)
         {
             ServiceResult result = null;
 
@@ -545,7 +563,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.ValueRank:
                     int? valueRankRef = value as int?;
 
@@ -574,7 +591,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.ArrayDimensions:
                     var arrayDimensions = value as IList<uint>;
 
@@ -583,7 +599,8 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<IList<uint>> onWriteArrayDimensions = OnWriteArrayDimensions;
+                    NodeAttributeEventHandler<IList<uint>> onWriteArrayDimensions
+                        = OnWriteArrayDimensions;
 
                     if (onWriteArrayDimensions != null)
                     {
@@ -683,7 +700,9 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the type with its default attribute values.
         /// </summary>
-        public BaseDataVariableTypeState() { }
+        public BaseDataVariableTypeState()
+        {
+        }
 
         /// <summary>
         /// Constructs an instance of a node.
@@ -700,8 +719,14 @@ namespace Opc.Ua
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
-            SuperTypeId = NodeId.Create(VariableTypes.BaseVariableType, Namespaces.OpcUa, context.NamespaceUris);
-            NodeId = NodeId.Create(VariableTypes.BaseDataVariableType, Namespaces.OpcUa, context.NamespaceUris);
+            SuperTypeId = NodeId.Create(
+                VariableTypes.BaseVariableType,
+                Namespaces.OpcUa,
+                context.NamespaceUris);
+            NodeId = NodeId.Create(
+                VariableTypes.BaseDataVariableType,
+                Namespaces.OpcUa,
+                context.NamespaceUris);
             BrowseName = QualifiedName.Create(
                 BrowseNames.BaseDataVariableType,
                 Namespaces.OpcUa,
@@ -717,7 +742,10 @@ namespace Opc.Ua
             UserWriteMask = AttributeWriteMask.None;
             IsAbstract = false;
             Value = null;
-            DataType = NodeId.Create(DataTypes.BaseDataType, Namespaces.OpcUa, context.NamespaceUris);
+            DataType = NodeId.Create(
+                DataTypes.BaseDataType,
+                Namespaces.OpcUa,
+                context.NamespaceUris);
             ValueRank = ValueRanks.Any;
             ArrayDimensions = null;
         }
@@ -726,12 +754,15 @@ namespace Opc.Ua
     /// <summary>
     /// A typed base class for all data variable type nodes.
     /// </summary>
+    /// <typeparam name="T"></typeparam>
     public class BaseDataVariableTypeState<T> : BaseDataVariableTypeState
     {
         /// <summary>
         /// Initializes the type with its default attribute values.
         /// </summary>
-        public BaseDataVariableTypeState() { }
+        public BaseDataVariableTypeState()
+        {
+        }
 
         /// <summary>
         /// Initializes the instance with the default values.
@@ -748,7 +779,10 @@ namespace Opc.Ua
         /// <summary>
         /// Sets the value to its default value if it is not valid.
         /// </summary>
-        protected override object ExtractValueFromVariant(ISystemContext context, object value, bool throwOnError)
+        protected override object ExtractValueFromVariant(
+            ISystemContext context,
+            object value,
+            bool throwOnError)
         {
             return BaseVariableState.ExtractValueFromVariant<T>(context, value, throwOnError);
         }
@@ -771,7 +805,9 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the type with its default attribute values.
         /// </summary>
-        public PropertyTypeState() { }
+        public PropertyTypeState()
+        {
+        }
 
         /// <summary>
         /// Constructs an instance of a node.
@@ -788,16 +824,31 @@ namespace Opc.Ua
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
-            SuperTypeId = NodeId.Create(VariableTypes.BaseVariableType, Namespaces.OpcUa, context.NamespaceUris);
-            NodeId = NodeId.Create(VariableTypes.PropertyType, Namespaces.OpcUa, context.NamespaceUris);
-            BrowseName = QualifiedName.Create(BrowseNames.PropertyType, Namespaces.OpcUa, context.NamespaceUris);
-            DisplayName = new LocalizedText(BrowseNames.PropertyType, string.Empty, BrowseNames.PropertyType);
+            SuperTypeId = NodeId.Create(
+                VariableTypes.BaseVariableType,
+                Namespaces.OpcUa,
+                context.NamespaceUris);
+            NodeId = NodeId.Create(
+                VariableTypes.PropertyType,
+                Namespaces.OpcUa,
+                context.NamespaceUris);
+            BrowseName = QualifiedName.Create(
+                BrowseNames.PropertyType,
+                Namespaces.OpcUa,
+                context.NamespaceUris);
+            DisplayName = new LocalizedText(
+                BrowseNames.PropertyType,
+                string.Empty,
+                BrowseNames.PropertyType);
             Description = null;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
             IsAbstract = false;
             Value = null;
-            DataType = NodeId.Create(DataTypes.BaseDataType, Namespaces.OpcUa, context.NamespaceUris);
+            DataType = NodeId.Create(
+                DataTypes.BaseDataType,
+                Namespaces.OpcUa,
+                context.NamespaceUris);
             ValueRank = ValueRanks.Any;
             ArrayDimensions = null;
         }
@@ -806,12 +857,15 @@ namespace Opc.Ua
     /// <summary>
     /// A typed base class for all property variable type nodes.
     /// </summary>
+    /// <typeparam name="T"></typeparam>
     public class PropertyTypeState<T> : PropertyTypeState
     {
         /// <summary>
         /// Initializes the type with its default attribute values.
         /// </summary>
-        public PropertyTypeState() { }
+        public PropertyTypeState()
+        {
+        }
 
         /// <summary>
         /// Initializes the instance with the default values.
@@ -828,7 +882,10 @@ namespace Opc.Ua
         /// <summary>
         /// Sets the value to its default value if it is not valid.
         /// </summary>
-        protected override object ExtractValueFromVariant(ISystemContext context, object value, bool throwOnError)
+        protected override object ExtractValueFromVariant(
+            ISystemContext context,
+            object value,
+            bool throwOnError)
         {
             return BaseVariableState.ExtractValueFromVariant<T>(context, value, throwOnError);
         }

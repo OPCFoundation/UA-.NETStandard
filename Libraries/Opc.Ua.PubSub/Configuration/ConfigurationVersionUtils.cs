@@ -46,7 +46,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// </summary>
         /// <param name="oldMetaData">The historical MetaData to be compared against the new MetaData</param>
         /// <param name="newMetaData">The new MetaData </param>
-        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"><paramref name="newMetaData"/> is <c>null</c>.</exception>
         public static ConfigurationVersionDataType CalculateConfigurationVersion(
             DataSetMetaDataType oldMetaData,
             DataSetMetaDataType newMetaData
@@ -80,13 +80,16 @@ namespace Opc.Ua.PubSub.Configuration
                     for (int i = 0; i < oldMetaData.Fields.Count; i++)
                     {
                         /*If at least one Property value of a DataSetMetaData field changes, the MajorVersion shall be updated.*/
-                        if (!Utils.IsEqual(oldMetaData.Fields[i].Properties, newMetaData.Fields[1].Properties))
+                        if (!Utils.IsEqual(
+                            oldMetaData.Fields[i].Properties,
+                            newMetaData.Fields[1].Properties))
                         {
                             hasMajorVersionChange = true;
                             break;
                         }
                     }
-                    if (!hasMajorVersionChange && oldMetaData.Fields.Count < newMetaData.Fields.Count)
+                    if (!hasMajorVersionChange &&
+                        oldMetaData.Fields.Count < newMetaData.Fields.Count)
                     {
                         /* Only the MinorVersion shall be updated if fields are added at the end of the DataSet content.*/
                         hasMinorVersionChange = true;
@@ -100,28 +103,25 @@ namespace Opc.Ua.PubSub.Configuration
                 if (hasMajorVersionChange)
                 {
                     // Change both minor and major version
-                    return new ConfigurationVersionDataType()
+                    return new ConfigurationVersionDataType
                     {
                         MinorVersion = versionTime,
-                        MajorVersion = versionTime,
+                        MajorVersion = versionTime
                     };
                 }
-                else
+                // only minor version was changed
+                return new ConfigurationVersionDataType
                 {
-                    // only minor version was changed
-                    return new ConfigurationVersionDataType()
-                    {
-                        MinorVersion = versionTime,
-                        MajorVersion = newMetaData.ConfigurationVersion.MajorVersion,
-                    };
-                }
+                    MinorVersion = versionTime,
+                    MajorVersion = newMetaData.ConfigurationVersion.MajorVersion
+                };
             }
 
             // there is no change
-            return new ConfigurationVersionDataType()
+            return new ConfigurationVersionDataType
             {
                 MinorVersion = newMetaData.ConfigurationVersion.MinorVersion,
-                MajorVersion = newMetaData.ConfigurationVersion.MajorVersion,
+                MajorVersion = newMetaData.ConfigurationVersion.MajorVersion
             };
         }
 
@@ -129,7 +129,6 @@ namespace Opc.Ua.PubSub.Configuration
         /// Calculate and return the VersionTime calculated for the input parameter
         /// </summary>
         /// <param name="timeOfConfiguration">The current time of configuration</param>
-        /// <returns></returns>
         public static uint CalculateVersionTime(DateTime timeOfConfiguration)
         {
             /*This primitive data type is a UInt32 that represents the time in seconds since the year 2000. The epoch date is midnight UTC (00:00) on January 1, 2000.
@@ -144,8 +143,6 @@ namespace Opc.Ua.PubSub.Configuration
         /// Check if the DataSetMetaData is usable for decoding.
         /// It shall be not null and have the Fields collection defined and also the ConfigurationVersion shall be not null or Empty
         /// </summary>
-        /// <param name="dataSetMetaData"></param>
-        /// <returns></returns>
         public static bool IsUsable(DataSetMetaDataType dataSetMetaData)
         {
             if (dataSetMetaData == null)

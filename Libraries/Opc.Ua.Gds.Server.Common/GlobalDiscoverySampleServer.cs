@@ -113,7 +113,7 @@ namespace Opc.Ua.Gds.Server
                     m_request,
                     m_certificateGroup,
                     m_autoApprove
-                ),
+                )
             };
 
             // create master node manager.
@@ -135,14 +135,17 @@ namespace Opc.Ua.Gds.Server
                 ProductUri = "http://somecompany.com/GlobalDiscoveryServer",
                 SoftwareVersion = Utils.GetAssemblySoftwareVersion(),
                 BuildNumber = Utils.GetAssemblyBuildNumber(),
-                BuildDate = Utils.GetAssemblyTimestamp(),
+                BuildDate = Utils.GetAssemblyTimestamp()
             };
         }
 
         /// <summary>
         /// This method is called at the being of the thread that processes a request.
         /// </summary>
-        protected override OperationContext ValidateRequest(RequestHeader requestHeader, RequestType requestType)
+        /// <exception cref="ServiceResultException"></exception>
+        protected override OperationContext ValidateRequest(
+            RequestHeader requestHeader,
+            RequestType requestType)
         {
             OperationContext context = base.ValidateRequest(requestHeader, requestType);
 
@@ -191,8 +194,9 @@ namespace Opc.Ua.Gds.Server
         {
             lock (Lock)
             {
-                ImpersonationContext impersonationContext;
-                if (m_contexts.TryGetValue(context.RequestId, out impersonationContext))
+                if (m_contexts.TryGetValue(
+                    context.RequestId,
+                    out ImpersonationContext impersonationContext))
                 {
                     m_contexts.Remove(context.RequestId);
                 }
@@ -207,7 +211,8 @@ namespace Opc.Ua.Gds.Server
         private void SessionManager_ImpersonateUser(ISession session, ImpersonateEventArgs args)
         {
             // check for a user name token
-            if (args.NewIdentity is UserNameIdentityToken userNameToken && VerifyPassword(userNameToken))
+            if (args.NewIdentity is UserNameIdentityToken userNameToken &&
+                VerifyPassword(userNameToken))
             {
                 IEnumerable<Role> roles = m_userDatabase.GetUserRoles(userNameToken.UserName);
 
@@ -223,8 +228,13 @@ namespace Opc.Ua.Gds.Server
                 // todo: is cert listed in admin list? then
                 // role = GdsRole.ApplicationAdmin;
 
-                Utils.LogInfo("X509 Token Accepted: {0} as {1}", args.Identity.DisplayName, Role.AuthenticatedUser);
-                args.Identity = new GdsRoleBasedIdentity(new UserIdentity(x509Token), [Role.AuthenticatedUser]);
+                Utils.LogInfo(
+                    "X509 Token Accepted: {0} as {1}",
+                    args.Identity.DisplayName,
+                    Role.AuthenticatedUser);
+                args.Identity = new GdsRoleBasedIdentity(
+                    new UserIdentity(x509Token),
+                    [Role.AuthenticatedUser]);
                 return;
             }
 
@@ -239,13 +249,13 @@ namespace Opc.Ua.Gds.Server
         /// Verifies if an Application is registered with the provided certificate at the GDS
         /// </summary>
         /// <param name="session">the session</param>
-        /// <returns></returns>
         private bool VerifiyApplicationRegistered(ISession session)
         {
             X509Certificate2 applicationInstanceCertificate = session.ClientCertificate;
             bool applicationRegistered = false;
 
-            Uri applicationUri = Utils.ParseUri(session.SessionDiagnostics.ClientDescription.ApplicationUri);
+            Uri applicationUri = Utils.ParseUri(
+                session.SessionDiagnostics.ClientDescription.ApplicationUri);
             X509Utils.DoesUrlMatchCertificate(applicationInstanceCertificate, applicationUri);
 
             //get access to GDS configuration section to find out ApplicationCertificatesStorePath
@@ -273,7 +283,8 @@ namespace Opc.Ua.Gds.Server
                 return false;
             }
             //check if application certificate is revoked
-            certificateStoreIdentifier = new CertificateStoreIdentifier(configuration.AuthoritiesStorePath);
+            certificateStoreIdentifier = new CertificateStoreIdentifier(
+                configuration.AuthoritiesStorePath);
             using (ICertificateStore authoritiesStore = certificateStoreIdentifier.OpenStore())
             {
                 foreach (X509CRL crl in authoritiesStore.EnumerateCRLsAsync().Result)
@@ -290,6 +301,7 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// Verifies that a certificate user token is trusted.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void VerifyUserTokenCertificate(X509Certificate2 certificate)
         {
             try
@@ -300,7 +312,8 @@ namespace Opc.Ua.Gds.Server
             {
                 TranslationInfo info;
                 StatusCode result = StatusCodes.BadIdentityTokenRejected;
-                if (e is ServiceResultException se && se.StatusCode == StatusCodes.BadCertificateUseNotAllowed)
+                if (e is ServiceResultException se &&
+                    se.StatusCode == StatusCodes.BadCertificateUseNotAllowed)
                 {
                     info = new TranslationInfo(
                         "InvalidCertificate",
@@ -324,14 +337,20 @@ namespace Opc.Ua.Gds.Server
 
                 // create an exception with a vendor defined sub-code.
                 throw new ServiceResultException(
-                    new ServiceResult(result, info.Key, LoadServerProperties().ProductUri, new LocalizedText(info))
+                    new ServiceResult(
+                        result,
+                        info.Key,
+                        LoadServerProperties().ProductUri,
+                        new LocalizedText(info))
                 );
             }
         }
 
         private bool VerifyPassword(UserNameIdentityToken userNameToken)
         {
-            return m_userDatabase.CheckCredentials(userNameToken.UserName, userNameToken.DecryptedPassword);
+            return m_userDatabase.CheckCredentials(
+                userNameToken.UserName,
+                userNameToken.DecryptedPassword);
         }
 
         /// <summary>
@@ -343,7 +362,8 @@ namespace Opc.Ua.Gds.Server
             m_userDatabase.CreateUser(
                 "sysadmin",
                 "demo",
-                [GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin, Role.SecurityAdmin, Role.ConfigureAdmin]
+                [GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin, Role.SecurityAdmin, Role
+                    .ConfigureAdmin]
             );
             m_userDatabase.CreateUser(
                 "appadmin",
@@ -352,7 +372,10 @@ namespace Opc.Ua.Gds.Server
             );
             m_userDatabase.CreateUser("appuser", "demo", [Role.AuthenticatedUser]);
 
-            m_userDatabase.CreateUser("DiscoveryAdmin", "demo", [Role.AuthenticatedUser, GdsRole.DiscoveryAdmin]);
+            m_userDatabase.CreateUser(
+                "DiscoveryAdmin",
+                "demo",
+                [Role.AuthenticatedUser, GdsRole.DiscoveryAdmin]);
             m_userDatabase.CreateUser(
                 "CertificateAuthorityAdmin",
                 "demo",
@@ -382,8 +405,10 @@ namespace Opc.Ua.Gds.Server
                 "Application {0} accepted based on ApplicationInstanceCertificate as ApplicationSelfAdmin",
                 applicationUri
             );
-            args.Identity = new GdsRoleBasedIdentity(new UserIdentity(), [GdsRole.ApplicationSelfAdmin], applicationId);
-            return;
+            args.Identity = new GdsRoleBasedIdentity(
+                new UserIdentity(),
+                [GdsRole.ApplicationSelfAdmin],
+                applicationId);
         }
 
         private readonly Dictionary<uint, ImpersonationContext> m_contexts = [];

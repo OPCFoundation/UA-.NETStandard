@@ -25,7 +25,9 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes an empty message.
         /// </summary>
-        public InvokeServiceMessage() { }
+        public InvokeServiceMessage()
+        {
+        }
 
         /// <summary>
         /// Initializes the message with the body.
@@ -50,7 +52,9 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes an empty message.
         /// </summary>
-        public InvokeServiceResponseMessage() { }
+        public InvokeServiceResponseMessage()
+        {
+        }
 
         /// <summary>
         /// Initializes the message with the body.

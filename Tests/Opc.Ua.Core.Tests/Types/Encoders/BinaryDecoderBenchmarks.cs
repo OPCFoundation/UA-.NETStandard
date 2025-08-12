@@ -34,8 +34,10 @@ using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
-    [TestFixture, Category("BinaryEncoder")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("BinaryEncoder")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [NonParallelizable]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]

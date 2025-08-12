@@ -50,7 +50,10 @@ namespace TestData
         /// <summary>
         /// Initialzies the variable as a counter.
         /// </summary>
-        protected void InitializeVariable(ISystemContext context, BaseVariableState variable, uint numericId)
+        protected void InitializeVariable(
+            ISystemContext context,
+            BaseVariableState variable,
+            uint numericId)
         {
             variable.NumericId = numericId;
 
@@ -78,14 +81,17 @@ namespace TestData
                 {
                     if (child is BaseVariableState variableChild)
                     {
-                        variableChild.AccessLevel = variableChild.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                        variableChild.AccessLevel = variableChild.UserAccessLevel = AccessLevels
+                            .CurrentReadOrWrite;
                     }
                 }
             }
 
             // set the EU range.
 
-            if (variable.FindChild(context, Opc.Ua.BrowseNames.EURange) is BaseVariableState euRange)
+            if (variable.FindChild(
+                context,
+                Opc.Ua.BrowseNames.EURange) is BaseVariableState euRange)
             {
                 if (context.TypeTable.IsTypeOf(variable.DataType, Opc.Ua.DataTypeIds.UInteger))
                 {
@@ -102,11 +108,16 @@ namespace TestData
         /// <summary>
         /// Validates a written value.
         /// </summary>
-        public ServiceResult OnWriteAnalogValue(ISystemContext context, NodeState node, ref object value)
+        public ServiceResult OnWriteAnalogValue(
+            ISystemContext context,
+            NodeState node,
+            ref object value)
         {
             try
             {
-                if (node.FindChild(context, Opc.Ua.BrowseNames.EURange) is not BaseVariableState euRange)
+                if (node.FindChild(
+                    context,
+                    Opc.Ua.BrowseNames.EURange) is not BaseVariableState euRange)
                 {
                     return ServiceResult.Good;
                 }
@@ -127,7 +138,9 @@ namespace TestData
                             element = ((Variant)element).Value;
                         }
 
-                        double elementNumber = Convert.ToDouble(element, CultureInfo.InvariantCulture);
+                        double elementNumber = Convert.ToDouble(
+                            element,
+                            CultureInfo.InvariantCulture);
 
                         if (elementNumber > range.High || elementNumber < range.Low)
                         {

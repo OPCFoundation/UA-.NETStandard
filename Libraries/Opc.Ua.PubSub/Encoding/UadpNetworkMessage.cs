@@ -56,7 +56,9 @@ namespace Opc.Ua.PubSub.Encoding
         /// Create new instance of UadpNetworkMessage
         /// </summary>
         internal UadpNetworkMessage()
-            : this(null, []) { }
+            : this(null, [])
+        {
+        }
 
         /// <summary>
         /// Create new instance of UadpNetworkMessage
@@ -67,7 +69,9 @@ namespace Opc.Ua.PubSub.Encoding
             WriterGroupDataType writerGroupConfiguration,
             List<UadpDataSetMessage> uadpDataSetMessages
         )
-            : base(writerGroupConfiguration, uadpDataSetMessages?.ConvertAll<UaDataSetMessage>(x => x) ?? [])
+            : base(
+                writerGroupConfiguration,
+                uadpDataSetMessages?.ConvertAll<UaDataSetMessage>(x => x) ?? [])
         {
             UADPVersion = kUadpVersion;
             DataSetClassId = Guid.Empty;
@@ -79,7 +83,9 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Create new instance of <see cref="UadpNetworkMessage"/> as a DiscoveryResponse DataSetMetaData message
         /// </summary>
-        public UadpNetworkMessage(WriterGroupDataType writerGroupConfiguration, DataSetMetaDataType metadata)
+        public UadpNetworkMessage(
+            WriterGroupDataType writerGroupConfiguration,
+            DataSetMetaDataType metadata)
             : base(writerGroupConfiguration, metadata)
         {
             UADPVersion = kUadpVersion;
@@ -111,9 +117,9 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Create new instance of <see cref="UadpNetworkMessage"/> as a DiscoveryResponse of PublisherEndpoints type
         /// </summary>
-        /// <param name="publisherEndpoints"></param>
-        /// <param name="publisherProvidesEndpoints"></param>
-        public UadpNetworkMessage(EndpointDescription[] publisherEndpoints, StatusCode publisherProvidesEndpoints)
+        public UadpNetworkMessage(
+            EndpointDescription[] publisherEndpoints,
+            StatusCode publisherProvidesEndpoints)
             : base(null, [])
         {
             UADPVersion = kUadpVersion;
@@ -132,7 +138,10 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Create new instance of <see cref="UadpNetworkMessage"/> as a DiscoveryResponse of DataSetWriterConfiguration message
         /// </summary>
-        public UadpNetworkMessage(ushort[] writerIds, WriterGroupDataType writerConfig, StatusCode[] streamStatusCodes)
+        public UadpNetworkMessage(
+            ushort[] writerIds,
+            WriterGroupDataType writerConfig,
+            StatusCode[] streamStatusCodes)
             : base(null, [])
         {
             UADPVersion = kUadpVersion;
@@ -243,7 +252,8 @@ namespace Opc.Ua.PubSub.Encoding
                 ExtendedFlags1 &= (ExtendedFlags1EncodingMask)kPublishedIdResetMask;
 
                 // ExtendedFlags1: Bit range 0-2: PublisherId Type
-                PublisherIdTypeEncodingMask publishedIdTypeType = PublisherIdTypeEncodingMask.Reserved;
+                PublisherIdTypeEncodingMask publishedIdTypeType
+                    = PublisherIdTypeEncodingMask.Reserved;
 
                 if (m_publisherId is byte)
                 {
@@ -353,8 +363,8 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Set network message content mask
         /// </summary>
-        /// <param name="networkMessageContentMask"></param>
-        public void SetNetworkMessageContentMask(UadpNetworkMessageContentMask networkMessageContentMask)
+        public void SetNetworkMessageContentMask(
+            UadpNetworkMessageContentMask networkMessageContentMask)
         {
             NetworkMessageContentMask = networkMessageContentMask;
 
@@ -402,9 +412,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decodes the message
         /// </summary>
-        /// <param name="context"></param>
-        /// <param name="message"></param>
-        /// <param name="dataSetReaders"></param>
         public override void Decode(
             IServiceMessageContext context,
             byte[] message,
@@ -438,7 +445,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encodes the DataSet Network message in a binary stream.
         /// </summary>
-        /// <param name="binaryEncoder"></param>
+        /// <exception cref="ArgumentException"><paramref name="binaryEncoder"/></exception>
         private void EncodeDataSetNetworkMessageType(BinaryEncoder binaryEncoder)
         {
             if (binaryEncoder == null)
@@ -458,7 +465,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encodes the NetworkMessage as a DiscoveryResponse of DataSetMetaData Type
         /// </summary>
-        /// <param name="binaryEncoder"></param>
         private void EncodeDataSetMetaData(BinaryEncoder binaryEncoder)
         {
             if (DataSetWriterId != null)
@@ -487,7 +493,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encodes the NetworkMessage as a DiscoveryResponse of DataSetWriterConfiguration Type
         /// </summary>
-        /// <param name="binaryEncoder"></param>
         private void EncodeDataSetWriterConfiguration(BinaryEncoder binaryEncoder)
         {
             if (DataSetWriterIds != null)
@@ -523,10 +528,12 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encodes the NetworkMessage as a DiscoveryResponse of EndpointDescription[] Type
         /// </summary>
-        /// <param name="binaryEncoder"></param>
         private void EncodePublisherEndpoints(BinaryEncoder binaryEncoder)
         {
-            binaryEncoder.WriteEncodeableArray("Endpoints", PublisherEndpoints, typeof(EndpointDescription));
+            binaryEncoder.WriteEncodeableArray(
+                "Endpoints",
+                PublisherEndpoints,
+                typeof(EndpointDescription));
 
             binaryEncoder.WriteStatusCode("statusCode", PublisherProvideEndpoints);
         }
@@ -543,8 +550,9 @@ namespace Opc.Ua.PubSub.Encoding
 
             if (
                 (
-                    NetworkMessageContentMask
-                    & (UadpNetworkMessageContentMask.PublisherId | UadpNetworkMessageContentMask.DataSetClassId)
+                    NetworkMessageContentMask &
+                    (UadpNetworkMessageContentMask.PublisherId |
+                        UadpNetworkMessageContentMask.DataSetClassId)
                 ) != 0
             )
             {
@@ -567,13 +575,13 @@ namespace Opc.Ua.PubSub.Encoding
 
             if (
                 (
-                    NetworkMessageContentMask
-                    & (
-                        UadpNetworkMessageContentMask.GroupHeader
-                        | UadpNetworkMessageContentMask.WriterGroupId
-                        | UadpNetworkMessageContentMask.GroupVersion
-                        | UadpNetworkMessageContentMask.NetworkMessageNumber
-                        | UadpNetworkMessageContentMask.SequenceNumber
+                    NetworkMessageContentMask &
+                    (
+                        UadpNetworkMessageContentMask.GroupHeader |
+                        UadpNetworkMessageContentMask.WriterGroupId |
+                        UadpNetworkMessageContentMask.GroupVersion |
+                        UadpNetworkMessageContentMask.NetworkMessageNumber |
+                        UadpNetworkMessageContentMask.SequenceNumber
                     )
                 ) != UadpNetworkMessageContentMask.None
             )
@@ -594,7 +602,8 @@ namespace Opc.Ua.PubSub.Encoding
                 GroupFlags |= GroupFlagsEncodingMask.GroupVersion;
             }
 
-            if ((NetworkMessageContentMask & UadpNetworkMessageContentMask.NetworkMessageNumber) != 0)
+            if ((NetworkMessageContentMask &
+                UadpNetworkMessageContentMask.NetworkMessageNumber) != 0)
             {
                 // GroupFlags: Bit 2: NetworkMessageNumber enabled
                 GroupFlags |= GroupFlagsEncodingMask.NetworkMessageNumber;
@@ -608,11 +617,11 @@ namespace Opc.Ua.PubSub.Encoding
 
             if (
                 (
-                    NetworkMessageContentMask
-                    & (
-                        UadpNetworkMessageContentMask.Timestamp
-                        | UadpNetworkMessageContentMask.PicoSeconds
-                        | UadpNetworkMessageContentMask.PromotedFields
+                    NetworkMessageContentMask &
+                    (
+                        UadpNetworkMessageContentMask.Timestamp |
+                        UadpNetworkMessageContentMask.PicoSeconds |
+                        UadpNetworkMessageContentMask.PromotedFields
                     )
                 ) != 0
             )
@@ -672,7 +681,8 @@ namespace Opc.Ua.PubSub.Encoding
              * ExtendedFlags2 bit 1 shall be false and the NetworkMessage type shall be discovery response
              * */
             UADPFlags = UADPFlagsEncodingMask.PublisherId | UADPFlagsEncodingMask.ExtendedFlags1;
-            ExtendedFlags1 = ExtendedFlags1EncodingMask.Security | ExtendedFlags1EncodingMask.ExtendedFlags2;
+            ExtendedFlags1 = ExtendedFlags1EncodingMask.Security |
+                ExtendedFlags1EncodingMask.ExtendedFlags2;
             ExtendedFlags2 = ExtendedFlags2EncodingMask.NetworkMessageWithDiscoveryResponse;
 
             // enable encoding of PublisherId in message header
@@ -691,17 +701,17 @@ namespace Opc.Ua.PubSub.Encoding
              *  ExtendedFlags2 bit 2 shall be true, all other bits shall be false
              */
             UADPFlags = UADPFlagsEncodingMask.PublisherId | UADPFlagsEncodingMask.ExtendedFlags1;
-            ExtendedFlags1 = ExtendedFlags1EncodingMask.Security | ExtendedFlags1EncodingMask.ExtendedFlags2;
+            ExtendedFlags1 = ExtendedFlags1EncodingMask.Security |
+                ExtendedFlags1EncodingMask.ExtendedFlags2;
             ExtendedFlags2 = ExtendedFlags2EncodingMask.NetworkMessageWithDiscoveryRequest;
         }
 
         /// <summary>
         /// Decode the stream from decoder parameter and produce a Dataset
         /// </summary>
-        /// <param name="binaryDecoder"></param>
-        /// <param name="dataSetReaders"></param>
-        /// <returns></returns>
-        public void DecodeSubscribedDataSets(BinaryDecoder binaryDecoder, IList<DataSetReaderDataType> dataSetReaders)
+        public void DecodeSubscribedDataSets(
+            BinaryDecoder binaryDecoder,
+            IList<DataSetReaderDataType> dataSetReaders)
         {
             if (dataSetReaders == null || dataSetReaders.Count == 0)
             {
@@ -719,8 +729,8 @@ namespace Opc.Ua.PubSub.Encoding
                 {
                     //check Enabled & publisher id
                     if (
-                        dataSetReader.PublisherId.Value == null
-                        || (PublisherId != null && PublisherId.Equals(dataSetReader.PublisherId.Value))
+                        dataSetReader.PublisherId.Value == null ||
+                        (PublisherId != null && PublisherId.Equals(dataSetReader.PublisherId.Value))
                     )
                     {
                         dataSetReadersFiltered.Add(dataSetReader);
@@ -743,7 +753,8 @@ namespace Opc.Ua.PubSub.Encoding
                 foreach (DataSetReaderDataType dataSetReader in dataSetReaders)
                 {
                     //check WriterGroupId id
-                    if (dataSetReader.WriterGroupId == 0 || dataSetReader.WriterGroupId == WriterGroupId)
+                    if (dataSetReader.WriterGroupId == 0 ||
+                        dataSetReader.WriterGroupId == WriterGroupId)
                     {
                         dataSetReadersFiltered.Add(dataSetReader);
                     }
@@ -781,7 +792,8 @@ namespace Opc.Ua.PubSub.Encoding
 
                     // 6.2 Decode payload into DataSets
                     // Restore the encoded fields (into dataset for now) for each possible dataset reader
-                    foreach (UadpDataSetMessage uadpDataSetMessage in uadpDataSetMessages.OfType<UadpDataSetMessage>())
+                    foreach (UadpDataSetMessage uadpDataSetMessage in uadpDataSetMessages
+                        .OfType<UadpDataSetMessage>())
                     {
                         if (uadpDataSetMessage.DataSet != null)
                         {
@@ -789,12 +801,14 @@ namespace Opc.Ua.PubSub.Encoding
                         }
 
                         if (
-                            dataSetReader.DataSetWriterId == 0
-                            || uadpDataSetMessage.DataSetWriterId == dataSetReader.DataSetWriterId
+                            dataSetReader.DataSetWriterId == 0 ||
+                            uadpDataSetMessage.DataSetWriterId == dataSetReader.DataSetWriterId
                         )
                         {
                             //attempt to decode dataset message using the reader
-                            uadpDataSetMessage.DecodePossibleDataSetReader(binaryDecoder, dataSetReader);
+                            uadpDataSetMessage.DecodePossibleDataSetReader(
+                                binaryDecoder,
+                                dataSetReader);
                             if (uadpDataSetMessage.DataSet != null)
                             {
                                 dataSetMessages.Add(uadpDataSetMessage);
@@ -843,11 +857,12 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decode the binaryDecoder content as a MetaData message
         /// </summary>
-        /// <param name="binaryDecoder"></param>
         private void DecodeMetaDataMessage(BinaryDecoder binaryDecoder)
         {
             DataSetWriterId = binaryDecoder.ReadUInt16("DataSetWriterId");
-            m_metadata = binaryDecoder.ReadEncodeable("MetaData", typeof(DataSetMetaDataType)) as DataSetMetaDataType;
+            m_metadata = binaryDecoder.ReadEncodeable(
+                "MetaData",
+                typeof(DataSetMetaDataType)) as DataSetMetaDataType;
 
             // temporary write StatusCode.Good
             StatusCode statusCode = binaryDecoder.ReadStatusCode("StatusCode");
@@ -857,7 +872,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decode the binaryDecoder content as Endpoints message
         /// </summary>
-        /// <param name="binaryDecoder"></param>
         private void DecodePublisherEndpoints(BinaryDecoder binaryDecoder)
         {
             PublisherEndpoints = (EndpointDescription[])
@@ -877,11 +891,15 @@ namespace Opc.Ua.PubSub.Encoding
             DataSetWriterIds = [.. binaryDecoder.ReadUInt16Array("DataSetWriterIds")];
 
             var dataSetWriterConfigurationDecoded =
-                binaryDecoder.ReadEncodeable("DataSetWriterConfiguration", typeof(WriterGroupDataType))
-                as WriterGroupDataType;
+                binaryDecoder.ReadEncodeable(
+                    "DataSetWriterConfiguration",
+                    typeof(WriterGroupDataType)) as
+                WriterGroupDataType;
 
             DataSetWriterConfiguration =
-                dataSetWriterConfigurationDecoded.MaxNetworkMessageSize != 0 ? dataSetWriterConfigurationDecoded : null;
+                dataSetWriterConfigurationDecoded.MaxNetworkMessageSize != 0
+                    ? dataSetWriterConfigurationDecoded
+                    : null;
 
             // temporary write StatusCode.Good
             MessageStatusCodes = [.. binaryDecoder.ReadStatusCodeArray("StatusCodes")];
@@ -891,7 +909,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         ///  Encode Network Message Header
         /// </summary>
-        /// <param name="encoder"></param>
         private void EncodeNetworkMessageHeader(BinaryEncoder encoder)
         {
             // byte[0..3] UADPVersion value 1 (for now)
@@ -919,10 +936,13 @@ namespace Opc.Ua.PubSub.Encoding
                 }
                 else
                 {
-                    switch ((PublisherIdTypeEncodingMask)((byte)ExtendedFlags1 & kPublishedIdTypeUsedBits))
+                    switch ((PublisherIdTypeEncodingMask)((byte)ExtendedFlags1 &
+                        kPublishedIdTypeUsedBits))
                     {
                         case PublisherIdTypeEncodingMask.Byte:
-                            encoder.WriteByte("PublisherId", Convert.ToByte(PublisherId, CultureInfo.InvariantCulture));
+                            encoder.WriteByte(
+                                "PublisherId",
+                                Convert.ToByte(PublisherId, CultureInfo.InvariantCulture));
                             break;
                         case PublisherIdTypeEncodingMask.UInt16:
                             encoder.WriteUInt16(
@@ -964,18 +984,17 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encode Group Message Header
         /// </summary>
-        /// <param name="encoder"></param>
         private void EncodeGroupMessageHeader(BinaryEncoder encoder)
         {
             if (
                 (
-                    NetworkMessageContentMask
-                    & (
-                        UadpNetworkMessageContentMask.GroupHeader
-                        | UadpNetworkMessageContentMask.WriterGroupId
-                        | UadpNetworkMessageContentMask.GroupVersion
-                        | UadpNetworkMessageContentMask.NetworkMessageNumber
-                        | UadpNetworkMessageContentMask.SequenceNumber
+                    NetworkMessageContentMask &
+                    (
+                        UadpNetworkMessageContentMask.GroupHeader |
+                        UadpNetworkMessageContentMask.WriterGroupId |
+                        UadpNetworkMessageContentMask.GroupVersion |
+                        UadpNetworkMessageContentMask.NetworkMessageNumber |
+                        UadpNetworkMessageContentMask.SequenceNumber
                     )
                 ) != UadpNetworkMessageContentMask.None
             )
@@ -990,7 +1009,8 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 encoder.WriteUInt32("GroupVersion", GroupVersion);
             }
-            if ((NetworkMessageContentMask & UadpNetworkMessageContentMask.NetworkMessageNumber) != 0)
+            if ((NetworkMessageContentMask &
+                UadpNetworkMessageContentMask.NetworkMessageNumber) != 0)
             {
                 encoder.WriteUInt16("NetworkMessageNumber", NetworkMessageNumber);
             }
@@ -1003,7 +1023,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encode Payload Header
         /// </summary>
-        /// <param name="encoder"></param>
         private void EncodePayloadHeader(BinaryEncoder encoder)
         {
             if ((NetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0)
@@ -1014,8 +1033,8 @@ namespace Opc.Ua.PubSub.Encoding
                 for (int index = 0; index < DataSetMessages.Count; index++)
                 {
                     if (
-                        DataSetMessages[index] is UadpDataSetMessage uadpDataSetMessage
-                        && uadpDataSetMessage.DataSet != null
+                        DataSetMessages[index] is UadpDataSetMessage uadpDataSetMessage &&
+                        uadpDataSetMessage.DataSet != null
                     )
                     {
                         encoder.WriteUInt16("DataSetWriterId", uadpDataSetMessage.DataSetWriterId);
@@ -1027,7 +1046,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         ///  Encode Extended network message header
         /// </summary>
-        /// <param name="encoder"></param>
         private void EncodeExtendedNetworkMessageHeader(BinaryEncoder encoder)
         {
             if ((NetworkMessageContentMask & UadpNetworkMessageContentMask.Timestamp) != 0)
@@ -1049,7 +1067,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encode promoted fields
         /// </summary>
-        /// <param name="encoder"></param>
         private static void EncodePromotedFields(BinaryEncoder encoder)
         {
             // todo: Promoted fields not supported
@@ -1058,7 +1075,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encode security header
         /// </summary>
-        /// <param name="encoder"></param>
         private void EncodeSecurityHeader(BinaryEncoder encoder)
         {
             if ((ExtendedFlags1 & ExtendedFlags1EncodingMask.Security) != 0)
@@ -1080,32 +1096,33 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encode payload
         /// </summary>
-        /// <param name="encoder"></param>
         private void EncodePayload(BinaryEncoder encoder)
         {
             int payloadStartPositionInStream = encoder.Position;
             if (
-                DataSetMessages.Count > 1
-                && (NetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0
+                DataSetMessages.Count > 1 &&
+                (NetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0
             )
             {
                 //skip 2 * dataset count for each dataset payload size
                 encoder.Position += 2 * DataSetMessages.Count;
             }
             //encode dataset message payload
-            foreach (UadpDataSetMessage uadpDataSetMessage in DataSetMessages.OfType<UadpDataSetMessage>())
+            foreach (UadpDataSetMessage uadpDataSetMessage in DataSetMessages
+                .OfType<UadpDataSetMessage>())
             {
                 uadpDataSetMessage.Encode(encoder);
             }
 
             if (
-                DataSetMessages.Count > 1
-                && (NetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0
+                DataSetMessages.Count > 1 &&
+                (NetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0
             )
             {
                 int payloadEndPositionInStream = encoder.Position;
                 encoder.Position = payloadStartPositionInStream;
-                foreach (UadpDataSetMessage uadpDataSetMessage in DataSetMessages.OfType<UadpDataSetMessage>())
+                foreach (UadpDataSetMessage uadpDataSetMessage in DataSetMessages
+                    .OfType<UadpDataSetMessage>())
                 {
                     encoder.WriteUInt16("Size", uadpDataSetMessage.PayloadSizeInStream);
                 }
@@ -1116,7 +1133,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encode security footer
         /// </summary>
-        /// <param name="encoder"></param>
         private void EncodeSecurityFooter(BinaryEncoder encoder)
         {
             if ((SecurityFlags & SecurityFlagsEncodingMask.SecurityFooter) != 0)
@@ -1155,7 +1171,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encode Network Message Header
         /// </summary>
-        /// <param name="decoder"></param>
         private void DecodeNetworkMessageHeader(BinaryDecoder decoder)
         {
             // byte[0..3] UADPVersion value 1 (for now)
@@ -1177,11 +1192,13 @@ namespace Opc.Ua.PubSub.Encoding
                 ExtendedFlags2 = (ExtendedFlags2EncodingMask)decoder.ReadByte("ExtendedFlags2");
             }
             // calculate UADPNetworkMessageType
-            if ((ExtendedFlags2 & ExtendedFlags2EncodingMask.NetworkMessageWithDiscoveryRequest) != 0)
+            if ((ExtendedFlags2 &
+                ExtendedFlags2EncodingMask.NetworkMessageWithDiscoveryRequest) != 0)
             {
                 UADPNetworkMessageType = UADPNetworkMessageType.DiscoveryRequest;
             }
-            else if ((ExtendedFlags2 & ExtendedFlags2EncodingMask.NetworkMessageWithDiscoveryResponse) != 0)
+            else if ((ExtendedFlags2 &
+                ExtendedFlags2EncodingMask.NetworkMessageWithDiscoveryResponse) != 0)
             {
                 UADPNetworkMessageType = UADPNetworkMessageType.DiscoveryResponse;
             }
@@ -1193,7 +1210,8 @@ namespace Opc.Ua.PubSub.Encoding
             // Decode PublisherId
             if ((UADPFlags & UADPFlagsEncodingMask.PublisherId) != 0)
             {
-                switch ((PublisherIdTypeEncodingMask)((byte)ExtendedFlags1 & kPublishedIdTypeUsedBits))
+                switch ((PublisherIdTypeEncodingMask)((byte)ExtendedFlags1 &
+                    kPublishedIdTypeUsedBits))
                 {
                     case PublisherIdTypeEncodingMask.UInt16:
                         m_publisherId = decoder.ReadUInt16("PublisherId");
@@ -1223,7 +1241,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decode Group Message Header
         /// </summary>
-        /// <param name="decoder"></param>
         private void DecodeGroupMessageHeader(BinaryDecoder decoder)
         {
             // Decode GroupHeader (that holds GroupFlags)
@@ -1260,7 +1277,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decode Payload Header
         /// </summary>
-        /// <param name="decoder"></param>
         private void DecodePayloadHeader(BinaryDecoder decoder)
         {
             // Decode PayloadHeader
@@ -1273,7 +1289,8 @@ namespace Opc.Ua.PubSub.Encoding
                 }
 
                 // collect DataSetSetMessages headers
-                foreach (UadpDataSetMessage uadpDataSetMessage in DataSetMessages.OfType<UadpDataSetMessage>())
+                foreach (UadpDataSetMessage uadpDataSetMessage in DataSetMessages
+                    .OfType<UadpDataSetMessage>())
                 {
                     uadpDataSetMessage.DataSetWriterId = decoder.ReadUInt16("DataSetWriterId");
                 }
@@ -1307,7 +1324,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decode promoted fields
         /// </summary>
-        /// <param name="decoder"></param>
         private static void DecodePromotedFields(BinaryDecoder decoder)
         {
             // todo: Promoted fields not supported
@@ -1316,7 +1332,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decode  payload size and prepare for decoding payload
         /// </summary>
-        /// <param name="decoder"></param>
         private void DecodePayloadSize(BinaryDecoder decoder)
         {
             if (DataSetMessages.Count > 1)
@@ -1324,7 +1339,8 @@ namespace Opc.Ua.PubSub.Encoding
                 // Decode PayloadHeader Size
                 if ((UADPFlags & UADPFlagsEncodingMask.PayloadHeader) != 0)
                 {
-                    foreach (UadpDataSetMessage uadpDataSetMessage in DataSetMessages.OfType<UadpDataSetMessage>())
+                    foreach (UadpDataSetMessage uadpDataSetMessage in DataSetMessages
+                        .OfType<UadpDataSetMessage>())
                     {
                         // Save the size
                         uadpDataSetMessage.PayloadSizeInStream = decoder.ReadUInt16("Size");
@@ -1336,7 +1352,8 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 int offset = 0;
                 // set start position of dataset message in binary stream
-                foreach (UadpDataSetMessage uadpDataSetMessage in DataSetMessages.OfType<UadpDataSetMessage>())
+                foreach (UadpDataSetMessage uadpDataSetMessage in DataSetMessages
+                    .OfType<UadpDataSetMessage>())
                 {
                     uadpDataSetMessage.StartPositionInStream = binaryDecoder.Position + offset;
                     offset += uadpDataSetMessage.PayloadSizeInStream;
@@ -1347,7 +1364,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decode security header
         /// </summary>
-        /// <param name="decoder"></param>
         private void DecodeSecurityHeader(BinaryDecoder decoder)
         {
             if ((ExtendedFlags1 & ExtendedFlags1EncodingMask.Security) != 0)
@@ -1368,20 +1384,20 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decode the Discovery Request Header
         /// </summary>
-        /// <param name="binaryDecoder"></param>
         private void DecodeDiscoveryRequest(BinaryDecoder binaryDecoder)
         {
-            UADPDiscoveryType = (UADPNetworkMessageDiscoveryType)binaryDecoder.ReadByte("RequestType");
+            UADPDiscoveryType = (UADPNetworkMessageDiscoveryType)binaryDecoder.ReadByte(
+                "RequestType");
             DataSetWriterIds = binaryDecoder.ReadUInt16Array("DataSetWriterIds")?.ToArray();
         }
 
         /// <summary>
         /// Decode the Discovery Response Header
         /// </summary>
-        /// <param name="binaryDecoder"></param>
         private void DecodeDiscoveryResponse(BinaryDecoder binaryDecoder)
         {
-            UADPDiscoveryType = (UADPNetworkMessageDiscoveryType)binaryDecoder.ReadByte("ResponseType");
+            UADPDiscoveryType = (UADPNetworkMessageDiscoveryType)binaryDecoder.ReadByte(
+                "ResponseType");
             // A strictly monotonically increasing sequence number assigned to each discovery response sent in the scope of a PublisherId.
             SequenceNumber = binaryDecoder.ReadUInt16("SequenceNumber");
 

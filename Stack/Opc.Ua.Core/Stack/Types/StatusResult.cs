@@ -40,7 +40,11 @@ namespace Opc.Ua
             if (m_result != null)
             {
                 m_statusCode = m_result.StatusCode;
-                m_diagnosticInfo = new DiagnosticInfo(m_result, diagnosticMasks, false, stringTable);
+                m_diagnosticInfo = new DiagnosticInfo(
+                    m_result,
+                    diagnosticMasks,
+                    false,
+                    stringTable);
             }
         }
 

@@ -229,11 +229,14 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public override async Task<ISession> RecreateAsync(ISession sessionTemplate, CancellationToken ct = default)
+        public override async Task<ISession> RecreateAsync(
+            ISession sessionTemplate,
+            CancellationToken ct = default)
         {
             Session session = ValidateISession(sessionTemplate);
             using Activity activity = TraceableSession.ActivitySource.StartActivity();
-            return new TraceableSession(await Session.RecreateAsync(session, ct).ConfigureAwait(false));
+            return new TraceableSession(
+                await Session.RecreateAsync(session, ct).ConfigureAwait(false));
         }
 
         /// <inheritdoc/>
@@ -245,7 +248,8 @@ namespace Opc.Ua.Client
         {
             Session session = ValidateISession(sessionTemplate);
             using Activity activity = TraceableSession.ActivitySource.StartActivity();
-            return new TraceableSession(await Session.RecreateAsync(session, connection, ct).ConfigureAwait(false));
+            return new TraceableSession(
+                await Session.RecreateAsync(session, connection, ct).ConfigureAwait(false));
         }
 
         /// <inheritdoc/>
@@ -257,7 +261,8 @@ namespace Opc.Ua.Client
         {
             Session session = ValidateISession(sessionTemplate);
             using Activity activity = TraceableSession.ActivitySource.StartActivity();
-            return new TraceableSession(await Session.RecreateAsync(session, channel, ct).ConfigureAwait(false));
+            return new TraceableSession(
+                await Session.RecreateAsync(session, channel, ct).ConfigureAwait(false));
         }
 
         private static Session ValidateISession(ISession sessionTemplate)

@@ -52,12 +52,14 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Activity Source Name.
         /// </summary>
-        public static readonly string ActivitySourceName = "Opc.Ua.Client-TraceableSession-ActivitySource";
+        public static readonly string ActivitySourceName
+            = "Opc.Ua.Client-TraceableSession-ActivitySource";
 
         /// <summary>
         /// Activity Source static instance.
         /// </summary>
         public static ActivitySource ActivitySource => s_activitySource.Value;
+
         private static readonly Lazy<ActivitySource> s_activitySource = new(() =>
             new ActivitySource(ActivitySourceName, "1.0.0")
         );
@@ -335,7 +337,9 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task ReconnectAsync(ITransportWaitingConnection connection, CancellationToken ct = default)
+        public async Task ReconnectAsync(
+            ITransportWaitingConnection connection,
+            CancellationToken ct = default)
         {
             using Activity activity = ActivitySource.StartActivity();
             await Session.ReconnectAsync(connection, ct).ConfigureAwait(false);
@@ -363,14 +367,20 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public void Save(Stream stream, IEnumerable<Subscription> subscriptions, IEnumerable<Type> knownTypes = null)
+        public void Save(
+            Stream stream,
+            IEnumerable<Subscription> subscriptions,
+            IEnumerable<Type> knownTypes = null)
         {
             using Activity activity = ActivitySource.StartActivity();
             Session.Save(stream, subscriptions, knownTypes);
         }
 
         /// <inheritdoc/>
-        public void Save(string filePath, IEnumerable<Subscription> subscriptions, IEnumerable<Type> knownTypes = null)
+        public void Save(
+            string filePath,
+            IEnumerable<Subscription> subscriptions,
+            IEnumerable<Type> knownTypes = null)
         {
             using Activity activity = ActivitySource.StartActivity();
             Session.Save(filePath, subscriptions, knownTypes);
@@ -427,7 +437,9 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task FetchTypeTreeAsync(ExpandedNodeIdCollection typeIds, CancellationToken ct = default)
+        public async Task FetchTypeTreeAsync(
+            ExpandedNodeIdCollection typeIds,
+            CancellationToken ct = default)
         {
             using Activity activity = ActivitySource.StartActivity();
             await Session.FetchTypeTreeAsync(typeIds, ct).ConfigureAwait(false);
@@ -483,7 +495,12 @@ namespace Opc.Ua.Client
         )
         {
             using Activity activity = ActivitySource.StartActivity();
-            Session.ReadNodes(nodeIds, nodeClass, out nodeCollection, out errors, optionalAttributes);
+            Session.ReadNodes(
+                nodeIds,
+                nodeClass,
+                out nodeCollection,
+                out errors,
+                optionalAttributes);
         }
 
         /// <inheritdoc/>
@@ -501,7 +518,10 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public void ReadValues(IList<NodeId> nodeIds, out DataValueCollection values, out IList<ServiceResult> errors)
+        public void ReadValues(
+            IList<NodeId> nodeIds,
+            out DataValueCollection values,
+            out IList<ServiceResult> errors)
         {
             using Activity activity = ActivitySource.StartActivity();
             Session.ReadValues(nodeIds, out values, out errors);
@@ -526,7 +546,9 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<ReferenceDescriptionCollection> FetchReferencesAsync(NodeId nodeId, CancellationToken ct)
+        public async Task<ReferenceDescriptionCollection> FetchReferencesAsync(
+            NodeId nodeId,
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.FetchReferencesAsync(nodeId, ct).ConfigureAwait(false);
@@ -585,7 +607,13 @@ namespace Opc.Ua.Client
         )
         {
             using Activity activity = ActivitySource.StartActivity();
-            Session.Open(sessionName, sessionTimeout, identity, preferredLocales, checkDomain, closeChannel);
+            Session.Open(
+                sessionName,
+                sessionTimeout,
+                identity,
+                preferredLocales,
+                checkDomain,
+                closeChannel);
         }
 
         /// <inheritdoc/>
@@ -652,7 +680,10 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task OpenAsync(string sessionName, IUserIdentity identity, CancellationToken ct)
+        public async Task OpenAsync(
+            string sessionName,
+            IUserIdentity identity,
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             await Session.OpenAsync(sessionName, identity, ct).ConfigureAwait(false);
@@ -668,7 +699,8 @@ namespace Opc.Ua.Client
         )
         {
             using Activity activity = ActivitySource.StartActivity();
-            await Session.OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, ct).ConfigureAwait(false);
+            await Session.OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, ct)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -700,7 +732,14 @@ namespace Opc.Ua.Client
         {
             using Activity activity = ActivitySource.StartActivity();
             await Session
-                .OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, checkDomain, closeChannel, ct)
+                .OpenAsync(
+                    sessionName,
+                    sessionTimeout,
+                    identity,
+                    preferredLocales,
+                    checkDomain,
+                    closeChannel,
+                    ct)
                 .ConfigureAwait(false);
         }
 
@@ -720,7 +759,8 @@ namespace Opc.Ua.Client
         )
         {
             using Activity activity = ActivitySource.StartActivity();
-            return await Session.ReadNodesAsync(nodeIds, nodeClass, optionalAttributes, ct).ConfigureAwait(false);
+            return await Session.ReadNodesAsync(nodeIds, nodeClass, optionalAttributes, ct)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -746,7 +786,8 @@ namespace Opc.Ua.Client
         )
         {
             using Activity activity = ActivitySource.StartActivity();
-            return await Session.ReadNodeAsync(nodeId, nodeClass, optionalAttributes, ct).ConfigureAwait(false);
+            return await Session.ReadNodeAsync(nodeId, nodeClass, optionalAttributes, ct)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -757,7 +798,8 @@ namespace Opc.Ua.Client
         )
         {
             using Activity activity = ActivitySource.StartActivity();
-            return await Session.ReadNodesAsync(nodeIds, optionalAttributes, ct).ConfigureAwait(false);
+            return await Session.ReadNodesAsync(nodeIds, optionalAttributes, ct)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -813,7 +855,10 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<StatusCode> CloseAsync(int timeout, bool closeChannel, CancellationToken ct = default)
+        public async Task<StatusCode> CloseAsync(
+            int timeout,
+            bool closeChannel,
+            CancellationToken ct = default)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.CloseAsync(timeout, closeChannel, ct).ConfigureAwait(false);
@@ -841,7 +886,9 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public bool TransferSubscriptions(SubscriptionCollection subscriptions, bool sendInitialValues)
+        public bool TransferSubscriptions(
+            SubscriptionCollection subscriptions,
+            bool sendInitialValues)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.TransferSubscriptions(subscriptions, sendInitialValues);
@@ -1017,7 +1064,8 @@ namespace Opc.Ua.Client
         )
         {
             using Activity activity = ActivitySource.StartActivity();
-            return await Session.RepublishAsync(subscriptionId, sequenceNumber, ct).ConfigureAwait(false);
+            return await Session.RepublishAsync(subscriptionId, sequenceNumber, ct)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -1213,7 +1261,11 @@ namespace Opc.Ua.Client
             out DiagnosticInfoCollection diagnosticInfos
         )
         {
-            return Session.EndActivateSession(result, out serverNonce, out results, out diagnosticInfos);
+            return Session.EndActivateSession(
+                result,
+                out serverNonce,
+                out results,
+                out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1256,7 +1308,11 @@ namespace Opc.Ua.Client
             object asyncState
         )
         {
-            return Session.BeginCloseSession(requestHeader, deleteSubscriptions, callback, asyncState);
+            return Session.BeginCloseSession(
+                requestHeader,
+                deleteSubscriptions,
+                callback,
+                asyncState);
         }
 
         /// <inheritdoc/>
@@ -1273,11 +1329,15 @@ namespace Opc.Ua.Client
         )
         {
             using Activity activity = ActivitySource.StartActivity();
-            return await Session.CloseSessionAsync(requestHeader, deleteSubscriptions, ct).ConfigureAwait(false);
+            return await Session.CloseSessionAsync(requestHeader, deleteSubscriptions, ct)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        public ResponseHeader Cancel(RequestHeader requestHeader, uint requestHandle, out uint cancelCount)
+        public ResponseHeader Cancel(
+            RequestHeader requestHeader,
+            uint requestHandle,
+            out uint cancelCount)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.Cancel(requestHeader, requestHandle, out cancelCount);
@@ -1308,7 +1368,8 @@ namespace Opc.Ua.Client
         )
         {
             using Activity activity = ActivitySource.StartActivity();
-            return await Session.CancelAsync(requestHeader, requestHandle, ct).ConfigureAwait(false);
+            return await Session.CancelAsync(requestHeader, requestHandle, ct)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -1364,7 +1425,11 @@ namespace Opc.Ua.Client
         )
         {
             using Activity activity = ActivitySource.StartActivity();
-            return Session.AddReferences(requestHeader, referencesToAdd, out results, out diagnosticInfos);
+            return Session.AddReferences(
+                requestHeader,
+                referencesToAdd,
+                out results,
+                out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1396,7 +1461,8 @@ namespace Opc.Ua.Client
         )
         {
             using Activity activity = ActivitySource.StartActivity();
-            return await Session.AddReferencesAsync(requestHeader, referencesToAdd, ct).ConfigureAwait(false);
+            return await Session.AddReferencesAsync(requestHeader, referencesToAdd, ct)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -1408,7 +1474,11 @@ namespace Opc.Ua.Client
         )
         {
             using Activity activity = ActivitySource.StartActivity();
-            return Session.DeleteNodes(requestHeader, nodesToDelete, out results, out diagnosticInfos);
+            return Session.DeleteNodes(
+                requestHeader,
+                nodesToDelete,
+                out results,
+                out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1440,7 +1510,8 @@ namespace Opc.Ua.Client
         )
         {
             using Activity activity = ActivitySource.StartActivity();
-            return await Session.DeleteNodesAsync(requestHeader, nodesToDelete, ct).ConfigureAwait(false);
+            return await Session.DeleteNodesAsync(requestHeader, nodesToDelete, ct)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -1452,7 +1523,11 @@ namespace Opc.Ua.Client
         )
         {
             using Activity activity = ActivitySource.StartActivity();
-            return Session.DeleteReferences(requestHeader, referencesToDelete, out results, out diagnosticInfos);
+            return Session.DeleteReferences(
+                requestHeader,
+                referencesToDelete,
+                out results,
+                out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1463,7 +1538,11 @@ namespace Opc.Ua.Client
             object asyncState
         )
         {
-            return Session.BeginDeleteReferences(requestHeader, referencesToDelete, callback, asyncState);
+            return Session.BeginDeleteReferences(
+                requestHeader,
+                referencesToDelete,
+                callback,
+                asyncState);
         }
 
         /// <inheritdoc/>
@@ -1484,7 +1563,8 @@ namespace Opc.Ua.Client
         )
         {
             using Activity activity = ActivitySource.StartActivity();
-            return await Session.DeleteReferencesAsync(requestHeader, referencesToDelete, ct).ConfigureAwait(false);
+            return await Session.DeleteReferencesAsync(requestHeader, referencesToDelete, ct)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -1681,7 +1761,11 @@ namespace Opc.Ua.Client
         )
         {
             using Activity activity = ActivitySource.StartActivity();
-            return Session.TranslateBrowsePathsToNodeIds(requestHeader, browsePaths, out results, out diagnosticInfos);
+            return Session.TranslateBrowsePathsToNodeIds(
+                requestHeader,
+                browsePaths,
+                out results,
+                out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1692,7 +1776,11 @@ namespace Opc.Ua.Client
             object asyncState
         )
         {
-            return Session.BeginTranslateBrowsePathsToNodeIds(requestHeader, browsePaths, callback, asyncState);
+            return Session.BeginTranslateBrowsePathsToNodeIds(
+                requestHeader,
+                browsePaths,
+                callback,
+                asyncState);
         }
 
         /// <inheritdoc/>
@@ -1702,7 +1790,10 @@ namespace Opc.Ua.Client
             out DiagnosticInfoCollection diagnosticInfos
         )
         {
-            return Session.EndTranslateBrowsePathsToNodeIds(result, out results, out diagnosticInfos);
+            return Session.EndTranslateBrowsePathsToNodeIds(
+                result,
+                out results,
+                out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1741,7 +1832,9 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public ResponseHeader EndRegisterNodes(IAsyncResult result, out NodeIdCollection registeredNodeIds)
+        public ResponseHeader EndRegisterNodes(
+            IAsyncResult result,
+            out NodeIdCollection registeredNodeIds)
         {
             return Session.EndRegisterNodes(result, out registeredNodeIds);
         }
@@ -1754,11 +1847,14 @@ namespace Opc.Ua.Client
         )
         {
             using Activity activity = ActivitySource.StartActivity();
-            return await Session.RegisterNodesAsync(requestHeader, nodesToRegister, ct).ConfigureAwait(false);
+            return await Session.RegisterNodesAsync(requestHeader, nodesToRegister, ct)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        public ResponseHeader UnregisterNodes(RequestHeader requestHeader, NodeIdCollection nodesToUnregister)
+        public ResponseHeader UnregisterNodes(
+            RequestHeader requestHeader,
+            NodeIdCollection nodesToUnregister)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.UnregisterNodes(requestHeader, nodesToUnregister);
@@ -1772,7 +1868,11 @@ namespace Opc.Ua.Client
             object asyncState
         )
         {
-            return Session.BeginUnregisterNodes(requestHeader, nodesToUnregister, callback, asyncState);
+            return Session.BeginUnregisterNodes(
+                requestHeader,
+                nodesToUnregister,
+                callback,
+                asyncState);
         }
 
         /// <inheritdoc/>
@@ -1789,7 +1889,8 @@ namespace Opc.Ua.Client
         )
         {
             using Activity activity = ActivitySource.StartActivity();
-            return await Session.UnregisterNodesAsync(requestHeader, nodesToUnregister, ct).ConfigureAwait(false);
+            return await Session.UnregisterNodesAsync(requestHeader, nodesToUnregister, ct)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -1880,7 +1981,14 @@ namespace Opc.Ua.Client
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session
-                .QueryFirstAsync(requestHeader, view, nodeTypes, filter, maxDataSetsToReturn, maxReferencesToReturn, ct)
+                .QueryFirstAsync(
+                    requestHeader,
+                    view,
+                    nodeTypes,
+                    filter,
+                    maxDataSetsToReturn,
+                    maxReferencesToReturn,
+                    ct)
                 .ConfigureAwait(false);
         }
 
@@ -1976,7 +2084,13 @@ namespace Opc.Ua.Client
             object asyncState
         )
         {
-            return Session.BeginRead(requestHeader, maxAge, timestampsToReturn, nodesToRead, callback, asyncState);
+            return Session.BeginRead(
+                requestHeader,
+                maxAge,
+                timestampsToReturn,
+                nodesToRead,
+                callback,
+                asyncState);
         }
 
         /// <inheritdoc/>
@@ -2135,7 +2249,11 @@ namespace Opc.Ua.Client
         )
         {
             using Activity activity = ActivitySource.StartActivity();
-            return Session.HistoryUpdate(requestHeader, historyUpdateDetails, out results, out diagnosticInfos);
+            return Session.HistoryUpdate(
+                requestHeader,
+                historyUpdateDetails,
+                out results,
+                out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -2146,7 +2264,11 @@ namespace Opc.Ua.Client
             object asyncState
         )
         {
-            return Session.BeginHistoryUpdate(requestHeader, historyUpdateDetails, callback, asyncState);
+            return Session.BeginHistoryUpdate(
+                requestHeader,
+                historyUpdateDetails,
+                callback,
+                asyncState);
         }
 
         /// <inheritdoc/>
@@ -2167,7 +2289,8 @@ namespace Opc.Ua.Client
         )
         {
             using Activity activity = ActivitySource.StartActivity();
-            return await Session.HistoryUpdateAsync(requestHeader, historyUpdateDetails, ct).ConfigureAwait(false);
+            return await Session.HistoryUpdateAsync(requestHeader, historyUpdateDetails, ct)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -2276,7 +2399,12 @@ namespace Opc.Ua.Client
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session
-                .CreateMonitoredItemsAsync(requestHeader, subscriptionId, timestampsToReturn, itemsToCreate, ct)
+                .CreateMonitoredItemsAsync(
+                    requestHeader,
+                    subscriptionId,
+                    timestampsToReturn,
+                    itemsToCreate,
+                    ct)
                 .ConfigureAwait(false);
         }
 
@@ -2342,7 +2470,12 @@ namespace Opc.Ua.Client
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session
-                .ModifyMonitoredItemsAsync(requestHeader, subscriptionId, timestampsToReturn, itemsToModify, ct)
+                .ModifyMonitoredItemsAsync(
+                    requestHeader,
+                    subscriptionId,
+                    timestampsToReturn,
+                    itemsToModify,
+                    ct)
                 .ConfigureAwait(false);
         }
 
@@ -2408,7 +2541,12 @@ namespace Opc.Ua.Client
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session
-                .SetMonitoringModeAsync(requestHeader, subscriptionId, monitoringMode, monitoredItemIds, ct)
+                .SetMonitoringModeAsync(
+                    requestHeader,
+                    subscriptionId,
+                    monitoringMode,
+                    monitoredItemIds,
+                    ct)
                 .ConfigureAwait(false);
         }
 
@@ -2491,7 +2629,13 @@ namespace Opc.Ua.Client
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session
-                .SetTriggeringAsync(requestHeader, subscriptionId, triggeringItemId, linksToAdd, linksToRemove, ct)
+                .SetTriggeringAsync(
+                    requestHeader,
+                    subscriptionId,
+                    triggeringItemId,
+                    linksToAdd,
+                    linksToRemove,
+                    ct)
                 .ConfigureAwait(false);
         }
 
@@ -2850,7 +2994,11 @@ namespace Opc.Ua.Client
             object asyncState
         )
         {
-            return Session.BeginPublish(requestHeader, subscriptionAcknowledgements, callback, asyncState);
+            return Session.BeginPublish(
+                requestHeader,
+                subscriptionAcknowledgements,
+                callback,
+                asyncState);
         }
 
         /// <inheritdoc/>
@@ -2883,7 +3031,8 @@ namespace Opc.Ua.Client
         )
         {
             using Activity activity = ActivitySource.StartActivity();
-            return await Session.PublishAsync(requestHeader, subscriptionAcknowledgements, ct).ConfigureAwait(false);
+            return await Session.PublishAsync(requestHeader, subscriptionAcknowledgements, ct)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -2895,7 +3044,11 @@ namespace Opc.Ua.Client
         )
         {
             using Activity activity = ActivitySource.StartActivity();
-            return Session.Republish(requestHeader, subscriptionId, retransmitSequenceNumber, out notificationMessage);
+            return Session.Republish(
+                requestHeader,
+                subscriptionId,
+                retransmitSequenceNumber,
+                out notificationMessage);
         }
 
         /// <inheritdoc/>
@@ -2917,7 +3070,9 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public ResponseHeader EndRepublish(IAsyncResult result, out NotificationMessage notificationMessage)
+        public ResponseHeader EndRepublish(
+            IAsyncResult result,
+            out NotificationMessage notificationMessage)
         {
             return Session.EndRepublish(result, out notificationMessage);
         }
@@ -3006,7 +3161,11 @@ namespace Opc.Ua.Client
         )
         {
             using Activity activity = ActivitySource.StartActivity();
-            return Session.DeleteSubscriptions(requestHeader, subscriptionIds, out results, out diagnosticInfos);
+            return Session.DeleteSubscriptions(
+                requestHeader,
+                subscriptionIds,
+                out results,
+                out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -3017,7 +3176,11 @@ namespace Opc.Ua.Client
             object asyncState
         )
         {
-            return Session.BeginDeleteSubscriptions(requestHeader, subscriptionIds, callback, asyncState);
+            return Session.BeginDeleteSubscriptions(
+                requestHeader,
+                subscriptionIds,
+                callback,
+                asyncState);
         }
 
         /// <inheritdoc/>
@@ -3038,7 +3201,8 @@ namespace Opc.Ua.Client
         )
         {
             using Activity activity = ActivitySource.StartActivity();
-            return await Session.DeleteSubscriptionsAsync(requestHeader, subscriptionIds, ct).ConfigureAwait(false);
+            return await Session.DeleteSubscriptionsAsync(requestHeader, subscriptionIds, ct)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -3104,14 +3268,18 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public bool ReactivateSubscriptions(SubscriptionCollection subscriptions, bool sendInitialValues)
+        public bool ReactivateSubscriptions(
+            SubscriptionCollection subscriptions,
+            bool sendInitialValues)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.ReactivateSubscriptions(subscriptions, sendInitialValues);
         }
 
         /// <inheritdoc/>
-        public async Task<bool> RemoveSubscriptionAsync(Subscription subscription, CancellationToken ct = default)
+        public async Task<bool> RemoveSubscriptionAsync(
+            Subscription subscription,
+            CancellationToken ct = default)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.RemoveSubscriptionAsync(subscription, ct).ConfigureAwait(false);
@@ -3148,7 +3316,8 @@ namespace Opc.Ua.Client
         )
         {
             using Activity activity = ActivitySource.StartActivity();
-            return await Session.TransferSubscriptionsAsync(subscriptions, sendInitialValues, ct).ConfigureAwait(false);
+            return await Session.TransferSubscriptionsAsync(subscriptions, sendInitialValues, ct)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -3164,7 +3333,9 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public bool ResendData(IEnumerable<Subscription> subscriptions, out IList<ServiceResult> errors)
+        public bool ResendData(
+            IEnumerable<Subscription> subscriptions,
+            out IList<ServiceResult> errors)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.ResendData(subscriptions, out errors);

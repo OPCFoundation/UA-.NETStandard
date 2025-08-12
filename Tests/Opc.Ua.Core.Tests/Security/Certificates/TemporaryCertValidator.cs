@@ -139,12 +139,12 @@ namespace Opc.Ua.Core.Tests
             var issuerTrustList = new CertificateTrustList
             {
                 StoreType = CertificateStoreType.Directory,
-                StorePath = m_issuerStore.Directory.FullName,
+                StorePath = m_issuerStore.Directory.FullName
             };
             var trustedTrustList = new CertificateTrustList
             {
                 StoreType = CertificateStoreType.Directory,
-                StorePath = m_trustedStore.Directory.FullName,
+                StorePath = m_trustedStore.Directory.FullName
             };
             CertificateStoreIdentifier rejectedList = null;
             if (m_rejectedStore != null)
@@ -152,7 +152,7 @@ namespace Opc.Ua.Core.Tests
                 rejectedList = new CertificateStoreIdentifier
                 {
                     StoreType = CertificateStoreType.Directory,
-                    StorePath = m_rejectedStore.Directory.FullName,
+                    StorePath = m_rejectedStore.Directory.FullName
                 };
             }
             certValidator.Update(issuerTrustList, trustedTrustList, rejectedList);

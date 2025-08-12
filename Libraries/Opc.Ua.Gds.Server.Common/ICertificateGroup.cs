@@ -41,7 +41,10 @@ namespace Opc.Ua.Gds.Server
         public string PrivateKeyFormat { get; }
         public byte[] PrivateKey { get; }
 
-        public X509Certificate2KeyPair(X509Certificate2 certificate, string privateKeyFormat, byte[] privateKey)
+        public X509Certificate2KeyPair(
+            X509Certificate2 certificate,
+            string privateKeyFormat,
+            byte[] privateKey)
         {
             if (certificate.HasPrivateKey)
             {
@@ -79,7 +82,9 @@ namespace Opc.Ua.Gds.Server
 
         Task<X509CRL> RevokeCertificateAsync(X509Certificate2 certificate);
 
-        Task VerifySigningRequestAsync(ApplicationRecordDataType application, byte[] certificateRequest);
+        Task VerifySigningRequestAsync(
+            ApplicationRecordDataType application,
+            byte[] certificateRequest);
 
         Task<X509Certificate2> SigningRequestAsync(
             ApplicationRecordDataType application,

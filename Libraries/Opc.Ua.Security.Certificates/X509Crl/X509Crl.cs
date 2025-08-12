@@ -66,7 +66,6 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Create CRL from IX509CRL interface.
         /// </summary>
-        /// <param name="crl"></param>
         public X509CRL(IX509CRL crl)
         {
             m_decoded = true;
@@ -119,6 +118,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Verifies the signature on the CRL.
         /// </summary>
+        /// <exception cref="CryptographicException"></exception>
         public bool VerifySignature(X509Certificate2 issuer, bool throwOnError)
         {
             bool result;
@@ -141,6 +141,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Returns true if the certificate is revoked in the CRL.
         /// </summary>
+        /// <exception cref="CryptographicException"></exception>
         public bool IsRevoked(X509Certificate2 certificate)
         {
             if (certificate.IssuerName.Equals(IssuerName))
@@ -175,6 +176,8 @@ namespace Opc.Ua.Security.Certificates
         /// Decode the Tbs of the CRL.
         /// </summary>
         /// <param name="tbs">The raw TbsCertList of the CRL.</param>
+        /// <exception cref="CryptographicException"></exception>
+        /// <exception cref="AsnContentException"></exception>
         internal void DecodeCrl(byte[] tbs)
         {
             try
@@ -190,7 +193,8 @@ namespace Opc.Ua.Security.Certificates
                     Asn1Tag peekTag = seqReader.PeekTag();
                     if (peekTag == intTag && seqReader.TryReadUInt32(out version) && version != 1)
                     {
-                        throw new AsnContentException($"The CRL contains an incorrect version {version}");
+                        throw new AsnContentException(
+                            $"The CRL contains an incorrect version {version}");
                     }
 
                     // Signature Algorithm Identifier
@@ -226,9 +230,10 @@ namespace Opc.Ua.Security.Certificates
                             {
                                 AsnReader crlEntry = revReader.ReadSequence();
                                 System.Numerics.BigInteger serial = crlEntry.ReadInteger();
-                                var revokedCertificate = new RevokedCertificate(serial.ToByteArray())
+                                var revokedCertificate = new RevokedCertificate(
+                                    serial.ToByteArray())
                                 {
-                                    RevocationDate = ReadTime(crlEntry, optional: false),
+                                    RevocationDate = ReadTime(crlEntry, optional: false)
                                 };
                                 if (version == 1 && crlEntry.HasData)
                                 {
@@ -236,7 +241,8 @@ namespace Opc.Ua.Security.Certificates
                                     AsnReader crlEntryExtensions = crlEntry.ReadSequence();
                                     while (crlEntryExtensions.HasData)
                                     {
-                                        X509Extension extension = crlEntryExtensions.ReadExtension();
+                                        X509Extension extension = crlEntryExtensions
+                                            .ReadExtension();
                                         revokedCertificate.CrlEntryExtensions.Add(extension);
                                     }
                                     crlEntryExtensions.ThrowIfNotEmpty();
@@ -278,9 +284,8 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Read the time, UTC or local time
         /// </summary>
-        /// <param name="asnReader"></param>
-        /// <param name="optional"></param>
         /// <returns>The DateTime representing the tag</returns>
+        /// <exception cref="AsnContentException"></exception>
         private static DateTime ReadTime(AsnReader asnReader, bool optional)
         {
             // determine if the time is UTC or GeneralizedTime time
@@ -339,7 +344,9 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Create an empty X509CRL collection.
         /// </summary>
-        public X509CRLCollection() { }
+        public X509CRLCollection()
+        {
+        }
 
         /// <summary>
         /// Create a crl collection from a single CRL.

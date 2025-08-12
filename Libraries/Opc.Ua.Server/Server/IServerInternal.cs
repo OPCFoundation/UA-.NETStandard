@@ -267,7 +267,9 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="sessionManager">The session manager.</param>
         /// <param name="subscriptionManager">The subscription manager.</param>
-        void SetSessionManager(ISessionManager sessionManager, ISubscriptionManager subscriptionManager);
+        void SetSessionManager(
+            ISessionManager sessionManager,
+            ISubscriptionManager subscriptionManager);
 
         /// <summary>
         /// Stores the MonitoredItemQueueFactory in the datastore.

@@ -90,21 +90,25 @@ namespace Opc.Ua.Server
             }
 
             // create monitored item.
-            ISampledDataChangeMonitoredItem monitoredItem = m_samplingGroupManager.CreateMonitoredItem(
-                context.OperationContext,
-                subscriptionId,
-                publishingInterval,
-                timestampsToReturn,
-                monitoredItemId,
-                handle,
-                itemToCreate,
-                euRange,
-                samplingInterval,
-                createDurable
-            );
+            ISampledDataChangeMonitoredItem monitoredItem = m_samplingGroupManager
+                .CreateMonitoredItem(
+                    context.OperationContext,
+                    subscriptionId,
+                    publishingInterval,
+                    timestampsToReturn,
+                    monitoredItemId,
+                    handle,
+                    itemToCreate,
+                    euRange,
+                    samplingInterval,
+                    createDurable
+                    );
 
             // save the monitored item.
-            MonitoredItems.AddOrUpdate(monitoredItemId, monitoredItem, (key, oldValue) => monitoredItem);
+            MonitoredItems.AddOrUpdate(
+                monitoredItemId,
+                monitoredItem,
+                (key, oldValue) => monitoredItem);
 
             return monitoredItem;
         }
@@ -142,8 +146,9 @@ namespace Opc.Ua.Server
         )
         {
             // validate monitored item.
-            IMonitoredItem existingMonitoredItem;
-            if (!MonitoredItems.TryGetValue(monitoredItem.Id, out existingMonitoredItem))
+            if (!MonitoredItems.TryGetValue(
+                monitoredItem.Id,
+                out IMonitoredItem existingMonitoredItem))
             {
                 return StatusCodes.BadMonitoredItemIdInvalid;
             }
@@ -177,8 +182,9 @@ namespace Opc.Ua.Server
         )
         {
             // validate monitored item.
-            IMonitoredItem existingMonitoredItem;
-            if (!MonitoredItems.TryGetValue(monitoredItem.Id, out existingMonitoredItem))
+            if (!MonitoredItems.TryGetValue(
+                monitoredItem.Id,
+                out IMonitoredItem existingMonitoredItem))
             {
                 return StatusCodes.BadMonitoredItemIdInvalid;
             }
@@ -205,9 +211,9 @@ namespace Opc.Ua.Server
             NodeHandle handle
         )
         {
-            IMonitoredItem existingMonitoredItem;
-
-            if (!MonitoredItems.TryGetValue(monitoredItem.Id, out existingMonitoredItem))
+            if (!MonitoredItems.TryGetValue(
+                monitoredItem.Id,
+                out IMonitoredItem existingMonitoredItem))
             {
                 return (StatusCodes.BadMonitoredItemIdInvalid, null);
             }
@@ -221,19 +227,23 @@ namespace Opc.Ua.Server
             MonitoringMode previousMode = monitoredItem.SetMonitoringMode(monitoringMode);
 
             // need to provide an immediate update after enabling.
-            if (previousMode == MonitoringMode.Disabled && monitoringMode != MonitoringMode.Disabled)
+            if (previousMode == MonitoringMode.Disabled &&
+                monitoringMode != MonitoringMode.Disabled)
             {
                 var initialValue = new DataValue
                 {
                     ServerTimestamp = DateTime.UtcNow,
-                    StatusCode = StatusCodes.BadWaitingForInitialData,
+                    StatusCode = StatusCodes.BadWaitingForInitialData
                 };
 
                 // read the initial value.
 
                 if (monitoredItem.ManagerHandle is Node node)
                 {
-                    ServiceResult error = node.Read(context, monitoredItem.AttributeId, initialValue);
+                    ServiceResult error = node.Read(
+                        context,
+                        monitoredItem.AttributeId,
+                        initialValue);
 
                     if (ServiceResult.IsBad(error))
                     {
@@ -305,11 +315,12 @@ namespace Opc.Ua.Server
 
             // only objects or views can be subscribed to.
             if (
-                source is not BaseObjectState instance
-                || (instance.EventNotifier & EventNotifiers.SubscribeToEvents) == 0
+                source is not BaseObjectState instance ||
+                (instance.EventNotifier & EventNotifiers.SubscribeToEvents) == 0
             )
             {
-                if (source is not ViewState view || (view.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
+                if (source is not ViewState view ||
+                    (view.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
                 {
                     return (null, StatusCodes.BadNotSupported);
                 }
@@ -318,7 +329,8 @@ namespace Opc.Ua.Server
             // check for existing monitored node.
             if (!MonitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
             {
-                MonitoredNodes[source.NodeId] = monitoredNode = new MonitoredNode2(m_nodeManager, source);
+                MonitoredNodes[source.NodeId]
+                    = monitoredNode = new MonitoredNode2(m_nodeManager, source);
             }
 
             // remove existing monitored items with the same Id prior to insertion in order to avoid duplicates

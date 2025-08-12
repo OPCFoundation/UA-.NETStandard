@@ -36,8 +36,10 @@ namespace Opc.Ua.Client.Tests
     /// Client tests which require security None and are otherwise skipped,
     /// starts the server with additional security None profile.
     /// </summary>
-    [TestFixture, Category("Client")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("Client")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [TestFixtureSource(nameof(FixtureArgs))]
     public class ClientTestNoSecurity
     {
@@ -45,7 +47,7 @@ namespace Opc.Ua.Client.Tests
 
         public static readonly object[] FixtureArgs =
         [
-            new object[] { Utils.UriSchemeOpcTcp },
+            new object[] { Utils.UriSchemeOpcTcp }
             // https protocol security None is not supported
             // new object [] { Utils.UriSchemeHttps},
             // new object [] { Utils.UriSchemeOpcHttps},
@@ -102,19 +104,22 @@ namespace Opc.Ua.Client.Tests
         /// GetEndpoints on the discovery channel,
         /// the oversized message can pass because security None is enabled.
         /// </summary>
-        [Test, Order(105)]
+        [Test]
+        [Order(105)]
         public void GetEndpointsOnDiscoveryChannel()
         {
             m_clientTest.GetEndpointsOnDiscoveryChannel(true);
         }
 
-        [Test, Order(230)]
+        [Test]
+        [Order(230)]
         public Task ReconnectJWTSecurityNoneAsync()
         {
             return m_clientTest.ReconnectJWTAsync(SecurityPolicies.None);
         }
 
-        [Test, Order(220)]
+        [Test]
+        [Order(220)]
         public Task ConnectJWTAsync()
         {
             return m_clientTest.ConnectJWTAsync(SecurityPolicies.None);
@@ -124,7 +129,8 @@ namespace Opc.Ua.Client.Tests
         /// Open a session on a channel, then reconnect (activate)
         /// the same session on a new channel with saved session secrets
         /// </summary>
-        [Test, Order(260)]
+        [Test]
+        [Order(260)]
         [TestCase(true, false)]
         [TestCase(false, false)]
         [TestCase(false, true)]
@@ -140,13 +146,15 @@ namespace Opc.Ua.Client.Tests
             );
         }
 
-        [Theory, Order(400)]
+        [Theory]
+        [Order(400)]
         public Task BrowseFullAddressSpaceSecurityNoneAsync(bool operationLimits)
         {
             return m_clientTest.BrowseFullAddressSpaceAsync(SecurityPolicies.None, operationLimits);
         }
 
-        [Test, Order(201)]
+        [Test]
+        [Order(201)]
         public Task ConnectAndCloseAsyncNoSecurityAsync()
         {
             return m_clientTest.ConnectAndCloseAsync(SecurityPolicies.None);

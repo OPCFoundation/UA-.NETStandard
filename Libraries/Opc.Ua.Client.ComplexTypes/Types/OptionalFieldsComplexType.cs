@@ -190,7 +190,11 @@ namespace Opc.Ua.Client.ComplexTypes
                         continue;
                     }
 
-                    AppendPropertyValue(formatProvider, body, property.GetValue(this), property.ValueRank);
+                    AppendPropertyValue(
+                        formatProvider,
+                        body,
+                        property.GetValue(this),
+                        property.ValueRank);
                 }
 
                 if (body.Length > 0)
@@ -245,8 +249,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             get
             {
-                ComplexTypePropertyInfo property;
-                if (m_propertyDict.TryGetValue(name, out property))
+                if (m_propertyDict.TryGetValue(name, out ComplexTypePropertyInfo property))
                 {
                     if (property.IsOptional && (property.OptionalFieldMask & EncodingMask) == 0)
                     {
@@ -258,8 +261,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             set
             {
-                ComplexTypePropertyInfo property;
-                if (m_propertyDict.TryGetValue(name, out property))
+                if (m_propertyDict.TryGetValue(name, out ComplexTypePropertyInfo property))
                 {
                     property.SetValue(this, value);
                     if (value == null)
@@ -296,4 +298,4 @@ namespace Opc.Ua.Client.ComplexTypes
             }
         }
     }
-} //namespace
+}

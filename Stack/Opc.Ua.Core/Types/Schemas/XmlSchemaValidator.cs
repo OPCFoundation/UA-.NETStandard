@@ -82,9 +82,7 @@ namespace Opc.Ua.Schema.Xml
             Assembly assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
             foreach (XmlSchemaImport import in TargetSchema.Includes.OfType<XmlSchemaImport>())
             {
-                string location = null;
-
-                if (!KnownFiles.TryGetValue(import.Namespace, out location))
+                if (!KnownFiles.TryGetValue(import.Namespace, out string location))
                 {
                     location = import.SchemaLocation;
                 }
@@ -95,13 +93,17 @@ namespace Opc.Ua.Schema.Xml
                 {
                     using var strm = new StreamReader(assembly.GetManifestResourceStream(location));
                     using var schemaReader = XmlReader.Create(strm, settings);
-                    import.Schema = XmlSchema.Read(schemaReader, new ValidationEventHandler(OnValidate));
+                    import.Schema = XmlSchema.Read(
+                        schemaReader,
+                        new ValidationEventHandler(OnValidate));
                 }
                 else
                 {
                     using Stream strm = File.OpenRead(location);
                     using var schemaReader = XmlReader.Create(strm, settings);
-                    import.Schema = XmlSchema.Read(schemaReader, new ValidationEventHandler(OnValidate));
+                    import.Schema = XmlSchema.Read(
+                        schemaReader,
+                        new ValidationEventHandler(OnValidate));
                 }
             }
 
@@ -153,6 +155,7 @@ namespace Opc.Ua.Schema.Xml
         /// <summary>
         /// Handles a validation error.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static void OnValidate(object sender, ValidationEventArgs args)
         {
             Utils.LogError("Error in XML schema validation: {0}", args.Message);
@@ -164,7 +167,7 @@ namespace Opc.Ua.Schema.Xml
         /// </summary>
         protected static readonly string[][] WellKnownDictionaries =
         [
-            [Namespaces.OpcUaXsd, "Opc.Ua.Schema.Opc.Ua.Types.xsd"],
+            [Namespaces.OpcUaXsd, "Opc.Ua.Schema.Opc.Ua.Types.xsd"]
         ];
     }
 }

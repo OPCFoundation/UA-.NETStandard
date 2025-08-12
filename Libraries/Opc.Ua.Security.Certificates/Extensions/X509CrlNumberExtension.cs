@@ -48,19 +48,25 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Creates an empty extension.
         /// </summary>
-        protected X509CrlNumberExtension() { }
+        protected X509CrlNumberExtension()
+        {
+        }
 
         /// <summary>
         /// Creates an extension from ASN.1 encoded data.
         /// </summary>
         public X509CrlNumberExtension(AsnEncodedData encodedExtension, bool critical)
-            : this(encodedExtension.Oid, encodedExtension.RawData, critical) { }
+            : this(encodedExtension.Oid, encodedExtension.RawData, critical)
+        {
+        }
 
         /// <summary>
         /// Creates an extension from an Oid and ASN.1 encoded raw data.
         /// </summary>
         public X509CrlNumberExtension(string oid, byte[] rawData, bool critical)
-            : this(new Oid(oid, kFriendlyName), rawData, critical) { }
+            : this(new Oid(oid, kFriendlyName), rawData, critical)
+        {
+        }
 
         /// <summary>
         /// Creates an extension from ASN.1 encoded data.
@@ -88,9 +94,9 @@ namespace Opc.Ua.Security.Certificates
         public override string Format(bool multiLine)
         {
             var buffer = new StringBuilder();
-            buffer.Append(kFriendlyName);
-            buffer.Append('=');
-            buffer.Append(CrlNumber);
+            buffer.Append(kFriendlyName)
+                .Append('=')
+                .Append(CrlNumber);
 
             return buffer.ToString();
         }
@@ -98,6 +104,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Initializes the extension from ASN.1 encoded data.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="asnEncodedData"/> is <c>null</c>.</exception>
         public override void CopyFrom(AsnEncodedData asnEncodedData)
         {
             if (asnEncodedData == null)
@@ -134,6 +141,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Decode CRL Number.
         /// </summary>
+        /// <exception cref="CryptographicException"></exception>
         private void Decode(byte[] data)
         {
             if (Oid.Value == CrlNumberOid)
@@ -146,7 +154,9 @@ namespace Opc.Ua.Security.Certificates
                 }
                 catch (AsnContentException ace)
                 {
-                    throw new CryptographicException("Failed to decode the CRL Number extension.", ace);
+                    throw new CryptographicException(
+                        "Failed to decode the CRL Number extension.",
+                        ace);
                 }
             }
             else

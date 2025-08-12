@@ -29,9 +29,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
-using System.Runtime.Serialization;
 using Opc.Ua;
 
 namespace MemoryBuffer

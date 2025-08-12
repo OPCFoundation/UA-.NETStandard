@@ -23,7 +23,9 @@ namespace Opc.Ua
         /// Initializes the instance with its default attribute values.
         /// </summary>
         public ViewState()
-            : base(NodeClass.View) { }
+            : base(NodeClass.View)
+        {
+        }
 
         /// <summary>
         /// Constructs an instance of a node.
@@ -229,7 +231,10 @@ namespace Opc.Ua
         /// <param name="context">The context user.</param>
         /// <param name="encoder">The encoder to write to.</param>
         /// <param name="attributesToSave">The masks indicating what attributes to write.</param>
-        public override void Save(ISystemContext context, BinaryEncoder encoder, AttributesToSave attributesToSave)
+        public override void Save(
+            ISystemContext context,
+            BinaryEncoder encoder,
+            AttributesToSave attributesToSave)
         {
             base.Save(context, encoder, attributesToSave);
 
@@ -250,7 +255,10 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         /// <param name="decoder">The decoder.</param>
         /// <param name="attributesToLoad">The attributes to load.</param>
-        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attributesToLoad)
+        public override void Update(
+            ISystemContext context,
+            BinaryDecoder decoder,
+            AttributesToSave attributesToLoad)
         {
             base.Update(context, decoder, attributesToLoad);
 
@@ -294,7 +302,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.ContainsNoLoops:
                     bool containsNoLoops = m_containsNoLoops;
 
@@ -319,7 +326,10 @@ namespace Opc.Ua
         /// <summary>
         /// Write the value for any non-value attribute.
         /// </summary>
-        protected override ServiceResult WriteNonValueAttribute(ISystemContext context, uint attributeId, object value)
+        protected override ServiceResult WriteNonValueAttribute(
+            ISystemContext context,
+            uint attributeId,
+            object value)
         {
             ServiceResult result = null;
 
@@ -353,7 +363,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.ContainsNoLoops:
                     bool? containsNoLoopsRef = value as bool?;
 

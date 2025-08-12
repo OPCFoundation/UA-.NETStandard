@@ -143,7 +143,9 @@ namespace Opc.Ua
         /// <param name="authenticationToken">The AuthenticationToken from the RequestHeader</param>
         /// <param name="channelId">The Channel id</param>
         /// <returns>returns true if a channelId was found for the provided AuthenticationToken</returns>
-        public virtual bool TryGetSecureChannelIdForAuthenticationToken(NodeId authenticationToken, out uint channelId)
+        public virtual bool TryGetSecureChannelIdForAuthenticationToken(
+            NodeId authenticationToken,
+            out uint channelId)
         {
             channelId = 0;
             return false;
@@ -162,13 +164,17 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public virtual void ReportAuditCloseSecureChannelEvent(string globalChannelId, Exception exception)
+        public virtual void ReportAuditCloseSecureChannelEvent(
+            string globalChannelId,
+            Exception exception)
         {
             // raise an audit close secure channel event.
         }
 
         /// <inheritdoc/>
-        public virtual void ReportAuditCertificateEvent(X509Certificate2 clientCertificate, Exception exception)
+        public virtual void ReportAuditCertificateEvent(
+            X509Certificate2 clientCertificate,
+            Exception exception)
         {
             // raise the audit certificate
         }
@@ -189,6 +195,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new connection with a client.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         public void CreateConnection(Uri url, int timeout)
         {
             ITransportListener listener = null;
@@ -220,6 +227,8 @@ namespace Opc.Ua
         /// for a UA application</param>
         /// <param name="baseAddresses">The array of Uri elements which contains base addresses.</param>
         /// <returns>Returns a host for a UA service.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public ServiceHost Start(ApplicationConfiguration configuration, params Uri[] baseAddresses)
         {
             if (configuration == null)
@@ -243,14 +252,12 @@ namespace Opc.Ua
             InitializeBaseAddresses(configuration);
 
             // initialize the hosts.
-            ApplicationDescription serverDescription;
 
-            EndpointDescriptionCollection endpoints;
             IList<ServiceHost> hosts = InitializeServiceHosts(
                 configuration,
                 bindingFactory,
-                out serverDescription,
-                out endpoints
+                out ApplicationDescription serverDescription,
+                out EndpointDescriptionCollection endpoints
             );
 
             // save discovery information.
@@ -290,6 +297,7 @@ namespace Opc.Ua
         /// <param name="configuration">The object that stores the configurable configuration
         /// information for a UA application.
         /// </param>
+        /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
         public void Start(ApplicationConfiguration configuration)
         {
             if (configuration == null)
@@ -313,14 +321,12 @@ namespace Opc.Ua
             InitializeBaseAddresses(configuration);
 
             // initialize the hosts.
-            ApplicationDescription serverDescription;
 
-            EndpointDescriptionCollection endpoints;
             IList<ServiceHost> hosts = InitializeServiceHosts(
                 configuration,
                 bindingFactory,
-                out serverDescription,
-                out endpoints
+                out ApplicationDescription serverDescription,
+                out EndpointDescriptionCollection endpoints
             );
 
             // save discovery information.
@@ -360,7 +366,8 @@ namespace Opc.Ua
             if (configuration.DiscoveryServerConfiguration != null)
             {
                 sourceBaseAddresses = configuration.DiscoveryServerConfiguration.BaseAddresses;
-                sourceAlternateAddresses = configuration.DiscoveryServerConfiguration.AlternateBaseAddresses;
+                sourceAlternateAddresses = configuration.DiscoveryServerConfiguration
+                    .AlternateBaseAddresses;
             }
 
             if (sourceBaseAddresses == null)
@@ -370,7 +377,7 @@ namespace Opc.Ua
 
             foreach (string baseAddress in sourceBaseAddresses)
             {
-                var address = new BaseAddress() { Url = new Uri(baseAddress) };
+                var address = new BaseAddress { Url = new Uri(baseAddress) };
 
                 if (sourceAlternateAddresses != null)
                 {
@@ -392,12 +399,10 @@ namespace Opc.Ua
                         address.ProfileUri = Profiles.HttpsBinaryTransport;
                         address.DiscoveryUrl = address.Url;
                         break;
-
                     case Utils.UriSchemeOpcTcp:
                         address.ProfileUri = Profiles.UaTcpTransport;
                         address.DiscoveryUrl = address.Url;
                         break;
-
                     case Utils.UriSchemeOpcWss:
                         address.ProfileUri = Profiles.UaWssTransport;
                         address.DiscoveryUrl = address.Url;
@@ -467,9 +472,12 @@ namespace Opc.Ua
             }
             else if (configuration.DiscoveryServerConfiguration != null)
             {
-                minRequestThreadCount = configuration.DiscoveryServerConfiguration.MinRequestThreadCount;
-                maxRequestThreadCount = configuration.DiscoveryServerConfiguration.MaxRequestThreadCount;
-                maxQueuedRequestCount = configuration.DiscoveryServerConfiguration.MaxQueuedRequestCount;
+                minRequestThreadCount = configuration.DiscoveryServerConfiguration
+                    .MinRequestThreadCount;
+                maxRequestThreadCount = configuration.DiscoveryServerConfiguration
+                    .MaxRequestThreadCount;
+                maxQueuedRequestCount = configuration.DiscoveryServerConfiguration
+                    .MaxQueuedRequestCount;
             }
 
             // ensure configuration errors don't render the server inoperable.
@@ -531,7 +539,10 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(e, "Unexpected error closing a listener. {0}", listeners[ii].GetType().FullName);
+                        Utils.LogError(
+                            e,
+                            "Unexpected error closing a listener. {0}",
+                            listeners[ii].GetType().FullName);
                     }
                 }
 
@@ -601,13 +612,15 @@ namespace Opc.Ua
         {
             if (!checkRequireEncryption || RequireEncryption(description))
             {
-                X509Certificate2 serverCertificate = certificateTypesProvider.GetInstanceCertificate(
-                    description.SecurityPolicyUri
-                );
+                X509Certificate2 serverCertificate = certificateTypesProvider
+                    .GetInstanceCertificate(
+                        description.SecurityPolicyUri
+                        );
                 // check if complete chain should be sent.
                 if (certificateTypesProvider.SendCertificateChain)
                 {
-                    description.ServerCertificate = certificateTypesProvider.LoadCertificateChainRaw(serverCertificate);
+                    description.ServerCertificate = certificateTypesProvider
+                        .LoadCertificateChainRaw(serverCertificate);
                 }
                 else
                 {
@@ -745,19 +758,25 @@ namespace Opc.Ua
             )
             {
                 // preload chain
-                X509Certificate2 certificate = certificateIdentifier.FindAsync(false).GetAwaiter().GetResult();
-                InstanceCertificateTypesProvider.LoadCertificateChainAsync(certificate).GetAwaiter().GetResult();
+                X509Certificate2 certificate = certificateIdentifier.FindAsync(false).GetAwaiter()
+                    .GetResult();
+                InstanceCertificateTypesProvider.LoadCertificateChainAsync(certificate).GetAwaiter()
+                    .GetResult();
             }
 
             //update certificate in the endpoint descriptions
             foreach (EndpointDescription endpointDescription in Endpoints)
             {
-                SetServerCertificateInEndpointDescription(endpointDescription, InstanceCertificateTypesProvider);
+                SetServerCertificateInEndpointDescription(
+                    endpointDescription,
+                    InstanceCertificateTypesProvider);
             }
 
             foreach (ITransportListener listener in TransportListeners)
             {
-                listener.CertificateUpdate(e.CertificateValidator, InstanceCertificateTypesProvider);
+                listener.CertificateUpdate(
+                    e.CertificateValidator,
+                    InstanceCertificateTypesProvider);
             }
         }
 
@@ -788,15 +807,17 @@ namespace Opc.Ua
                     CertificateValidator = certificateValidator,
                     NamespaceUris = MessageContext.NamespaceUris,
                     Factory = MessageContext.Factory,
-                    MaxChannelCount = 0,
+                    MaxChannelCount = 0
                 };
 
                 if (m_configuration is ApplicationConfiguration applicationConfiguration)
                 {
-                    settings.MaxChannelCount = applicationConfiguration.ServerConfiguration.MaxChannelCount;
+                    settings.MaxChannelCount = applicationConfiguration.ServerConfiguration
+                        .MaxChannelCount;
                     if (Utils.IsUriHttpsScheme(endpointUri.AbsoluteUri))
                     {
-                        settings.HttpsMutualTls = applicationConfiguration.ServerConfiguration.HttpsMutualTls;
+                        settings.HttpsMutualTls = applicationConfiguration.ServerConfiguration
+                            .HttpsMutualTls;
                     }
                 }
 
@@ -809,7 +830,8 @@ namespace Opc.Ua
             catch (Exception e)
             {
                 var message = new StringBuilder();
-                message.Append("Could not load ").Append(endpointUri.Scheme).Append(" Stack Listener.");
+                message.Append("Could not load ").Append(endpointUri.Scheme)
+                    .Append(" Stack Listener.");
                 if (e.InnerException != null)
                 {
                     message.Append(' ').Append(e.InnerException.Message);
@@ -836,8 +858,8 @@ namespace Opc.Ua
             var policies = new UserTokenPolicyCollection();
 
             if (
-                configuration.ServerConfiguration == null
-                || configuration.ServerConfiguration.UserTokenPolicies == null
+                configuration.ServerConfiguration == null ||
+                configuration.ServerConfiguration.UserTokenPolicies == null
             )
             {
                 return policies;
@@ -848,8 +870,8 @@ namespace Opc.Ua
                 var clone = (UserTokenPolicy)policy.Clone();
 
                 if (
-                    string.IsNullOrEmpty(policy.SecurityPolicyUri)
-                    && description.SecurityMode == MessageSecurityMode.None
+                    string.IsNullOrEmpty(policy.SecurityPolicyUri) &&
+                    description.SecurityMode == MessageSecurityMode.None
                 )
                 {
                     if (clone.TokenType == UserTokenType.Anonymous)
@@ -889,8 +911,7 @@ namespace Opc.Ua
             }
 
             // check if client is using an ip address.
-            IPAddress address;
-            if (IPAddress.TryParse(hostname, out address))
+            if (IPAddress.TryParse(hostname, out IPAddress address))
             {
                 if (IPAddress.IsLoopback(address))
                 {
@@ -917,7 +938,10 @@ namespace Opc.Ua
                     }
                     catch (SocketException e)
                     {
-                        Utils.LogError(e, "Unable to get host addresses for DNS hostname {0}.", fullName);
+                        Utils.LogError(
+                            e,
+                            "Unable to get host addresses for DNS hostname {0}.",
+                            fullName);
                     }
                 }
 
@@ -963,7 +987,9 @@ namespace Opc.Ua
         /// <summary>
         /// Filters the list of addresses by profile.
         /// </summary>
-        protected IList<BaseAddress> FilterByProfile(StringCollection profileUris, IList<BaseAddress> baseAddresses)
+        protected IList<BaseAddress> FilterByProfile(
+            StringCollection profileUris,
+            IList<BaseAddress> baseAddresses)
         {
             if (profileUris == null || profileUris.Count == 0)
             {
@@ -990,7 +1016,9 @@ namespace Opc.Ua
         /// <summary>
         /// Filters the list of addresses by the URL that the client provided.
         /// </summary>
-        protected IList<BaseAddress> FilterByEndpointUrl(Uri endpointUrl, IList<BaseAddress> baseAddresses)
+        protected IList<BaseAddress> FilterByEndpointUrl(
+            Uri endpointUrl,
+            IList<BaseAddress> baseAddresses)
         {
             // client only gets alternate addresses that match the DNS name that it used.
             var accessibleAddresses = new List<BaseAddress>();
@@ -1011,11 +1039,11 @@ namespace Opc.Ua
                             if (!accessibleAddresses.Any(item => item.Url == alternateUrl))
                             {
                                 accessibleAddresses.Add(
-                                    new BaseAddress()
+                                    new BaseAddress
                                     {
                                         Url = alternateUrl,
                                         ProfileUri = baseAddress.ProfileUri,
-                                        DiscoveryUrl = alternateUrl,
+                                        DiscoveryUrl = alternateUrl
                                     }
                                 );
                             }
@@ -1042,7 +1070,6 @@ namespace Opc.Ua
                 if (baseAddress.Url.Scheme == endpointUrl.Scheme)
                 {
                     accessibleAddresses.Add(baseAddress);
-                    continue;
                 }
             }
 
@@ -1062,9 +1089,11 @@ namespace Opc.Ua
             string url = baseAddress.Url.ToString();
 
             if (
-                (baseAddress.ProfileUri == Profiles.HttpsBinaryTransport)
-                && Utils.IsUriHttpRelatedScheme(url)
-                && (!url.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))
+                (baseAddress.ProfileUri == Profiles.HttpsBinaryTransport) &&
+                Utils.IsUriHttpRelatedScheme(url) &&
+                (!url.EndsWith(
+                    ConfiguredEndpoint.DiscoverySuffix,
+                    StringComparison.OrdinalIgnoreCase))
             )
             {
                 url += ConfiguredEndpoint.DiscoverySuffix;
@@ -1104,7 +1133,7 @@ namespace Opc.Ua
                 ApplicationType = description.ApplicationType,
                 ProductUri = description.ProductUri,
                 GatewayServerUri = description.DiscoveryProfileUri,
-                DiscoveryUrls = discoveryUrls,
+                DiscoveryUrls = discoveryUrls
             };
 
             if (!LocalizedText.IsNullOrEmpty(applicationName))
@@ -1149,14 +1178,15 @@ namespace Opc.Ua
                     {
                         bool translateHttpsEndpoint = false;
                         if (
-                            endpoint.TransportProfileUri == Profiles.HttpsBinaryTransport
-                            && baseAddress.ProfileUri == Profiles.HttpsBinaryTransport
+                            endpoint.TransportProfileUri == Profiles.HttpsBinaryTransport &&
+                            baseAddress.ProfileUri == Profiles.HttpsBinaryTransport
                         )
                         {
                             translateHttpsEndpoint = true;
                         }
 
-                        if (endpoint.TransportProfileUri != baseAddress.ProfileUri && !translateHttpsEndpoint)
+                        if (endpoint.TransportProfileUri != baseAddress.ProfileUri &&
+                            !translateHttpsEndpoint)
                         {
                             continue;
                         }
@@ -1172,11 +1202,16 @@ namespace Opc.Ua
                             continue;
                         }
 
-                        var translation = new EndpointDescription { EndpointUrl = baseAddress.Url.ToString() };
+                        var translation = new EndpointDescription
+                        {
+                            EndpointUrl = baseAddress.Url.ToString()
+                        };
 
                         if (
-                            endpointUrl.Path.StartsWith(baseAddress.Url.PathAndQuery, StringComparison.Ordinal)
-                            && endpointUrl.Path.Length > baseAddress.Url.PathAndQuery.Length
+                            endpointUrl.Path.StartsWith(
+                                baseAddress.Url.PathAndQuery,
+                                StringComparison.Ordinal) &&
+                            endpointUrl.Path.Length > baseAddress.Url.PathAndQuery.Length
                         )
                         {
                             string suffix = endpointUrl.Path[baseAddress.Url.PathAndQuery.Length..];
@@ -1194,9 +1229,10 @@ namespace Opc.Ua
 
                         if (
                             !translations.Exists(match =>
-                                match.EndpointUrl.Equals(translation.EndpointUrl, StringComparison.Ordinal)
-                                && match.SecurityMode == translation.SecurityMode
-                                && match.SecurityPolicyUri.Equals(
+                                match.EndpointUrl
+                                    .Equals(translation.EndpointUrl, StringComparison.Ordinal) &&
+                                match.SecurityMode == translation.SecurityMode &&
+                                match.SecurityPolicyUri.Equals(
                                     translation.SecurityPolicyUri,
                                     StringComparison.Ordinal
                                 )
@@ -1209,7 +1245,8 @@ namespace Opc.Ua
                 }
             } while (matchPort && translations.Count == 0);
 
-            translations.Sort((ep1, ep2) => string.CompareOrdinal(ep1.EndpointUrl, ep2.EndpointUrl));
+            translations.Sort(
+                (ep1, ep2) => string.CompareOrdinal(ep1.EndpointUrl, ep2.EndpointUrl));
 
             return translations;
         }
@@ -1218,6 +1255,7 @@ namespace Opc.Ua
         /// Verifies that the request header is valid.
         /// </summary>
         /// <param name="requestHeader">The object that contains description for the RequestHeader DataType.</param>
+        /// <exception cref="ServiceResultException"></exception>
         protected virtual void ValidateRequest(RequestHeader requestHeader)
         {
             if (requestHeader == null)
@@ -1236,14 +1274,20 @@ namespace Opc.Ua
         /// <param name="statusCode">The status code.</param>
         /// <exception cref="ServiceResultException">If statusCode is bad.</exception>
         /// <returns>Returns a description for the ResponseHeader DataType. </returns>
-        protected virtual ResponseHeader CreateResponse(RequestHeader requestHeader, uint statusCode)
+        protected virtual ResponseHeader CreateResponse(
+            RequestHeader requestHeader,
+            uint statusCode)
         {
             if (StatusCode.IsBad(statusCode))
             {
                 throw new ServiceResultException(statusCode);
             }
 
-            return new ResponseHeader { Timestamp = DateTime.UtcNow, RequestHandle = requestHeader.RequestHandle };
+            return new ResponseHeader
+            {
+                Timestamp = DateTime.UtcNow,
+                RequestHandle = requestHeader.RequestHandle
+            };
         }
 
         /// <summary>
@@ -1252,12 +1296,14 @@ namespace Opc.Ua
         /// <param name="requestHeader">The object that contains description for the RequestHeader DataType.</param>
         /// <param name="exception">The exception used to create DiagnosticInfo assigned to the ServiceDiagnostics.</param>
         /// <returns>Returns a description for the ResponseHeader DataType. </returns>
-        protected virtual ResponseHeader CreateResponse(RequestHeader requestHeader, Exception exception)
+        protected virtual ResponseHeader CreateResponse(
+            RequestHeader requestHeader,
+            Exception exception)
         {
             var responseHeader = new ResponseHeader
             {
                 Timestamp = DateTime.UtcNow,
-                RequestHandle = requestHeader.RequestHandle,
+                RequestHandle = requestHeader.RequestHandle
             };
 
             var stringTable = new StringTable();
@@ -1278,12 +1324,14 @@ namespace Opc.Ua
         /// <param name="requestHeader">The object that contains description for the RequestHeader DataType.</param>
         /// <param name="stringTable">The thread safe table of string constants.</param>
         /// <returns>Returns a description for the ResponseHeader DataType. </returns>
-        protected virtual ResponseHeader CreateResponse(RequestHeader requestHeader, StringTable stringTable)
+        protected virtual ResponseHeader CreateResponse(
+            RequestHeader requestHeader,
+            StringTable stringTable)
         {
             var responseHeader = new ResponseHeader
             {
                 Timestamp = DateTime.UtcNow,
-                RequestHandle = requestHeader.RequestHandle,
+                RequestHandle = requestHeader.RequestHandle
             };
 
             responseHeader.StringTable.AddRange(stringTable.ToArray());
@@ -1298,12 +1346,15 @@ namespace Opc.Ua
         /// <remarks>
         /// Servers are free to ignore changes if it is difficult/impossible to apply them without a restart.
         /// </remarks>
-        protected virtual void OnUpdateConfiguration(ApplicationConfiguration configuration) { }
+        protected virtual void OnUpdateConfiguration(ApplicationConfiguration configuration)
+        {
+        }
 
         /// <summary>
         /// Called before the server starts.
         /// </summary>
         /// <param name="configuration">The object that stores the configurable configuration information for a UA application.</param>
+        /// <exception cref="ServiceResultException"></exception>
         protected virtual void OnServerStarting(ApplicationConfiguration configuration)
         {
             // fetch properties and configuration.
@@ -1315,13 +1366,17 @@ namespace Opc.Ua
             {
                 if (configuration.ServerConfiguration.SecurityPolicies.Count == 0)
                 {
-                    configuration.ServerConfiguration.SecurityPolicies.Add(new ServerSecurityPolicy());
+                    configuration.ServerConfiguration.SecurityPolicies
+                        .Add(new ServerSecurityPolicy());
                 }
 
                 // ensure at least one user token policy exists.
                 if (configuration.ServerConfiguration.UserTokenPolicies.Count == 0)
                 {
-                    var userTokenPolicy = new UserTokenPolicy { TokenType = UserTokenType.Anonymous };
+                    var userTokenPolicy = new UserTokenPolicy
+                    {
+                        TokenType = UserTokenType.Anonymous
+                    };
                     userTokenPolicy.PolicyId = userTokenPolicy.TokenType.ToString();
 
                     configuration.ServerConfiguration.UserTokenPolicies.Add(userTokenPolicy);
@@ -1333,7 +1388,8 @@ namespace Opc.Ua
             InstanceCertificateTypesProvider = new CertificateTypesProvider(configuration);
             InstanceCertificateTypesProvider.InitializeAsync().GetAwaiter().GetResult();
 
-            foreach (ServerSecurityPolicy securityPolicy in configuration.ServerConfiguration.SecurityPolicies)
+            foreach (ServerSecurityPolicy securityPolicy in configuration.ServerConfiguration
+                .SecurityPolicies)
             {
                 if (securityPolicy.SecurityMode == MessageSecurityMode.None)
                 {
@@ -1341,7 +1397,8 @@ namespace Opc.Ua
                 }
 
                 X509Certificate2 instanceCertificate =
-                    InstanceCertificateTypesProvider.GetInstanceCertificate(securityPolicy.SecurityPolicyUri)
+                    InstanceCertificateTypesProvider.GetInstanceCertificate(
+                        securityPolicy.SecurityPolicyUri)
                     ?? throw new ServiceResultException(
                         StatusCodes.BadConfigurationError,
                         "Server does not have an instance certificate assigned."
@@ -1372,11 +1429,13 @@ namespace Opc.Ua
             // assign a unique identifier if none specified.
             if (string.IsNullOrEmpty(configuration.ApplicationUri))
             {
-                X509Certificate2 instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(
-                    configuration.ServerConfiguration.SecurityPolicies[0].SecurityPolicyUri
-                );
+                X509Certificate2 instanceCertificate = InstanceCertificateTypesProvider
+                    .GetInstanceCertificate(
+                        configuration.ServerConfiguration.SecurityPolicies[0].SecurityPolicyUri
+                        );
 
-                configuration.ApplicationUri = X509Utils.GetApplicationUriFromCertificate(instanceCertificate);
+                configuration.ApplicationUri = X509Utils.GetApplicationUriFromCertificate(
+                    instanceCertificate);
 
                 if (string.IsNullOrEmpty(configuration.ApplicationUri))
                 {
@@ -1393,9 +1452,12 @@ namespace Opc.Ua
             MessageContext.NamespaceUris.Append(configuration.ApplicationUri);
 
             // assign an instance name.
-            if (string.IsNullOrEmpty(configuration.ApplicationName) && defaultInstanceCertificate != null)
+            if (string.IsNullOrEmpty(configuration.ApplicationName) &&
+                defaultInstanceCertificate != null)
             {
-                configuration.ApplicationName = defaultInstanceCertificate.GetNameInfo(X509NameType.DnsName, false);
+                configuration.ApplicationName = defaultInstanceCertificate.GetNameInfo(
+                    X509NameType.DnsName,
+                    false);
             }
 
             // save the certificate validator.
@@ -1470,7 +1532,11 @@ namespace Opc.Ua
             /// <param name="minThreadCount">The minimum number of threads in the pool.</param>
             /// <param name="maxThreadCount">The maximum number of threads  in the pool.</param>
             /// <param name="maxRequestCount">The maximum number of requests that will placed in the queue.</param>
-            public RequestQueue(ServerBase server, int minThreadCount, int maxThreadCount, int maxRequestCount)
+            public RequestQueue(
+                ServerBase server,
+                int minThreadCount,
+                int maxThreadCount,
+                int maxRequestCount)
             {
                 m_server = server;
                 m_stopped = false;
@@ -1485,14 +1551,12 @@ namespace Opc.Ua
 #endif
 
                 // adjust ThreadPool, only increase values if necessary
-                int minCompletionPortThreads;
-                ThreadPool.GetMinThreads(out minThreadCount, out minCompletionPortThreads);
+                ThreadPool.GetMinThreads(out minThreadCount, out int minCompletionPortThreads);
                 ThreadPool.SetMinThreads(
                     Math.Max(minThreadCount, m_minThreadCount),
                     Math.Max(minCompletionPortThreads, m_minThreadCount)
                 );
-                int maxCompletionPortThreads;
-                ThreadPool.GetMaxThreads(out maxThreadCount, out maxCompletionPortThreads);
+                ThreadPool.GetMaxThreads(out maxThreadCount, out int maxCompletionPortThreads);
                 ThreadPool.SetMaxThreads(
                     Math.Max(maxThreadCount, m_maxThreadCount),
                     Math.Max(maxCompletionPortThreads, m_maxThreadCount)
@@ -1654,7 +1718,9 @@ namespace Opc.Ua
                             m_activeThreadCount--;
 
                             // wait for a request. end the thread if no activity.
-                            if (m_stopped || (!Monitor.Wait(m_lock, 15_000) && m_totalThreadCount > m_minThreadCount))
+                            if (m_stopped ||
+                                (!Monitor.Wait(m_lock, 15_000) &&
+                                    m_totalThreadCount > m_minThreadCount))
                             {
                                 m_totalThreadCount--;
                                 Utils.LogTrace(

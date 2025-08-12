@@ -142,7 +142,8 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < length; ii++)
             {
-                if (transitionMappings[ii, 0] == transitionId && transitionMappings[ii, 1] == currentState)
+                if (transitionMappings[ii, 0] == transitionId &&
+                    transitionMappings[ii, 1] == currentState)
                 {
                     return transitionMappings[ii, 2];
                 }
@@ -231,7 +232,8 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < length; ii++)
             {
-                if (transitionMappings[ii, 1] == currentState && transitionMappings[ii, 2] == targetStateId)
+                if (transitionMappings[ii, 1] == currentState &&
+                    transitionMappings[ii, 2] == targetStateId)
                 {
                     return transitionMappings[ii, 0];
                 }
@@ -243,7 +245,10 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the current state variable.
         /// </summary>
-        protected void UpdateStateVariable(ISystemContext context, uint stateId, FiniteStateVariableState variable)
+        protected void UpdateStateVariable(
+            ISystemContext context,
+            uint stateId,
+            FiniteStateVariableState variable)
         {
             if (variable == null)
             {
@@ -389,7 +394,13 @@ namespace Opc.Ua
             {
                 try
                 {
-                    return callback(context, this, transitionId, causeId, inputArguments, outputArguments);
+                    return callback(
+                        context,
+                        this,
+                        transitionId,
+                        causeId,
+                        inputArguments,
+                        outputArguments);
                 }
                 catch (Exception e)
                 {
@@ -403,7 +414,10 @@ namespace Opc.Ua
         /// <summary>
         /// Checks if the cause is permitted given the current state and returns the associated transition.
         /// </summary>
-        public virtual bool IsCausePermitted(ISystemContext context, uint causeId, bool checkUserAccessRights)
+        public virtual bool IsCausePermitted(
+            ISystemContext context,
+            uint causeId,
+            bool checkUserAccessRights)
         {
             uint transitionId = GetTransitionForCause(context, causeId);
 
@@ -484,7 +498,12 @@ namespace Opc.Ua
                 }
 
                 // do the transition.
-                result = DoTransition(context, transitionId, causeId, inputArguments, outputArguments);
+                result = DoTransition(
+                    context,
+                    transitionId,
+                    causeId,
+                    inputArguments,
+                    outputArguments);
 
                 if (ServiceResult.IsBad(result))
                 {
@@ -505,7 +524,12 @@ namespace Opc.Ua
 
                     if (m_causeId != causeId)
                     {
-                        ReportAuditProgramTransitionEvent(context, causeMethod, causeId, inputArguments, result);
+                        ReportAuditProgramTransitionEvent(
+                            context,
+                            causeMethod,
+                            causeId,
+                            inputArguments,
+                            result);
                         m_causeId = causeId;
                     }
                 }
@@ -556,7 +580,11 @@ namespace Opc.Ua
             );
 
             e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
-            e.SetChildValue(context, BrowseNames.SourceName, $"Method/{causeMethod.BrowseName.Name}", false);
+            e.SetChildValue(
+                context,
+                BrowseNames.SourceName,
+                $"Method/{causeMethod.BrowseName.Name}",
+                false);
             e.SetChildValue(context, BrowseNames.LocalTime, Utils.GetTimeZoneInfo(), false);
 
             // AuditUpdateMethodStateEventType properties
@@ -571,11 +599,6 @@ namespace Opc.Ua
         /// <summary>
         /// Reports AuditProgramTransition event
         /// </summary>
-        /// <param name="context"></param>
-        /// <param name="causeMethod"></param>
-        /// <param name="causeId"></param>
-        /// <param name="inputArguments"></param>
-        /// <param name="result"></param>
         protected virtual void ReportAuditProgramTransitionEvent(
             ISystemContext context,
             MethodState causeMethod,
@@ -590,7 +613,11 @@ namespace Opc.Ua
 
                 UpdateAuditEvent(context, causeMethod, inputArguments, causeId, e, result);
 
-                e.SetChildValue(context, BrowseNames.TransitionNumber, LastTransition.Number.Value, false);
+                e.SetChildValue(
+                    context,
+                    BrowseNames.TransitionNumber,
+                    LastTransition.Number.Value,
+                    false);
 
                 ReportEvent(context, e);
             }
@@ -605,7 +632,6 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="causeId">The cause id.</param>
-        /// <returns></returns>
         public virtual void CauseProcessingCompleted(ISystemContext context, uint causeId)
         {
             // get the transition.
@@ -625,7 +651,11 @@ namespace Opc.Ua
             }
 
             // save the last state.
-            (LastState ??= new FiniteStateVariableState(this)).SetChildValue(context, null, CurrentState, false);
+            (LastState ??= new FiniteStateVariableState(this)).SetChildValue(
+                context,
+                null,
+                CurrentState,
+                false);
 
             // update state and transition variables.
             UpdateStateVariable(context, newState, CurrentState);
@@ -674,14 +704,25 @@ namespace Opc.Ua
             }
 
             // save the last state.
-            (LastState ??= new FiniteStateVariableState(this)).SetChildValue(context, null, CurrentState, false);
+            (LastState ??= new FiniteStateVariableState(this)).SetChildValue(
+                context,
+                null,
+                CurrentState,
+                false);
 
             // update state and transition variables.
             UpdateStateVariable(context, newState, CurrentState);
             UpdateTransitionVariable(context, transitionId, LastTransition);
 
             // do any post-transition processing.
-            InvokeCallback(OnAfterTransition, context, this, transitionId, causeId, inputArguments, outputArguments);
+            InvokeCallback(
+                OnAfterTransition,
+                context,
+                this,
+                transitionId,
+                causeId,
+                inputArguments,
+                outputArguments);
 
             // report the event.
             if (AreEventsMonitored && !SuppressTransitionEvents)

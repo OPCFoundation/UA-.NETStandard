@@ -43,7 +43,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Initializes a new instance of the <see cref="NodeHandle"/> class.
         /// </summary>
-        public NodeHandle() { }
+        public NodeHandle()
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="NodeHandle"/> class.

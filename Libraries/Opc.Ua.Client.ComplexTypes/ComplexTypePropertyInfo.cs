@@ -107,4 +107,4 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public uint OptionalFieldMask { get; set; }
     }
-} //namespace
+}

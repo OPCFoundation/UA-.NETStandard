@@ -45,16 +45,36 @@ namespace Opc.Ua.Server.Tests
 
         public static readonly ExpandedNodeId[] NodeIdTestSetStatic =
         [
-            new ExpandedNodeId("Scalar_Static_SByte", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Static_Int16", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Static_Int32", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Static_Byte", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Static_UInt16", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Static_UInt32", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Static_NodeId", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Static_LocalizedText", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Static_QualifiedName", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Static_Variant", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId(
+                "Scalar_Static_SByte",
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId(
+                "Scalar_Static_Int16",
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId(
+                "Scalar_Static_Int32",
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId(
+                "Scalar_Static_Byte",
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId(
+                "Scalar_Static_UInt16",
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId(
+                "Scalar_Static_UInt32",
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId(
+                "Scalar_Static_NodeId",
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId(
+                "Scalar_Static_LocalizedText",
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId(
+                "Scalar_Static_QualifiedName",
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId(
+                "Scalar_Static_Variant",
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer)
         ];
 
         /// <summary>
@@ -62,10 +82,18 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         public static readonly ExpandedNodeId[] NodeIdTestDataSetStatic =
         [
-            new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_Int16Value, TestData.Namespaces.TestData),
-            new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_Int32Value, TestData.Namespaces.TestData),
-            new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_UInt16Value, TestData.Namespaces.TestData),
-            new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_UInt32Value, TestData.Namespaces.TestData),
+            new ExpandedNodeId(
+                TestData.Variables.Data_Static_Scalar_Int16Value,
+                TestData.Namespaces.TestData),
+            new ExpandedNodeId(
+                TestData.Variables.Data_Static_Scalar_Int32Value,
+                TestData.Namespaces.TestData),
+            new ExpandedNodeId(
+                TestData.Variables.Data_Static_Scalar_UInt16Value,
+                TestData.Namespaces.TestData),
+            new ExpandedNodeId(
+                TestData.Variables.Data_Static_Scalar_UInt32Value,
+                TestData.Namespaces.TestData)
         ];
 
         /// <summary>
@@ -73,13 +101,27 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         public static readonly ExpandedNodeId[] NodeIdTestSetSimulation =
         [
-            new ExpandedNodeId("Scalar_Simulation_SByte", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Simulation_Int16", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Simulation_Int32", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Simulation_Byte", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Simulation_UInt16", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Simulation_UInt32", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Simulation_NodeId", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId(
+                "Scalar_Simulation_SByte",
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId(
+                "Scalar_Simulation_Int16",
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId(
+                "Scalar_Simulation_Int32",
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId(
+                "Scalar_Simulation_Byte",
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId(
+                "Scalar_Simulation_UInt16",
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId(
+                "Scalar_Simulation_UInt32",
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId(
+                "Scalar_Simulation_NodeId",
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
             new ExpandedNodeId(
                 "Scalar_Simulation_LocalizedText",
                 Quickstarts.ReferenceServer.Namespaces.ReferenceServer
@@ -88,7 +130,9 @@ namespace Opc.Ua.Server.Tests
                 "Scalar_Simulation_QualifiedName",
                 Quickstarts.ReferenceServer.Namespaces.ReferenceServer
             ),
-            new ExpandedNodeId("Scalar_Simulation_Variant", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId(
+                "Scalar_Simulation_Variant",
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer)
         ];
 
         /// <summary>
@@ -96,30 +140,48 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         public static readonly ExpandedNodeId[] NodeIdTestSetDataSimulation =
         [
-            new ExpandedNodeId(TestData.Variables.Data_Dynamic_Scalar_Int16Value, TestData.Namespaces.TestData),
-            new ExpandedNodeId(TestData.Variables.Data_Dynamic_Scalar_Int32Value, TestData.Namespaces.TestData),
-            new ExpandedNodeId(TestData.Variables.Data_Dynamic_Scalar_UInt16Value, TestData.Namespaces.TestData),
-            new ExpandedNodeId(TestData.Variables.Data_Dynamic_Scalar_UInt32Value, TestData.Namespaces.TestData),
+            new ExpandedNodeId(
+                TestData.Variables.Data_Dynamic_Scalar_Int16Value,
+                TestData.Namespaces.TestData),
+            new ExpandedNodeId(
+                TestData.Variables.Data_Dynamic_Scalar_Int32Value,
+                TestData.Namespaces.TestData),
+            new ExpandedNodeId(
+                TestData.Variables.Data_Dynamic_Scalar_UInt16Value,
+                TestData.Namespaces.TestData),
+            new ExpandedNodeId(
+                TestData.Variables.Data_Dynamic_Scalar_UInt32Value,
+                TestData.Namespaces.TestData),
             new ExpandedNodeId(
                 TestData.Variables.AnalogScalarValueObjectType_UInt32Value,
                 TestData.Namespaces.TestData
             ),
-            new ExpandedNodeId(TestData.Variables.Data_Dynamic_AnalogArray_ByteValue, TestData.Namespaces.TestData),
-            new ExpandedNodeId(TestData.Variables.Data_Dynamic_Scalar_VectorValue, TestData.Namespaces.TestData),
-            new ExpandedNodeId(TestData.Variables.Data_Dynamic_Scalar_VectorValue_X, TestData.Namespaces.TestData),
-            new ExpandedNodeId(TestData.Variables.Data_Dynamic_Structure_ScalarStructure, TestData.Namespaces.TestData),
+            new ExpandedNodeId(
+                TestData.Variables.Data_Dynamic_AnalogArray_ByteValue,
+                TestData.Namespaces.TestData),
+            new ExpandedNodeId(
+                TestData.Variables.Data_Dynamic_Scalar_VectorValue,
+                TestData.Namespaces.TestData),
+            new ExpandedNodeId(
+                TestData.Variables.Data_Dynamic_Scalar_VectorValue_X,
+                TestData.Namespaces.TestData),
+            new ExpandedNodeId(
+                TestData.Variables.Data_Dynamic_Structure_ScalarStructure,
+                TestData.Namespaces.TestData)
         ];
 
         public static readonly ExpandedNodeId[] NodeIdTestDataHistory =
         [
-            new ExpandedNodeId(TestData.Variables.Data_Dynamic_Scalar_Int32Value, TestData.Namespaces.TestData),
+            new ExpandedNodeId(
+                TestData.Variables.Data_Dynamic_Scalar_Int32Value,
+                TestData.Namespaces.TestData)
         ];
 
         public static readonly ExpandedNodeId[] NodeIdMemoryBufferSimulation =
         [
             // dynamic variables from namespace MemoryBuffer
             new ExpandedNodeId("UInt32[64]", MemoryBuffer.Namespaces.MemoryBuffer + "/Instance"),
-            new ExpandedNodeId("Double[40]", MemoryBuffer.Namespaces.MemoryBuffer + "/Instance"),
+            new ExpandedNodeId("Double[40]", MemoryBuffer.Namespaces.MemoryBuffer + "/Instance")
         ];
 
         /// <summary>
@@ -149,7 +211,7 @@ namespace Opc.Ua.Server.Tests
                     ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
                     IncludeSubtypes = true,
                     NodeClassMask = 0,
-                    ResultMask = (uint)BrowseResultMask.All,
+                    ResultMask = (uint)BrowseResultMask.All
                 };
             BrowseDescriptionCollection browseDescriptionCollection =
                 ServerFixtureUtils.CreateBrowseDescriptionCollectionFromNodeId(
@@ -165,42 +227,48 @@ namespace Opc.Ua.Server.Tests
 
             // Test if server responds with BadNothingToDo
             {
-                ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                    _ = services.Browse(
-                        requestHeader,
-                        null,
-                        0,
-                        browseDescriptionCollection.Take(0).ToArray(),
-                        out BrowseResultCollection results,
-                        out DiagnosticInfoCollection infos
-                    )
-                );
-                Assert.AreEqual((StatusCode)StatusCodes.BadNothingToDo, (StatusCode)sre.StatusCode);
-            }
-
-            while (browseDescriptionCollection.Any())
-            {
-                var allResults = new BrowseResultCollection();
-                if (verifyMaxNodesPerBrowse && browseDescriptionCollection.Count > operationLimits.MaxNodesPerBrowse)
-                {
-                    verifyMaxNodesPerBrowse = false;
-                    // Test if server responds with BadTooManyOperations
-                    ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+                ServiceResultException sre = NUnit.Framework.Assert
+                    .Throws<ServiceResultException>(() =>
                         _ = services.Browse(
                             requestHeader,
                             null,
                             0,
-                            browseDescriptionCollection,
+                            browseDescriptionCollection.Take(0).ToArray(),
                             out BrowseResultCollection results,
                             out DiagnosticInfoCollection infos
                         )
-                    );
-                    Assert.AreEqual((StatusCode)StatusCodes.BadTooManyOperations, (StatusCode)sre.StatusCode);
+                        );
+                Assert.AreEqual((StatusCode)StatusCodes.BadNothingToDo, (StatusCode)sre.StatusCode);
+            }
+
+            while (browseDescriptionCollection.Count > 0)
+            {
+                var allResults = new BrowseResultCollection();
+                if (verifyMaxNodesPerBrowse &&
+                    browseDescriptionCollection.Count > operationLimits.MaxNodesPerBrowse)
+                {
+                    verifyMaxNodesPerBrowse = false;
+                    // Test if server responds with BadTooManyOperations
+                    ServiceResultException sre = NUnit.Framework.Assert
+                        .Throws<ServiceResultException>(() =>
+                            _ = services.Browse(
+                                requestHeader,
+                                null,
+                                0,
+                                browseDescriptionCollection,
+                                out BrowseResultCollection results,
+                                out DiagnosticInfoCollection infos
+                            )
+                            );
+                    Assert.AreEqual(
+                        (StatusCode)StatusCodes.BadTooManyOperations,
+                        (StatusCode)sre.StatusCode);
 
                     // Test if server responds with BadTooManyOperations
                     BrowseDescription[] tempBrowsePath =
                     [
-                        .. browseDescriptionCollection.Take((int)operationLimits.MaxNodesPerBrowse + 1),
+                        .. browseDescriptionCollection.Take(
+                            (int)operationLimits.MaxNodesPerBrowse + 1)
                     ];
                     sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                         _ = services.Browse(
@@ -212,7 +280,9 @@ namespace Opc.Ua.Server.Tests
                             out DiagnosticInfoCollection infos
                         )
                     );
-                    Assert.AreEqual((StatusCode)StatusCodes.BadTooManyOperations, (StatusCode)sre.StatusCode);
+                    Assert.AreEqual(
+                        (StatusCode)StatusCodes.BadTooManyOperations,
+                        (StatusCode)sre.StatusCode);
                 }
 
                 bool repeatBrowse;
@@ -222,7 +292,7 @@ namespace Opc.Ua.Server.Tests
                 do
                 {
                     BrowseDescriptionCollection browseCollection =
-                        (maxNodesPerBrowse == 0)
+                        maxNodesPerBrowse == 0
                             ? browseDescriptionCollection
                             : browseDescriptionCollection.Take((int)maxNodesPerBrowse).ToArray();
                     repeatBrowse = false;
@@ -237,7 +307,10 @@ namespace Opc.Ua.Server.Tests
                             out browseResultCollection,
                             out diagnosticsInfoCollection
                         );
-                        ServerFixtureUtils.ValidateResponse(response, browseResultCollection, browseCollection);
+                        ServerFixtureUtils.ValidateResponse(
+                            response,
+                            browseResultCollection,
+                            browseCollection);
                         ServerFixtureUtils.ValidateDiagnosticInfos(
                             diagnosticsInfoCollection,
                             browseCollection,
@@ -247,12 +320,15 @@ namespace Opc.Ua.Server.Tests
                         allResults.AddRange(browseResultCollection);
                     }
                     catch (ServiceResultException sre)
-                        when (sre.StatusCode is StatusCodes.BadEncodingLimitsExceeded or StatusCodes.BadResponseTooLarge
+                        when (sre.StatusCode is StatusCodes.BadEncodingLimitsExceeded or StatusCodes
+                            .BadResponseTooLarge
                         )
                     {
                         // try to address by overriding operation limit
                         maxNodesPerBrowse =
-                            maxNodesPerBrowse == 0 ? (uint)browseCollection.Count / 2 : maxNodesPerBrowse / 2;
+                            maxNodesPerBrowse == 0
+                                ? (uint)browseCollection.Count / 2
+                                : maxNodesPerBrowse / 2;
                         repeatBrowse = true;
                     }
                 } while (repeatBrowse);
@@ -263,12 +339,14 @@ namespace Opc.Ua.Server.Tests
                 }
                 else
                 {
-                    browseDescriptionCollection = browseDescriptionCollection.Skip((int)maxNodesPerBrowse).ToArray();
+                    browseDescriptionCollection = browseDescriptionCollection.Skip(
+                        (int)maxNodesPerBrowse).ToArray();
                 }
 
                 // Browse next
-                ByteStringCollection continuationPoints = ServerFixtureUtils.PrepareBrowseNext(browseResultCollection);
-                while (continuationPoints.Any())
+                ByteStringCollection continuationPoints = ServerFixtureUtils.PrepareBrowseNext(
+                    browseResultCollection);
+                while (continuationPoints.Count > 0)
                 {
                     requestHeader.Timestamp = DateTime.UtcNow;
                     response = services.BrowseNext(
@@ -278,14 +356,18 @@ namespace Opc.Ua.Server.Tests
                         out BrowseResultCollection browseNextResultCollection,
                         out diagnosticsInfoCollection
                     );
-                    ServerFixtureUtils.ValidateResponse(response, browseNextResultCollection, continuationPoints);
+                    ServerFixtureUtils.ValidateResponse(
+                        response,
+                        browseNextResultCollection,
+                        continuationPoints);
                     ServerFixtureUtils.ValidateDiagnosticInfos(
                         diagnosticsInfoCollection,
                         continuationPoints,
                         response.StringTable
                     );
                     allResults.AddRange(browseNextResultCollection);
-                    continuationPoints = ServerFixtureUtils.PrepareBrowseNext(browseNextResultCollection);
+                    continuationPoints = ServerFixtureUtils.PrepareBrowseNext(
+                        browseNextResultCollection);
                 }
 
                 // Build browse request for next level
@@ -298,15 +380,17 @@ namespace Opc.Ua.Server.Tests
                         browseTable.Add(ExpandedNodeId.ToNodeId(reference.NodeId, null));
                     }
                 }
-                browseDescriptionCollection = ServerFixtureUtils.CreateBrowseDescriptionCollectionFromNodeId(
-                    browseTable,
-                    browseTemplate
-                );
+                browseDescriptionCollection = ServerFixtureUtils
+                    .CreateBrowseDescriptionCollectionFromNodeId(
+                        browseTable,
+                        browseTemplate
+                        );
             }
 
             referenceDescriptions.Sort((x, y) => x.NodeId.CompareTo(y.NodeId));
 
-            TestContext.Out.WriteLine("Found {0} references on server.", referenceDescriptions.Count);
+            TestContext.Out
+                .WriteLine("Found {0} references on server.", referenceDescriptions.Count);
             if (outputResult)
             {
                 foreach (ReferenceDescription reference in referenceDescriptions)
@@ -337,37 +421,42 @@ namespace Opc.Ua.Server.Tests
             requestHeader.Timestamp = DateTime.UtcNow;
 
             // TranslateBrowsePath
-            bool verifyMaxNodesPerBrowse = operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds > 0;
+            bool verifyMaxNodesPerBrowse = operationLimits
+                .MaxNodesPerTranslateBrowsePathsToNodeIds > 0;
             var browsePaths = new BrowsePathCollection(
-                referenceDescriptions.Select(r => new BrowsePath()
+                referenceDescriptions.Select(r => new BrowsePath
                 {
                     RelativePath = new RelativePath(r.BrowseName),
-                    StartingNode = startingNode,
+                    StartingNode = startingNode
                 })
             );
             var allBrowsePaths = new BrowsePathResultCollection();
-            while (browsePaths.Any())
+            while (browsePaths.Count > 0)
             {
                 if (
-                    verifyMaxNodesPerBrowse
-                    && browsePaths.Count > operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds
+                    verifyMaxNodesPerBrowse &&
+                    browsePaths.Count > operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds
                 )
                 {
                     verifyMaxNodesPerBrowse = false;
                     // Test if server responds with BadTooManyOperations
-                    ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                        _ = services.TranslateBrowsePathsToNodeIds(
-                            requestHeader,
-                            browsePaths,
-                            out BrowsePathResultCollection results,
-                            out DiagnosticInfoCollection infos
-                        )
-                    );
-                    Assert.AreEqual((StatusCode)StatusCodes.BadTooManyOperations, (StatusCode)sre.StatusCode);
+                    ServiceResultException sre = NUnit.Framework.Assert
+                        .Throws<ServiceResultException>(() =>
+                            _ = services.TranslateBrowsePathsToNodeIds(
+                                requestHeader,
+                                browsePaths,
+                                out BrowsePathResultCollection results,
+                                out DiagnosticInfoCollection infos
+                            )
+                            );
+                    Assert.AreEqual(
+                        (StatusCode)StatusCodes.BadTooManyOperations,
+                        (StatusCode)sre.StatusCode);
                 }
                 BrowsePathCollection browsePathSnippet =
-                    (operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds > 0)
-                        ? browsePaths.Take((int)operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds).ToArray()
+                    operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds > 0
+                        ? browsePaths.Take(
+                            (int)operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds).ToArray()
                         : browsePaths;
                 ResponseHeader response = services.TranslateBrowsePathsToNodeIds(
                     requestHeader,
@@ -376,7 +465,10 @@ namespace Opc.Ua.Server.Tests
                     out DiagnosticInfoCollection diagnosticInfos
                 );
                 ServerFixtureUtils.ValidateResponse(response, browsePathResults, browsePathSnippet);
-                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, browsePathSnippet, response.StringTable);
+                ServerFixtureUtils.ValidateDiagnosticInfos(
+                    diagnosticInfos,
+                    browsePathSnippet,
+                    response.StringTable);
                 allBrowsePaths.AddRange(browsePathResults);
                 foreach (BrowsePathResult result in browsePathResults)
                 {
@@ -403,9 +495,9 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Worker method to test subscriptions of a server.
         /// </summary>
-        /// <param name="services"></param>
-        /// <param name="requestHeader"></param>
-        public static void SubscriptionTest(IServerTestServices services, RequestHeader requestHeader)
+        public static void SubscriptionTest(
+            IServerTestServices services,
+            RequestHeader requestHeader)
         {
             // start time
             requestHeader.Timestamp = DateTime.UtcNow;
@@ -454,22 +546,22 @@ namespace Opc.Ua.Server.Tests
             // add item
             uint handleCounter = 1;
             itemsToCreate.Add(
-                new MonitoredItemCreateRequest()
+                new MonitoredItemCreateRequest
                 {
-                    ItemToMonitor = new ReadValueId()
+                    ItemToMonitor = new ReadValueId
                     {
                         AttributeId = Attributes.Value,
-                        NodeId = VariableIds.Server_ServerStatus_CurrentTime,
+                        NodeId = VariableIds.Server_ServerStatus_CurrentTime
                     },
                     MonitoringMode = MonitoringMode.Reporting,
-                    RequestedParameters = new MonitoringParameters()
+                    RequestedParameters = new MonitoringParameters
                     {
                         ClientHandle = ++handleCounter,
                         SamplingInterval = -1,
                         Filter = null,
                         DiscardOldest = true,
-                        QueueSize = queueSize,
-                    },
+                        QueueSize = queueSize
+                    }
                 }
             );
 
@@ -485,7 +577,10 @@ namespace Opc.Ua.Server.Tests
                 out DiagnosticInfoCollection diagnosticInfos
             );
             ServerFixtureUtils.ValidateResponse(response, itemCreateResults, itemsToCreate);
-            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, itemsToCreate, response.StringTable);
+            ServerFixtureUtils.ValidateDiagnosticInfos(
+                diagnosticInfos,
+                itemsToCreate,
+                response.StringTable);
 
             // modify subscription
             response = services.ModifySubscription(
@@ -509,7 +604,11 @@ namespace Opc.Ua.Server.Tests
             var itemsToModify = new MonitoredItemModifyRequestCollection();
             foreach (MonitoredItemCreateResult itemCreated in itemCreateResults)
             {
-                itemsToModify.Add(new MonitoredItemModifyRequest() { MonitoredItemId = itemCreated.MonitoredItemId });
+                itemsToModify.Add(
+                    new MonitoredItemModifyRequest
+                    {
+                        MonitoredItemId = itemCreated.MonitoredItemId
+                    });
             }
             response = services.ModifyMonitoredItems(
                 requestHeader,
@@ -520,7 +619,10 @@ namespace Opc.Ua.Server.Tests
                 out diagnosticInfos
             );
             ServerFixtureUtils.ValidateResponse(response, modifyResults, itemsToModify);
-            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, itemsToModify, response.StringTable);
+            ServerFixtureUtils.ValidateDiagnosticInfos(
+                diagnosticInfos,
+                itemsToModify,
+                response.StringTable);
 
             // publish request
             var acknowledgements = new SubscriptionAcknowledgementCollection();
@@ -535,13 +637,16 @@ namespace Opc.Ua.Server.Tests
                 out diagnosticInfos
             );
             ServerFixtureUtils.ValidateResponse(response, statuses, acknowledgements);
-            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknowledgements, response.StringTable);
+            ServerFixtureUtils.ValidateDiagnosticInfos(
+                diagnosticInfos,
+                acknowledgements,
+                response.StringTable);
             Assert.AreEqual(id, subscriptionId);
             Assert.AreEqual(0, availableSequenceNumbers.Count);
 
             // enable publishing
             enabled = true;
-            var subscriptions = new UInt32Collection() { id };
+            var subscriptions = new UInt32Collection { id };
             response = services.SetPublishingMode(
                 requestHeader,
                 enabled,
@@ -550,7 +655,10 @@ namespace Opc.Ua.Server.Tests
                 out diagnosticInfos
             );
             ServerFixtureUtils.ValidateResponse(response, statuses, subscriptions);
-            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, subscriptions, response.StringTable);
+            ServerFixtureUtils.ValidateDiagnosticInfos(
+                diagnosticInfos,
+                subscriptions,
+                response.StringTable);
 
             // wait some time to fill queue
             int loopCounter = (int)queueSize;
@@ -571,7 +679,10 @@ namespace Opc.Ua.Server.Tests
                     out diagnosticInfos
                 );
                 ServerFixtureUtils.ValidateResponse(response, statuses, acknowledgements);
-                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknowledgements, response.StringTable);
+                ServerFixtureUtils.ValidateDiagnosticInfos(
+                    diagnosticInfos,
+                    acknowledgements,
+                    response.StringTable);
                 Assert.AreEqual(id, subscriptionId);
 
                 if (notificationMessage.NotificationData.Count == 0)
@@ -580,23 +691,25 @@ namespace Opc.Ua.Server.Tests
                 }
                 else
                 {
-                    var dataChangeNotification = notificationMessage.NotificationData[0].Body as DataChangeNotification;
-                    var eventNotification = notificationMessage.NotificationData[0].Body as EventNotificationList;
+                    var dataChangeNotification = notificationMessage.NotificationData[0]
+                        .Body as DataChangeNotification;
+                    var eventNotification = notificationMessage.NotificationData[0]
+                        .Body as EventNotificationList;
                     TestContext.Out.WriteLine(
                         "Notification: {0} {1} {2}",
                         notificationMessage.SequenceNumber,
                         dataChangeNotification?.MonitoredItems[0].Value.ToString()
-                            ?? eventNotification?.Events[0].Message.ToString(),
+                        ?? eventNotification?.Events[0].Message.ToString(),
                         notificationMessage.PublishTime
                     );
                 }
 
                 acknowledgements.Clear();
                 acknowledgements.Add(
-                    new SubscriptionAcknowledgement()
+                    new SubscriptionAcknowledgement
                     {
                         SubscriptionId = id,
-                        SequenceNumber = notificationMessage.SequenceNumber,
+                        SequenceNumber = notificationMessage.SequenceNumber
                     }
                 );
             } while (acknowledgements.Count > 0 && --loopCounter > 0);
@@ -620,10 +733,14 @@ namespace Opc.Ua.Server.Tests
                 out diagnosticInfos
             );
             ServerFixtureUtils.ValidateResponse(response, statuses, subscriptions);
-            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, subscriptions, response.StringTable);
+            ServerFixtureUtils.ValidateDiagnosticInfos(
+                diagnosticInfos,
+                subscriptions,
+                response.StringTable);
 
             // disable monitoring
-            var monitoredItemIds = new UInt32Collection(itemCreateResults.Select(r => r.MonitoredItemId));
+            var monitoredItemIds = new UInt32Collection(
+                itemCreateResults.Select(r => r.MonitoredItemId));
             response = services.SetMonitoringMode(
                 requestHeader,
                 id,
@@ -633,12 +750,22 @@ namespace Opc.Ua.Server.Tests
                 out diagnosticInfos
             );
             ServerFixtureUtils.ValidateResponse(response, statuses, monitoredItemIds);
-            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, monitoredItemIds, response.StringTable);
+            ServerFixtureUtils.ValidateDiagnosticInfos(
+                diagnosticInfos,
+                monitoredItemIds,
+                response.StringTable);
 
             // delete subscription
-            response = services.DeleteSubscriptions(requestHeader, subscriptions, out statuses, out diagnosticInfos);
+            response = services.DeleteSubscriptions(
+                requestHeader,
+                subscriptions,
+                out statuses,
+                out diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response, statuses, subscriptions);
-            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, subscriptions, response.StringTable);
+            ServerFixtureUtils.ValidateDiagnosticInfos(
+                diagnosticInfos,
+                subscriptions,
+                response.StringTable);
         }
 
         /// <summary>
@@ -681,15 +808,20 @@ namespace Opc.Ua.Server.Tests
                 out DiagnosticInfoCollection diagnosticInfos
             );
             ServerFixtureUtils.ValidateResponse(response, statuses, subscriptionIds);
-            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds, response.StringTable);
+            ServerFixtureUtils.ValidateDiagnosticInfos(
+                diagnosticInfos,
+                subscriptionIds,
+                response.StringTable);
 
             // wait some time to settle
             Thread.Sleep(1000);
 
             // publish request (use invalid sequence number for status)
-            var acknowledgements = new SubscriptionAcknowledgementCollection()
+            var acknowledgements = new SubscriptionAcknowledgementCollection
             {
-                new SubscriptionAcknowledgement() { SubscriptionId = subscriptionId, SequenceNumber = 123 },
+                new SubscriptionAcknowledgement {
+                    SubscriptionId = subscriptionId,
+                    SequenceNumber = 123 }
             };
             response = services.Publish(
                 requestHeader,
@@ -702,7 +834,10 @@ namespace Opc.Ua.Server.Tests
                 out diagnosticInfos
             );
             ServerFixtureUtils.ValidateResponse(response, statuses, acknowledgements);
-            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknowledgements, response.StringTable);
+            ServerFixtureUtils.ValidateDiagnosticInfos(
+                diagnosticInfos,
+                acknowledgements,
+                response.StringTable);
             Assert.AreEqual(subscriptionId, publishedId);
 
             // static node, do not acknowledge
@@ -735,14 +870,19 @@ namespace Opc.Ua.Server.Tests
             Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);
             Assert.AreEqual(subscriptionIds.Count, transferResults.Count);
             ServerFixtureUtils.ValidateResponse(response, transferResults, subscriptionIds);
-            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds, response.StringTable);
+            ServerFixtureUtils.ValidateDiagnosticInfos(
+                diagnosticInfos,
+                subscriptionIds,
+                response.StringTable);
 
             foreach (TransferResult transferResult in transferResults)
             {
                 TestContext.Out.WriteLine("TransferResult: {0}", transferResult.StatusCode);
                 if (expectAccessDenied)
                 {
-                    Assert.AreEqual((StatusCode)StatusCodes.BadUserAccessDenied, transferResult.StatusCode);
+                    Assert.AreEqual(
+                        (StatusCode)StatusCodes.BadUserAccessDenied,
+                        transferResult.StatusCode);
                 }
                 else
                 {
@@ -770,7 +910,10 @@ namespace Opc.Ua.Server.Tests
             );
             Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);
             ServerFixtureUtils.ValidateResponse(response);
-            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknowledgements, response.StringTable);
+            ServerFixtureUtils.ValidateDiagnosticInfos(
+                diagnosticInfos,
+                acknowledgements,
+                response.StringTable);
             Assert.AreEqual(subscriptionIds[0], publishedId);
             Assert.AreEqual(sendInitialData ? 1 : 0, notificationMessage.NotificationData.Count);
             if (sendInitialData)
@@ -818,12 +961,16 @@ namespace Opc.Ua.Server.Tests
                 out DiagnosticInfoCollection diagnosticInfos
             );
             ServerFixtureUtils.ValidateResponse(response);
-            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknowledgements, response.StringTable);
+            ServerFixtureUtils.ValidateDiagnosticInfos(
+                diagnosticInfos,
+                acknowledgements,
+                response.StringTable);
             Assert.IsFalse(moreNotifications);
             Assert.IsTrue(subscriptionIds.Contains(publishedId));
             Assert.AreEqual(1, notificationMessage.NotificationData.Count);
             string statusMessage = notificationMessage.NotificationData[0].ToString();
-            Assert.IsTrue(statusMessage.Contains("GoodSubscriptionTransferred", StringComparison.Ordinal));
+            Assert.IsTrue(
+                statusMessage.Contains("GoodSubscriptionTransferred", StringComparison.Ordinal));
 
             // static node, do not acknowledge
             if (availableSequenceNumbers != null)
@@ -840,11 +987,16 @@ namespace Opc.Ua.Server.Tests
                     out diagnosticInfos
                 );
                 ServerFixtureUtils.ValidateResponse(response, statuses, subscriptionIds);
-                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds, response.StringTable);
+                ServerFixtureUtils.ValidateDiagnosticInfos(
+                    diagnosticInfos,
+                    subscriptionIds,
+                    response.StringTable);
             }
         }
 
-        private static uint CreateSubscription(IServerTestServices services, RequestHeader requestHeader)
+        private static uint CreateSubscription(
+            IServerTestServices services,
+            RequestHeader requestHeader)
         {
             // start time
             requestHeader.Timestamp = DateTime.UtcNow;
@@ -889,7 +1041,9 @@ namespace Opc.Ua.Server.Tests
                 // add item
                 new MonitoredItemCreateRequest
                 {
-                    ItemToMonitor = new ReadValueId { AttributeId = Attributes.Value, NodeId = nodeId },
+                    ItemToMonitor = new ReadValueId {
+                        AttributeId = Attributes.Value,
+                        NodeId = nodeId },
                     MonitoringMode = MonitoringMode.Reporting,
                     RequestedParameters = new MonitoringParameters
                     {
@@ -897,9 +1051,9 @@ namespace Opc.Ua.Server.Tests
                         SamplingInterval = samplingInterval,
                         Filter = null,
                         DiscardOldest = true,
-                        QueueSize = queueSize,
-                    },
-                },
+                        QueueSize = queueSize
+                    }
+                }
             };
             ResponseHeader response = services.CreateMonitoredItems(
                 requestHeader,
@@ -910,31 +1064,41 @@ namespace Opc.Ua.Server.Tests
                 out DiagnosticInfoCollection diagnosticInfos
             );
             ServerFixtureUtils.ValidateResponse(response, itemCreateResults, itemsToCreate);
-            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, itemsToCreate, response.StringTable);
+            ServerFixtureUtils.ValidateDiagnosticInfos(
+                diagnosticInfos,
+                itemsToCreate,
+                response.StringTable);
         }
 
-        private static MonitoredItemCreateRequest CreateEventMonitoredItem(uint queueSize, ref uint handleCounter)
+        private static MonitoredItemCreateRequest CreateEventMonitoredItem(
+            uint queueSize,
+            ref uint handleCounter)
         {
             var whereClause = new ContentFilter();
 
             whereClause.Push(
                 FilterOperator.Equals,
                 [
-                    new SimpleAttributeOperand()
+                    new SimpleAttributeOperand
                     {
                         AttributeId = Attributes.Value,
                         TypeDefinitionId = ObjectTypeIds.BaseEventType,
-                        BrowsePath = [.. new QualifiedName[] { "EventType" }],
+                        BrowsePath = [.. new QualifiedName[] { "EventType" }]
                     },
-                    new LiteralOperand { Value = new Variant(new NodeId(ObjectTypeIds.BaseEventType)) },
+                    new LiteralOperand {
+                        Value = new Variant(new NodeId(ObjectTypeIds.BaseEventType)) }
                 ]
             );
 
-            return new MonitoredItemCreateRequest()
+            return new MonitoredItemCreateRequest
             {
-                ItemToMonitor = new ReadValueId() { AttributeId = Attributes.EventNotifier, NodeId = ObjectIds.Server },
+                ItemToMonitor = new ReadValueId
+                {
+                    AttributeId = Attributes.EventNotifier,
+                    NodeId = ObjectIds.Server
+                },
                 MonitoringMode = MonitoringMode.Reporting,
-                RequestedParameters = new MonitoringParameters()
+                RequestedParameters = new MonitoringParameters
                 {
                     ClientHandle = ++handleCounter,
                     SamplingInterval = -1,
@@ -949,16 +1113,17 @@ namespace Opc.Ua.Server.Tests
                                     {
                                         AttributeId = Attributes.Value,
                                         TypeDefinitionId = ObjectTypeIds.BaseEventType,
-                                        BrowsePath = [.. new QualifiedName[] { BrowseNames.Message }],
-                                    },
-                                },
+                                        BrowsePath = [.. new QualifiedName[] {
+                                            BrowseNames.Message }]
+                                    }
+                                }
                             ],
-                            WhereClause = whereClause,
+                            WhereClause = whereClause
                         }
                     ),
                     DiscardOldest = true,
-                    QueueSize = queueSize,
-                },
+                    QueueSize = queueSize
+                }
             };
         }
     }

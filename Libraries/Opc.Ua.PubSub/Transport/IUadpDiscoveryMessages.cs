@@ -39,22 +39,16 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Set GetPublisherEndpoints callback used by the subscriber to receive PublisherEndpoints data from publisher
         /// </summary>
-        /// <param name="eventHandler"></param>
         void GetPublisherEndpointsCallback(GetPublisherEndpointsEventHandler eventHandler);
 
         /// <summary>
         /// Set GetDataSetWriterIds callback used by the subscriber to receive DataSetWriter ids from publisher
         /// </summary>
-        /// <param name="eventHandler"></param>
         void GetDataSetWriterConfigurationCallback(GetDataSetWriterIdsEventHandler eventHandler);
 
         /// <summary>
         /// Create and return the list of EndpointDescription to be used only by UADP Discovery response messages
         /// </summary>
-        /// <param name="endpoints"></param>
-        /// <param name="publisherProvideEndpointsStatusCode"></param>
-        /// <param name="publisherId"></param>
-        /// <returns></returns>
         UaNetworkMessage CreatePublisherEndpointsNetworkMessage(
             EndpointDescription[] endpoints,
             StatusCode publisherProvideEndpointsStatusCode,
@@ -64,15 +58,12 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Create and return the list of DataSetMetaData response messages
         /// </summary>
-        /// <param name="dataSetWriterIds"></param>
-        /// <returns></returns>
         IList<UaNetworkMessage> CreateDataSetMetaDataNetworkMessages(ushort[] dataSetWriterIds);
 
         /// <summary>
         /// Create and return the list of DataSetWriterConfiguration response message
         /// </summary>
         /// <param name="dataSetWriterIds">DataSetWriter ids</param>
-        /// <returns></returns>
         IList<UaNetworkMessage> CreateDataSetWriterCofigurationMessage(ushort[] dataSetWriterIds);
 
         /// <summary>
@@ -94,12 +85,11 @@ namespace Opc.Ua.PubSub
     /// <summary>
     /// Get PublisherEndpoints event handler
     /// </summary>
-    /// <returns></returns>
     public delegate IList<EndpointDescription> GetPublisherEndpointsEventHandler();
 
     /// <summary>
     /// Get DataSetWriterConfiguration ids event handler
     /// </summary>
-    /// <returns></returns>
-    public delegate IList<ushort> GetDataSetWriterIdsEventHandler(UaPubSubApplication uaPubSubApplication);
+    public delegate IList<ushort> GetDataSetWriterIdsEventHandler(
+        UaPubSubApplication uaPubSubApplication);
 }

@@ -41,7 +41,6 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Initializes the object with default values.
         /// </summary>
         public UnionComplexType()
-            : base()
         {
             m_switchField = 0;
         }
@@ -156,9 +155,9 @@ namespace Opc.Ua.Client.ComplexTypes
                         string fieldName = property.Name;
 
                         if (
-                            isJsonDecoder
-                            && decoder is IJsonDecoder jsonDecoder
-                            && jsonDecoder.ReadField("Value", out _)
+                            isJsonDecoder &&
+                            decoder is IJsonDecoder jsonDecoder &&
+                            jsonDecoder.ReadField("Value", out _)
                         )
                         {
                             DecodeProperty(jsonDecoder, "Value", property);
@@ -206,7 +205,9 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     if (--unionSelector == 0)
                     {
-                        if (!Utils.IsEqual(property.GetValue(this), property.GetValue(valueBaseType)))
+                        if (!Utils.IsEqual(
+                            property.GetValue(this),
+                            property.GetValue(valueBaseType)))
                         {
                             return false;
                         }
@@ -231,7 +232,11 @@ namespace Opc.Ua.Client.ComplexTypes
                         if (--unionSelector == 0)
                         {
                             object unionProperty = property.GetValue(this);
-                            AppendPropertyValue(formatProvider, body, unionProperty, property.ValueRank);
+                            AppendPropertyValue(
+                                formatProvider,
+                                body,
+                                unionProperty,
+                                property.ValueRank);
                             break;
                         }
                     }
@@ -331,8 +336,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             set
             {
-                ComplexTypePropertyInfo property;
-                if (m_propertyDict.TryGetValue(name, out property))
+                if (m_propertyDict.TryGetValue(name, out ComplexTypePropertyInfo property))
                 {
                     property.SetValue(this, value);
                     // note: selector is updated in SetValue by emitted code for union
@@ -350,11 +354,12 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Simple accessor for Union to access current Value.
         /// </summary>
-        public object Value => (m_switchField == 0) ? null : m_propertyList[(int)m_switchField - 1].GetValue(this);
+        public object Value
+            => m_switchField == 0 ? null : m_propertyList[(int)m_switchField - 1].GetValue(this);
 
         /// <summary>
         /// The selector for the value of the Union.
         /// </summary>
         protected uint m_switchField;
     }
-} //namespace
+}

@@ -72,12 +72,12 @@ namespace Opc.Ua.Server
         )
         {
             // check if the node is already being monitored.
-            MonitoredNode2 monitoredNode = null;
 
-            if (!MonitoredNodes.TryGetValue(handle.Node.NodeId, out monitoredNode))
+            if (!MonitoredNodes.TryGetValue(handle.Node.NodeId, out MonitoredNode2 monitoredNode))
             {
                 NodeState cachedNode = addNodeToComponentCache(context, handle, handle.Node);
-                MonitoredNodes[handle.Node.NodeId] = monitoredNode = new MonitoredNode2(m_nodeManager, cachedNode);
+                MonitoredNodes[handle.Node.NodeId]
+                    = monitoredNode = new MonitoredNode2(m_nodeManager, cachedNode);
             }
 
             handle.Node = monitoredNode.Node;
@@ -107,7 +107,10 @@ namespace Opc.Ua.Server
 
             // save the monitored item.
             monitoredNode.Add(datachangeItem);
-            MonitoredItems.AddOrUpdate(monitoredItemId, datachangeItem, (key, oldValue) => datachangeItem);
+            MonitoredItems.AddOrUpdate(
+                monitoredItemId,
+                datachangeItem,
+                (key, oldValue) => datachangeItem);
 
             return datachangeItem;
         }
@@ -116,7 +119,6 @@ namespace Opc.Ua.Server
         public void ApplyChanges()
         {
             //only needed for sampling groups
-            return;
         }
 
         /// <inheritdoc/>
@@ -129,7 +131,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
-        protected virtual void Dispose(bool disposing) { }
+        protected virtual void Dispose(bool disposing)
+        {
+        }
 
         /// <inheritdoc/>
         public StatusCode DeleteMonitoredItem(
@@ -139,8 +143,7 @@ namespace Opc.Ua.Server
         )
         {
             // check if the node is already being monitored.
-            MonitoredNode2 monitoredNode;
-            if (MonitoredNodes.TryGetValue(handle.NodeId, out monitoredNode))
+            if (MonitoredNodes.TryGetValue(handle.NodeId, out MonitoredNode2 monitoredNode))
             {
                 monitoredNode.Remove(monitoredItem);
 
@@ -170,7 +173,8 @@ namespace Opc.Ua.Server
             MonitoringMode previousMode = monitoredItem.SetMonitoringMode(monitoringMode);
 
             // must send the latest value after enabling a disabled item.
-            if (monitoringMode == MonitoringMode.Reporting && previousMode == MonitoringMode.Disabled)
+            if (monitoringMode == MonitoringMode.Reporting &&
+                previousMode == MonitoringMode.Disabled)
             {
                 handle.MonitoredNode.QueueValue(context, handle.Node, monitoredItem);
             }
@@ -191,11 +195,11 @@ namespace Opc.Ua.Server
         )
         {
             // check if the node is already being monitored.
-            MonitoredNode2 monitoredNode;
-            if (!MonitoredNodes.TryGetValue(handle.Node.NodeId, out monitoredNode))
+            if (!MonitoredNodes.TryGetValue(handle.Node.NodeId, out MonitoredNode2 monitoredNode))
             {
                 NodeState cachedNode = addNodeToComponentCache(context, handle, handle.Node);
-                MonitoredNodes[handle.Node.NodeId] = monitoredNode = new MonitoredNode2(m_nodeManager, cachedNode);
+                MonitoredNodes[handle.Node.NodeId]
+                    = monitoredNode = new MonitoredNode2(m_nodeManager, cachedNode);
             }
 
             handle.Node = monitoredNode.Node;
@@ -277,11 +281,12 @@ namespace Opc.Ua.Server
 
             // only objects or views can be subscribed to.
             if (
-                (source is not BaseObjectState instance)
-                || (instance.EventNotifier & EventNotifiers.SubscribeToEvents) == 0
+                (source is not BaseObjectState instance) ||
+                (instance.EventNotifier & EventNotifiers.SubscribeToEvents) == 0
             )
             {
-                if ((source is not ViewState view) || (view.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
+                if ((source is not ViewState view) ||
+                    (view.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
                 {
                     return (null, StatusCodes.BadNotSupported);
                 }
@@ -290,7 +295,8 @@ namespace Opc.Ua.Server
             // check for existing monitored node.
             if (!MonitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
             {
-                MonitoredNodes[source.NodeId] = monitoredNode = new MonitoredNode2(m_nodeManager, source);
+                MonitoredNodes[source.NodeId]
+                    = monitoredNode = new MonitoredNode2(m_nodeManager, source);
             }
 
             // remove existing monitored items with the same Id prior to insertion in order to avoid duplicates

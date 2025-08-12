@@ -152,7 +152,11 @@ namespace TestData
                     return false;
                 }
 
-                value = m_source.NextRaw(m_lastTime, m_isForward, m_request.IsReadModified, ref m_position);
+                value = m_source.NextRaw(
+                    m_lastTime,
+                    m_isForward,
+                    m_request.IsReadModified,
+                    ref m_position);
 
                 // no more data.
                 if (value == null)
@@ -162,8 +166,8 @@ namespace TestData
 
                 // check for bound.
                 if (
-                    (m_isForward && value.ServerTimestamp >= m_endTime)
-                    || (!m_isForward && value.ServerTimestamp <= m_endTime)
+                    (m_isForward && value.ServerTimestamp >= m_endTime) ||
+                    (!m_isForward && value.ServerTimestamp <= m_endTime)
                 )
                 {
                     if (m_request.ReturnBounds)

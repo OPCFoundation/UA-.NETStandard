@@ -275,7 +275,7 @@ namespace Opc.Ua.Gds.Client
 
         public object Clone()
         {
-            return new CertificateWrapper() { Certificate = Certificate };
+            return new CertificateWrapper { Certificate = Certificate };
         }
     }
 }

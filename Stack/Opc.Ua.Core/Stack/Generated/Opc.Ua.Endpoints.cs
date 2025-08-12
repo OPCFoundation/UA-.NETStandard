@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-
 #if (!NET_STANDARD)
 using System.Collections.Generic;
 using System.Xml;
@@ -53,7 +52,11 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
 #if (!NET_STANDARD)
     [ServiceMessageContextBehavior()]
-    [ServiceBehavior(Namespace = Namespaces.OpcUaWsdl, InstanceContextMode=InstanceContextMode.PerSession, ConcurrencyMode=ConcurrencyMode.Multiple)]
+    [ServiceBehavior(
+        Namespace = Namespaces.OpcUaWsdl,
+        InstanceContextMode = InstanceContextMode.PerSession,
+        ConcurrencyMode = ConcurrencyMode.Multiple
+    )]
 #endif
     public partial class SessionEndpoint : EndpointBase, ISessionEndpoint, IDiscoveryEndpoint
     {
@@ -69,7 +72,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the when it is created directly.
         /// </summary>
-        public SessionEndpoint(IServiceHostBase host) : base(host)
+        public SessionEndpoint(IServiceHostBase host)
+            : base(host)
         {
             this.CreateKnownTypes();
         }
@@ -78,7 +82,8 @@ namespace Opc.Ua
         /// Initializes a new instance of the <see cref="SessionEndpoint"/> class.
         /// </summary>
         /// <param name="server">The server.</param>
-        public SessionEndpoint(ServerBase server) : base(server)
+        public SessionEndpoint(ServerBase server)
+            : base(server)
         {
             this.CreateKnownTypes();
         }
@@ -123,11 +128,12 @@ namespace Opc.Ua
                 response = new FindServersResponse();
 
                 response.ResponseHeader = ServerInstance.FindServers(
-                   request.RequestHeader,
-                   request.EndpointUrl,
-                   request.LocaleIds,
-                   request.ServerUris,
-                   out servers);
+                    request.RequestHeader,
+                    request.EndpointUrl,
+                    request.LocaleIds,
+                    request.ServerUris,
+                    out servers
+                );
 
                 response.Servers = servers;
             }
@@ -168,7 +174,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the FindServers service.
         /// </summary>
-        public virtual IAsyncResult BeginFindServers(FindServersMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginFindServers(
+            FindServersMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -217,7 +227,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the FindServers service.
         /// </summary>
-        public async Task<IServiceResponse> FindServersAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> FindServersAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             FindServersResponse response = null;
 
@@ -227,12 +240,15 @@ namespace Opc.Ua
 
                 FindServersRequest request = (FindServersRequest)incoming;
 
-                response = await ServerInstance.FindServersAsync(
-                   request.RequestHeader,
-                   request.EndpointUrl,
-                   request.LocaleIds,
-                   request.ServerUris, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .FindServersAsync(
+                        request.RequestHeader,
+                        request.EndpointUrl,
+                        request.LocaleIds,
+                        request.ServerUris,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -266,12 +282,13 @@ namespace Opc.Ua
                 response = new FindServersOnNetworkResponse();
 
                 response.ResponseHeader = ServerInstance.FindServersOnNetwork(
-                   request.RequestHeader,
-                   request.StartingRecordId,
-                   request.MaxRecordsToReturn,
-                   request.ServerCapabilityFilter,
-                   out lastCounterResetTime,
-                   out servers);
+                    request.RequestHeader,
+                    request.StartingRecordId,
+                    request.MaxRecordsToReturn,
+                    request.ServerCapabilityFilter,
+                    out lastCounterResetTime,
+                    out servers
+                );
 
                 response.LastCounterResetTime = lastCounterResetTime;
                 response.Servers = servers;
@@ -313,7 +330,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the FindServersOnNetwork service.
         /// </summary>
-        public virtual IAsyncResult BeginFindServersOnNetwork(FindServersOnNetworkMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginFindServersOnNetwork(
+            FindServersOnNetworkMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -362,7 +383,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the FindServersOnNetwork service.
         /// </summary>
-        public async Task<IServiceResponse> FindServersOnNetworkAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> FindServersOnNetworkAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             FindServersOnNetworkResponse response = null;
 
@@ -372,12 +396,15 @@ namespace Opc.Ua
 
                 FindServersOnNetworkRequest request = (FindServersOnNetworkRequest)incoming;
 
-                response = await ServerInstance.FindServersOnNetworkAsync(
-                   request.RequestHeader,
-                   request.StartingRecordId,
-                   request.MaxRecordsToReturn,
-                   request.ServerCapabilityFilter, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .FindServersOnNetworkAsync(
+                        request.RequestHeader,
+                        request.StartingRecordId,
+                        request.MaxRecordsToReturn,
+                        request.ServerCapabilityFilter,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -410,11 +437,12 @@ namespace Opc.Ua
                 response = new GetEndpointsResponse();
 
                 response.ResponseHeader = ServerInstance.GetEndpoints(
-                   request.RequestHeader,
-                   request.EndpointUrl,
-                   request.LocaleIds,
-                   request.ProfileUris,
-                   out endpoints);
+                    request.RequestHeader,
+                    request.EndpointUrl,
+                    request.LocaleIds,
+                    request.ProfileUris,
+                    out endpoints
+                );
 
                 response.Endpoints = endpoints;
             }
@@ -455,7 +483,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the GetEndpoints service.
         /// </summary>
-        public virtual IAsyncResult BeginGetEndpoints(GetEndpointsMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginGetEndpoints(
+            GetEndpointsMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -504,7 +536,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the GetEndpoints service.
         /// </summary>
-        public async Task<IServiceResponse> GetEndpointsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> GetEndpointsAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             GetEndpointsResponse response = null;
 
@@ -514,12 +549,15 @@ namespace Opc.Ua
 
                 GetEndpointsRequest request = (GetEndpointsRequest)incoming;
 
-                response = await ServerInstance.GetEndpointsAsync(
-                   request.RequestHeader,
-                   request.EndpointUrl,
-                   request.LocaleIds,
-                   request.ProfileUris, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .GetEndpointsAsync(
+                        request.RequestHeader,
+                        request.EndpointUrl,
+                        request.LocaleIds,
+                        request.ProfileUris,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -560,24 +598,25 @@ namespace Opc.Ua
                 response = new CreateSessionResponse();
 
                 response.ResponseHeader = ServerInstance.CreateSession(
-                   request.RequestHeader,
-                   request.ClientDescription,
-                   request.ServerUri,
-                   request.EndpointUrl,
-                   request.SessionName,
-                   request.ClientNonce,
-                   request.ClientCertificate,
-                   request.RequestedSessionTimeout,
-                   request.MaxResponseMessageSize,
-                   out sessionId,
-                   out authenticationToken,
-                   out revisedSessionTimeout,
-                   out serverNonce,
-                   out serverCertificate,
-                   out serverEndpoints,
-                   out serverSoftwareCertificates,
-                   out serverSignature,
-                   out maxRequestMessageSize);
+                    request.RequestHeader,
+                    request.ClientDescription,
+                    request.ServerUri,
+                    request.EndpointUrl,
+                    request.SessionName,
+                    request.ClientNonce,
+                    request.ClientCertificate,
+                    request.RequestedSessionTimeout,
+                    request.MaxResponseMessageSize,
+                    out sessionId,
+                    out authenticationToken,
+                    out revisedSessionTimeout,
+                    out serverNonce,
+                    out serverCertificate,
+                    out serverEndpoints,
+                    out serverSoftwareCertificates,
+                    out serverSignature,
+                    out maxRequestMessageSize
+                );
 
                 response.SessionId = sessionId;
                 response.AuthenticationToken = authenticationToken;
@@ -626,7 +665,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the CreateSession service.
         /// </summary>
-        public virtual IAsyncResult BeginCreateSession(CreateSessionMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginCreateSession(
+            CreateSessionMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -675,7 +718,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the CreateSession service.
         /// </summary>
-        public async Task<IServiceResponse> CreateSessionAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> CreateSessionAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             CreateSessionResponse response = null;
 
@@ -685,17 +731,20 @@ namespace Opc.Ua
 
                 CreateSessionRequest request = (CreateSessionRequest)incoming;
 
-                response = await ServerInstance.CreateSessionAsync(
-                   request.RequestHeader,
-                   request.ClientDescription,
-                   request.ServerUri,
-                   request.EndpointUrl,
-                   request.SessionName,
-                   request.ClientNonce,
-                   request.ClientCertificate,
-                   request.RequestedSessionTimeout,
-                   request.MaxResponseMessageSize, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .CreateSessionAsync(
+                        request.RequestHeader,
+                        request.ClientDescription,
+                        request.ServerUri,
+                        request.EndpointUrl,
+                        request.SessionName,
+                        request.ClientNonce,
+                        request.ClientCertificate,
+                        request.RequestedSessionTimeout,
+                        request.MaxResponseMessageSize,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -730,15 +779,16 @@ namespace Opc.Ua
                 response = new ActivateSessionResponse();
 
                 response.ResponseHeader = ServerInstance.ActivateSession(
-                   request.RequestHeader,
-                   request.ClientSignature,
-                   request.ClientSoftwareCertificates,
-                   request.LocaleIds,
-                   request.UserIdentityToken,
-                   request.UserTokenSignature,
-                   out serverNonce,
-                   out results,
-                   out diagnosticInfos);
+                    request.RequestHeader,
+                    request.ClientSignature,
+                    request.ClientSoftwareCertificates,
+                    request.LocaleIds,
+                    request.UserIdentityToken,
+                    request.UserTokenSignature,
+                    out serverNonce,
+                    out results,
+                    out diagnosticInfos
+                );
 
                 response.ServerNonce = serverNonce;
                 response.Results = results;
@@ -781,7 +831,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the ActivateSession service.
         /// </summary>
-        public virtual IAsyncResult BeginActivateSession(ActivateSessionMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginActivateSession(
+            ActivateSessionMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -830,7 +884,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the ActivateSession service.
         /// </summary>
-        public async Task<IServiceResponse> ActivateSessionAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> ActivateSessionAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             ActivateSessionResponse response = null;
 
@@ -840,14 +897,17 @@ namespace Opc.Ua
 
                 ActivateSessionRequest request = (ActivateSessionRequest)incoming;
 
-                response = await ServerInstance.ActivateSessionAsync(
-                   request.RequestHeader,
-                   request.ClientSignature,
-                   request.ClientSoftwareCertificates,
-                   request.LocaleIds,
-                   request.UserIdentityToken,
-                   request.UserTokenSignature, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .ActivateSessionAsync(
+                        request.RequestHeader,
+                        request.ClientSignature,
+                        request.ClientSoftwareCertificates,
+                        request.LocaleIds,
+                        request.UserIdentityToken,
+                        request.UserTokenSignature,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -875,13 +935,12 @@ namespace Opc.Ua
 
                 CloseSessionRequest request = (CloseSessionRequest)incoming;
 
-
                 response = new CloseSessionResponse();
 
                 response.ResponseHeader = ServerInstance.CloseSession(
-                   request.RequestHeader,
-                   request.DeleteSubscriptions);
-
+                    request.RequestHeader,
+                    request.DeleteSubscriptions
+                );
             }
             finally
             {
@@ -920,7 +979,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the CloseSession service.
         /// </summary>
-        public virtual IAsyncResult BeginCloseSession(CloseSessionMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginCloseSession(
+            CloseSessionMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -969,7 +1032,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the CloseSession service.
         /// </summary>
-        public async Task<IServiceResponse> CloseSessionAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> CloseSessionAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             CloseSessionResponse response = null;
 
@@ -979,10 +1045,9 @@ namespace Opc.Ua
 
                 CloseSessionRequest request = (CloseSessionRequest)incoming;
 
-                response = await ServerInstance.CloseSessionAsync(
-                   request.RequestHeader,
-                   request.DeleteSubscriptions, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .CloseSessionAsync(request.RequestHeader, request.DeleteSubscriptions, cancellationToken)
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -1015,9 +1080,10 @@ namespace Opc.Ua
                 response = new CancelResponse();
 
                 response.ResponseHeader = ServerInstance.Cancel(
-                   request.RequestHeader,
-                   request.RequestHandle,
-                   out cancelCount);
+                    request.RequestHeader,
+                    request.RequestHandle,
+                    out cancelCount
+                );
 
                 response.CancelCount = cancelCount;
             }
@@ -1107,7 +1173,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Cancel service.
         /// </summary>
-        public async Task<IServiceResponse> CancelAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> CancelAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             CancelResponse response = null;
 
@@ -1117,10 +1186,9 @@ namespace Opc.Ua
 
                 CancelRequest request = (CancelRequest)incoming;
 
-                response = await ServerInstance.CancelAsync(
-                   request.RequestHeader,
-                   request.RequestHandle, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .CancelAsync(request.RequestHeader, request.RequestHandle, cancellationToken)
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -1154,10 +1222,11 @@ namespace Opc.Ua
                 response = new AddNodesResponse();
 
                 response.ResponseHeader = ServerInstance.AddNodes(
-                   request.RequestHeader,
-                   request.NodesToAdd,
-                   out results,
-                   out diagnosticInfos);
+                    request.RequestHeader,
+                    request.NodesToAdd,
+                    out results,
+                    out diagnosticInfos
+                );
 
                 response.Results = results;
                 response.DiagnosticInfos = diagnosticInfos;
@@ -1248,7 +1317,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the AddNodes service.
         /// </summary>
-        public async Task<IServiceResponse> AddNodesAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> AddNodesAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             AddNodesResponse response = null;
 
@@ -1258,10 +1330,9 @@ namespace Opc.Ua
 
                 AddNodesRequest request = (AddNodesRequest)incoming;
 
-                response = await ServerInstance.AddNodesAsync(
-                   request.RequestHeader,
-                   request.NodesToAdd, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .AddNodesAsync(request.RequestHeader, request.NodesToAdd, cancellationToken)
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -1295,10 +1366,11 @@ namespace Opc.Ua
                 response = new AddReferencesResponse();
 
                 response.ResponseHeader = ServerInstance.AddReferences(
-                   request.RequestHeader,
-                   request.ReferencesToAdd,
-                   out results,
-                   out diagnosticInfos);
+                    request.RequestHeader,
+                    request.ReferencesToAdd,
+                    out results,
+                    out diagnosticInfos
+                );
 
                 response.Results = results;
                 response.DiagnosticInfos = diagnosticInfos;
@@ -1340,7 +1412,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the AddReferences service.
         /// </summary>
-        public virtual IAsyncResult BeginAddReferences(AddReferencesMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginAddReferences(
+            AddReferencesMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -1389,7 +1465,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the AddReferences service.
         /// </summary>
-        public async Task<IServiceResponse> AddReferencesAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> AddReferencesAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             AddReferencesResponse response = null;
 
@@ -1399,10 +1478,9 @@ namespace Opc.Ua
 
                 AddReferencesRequest request = (AddReferencesRequest)incoming;
 
-                response = await ServerInstance.AddReferencesAsync(
-                   request.RequestHeader,
-                   request.ReferencesToAdd, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .AddReferencesAsync(request.RequestHeader, request.ReferencesToAdd, cancellationToken)
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -1436,10 +1514,11 @@ namespace Opc.Ua
                 response = new DeleteNodesResponse();
 
                 response.ResponseHeader = ServerInstance.DeleteNodes(
-                   request.RequestHeader,
-                   request.NodesToDelete,
-                   out results,
-                   out diagnosticInfos);
+                    request.RequestHeader,
+                    request.NodesToDelete,
+                    out results,
+                    out diagnosticInfos
+                );
 
                 response.Results = results;
                 response.DiagnosticInfos = diagnosticInfos;
@@ -1481,7 +1560,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the DeleteNodes service.
         /// </summary>
-        public virtual IAsyncResult BeginDeleteNodes(DeleteNodesMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginDeleteNodes(
+            DeleteNodesMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -1530,7 +1613,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the DeleteNodes service.
         /// </summary>
-        public async Task<IServiceResponse> DeleteNodesAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> DeleteNodesAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             DeleteNodesResponse response = null;
 
@@ -1540,10 +1626,9 @@ namespace Opc.Ua
 
                 DeleteNodesRequest request = (DeleteNodesRequest)incoming;
 
-                response = await ServerInstance.DeleteNodesAsync(
-                   request.RequestHeader,
-                   request.NodesToDelete, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .DeleteNodesAsync(request.RequestHeader, request.NodesToDelete, cancellationToken)
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -1577,10 +1662,11 @@ namespace Opc.Ua
                 response = new DeleteReferencesResponse();
 
                 response.ResponseHeader = ServerInstance.DeleteReferences(
-                   request.RequestHeader,
-                   request.ReferencesToDelete,
-                   out results,
-                   out diagnosticInfos);
+                    request.RequestHeader,
+                    request.ReferencesToDelete,
+                    out results,
+                    out diagnosticInfos
+                );
 
                 response.Results = results;
                 response.DiagnosticInfos = diagnosticInfos;
@@ -1622,7 +1708,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the DeleteReferences service.
         /// </summary>
-        public virtual IAsyncResult BeginDeleteReferences(DeleteReferencesMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginDeleteReferences(
+            DeleteReferencesMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -1671,7 +1761,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the DeleteReferences service.
         /// </summary>
-        public async Task<IServiceResponse> DeleteReferencesAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> DeleteReferencesAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             DeleteReferencesResponse response = null;
 
@@ -1681,10 +1774,9 @@ namespace Opc.Ua
 
                 DeleteReferencesRequest request = (DeleteReferencesRequest)incoming;
 
-                response = await ServerInstance.DeleteReferencesAsync(
-                   request.RequestHeader,
-                   request.ReferencesToDelete, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .DeleteReferencesAsync(request.RequestHeader, request.ReferencesToDelete, cancellationToken)
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -1718,12 +1810,13 @@ namespace Opc.Ua
                 response = new BrowseResponse();
 
                 response.ResponseHeader = ServerInstance.Browse(
-                   request.RequestHeader,
-                   request.View,
-                   request.RequestedMaxReferencesPerNode,
-                   request.NodesToBrowse,
-                   out results,
-                   out diagnosticInfos);
+                    request.RequestHeader,
+                    request.View,
+                    request.RequestedMaxReferencesPerNode,
+                    request.NodesToBrowse,
+                    out results,
+                    out diagnosticInfos
+                );
 
                 response.Results = results;
                 response.DiagnosticInfos = diagnosticInfos;
@@ -1814,7 +1907,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Browse service.
         /// </summary>
-        public async Task<IServiceResponse> BrowseAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> BrowseAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             BrowseResponse response = null;
 
@@ -1824,12 +1920,15 @@ namespace Opc.Ua
 
                 BrowseRequest request = (BrowseRequest)incoming;
 
-                response = await ServerInstance.BrowseAsync(
-                   request.RequestHeader,
-                   request.View,
-                   request.RequestedMaxReferencesPerNode,
-                   request.NodesToBrowse, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .BrowseAsync(
+                        request.RequestHeader,
+                        request.View,
+                        request.RequestedMaxReferencesPerNode,
+                        request.NodesToBrowse,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -1863,11 +1962,12 @@ namespace Opc.Ua
                 response = new BrowseNextResponse();
 
                 response.ResponseHeader = ServerInstance.BrowseNext(
-                   request.RequestHeader,
-                   request.ReleaseContinuationPoints,
-                   request.ContinuationPoints,
-                   out results,
-                   out diagnosticInfos);
+                    request.RequestHeader,
+                    request.ReleaseContinuationPoints,
+                    request.ContinuationPoints,
+                    out results,
+                    out diagnosticInfos
+                );
 
                 response.Results = results;
                 response.DiagnosticInfos = diagnosticInfos;
@@ -1909,7 +2009,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the BrowseNext service.
         /// </summary>
-        public virtual IAsyncResult BeginBrowseNext(BrowseNextMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginBrowseNext(
+            BrowseNextMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -1958,7 +2062,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the BrowseNext service.
         /// </summary>
-        public async Task<IServiceResponse> BrowseNextAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> BrowseNextAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             BrowseNextResponse response = null;
 
@@ -1968,11 +2075,14 @@ namespace Opc.Ua
 
                 BrowseNextRequest request = (BrowseNextRequest)incoming;
 
-                response = await ServerInstance.BrowseNextAsync(
-                   request.RequestHeader,
-                   request.ReleaseContinuationPoints,
-                   request.ContinuationPoints, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .BrowseNextAsync(
+                        request.RequestHeader,
+                        request.ReleaseContinuationPoints,
+                        request.ContinuationPoints,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -2006,10 +2116,11 @@ namespace Opc.Ua
                 response = new TranslateBrowsePathsToNodeIdsResponse();
 
                 response.ResponseHeader = ServerInstance.TranslateBrowsePathsToNodeIds(
-                   request.RequestHeader,
-                   request.BrowsePaths,
-                   out results,
-                   out diagnosticInfos);
+                    request.RequestHeader,
+                    request.BrowsePaths,
+                    out results,
+                    out diagnosticInfos
+                );
 
                 response.Results = results;
                 response.DiagnosticInfos = diagnosticInfos;
@@ -2026,7 +2137,9 @@ namespace Opc.Ua
         /// <summary>
         /// The operation contract for the TranslateBrowsePathsToNodeIds service.
         /// </summary>
-        public virtual TranslateBrowsePathsToNodeIdsResponseMessage TranslateBrowsePathsToNodeIds(TranslateBrowsePathsToNodeIdsMessage request)
+        public virtual TranslateBrowsePathsToNodeIdsResponseMessage TranslateBrowsePathsToNodeIds(
+            TranslateBrowsePathsToNodeIdsMessage request
+        )
         {
             TranslateBrowsePathsToNodeIdsResponse response = null;
 
@@ -2035,7 +2148,9 @@ namespace Opc.Ua
                 // OnRequestReceived(message.TranslateBrowsePathsToNodeIdsRequest);
 
                 SetRequestContext(RequestEncoding.Xml);
-                response = (TranslateBrowsePathsToNodeIdsResponse)TranslateBrowsePathsToNodeIds(request.TranslateBrowsePathsToNodeIdsRequest);
+                response = (TranslateBrowsePathsToNodeIdsResponse)TranslateBrowsePathsToNodeIds(
+                    request.TranslateBrowsePathsToNodeIdsRequest
+                );
 
                 // OnResponseSent(response);
                 return new TranslateBrowsePathsToNodeIdsResponseMessage(response);
@@ -2051,7 +2166,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the TranslateBrowsePathsToNodeIds service.
         /// </summary>
-        public virtual IAsyncResult BeginTranslateBrowsePathsToNodeIds(TranslateBrowsePathsToNodeIdsMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginTranslateBrowsePathsToNodeIds(
+            TranslateBrowsePathsToNodeIdsMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -2066,7 +2185,10 @@ namespace Opc.Ua
 
                 // create handler.
                 ProcessRequestAsyncResult result = new ProcessRequestAsyncResult(this, callback, callbackData, 0);
-                return result.BeginProcessRequest(SecureChannelContext.Current, message.TranslateBrowsePathsToNodeIdsRequest);
+                return result.BeginProcessRequest(
+                    SecureChannelContext.Current,
+                    message.TranslateBrowsePathsToNodeIdsRequest
+                );
             }
             catch (Exception e)
             {
@@ -2085,7 +2207,9 @@ namespace Opc.Ua
             {
                 IServiceResponse response = ProcessRequestAsyncResult.WaitForComplete(ar, true);
                 OnResponseSent(response);
-                return new TranslateBrowsePathsToNodeIdsResponseMessage((TranslateBrowsePathsToNodeIdsResponse)response);
+                return new TranslateBrowsePathsToNodeIdsResponseMessage(
+                    (TranslateBrowsePathsToNodeIdsResponse)response
+                );
             }
             catch (Exception e)
             {
@@ -2100,7 +2224,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the TranslateBrowsePathsToNodeIds service.
         /// </summary>
-        public async Task<IServiceResponse> TranslateBrowsePathsToNodeIdsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> TranslateBrowsePathsToNodeIdsAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             TranslateBrowsePathsToNodeIdsResponse response = null;
 
@@ -2110,10 +2237,9 @@ namespace Opc.Ua
 
                 TranslateBrowsePathsToNodeIdsRequest request = (TranslateBrowsePathsToNodeIdsRequest)incoming;
 
-                response = await ServerInstance.TranslateBrowsePathsToNodeIdsAsync(
-                   request.RequestHeader,
-                   request.BrowsePaths, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .TranslateBrowsePathsToNodeIdsAsync(request.RequestHeader, request.BrowsePaths, cancellationToken)
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -2146,9 +2272,10 @@ namespace Opc.Ua
                 response = new RegisterNodesResponse();
 
                 response.ResponseHeader = ServerInstance.RegisterNodes(
-                   request.RequestHeader,
-                   request.NodesToRegister,
-                   out registeredNodeIds);
+                    request.RequestHeader,
+                    request.NodesToRegister,
+                    out registeredNodeIds
+                );
 
                 response.RegisteredNodeIds = registeredNodeIds;
             }
@@ -2189,7 +2316,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the RegisterNodes service.
         /// </summary>
-        public virtual IAsyncResult BeginRegisterNodes(RegisterNodesMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginRegisterNodes(
+            RegisterNodesMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -2238,7 +2369,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the RegisterNodes service.
         /// </summary>
-        public async Task<IServiceResponse> RegisterNodesAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> RegisterNodesAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             RegisterNodesResponse response = null;
 
@@ -2248,10 +2382,9 @@ namespace Opc.Ua
 
                 RegisterNodesRequest request = (RegisterNodesRequest)incoming;
 
-                response = await ServerInstance.RegisterNodesAsync(
-                   request.RequestHeader,
-                   request.NodesToRegister, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .RegisterNodesAsync(request.RequestHeader, request.NodesToRegister, cancellationToken)
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -2279,13 +2412,12 @@ namespace Opc.Ua
 
                 UnregisterNodesRequest request = (UnregisterNodesRequest)incoming;
 
-
                 response = new UnregisterNodesResponse();
 
                 response.ResponseHeader = ServerInstance.UnregisterNodes(
-                   request.RequestHeader,
-                   request.NodesToUnregister);
-
+                    request.RequestHeader,
+                    request.NodesToUnregister
+                );
             }
             finally
             {
@@ -2324,7 +2456,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the UnregisterNodes service.
         /// </summary>
-        public virtual IAsyncResult BeginUnregisterNodes(UnregisterNodesMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginUnregisterNodes(
+            UnregisterNodesMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -2373,7 +2509,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the UnregisterNodes service.
         /// </summary>
-        public async Task<IServiceResponse> UnregisterNodesAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> UnregisterNodesAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             UnregisterNodesResponse response = null;
 
@@ -2383,10 +2522,9 @@ namespace Opc.Ua
 
                 UnregisterNodesRequest request = (UnregisterNodesRequest)incoming;
 
-                response = await ServerInstance.UnregisterNodesAsync(
-                   request.RequestHeader,
-                   request.NodesToUnregister, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .UnregisterNodesAsync(request.RequestHeader, request.NodesToUnregister, cancellationToken)
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -2423,17 +2561,18 @@ namespace Opc.Ua
                 response = new QueryFirstResponse();
 
                 response.ResponseHeader = ServerInstance.QueryFirst(
-                   request.RequestHeader,
-                   request.View,
-                   request.NodeTypes,
-                   request.Filter,
-                   request.MaxDataSetsToReturn,
-                   request.MaxReferencesToReturn,
-                   out queryDataSets,
-                   out continuationPoint,
-                   out parsingResults,
-                   out diagnosticInfos,
-                   out filterResult);
+                    request.RequestHeader,
+                    request.View,
+                    request.NodeTypes,
+                    request.Filter,
+                    request.MaxDataSetsToReturn,
+                    request.MaxReferencesToReturn,
+                    out queryDataSets,
+                    out continuationPoint,
+                    out parsingResults,
+                    out diagnosticInfos,
+                    out filterResult
+                );
 
                 response.QueryDataSets = queryDataSets;
                 response.ContinuationPoint = continuationPoint;
@@ -2478,7 +2617,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the QueryFirst service.
         /// </summary>
-        public virtual IAsyncResult BeginQueryFirst(QueryFirstMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginQueryFirst(
+            QueryFirstMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -2527,7 +2670,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the QueryFirst service.
         /// </summary>
-        public async Task<IServiceResponse> QueryFirstAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> QueryFirstAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             QueryFirstResponse response = null;
 
@@ -2537,14 +2683,17 @@ namespace Opc.Ua
 
                 QueryFirstRequest request = (QueryFirstRequest)incoming;
 
-                response = await ServerInstance.QueryFirstAsync(
-                   request.RequestHeader,
-                   request.View,
-                   request.NodeTypes,
-                   request.Filter,
-                   request.MaxDataSetsToReturn,
-                   request.MaxReferencesToReturn, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .QueryFirstAsync(
+                        request.RequestHeader,
+                        request.View,
+                        request.NodeTypes,
+                        request.Filter,
+                        request.MaxDataSetsToReturn,
+                        request.MaxReferencesToReturn,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -2578,11 +2727,12 @@ namespace Opc.Ua
                 response = new QueryNextResponse();
 
                 response.ResponseHeader = ServerInstance.QueryNext(
-                   request.RequestHeader,
-                   request.ReleaseContinuationPoint,
-                   request.ContinuationPoint,
-                   out queryDataSets,
-                   out revisedContinuationPoint);
+                    request.RequestHeader,
+                    request.ReleaseContinuationPoint,
+                    request.ContinuationPoint,
+                    out queryDataSets,
+                    out revisedContinuationPoint
+                );
 
                 response.QueryDataSets = queryDataSets;
                 response.RevisedContinuationPoint = revisedContinuationPoint;
@@ -2624,7 +2774,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the QueryNext service.
         /// </summary>
-        public virtual IAsyncResult BeginQueryNext(QueryNextMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginQueryNext(
+            QueryNextMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -2673,7 +2827,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the QueryNext service.
         /// </summary>
-        public async Task<IServiceResponse> QueryNextAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> QueryNextAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             QueryNextResponse response = null;
 
@@ -2683,11 +2840,14 @@ namespace Opc.Ua
 
                 QueryNextRequest request = (QueryNextRequest)incoming;
 
-                response = await ServerInstance.QueryNextAsync(
-                   request.RequestHeader,
-                   request.ReleaseContinuationPoint,
-                   request.ContinuationPoint, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .QueryNextAsync(
+                        request.RequestHeader,
+                        request.ReleaseContinuationPoint,
+                        request.ContinuationPoint,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -2721,12 +2881,13 @@ namespace Opc.Ua
                 response = new ReadResponse();
 
                 response.ResponseHeader = ServerInstance.Read(
-                   request.RequestHeader,
-                   request.MaxAge,
-                   request.TimestampsToReturn,
-                   request.NodesToRead,
-                   out results,
-                   out diagnosticInfos);
+                    request.RequestHeader,
+                    request.MaxAge,
+                    request.TimestampsToReturn,
+                    request.NodesToRead,
+                    out results,
+                    out diagnosticInfos
+                );
 
                 response.Results = results;
                 response.DiagnosticInfos = diagnosticInfos;
@@ -2817,7 +2978,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Read service.
         /// </summary>
-        public async Task<IServiceResponse> ReadAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> ReadAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             ReadResponse response = null;
 
@@ -2827,12 +2991,15 @@ namespace Opc.Ua
 
                 ReadRequest request = (ReadRequest)incoming;
 
-                response = await ServerInstance.ReadAsync(
-                   request.RequestHeader,
-                   request.MaxAge,
-                   request.TimestampsToReturn,
-                   request.NodesToRead, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .ReadAsync(
+                        request.RequestHeader,
+                        request.MaxAge,
+                        request.TimestampsToReturn,
+                        request.NodesToRead,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -2866,13 +3033,14 @@ namespace Opc.Ua
                 response = new HistoryReadResponse();
 
                 response.ResponseHeader = ServerInstance.HistoryRead(
-                   request.RequestHeader,
-                   request.HistoryReadDetails,
-                   request.TimestampsToReturn,
-                   request.ReleaseContinuationPoints,
-                   request.NodesToRead,
-                   out results,
-                   out diagnosticInfos);
+                    request.RequestHeader,
+                    request.HistoryReadDetails,
+                    request.TimestampsToReturn,
+                    request.ReleaseContinuationPoints,
+                    request.NodesToRead,
+                    out results,
+                    out diagnosticInfos
+                );
 
                 response.Results = results;
                 response.DiagnosticInfos = diagnosticInfos;
@@ -2914,7 +3082,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the HistoryRead service.
         /// </summary>
-        public virtual IAsyncResult BeginHistoryRead(HistoryReadMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginHistoryRead(
+            HistoryReadMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -2963,7 +3135,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the HistoryRead service.
         /// </summary>
-        public async Task<IServiceResponse> HistoryReadAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> HistoryReadAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             HistoryReadResponse response = null;
 
@@ -2973,13 +3148,16 @@ namespace Opc.Ua
 
                 HistoryReadRequest request = (HistoryReadRequest)incoming;
 
-                response = await ServerInstance.HistoryReadAsync(
-                   request.RequestHeader,
-                   request.HistoryReadDetails,
-                   request.TimestampsToReturn,
-                   request.ReleaseContinuationPoints,
-                   request.NodesToRead, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .HistoryReadAsync(
+                        request.RequestHeader,
+                        request.HistoryReadDetails,
+                        request.TimestampsToReturn,
+                        request.ReleaseContinuationPoints,
+                        request.NodesToRead,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -3013,10 +3191,11 @@ namespace Opc.Ua
                 response = new WriteResponse();
 
                 response.ResponseHeader = ServerInstance.Write(
-                   request.RequestHeader,
-                   request.NodesToWrite,
-                   out results,
-                   out diagnosticInfos);
+                    request.RequestHeader,
+                    request.NodesToWrite,
+                    out results,
+                    out diagnosticInfos
+                );
 
                 response.Results = results;
                 response.DiagnosticInfos = diagnosticInfos;
@@ -3107,7 +3286,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Write service.
         /// </summary>
-        public async Task<IServiceResponse> WriteAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> WriteAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             WriteResponse response = null;
 
@@ -3117,10 +3299,9 @@ namespace Opc.Ua
 
                 WriteRequest request = (WriteRequest)incoming;
 
-                response = await ServerInstance.WriteAsync(
-                   request.RequestHeader,
-                   request.NodesToWrite, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .WriteAsync(request.RequestHeader, request.NodesToWrite, cancellationToken)
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -3154,10 +3335,11 @@ namespace Opc.Ua
                 response = new HistoryUpdateResponse();
 
                 response.ResponseHeader = ServerInstance.HistoryUpdate(
-                   request.RequestHeader,
-                   request.HistoryUpdateDetails,
-                   out results,
-                   out diagnosticInfos);
+                    request.RequestHeader,
+                    request.HistoryUpdateDetails,
+                    out results,
+                    out diagnosticInfos
+                );
 
                 response.Results = results;
                 response.DiagnosticInfos = diagnosticInfos;
@@ -3199,7 +3381,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the HistoryUpdate service.
         /// </summary>
-        public virtual IAsyncResult BeginHistoryUpdate(HistoryUpdateMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginHistoryUpdate(
+            HistoryUpdateMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -3248,7 +3434,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the HistoryUpdate service.
         /// </summary>
-        public async Task<IServiceResponse> HistoryUpdateAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> HistoryUpdateAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             HistoryUpdateResponse response = null;
 
@@ -3258,10 +3447,9 @@ namespace Opc.Ua
 
                 HistoryUpdateRequest request = (HistoryUpdateRequest)incoming;
 
-                response = await ServerInstance.HistoryUpdateAsync(
-                   request.RequestHeader,
-                   request.HistoryUpdateDetails, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .HistoryUpdateAsync(request.RequestHeader, request.HistoryUpdateDetails, cancellationToken)
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -3295,10 +3483,11 @@ namespace Opc.Ua
                 response = new CallResponse();
 
                 response.ResponseHeader = ServerInstance.Call(
-                   request.RequestHeader,
-                   request.MethodsToCall,
-                   out results,
-                   out diagnosticInfos);
+                    request.RequestHeader,
+                    request.MethodsToCall,
+                    out results,
+                    out diagnosticInfos
+                );
 
                 response.Results = results;
                 response.DiagnosticInfos = diagnosticInfos;
@@ -3389,7 +3578,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Call service.
         /// </summary>
-        public async Task<IServiceResponse> CallAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> CallAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             CallResponse response = null;
 
@@ -3399,10 +3591,9 @@ namespace Opc.Ua
 
                 CallRequest request = (CallRequest)incoming;
 
-                response = await ServerInstance.CallAsync(
-                   request.RequestHeader,
-                   request.MethodsToCall, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .CallAsync(request.RequestHeader, request.MethodsToCall, cancellationToken)
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -3436,12 +3627,13 @@ namespace Opc.Ua
                 response = new CreateMonitoredItemsResponse();
 
                 response.ResponseHeader = ServerInstance.CreateMonitoredItems(
-                   request.RequestHeader,
-                   request.SubscriptionId,
-                   request.TimestampsToReturn,
-                   request.ItemsToCreate,
-                   out results,
-                   out diagnosticInfos);
+                    request.RequestHeader,
+                    request.SubscriptionId,
+                    request.TimestampsToReturn,
+                    request.ItemsToCreate,
+                    out results,
+                    out diagnosticInfos
+                );
 
                 response.Results = results;
                 response.DiagnosticInfos = diagnosticInfos;
@@ -3483,7 +3675,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the CreateMonitoredItems service.
         /// </summary>
-        public virtual IAsyncResult BeginCreateMonitoredItems(CreateMonitoredItemsMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginCreateMonitoredItems(
+            CreateMonitoredItemsMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -3532,7 +3728,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the CreateMonitoredItems service.
         /// </summary>
-        public async Task<IServiceResponse> CreateMonitoredItemsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> CreateMonitoredItemsAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             CreateMonitoredItemsResponse response = null;
 
@@ -3542,12 +3741,15 @@ namespace Opc.Ua
 
                 CreateMonitoredItemsRequest request = (CreateMonitoredItemsRequest)incoming;
 
-                response = await ServerInstance.CreateMonitoredItemsAsync(
-                   request.RequestHeader,
-                   request.SubscriptionId,
-                   request.TimestampsToReturn,
-                   request.ItemsToCreate, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .CreateMonitoredItemsAsync(
+                        request.RequestHeader,
+                        request.SubscriptionId,
+                        request.TimestampsToReturn,
+                        request.ItemsToCreate,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -3581,12 +3783,13 @@ namespace Opc.Ua
                 response = new ModifyMonitoredItemsResponse();
 
                 response.ResponseHeader = ServerInstance.ModifyMonitoredItems(
-                   request.RequestHeader,
-                   request.SubscriptionId,
-                   request.TimestampsToReturn,
-                   request.ItemsToModify,
-                   out results,
-                   out diagnosticInfos);
+                    request.RequestHeader,
+                    request.SubscriptionId,
+                    request.TimestampsToReturn,
+                    request.ItemsToModify,
+                    out results,
+                    out diagnosticInfos
+                );
 
                 response.Results = results;
                 response.DiagnosticInfos = diagnosticInfos;
@@ -3628,7 +3831,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the ModifyMonitoredItems service.
         /// </summary>
-        public virtual IAsyncResult BeginModifyMonitoredItems(ModifyMonitoredItemsMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginModifyMonitoredItems(
+            ModifyMonitoredItemsMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -3677,7 +3884,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the ModifyMonitoredItems service.
         /// </summary>
-        public async Task<IServiceResponse> ModifyMonitoredItemsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> ModifyMonitoredItemsAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             ModifyMonitoredItemsResponse response = null;
 
@@ -3687,12 +3897,15 @@ namespace Opc.Ua
 
                 ModifyMonitoredItemsRequest request = (ModifyMonitoredItemsRequest)incoming;
 
-                response = await ServerInstance.ModifyMonitoredItemsAsync(
-                   request.RequestHeader,
-                   request.SubscriptionId,
-                   request.TimestampsToReturn,
-                   request.ItemsToModify, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .ModifyMonitoredItemsAsync(
+                        request.RequestHeader,
+                        request.SubscriptionId,
+                        request.TimestampsToReturn,
+                        request.ItemsToModify,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -3726,12 +3939,13 @@ namespace Opc.Ua
                 response = new SetMonitoringModeResponse();
 
                 response.ResponseHeader = ServerInstance.SetMonitoringMode(
-                   request.RequestHeader,
-                   request.SubscriptionId,
-                   request.MonitoringMode,
-                   request.MonitoredItemIds,
-                   out results,
-                   out diagnosticInfos);
+                    request.RequestHeader,
+                    request.SubscriptionId,
+                    request.MonitoringMode,
+                    request.MonitoredItemIds,
+                    out results,
+                    out diagnosticInfos
+                );
 
                 response.Results = results;
                 response.DiagnosticInfos = diagnosticInfos;
@@ -3773,7 +3987,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the SetMonitoringMode service.
         /// </summary>
-        public virtual IAsyncResult BeginSetMonitoringMode(SetMonitoringModeMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginSetMonitoringMode(
+            SetMonitoringModeMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -3822,7 +4040,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the SetMonitoringMode service.
         /// </summary>
-        public async Task<IServiceResponse> SetMonitoringModeAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> SetMonitoringModeAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             SetMonitoringModeResponse response = null;
 
@@ -3832,12 +4053,15 @@ namespace Opc.Ua
 
                 SetMonitoringModeRequest request = (SetMonitoringModeRequest)incoming;
 
-                response = await ServerInstance.SetMonitoringModeAsync(
-                   request.RequestHeader,
-                   request.SubscriptionId,
-                   request.MonitoringMode,
-                   request.MonitoredItemIds, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .SetMonitoringModeAsync(
+                        request.RequestHeader,
+                        request.SubscriptionId,
+                        request.MonitoringMode,
+                        request.MonitoredItemIds,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -3873,15 +4097,16 @@ namespace Opc.Ua
                 response = new SetTriggeringResponse();
 
                 response.ResponseHeader = ServerInstance.SetTriggering(
-                   request.RequestHeader,
-                   request.SubscriptionId,
-                   request.TriggeringItemId,
-                   request.LinksToAdd,
-                   request.LinksToRemove,
-                   out addResults,
-                   out addDiagnosticInfos,
-                   out removeResults,
-                   out removeDiagnosticInfos);
+                    request.RequestHeader,
+                    request.SubscriptionId,
+                    request.TriggeringItemId,
+                    request.LinksToAdd,
+                    request.LinksToRemove,
+                    out addResults,
+                    out addDiagnosticInfos,
+                    out removeResults,
+                    out removeDiagnosticInfos
+                );
 
                 response.AddResults = addResults;
                 response.AddDiagnosticInfos = addDiagnosticInfos;
@@ -3925,7 +4150,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the SetTriggering service.
         /// </summary>
-        public virtual IAsyncResult BeginSetTriggering(SetTriggeringMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginSetTriggering(
+            SetTriggeringMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -3974,7 +4203,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the SetTriggering service.
         /// </summary>
-        public async Task<IServiceResponse> SetTriggeringAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> SetTriggeringAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             SetTriggeringResponse response = null;
 
@@ -3984,13 +4216,16 @@ namespace Opc.Ua
 
                 SetTriggeringRequest request = (SetTriggeringRequest)incoming;
 
-                response = await ServerInstance.SetTriggeringAsync(
-                   request.RequestHeader,
-                   request.SubscriptionId,
-                   request.TriggeringItemId,
-                   request.LinksToAdd,
-                   request.LinksToRemove, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .SetTriggeringAsync(
+                        request.RequestHeader,
+                        request.SubscriptionId,
+                        request.TriggeringItemId,
+                        request.LinksToAdd,
+                        request.LinksToRemove,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -4024,11 +4259,12 @@ namespace Opc.Ua
                 response = new DeleteMonitoredItemsResponse();
 
                 response.ResponseHeader = ServerInstance.DeleteMonitoredItems(
-                   request.RequestHeader,
-                   request.SubscriptionId,
-                   request.MonitoredItemIds,
-                   out results,
-                   out diagnosticInfos);
+                    request.RequestHeader,
+                    request.SubscriptionId,
+                    request.MonitoredItemIds,
+                    out results,
+                    out diagnosticInfos
+                );
 
                 response.Results = results;
                 response.DiagnosticInfos = diagnosticInfos;
@@ -4070,7 +4306,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the DeleteMonitoredItems service.
         /// </summary>
-        public virtual IAsyncResult BeginDeleteMonitoredItems(DeleteMonitoredItemsMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginDeleteMonitoredItems(
+            DeleteMonitoredItemsMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -4119,7 +4359,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the DeleteMonitoredItems service.
         /// </summary>
-        public async Task<IServiceResponse> DeleteMonitoredItemsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> DeleteMonitoredItemsAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             DeleteMonitoredItemsResponse response = null;
 
@@ -4129,11 +4372,14 @@ namespace Opc.Ua
 
                 DeleteMonitoredItemsRequest request = (DeleteMonitoredItemsRequest)incoming;
 
-                response = await ServerInstance.DeleteMonitoredItemsAsync(
-                   request.RequestHeader,
-                   request.SubscriptionId,
-                   request.MonitoredItemIds, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .DeleteMonitoredItemsAsync(
+                        request.RequestHeader,
+                        request.SubscriptionId,
+                        request.MonitoredItemIds,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -4169,17 +4415,18 @@ namespace Opc.Ua
                 response = new CreateSubscriptionResponse();
 
                 response.ResponseHeader = ServerInstance.CreateSubscription(
-                   request.RequestHeader,
-                   request.RequestedPublishingInterval,
-                   request.RequestedLifetimeCount,
-                   request.RequestedMaxKeepAliveCount,
-                   request.MaxNotificationsPerPublish,
-                   request.PublishingEnabled,
-                   request.Priority,
-                   out subscriptionId,
-                   out revisedPublishingInterval,
-                   out revisedLifetimeCount,
-                   out revisedMaxKeepAliveCount);
+                    request.RequestHeader,
+                    request.RequestedPublishingInterval,
+                    request.RequestedLifetimeCount,
+                    request.RequestedMaxKeepAliveCount,
+                    request.MaxNotificationsPerPublish,
+                    request.PublishingEnabled,
+                    request.Priority,
+                    out subscriptionId,
+                    out revisedPublishingInterval,
+                    out revisedLifetimeCount,
+                    out revisedMaxKeepAliveCount
+                );
 
                 response.SubscriptionId = subscriptionId;
                 response.RevisedPublishingInterval = revisedPublishingInterval;
@@ -4223,7 +4470,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the CreateSubscription service.
         /// </summary>
-        public virtual IAsyncResult BeginCreateSubscription(CreateSubscriptionMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginCreateSubscription(
+            CreateSubscriptionMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -4272,7 +4523,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the CreateSubscription service.
         /// </summary>
-        public async Task<IServiceResponse> CreateSubscriptionAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> CreateSubscriptionAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             CreateSubscriptionResponse response = null;
 
@@ -4282,15 +4536,18 @@ namespace Opc.Ua
 
                 CreateSubscriptionRequest request = (CreateSubscriptionRequest)incoming;
 
-                response = await ServerInstance.CreateSubscriptionAsync(
-                   request.RequestHeader,
-                   request.RequestedPublishingInterval,
-                   request.RequestedLifetimeCount,
-                   request.RequestedMaxKeepAliveCount,
-                   request.MaxNotificationsPerPublish,
-                   request.PublishingEnabled,
-                   request.Priority, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .CreateSubscriptionAsync(
+                        request.RequestHeader,
+                        request.RequestedPublishingInterval,
+                        request.RequestedLifetimeCount,
+                        request.RequestedMaxKeepAliveCount,
+                        request.MaxNotificationsPerPublish,
+                        request.PublishingEnabled,
+                        request.Priority,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -4325,16 +4582,17 @@ namespace Opc.Ua
                 response = new ModifySubscriptionResponse();
 
                 response.ResponseHeader = ServerInstance.ModifySubscription(
-                   request.RequestHeader,
-                   request.SubscriptionId,
-                   request.RequestedPublishingInterval,
-                   request.RequestedLifetimeCount,
-                   request.RequestedMaxKeepAliveCount,
-                   request.MaxNotificationsPerPublish,
-                   request.Priority,
-                   out revisedPublishingInterval,
-                   out revisedLifetimeCount,
-                   out revisedMaxKeepAliveCount);
+                    request.RequestHeader,
+                    request.SubscriptionId,
+                    request.RequestedPublishingInterval,
+                    request.RequestedLifetimeCount,
+                    request.RequestedMaxKeepAliveCount,
+                    request.MaxNotificationsPerPublish,
+                    request.Priority,
+                    out revisedPublishingInterval,
+                    out revisedLifetimeCount,
+                    out revisedMaxKeepAliveCount
+                );
 
                 response.RevisedPublishingInterval = revisedPublishingInterval;
                 response.RevisedLifetimeCount = revisedLifetimeCount;
@@ -4377,7 +4635,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the ModifySubscription service.
         /// </summary>
-        public virtual IAsyncResult BeginModifySubscription(ModifySubscriptionMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginModifySubscription(
+            ModifySubscriptionMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -4426,7 +4688,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the ModifySubscription service.
         /// </summary>
-        public async Task<IServiceResponse> ModifySubscriptionAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> ModifySubscriptionAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             ModifySubscriptionResponse response = null;
 
@@ -4436,15 +4701,18 @@ namespace Opc.Ua
 
                 ModifySubscriptionRequest request = (ModifySubscriptionRequest)incoming;
 
-                response = await ServerInstance.ModifySubscriptionAsync(
-                   request.RequestHeader,
-                   request.SubscriptionId,
-                   request.RequestedPublishingInterval,
-                   request.RequestedLifetimeCount,
-                   request.RequestedMaxKeepAliveCount,
-                   request.MaxNotificationsPerPublish,
-                   request.Priority, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .ModifySubscriptionAsync(
+                        request.RequestHeader,
+                        request.SubscriptionId,
+                        request.RequestedPublishingInterval,
+                        request.RequestedLifetimeCount,
+                        request.RequestedMaxKeepAliveCount,
+                        request.MaxNotificationsPerPublish,
+                        request.Priority,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -4478,11 +4746,12 @@ namespace Opc.Ua
                 response = new SetPublishingModeResponse();
 
                 response.ResponseHeader = ServerInstance.SetPublishingMode(
-                   request.RequestHeader,
-                   request.PublishingEnabled,
-                   request.SubscriptionIds,
-                   out results,
-                   out diagnosticInfos);
+                    request.RequestHeader,
+                    request.PublishingEnabled,
+                    request.SubscriptionIds,
+                    out results,
+                    out diagnosticInfos
+                );
 
                 response.Results = results;
                 response.DiagnosticInfos = diagnosticInfos;
@@ -4524,7 +4793,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the SetPublishingMode service.
         /// </summary>
-        public virtual IAsyncResult BeginSetPublishingMode(SetPublishingModeMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginSetPublishingMode(
+            SetPublishingModeMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -4573,7 +4846,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the SetPublishingMode service.
         /// </summary>
-        public async Task<IServiceResponse> SetPublishingModeAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> SetPublishingModeAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             SetPublishingModeResponse response = null;
 
@@ -4583,11 +4859,14 @@ namespace Opc.Ua
 
                 SetPublishingModeRequest request = (SetPublishingModeRequest)incoming;
 
-                response = await ServerInstance.SetPublishingModeAsync(
-                   request.RequestHeader,
-                   request.PublishingEnabled,
-                   request.SubscriptionIds, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .SetPublishingModeAsync(
+                        request.RequestHeader,
+                        request.PublishingEnabled,
+                        request.SubscriptionIds,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -4625,14 +4904,15 @@ namespace Opc.Ua
                 response = new PublishResponse();
 
                 response.ResponseHeader = ServerInstance.Publish(
-                   request.RequestHeader,
-                   request.SubscriptionAcknowledgements,
-                   out subscriptionId,
-                   out availableSequenceNumbers,
-                   out moreNotifications,
-                   out notificationMessage,
-                   out results,
-                   out diagnosticInfos);
+                    request.RequestHeader,
+                    request.SubscriptionAcknowledgements,
+                    out subscriptionId,
+                    out availableSequenceNumbers,
+                    out moreNotifications,
+                    out notificationMessage,
+                    out results,
+                    out diagnosticInfos
+                );
 
                 response.SubscriptionId = subscriptionId;
                 response.AvailableSequenceNumbers = availableSequenceNumbers;
@@ -4727,7 +5007,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Publish service.
         /// </summary>
-        public async Task<IServiceResponse> PublishAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> PublishAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             PublishResponse response = null;
 
@@ -4737,10 +5020,9 @@ namespace Opc.Ua
 
                 PublishRequest request = (PublishRequest)incoming;
 
-                response = await ServerInstance.PublishAsync(
-                   request.RequestHeader,
-                   request.SubscriptionAcknowledgements, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .PublishAsync(request.RequestHeader, request.SubscriptionAcknowledgements, cancellationToken)
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -4773,10 +5055,11 @@ namespace Opc.Ua
                 response = new RepublishResponse();
 
                 response.ResponseHeader = ServerInstance.Republish(
-                   request.RequestHeader,
-                   request.SubscriptionId,
-                   request.RetransmitSequenceNumber,
-                   out notificationMessage);
+                    request.RequestHeader,
+                    request.SubscriptionId,
+                    request.RetransmitSequenceNumber,
+                    out notificationMessage
+                );
 
                 response.NotificationMessage = notificationMessage;
             }
@@ -4817,7 +5100,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the Republish service.
         /// </summary>
-        public virtual IAsyncResult BeginRepublish(RepublishMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginRepublish(
+            RepublishMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -4866,7 +5153,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Republish service.
         /// </summary>
-        public async Task<IServiceResponse> RepublishAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> RepublishAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             RepublishResponse response = null;
 
@@ -4876,11 +5166,14 @@ namespace Opc.Ua
 
                 RepublishRequest request = (RepublishRequest)incoming;
 
-                response = await ServerInstance.RepublishAsync(
-                   request.RequestHeader,
-                   request.SubscriptionId,
-                   request.RetransmitSequenceNumber, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .RepublishAsync(
+                        request.RequestHeader,
+                        request.SubscriptionId,
+                        request.RetransmitSequenceNumber,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -4914,11 +5207,12 @@ namespace Opc.Ua
                 response = new TransferSubscriptionsResponse();
 
                 response.ResponseHeader = ServerInstance.TransferSubscriptions(
-                   request.RequestHeader,
-                   request.SubscriptionIds,
-                   request.SendInitialValues,
-                   out results,
-                   out diagnosticInfos);
+                    request.RequestHeader,
+                    request.SubscriptionIds,
+                    request.SendInitialValues,
+                    out results,
+                    out diagnosticInfos
+                );
 
                 response.Results = results;
                 response.DiagnosticInfos = diagnosticInfos;
@@ -4960,7 +5254,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the TransferSubscriptions service.
         /// </summary>
-        public virtual IAsyncResult BeginTransferSubscriptions(TransferSubscriptionsMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginTransferSubscriptions(
+            TransferSubscriptionsMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -5009,7 +5307,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the TransferSubscriptions service.
         /// </summary>
-        public async Task<IServiceResponse> TransferSubscriptionsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> TransferSubscriptionsAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             TransferSubscriptionsResponse response = null;
 
@@ -5019,11 +5320,14 @@ namespace Opc.Ua
 
                 TransferSubscriptionsRequest request = (TransferSubscriptionsRequest)incoming;
 
-                response = await ServerInstance.TransferSubscriptionsAsync(
-                   request.RequestHeader,
-                   request.SubscriptionIds,
-                   request.SendInitialValues, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .TransferSubscriptionsAsync(
+                        request.RequestHeader,
+                        request.SubscriptionIds,
+                        request.SendInitialValues,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -5057,10 +5361,11 @@ namespace Opc.Ua
                 response = new DeleteSubscriptionsResponse();
 
                 response.ResponseHeader = ServerInstance.DeleteSubscriptions(
-                   request.RequestHeader,
-                   request.SubscriptionIds,
-                   out results,
-                   out diagnosticInfos);
+                    request.RequestHeader,
+                    request.SubscriptionIds,
+                    out results,
+                    out diagnosticInfos
+                );
 
                 response.Results = results;
                 response.DiagnosticInfos = diagnosticInfos;
@@ -5102,7 +5407,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the DeleteSubscriptions service.
         /// </summary>
-        public virtual IAsyncResult BeginDeleteSubscriptions(DeleteSubscriptionsMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginDeleteSubscriptions(
+            DeleteSubscriptionsMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -5151,7 +5460,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the DeleteSubscriptions service.
         /// </summary>
-        public async Task<IServiceResponse> DeleteSubscriptionsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> DeleteSubscriptionsAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             DeleteSubscriptionsResponse response = null;
 
@@ -5161,10 +5473,9 @@ namespace Opc.Ua
 
                 DeleteSubscriptionsRequest request = (DeleteSubscriptionsRequest)incoming;
 
-                response = await ServerInstance.DeleteSubscriptionsAsync(
-                   request.RequestHeader,
-                   request.SubscriptionIds, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .DeleteSubscriptionsAsync(request.RequestHeader, request.SubscriptionIds, cancellationToken)
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -5185,179 +5496,562 @@ namespace Opc.Ua
         protected virtual void CreateKnownTypes()
         {
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_FindServers && !OPCUA_EXCLUDE_FindServers_ASYNC)
-            SupportedServices.Add(DataTypeIds.FindServersRequest, new ServiceDefinition(typeof(FindServersRequest), new InvokeServiceEventHandler(FindServers), new InvokeServiceAsyncEventHandler(FindServersAsync)));
+            SupportedServices.Add(
+                DataTypeIds.FindServersRequest,
+                new ServiceDefinition(
+                    typeof(FindServersRequest),
+                    new InvokeServiceEventHandler(FindServers),
+                    new InvokeServiceAsyncEventHandler(FindServersAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_FindServers)
-            SupportedServices.Add(DataTypeIds.FindServersRequest, new ServiceDefinition(typeof(FindServersRequest), new InvokeServiceEventHandler(FindServers)));
+            SupportedServices.Add(
+                DataTypeIds.FindServersRequest,
+                new ServiceDefinition(typeof(FindServersRequest), new InvokeServiceEventHandler(FindServers))
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_FindServersOnNetwork && !OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
-            SupportedServices.Add(DataTypeIds.FindServersOnNetworkRequest, new ServiceDefinition(typeof(FindServersOnNetworkRequest), new InvokeServiceEventHandler(FindServersOnNetwork), new InvokeServiceAsyncEventHandler(FindServersOnNetworkAsync)));
+            SupportedServices.Add(
+                DataTypeIds.FindServersOnNetworkRequest,
+                new ServiceDefinition(
+                    typeof(FindServersOnNetworkRequest),
+                    new InvokeServiceEventHandler(FindServersOnNetwork),
+                    new InvokeServiceAsyncEventHandler(FindServersOnNetworkAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_FindServersOnNetwork)
-            SupportedServices.Add(DataTypeIds.FindServersOnNetworkRequest, new ServiceDefinition(typeof(FindServersOnNetworkRequest), new InvokeServiceEventHandler(FindServersOnNetwork)));
+            SupportedServices.Add(
+                DataTypeIds.FindServersOnNetworkRequest,
+                new ServiceDefinition(
+                    typeof(FindServersOnNetworkRequest),
+                    new InvokeServiceEventHandler(FindServersOnNetwork)
+                )
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_GetEndpoints && !OPCUA_EXCLUDE_GetEndpoints_ASYNC)
-            SupportedServices.Add(DataTypeIds.GetEndpointsRequest, new ServiceDefinition(typeof(GetEndpointsRequest), new InvokeServiceEventHandler(GetEndpoints), new InvokeServiceAsyncEventHandler(GetEndpointsAsync)));
+            SupportedServices.Add(
+                DataTypeIds.GetEndpointsRequest,
+                new ServiceDefinition(
+                    typeof(GetEndpointsRequest),
+                    new InvokeServiceEventHandler(GetEndpoints),
+                    new InvokeServiceAsyncEventHandler(GetEndpointsAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_GetEndpoints)
-            SupportedServices.Add(DataTypeIds.GetEndpointsRequest, new ServiceDefinition(typeof(GetEndpointsRequest), new InvokeServiceEventHandler(GetEndpoints)));
+            SupportedServices.Add(
+                DataTypeIds.GetEndpointsRequest,
+                new ServiceDefinition(typeof(GetEndpointsRequest), new InvokeServiceEventHandler(GetEndpoints))
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_CreateSession && !OPCUA_EXCLUDE_CreateSession_ASYNC)
-            SupportedServices.Add(DataTypeIds.CreateSessionRequest, new ServiceDefinition(typeof(CreateSessionRequest), new InvokeServiceEventHandler(CreateSession), new InvokeServiceAsyncEventHandler(CreateSessionAsync)));
+            SupportedServices.Add(
+                DataTypeIds.CreateSessionRequest,
+                new ServiceDefinition(
+                    typeof(CreateSessionRequest),
+                    new InvokeServiceEventHandler(CreateSession),
+                    new InvokeServiceAsyncEventHandler(CreateSessionAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_CreateSession)
-            SupportedServices.Add(DataTypeIds.CreateSessionRequest, new ServiceDefinition(typeof(CreateSessionRequest), new InvokeServiceEventHandler(CreateSession)));
+            SupportedServices.Add(
+                DataTypeIds.CreateSessionRequest,
+                new ServiceDefinition(typeof(CreateSessionRequest), new InvokeServiceEventHandler(CreateSession))
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_ActivateSession && !OPCUA_EXCLUDE_ActivateSession_ASYNC)
-            SupportedServices.Add(DataTypeIds.ActivateSessionRequest, new ServiceDefinition(typeof(ActivateSessionRequest), new InvokeServiceEventHandler(ActivateSession), new InvokeServiceAsyncEventHandler(ActivateSessionAsync)));
+            SupportedServices.Add(
+                DataTypeIds.ActivateSessionRequest,
+                new ServiceDefinition(
+                    typeof(ActivateSessionRequest),
+                    new InvokeServiceEventHandler(ActivateSession),
+                    new InvokeServiceAsyncEventHandler(ActivateSessionAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_ActivateSession)
-            SupportedServices.Add(DataTypeIds.ActivateSessionRequest, new ServiceDefinition(typeof(ActivateSessionRequest), new InvokeServiceEventHandler(ActivateSession)));
+            SupportedServices.Add(
+                DataTypeIds.ActivateSessionRequest,
+                new ServiceDefinition(typeof(ActivateSessionRequest), new InvokeServiceEventHandler(ActivateSession))
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_CloseSession && !OPCUA_EXCLUDE_CloseSession_ASYNC)
-            SupportedServices.Add(DataTypeIds.CloseSessionRequest, new ServiceDefinition(typeof(CloseSessionRequest), new InvokeServiceEventHandler(CloseSession), new InvokeServiceAsyncEventHandler(CloseSessionAsync)));
+            SupportedServices.Add(
+                DataTypeIds.CloseSessionRequest,
+                new ServiceDefinition(
+                    typeof(CloseSessionRequest),
+                    new InvokeServiceEventHandler(CloseSession),
+                    new InvokeServiceAsyncEventHandler(CloseSessionAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_CloseSession)
-            SupportedServices.Add(DataTypeIds.CloseSessionRequest, new ServiceDefinition(typeof(CloseSessionRequest), new InvokeServiceEventHandler(CloseSession)));
+            SupportedServices.Add(
+                DataTypeIds.CloseSessionRequest,
+                new ServiceDefinition(typeof(CloseSessionRequest), new InvokeServiceEventHandler(CloseSession))
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_Cancel && !OPCUA_EXCLUDE_Cancel_ASYNC)
-            SupportedServices.Add(DataTypeIds.CancelRequest, new ServiceDefinition(typeof(CancelRequest), new InvokeServiceEventHandler(Cancel), new InvokeServiceAsyncEventHandler(CancelAsync)));
+            SupportedServices.Add(
+                DataTypeIds.CancelRequest,
+                new ServiceDefinition(
+                    typeof(CancelRequest),
+                    new InvokeServiceEventHandler(Cancel),
+                    new InvokeServiceAsyncEventHandler(CancelAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_Cancel)
-            SupportedServices.Add(DataTypeIds.CancelRequest, new ServiceDefinition(typeof(CancelRequest), new InvokeServiceEventHandler(Cancel)));
+            SupportedServices.Add(
+                DataTypeIds.CancelRequest,
+                new ServiceDefinition(typeof(CancelRequest), new InvokeServiceEventHandler(Cancel))
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_AddNodes && !OPCUA_EXCLUDE_AddNodes_ASYNC)
-            SupportedServices.Add(DataTypeIds.AddNodesRequest, new ServiceDefinition(typeof(AddNodesRequest), new InvokeServiceEventHandler(AddNodes), new InvokeServiceAsyncEventHandler(AddNodesAsync)));
+            SupportedServices.Add(
+                DataTypeIds.AddNodesRequest,
+                new ServiceDefinition(
+                    typeof(AddNodesRequest),
+                    new InvokeServiceEventHandler(AddNodes),
+                    new InvokeServiceAsyncEventHandler(AddNodesAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_AddNodes)
-            SupportedServices.Add(DataTypeIds.AddNodesRequest, new ServiceDefinition(typeof(AddNodesRequest), new InvokeServiceEventHandler(AddNodes)));
+            SupportedServices.Add(
+                DataTypeIds.AddNodesRequest,
+                new ServiceDefinition(typeof(AddNodesRequest), new InvokeServiceEventHandler(AddNodes))
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_AddReferences && !OPCUA_EXCLUDE_AddReferences_ASYNC)
-            SupportedServices.Add(DataTypeIds.AddReferencesRequest, new ServiceDefinition(typeof(AddReferencesRequest), new InvokeServiceEventHandler(AddReferences), new InvokeServiceAsyncEventHandler(AddReferencesAsync)));
+            SupportedServices.Add(
+                DataTypeIds.AddReferencesRequest,
+                new ServiceDefinition(
+                    typeof(AddReferencesRequest),
+                    new InvokeServiceEventHandler(AddReferences),
+                    new InvokeServiceAsyncEventHandler(AddReferencesAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_AddReferences)
-            SupportedServices.Add(DataTypeIds.AddReferencesRequest, new ServiceDefinition(typeof(AddReferencesRequest), new InvokeServiceEventHandler(AddReferences)));
+            SupportedServices.Add(
+                DataTypeIds.AddReferencesRequest,
+                new ServiceDefinition(typeof(AddReferencesRequest), new InvokeServiceEventHandler(AddReferences))
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_DeleteNodes && !OPCUA_EXCLUDE_DeleteNodes_ASYNC)
-            SupportedServices.Add(DataTypeIds.DeleteNodesRequest, new ServiceDefinition(typeof(DeleteNodesRequest), new InvokeServiceEventHandler(DeleteNodes), new InvokeServiceAsyncEventHandler(DeleteNodesAsync)));
+            SupportedServices.Add(
+                DataTypeIds.DeleteNodesRequest,
+                new ServiceDefinition(
+                    typeof(DeleteNodesRequest),
+                    new InvokeServiceEventHandler(DeleteNodes),
+                    new InvokeServiceAsyncEventHandler(DeleteNodesAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_DeleteNodes)
-            SupportedServices.Add(DataTypeIds.DeleteNodesRequest, new ServiceDefinition(typeof(DeleteNodesRequest), new InvokeServiceEventHandler(DeleteNodes)));
+            SupportedServices.Add(
+                DataTypeIds.DeleteNodesRequest,
+                new ServiceDefinition(typeof(DeleteNodesRequest), new InvokeServiceEventHandler(DeleteNodes))
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_DeleteReferences && !OPCUA_EXCLUDE_DeleteReferences_ASYNC)
-            SupportedServices.Add(DataTypeIds.DeleteReferencesRequest, new ServiceDefinition(typeof(DeleteReferencesRequest), new InvokeServiceEventHandler(DeleteReferences), new InvokeServiceAsyncEventHandler(DeleteReferencesAsync)));
+            SupportedServices.Add(
+                DataTypeIds.DeleteReferencesRequest,
+                new ServiceDefinition(
+                    typeof(DeleteReferencesRequest),
+                    new InvokeServiceEventHandler(DeleteReferences),
+                    new InvokeServiceAsyncEventHandler(DeleteReferencesAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_DeleteReferences)
-            SupportedServices.Add(DataTypeIds.DeleteReferencesRequest, new ServiceDefinition(typeof(DeleteReferencesRequest), new InvokeServiceEventHandler(DeleteReferences)));
+            SupportedServices.Add(
+                DataTypeIds.DeleteReferencesRequest,
+                new ServiceDefinition(typeof(DeleteReferencesRequest), new InvokeServiceEventHandler(DeleteReferences))
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_Browse && !OPCUA_EXCLUDE_Browse_ASYNC)
-            SupportedServices.Add(DataTypeIds.BrowseRequest, new ServiceDefinition(typeof(BrowseRequest), new InvokeServiceEventHandler(Browse), new InvokeServiceAsyncEventHandler(BrowseAsync)));
+            SupportedServices.Add(
+                DataTypeIds.BrowseRequest,
+                new ServiceDefinition(
+                    typeof(BrowseRequest),
+                    new InvokeServiceEventHandler(Browse),
+                    new InvokeServiceAsyncEventHandler(BrowseAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_Browse)
-            SupportedServices.Add(DataTypeIds.BrowseRequest, new ServiceDefinition(typeof(BrowseRequest), new InvokeServiceEventHandler(Browse)));
+            SupportedServices.Add(
+                DataTypeIds.BrowseRequest,
+                new ServiceDefinition(typeof(BrowseRequest), new InvokeServiceEventHandler(Browse))
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_BrowseNext && !OPCUA_EXCLUDE_BrowseNext_ASYNC)
-            SupportedServices.Add(DataTypeIds.BrowseNextRequest, new ServiceDefinition(typeof(BrowseNextRequest), new InvokeServiceEventHandler(BrowseNext), new InvokeServiceAsyncEventHandler(BrowseNextAsync)));
+            SupportedServices.Add(
+                DataTypeIds.BrowseNextRequest,
+                new ServiceDefinition(
+                    typeof(BrowseNextRequest),
+                    new InvokeServiceEventHandler(BrowseNext),
+                    new InvokeServiceAsyncEventHandler(BrowseNextAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_BrowseNext)
-            SupportedServices.Add(DataTypeIds.BrowseNextRequest, new ServiceDefinition(typeof(BrowseNextRequest), new InvokeServiceEventHandler(BrowseNext)));
+            SupportedServices.Add(
+                DataTypeIds.BrowseNextRequest,
+                new ServiceDefinition(typeof(BrowseNextRequest), new InvokeServiceEventHandler(BrowseNext))
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds && !OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds_ASYNC)
-            SupportedServices.Add(DataTypeIds.TranslateBrowsePathsToNodeIdsRequest, new ServiceDefinition(typeof(TranslateBrowsePathsToNodeIdsRequest), new InvokeServiceEventHandler(TranslateBrowsePathsToNodeIds), new InvokeServiceAsyncEventHandler(TranslateBrowsePathsToNodeIdsAsync)));
+            SupportedServices.Add(
+                DataTypeIds.TranslateBrowsePathsToNodeIdsRequest,
+                new ServiceDefinition(
+                    typeof(TranslateBrowsePathsToNodeIdsRequest),
+                    new InvokeServiceEventHandler(TranslateBrowsePathsToNodeIds),
+                    new InvokeServiceAsyncEventHandler(TranslateBrowsePathsToNodeIdsAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds)
-            SupportedServices.Add(DataTypeIds.TranslateBrowsePathsToNodeIdsRequest, new ServiceDefinition(typeof(TranslateBrowsePathsToNodeIdsRequest), new InvokeServiceEventHandler(TranslateBrowsePathsToNodeIds)));
+            SupportedServices.Add(
+                DataTypeIds.TranslateBrowsePathsToNodeIdsRequest,
+                new ServiceDefinition(
+                    typeof(TranslateBrowsePathsToNodeIdsRequest),
+                    new InvokeServiceEventHandler(TranslateBrowsePathsToNodeIds)
+                )
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_RegisterNodes && !OPCUA_EXCLUDE_RegisterNodes_ASYNC)
-            SupportedServices.Add(DataTypeIds.RegisterNodesRequest, new ServiceDefinition(typeof(RegisterNodesRequest), new InvokeServiceEventHandler(RegisterNodes), new InvokeServiceAsyncEventHandler(RegisterNodesAsync)));
+            SupportedServices.Add(
+                DataTypeIds.RegisterNodesRequest,
+                new ServiceDefinition(
+                    typeof(RegisterNodesRequest),
+                    new InvokeServiceEventHandler(RegisterNodes),
+                    new InvokeServiceAsyncEventHandler(RegisterNodesAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_RegisterNodes)
-            SupportedServices.Add(DataTypeIds.RegisterNodesRequest, new ServiceDefinition(typeof(RegisterNodesRequest), new InvokeServiceEventHandler(RegisterNodes)));
+            SupportedServices.Add(
+                DataTypeIds.RegisterNodesRequest,
+                new ServiceDefinition(typeof(RegisterNodesRequest), new InvokeServiceEventHandler(RegisterNodes))
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_UnregisterNodes && !OPCUA_EXCLUDE_UnregisterNodes_ASYNC)
-            SupportedServices.Add(DataTypeIds.UnregisterNodesRequest, new ServiceDefinition(typeof(UnregisterNodesRequest), new InvokeServiceEventHandler(UnregisterNodes), new InvokeServiceAsyncEventHandler(UnregisterNodesAsync)));
+            SupportedServices.Add(
+                DataTypeIds.UnregisterNodesRequest,
+                new ServiceDefinition(
+                    typeof(UnregisterNodesRequest),
+                    new InvokeServiceEventHandler(UnregisterNodes),
+                    new InvokeServiceAsyncEventHandler(UnregisterNodesAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_UnregisterNodes)
-            SupportedServices.Add(DataTypeIds.UnregisterNodesRequest, new ServiceDefinition(typeof(UnregisterNodesRequest), new InvokeServiceEventHandler(UnregisterNodes)));
+            SupportedServices.Add(
+                DataTypeIds.UnregisterNodesRequest,
+                new ServiceDefinition(typeof(UnregisterNodesRequest), new InvokeServiceEventHandler(UnregisterNodes))
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_QueryFirst && !OPCUA_EXCLUDE_QueryFirst_ASYNC)
-            SupportedServices.Add(DataTypeIds.QueryFirstRequest, new ServiceDefinition(typeof(QueryFirstRequest), new InvokeServiceEventHandler(QueryFirst), new InvokeServiceAsyncEventHandler(QueryFirstAsync)));
+            SupportedServices.Add(
+                DataTypeIds.QueryFirstRequest,
+                new ServiceDefinition(
+                    typeof(QueryFirstRequest),
+                    new InvokeServiceEventHandler(QueryFirst),
+                    new InvokeServiceAsyncEventHandler(QueryFirstAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_QueryFirst)
-            SupportedServices.Add(DataTypeIds.QueryFirstRequest, new ServiceDefinition(typeof(QueryFirstRequest), new InvokeServiceEventHandler(QueryFirst)));
+            SupportedServices.Add(
+                DataTypeIds.QueryFirstRequest,
+                new ServiceDefinition(typeof(QueryFirstRequest), new InvokeServiceEventHandler(QueryFirst))
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_QueryNext && !OPCUA_EXCLUDE_QueryNext_ASYNC)
-            SupportedServices.Add(DataTypeIds.QueryNextRequest, new ServiceDefinition(typeof(QueryNextRequest), new InvokeServiceEventHandler(QueryNext), new InvokeServiceAsyncEventHandler(QueryNextAsync)));
+            SupportedServices.Add(
+                DataTypeIds.QueryNextRequest,
+                new ServiceDefinition(
+                    typeof(QueryNextRequest),
+                    new InvokeServiceEventHandler(QueryNext),
+                    new InvokeServiceAsyncEventHandler(QueryNextAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_QueryNext)
-            SupportedServices.Add(DataTypeIds.QueryNextRequest, new ServiceDefinition(typeof(QueryNextRequest), new InvokeServiceEventHandler(QueryNext)));
+            SupportedServices.Add(
+                DataTypeIds.QueryNextRequest,
+                new ServiceDefinition(typeof(QueryNextRequest), new InvokeServiceEventHandler(QueryNext))
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_Read && !OPCUA_EXCLUDE_Read_ASYNC)
-            SupportedServices.Add(DataTypeIds.ReadRequest, new ServiceDefinition(typeof(ReadRequest), new InvokeServiceEventHandler(Read), new InvokeServiceAsyncEventHandler(ReadAsync)));
+            SupportedServices.Add(
+                DataTypeIds.ReadRequest,
+                new ServiceDefinition(
+                    typeof(ReadRequest),
+                    new InvokeServiceEventHandler(Read),
+                    new InvokeServiceAsyncEventHandler(ReadAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_Read)
-            SupportedServices.Add(DataTypeIds.ReadRequest, new ServiceDefinition(typeof(ReadRequest), new InvokeServiceEventHandler(Read)));
+            SupportedServices.Add(
+                DataTypeIds.ReadRequest,
+                new ServiceDefinition(typeof(ReadRequest), new InvokeServiceEventHandler(Read))
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_HistoryRead && !OPCUA_EXCLUDE_HistoryRead_ASYNC)
-            SupportedServices.Add(DataTypeIds.HistoryReadRequest, new ServiceDefinition(typeof(HistoryReadRequest), new InvokeServiceEventHandler(HistoryRead), new InvokeServiceAsyncEventHandler(HistoryReadAsync)));
+            SupportedServices.Add(
+                DataTypeIds.HistoryReadRequest,
+                new ServiceDefinition(
+                    typeof(HistoryReadRequest),
+                    new InvokeServiceEventHandler(HistoryRead),
+                    new InvokeServiceAsyncEventHandler(HistoryReadAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_HistoryRead)
-            SupportedServices.Add(DataTypeIds.HistoryReadRequest, new ServiceDefinition(typeof(HistoryReadRequest), new InvokeServiceEventHandler(HistoryRead)));
+            SupportedServices.Add(
+                DataTypeIds.HistoryReadRequest,
+                new ServiceDefinition(typeof(HistoryReadRequest), new InvokeServiceEventHandler(HistoryRead))
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_Write && !OPCUA_EXCLUDE_Write_ASYNC)
-            SupportedServices.Add(DataTypeIds.WriteRequest, new ServiceDefinition(typeof(WriteRequest), new InvokeServiceEventHandler(Write), new InvokeServiceAsyncEventHandler(WriteAsync)));
+            SupportedServices.Add(
+                DataTypeIds.WriteRequest,
+                new ServiceDefinition(
+                    typeof(WriteRequest),
+                    new InvokeServiceEventHandler(Write),
+                    new InvokeServiceAsyncEventHandler(WriteAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_Write)
-            SupportedServices.Add(DataTypeIds.WriteRequest, new ServiceDefinition(typeof(WriteRequest), new InvokeServiceEventHandler(Write)));
+            SupportedServices.Add(
+                DataTypeIds.WriteRequest,
+                new ServiceDefinition(typeof(WriteRequest), new InvokeServiceEventHandler(Write))
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_HistoryUpdate && !OPCUA_EXCLUDE_HistoryUpdate_ASYNC)
-            SupportedServices.Add(DataTypeIds.HistoryUpdateRequest, new ServiceDefinition(typeof(HistoryUpdateRequest), new InvokeServiceEventHandler(HistoryUpdate), new InvokeServiceAsyncEventHandler(HistoryUpdateAsync)));
+            SupportedServices.Add(
+                DataTypeIds.HistoryUpdateRequest,
+                new ServiceDefinition(
+                    typeof(HistoryUpdateRequest),
+                    new InvokeServiceEventHandler(HistoryUpdate),
+                    new InvokeServiceAsyncEventHandler(HistoryUpdateAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_HistoryUpdate)
-            SupportedServices.Add(DataTypeIds.HistoryUpdateRequest, new ServiceDefinition(typeof(HistoryUpdateRequest), new InvokeServiceEventHandler(HistoryUpdate)));
+            SupportedServices.Add(
+                DataTypeIds.HistoryUpdateRequest,
+                new ServiceDefinition(typeof(HistoryUpdateRequest), new InvokeServiceEventHandler(HistoryUpdate))
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_Call && !OPCUA_EXCLUDE_Call_ASYNC)
-            SupportedServices.Add(DataTypeIds.CallRequest, new ServiceDefinition(typeof(CallRequest), new InvokeServiceEventHandler(Call), new InvokeServiceAsyncEventHandler(CallAsync)));
+            SupportedServices.Add(
+                DataTypeIds.CallRequest,
+                new ServiceDefinition(
+                    typeof(CallRequest),
+                    new InvokeServiceEventHandler(Call),
+                    new InvokeServiceAsyncEventHandler(CallAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_Call)
-            SupportedServices.Add(DataTypeIds.CallRequest, new ServiceDefinition(typeof(CallRequest), new InvokeServiceEventHandler(Call)));
+            SupportedServices.Add(
+                DataTypeIds.CallRequest,
+                new ServiceDefinition(typeof(CallRequest), new InvokeServiceEventHandler(Call))
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_CreateMonitoredItems && !OPCUA_EXCLUDE_CreateMonitoredItems_ASYNC)
-            SupportedServices.Add(DataTypeIds.CreateMonitoredItemsRequest, new ServiceDefinition(typeof(CreateMonitoredItemsRequest), new InvokeServiceEventHandler(CreateMonitoredItems), new InvokeServiceAsyncEventHandler(CreateMonitoredItemsAsync)));
+            SupportedServices.Add(
+                DataTypeIds.CreateMonitoredItemsRequest,
+                new ServiceDefinition(
+                    typeof(CreateMonitoredItemsRequest),
+                    new InvokeServiceEventHandler(CreateMonitoredItems),
+                    new InvokeServiceAsyncEventHandler(CreateMonitoredItemsAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_CreateMonitoredItems)
-            SupportedServices.Add(DataTypeIds.CreateMonitoredItemsRequest, new ServiceDefinition(typeof(CreateMonitoredItemsRequest), new InvokeServiceEventHandler(CreateMonitoredItems)));
+            SupportedServices.Add(
+                DataTypeIds.CreateMonitoredItemsRequest,
+                new ServiceDefinition(
+                    typeof(CreateMonitoredItemsRequest),
+                    new InvokeServiceEventHandler(CreateMonitoredItems)
+                )
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_ModifyMonitoredItems && !OPCUA_EXCLUDE_ModifyMonitoredItems_ASYNC)
-            SupportedServices.Add(DataTypeIds.ModifyMonitoredItemsRequest, new ServiceDefinition(typeof(ModifyMonitoredItemsRequest), new InvokeServiceEventHandler(ModifyMonitoredItems), new InvokeServiceAsyncEventHandler(ModifyMonitoredItemsAsync)));
+            SupportedServices.Add(
+                DataTypeIds.ModifyMonitoredItemsRequest,
+                new ServiceDefinition(
+                    typeof(ModifyMonitoredItemsRequest),
+                    new InvokeServiceEventHandler(ModifyMonitoredItems),
+                    new InvokeServiceAsyncEventHandler(ModifyMonitoredItemsAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_ModifyMonitoredItems)
-            SupportedServices.Add(DataTypeIds.ModifyMonitoredItemsRequest, new ServiceDefinition(typeof(ModifyMonitoredItemsRequest), new InvokeServiceEventHandler(ModifyMonitoredItems)));
+            SupportedServices.Add(
+                DataTypeIds.ModifyMonitoredItemsRequest,
+                new ServiceDefinition(
+                    typeof(ModifyMonitoredItemsRequest),
+                    new InvokeServiceEventHandler(ModifyMonitoredItems)
+                )
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_SetMonitoringMode && !OPCUA_EXCLUDE_SetMonitoringMode_ASYNC)
-            SupportedServices.Add(DataTypeIds.SetMonitoringModeRequest, new ServiceDefinition(typeof(SetMonitoringModeRequest), new InvokeServiceEventHandler(SetMonitoringMode), new InvokeServiceAsyncEventHandler(SetMonitoringModeAsync)));
+            SupportedServices.Add(
+                DataTypeIds.SetMonitoringModeRequest,
+                new ServiceDefinition(
+                    typeof(SetMonitoringModeRequest),
+                    new InvokeServiceEventHandler(SetMonitoringMode),
+                    new InvokeServiceAsyncEventHandler(SetMonitoringModeAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_SetMonitoringMode)
-            SupportedServices.Add(DataTypeIds.SetMonitoringModeRequest, new ServiceDefinition(typeof(SetMonitoringModeRequest), new InvokeServiceEventHandler(SetMonitoringMode)));
+            SupportedServices.Add(
+                DataTypeIds.SetMonitoringModeRequest,
+                new ServiceDefinition(
+                    typeof(SetMonitoringModeRequest),
+                    new InvokeServiceEventHandler(SetMonitoringMode)
+                )
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_SetTriggering && !OPCUA_EXCLUDE_SetTriggering_ASYNC)
-            SupportedServices.Add(DataTypeIds.SetTriggeringRequest, new ServiceDefinition(typeof(SetTriggeringRequest), new InvokeServiceEventHandler(SetTriggering), new InvokeServiceAsyncEventHandler(SetTriggeringAsync)));
+            SupportedServices.Add(
+                DataTypeIds.SetTriggeringRequest,
+                new ServiceDefinition(
+                    typeof(SetTriggeringRequest),
+                    new InvokeServiceEventHandler(SetTriggering),
+                    new InvokeServiceAsyncEventHandler(SetTriggeringAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_SetTriggering)
-            SupportedServices.Add(DataTypeIds.SetTriggeringRequest, new ServiceDefinition(typeof(SetTriggeringRequest), new InvokeServiceEventHandler(SetTriggering)));
+            SupportedServices.Add(
+                DataTypeIds.SetTriggeringRequest,
+                new ServiceDefinition(typeof(SetTriggeringRequest), new InvokeServiceEventHandler(SetTriggering))
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_DeleteMonitoredItems && !OPCUA_EXCLUDE_DeleteMonitoredItems_ASYNC)
-            SupportedServices.Add(DataTypeIds.DeleteMonitoredItemsRequest, new ServiceDefinition(typeof(DeleteMonitoredItemsRequest), new InvokeServiceEventHandler(DeleteMonitoredItems), new InvokeServiceAsyncEventHandler(DeleteMonitoredItemsAsync)));
+            SupportedServices.Add(
+                DataTypeIds.DeleteMonitoredItemsRequest,
+                new ServiceDefinition(
+                    typeof(DeleteMonitoredItemsRequest),
+                    new InvokeServiceEventHandler(DeleteMonitoredItems),
+                    new InvokeServiceAsyncEventHandler(DeleteMonitoredItemsAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_DeleteMonitoredItems)
-            SupportedServices.Add(DataTypeIds.DeleteMonitoredItemsRequest, new ServiceDefinition(typeof(DeleteMonitoredItemsRequest), new InvokeServiceEventHandler(DeleteMonitoredItems)));
+            SupportedServices.Add(
+                DataTypeIds.DeleteMonitoredItemsRequest,
+                new ServiceDefinition(
+                    typeof(DeleteMonitoredItemsRequest),
+                    new InvokeServiceEventHandler(DeleteMonitoredItems)
+                )
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_CreateSubscription && !OPCUA_EXCLUDE_CreateSubscription_ASYNC)
-            SupportedServices.Add(DataTypeIds.CreateSubscriptionRequest, new ServiceDefinition(typeof(CreateSubscriptionRequest), new InvokeServiceEventHandler(CreateSubscription), new InvokeServiceAsyncEventHandler(CreateSubscriptionAsync)));
+            SupportedServices.Add(
+                DataTypeIds.CreateSubscriptionRequest,
+                new ServiceDefinition(
+                    typeof(CreateSubscriptionRequest),
+                    new InvokeServiceEventHandler(CreateSubscription),
+                    new InvokeServiceAsyncEventHandler(CreateSubscriptionAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_CreateSubscription)
-            SupportedServices.Add(DataTypeIds.CreateSubscriptionRequest, new ServiceDefinition(typeof(CreateSubscriptionRequest), new InvokeServiceEventHandler(CreateSubscription)));
+            SupportedServices.Add(
+                DataTypeIds.CreateSubscriptionRequest,
+                new ServiceDefinition(
+                    typeof(CreateSubscriptionRequest),
+                    new InvokeServiceEventHandler(CreateSubscription)
+                )
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_ModifySubscription && !OPCUA_EXCLUDE_ModifySubscription_ASYNC)
-            SupportedServices.Add(DataTypeIds.ModifySubscriptionRequest, new ServiceDefinition(typeof(ModifySubscriptionRequest), new InvokeServiceEventHandler(ModifySubscription), new InvokeServiceAsyncEventHandler(ModifySubscriptionAsync)));
+            SupportedServices.Add(
+                DataTypeIds.ModifySubscriptionRequest,
+                new ServiceDefinition(
+                    typeof(ModifySubscriptionRequest),
+                    new InvokeServiceEventHandler(ModifySubscription),
+                    new InvokeServiceAsyncEventHandler(ModifySubscriptionAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_ModifySubscription)
-            SupportedServices.Add(DataTypeIds.ModifySubscriptionRequest, new ServiceDefinition(typeof(ModifySubscriptionRequest), new InvokeServiceEventHandler(ModifySubscription)));
+            SupportedServices.Add(
+                DataTypeIds.ModifySubscriptionRequest,
+                new ServiceDefinition(
+                    typeof(ModifySubscriptionRequest),
+                    new InvokeServiceEventHandler(ModifySubscription)
+                )
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_SetPublishingMode && !OPCUA_EXCLUDE_SetPublishingMode_ASYNC)
-            SupportedServices.Add(DataTypeIds.SetPublishingModeRequest, new ServiceDefinition(typeof(SetPublishingModeRequest), new InvokeServiceEventHandler(SetPublishingMode), new InvokeServiceAsyncEventHandler(SetPublishingModeAsync)));
+            SupportedServices.Add(
+                DataTypeIds.SetPublishingModeRequest,
+                new ServiceDefinition(
+                    typeof(SetPublishingModeRequest),
+                    new InvokeServiceEventHandler(SetPublishingMode),
+                    new InvokeServiceAsyncEventHandler(SetPublishingModeAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_SetPublishingMode)
-            SupportedServices.Add(DataTypeIds.SetPublishingModeRequest, new ServiceDefinition(typeof(SetPublishingModeRequest), new InvokeServiceEventHandler(SetPublishingMode)));
+            SupportedServices.Add(
+                DataTypeIds.SetPublishingModeRequest,
+                new ServiceDefinition(
+                    typeof(SetPublishingModeRequest),
+                    new InvokeServiceEventHandler(SetPublishingMode)
+                )
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_Publish && !OPCUA_EXCLUDE_Publish_ASYNC)
-            SupportedServices.Add(DataTypeIds.PublishRequest, new ServiceDefinition(typeof(PublishRequest), new InvokeServiceEventHandler(Publish), new InvokeServiceAsyncEventHandler(PublishAsync)));
+            SupportedServices.Add(
+                DataTypeIds.PublishRequest,
+                new ServiceDefinition(
+                    typeof(PublishRequest),
+                    new InvokeServiceEventHandler(Publish),
+                    new InvokeServiceAsyncEventHandler(PublishAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_Publish)
-            SupportedServices.Add(DataTypeIds.PublishRequest, new ServiceDefinition(typeof(PublishRequest), new InvokeServiceEventHandler(Publish)));
+            SupportedServices.Add(
+                DataTypeIds.PublishRequest,
+                new ServiceDefinition(typeof(PublishRequest), new InvokeServiceEventHandler(Publish))
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_Republish && !OPCUA_EXCLUDE_Republish_ASYNC)
-            SupportedServices.Add(DataTypeIds.RepublishRequest, new ServiceDefinition(typeof(RepublishRequest), new InvokeServiceEventHandler(Republish), new InvokeServiceAsyncEventHandler(RepublishAsync)));
+            SupportedServices.Add(
+                DataTypeIds.RepublishRequest,
+                new ServiceDefinition(
+                    typeof(RepublishRequest),
+                    new InvokeServiceEventHandler(Republish),
+                    new InvokeServiceAsyncEventHandler(RepublishAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_Republish)
-            SupportedServices.Add(DataTypeIds.RepublishRequest, new ServiceDefinition(typeof(RepublishRequest), new InvokeServiceEventHandler(Republish)));
+            SupportedServices.Add(
+                DataTypeIds.RepublishRequest,
+                new ServiceDefinition(typeof(RepublishRequest), new InvokeServiceEventHandler(Republish))
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_TransferSubscriptions && !OPCUA_EXCLUDE_TransferSubscriptions_ASYNC)
-            SupportedServices.Add(DataTypeIds.TransferSubscriptionsRequest, new ServiceDefinition(typeof(TransferSubscriptionsRequest), new InvokeServiceEventHandler(TransferSubscriptions), new InvokeServiceAsyncEventHandler(TransferSubscriptionsAsync)));
+            SupportedServices.Add(
+                DataTypeIds.TransferSubscriptionsRequest,
+                new ServiceDefinition(
+                    typeof(TransferSubscriptionsRequest),
+                    new InvokeServiceEventHandler(TransferSubscriptions),
+                    new InvokeServiceAsyncEventHandler(TransferSubscriptionsAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_TransferSubscriptions)
-            SupportedServices.Add(DataTypeIds.TransferSubscriptionsRequest, new ServiceDefinition(typeof(TransferSubscriptionsRequest), new InvokeServiceEventHandler(TransferSubscriptions)));
+            SupportedServices.Add(
+                DataTypeIds.TransferSubscriptionsRequest,
+                new ServiceDefinition(
+                    typeof(TransferSubscriptionsRequest),
+                    new InvokeServiceEventHandler(TransferSubscriptions)
+                )
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_DeleteSubscriptions && !OPCUA_EXCLUDE_DeleteSubscriptions_ASYNC)
-            SupportedServices.Add(DataTypeIds.DeleteSubscriptionsRequest, new ServiceDefinition(typeof(DeleteSubscriptionsRequest), new InvokeServiceEventHandler(DeleteSubscriptions), new InvokeServiceAsyncEventHandler(DeleteSubscriptionsAsync)));
+            SupportedServices.Add(
+                DataTypeIds.DeleteSubscriptionsRequest,
+                new ServiceDefinition(
+                    typeof(DeleteSubscriptionsRequest),
+                    new InvokeServiceEventHandler(DeleteSubscriptions),
+                    new InvokeServiceAsyncEventHandler(DeleteSubscriptionsAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_DeleteSubscriptions)
-            SupportedServices.Add(DataTypeIds.DeleteSubscriptionsRequest, new ServiceDefinition(typeof(DeleteSubscriptionsRequest), new InvokeServiceEventHandler(DeleteSubscriptions)));
+            SupportedServices.Add(
+                DataTypeIds.DeleteSubscriptionsRequest,
+                new ServiceDefinition(
+                    typeof(DeleteSubscriptionsRequest),
+                    new InvokeServiceEventHandler(DeleteSubscriptions)
+                )
+            );
 #endif
         }
         #endregion
@@ -5372,7 +6066,11 @@ namespace Opc.Ua
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
 #if (!NET_STANDARD)
     [ServiceMessageContextBehavior()]
-    [ServiceBehavior(Namespace = Namespaces.OpcUaWsdl, InstanceContextMode=InstanceContextMode.PerSession, ConcurrencyMode=ConcurrencyMode.Multiple)]
+    [ServiceBehavior(
+        Namespace = Namespaces.OpcUaWsdl,
+        InstanceContextMode = InstanceContextMode.PerSession,
+        ConcurrencyMode = ConcurrencyMode.Multiple
+    )]
 #endif
     public partial class DiscoveryEndpoint : EndpointBase, IDiscoveryEndpoint, IRegistrationEndpoint
     {
@@ -5388,7 +6086,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the when it is created directly.
         /// </summary>
-        public DiscoveryEndpoint(IServiceHostBase host) : base(host)
+        public DiscoveryEndpoint(IServiceHostBase host)
+            : base(host)
         {
             this.CreateKnownTypes();
         }
@@ -5397,7 +6096,8 @@ namespace Opc.Ua
         /// Initializes a new instance of the <see cref="DiscoveryEndpoint"/> class.
         /// </summary>
         /// <param name="server">The server.</param>
-        public DiscoveryEndpoint(ServerBase server) : base(server)
+        public DiscoveryEndpoint(ServerBase server)
+            : base(server)
         {
             this.CreateKnownTypes();
         }
@@ -5442,11 +6142,12 @@ namespace Opc.Ua
                 response = new FindServersResponse();
 
                 response.ResponseHeader = ServerInstance.FindServers(
-                   request.RequestHeader,
-                   request.EndpointUrl,
-                   request.LocaleIds,
-                   request.ServerUris,
-                   out servers);
+                    request.RequestHeader,
+                    request.EndpointUrl,
+                    request.LocaleIds,
+                    request.ServerUris,
+                    out servers
+                );
 
                 response.Servers = servers;
             }
@@ -5487,7 +6188,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the FindServers service.
         /// </summary>
-        public virtual IAsyncResult BeginFindServers(FindServersMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginFindServers(
+            FindServersMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -5536,7 +6241,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the FindServers service.
         /// </summary>
-        public async Task<IServiceResponse> FindServersAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> FindServersAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             FindServersResponse response = null;
 
@@ -5546,12 +6254,15 @@ namespace Opc.Ua
 
                 FindServersRequest request = (FindServersRequest)incoming;
 
-                response = await ServerInstance.FindServersAsync(
-                   request.RequestHeader,
-                   request.EndpointUrl,
-                   request.LocaleIds,
-                   request.ServerUris, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .FindServersAsync(
+                        request.RequestHeader,
+                        request.EndpointUrl,
+                        request.LocaleIds,
+                        request.ServerUris,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -5585,12 +6296,13 @@ namespace Opc.Ua
                 response = new FindServersOnNetworkResponse();
 
                 response.ResponseHeader = ServerInstance.FindServersOnNetwork(
-                   request.RequestHeader,
-                   request.StartingRecordId,
-                   request.MaxRecordsToReturn,
-                   request.ServerCapabilityFilter,
-                   out lastCounterResetTime,
-                   out servers);
+                    request.RequestHeader,
+                    request.StartingRecordId,
+                    request.MaxRecordsToReturn,
+                    request.ServerCapabilityFilter,
+                    out lastCounterResetTime,
+                    out servers
+                );
 
                 response.LastCounterResetTime = lastCounterResetTime;
                 response.Servers = servers;
@@ -5632,7 +6344,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the FindServersOnNetwork service.
         /// </summary>
-        public virtual IAsyncResult BeginFindServersOnNetwork(FindServersOnNetworkMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginFindServersOnNetwork(
+            FindServersOnNetworkMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -5681,7 +6397,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the FindServersOnNetwork service.
         /// </summary>
-        public async Task<IServiceResponse> FindServersOnNetworkAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> FindServersOnNetworkAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             FindServersOnNetworkResponse response = null;
 
@@ -5691,12 +6410,15 @@ namespace Opc.Ua
 
                 FindServersOnNetworkRequest request = (FindServersOnNetworkRequest)incoming;
 
-                response = await ServerInstance.FindServersOnNetworkAsync(
-                   request.RequestHeader,
-                   request.StartingRecordId,
-                   request.MaxRecordsToReturn,
-                   request.ServerCapabilityFilter, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .FindServersOnNetworkAsync(
+                        request.RequestHeader,
+                        request.StartingRecordId,
+                        request.MaxRecordsToReturn,
+                        request.ServerCapabilityFilter,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -5729,11 +6451,12 @@ namespace Opc.Ua
                 response = new GetEndpointsResponse();
 
                 response.ResponseHeader = ServerInstance.GetEndpoints(
-                   request.RequestHeader,
-                   request.EndpointUrl,
-                   request.LocaleIds,
-                   request.ProfileUris,
-                   out endpoints);
+                    request.RequestHeader,
+                    request.EndpointUrl,
+                    request.LocaleIds,
+                    request.ProfileUris,
+                    out endpoints
+                );
 
                 response.Endpoints = endpoints;
             }
@@ -5774,7 +6497,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the GetEndpoints service.
         /// </summary>
-        public virtual IAsyncResult BeginGetEndpoints(GetEndpointsMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginGetEndpoints(
+            GetEndpointsMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -5823,7 +6550,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the GetEndpoints service.
         /// </summary>
-        public async Task<IServiceResponse> GetEndpointsAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> GetEndpointsAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             GetEndpointsResponse response = null;
 
@@ -5833,12 +6563,15 @@ namespace Opc.Ua
 
                 GetEndpointsRequest request = (GetEndpointsRequest)incoming;
 
-                response = await ServerInstance.GetEndpointsAsync(
-                   request.RequestHeader,
-                   request.EndpointUrl,
-                   request.LocaleIds,
-                   request.ProfileUris, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .GetEndpointsAsync(
+                        request.RequestHeader,
+                        request.EndpointUrl,
+                        request.LocaleIds,
+                        request.ProfileUris,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -5866,13 +6599,9 @@ namespace Opc.Ua
 
                 RegisterServerRequest request = (RegisterServerRequest)incoming;
 
-
                 response = new RegisterServerResponse();
 
-                response.ResponseHeader = ServerInstance.RegisterServer(
-                   request.RequestHeader,
-                   request.Server);
-
+                response.ResponseHeader = ServerInstance.RegisterServer(request.RequestHeader, request.Server);
             }
             finally
             {
@@ -5911,7 +6640,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the RegisterServer service.
         /// </summary>
-        public virtual IAsyncResult BeginRegisterServer(RegisterServerMessage message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginRegisterServer(
+            RegisterServerMessage message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -5960,7 +6693,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the RegisterServer service.
         /// </summary>
-        public async Task<IServiceResponse> RegisterServerAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> RegisterServerAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             RegisterServerResponse response = null;
 
@@ -5970,10 +6706,9 @@ namespace Opc.Ua
 
                 RegisterServerRequest request = (RegisterServerRequest)incoming;
 
-                response = await ServerInstance.RegisterServerAsync(
-                   request.RequestHeader,
-                   request.Server, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .RegisterServerAsync(request.RequestHeader, request.Server, cancellationToken)
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -6007,11 +6742,12 @@ namespace Opc.Ua
                 response = new RegisterServer2Response();
 
                 response.ResponseHeader = ServerInstance.RegisterServer2(
-                   request.RequestHeader,
-                   request.Server,
-                   request.DiscoveryConfiguration,
-                   out configurationResults,
-                   out diagnosticInfos);
+                    request.RequestHeader,
+                    request.Server,
+                    request.DiscoveryConfiguration,
+                    out configurationResults,
+                    out diagnosticInfos
+                );
 
                 response.ConfigurationResults = configurationResults;
                 response.DiagnosticInfos = diagnosticInfos;
@@ -6053,7 +6789,11 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronously calls the RegisterServer2 service.
         /// </summary>
-        public virtual IAsyncResult BeginRegisterServer2(RegisterServer2Message message, AsyncCallback callback, object callbackData)
+        public virtual IAsyncResult BeginRegisterServer2(
+            RegisterServer2Message message,
+            AsyncCallback callback,
+            object callbackData
+        )
         {
             try
             {
@@ -6102,7 +6842,10 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the RegisterServer2 service.
         /// </summary>
-        public async Task<IServiceResponse> RegisterServer2Async(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        public async Task<IServiceResponse> RegisterServer2Async(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default
+        )
         {
             RegisterServer2Response response = null;
 
@@ -6112,11 +6855,14 @@ namespace Opc.Ua
 
                 RegisterServer2Request request = (RegisterServer2Request)incoming;
 
-                response = await ServerInstance.RegisterServer2Async(
-                   request.RequestHeader,
-                   request.Server,
-                   request.DiscoveryConfiguration, cancellationToken).ConfigureAwait(false);
-
+                response = await ServerInstance
+                    .RegisterServer2Async(
+                        request.RequestHeader,
+                        request.Server,
+                        request.DiscoveryConfiguration,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -6137,29 +6883,82 @@ namespace Opc.Ua
         protected virtual void CreateKnownTypes()
         {
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_FindServers && !OPCUA_EXCLUDE_FindServers_ASYNC)
-            SupportedServices.Add(DataTypeIds.FindServersRequest, new ServiceDefinition(typeof(FindServersRequest), new InvokeServiceEventHandler(FindServers), new InvokeServiceAsyncEventHandler(FindServersAsync)));
+            SupportedServices.Add(
+                DataTypeIds.FindServersRequest,
+                new ServiceDefinition(
+                    typeof(FindServersRequest),
+                    new InvokeServiceEventHandler(FindServers),
+                    new InvokeServiceAsyncEventHandler(FindServersAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_FindServers)
-            SupportedServices.Add(DataTypeIds.FindServersRequest, new ServiceDefinition(typeof(FindServersRequest), new InvokeServiceEventHandler(FindServers)));
+            SupportedServices.Add(
+                DataTypeIds.FindServersRequest,
+                new ServiceDefinition(typeof(FindServersRequest), new InvokeServiceEventHandler(FindServers))
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_FindServersOnNetwork && !OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
-            SupportedServices.Add(DataTypeIds.FindServersOnNetworkRequest, new ServiceDefinition(typeof(FindServersOnNetworkRequest), new InvokeServiceEventHandler(FindServersOnNetwork), new InvokeServiceAsyncEventHandler(FindServersOnNetworkAsync)));
+            SupportedServices.Add(
+                DataTypeIds.FindServersOnNetworkRequest,
+                new ServiceDefinition(
+                    typeof(FindServersOnNetworkRequest),
+                    new InvokeServiceEventHandler(FindServersOnNetwork),
+                    new InvokeServiceAsyncEventHandler(FindServersOnNetworkAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_FindServersOnNetwork)
-            SupportedServices.Add(DataTypeIds.FindServersOnNetworkRequest, new ServiceDefinition(typeof(FindServersOnNetworkRequest), new InvokeServiceEventHandler(FindServersOnNetwork)));
+            SupportedServices.Add(
+                DataTypeIds.FindServersOnNetworkRequest,
+                new ServiceDefinition(
+                    typeof(FindServersOnNetworkRequest),
+                    new InvokeServiceEventHandler(FindServersOnNetwork)
+                )
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_GetEndpoints && !OPCUA_EXCLUDE_GetEndpoints_ASYNC)
-            SupportedServices.Add(DataTypeIds.GetEndpointsRequest, new ServiceDefinition(typeof(GetEndpointsRequest), new InvokeServiceEventHandler(GetEndpoints), new InvokeServiceAsyncEventHandler(GetEndpointsAsync)));
+            SupportedServices.Add(
+                DataTypeIds.GetEndpointsRequest,
+                new ServiceDefinition(
+                    typeof(GetEndpointsRequest),
+                    new InvokeServiceEventHandler(GetEndpoints),
+                    new InvokeServiceAsyncEventHandler(GetEndpointsAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_GetEndpoints)
-            SupportedServices.Add(DataTypeIds.GetEndpointsRequest, new ServiceDefinition(typeof(GetEndpointsRequest), new InvokeServiceEventHandler(GetEndpoints)));
+            SupportedServices.Add(
+                DataTypeIds.GetEndpointsRequest,
+                new ServiceDefinition(typeof(GetEndpointsRequest), new InvokeServiceEventHandler(GetEndpoints))
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_RegisterServer && !OPCUA_EXCLUDE_RegisterServer_ASYNC)
-            SupportedServices.Add(DataTypeIds.RegisterServerRequest, new ServiceDefinition(typeof(RegisterServerRequest), new InvokeServiceEventHandler(RegisterServer), new InvokeServiceAsyncEventHandler(RegisterServerAsync)));
+            SupportedServices.Add(
+                DataTypeIds.RegisterServerRequest,
+                new ServiceDefinition(
+                    typeof(RegisterServerRequest),
+                    new InvokeServiceEventHandler(RegisterServer),
+                    new InvokeServiceAsyncEventHandler(RegisterServerAsync)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_RegisterServer)
-            SupportedServices.Add(DataTypeIds.RegisterServerRequest, new ServiceDefinition(typeof(RegisterServerRequest), new InvokeServiceEventHandler(RegisterServer)));
+            SupportedServices.Add(
+                DataTypeIds.RegisterServerRequest,
+                new ServiceDefinition(typeof(RegisterServerRequest), new InvokeServiceEventHandler(RegisterServer))
+            );
 #endif
 #if (OPCUA_INCLUDE_ASYNC && !OPCUA_EXCLUDE_RegisterServer2 && !OPCUA_EXCLUDE_RegisterServer2_ASYNC)
-            SupportedServices.Add(DataTypeIds.RegisterServer2Request, new ServiceDefinition(typeof(RegisterServer2Request), new InvokeServiceEventHandler(RegisterServer2), new InvokeServiceAsyncEventHandler(RegisterServer2Async)));
+            SupportedServices.Add(
+                DataTypeIds.RegisterServer2Request,
+                new ServiceDefinition(
+                    typeof(RegisterServer2Request),
+                    new InvokeServiceEventHandler(RegisterServer2),
+                    new InvokeServiceAsyncEventHandler(RegisterServer2Async)
+                )
+            );
 #elif (!OPCUA_EXCLUDE_RegisterServer2)
-            SupportedServices.Add(DataTypeIds.RegisterServer2Request, new ServiceDefinition(typeof(RegisterServer2Request), new InvokeServiceEventHandler(RegisterServer2)));
+            SupportedServices.Add(
+                DataTypeIds.RegisterServer2Request,
+                new ServiceDefinition(typeof(RegisterServer2Request), new InvokeServiceEventHandler(RegisterServer2))
+            );
 #endif
         }
         #endregion

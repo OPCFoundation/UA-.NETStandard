@@ -89,10 +89,10 @@ namespace Alarms
             if (message.Length == 0)
             {
                 message =
-                    "Discrete Alarm analog value = "
-                    + value.ToString(CultureInfo.InvariantCulture)
-                    + ", active = "
-                    + active.ToString();
+                    "Discrete Alarm analog value = " +
+                    value.ToString(CultureInfo.InvariantCulture) +
+                    ", active = " +
+                    active.ToString();
             }
 
             base.SetValue(message);

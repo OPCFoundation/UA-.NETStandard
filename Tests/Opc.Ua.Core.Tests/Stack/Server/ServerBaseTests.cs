@@ -37,8 +37,10 @@ namespace Opc.Ua.Core.Tests.Stack.Server
     /// <summary>
     /// Tests for the protected methods in the ServerBase class.
     /// </summary>
-    [TestFixture, Category("Server")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("Server")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     [TestFixtureSource(nameof(FixtureArgs))]
     public class ServerBaseTests : ServerBase
@@ -46,7 +48,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         /// <summary>
         /// Various server base/alternate address configurations.
         /// </summary>
-        public enum TestConfigurations : int
+        public enum TestConfigurations
         {
             SingleBaseAdresses,
             SingleBaseAdressesWithAlternateHost,
@@ -55,7 +57,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             DualBaseAddresses,
             DualBaseAddressesWithAlternateHost,
             DualBaseAdressesWithAlternatePort,
-            DualBaseAddressesWithAlternateHostAndPort,
+            DualBaseAddressesWithAlternateHostAndPort
         }
 
         public const int BaseAddressCount = 6;
@@ -74,7 +76,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             new object[] { TestConfigurations.DualBaseAddresses },
             new object[] { TestConfigurations.DualBaseAddressesWithAlternateHost },
             new object[] { TestConfigurations.DualBaseAdressesWithAlternatePort },
-            new object[] { TestConfigurations.DualBaseAddressesWithAlternateHostAndPort },
+            new object[] { TestConfigurations.DualBaseAddressesWithAlternateHostAndPort }
         ];
 
         public ServerBaseTests()
@@ -115,7 +117,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             "tcp://localhost:62541/UA/SampleServer",
             "https://someserver:62541/UA/SampleServer",
             "https://localhost:51210/UA/SampleServer",
-            "https://UNKNOWNHOSTNAME.COM:51210/UA/SampleServer",
+            "https://UNKNOWNHOSTNAME.COM:51210/UA/SampleServer"
         ];
 
         [OneTimeSetUp]
@@ -128,7 +130,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 ApplicationUri = "urn:localhost:UA:Test",
                 ProductUri = "http://opcfoundation.org/UA/TestServer",
                 SecurityConfiguration = new SecurityConfiguration(),
-                ServerConfiguration = new ServerConfiguration(),
+                ServerConfiguration = new ServerConfiguration()
             };
 
             // base addresses, uses localhost. specify multiple endpoints per protocol as per config.
@@ -158,11 +160,15 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 configuration.ServerConfiguration.BaseAddresses.Add(
                     Utils.ReplaceLocalhost("https://localhost:52642/UA/SampleServer")
                 );
-                Assert.AreEqual(BaseAddressCount, configuration.ServerConfiguration.BaseAddresses.Count);
+                Assert.AreEqual(
+                    BaseAddressCount,
+                    configuration.ServerConfiguration.BaseAddresses.Count);
             }
             else
             {
-                Assert.AreEqual(BaseAddressCount / 2, configuration.ServerConfiguration.BaseAddresses.Count);
+                Assert.AreEqual(
+                    BaseAddressCount / 2,
+                    configuration.ServerConfiguration.BaseAddresses.Count);
             }
 
             if (
@@ -228,33 +234,42 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             // add security policies.
             configuration.ServerConfiguration.SecurityPolicies.Add(new ServerSecurityPolicy());
             configuration.ServerConfiguration.SecurityPolicies.Add(
-                new ServerSecurityPolicy()
+                new ServerSecurityPolicy
                 {
                     SecurityMode = MessageSecurityMode.None,
-                    SecurityPolicyUri = SecurityPolicies.None,
+                    SecurityPolicyUri = SecurityPolicies.None
                 }
             );
             configuration.ServerConfiguration.SecurityPolicies.Add(
-                new ServerSecurityPolicy()
+                new ServerSecurityPolicy
                 {
                     SecurityMode = MessageSecurityMode.Sign,
-                    SecurityPolicyUri = SecurityPolicies.Aes128_Sha256_RsaOaep,
+                    SecurityPolicyUri = SecurityPolicies.Aes128_Sha256_RsaOaep
                 }
             );
             configuration.ServerConfiguration.SecurityPolicies.Add(
-                new ServerSecurityPolicy()
+                new ServerSecurityPolicy
                 {
                     SecurityMode = MessageSecurityMode.SignAndEncrypt,
-                    SecurityPolicyUri = SecurityPolicies.Aes256_Sha256_RsaPss,
+                    SecurityPolicyUri = SecurityPolicies.Aes256_Sha256_RsaPss
                 }
             );
 
             // ensure at least one user token policy exists.
-            var userTokenPolicyAnonymous = new UserTokenPolicy { TokenType = UserTokenType.Anonymous };
+            var userTokenPolicyAnonymous = new UserTokenPolicy
+            {
+                TokenType = UserTokenType.Anonymous
+            };
             configuration.ServerConfiguration.UserTokenPolicies.Add(userTokenPolicyAnonymous);
-            var userTokenPolicyUserName = new UserTokenPolicy { TokenType = UserTokenType.UserName };
+            var userTokenPolicyUserName = new UserTokenPolicy
+            {
+                TokenType = UserTokenType.UserName
+            };
             configuration.ServerConfiguration.UserTokenPolicies.Add(userTokenPolicyUserName);
-            var userTokenPolicyCertificate = new UserTokenPolicy { TokenType = UserTokenType.Certificate };
+            var userTokenPolicyCertificate = new UserTokenPolicy
+            {
+                TokenType = UserTokenType.Certificate
+            };
             configuration.ServerConfiguration.UserTokenPolicies.Add(userTokenPolicyCertificate);
 
             // set server description.
@@ -264,7 +279,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 ApplicationName = new LocalizedText("en-US", configuration.ApplicationName),
                 ApplicationType = configuration.ApplicationType,
                 ProductUri = configuration.ProductUri,
-                DiscoveryUrls = GetDiscoveryUrls(),
+                DiscoveryUrls = GetDiscoveryUrls()
             };
 
             m_endpoints = [];
@@ -292,11 +307,13 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 }
 
                 foreach (
-                    ServerSecurityPolicy securityConfiguration in configuration.ServerConfiguration.SecurityPolicies
+                    ServerSecurityPolicy securityConfiguration in configuration.ServerConfiguration
+                        .SecurityPolicies
                 )
                 {
                     // Only one secure endpoint for non opc.tcp protocols
-                    if (!isUaTcp && securityConfiguration.SecurityMode != MessageSecurityMode.SignAndEncrypt)
+                    if (!isUaTcp &&
+                        securityConfiguration.SecurityMode != MessageSecurityMode.SignAndEncrypt)
                     {
                         continue;
                     }
@@ -311,7 +328,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                         SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(
                             securityConfiguration.SecurityMode,
                             securityConfiguration.SecurityPolicyUri
-                        ),
+                        )
                     };
                     endpoint.UserIdentityTokens = GetUserTokenPolicies(configuration, endpoint);
                     m_endpoints.Add(endpoint);
@@ -325,19 +342,27 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         }
 
         [OneTimeTearDown]
-        protected void OneTimeTearDown() { }
+        protected void OneTimeTearDown()
+        {
+        }
 
         [SetUp]
-        protected void SetUp() { }
+        protected void SetUp()
+        {
+        }
 
         [TearDown]
-        protected void TearDown() { }
+        protected void TearDown()
+        {
+        }
 
         /// <summary>
         /// Ensure .
         /// </summary>
         [Test]
-        [TestCase("opc.tcp://localhost:51210/UA/SampleServer", "opc.tcp://LOCALHOST:51210/UA/SampleServer")]
+        [TestCase(
+            "opc.tcp://localhost:51210/UA/SampleServer",
+            "opc.tcp://LOCALHOST:51210/UA/SampleServer")]
         public void NormalizeEndpoints(string clientUrl1, string clientUrl2)
         {
             var clientUri1 = new Uri(clientUrl1);
@@ -357,7 +382,9 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         /// For any filter applied, ensure there is at least one endpoint returned.
         /// </summary>
         [Theory]
-        public void FilterByClientUrlTest([ValueSource(nameof(ClientUrls))] string endpointUrl, bool noUrlExtension)
+        public void FilterByClientUrlTest(
+            [ValueSource(nameof(ClientUrls))] string endpointUrl,
+            bool noUrlExtension)
         {
             TestContext.WriteLine("Endpoint Url: {0}", endpointUrl);
             Uri parsedEndpointUrl = Utils.ParseUri(endpointUrl);
@@ -365,7 +392,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             {
                 try
                 {
-                    parsedEndpointUrl = new Uri(parsedEndpointUrl.GetLeftPart(UriPartial.Authority));
+                    parsedEndpointUrl = new Uri(
+                        parsedEndpointUrl.GetLeftPart(UriPartial.Authority));
                     TestContext.WriteLine($"Using left part of Url: {parsedEndpointUrl}");
                 }
                 catch (UriFormatException e)
@@ -374,7 +402,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     NUnit.Framework.Assert.Ignore("Invalid Left Part of URL");
                 }
             }
-            System.Collections.Generic.IList<BaseAddress> filteredBaseAddresses = FilterByEndpointUrl(
+            System.Collections.Generic.IList<BaseAddress> filteredBaseAddresses
+                = FilterByEndpointUrl(
                 parsedEndpointUrl,
                 BaseAddresses
             );
@@ -410,7 +439,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             {
                 try
                 {
-                    parsedEndpointUrl = new Uri(parsedEndpointUrl.GetLeftPart(UriPartial.Authority));
+                    parsedEndpointUrl = new Uri(
+                        parsedEndpointUrl.GetLeftPart(UriPartial.Authority));
                 }
                 catch (UriFormatException e)
                 {
@@ -442,7 +472,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             // validate results do not contain duplicates.
             foreach (EndpointDescription endpoint in translatedEndpoints)
             {
-                var matches = translatedEndpoints.Where(e => e.EndpointUrl == endpoint.EndpointUrl).ToList();
+                var matches = translatedEndpoints.Where(e => e.EndpointUrl == endpoint.EndpointUrl)
+                    .ToList();
                 Assert.NotNull(matches);
                 Assert.GreaterOrEqual(matches.Count, 1);
             }
@@ -452,13 +483,17 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             {
                 var matches = m_endpoints
                     .Where(endpoint =>
-                        Utils.IsEqual(endpoint.UserIdentityTokens, translatedEndpoint.UserIdentityTokens)
+                        Utils.IsEqual(
+                            endpoint.UserIdentityTokens,
+                            translatedEndpoint.UserIdentityTokens)
                     )
                     .ToList();
                 Assert.NotNull(matches);
                 Assert.AreEqual(matches.Count, 1);
                 EndpointDescription firstMatch = matches[0];
-                Assert.AreEqual(firstMatch.UserIdentityTokens.Count, translatedEndpoint.UserIdentityTokens.Count);
+                Assert.AreEqual(
+                    firstMatch.UserIdentityTokens.Count,
+                    translatedEndpoint.UserIdentityTokens.Count);
                 for (int i = 0; i < firstMatch.UserIdentityTokens.Count; i++)
                 {
                     Assert.AreEqual(
@@ -484,16 +519,21 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 )
                 {
                     Assert.AreEqual(firstMatchEndpointUrl.Port, translatedEndpointUrl.Port);
-                    Assert.AreEqual(firstMatchEndpointUrl.LocalPath, translatedEndpointUrl.LocalPath);
+                    Assert.AreEqual(
+                        firstMatchEndpointUrl.LocalPath,
+                        translatedEndpointUrl.LocalPath);
                 }
                 else if (firstMatchEndpointUrl.Port != translatedEndpointUrl.Port)
                 {
                     // ensure port is translated and mapped to the first base address with the same scheme.
-                    Assert.AreEqual(firstMatchEndpointUrl.Port % 10, translatedEndpointUrl.Port % 10);
+                    Assert.AreEqual(
+                        firstMatchEndpointUrl.Port % 10,
+                        translatedEndpointUrl.Port % 10);
 
                     var theSchemes = m_endpoints
                         .Where(endpoint =>
-                            endpoint.EndpointUrl.StartsWith(translatedEndpointUrl.Scheme, StringComparison.Ordinal)
+                            endpoint.EndpointUrl
+                                .StartsWith(translatedEndpointUrl.Scheme, StringComparison.Ordinal)
                         )
                         .ToList();
                     Assert.AreEqual(theSchemes[0].EndpointUrl, firstMatch.EndpointUrl);

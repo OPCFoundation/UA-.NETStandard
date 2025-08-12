@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -51,7 +51,8 @@ namespace Opc.Ua
             string endpointUrl,
             StringCollection localeIds,
             StringCollection serverUris,
-            out ApplicationDescriptionCollection servers);
+            out ApplicationDescriptionCollection servers
+        );
 
 #if (!OPCUA_EXCLUDE_FindServers_ASYNC)
         /// <summary>
@@ -62,7 +63,8 @@ namespace Opc.Ua
             string endpointUrl,
             StringCollection localeIds,
             StringCollection serverUris,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -76,7 +78,8 @@ namespace Opc.Ua
             uint maxRecordsToReturn,
             StringCollection serverCapabilityFilter,
             out DateTime lastCounterResetTime,
-            out ServerOnNetworkCollection servers);
+            out ServerOnNetworkCollection servers
+        );
 
 #if (!OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
         /// <summary>
@@ -87,7 +90,8 @@ namespace Opc.Ua
             uint startingRecordId,
             uint maxRecordsToReturn,
             StringCollection serverCapabilityFilter,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -100,7 +104,8 @@ namespace Opc.Ua
             string endpointUrl,
             StringCollection localeIds,
             StringCollection profileUris,
-            out EndpointDescriptionCollection endpoints);
+            out EndpointDescriptionCollection endpoints
+        );
 
 #if (!OPCUA_EXCLUDE_GetEndpoints_ASYNC)
         /// <summary>
@@ -111,7 +116,8 @@ namespace Opc.Ua
             string endpointUrl,
             StringCollection localeIds,
             StringCollection profileUris,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -137,7 +143,8 @@ namespace Opc.Ua
             out EndpointDescriptionCollection serverEndpoints,
             out SignedSoftwareCertificateCollection serverSoftwareCertificates,
             out SignatureData serverSignature,
-            out uint maxRequestMessageSize);
+            out uint maxRequestMessageSize
+        );
 
 #if (!OPCUA_EXCLUDE_CreateSession_ASYNC)
         /// <summary>
@@ -153,7 +160,8 @@ namespace Opc.Ua
             byte[] clientCertificate,
             double requestedSessionTimeout,
             uint maxResponseMessageSize,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -170,7 +178,8 @@ namespace Opc.Ua
             SignatureData userTokenSignature,
             out byte[] serverNonce,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            out DiagnosticInfoCollection diagnosticInfos
+        );
 
 #if (!OPCUA_EXCLUDE_ActivateSession_ASYNC)
         /// <summary>
@@ -183,7 +192,8 @@ namespace Opc.Ua
             StringCollection localeIds,
             ExtensionObject userIdentityToken,
             SignatureData userTokenSignature,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -191,9 +201,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the CloseSession service.
         /// </summary>
-        ResponseHeader CloseSession(
-            RequestHeader requestHeader,
-            bool deleteSubscriptions);
+        ResponseHeader CloseSession(RequestHeader requestHeader, bool deleteSubscriptions);
 
 #if (!OPCUA_EXCLUDE_CloseSession_ASYNC)
         /// <summary>
@@ -202,7 +210,8 @@ namespace Opc.Ua
         Task<CloseSessionResponse> CloseSessionAsync(
             RequestHeader requestHeader,
             bool deleteSubscriptions,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -210,19 +219,13 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Cancel service.
         /// </summary>
-        ResponseHeader Cancel(
-            RequestHeader requestHeader,
-            uint requestHandle,
-            out uint cancelCount);
+        ResponseHeader Cancel(RequestHeader requestHeader, uint requestHandle, out uint cancelCount);
 
 #if (!OPCUA_EXCLUDE_Cancel_ASYNC)
         /// <summary>
         /// Invokes the Cancel service using async Task based request.
         /// </summary>
-        Task<CancelResponse> CancelAsync(
-            RequestHeader requestHeader,
-            uint requestHandle,
-            CancellationToken ct);
+        Task<CancelResponse> CancelAsync(RequestHeader requestHeader, uint requestHandle, CancellationToken ct);
 #endif
 #endif
 
@@ -234,7 +237,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             AddNodesItemCollection nodesToAdd,
             out AddNodesResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            out DiagnosticInfoCollection diagnosticInfos
+        );
 
 #if (!OPCUA_EXCLUDE_AddNodes_ASYNC)
         /// <summary>
@@ -243,7 +247,8 @@ namespace Opc.Ua
         Task<AddNodesResponse> AddNodesAsync(
             RequestHeader requestHeader,
             AddNodesItemCollection nodesToAdd,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -255,7 +260,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             AddReferencesItemCollection referencesToAdd,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            out DiagnosticInfoCollection diagnosticInfos
+        );
 
 #if (!OPCUA_EXCLUDE_AddReferences_ASYNC)
         /// <summary>
@@ -264,7 +270,8 @@ namespace Opc.Ua
         Task<AddReferencesResponse> AddReferencesAsync(
             RequestHeader requestHeader,
             AddReferencesItemCollection referencesToAdd,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -276,7 +283,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             DeleteNodesItemCollection nodesToDelete,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            out DiagnosticInfoCollection diagnosticInfos
+        );
 
 #if (!OPCUA_EXCLUDE_DeleteNodes_ASYNC)
         /// <summary>
@@ -285,7 +293,8 @@ namespace Opc.Ua
         Task<DeleteNodesResponse> DeleteNodesAsync(
             RequestHeader requestHeader,
             DeleteNodesItemCollection nodesToDelete,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -297,7 +306,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             DeleteReferencesItemCollection referencesToDelete,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            out DiagnosticInfoCollection diagnosticInfos
+        );
 
 #if (!OPCUA_EXCLUDE_DeleteReferences_ASYNC)
         /// <summary>
@@ -306,7 +316,8 @@ namespace Opc.Ua
         Task<DeleteReferencesResponse> DeleteReferencesAsync(
             RequestHeader requestHeader,
             DeleteReferencesItemCollection referencesToDelete,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -320,7 +331,8 @@ namespace Opc.Ua
             uint requestedMaxReferencesPerNode,
             BrowseDescriptionCollection nodesToBrowse,
             out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            out DiagnosticInfoCollection diagnosticInfos
+        );
 
 #if (!OPCUA_EXCLUDE_Browse_ASYNC)
         /// <summary>
@@ -331,7 +343,8 @@ namespace Opc.Ua
             ViewDescription view,
             uint requestedMaxReferencesPerNode,
             BrowseDescriptionCollection nodesToBrowse,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -344,7 +357,8 @@ namespace Opc.Ua
             bool releaseContinuationPoints,
             ByteStringCollection continuationPoints,
             out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            out DiagnosticInfoCollection diagnosticInfos
+        );
 
 #if (!OPCUA_EXCLUDE_BrowseNext_ASYNC)
         /// <summary>
@@ -354,7 +368,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             bool releaseContinuationPoints,
             ByteStringCollection continuationPoints,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -366,7 +381,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             BrowsePathCollection browsePaths,
             out BrowsePathResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            out DiagnosticInfoCollection diagnosticInfos
+        );
 
 #if (!OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds_ASYNC)
         /// <summary>
@@ -375,7 +391,8 @@ namespace Opc.Ua
         Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
             RequestHeader requestHeader,
             BrowsePathCollection browsePaths,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -386,7 +403,8 @@ namespace Opc.Ua
         ResponseHeader RegisterNodes(
             RequestHeader requestHeader,
             NodeIdCollection nodesToRegister,
-            out NodeIdCollection registeredNodeIds);
+            out NodeIdCollection registeredNodeIds
+        );
 
 #if (!OPCUA_EXCLUDE_RegisterNodes_ASYNC)
         /// <summary>
@@ -395,7 +413,8 @@ namespace Opc.Ua
         Task<RegisterNodesResponse> RegisterNodesAsync(
             RequestHeader requestHeader,
             NodeIdCollection nodesToRegister,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -403,9 +422,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the UnregisterNodes service.
         /// </summary>
-        ResponseHeader UnregisterNodes(
-            RequestHeader requestHeader,
-            NodeIdCollection nodesToUnregister);
+        ResponseHeader UnregisterNodes(RequestHeader requestHeader, NodeIdCollection nodesToUnregister);
 
 #if (!OPCUA_EXCLUDE_UnregisterNodes_ASYNC)
         /// <summary>
@@ -414,7 +431,8 @@ namespace Opc.Ua
         Task<UnregisterNodesResponse> UnregisterNodesAsync(
             RequestHeader requestHeader,
             NodeIdCollection nodesToUnregister,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -433,7 +451,8 @@ namespace Opc.Ua
             out byte[] continuationPoint,
             out ParsingResultCollection parsingResults,
             out DiagnosticInfoCollection diagnosticInfos,
-            out ContentFilterResult filterResult);
+            out ContentFilterResult filterResult
+        );
 
 #if (!OPCUA_EXCLUDE_QueryFirst_ASYNC)
         /// <summary>
@@ -446,7 +465,8 @@ namespace Opc.Ua
             ContentFilter filter,
             uint maxDataSetsToReturn,
             uint maxReferencesToReturn,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -459,7 +479,8 @@ namespace Opc.Ua
             bool releaseContinuationPoint,
             byte[] continuationPoint,
             out QueryDataSetCollection queryDataSets,
-            out byte[] revisedContinuationPoint);
+            out byte[] revisedContinuationPoint
+        );
 
 #if (!OPCUA_EXCLUDE_QueryNext_ASYNC)
         /// <summary>
@@ -469,7 +490,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             bool releaseContinuationPoint,
             byte[] continuationPoint,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -483,7 +505,8 @@ namespace Opc.Ua
             TimestampsToReturn timestampsToReturn,
             ReadValueIdCollection nodesToRead,
             out DataValueCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            out DiagnosticInfoCollection diagnosticInfos
+        );
 
 #if (!OPCUA_EXCLUDE_Read_ASYNC)
         /// <summary>
@@ -494,7 +517,8 @@ namespace Opc.Ua
             double maxAge,
             TimestampsToReturn timestampsToReturn,
             ReadValueIdCollection nodesToRead,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -509,7 +533,8 @@ namespace Opc.Ua
             bool releaseContinuationPoints,
             HistoryReadValueIdCollection nodesToRead,
             out HistoryReadResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            out DiagnosticInfoCollection diagnosticInfos
+        );
 
 #if (!OPCUA_EXCLUDE_HistoryRead_ASYNC)
         /// <summary>
@@ -521,7 +546,8 @@ namespace Opc.Ua
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
             HistoryReadValueIdCollection nodesToRead,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -533,7 +559,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             WriteValueCollection nodesToWrite,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            out DiagnosticInfoCollection diagnosticInfos
+        );
 
 #if (!OPCUA_EXCLUDE_Write_ASYNC)
         /// <summary>
@@ -542,7 +569,8 @@ namespace Opc.Ua
         Task<WriteResponse> WriteAsync(
             RequestHeader requestHeader,
             WriteValueCollection nodesToWrite,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -554,7 +582,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             ExtensionObjectCollection historyUpdateDetails,
             out HistoryUpdateResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            out DiagnosticInfoCollection diagnosticInfos
+        );
 
 #if (!OPCUA_EXCLUDE_HistoryUpdate_ASYNC)
         /// <summary>
@@ -563,7 +592,8 @@ namespace Opc.Ua
         Task<HistoryUpdateResponse> HistoryUpdateAsync(
             RequestHeader requestHeader,
             ExtensionObjectCollection historyUpdateDetails,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -575,7 +605,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             CallMethodRequestCollection methodsToCall,
             out CallMethodResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            out DiagnosticInfoCollection diagnosticInfos
+        );
 
 #if (!OPCUA_EXCLUDE_Call_ASYNC)
         /// <summary>
@@ -584,7 +615,8 @@ namespace Opc.Ua
         Task<CallResponse> CallAsync(
             RequestHeader requestHeader,
             CallMethodRequestCollection methodsToCall,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -598,7 +630,8 @@ namespace Opc.Ua
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequestCollection itemsToCreate,
             out MonitoredItemCreateResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            out DiagnosticInfoCollection diagnosticInfos
+        );
 
 #if (!OPCUA_EXCLUDE_CreateMonitoredItems_ASYNC)
         /// <summary>
@@ -609,7 +642,8 @@ namespace Opc.Ua
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequestCollection itemsToCreate,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -623,7 +657,8 @@ namespace Opc.Ua
             TimestampsToReturn timestampsToReturn,
             MonitoredItemModifyRequestCollection itemsToModify,
             out MonitoredItemModifyResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            out DiagnosticInfoCollection diagnosticInfos
+        );
 
 #if (!OPCUA_EXCLUDE_ModifyMonitoredItems_ASYNC)
         /// <summary>
@@ -634,7 +669,8 @@ namespace Opc.Ua
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
             MonitoredItemModifyRequestCollection itemsToModify,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -648,7 +684,8 @@ namespace Opc.Ua
             MonitoringMode monitoringMode,
             UInt32Collection monitoredItemIds,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            out DiagnosticInfoCollection diagnosticInfos
+        );
 
 #if (!OPCUA_EXCLUDE_SetMonitoringMode_ASYNC)
         /// <summary>
@@ -659,7 +696,8 @@ namespace Opc.Ua
             uint subscriptionId,
             MonitoringMode monitoringMode,
             UInt32Collection monitoredItemIds,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -676,7 +714,8 @@ namespace Opc.Ua
             out StatusCodeCollection addResults,
             out DiagnosticInfoCollection addDiagnosticInfos,
             out StatusCodeCollection removeResults,
-            out DiagnosticInfoCollection removeDiagnosticInfos);
+            out DiagnosticInfoCollection removeDiagnosticInfos
+        );
 
 #if (!OPCUA_EXCLUDE_SetTriggering_ASYNC)
         /// <summary>
@@ -688,7 +727,8 @@ namespace Opc.Ua
             uint triggeringItemId,
             UInt32Collection linksToAdd,
             UInt32Collection linksToRemove,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -701,7 +741,8 @@ namespace Opc.Ua
             uint subscriptionId,
             UInt32Collection monitoredItemIds,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            out DiagnosticInfoCollection diagnosticInfos
+        );
 
 #if (!OPCUA_EXCLUDE_DeleteMonitoredItems_ASYNC)
         /// <summary>
@@ -711,7 +752,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             uint subscriptionId,
             UInt32Collection monitoredItemIds,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -730,7 +772,8 @@ namespace Opc.Ua
             out uint subscriptionId,
             out double revisedPublishingInterval,
             out uint revisedLifetimeCount,
-            out uint revisedMaxKeepAliveCount);
+            out uint revisedMaxKeepAliveCount
+        );
 
 #if (!OPCUA_EXCLUDE_CreateSubscription_ASYNC)
         /// <summary>
@@ -744,7 +787,8 @@ namespace Opc.Ua
             uint maxNotificationsPerPublish,
             bool publishingEnabled,
             byte priority,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -762,7 +806,8 @@ namespace Opc.Ua
             byte priority,
             out double revisedPublishingInterval,
             out uint revisedLifetimeCount,
-            out uint revisedMaxKeepAliveCount);
+            out uint revisedMaxKeepAliveCount
+        );
 
 #if (!OPCUA_EXCLUDE_ModifySubscription_ASYNC)
         /// <summary>
@@ -776,7 +821,8 @@ namespace Opc.Ua
             uint requestedMaxKeepAliveCount,
             uint maxNotificationsPerPublish,
             byte priority,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -789,7 +835,8 @@ namespace Opc.Ua
             bool publishingEnabled,
             UInt32Collection subscriptionIds,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            out DiagnosticInfoCollection diagnosticInfos
+        );
 
 #if (!OPCUA_EXCLUDE_SetPublishingMode_ASYNC)
         /// <summary>
@@ -799,7 +846,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             bool publishingEnabled,
             UInt32Collection subscriptionIds,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -815,7 +863,8 @@ namespace Opc.Ua
             out bool moreNotifications,
             out NotificationMessage notificationMessage,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            out DiagnosticInfoCollection diagnosticInfos
+        );
 
 #if (!OPCUA_EXCLUDE_Publish_ASYNC)
         /// <summary>
@@ -824,7 +873,8 @@ namespace Opc.Ua
         Task<PublishResponse> PublishAsync(
             RequestHeader requestHeader,
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -836,7 +886,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             uint subscriptionId,
             uint retransmitSequenceNumber,
-            out NotificationMessage notificationMessage);
+            out NotificationMessage notificationMessage
+        );
 
 #if (!OPCUA_EXCLUDE_Republish_ASYNC)
         /// <summary>
@@ -846,7 +897,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             uint subscriptionId,
             uint retransmitSequenceNumber,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -859,7 +911,8 @@ namespace Opc.Ua
             UInt32Collection subscriptionIds,
             bool sendInitialValues,
             out TransferResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            out DiagnosticInfoCollection diagnosticInfos
+        );
 
 #if (!OPCUA_EXCLUDE_TransferSubscriptions_ASYNC)
         /// <summary>
@@ -869,7 +922,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
             bool sendInitialValues,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -881,7 +935,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            out DiagnosticInfoCollection diagnosticInfos
+        );
 
 #if (!OPCUA_EXCLUDE_DeleteSubscriptions_ASYNC)
         /// <summary>
@@ -890,7 +945,8 @@ namespace Opc.Ua
         Task<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
     }
@@ -913,7 +969,8 @@ namespace Opc.Ua
             string endpointUrl,
             StringCollection localeIds,
             StringCollection serverUris,
-            out ApplicationDescriptionCollection servers)
+            out ApplicationDescriptionCollection servers
+        )
         {
             servers = null;
 
@@ -933,7 +990,8 @@ namespace Opc.Ua
             string endpointUrl,
             StringCollection localeIds,
             StringCollection serverUris,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -955,7 +1013,8 @@ namespace Opc.Ua
             uint maxRecordsToReturn,
             StringCollection serverCapabilityFilter,
             out DateTime lastCounterResetTime,
-            out ServerOnNetworkCollection servers)
+            out ServerOnNetworkCollection servers
+        )
         {
             lastCounterResetTime = DateTime.MinValue;
             servers = null;
@@ -976,7 +1035,8 @@ namespace Opc.Ua
             uint startingRecordId,
             uint maxRecordsToReturn,
             StringCollection serverCapabilityFilter,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -997,7 +1057,8 @@ namespace Opc.Ua
             string endpointUrl,
             StringCollection localeIds,
             StringCollection profileUris,
-            out EndpointDescriptionCollection endpoints)
+            out EndpointDescriptionCollection endpoints
+        )
         {
             endpoints = null;
 
@@ -1017,7 +1078,8 @@ namespace Opc.Ua
             string endpointUrl,
             StringCollection localeIds,
             StringCollection profileUris,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -1051,7 +1113,8 @@ namespace Opc.Ua
             out EndpointDescriptionCollection serverEndpoints,
             out SignedSoftwareCertificateCollection serverSoftwareCertificates,
             out SignatureData serverSignature,
-            out uint maxRequestMessageSize)
+            out uint maxRequestMessageSize
+        )
         {
             sessionId = null;
             authenticationToken = null;
@@ -1084,7 +1147,8 @@ namespace Opc.Ua
             byte[] clientCertificate,
             double requestedSessionTimeout,
             uint maxResponseMessageSize,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -1109,7 +1173,8 @@ namespace Opc.Ua
             SignatureData userTokenSignature,
             out byte[] serverNonce,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             serverNonce = null;
             results = null;
@@ -1133,7 +1198,8 @@ namespace Opc.Ua
             StringCollection localeIds,
             ExtensionObject userIdentityToken,
             SignatureData userTokenSignature,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -1149,11 +1215,8 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the CloseSession service.
         /// </summary>
-        public virtual ResponseHeader CloseSession(
-            RequestHeader requestHeader,
-            bool deleteSubscriptions)
+        public virtual ResponseHeader CloseSession(RequestHeader requestHeader, bool deleteSubscriptions)
         {
-
             ValidateRequest(requestHeader);
 
             // Insert implementation.
@@ -1168,7 +1231,8 @@ namespace Opc.Ua
         public virtual async Task<CloseSessionResponse> CloseSessionAsync(
             RequestHeader requestHeader,
             bool deleteSubscriptions,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -1184,10 +1248,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the Cancel service.
         /// </summary>
-        public virtual ResponseHeader Cancel(
-            RequestHeader requestHeader,
-            uint requestHandle,
-            out uint cancelCount)
+        public virtual ResponseHeader Cancel(RequestHeader requestHeader, uint requestHandle, out uint cancelCount)
         {
             cancelCount = 0;
 
@@ -1205,7 +1266,8 @@ namespace Opc.Ua
         public virtual async Task<CancelResponse> CancelAsync(
             RequestHeader requestHeader,
             uint requestHandle,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -1225,7 +1287,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             AddNodesItemCollection nodesToAdd,
             out AddNodesResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             results = null;
             diagnosticInfos = null;
@@ -1244,7 +1307,8 @@ namespace Opc.Ua
         public virtual async Task<AddNodesResponse> AddNodesAsync(
             RequestHeader requestHeader,
             AddNodesItemCollection nodesToAdd,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -1264,7 +1328,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             AddReferencesItemCollection referencesToAdd,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             results = null;
             diagnosticInfos = null;
@@ -1283,7 +1348,8 @@ namespace Opc.Ua
         public virtual async Task<AddReferencesResponse> AddReferencesAsync(
             RequestHeader requestHeader,
             AddReferencesItemCollection referencesToAdd,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -1303,7 +1369,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             DeleteNodesItemCollection nodesToDelete,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             results = null;
             diagnosticInfos = null;
@@ -1322,7 +1389,8 @@ namespace Opc.Ua
         public virtual async Task<DeleteNodesResponse> DeleteNodesAsync(
             RequestHeader requestHeader,
             DeleteNodesItemCollection nodesToDelete,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -1342,7 +1410,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             DeleteReferencesItemCollection referencesToDelete,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             results = null;
             diagnosticInfos = null;
@@ -1361,7 +1430,8 @@ namespace Opc.Ua
         public virtual async Task<DeleteReferencesResponse> DeleteReferencesAsync(
             RequestHeader requestHeader,
             DeleteReferencesItemCollection referencesToDelete,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -1383,7 +1453,8 @@ namespace Opc.Ua
             uint requestedMaxReferencesPerNode,
             BrowseDescriptionCollection nodesToBrowse,
             out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             results = null;
             diagnosticInfos = null;
@@ -1404,7 +1475,8 @@ namespace Opc.Ua
             ViewDescription view,
             uint requestedMaxReferencesPerNode,
             BrowseDescriptionCollection nodesToBrowse,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -1425,7 +1497,8 @@ namespace Opc.Ua
             bool releaseContinuationPoints,
             ByteStringCollection continuationPoints,
             out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             results = null;
             diagnosticInfos = null;
@@ -1445,7 +1518,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             bool releaseContinuationPoints,
             ByteStringCollection continuationPoints,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -1465,7 +1539,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             BrowsePathCollection browsePaths,
             out BrowsePathResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             results = null;
             diagnosticInfos = null;
@@ -1484,7 +1559,8 @@ namespace Opc.Ua
         public virtual async Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
             RequestHeader requestHeader,
             BrowsePathCollection browsePaths,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -1503,7 +1579,8 @@ namespace Opc.Ua
         public virtual ResponseHeader RegisterNodes(
             RequestHeader requestHeader,
             NodeIdCollection nodesToRegister,
-            out NodeIdCollection registeredNodeIds)
+            out NodeIdCollection registeredNodeIds
+        )
         {
             registeredNodeIds = null;
 
@@ -1521,7 +1598,8 @@ namespace Opc.Ua
         public virtual async Task<RegisterNodesResponse> RegisterNodesAsync(
             RequestHeader requestHeader,
             NodeIdCollection nodesToRegister,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -1537,11 +1615,8 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the UnregisterNodes service.
         /// </summary>
-        public virtual ResponseHeader UnregisterNodes(
-            RequestHeader requestHeader,
-            NodeIdCollection nodesToUnregister)
+        public virtual ResponseHeader UnregisterNodes(RequestHeader requestHeader, NodeIdCollection nodesToUnregister)
         {
-
             ValidateRequest(requestHeader);
 
             // Insert implementation.
@@ -1556,7 +1631,8 @@ namespace Opc.Ua
         public virtual async Task<UnregisterNodesResponse> UnregisterNodesAsync(
             RequestHeader requestHeader,
             NodeIdCollection nodesToUnregister,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -1583,7 +1659,8 @@ namespace Opc.Ua
             out byte[] continuationPoint,
             out ParsingResultCollection parsingResults,
             out DiagnosticInfoCollection diagnosticInfos,
-            out ContentFilterResult filterResult)
+            out ContentFilterResult filterResult
+        )
         {
             queryDataSets = null;
             continuationPoint = null;
@@ -1609,7 +1686,8 @@ namespace Opc.Ua
             ContentFilter filter,
             uint maxDataSetsToReturn,
             uint maxReferencesToReturn,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -1630,7 +1708,8 @@ namespace Opc.Ua
             bool releaseContinuationPoint,
             byte[] continuationPoint,
             out QueryDataSetCollection queryDataSets,
-            out byte[] revisedContinuationPoint)
+            out byte[] revisedContinuationPoint
+        )
         {
             queryDataSets = null;
             revisedContinuationPoint = null;
@@ -1650,7 +1729,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             bool releaseContinuationPoint,
             byte[] continuationPoint,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -1672,7 +1752,8 @@ namespace Opc.Ua
             TimestampsToReturn timestampsToReturn,
             ReadValueIdCollection nodesToRead,
             out DataValueCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             results = null;
             diagnosticInfos = null;
@@ -1693,7 +1774,8 @@ namespace Opc.Ua
             double maxAge,
             TimestampsToReturn timestampsToReturn,
             ReadValueIdCollection nodesToRead,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -1716,7 +1798,8 @@ namespace Opc.Ua
             bool releaseContinuationPoints,
             HistoryReadValueIdCollection nodesToRead,
             out HistoryReadResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             results = null;
             diagnosticInfos = null;
@@ -1738,7 +1821,8 @@ namespace Opc.Ua
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
             HistoryReadValueIdCollection nodesToRead,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -1758,7 +1842,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             WriteValueCollection nodesToWrite,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             results = null;
             diagnosticInfos = null;
@@ -1777,7 +1862,8 @@ namespace Opc.Ua
         public virtual async Task<WriteResponse> WriteAsync(
             RequestHeader requestHeader,
             WriteValueCollection nodesToWrite,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -1797,7 +1883,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             ExtensionObjectCollection historyUpdateDetails,
             out HistoryUpdateResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             results = null;
             diagnosticInfos = null;
@@ -1816,7 +1903,8 @@ namespace Opc.Ua
         public virtual async Task<HistoryUpdateResponse> HistoryUpdateAsync(
             RequestHeader requestHeader,
             ExtensionObjectCollection historyUpdateDetails,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -1836,7 +1924,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             CallMethodRequestCollection methodsToCall,
             out CallMethodResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             results = null;
             diagnosticInfos = null;
@@ -1855,7 +1944,8 @@ namespace Opc.Ua
         public virtual async Task<CallResponse> CallAsync(
             RequestHeader requestHeader,
             CallMethodRequestCollection methodsToCall,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -1877,7 +1967,8 @@ namespace Opc.Ua
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequestCollection itemsToCreate,
             out MonitoredItemCreateResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             results = null;
             diagnosticInfos = null;
@@ -1898,7 +1989,8 @@ namespace Opc.Ua
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequestCollection itemsToCreate,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -1920,7 +2012,8 @@ namespace Opc.Ua
             TimestampsToReturn timestampsToReturn,
             MonitoredItemModifyRequestCollection itemsToModify,
             out MonitoredItemModifyResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             results = null;
             diagnosticInfos = null;
@@ -1941,7 +2034,8 @@ namespace Opc.Ua
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
             MonitoredItemModifyRequestCollection itemsToModify,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -1963,7 +2057,8 @@ namespace Opc.Ua
             MonitoringMode monitoringMode,
             UInt32Collection monitoredItemIds,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             results = null;
             diagnosticInfos = null;
@@ -1984,7 +2079,8 @@ namespace Opc.Ua
             uint subscriptionId,
             MonitoringMode monitoringMode,
             UInt32Collection monitoredItemIds,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -2009,7 +2105,8 @@ namespace Opc.Ua
             out StatusCodeCollection addResults,
             out DiagnosticInfoCollection addDiagnosticInfos,
             out StatusCodeCollection removeResults,
-            out DiagnosticInfoCollection removeDiagnosticInfos)
+            out DiagnosticInfoCollection removeDiagnosticInfos
+        )
         {
             addResults = null;
             addDiagnosticInfos = null;
@@ -2033,7 +2130,8 @@ namespace Opc.Ua
             uint triggeringItemId,
             UInt32Collection linksToAdd,
             UInt32Collection linksToRemove,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -2054,7 +2152,8 @@ namespace Opc.Ua
             uint subscriptionId,
             UInt32Collection monitoredItemIds,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             results = null;
             diagnosticInfos = null;
@@ -2074,7 +2173,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             uint subscriptionId,
             UInt32Collection monitoredItemIds,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -2101,7 +2201,8 @@ namespace Opc.Ua
             out uint subscriptionId,
             out double revisedPublishingInterval,
             out uint revisedLifetimeCount,
-            out uint revisedMaxKeepAliveCount)
+            out uint revisedMaxKeepAliveCount
+        )
         {
             subscriptionId = 0;
             revisedPublishingInterval = 0;
@@ -2127,7 +2228,8 @@ namespace Opc.Ua
             uint maxNotificationsPerPublish,
             bool publishingEnabled,
             byte priority,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -2153,7 +2255,8 @@ namespace Opc.Ua
             byte priority,
             out double revisedPublishingInterval,
             out uint revisedLifetimeCount,
-            out uint revisedMaxKeepAliveCount)
+            out uint revisedMaxKeepAliveCount
+        )
         {
             revisedPublishingInterval = 0;
             revisedLifetimeCount = 0;
@@ -2178,7 +2281,8 @@ namespace Opc.Ua
             uint requestedMaxKeepAliveCount,
             uint maxNotificationsPerPublish,
             byte priority,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -2199,7 +2303,8 @@ namespace Opc.Ua
             bool publishingEnabled,
             UInt32Collection subscriptionIds,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             results = null;
             diagnosticInfos = null;
@@ -2219,7 +2324,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             bool publishingEnabled,
             UInt32Collection subscriptionIds,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -2243,7 +2349,8 @@ namespace Opc.Ua
             out bool moreNotifications,
             out NotificationMessage notificationMessage,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             subscriptionId = 0;
             availableSequenceNumbers = null;
@@ -2266,7 +2373,8 @@ namespace Opc.Ua
         public virtual async Task<PublishResponse> PublishAsync(
             RequestHeader requestHeader,
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -2286,7 +2394,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             uint subscriptionId,
             uint retransmitSequenceNumber,
-            out NotificationMessage notificationMessage)
+            out NotificationMessage notificationMessage
+        )
         {
             notificationMessage = null;
 
@@ -2305,7 +2414,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             uint subscriptionId,
             uint retransmitSequenceNumber,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -2326,7 +2436,8 @@ namespace Opc.Ua
             UInt32Collection subscriptionIds,
             bool sendInitialValues,
             out TransferResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             results = null;
             diagnosticInfos = null;
@@ -2346,7 +2457,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
             bool sendInitialValues,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -2366,7 +2478,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             results = null;
             diagnosticInfos = null;
@@ -2385,7 +2498,8 @@ namespace Opc.Ua
         public virtual async Task<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -2416,7 +2530,8 @@ namespace Opc.Ua
             string endpointUrl,
             StringCollection localeIds,
             StringCollection serverUris,
-            out ApplicationDescriptionCollection servers);
+            out ApplicationDescriptionCollection servers
+        );
 
 #if (!OPCUA_EXCLUDE_FindServers_ASYNC)
         /// <summary>
@@ -2427,7 +2542,8 @@ namespace Opc.Ua
             string endpointUrl,
             StringCollection localeIds,
             StringCollection serverUris,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -2441,7 +2557,8 @@ namespace Opc.Ua
             uint maxRecordsToReturn,
             StringCollection serverCapabilityFilter,
             out DateTime lastCounterResetTime,
-            out ServerOnNetworkCollection servers);
+            out ServerOnNetworkCollection servers
+        );
 
 #if (!OPCUA_EXCLUDE_FindServersOnNetwork_ASYNC)
         /// <summary>
@@ -2452,7 +2569,8 @@ namespace Opc.Ua
             uint startingRecordId,
             uint maxRecordsToReturn,
             StringCollection serverCapabilityFilter,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -2465,7 +2583,8 @@ namespace Opc.Ua
             string endpointUrl,
             StringCollection localeIds,
             StringCollection profileUris,
-            out EndpointDescriptionCollection endpoints);
+            out EndpointDescriptionCollection endpoints
+        );
 
 #if (!OPCUA_EXCLUDE_GetEndpoints_ASYNC)
         /// <summary>
@@ -2476,7 +2595,8 @@ namespace Opc.Ua
             string endpointUrl,
             StringCollection localeIds,
             StringCollection profileUris,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -2484,9 +2604,7 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the RegisterServer service.
         /// </summary>
-        ResponseHeader RegisterServer(
-            RequestHeader requestHeader,
-            RegisteredServer server);
+        ResponseHeader RegisterServer(RequestHeader requestHeader, RegisteredServer server);
 
 #if (!OPCUA_EXCLUDE_RegisterServer_ASYNC)
         /// <summary>
@@ -2495,7 +2613,8 @@ namespace Opc.Ua
         Task<RegisterServerResponse> RegisterServerAsync(
             RequestHeader requestHeader,
             RegisteredServer server,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
 
@@ -2508,7 +2627,8 @@ namespace Opc.Ua
             RegisteredServer server,
             ExtensionObjectCollection discoveryConfiguration,
             out StatusCodeCollection configurationResults,
-            out DiagnosticInfoCollection diagnosticInfos);
+            out DiagnosticInfoCollection diagnosticInfos
+        );
 
 #if (!OPCUA_EXCLUDE_RegisterServer2_ASYNC)
         /// <summary>
@@ -2518,7 +2638,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             RegisteredServer server,
             ExtensionObjectCollection discoveryConfiguration,
-            CancellationToken ct);
+            CancellationToken ct
+        );
 #endif
 #endif
     }
@@ -2541,7 +2662,8 @@ namespace Opc.Ua
             string endpointUrl,
             StringCollection localeIds,
             StringCollection serverUris,
-            out ApplicationDescriptionCollection servers)
+            out ApplicationDescriptionCollection servers
+        )
         {
             servers = null;
 
@@ -2561,7 +2683,8 @@ namespace Opc.Ua
             string endpointUrl,
             StringCollection localeIds,
             StringCollection serverUris,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -2583,7 +2706,8 @@ namespace Opc.Ua
             uint maxRecordsToReturn,
             StringCollection serverCapabilityFilter,
             out DateTime lastCounterResetTime,
-            out ServerOnNetworkCollection servers)
+            out ServerOnNetworkCollection servers
+        )
         {
             lastCounterResetTime = DateTime.MinValue;
             servers = null;
@@ -2604,7 +2728,8 @@ namespace Opc.Ua
             uint startingRecordId,
             uint maxRecordsToReturn,
             StringCollection serverCapabilityFilter,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -2625,7 +2750,8 @@ namespace Opc.Ua
             string endpointUrl,
             StringCollection localeIds,
             StringCollection profileUris,
-            out EndpointDescriptionCollection endpoints)
+            out EndpointDescriptionCollection endpoints
+        )
         {
             endpoints = null;
 
@@ -2645,7 +2771,8 @@ namespace Opc.Ua
             string endpointUrl,
             StringCollection localeIds,
             StringCollection profileUris,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -2661,11 +2788,8 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the RegisterServer service.
         /// </summary>
-        public virtual ResponseHeader RegisterServer(
-            RequestHeader requestHeader,
-            RegisteredServer server)
+        public virtual ResponseHeader RegisterServer(RequestHeader requestHeader, RegisteredServer server)
         {
-
             ValidateRequest(requestHeader);
 
             // Insert implementation.
@@ -2680,7 +2804,8 @@ namespace Opc.Ua
         public virtual async Task<RegisterServerResponse> RegisterServerAsync(
             RequestHeader requestHeader,
             RegisteredServer server,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 
@@ -2701,7 +2826,8 @@ namespace Opc.Ua
             RegisteredServer server,
             ExtensionObjectCollection discoveryConfiguration,
             out StatusCodeCollection configurationResults,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             configurationResults = null;
             diagnosticInfos = null;
@@ -2721,7 +2847,8 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             RegisteredServer server,
             ExtensionObjectCollection discoveryConfiguration,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             ValidateRequest(requestHeader);
 

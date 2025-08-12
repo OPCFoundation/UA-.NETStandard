@@ -90,12 +90,17 @@ namespace Opc.Ua.Buffers.Tests
             byte[] buffer;
 
             // Arrange
-            using var writer = new ArrayPoolBufferWriter<byte>(false, defaultChunkSize, maxChunkSize);
+            using var writer = new ArrayPoolBufferWriter<byte>(
+                false,
+                defaultChunkSize,
+                maxChunkSize);
             // Act
             for (int i = 0; i <= byte.MaxValue; i++)
             {
                 Span<byte> span;
-                int randomGetChunkSize = maxChunkSize > 0 ? chunkSize + random.Next(maxChunkSize) : chunkSize;
+                int randomGetChunkSize = maxChunkSize > 0
+                    ? chunkSize + random.Next(maxChunkSize)
+                    : chunkSize;
 
                 int repeats = random.Next(3);
                 do

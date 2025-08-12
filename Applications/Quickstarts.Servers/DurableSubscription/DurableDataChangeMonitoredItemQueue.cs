@@ -65,7 +65,9 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Creates a queue from a template
         /// </summary>
-        public DurableDataChangeMonitoredItemQueue(StorableDataChangeQueue queue, IBatchPersistor batchPersistor)
+        public DurableDataChangeMonitoredItemQueue(
+            StorableDataChangeQueue queue,
+            IBatchPersistor batchPersistor)
         {
             m_batchPersistor = batchPersistor;
             MonitoredItemId = queue.MonitoredItemId;
@@ -93,7 +95,6 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Brings the queue with content into a storable format
         /// </summary>
-        /// <returns></returns>
         public StorableDataChangeQueue ToStorableQueue()
         {
             return new StorableDataChangeQueue
@@ -104,7 +105,7 @@ namespace Quickstarts.Servers
                 ItemsInQueue = ItemsInQueue,
                 DataChangeBatches = m_dataChangeBatches,
                 DequeueBatch = m_dequeueBatch,
-                EnqueueBatch = m_enqueueBatch,
+                EnqueueBatch = m_enqueueBatch
             };
         }
 
@@ -116,6 +117,7 @@ namespace Quickstarts.Servers
         /// </summary>
         /// <param name="value">The value to queue.</param>
         /// <param name="error">The error to queue.</param>
+        /// <exception cref="InvalidOperationException"></exception>
         public void Enqueue(DataValue value, ServiceResult error)
         {
             if (QueueSize == 0)
@@ -145,7 +147,10 @@ namespace Quickstarts.Servers
                 // Special case: if the enqueue and dequeue batch are the same only one batch exists, so no storing is needed
                 if (m_dequeueBatch == m_enqueueBatch)
                 {
-                    m_dequeueBatch = new DataChangeBatch(m_enqueueBatch.Values, kBatchSize, MonitoredItemId);
+                    m_dequeueBatch = new DataChangeBatch(
+                        m_enqueueBatch.Values,
+                        kBatchSize,
+                        MonitoredItemId);
                     m_enqueueBatch = new DataChangeBatch([], kBatchSize, MonitoredItemId);
                 }
                 // persist the batch
@@ -153,7 +158,10 @@ namespace Quickstarts.Servers
                 {
                     Opc.Ua.Utils.LogDebug("Storing batch for monitored item {0}", MonitoredItemId);
 
-                    var batchToStore = new DataChangeBatch(m_enqueueBatch.Values, kBatchSize, MonitoredItemId);
+                    var batchToStore = new DataChangeBatch(
+                        m_enqueueBatch.Values,
+                        kBatchSize,
+                        MonitoredItemId);
                     m_dataChangeBatches.Add(batchToStore);
                     if (m_dataChangeBatches.Count > 1)
                     {
@@ -340,7 +348,10 @@ namespace Quickstarts.Servers
     /// </summary>
     public class DataChangeBatch : BatchBase
     {
-        public DataChangeBatch(List<(DataValue, ServiceResult)> values, uint batchSize, uint monitoredItemId)
+        public DataChangeBatch(
+            List<(DataValue, ServiceResult)> values,
+            uint batchSize,
+            uint monitoredItemId)
             : base(batchSize, monitoredItemId)
         {
             Values = values;
@@ -366,11 +377,17 @@ namespace Quickstarts.Servers
     public class StorableDataChangeQueue
     {
         public bool IsDurable { get; set; }
+
         public uint MonitoredItemId { get; set; }
+
         public int ItemsInQueue { get; set; }
+
         public uint QueueSize { get; set; }
+
         public DataChangeBatch EnqueueBatch { get; set; }
+
         public List<DataChangeBatch> DataChangeBatches { get; set; }
+
         public DataChangeBatch DequeueBatch { get; set; }
     }
 }

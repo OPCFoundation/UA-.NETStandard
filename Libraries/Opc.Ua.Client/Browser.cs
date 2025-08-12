@@ -229,6 +229,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Browses the specified node.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public ReferenceDescriptionCollection Browse(NodeId nodeId)
         {
             if (m_session == null)
@@ -251,22 +252,20 @@ namespace Opc.Ua.Client
                     ReferenceTypeId = m_referenceTypeId,
                     IncludeSubtypes = m_includeSubtypes,
                     NodeClassMask = m_nodeClassMask,
-                    ResultMask = m_resultMask,
+                    ResultMask = m_resultMask
                 };
 
                 var nodesToBrowse = new BrowseDescriptionCollection { nodeToBrowse };
 
                 // make the call to the server.
-                BrowseResultCollection results;
-                DiagnosticInfoCollection diagnosticInfos;
 
                 ResponseHeader responseHeader = m_session.Browse(
                     null,
                     m_view,
                     m_maxReferencesReturned,
                     nodesToBrowse,
-                    out results,
-                    out diagnosticInfos
+                    out BrowseResultCollection results,
+                    out DiagnosticInfoCollection diagnosticInfos
                 );
 
                 // ensure that the server returned valid results.
@@ -332,6 +331,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Checks the state of the browser.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void CheckBrowserState()
         {
             if (m_browseInProgress)
@@ -349,20 +349,19 @@ namespace Opc.Ua.Client
         /// <param name="continuationPoint">The continuation point.</param>
         /// <param name="cancel">if set to <c>true</c> the browse operation is cancelled.</param>
         /// <returns>The next batch of references</returns>
+        /// <exception cref="ServiceResultException"></exception>
         private ReferenceDescriptionCollection BrowseNext(ref byte[] continuationPoint, bool cancel)
         {
             var continuationPoints = new ByteStringCollection { continuationPoint };
 
             // make the call to the server.
-            BrowseResultCollection results;
-            DiagnosticInfoCollection diagnosticInfos;
 
             ResponseHeader responseHeader = m_session.BrowseNext(
                 null,
                 cancel,
                 continuationPoints,
-                out results,
-                out diagnosticInfos
+                out BrowseResultCollection results,
+                out DiagnosticInfoCollection diagnosticInfos
             );
 
             // ensure that the server returned valid results.

@@ -48,7 +48,10 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Creates an empty queue.
         /// </summary>
-        public DurableEventMonitoredItemQueue(bool createDurable, uint monitoredItemId, IBatchPersistor batchPersistor)
+        public DurableEventMonitoredItemQueue(
+            bool createDurable,
+            uint monitoredItemId,
+            IBatchPersistor batchPersistor)
         {
             IsDurable = createDurable;
             m_batchPersistor = batchPersistor;
@@ -62,7 +65,9 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Creates a queue from a template
         /// </summary>
-        public DurableEventMonitoredItemQueue(StorableEventQueue queue, IBatchPersistor batchPersistor)
+        public DurableEventMonitoredItemQueue(
+            StorableEventQueue queue,
+            IBatchPersistor batchPersistor)
         {
             IsDurable = queue.IsDurable;
             m_enqueueBatch = queue.EnqueueBatch;
@@ -153,7 +158,10 @@ namespace Quickstarts.Servers
                 // Special case: if the enqueue and dequeue batch are the same only one batch exists, so no storing is needed
                 if (m_dequeueBatch == m_enqueueBatch)
                 {
-                    m_dequeueBatch = new EventBatch(m_enqueueBatch.Events, kBatchSize, MonitoredItemId);
+                    m_dequeueBatch = new EventBatch(
+                        m_enqueueBatch.Events,
+                        kBatchSize,
+                        MonitoredItemId);
                     m_enqueueBatch = new EventBatch([], kBatchSize, MonitoredItemId);
                 }
                 // persist the batch
@@ -161,7 +169,10 @@ namespace Quickstarts.Servers
                 {
                     Opc.Ua.Utils.LogDebug("Storing batch for monitored item {0}", MonitoredItemId);
 
-                    var batchToStore = new EventBatch(m_enqueueBatch.Events, kBatchSize, MonitoredItemId);
+                    var batchToStore = new EventBatch(
+                        m_enqueueBatch.Events,
+                        kBatchSize,
+                        MonitoredItemId);
                     m_eventBatches.Add(batchToStore);
                     //only persist second batch in list, as the first could be needed, for duplicate event check
                     if (m_eventBatches.Count > 1)
@@ -218,7 +229,8 @@ namespace Quickstarts.Servers
             for (int i = 0; i < maxCount; i++)
             {
                 // Check in the enqueue batch
-                if (i < m_enqueueBatch.Events.Count && m_enqueueBatch.Events[i] is EventFieldList processedEvent)
+                if (i < m_enqueueBatch.Events.Count &&
+                    m_enqueueBatch.Events[i] is EventFieldList processedEvent)
                 {
                     if (ReferenceEquals(instance, processedEvent.Handle))
                     {
@@ -230,9 +242,10 @@ namespace Quickstarts.Servers
                 {
                     int indexInStoredBatch = i - m_enqueueBatch.Events.Count;
                     if (
-                        indexInStoredBatch < m_eventBatches[^1].Events.Count
-                        && m_eventBatches[^1].Events[indexInStoredBatch] is EventFieldList storedEvent
-                        && ReferenceEquals(instance, storedEvent.Handle)
+                        indexInStoredBatch < m_eventBatches[^1].Events.Count &&
+                        m_eventBatches[^1].Events[
+                            indexInStoredBatch] is EventFieldList storedEvent &&
+                        ReferenceEquals(instance, storedEvent.Handle)
                     )
                     {
                         return true;
@@ -302,7 +315,8 @@ namespace Quickstarts.Servers
                     while (itemsToRemove > 0 && m_enqueueBatch.Events.Count > 0)
                     {
                         int removeCount = Math.Min(itemsToRemove, m_enqueueBatch.Events.Count);
-                        m_enqueueBatch.Events.RemoveRange(m_enqueueBatch.Events.Count - removeCount, removeCount);
+                        m_enqueueBatch.Events
+                            .RemoveRange(m_enqueueBatch.Events.Count - removeCount, removeCount);
                         ItemsInQueue -= removeCount;
                         itemsToRemove -= removeCount;
                     }
@@ -322,7 +336,8 @@ namespace Quickstarts.Servers
                         }
                         else
                         {
-                            batch.Events.RemoveRange(batch.Events.Count - itemsToRemove, itemsToRemove);
+                            batch.Events
+                                .RemoveRange(batch.Events.Count - itemsToRemove, itemsToRemove);
                             ItemsInQueue -= itemsToRemove;
                             itemsToRemove = 0;
                         }
@@ -332,7 +347,8 @@ namespace Quickstarts.Servers
                     while (itemsToRemove > 0 && m_dequeueBatch.Events.Count > 0)
                     {
                         int removeCount = Math.Min(itemsToRemove, m_dequeueBatch.Events.Count);
-                        m_dequeueBatch.Events.RemoveRange(m_dequeueBatch.Events.Count - removeCount, removeCount);
+                        m_dequeueBatch.Events
+                            .RemoveRange(m_dequeueBatch.Events.Count - removeCount, removeCount);
                         ItemsInQueue -= removeCount;
                         itemsToRemove -= removeCount;
                     }
@@ -343,7 +359,6 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Brings the queue with contents into a storable format
         /// </summary>
-        /// <returns></returns>
         public StorableEventQueue ToStorableQueue()
         {
             return new StorableEventQueue
@@ -353,7 +368,7 @@ namespace Quickstarts.Servers
                 DequeueBatch = m_dequeueBatch,
                 EnqueueBatch = m_enqueueBatch,
                 EventBatches = m_eventBatches,
-                QueueSize = QueueSize,
+                QueueSize = QueueSize
             };
         }
 
@@ -415,10 +430,15 @@ namespace Quickstarts.Servers
     public class StorableEventQueue
     {
         public bool IsDurable { get; set; }
+
         public uint MonitoredItemId { get; set; }
+
         public EventBatch EnqueueBatch { get; set; }
+
         public List<EventBatch> EventBatches { get; set; }
+
         public EventBatch DequeueBatch { get; set; }
+
         public uint QueueSize { get; set; }
     }
 }

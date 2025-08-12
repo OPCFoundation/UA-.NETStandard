@@ -38,7 +38,10 @@ namespace Opc.Ua
         /// <summary>
         /// The operation contract for the InvokeService service.
         /// </summary>
-        IAsyncResult BeginInvokeService(InvokeServiceMessage request, AsyncCallback callback, object asyncState);
+        IAsyncResult BeginInvokeService(
+            InvokeServiceMessage request,
+            AsyncCallback callback,
+            object asyncState);
 
         /// <summary>
         /// The method used to retrieve the results of a InvokeService service request.

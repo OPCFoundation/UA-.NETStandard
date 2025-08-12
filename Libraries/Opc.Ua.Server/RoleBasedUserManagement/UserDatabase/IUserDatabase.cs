@@ -69,7 +69,6 @@ namespace Opc.Ua.Server.UserDatabase
         /// <summary>
         /// returns the Role of the provided user
         /// </summary>
-        /// <param name="userName"></param>
         /// <returns>the Role of the provided users</returns>
         /// <exception cref="ArgumentException">When the user is not found</exception>
         IEnumerable<Role> GetUserRoles(string userName);
@@ -77,9 +76,6 @@ namespace Opc.Ua.Server.UserDatabase
         /// <summary>
         /// changes the password of an existing users
         /// </summary>
-        /// <param name="userName"></param>
-        /// <param name="oldPassword"></param>
-        /// <param name="newPassword"></param>
         /// <returns>true if change was successfull</returns>
         bool ChangePassword(string userName, string oldPassword, string newPassword);
     }

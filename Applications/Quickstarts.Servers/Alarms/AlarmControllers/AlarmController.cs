@@ -47,7 +47,7 @@ namespace Alarms
         protected bool m_isBoolean;
         protected bool m_allowChanges;
         protected bool m_reset;
-        protected DateTime m_lastMaxValue = new();
+        protected DateTime m_lastMaxValue;
         protected bool m_validLastMaxValue;
         protected int m_midpoint = AlarmDefines.NORMAL_START_VALUE;
 
@@ -138,7 +138,9 @@ namespace Alarms
                 }
                 else
                 {
-                    Utils.LogError("AlarmController Received out of range manual write of {0}", value);
+                    Utils.LogError(
+                        "AlarmController Received out of range manual write of {0}",
+                        value);
                 }
             }
             else if ((bool)value)
@@ -185,9 +187,15 @@ namespace Alarms
 
         public bool SupportsBranching { get; set; }
 
-        public virtual void SetBranchCount(int count) { }
+        public virtual void SetBranchCount(int count)
+        {
+        }
 
-        protected void TypicalGetValue(int minValue, int maxValue, ref int intValue, ref bool boolValue)
+        protected void TypicalGetValue(
+            int minValue,
+            int maxValue,
+            ref int intValue,
+            ref bool boolValue)
         {
             int incrementValue = 5;
             if (m_isBoolean)
@@ -201,7 +209,10 @@ namespace Alarms
                 {
                     if (m_validLastMaxValue)
                     {
-                        Utils.LogInfo("Cycle Time {0} Interval {1}", DateTime.Now - m_lastMaxValue, m_interval);
+                        Utils.LogInfo(
+                            "Cycle Time {0} Interval {1}",
+                            DateTime.Now - m_lastMaxValue,
+                            m_interval);
                     }
                     m_lastMaxValue = DateTime.Now;
                     m_validLastMaxValue = true;
@@ -279,12 +290,13 @@ namespace Alarms
             const double phase = -0.25; // phaseShift;
             double verticalShift = median; // amplitude
 
-            double calculated = (amplitude * Math.Sin(period * (reducedPeriod + phase))) + verticalShift;
+            double calculated = (amplitude * Math.Sin(period * (reducedPeriod + phase))) +
+                verticalShift;
 
             Utils.LogTrace(
-                " Phase {0:0.00} Value {1} Sine {2:0.00}"
-                    + " Offset Value {3:0.00} Span {4:0.00}"
-                    + " Percentage of Range {5:0.00}",
+                " Phase {0:0.00} Value {1} Sine {2:0.00}" +
+                " Offset Value {3:0.00} Span {4:0.00}" +
+                " Percentage of Range {5:0.00}",
                 phase,
                 value,
                 calculated,
@@ -306,10 +318,16 @@ namespace Alarms
             return false;
         }
 
-        public virtual void OnAddComment() { }
+        public virtual void OnAddComment()
+        {
+        }
 
-        public virtual void OnAcknowledge() { }
+        public virtual void OnAcknowledge()
+        {
+        }
 
-        public virtual void OnConfirm() { }
+        public virtual void OnConfirm()
+        {
+        }
     }
 }

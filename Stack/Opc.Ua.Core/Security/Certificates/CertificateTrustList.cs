@@ -54,6 +54,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the certificates in the trust list.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public async Task<X509Certificate2Collection> GetCertificatesAsync()
         {
             var collection = new X509Certificate2Collection();
@@ -87,7 +88,8 @@ namespace Opc.Ua
 
             foreach (CertificateIdentifier trustedCertificate in TrustedCertificates)
             {
-                X509Certificate2 certificate = await trustedCertificate.FindAsync().ConfigureAwait(false);
+                X509Certificate2 certificate = await trustedCertificate.FindAsync()
+                    .ConfigureAwait(false);
 
                 if (certificate != null)
                 {

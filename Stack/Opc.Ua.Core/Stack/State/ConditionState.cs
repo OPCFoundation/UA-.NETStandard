@@ -135,7 +135,10 @@ namespace Opc.Ua
         /// <param name="context">The system context.</param>
         /// <param name="comment">The comment.</param>
         /// <param name="clientUserId">The user that added the comment.</param>
-        public virtual void SetComment(ISystemContext context, LocalizedText comment, string clientUserId)
+        public virtual void SetComment(
+            ISystemContext context,
+            LocalizedText comment,
+            string clientUserId)
         {
             if (Comment != null)
             {
@@ -188,7 +191,6 @@ namespace Opc.Ua
         /// <remarks>
         /// Function exists because constructor is in auto generated code.
         /// </remarks>
-        /// <returns></returns>
         public Dictionary<string, ConditionState> GetBranches()
         {
             return m_branches ??= [];
@@ -205,10 +207,8 @@ namespace Opc.Ua
             {
                 return this;
             }
-            else
-            {
-                return GetBranch(eventId);
-            }
+
+            return GetBranch(eventId);
         }
 
         /// <summary>
@@ -362,7 +362,10 @@ namespace Opc.Ua
         /// <summary>
         /// Handles a condition refresh.
         /// </summary>
-        public override void ConditionRefresh(ISystemContext context, List<IFilterTarget> events, bool includeChildren)
+        public override void ConditionRefresh(
+            ISystemContext context,
+            List<IFilterTarget> events,
+            bool includeChildren)
         {
             if (Retain.Value)
             {
@@ -456,7 +459,10 @@ namespace Opc.Ua
                 // raise the audit event.
                 var e = new AuditConditionCommentEventState(null);
 
-                var info = new TranslationInfo("AuditConditionComment", "en-US", "The AddComment method was called.");
+                var info = new TranslationInfo(
+                    "AuditConditionComment",
+                    "en-US",
+                    "The AddComment method was called.");
 
                 e.Initialize(
                     context,
@@ -471,7 +477,11 @@ namespace Opc.Ua
                 e.SetChildValue(context, BrowseNames.SourceName, "Method/AddComment", false);
 
                 e.SetChildValue(context, BrowseNames.MethodId, method.NodeId, false);
-                e.SetChildValue(context, BrowseNames.InputArguments, new object[] { eventId, comment }, false);
+                e.SetChildValue(
+                    context,
+                    BrowseNames.InputArguments,
+                    new object[] { eventId, comment },
+                    false);
 
                 e.SetChildValue(context, BrowseNames.ConditionEventId, eventId, false);
                 e.SetChildValue(context, BrowseNames.Comment, comment, false);
@@ -489,7 +499,8 @@ namespace Opc.Ua
         /// <returns>The display name for the current user.</returns>
         protected string GetCurrentUserId(ISystemContext context)
         {
-            if (context is IOperationContext operationContext && operationContext.UserIdentity != null)
+            if (context is IOperationContext operationContext &&
+                operationContext.UserIdentity != null)
             {
                 return operationContext.UserIdentity.DisplayName;
             }
@@ -574,7 +585,10 @@ namespace Opc.Ua
                 // raise the audit event.
                 var e = new AuditConditionEnableEventState(null);
 
-                var info = new TranslationInfo("AuditConditionEnable", "en-US", "The Enable method was called.");
+                var info = new TranslationInfo(
+                    "AuditConditionEnable",
+                    "en-US",
+                    "The Enable method was called.");
 
                 e.Initialize(
                     context,
@@ -632,7 +646,10 @@ namespace Opc.Ua
                 // raise the audit event.
                 var e = new AuditConditionEnableEventState(null);
 
-                var info = new TranslationInfo("AuditConditionEnable", "en-US", "The Disable method was called.");
+                var info = new TranslationInfo(
+                    "AuditConditionEnable",
+                    "en-US",
+                    "The Disable method was called.");
 
                 e.Initialize(
                     context,
@@ -658,7 +675,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The system context.</param>
         /// <param name="enabling">True if the condition is being enabled.</param>
-        protected virtual ServiceResult ProcessBeforeEnableDisable(ISystemContext context, bool enabling)
+        protected virtual ServiceResult ProcessBeforeEnableDisable(
+            ISystemContext context,
+            bool enabling)
         {
             if (enabling && EnabledState.Id.Value)
             {
@@ -695,7 +714,10 @@ namespace Opc.Ua
         /// <param name="context">The system context.</param>
         protected virtual void UpdateStateAfterEnable(ISystemContext context)
         {
-            var state = new TranslationInfo("ConditionStateEnabled", "en-US", ConditionStateNames.Enabled);
+            var state = new TranslationInfo(
+                "ConditionStateEnabled",
+                "en-US",
+                ConditionStateNames.Enabled);
 
             Retain.Value = true;
             EnabledState.Value = new LocalizedText(state);
@@ -715,7 +737,10 @@ namespace Opc.Ua
         /// <param name="context">The system context.</param>
         protected virtual void UpdateStateAfterDisable(ISystemContext context)
         {
-            var state = new TranslationInfo("ConditionStateDisabled", "en-US", ConditionStateNames.Disabled);
+            var state = new TranslationInfo(
+                "ConditionStateDisabled",
+                "en-US",
+                ConditionStateNames.Disabled);
 
             Retain.Value = false;
             EnabledState.Value = new LocalizedText(state);

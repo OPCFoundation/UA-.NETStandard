@@ -70,14 +70,16 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public ActiveClientTracker()
         {
-            m_cleanupTimer = new Timer(CleanupExpiredEntries, null, kCleanupIntervalMs, kCleanupIntervalMs);
+            m_cleanupTimer = new Timer(
+                CleanupExpiredEntries,
+                null,
+                kCleanupIntervalMs,
+                kCleanupIntervalMs);
         }
 
         /// <summary>
         /// Checks if an IP address is currently blocked
         /// </summary>
-        /// <param name="ipAddress"></param>
-        /// <returns></returns>
         public bool IsBlocked(IPAddress ipAddress)
         {
             if (m_activeClients.TryGetValue(ipAddress, out ActiveClient client))
@@ -91,7 +93,6 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Adds a potential problematic action entry for a client
         /// </summary>
-        /// <param name="ipAddress"></param>
         public void AddClientAction(IPAddress ipAddress)
         {
             int currentTicks = HiResClock.TickCount;
@@ -103,7 +104,7 @@ namespace Opc.Ua.Bindings
                 {
                     LastActionTicks = currentTicks,
                     ActiveActionCount = 1,
-                    BlockedUntilTicks = 0,
+                    BlockedUntilTicks = 0
                 },
                 // If the client exists, update its entry
                 (key, existingEntry) =>
@@ -158,7 +159,6 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Periodically cleans up expired active client entries to avoid memory leak and unblock clients whose duration has expired.
         /// </summary>
-        /// <param name="state"></param>
         private void CleanupExpiredEntries(object state)
         {
             int currentTicks = HiResClock.TickCount;
@@ -169,7 +169,8 @@ namespace Opc.Ua.Bindings
                 ActiveClient rClient = entry.Value;
 
                 // Unblock client if blocking duration has been exceeded
-                if (rClient.BlockedUntilTicks != 0 && !IsBlockedTicks(rClient.BlockedUntilTicks, currentTicks))
+                if (rClient.BlockedUntilTicks != 0 &&
+                    !IsBlockedTicks(rClient.BlockedUntilTicks, currentTicks))
                 {
                     rClient.BlockedUntilTicks = 0;
                     rClient.ActiveActionCount = 0;
@@ -200,9 +201,6 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Determines if the IP is currently blocked based on the block expiration ticks and current ticks
         /// </summary>
-        /// <param name="blockedUntilTicks"></param>
-        /// <param name="currentTicks"></param>
-        /// <returns></returns>
         private static bool IsBlockedTicks(int blockedUntilTicks, int currentTicks)
         {
             if (blockedUntilTicks == 0)
@@ -313,7 +311,10 @@ namespace Opc.Ua.Bindings
         /// <param name="callback">The callback to use when requests arrive via the channel.</param>
         /// <exception cref="ArgumentNullException">Thrown if any parameter is null.</exception>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        public void Open(Uri baseAddress, TransportListenerSettings settings, ITransportListenerCallback callback)
+        public void Open(
+            Uri baseAddress,
+            TransportListenerSettings settings,
+            ITransportListenerCallback callback)
         {
             // assign a unique guid to the listener.
             ListenerId = Guid.NewGuid().ToString();
@@ -324,23 +325,25 @@ namespace Opc.Ua.Bindings
 
             // initialize the quotas.
             m_quotas = new ChannelQuotas();
-            var messageContext = new ServiceMessageContext()
+            var messageContext = new ServiceMessageContext
             {
                 NamespaceUris = settings.NamespaceUris,
                 ServerUris = new StringTable(),
-                Factory = settings.Factory,
+                Factory = settings.Factory
             };
 
             if (configuration != null)
             {
                 m_inactivityDetectPeriod = configuration.ChannelLifetime / 2;
                 m_quotas.MaxBufferSize = configuration.MaxBufferSize;
-                m_quotas.MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(configuration.MaxMessageSize);
+                m_quotas.MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(
+                    configuration.MaxMessageSize);
                 m_quotas.ChannelLifetime = configuration.ChannelLifetime;
                 m_quotas.SecurityTokenLifetime = configuration.SecurityTokenLifetime;
                 messageContext.MaxArrayLength = configuration.MaxArrayLength;
                 messageContext.MaxByteStringLength = configuration.MaxByteStringLength;
-                messageContext.MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(configuration.MaxMessageSize);
+                messageContext.MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(
+                    configuration.MaxMessageSize);
                 messageContext.MaxStringLength = configuration.MaxStringLength;
                 messageContext.MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels;
                 messageContext.MaxDecoderRecoveries = configuration.MaxDecoderRecoveries;
@@ -381,8 +384,8 @@ namespace Opc.Ua.Bindings
                 string channelIdString = globalChannelId[(ListenerId.Length + 1)..];
                 uint channelId = Convert.ToUInt32(channelIdString, CultureInfo.InvariantCulture);
 
-                TcpListenerChannel channel = null;
-                if (channelId > 0 && m_channels?.TryGetValue(channelId, out channel) == true)
+                if (channelId > 0 &&
+                    m_channels?.TryGetValue(channelId, out TcpListenerChannel channel) == true)
                 {
                     channel?.UpdateLastActiveTime();
                 }
@@ -402,6 +405,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Binds a new socket to an existing channel.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public bool ReconnectToExistingChannel(
             IMessageSocket socket,
             uint requestId,
@@ -436,8 +440,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void ChannelClosed(uint channelId)
         {
-            TcpListenerChannel channel = null;
-            if (m_channels?.TryRemove(channelId, out channel) == true)
+            if (m_channels?.TryRemove(channelId, out TcpListenerChannel channel) == true)
             {
                 Utils.SilentDispose(channel);
                 Utils.LogInfo("ChannelId {0}: closed", channelId);
@@ -481,7 +484,10 @@ namespace Opc.Ua.Bindings
             );
         }
 
-        private void Channel_StatusChanged(TcpServerChannel channel, ServiceResult status, bool closed)
+        private void Channel_StatusChanged(
+            TcpServerChannel channel,
+            ServiceResult status,
+            bool closed)
         {
             ConnectionStatusChanged?.Invoke(
                 this,
@@ -495,6 +501,7 @@ namespace Opc.Ua.Bindings
         /// <remarks>
         /// The server tried to connect to a client using a reverse hello message.
         /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
         private void OnReverseHelloComplete(IAsyncResult result)
         {
             var channel = (TcpServerChannel)result.AsyncState;
@@ -509,12 +516,15 @@ namespace Opc.Ua.Bindings
 
                 if (m_callback != null)
                 {
-                    channel.SetRequestReceivedCallback(new TcpChannelRequestEventHandler(OnRequestReceived));
+                    channel.SetRequestReceivedCallback(
+                        new TcpChannelRequestEventHandler(OnRequestReceived));
                     channel.SetReportOpenSecureChannelAuditCallback(
-                        new ReportAuditOpenSecureChannelEventHandler(OnReportAuditOpenSecureChannelEvent)
+                        new ReportAuditOpenSecureChannelEventHandler(
+                            OnReportAuditOpenSecureChannelEvent)
                     );
                     channel.SetReportCloseSecureChannelAuditCallback(
-                        new ReportAuditCloseSecureChannelEventHandler(OnReportAuditCloseSecureChannelEvent)
+                        new ReportAuditCloseSecureChannelEventHandler(
+                            OnReportAuditCloseSecureChannelEvent)
                     );
                     channel.SetReportCertificateAuditCallback(
                         new ReportAuditCertificateEventHandler(OnReportAuditCertificateEvent)
@@ -527,7 +537,10 @@ namespace Opc.Ua.Bindings
             {
                 ConnectionStatusChanged?.Invoke(
                     this,
-                    new ConnectionStatusEventArgs(channel.ReverseConnectionUrl, new ServiceResult(e), true)
+                    new ConnectionStatusEventArgs(
+                        channel.ReverseConnectionUrl,
+                        new ServiceResult(e),
+                        true)
                 );
             }
             finally
@@ -539,14 +552,15 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Starts listening at the specified port.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void Start()
         {
             lock (m_lock)
             {
                 // Track potential problematic client behavior only if Basic128Rsa15 security policy is offered
                 if (
-                    m_descriptions != null
-                    && m_descriptions.Any(d => d.SecurityPolicyUri == SecurityPolicies.Basic128Rsa15)
+                    m_descriptions != null &&
+                    m_descriptions.Any(d => d.SecurityPolicyUri == SecurityPolicies.Basic128Rsa15)
                 )
                 {
                     m_activeClientTracker = new ActiveClientTracker();
@@ -563,16 +577,21 @@ namespace Opc.Ua.Bindings
                 UriHostNameType hostType = Uri.CheckHostName(EndpointUrl.Host);
                 bool bindToSpecifiedAddress =
                     hostType is not UriHostNameType.Dns and not UriHostNameType.Unknown and not UriHostNameType.Basic;
-                IPAddress ipAddress = bindToSpecifiedAddress ? IPAddress.Parse(EndpointUrl.Host) : IPAddress.Any;
+                IPAddress ipAddress = bindToSpecifiedAddress
+                    ? IPAddress.Parse(EndpointUrl.Host)
+                    : IPAddress.Any;
 
                 // create IPv4 or IPv6 socket.
                 try
                 {
                     var endpoint = new IPEndPoint(ipAddress, port);
-                    m_listeningSocket = new Socket(endpoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
+                    m_listeningSocket = new Socket(
+                        endpoint.AddressFamily,
+                        SocketType.Stream,
+                        ProtocolType.Tcp)
                     {
                         NoDelay = true,
-                        LingerState = new LingerOption(true, 5),
+                        LingerState = new LingerOption(true, 5)
                     };
                     var args = new SocketAsyncEventArgs();
                     args.Completed += OnAccept;
@@ -616,9 +635,9 @@ namespace Opc.Ua.Bindings
                         )
                         {
                             NoDelay = true,
-                            LingerState = new LingerOption(true, 5),
+                            LingerState = new LingerOption(true, 5)
                         };
-                        var args = new SocketAsyncEventArgs() { UserToken = m_listeningSocketIPv6 };
+                        var args = new SocketAsyncEventArgs { UserToken = m_listeningSocketIPv6 };
                         args.Completed += OnAccept;
 
                         m_listeningSocketIPv6.Bind(endpointIPv6);
@@ -687,13 +706,16 @@ namespace Opc.Ua.Bindings
         /// Transfers the channel to a waiting connection.
         /// </summary>
         /// <returns>TRUE if the channel should be kept open; FALSE otherwise.</returns>
-        public async Task<bool> TransferListenerChannelAsync(uint channelId, string serverUri, Uri endpointUrl)
+        /// <exception cref="ServiceResultException"></exception>
+        public async Task<bool> TransferListenerChannelAsync(
+            uint channelId,
+            string serverUri,
+            Uri endpointUrl)
         {
             bool accepted = false;
-            TcpListenerChannel channel = null;
 
             // remove it so it does not get cleaned up as an inactive connection.
-            if (m_channels?.TryRemove(channelId, out channel) != true)
+            if (m_channels?.TryRemove(channelId, out TcpListenerChannel channel) != true)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadTcpSecureChannelUnknown,
@@ -704,7 +726,10 @@ namespace Opc.Ua.Bindings
             // notify the application.
             if (ConnectionWaiting != null)
             {
-                var args = new TcpConnectionWaitingEventArgs(serverUri, endpointUrl, channel.Socket);
+                var args = new TcpConnectionWaitingEventArgs(
+                    serverUri,
+                    endpointUrl,
+                    channel.Socket);
                 await ConnectionWaiting(this, args).ConfigureAwait(false);
                 accepted = args.Accepted;
             }
@@ -733,14 +758,16 @@ namespace Opc.Ua.Bindings
                 // TODO: why only if SERVERCERT != null
                 if (description.ServerCertificate != null)
                 {
-                    X509Certificate2 serverCertificate = certificateTypesProvider.GetInstanceCertificate(
-                        description.SecurityPolicyUri
-                    );
+                    X509Certificate2 serverCertificate = certificateTypesProvider
+                        .GetInstanceCertificate(
+                            description.SecurityPolicyUri
+                            );
                     if (certificateTypesProvider.SendCertificateChain)
                     {
-                        description.ServerCertificate = certificateTypesProvider.LoadCertificateChainRaw(
-                            serverCertificate
-                        );
+                        description.ServerCertificate = certificateTypesProvider
+                            .LoadCertificateChainRaw(
+                                serverCertificate
+                                );
                     }
                     else
                     {
@@ -753,10 +780,11 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Mark a remote endpoint as potential problematic
         /// </summary>
-        /// <param name="remoteEndpoint"></param>
         internal void MarkAsPotentialProblematic(IPAddress remoteEndpoint)
         {
-            Utils.LogDebug("MarkClientAsPotentialProblematic address: {0} ", remoteEndpoint.ToString());
+            Utils.LogDebug(
+                "MarkClientAsPotentialProblematic address: {0} ",
+                remoteEndpoint.ToString());
             m_activeClientTracker?.AddClientAction(remoteEndpoint);
         }
 
@@ -811,14 +839,16 @@ namespace Opc.Ua.Bindings
                             // Identify channels without established sessions
                             KeyValuePair<uint, TcpListenerChannel>[] nonSessionChannels =
                             [
-                                .. snapshot.Where(ch => !ch.Value.UsedBySession),
+                                .. snapshot.Where(ch => !ch.Value.UsedBySession)
                             ];
 
                             if (nonSessionChannels.Length != 0)
                             {
-                                KeyValuePair<uint, TcpListenerChannel> oldestIdChannel = nonSessionChannels.Aggregate(
+                                KeyValuePair<uint, TcpListenerChannel> oldestIdChannel
+                                    = nonSessionChannels.Aggregate(
                                     (max, current) =>
-                                        current.Value.ElapsedSinceLastActiveTime > max.Value.ElapsedSinceLastActiveTime
+                                        current.Value.ElapsedSinceLastActiveTime > max.Value
+                                            .ElapsedSinceLastActiveTime
                                             ? current
                                             : max
                                 );
@@ -837,7 +867,8 @@ namespace Opc.Ua.Bindings
                             }
                         }
 
-                        bool serveChannel = !(MaxChannelCount > 0 && MaxChannelCount < channelCount);
+                        bool serveChannel = !(MaxChannelCount > 0 &&
+                            MaxChannelCount < channelCount);
                         if (!serveChannel)
                         {
                             Utils.LogError(
@@ -849,7 +880,9 @@ namespace Opc.Ua.Bindings
                         }
 
                         // check if the accept socket has been created.
-                        if (serveChannel && e.AcceptSocket != null && e.SocketError == SocketError.Success)
+                        if (serveChannel &&
+                            e.AcceptSocket != null &&
+                            e.SocketError == SocketError.Success)
                         {
                             channel = null;
                             try
@@ -894,7 +927,8 @@ namespace Opc.Ua.Bindings
                                         )
                                     );
                                     channel.SetReportCertificateAuditCallback(
-                                        new ReportAuditCertificateEventHandler(OnReportAuditCertificateEvent)
+                                        new ReportAuditCertificateEventHandler(
+                                            OnReportAuditCertificateEvent)
                                     );
                                 }
 
@@ -951,7 +985,6 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The inactive timer callback which detects stale channels.
         /// </summary>
-        /// <param name="state"></param>
         private void DetectInactiveChannels(object state = null)
         {
             var channels = new List<TcpListenerChannel>();
@@ -968,7 +1001,9 @@ namespace Opc.Ua.Bindings
 
             if (cleanup)
             {
-                Utils.LogInfo("TCPLISTENER: {0} channels scheduled for IdleCleanup.", channels.Count);
+                Utils.LogInfo(
+                    "TCPLISTENER: {0} channels scheduled for IdleCleanup.",
+                    channels.Count);
                 foreach (TcpListenerChannel channel in channels)
                 {
                     channel.IdleCleanup();
@@ -985,7 +1020,10 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Handles requests arriving from a channel.
         /// </summary>
-        private void OnRequestReceived(TcpListenerChannel channel, uint requestId, IServiceRequest request)
+        private void OnRequestReceived(
+            TcpListenerChannel channel,
+            uint requestId,
+            IServiceRequest request)
         {
             try
             {
@@ -1028,14 +1066,18 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "TCPLISTENER - Unexpected error sending OpenSecureChannel Audit event.");
+                Utils.LogError(
+                    e,
+                    "TCPLISTENER - Unexpected error sending OpenSecureChannel Audit event.");
             }
         }
 
         /// <summary>
         /// Callback for reporting the close secure channel audit event
         /// </summary>
-        private void OnReportAuditCloseSecureChannelEvent(TcpServerChannel channel, Exception exception)
+        private void OnReportAuditCloseSecureChannelEvent(
+            TcpServerChannel channel,
+            Exception exception)
         {
             try
             {
@@ -1043,14 +1085,18 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "TCPLISTENER - Unexpected error sending CloseSecureChannel Audit event.");
+                Utils.LogError(
+                    e,
+                    "TCPLISTENER - Unexpected error sending CloseSecureChannel Audit event.");
             }
         }
 
         /// <summary>
         /// Callback for reporting the certificate audit events
         /// </summary>
-        private void OnReportAuditCertificateEvent(X509Certificate2 clientCertificate, Exception exception)
+        private void OnReportAuditCertificateEvent(
+            X509Certificate2 clientCertificate,
+            Exception exception)
         {
             try
             {
@@ -1058,7 +1104,9 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "TCPLISTENER - Unexpected error sending Certificate Audit event.");
+                Utils.LogError(
+                    e,
+                    "TCPLISTENER - Unexpected error sending Certificate Audit event.");
             }
         }
 
@@ -1077,7 +1125,8 @@ namespace Opc.Ua.Bindings
                     {
                         channel.SendResponse((uint)args[1], response);
                     }
-                    catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadSecureChannelClosed)
+                    catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes
+                        .BadSecureChannelClosed)
                     {
                         //try to find the new channel id for the authentication token to send response over new channel
                         var request = (IServiceRequest)args[2];
@@ -1086,8 +1135,8 @@ namespace Opc.Ua.Bindings
                             m_callback?.TryGetSecureChannelIdForAuthenticationToken(
                                 authenticationToken,
                                 out uint channelId
-                            ) == true
-                            && m_channels.TryGetValue(channelId, out TcpListenerChannel newChannel)
+                            ) == true &&
+                            m_channels.TryGetValue(channelId, out TcpListenerChannel newChannel)
                         )
                         {
                             var serverChannel = (TcpServerChannel)newChannel;
@@ -1140,7 +1189,10 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class TcpConnectionWaitingEventArgs : ConnectionWaitingEventArgs
     {
-        internal TcpConnectionWaitingEventArgs(string serverUrl, Uri endpointUrl, IMessageSocket socket)
+        internal TcpConnectionWaitingEventArgs(
+            string serverUrl,
+            Uri endpointUrl,
+            IMessageSocket socket)
             : base(serverUrl, endpointUrl)
         {
             Socket = socket;

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -29,12 +29,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Xml;
 using System.Linq;
 using System.Runtime.Serialization;
-using System.Threading.Tasks;
+using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
+using System.Xml;
 using Opc.Ua;
 
 namespace Opc.Ua.Gds
@@ -77,24 +77,42 @@ namespace Opc.Ua.Gds
         [DataMember(Name = "ApplicationId", IsRequired = false, Order = 1)]
         public NodeId ApplicationId
         {
-            get { return m_applicationId; }
-            set { m_applicationId = value; }
+            get
+            {
+                return m_applicationId;
+            }
+            set
+            {
+                m_applicationId = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ApplicationUri", IsRequired = false, Order = 2)]
         public string ApplicationUri
         {
-            get { return m_applicationUri; }
-            set { m_applicationUri = value; }
+            get
+            {
+                return m_applicationUri;
+            }
+            set
+            {
+                m_applicationUri = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ApplicationType", IsRequired = false, Order = 3)]
         public ApplicationType ApplicationType
         {
-            get { return m_applicationType; }
-            set { m_applicationType = value; }
+            get
+            {
+                return m_applicationType;
+            }
+            set
+            {
+                m_applicationType = value;
+            }
         }
 
         /// <remarks />
@@ -105,7 +123,6 @@ namespace Opc.Ua.Gds
             {
                 return m_applicationNames;
             }
-
             set
             {
                 m_applicationNames = value;
@@ -121,8 +138,14 @@ namespace Opc.Ua.Gds
         [DataMember(Name = "ProductUri", IsRequired = false, Order = 5)]
         public string ProductUri
         {
-            get { return m_productUri; }
-            set { m_productUri = value; }
+            get
+            {
+                return m_productUri;
+            }
+            set
+            {
+                m_productUri = value;
+            }
         }
 
         /// <remarks />
@@ -133,7 +156,6 @@ namespace Opc.Ua.Gds
             {
                 return m_discoveryUrls;
             }
-
             set
             {
                 m_discoveryUrls = value;
@@ -153,7 +175,6 @@ namespace Opc.Ua.Gds
             {
                 return m_serverCapabilities;
             }
-
             set
             {
                 m_serverCapabilities = value;
@@ -282,18 +303,26 @@ namespace Opc.Ua.Gds
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfApplicationRecordDataType", Namespace = Opc.Ua.Gds.Namespaces.OpcUaGdsXsd, ItemName = "ApplicationRecordDataType")]
+    [CollectionDataContract(
+        Name = "ListOfApplicationRecordDataType",
+        Namespace = Opc.Ua.Gds.Namespaces.OpcUaGdsXsd,
+        ItemName = "ApplicationRecordDataType"
+    )]
     public partial class ApplicationRecordDataTypeCollection : List<ApplicationRecordDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ApplicationRecordDataTypeCollection() { }
+        public ApplicationRecordDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public ApplicationRecordDataTypeCollection(int capacity) : base(capacity) { }
+        public ApplicationRecordDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ApplicationRecordDataTypeCollection(IEnumerable<ApplicationRecordDataType> collection) : base(collection) { }
+        public ApplicationRecordDataTypeCollection(IEnumerable<ApplicationRecordDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators

@@ -45,7 +45,6 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Applies custom settings to quickstart servers for CTT run.
         /// </summary>
-        /// <param name="server"></param>
         public static void ApplyCTTMode(TextWriter output, StandardServer server)
         {
             var methodsToCall = new CallMethodRequestCollection();
@@ -60,10 +59,14 @@ namespace Quickstarts.Servers
                         {
                             MethodId = new NodeId("Alarms.Start", (ushort)index),
                             ObjectId = new NodeId("Alarms", (ushort)index),
-                            InputArguments = [new Variant(uint.MaxValue)],
+                            InputArguments = [new Variant(uint.MaxValue)]
                         }
                     );
-                    var requestHeader = new RequestHeader() { Timestamp = DateTime.UtcNow, TimeoutHint = 10000 };
+                    var requestHeader = new RequestHeader
+                    {
+                        Timestamp = DateTime.UtcNow,
+                        TimeoutHint = 10000
+                    };
                     var context = new OperationContext(requestHeader, RequestType.Call);
                     server.CurrentInstance.NodeManager.Call(
                         context,
@@ -86,7 +89,8 @@ namespace Quickstarts.Servers
                     Opc.Ua.Utils.LogError(ex, "Failed to start alarms for CTT.");
                 }
             }
-            output.WriteLine("The alarms could not be enabled for CTT, the namespace does not exist.");
+            output.WriteLine(
+                "The alarms could not be enabled for CTT, the namespace does not exist.");
         }
 
         /// <summary>
@@ -103,7 +107,8 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Add all available node manager factories to the server.
         /// </summary>
-        public static void UseSamplingGroupsInReferenceNodeManager(ReferenceServer.ReferenceServer server)
+        public static void UseSamplingGroupsInReferenceNodeManager(
+            ReferenceServer.ReferenceServer server)
         {
             server.UseSamplingGroupsInReferenceNodeManager = true;
         }
@@ -126,7 +131,8 @@ namespace Quickstarts.Servers
         private static INodeManagerFactory IsINodeManagerFactoryType(Type type)
         {
             System.Reflection.TypeInfo nodeManagerTypeInfo = type.GetTypeInfo();
-            if (nodeManagerTypeInfo.IsAbstract || !typeof(INodeManagerFactory).IsAssignableFrom(type))
+            if (nodeManagerTypeInfo.IsAbstract ||
+                !typeof(INodeManagerFactory).IsAssignableFrom(type))
             {
                 return null;
             }
@@ -136,7 +142,6 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Enumerates all node manager factories.
         /// </summary>
-        /// <returns></returns>
         private static List<INodeManagerFactory> GetNodeManagerFactories()
         {
             Assembly assembly = typeof(Utils).Assembly;

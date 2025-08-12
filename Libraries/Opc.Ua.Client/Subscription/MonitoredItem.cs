@@ -68,7 +68,9 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="template">The template used to specify the monitoring parameters.</param>
         public MonitoredItem(MonitoredItem template)
-            : this(template, false) { }
+            : this(template, false)
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="MonitoredItem"/> class.
@@ -76,7 +78,9 @@ namespace Opc.Ua.Client
         /// <param name="template">The template used to specify the monitoring parameters.</param>
         /// <param name="copyEventHandlers">if set to <c>true</c> the event handlers are copied.</param>
         public MonitoredItem(MonitoredItem template, bool copyEventHandlers)
-            : this(template, copyEventHandlers, false) { }
+            : this(template, copyEventHandlers, false)
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="MonitoredItem"/> class.
@@ -637,7 +641,9 @@ namespace Opc.Ua.Client
         /// Clones a monitored item or the subclass with an option to copy event handlers.
         /// </summary>
         /// <returns>A cloned instance of the monitored item or a subclass.</returns>
-        public virtual MonitoredItem CloneMonitoredItem(bool copyEventHandlers, bool copyClientHandle)
+        public virtual MonitoredItem CloneMonitoredItem(
+            bool copyEventHandlers,
+            bool copyClientHandle)
         {
             return new MonitoredItem(this, copyEventHandlers, copyClientHandle);
         }
@@ -664,7 +670,11 @@ namespace Opc.Ua.Client
 
             if (StatusCode.IsBad(result.StatusCode))
             {
-                error = ClientBase.GetResult(result.StatusCode, index, diagnosticInfos, responseHeader);
+                error = ClientBase.GetResult(
+                    result.StatusCode,
+                    index,
+                    diagnosticInfos,
+                    responseHeader);
             }
             else
             {
@@ -698,7 +708,11 @@ namespace Opc.Ua.Client
 
             if (StatusCode.IsBad(result.StatusCode))
             {
-                error = ClientBase.GetResult(result.StatusCode, index, diagnosticInfos, responseHeader);
+                error = ClientBase.GetResult(
+                    result.StatusCode,
+                    index,
+                    diagnosticInfos,
+                    responseHeader);
             }
 
             Status.SetCreateResult(request, result, error);
@@ -720,7 +734,11 @@ namespace Opc.Ua.Client
 
             if (StatusCode.IsBad(result.StatusCode))
             {
-                error = ClientBase.GetResult(result.StatusCode, index, diagnosticInfos, responseHeader);
+                error = ClientBase.GetResult(
+                    result.StatusCode,
+                    index,
+                    diagnosticInfos,
+                    responseHeader);
             }
 
             Status.SetModifyResult(request, result, error);
@@ -774,13 +792,19 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            return Utils.Format("{0}", SimpleAttributeOperand.Format(filter.SelectClauses[index].BrowsePath));
+            return Utils.Format(
+                "{0}",
+                SimpleAttributeOperand.Format(filter.SelectClauses[index].BrowsePath));
         }
 
         /// <summary>
         /// Returns value of the field name containing the event type.
         /// </summary>
-        public object GetFieldValue(EventFieldList eventFields, NodeId eventTypeId, string browsePath, uint attributeId)
+        public object GetFieldValue(
+            EventFieldList eventFields,
+            NodeId eventTypeId,
+            string browsePath,
+            uint attributeId)
         {
             QualifiedNameCollection browseNames = SimpleAttributeOperand.Parse(browsePath);
             return GetFieldValue(eventFields, eventTypeId, browseNames, attributeId);
@@ -789,7 +813,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Returns value of the field name containing the event type.
         /// </summary>
-        public object GetFieldValue(EventFieldList eventFields, NodeId eventTypeId, QualifiedName browseName)
+        public object GetFieldValue(
+            EventFieldList eventFields,
+            NodeId eventTypeId,
+            QualifiedName browseName)
         {
             var browsePath = new QualifiedNameCollection { browseName };
             return GetFieldValue(eventFields, eventTypeId, browsePath, Attributes.Value);
@@ -889,7 +916,10 @@ namespace Opc.Ua.Client
         public INode GetEventType(EventFieldList eventFields)
         {
             // get event type.
-            var eventTypeId = GetFieldValue(eventFields, ObjectTypes.BaseEventType, BrowseNames.EventType) as NodeId;
+            var eventTypeId = GetFieldValue(
+                eventFields,
+                ObjectTypes.BaseEventType,
+                BrowseNames.EventType) as NodeId;
 
             if (eventTypeId != null && Subscription != null && Subscription.Session != null)
             {
@@ -906,7 +936,10 @@ namespace Opc.Ua.Client
         public DateTime GetEventTime(EventFieldList eventFields)
         {
             // get event time.
-            var eventTime = GetFieldValue(eventFields, ObjectTypes.BaseEventType, BrowseNames.Time) as DateTime?;
+            var eventTime = GetFieldValue(
+                eventFields,
+                ObjectTypes.BaseEventType,
+                BrowseNames.Time) as DateTime?;
 
             if (eventTime != null)
             {
@@ -934,7 +967,10 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            return new ServiceResult(datachange.Value.StatusCode, datachange.DiagnosticInfo, message.StringTable);
+            return new ServiceResult(
+                datachange.Value.StatusCode,
+                datachange.DiagnosticInfo,
+                message.StringTable);
         }
 
         /// <summary>
@@ -960,7 +996,8 @@ namespace Opc.Ua.Client
             }
 
             if (
-                ExtensionObject.ToEncodeable(eventFields.EventFields[index].Value as ExtensionObject)
+                ExtensionObject.ToEncodeable(
+                    eventFields.EventFields[index].Value as ExtensionObject)
                 is not StatusResult status
             )
             {
@@ -993,6 +1030,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Throws an exception if the flter cannot be used with the node class.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void ValidateFilter(NodeClass nodeClass, MonitoringFilter filter)
         {
             if (filter == null)
@@ -1010,7 +1048,6 @@ namespace Opc.Ua.Client
                     }
 
                     break;
-
                 case NodeClass.Object:
                 case NodeClass.View:
                     if (!typeof(EventFilter).IsInstanceOfType(filter))
@@ -1019,7 +1056,6 @@ namespace Opc.Ua.Client
                     }
 
                     break;
-
                 default:
                     throw ServiceResultException.Create(
                         StatusCodes.BadFilterNotAllowed,
@@ -1154,7 +1190,8 @@ namespace Opc.Ua.Client
         public void OnNotification(MonitoredItemNotification notification)
         {
             LastValue = notification.Value;
-            CoreClientUtils.EventLog.NotificationValue(notification.ClientHandle, LastValue.WrappedValue);
+            CoreClientUtils.EventLog
+                .NotificationValue(notification.ClientHandle, LastValue.WrappedValue);
 
             if (m_values != null)
             {

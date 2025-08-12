@@ -58,25 +58,26 @@ namespace Opc.Ua.Gds.Tests
             {
                 ApplicationName = "Server Configuration Push Test Client",
                 ApplicationType = ApplicationType.Client,
-                ConfigSectionName = "Opc.Ua.ServerConfigurationPushTestClient",
+                ConfigSectionName = "Opc.Ua.ServerConfigurationPushTestClient"
             };
 #if USE_FILE_CONFIG
             // load the application configuration.
-            Config = await application.LoadApplicationConfigurationAsync(false).ConfigureAwait(false);
+            Config = await application.LoadApplicationConfigurationAsync(false)
+                .ConfigureAwait(false);
 #else
             string root = Path.Combine("%LocalApplicationData%", "OPC");
             string pkiRoot = Path.Combine(root, "pki");
-            var clientConfig = new ServerConfigurationPushTestClientConfiguration()
+            var clientConfig = new ServerConfigurationPushTestClientConfiguration
             {
                 ServerUrl = "opc.tcp://localhost:58810/GlobalDiscoveryTestServer",
-                AppUserName = "",
-                AppPassword = "",
+                AppUserName = string.Empty,
+                AppPassword = string.Empty,
                 SysAdminUserName = "sysadmin",
                 SysAdminPassword = "demo",
-                TempStorePath = Path.Combine(pkiRoot, "temp"),
+                TempStorePath = Path.Combine(pkiRoot, "temp")
             };
 
-            var transportQuotas = new TransportQuotas()
+            var transportQuotas = new TransportQuotas
             {
                 OperationTimeout = 120000,
                 MaxStringLength = 1048576,
@@ -85,7 +86,7 @@ namespace Opc.Ua.Gds.Tests
                 MaxMessageSize = 4194304,
                 MaxBufferSize = 65535,
                 ChannelLifetime = 300000,
-                SecurityTokenLifetime = 3600000,
+                SecurityTokenLifetime = 3600000
             };
 
             CertificateIdentifierCollection applicationCerts =
@@ -123,15 +124,19 @@ namespace Opc.Ua.Gds.Tests
                 throw new Exception("Application instance certificate invalid!");
             }
 
-            Config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(
+            Config.CertificateValidator.CertificateValidation
+                += new CertificateValidationEventHandler(
                 CertificateValidator_CertificateValidation
             );
 
             ServerConfigurationPushTestClientConfiguration clientConfiguration =
-                application.ApplicationConfiguration.ParseExtension<ServerConfigurationPushTestClientConfiguration>();
+                application.ApplicationConfiguration
+                    .ParseExtension<ServerConfigurationPushTestClientConfiguration>();
             PushClient = new ServerPushConfigurationClient(application.ApplicationConfiguration)
             {
-                EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(clientConfiguration.ServerUrl, port),
+                EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(
+                    clientConfiguration.ServerUrl,
+                    port)
             };
             if (string.IsNullOrEmpty(clientConfiguration.AppUserName))
             {
@@ -139,9 +144,13 @@ namespace Opc.Ua.Gds.Tests
             }
             else
             {
-                AppUser = new UserIdentity(clientConfiguration.AppUserName, clientConfiguration.AppPassword);
+                AppUser = new UserIdentity(
+                    clientConfiguration.AppUserName,
+                    clientConfiguration.AppPassword);
             }
-            SysAdminUser = new UserIdentity(clientConfiguration.SysAdminUserName, clientConfiguration.SysAdminPassword);
+            SysAdminUser = new UserIdentity(
+                clientConfiguration.SysAdminUserName,
+                clientConfiguration.SysAdminPassword);
             TempStorePath = clientConfiguration.TempStorePath;
         }
 
@@ -159,7 +168,8 @@ namespace Opc.Ua.Gds.Tests
 
         public string ReadLogFile()
         {
-            return File.ReadAllText(Utils.ReplaceSpecialFolderNames(Config.TraceConfiguration.OutputFilePath));
+            return File.ReadAllText(
+                Utils.ReplaceSpecialFolderNames(Config.TraceConfiguration.OutputFilePath));
         }
 
         private static void CertificateValidator_CertificateValidation(
@@ -208,7 +218,9 @@ namespace Opc.Ua.Gds.Tests
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private static void Initialize() { }
+        private static void Initialize()
+        {
+        }
 
         [DataMember(Order = 1, IsRequired = true)]
         public string ServerUrl { get; set; }

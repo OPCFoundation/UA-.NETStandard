@@ -1,11 +1,23 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2023-10-06T12:57:31.2901182Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  LastModified="2023-10-06T12:57:31.2901182Z"
+  xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"
+>
   <NamespaceUris>
     <Uri>http://samples.org/UA/MemoryBuffer</Uri>
   </NamespaceUris>
   <Models>
-    <Model ModelUri="http://samples.org/UA/MemoryBuffer" Version="1.0.0" PublicationDate="2023-10-06T12:57:31.2901182Z">
-      <RequiredModel ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" />
+    <Model
+      ModelUri="http://samples.org/UA/MemoryBuffer"
+      Version="1.0.0"
+      PublicationDate="2023-10-06T12:57:31.2901182Z"
+    >
+      <RequiredModel
+        ModelUri="http://opcfoundation.org/UA/"
+        XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd"
+      />
     </Model>
   </Models>
   <Aliases>
@@ -70,7 +82,12 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
     </References>
   </UAObjectType>
-  <UAVariable NodeId="ns=1;i=1003" BrowseName="1:StartAddress" ParentNodeId="ns=1;i=1002" DataType="UInt32">
+  <UAVariable
+    NodeId="ns=1;i=1003"
+    BrowseName="1:StartAddress"
+    ParentNodeId="ns=1;i=1002"
+    DataType="UInt32"
+  >
     <DisplayName>StartAddress</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -81,7 +98,12 @@
       <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</UInt32>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1004" BrowseName="1:SizeInBytes" ParentNodeId="ns=1;i=1002" DataType="UInt32">
+  <UAVariable
+    NodeId="ns=1;i=1004"
+    BrowseName="1:SizeInBytes"
+    ParentNodeId="ns=1;i=1002"
+    DataType="UInt32"
+  >
     <DisplayName>SizeInBytes</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>

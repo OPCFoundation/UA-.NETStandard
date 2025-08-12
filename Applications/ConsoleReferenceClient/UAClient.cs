@@ -130,7 +130,7 @@ namespace Quickstarts
         /// <summary>
         /// Auto accept untrusted certificates.
         /// </summary>
-        public bool AutoAccept { get; set; } = false;
+        public bool AutoAccept { get; set; }
 
         /// <summary>
         /// The file to use for log output.
@@ -151,12 +151,16 @@ namespace Quickstarts
             bool success = false;
             SubscriptionCollection subscriptions = [.. Session.Subscriptions];
             Session = null;
-            if (await ConnectAsync(serverUrl, useSecurity, ct).ConfigureAwait(false) && subscriptions != null && Session != null)
+            if (
+                await ConnectAsync(serverUrl, useSecurity, ct).ConfigureAwait(false) &&
+                subscriptions != null &&
+                Session != null
+            )
             {
                 m_output.WriteLine(
-                    "Transferring "
-                        + subscriptions.Count.ToString(CultureInfo.InvariantCulture)
-                        + " subscriptions from old session to new session..."
+                    "Transferring " +
+                    subscriptions.Count.ToString(CultureInfo.InvariantCulture) +
+                    " subscriptions from old session to new session..."
                 );
                 success = Session.TransferSubscriptions(subscriptions, true);
                 if (success)
@@ -171,7 +175,13 @@ namespace Quickstarts
         /// <summary>
         /// Creates a session with the UA server
         /// </summary>
-        public async Task<bool> ConnectAsync(string serverUrl, bool useSecurity = true, CancellationToken ct = default)
+        /// <exception cref="ObjectDisposedException"></exception>
+        /// <exception cref="ArgumentNullException"><paramref name="serverUrl"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public async Task<bool> ConnectAsync(
+            string serverUrl,
+            bool useSecurity = true,
+            CancellationToken ct = default)
         {
             if (m_disposed)
             {
@@ -199,7 +209,9 @@ namespace Quickstarts
                         do
                         {
                             using var cts = new CancellationTokenSource(30_000);
-                            using var linkedCTS = CancellationTokenSource.CreateLinkedTokenSource(ct, cts.Token);
+                            using var linkedCTS = CancellationTokenSource.CreateLinkedTokenSource(
+                                ct,
+                                cts.Token);
                             connection = await m_reverseConnectManager
                                 .WaitForConnectionAsync(new Uri(serverUrl), null, linkedCTS.Token)
                                 .ConfigureAwait(false);
@@ -225,7 +237,10 @@ namespace Quickstarts
                     else
                     {
                         m_output.WriteLine("Connecting to... {0}", serverUrl);
-                        endpointDescription = CoreClientUtils.SelectEndpoint(m_configuration, serverUrl, useSecurity);
+                        endpointDescription = CoreClientUtils.SelectEndpoint(
+                            m_configuration,
+                            serverUrl,
+                            useSecurity);
                     }
 
                     // Get the endpoint by connecting to server's discovery endpoint.
@@ -234,8 +249,7 @@ namespace Quickstarts
                     var endpoint = new ConfiguredEndpoint(
                         null,
                         endpointDescription,
-                        endpointConfiguration
-                    );
+                        endpointConfiguration);
 
                     TraceableSessionFactory sessionFactory = TraceableSessionFactory.Instance;
 
@@ -271,11 +285,15 @@ namespace Quickstarts
                         Session.KeepAlive += Session_KeepAlive;
 
                         // prepare a reconnect handler
-                        m_reconnectHandler = new SessionReconnectHandler(true, ReconnectPeriodExponentialBackoff);
+                        m_reconnectHandler = new SessionReconnectHandler(
+                            true,
+                            ReconnectPeriodExponentialBackoff);
                     }
 
                     // Session created successfully.
-                    m_output.WriteLine("New Session Created with SessionName = {0}", Session.SessionName);
+                    m_output.WriteLine(
+                        "New Session Created with SessionName = {0}",
+                        Session.SessionName);
                 }
 
                 return true;
@@ -349,16 +367,19 @@ namespace Quickstarts
                 {
                     if (ReconnectPeriod <= 0)
                     {
-                        Utils.LogWarning("KeepAlive status {0}, but reconnect is disabled.", e.Status);
+                        Utils.LogWarning(
+                            "KeepAlive status {0}, but reconnect is disabled.",
+                            e.Status);
                         return;
                     }
 
-                    SessionReconnectHandler.ReconnectState state = m_reconnectHandler.BeginReconnect(
-                        Session,
-                        m_reverseConnectManager,
-                        ReconnectPeriod,
-                        Client_ReconnectComplete
-                    );
+                    SessionReconnectHandler.ReconnectState state = m_reconnectHandler
+                        .BeginReconnect(
+                            Session,
+                            m_reverseConnectManager,
+                            ReconnectPeriod,
+                            Client_ReconnectComplete
+                            );
                     if (state == SessionReconnectHandler.ReconnectState.Triggered)
                     {
                         Utils.LogInfo(
@@ -370,13 +391,14 @@ namespace Quickstarts
                     }
                     else
                     {
-                        Utils.LogInfo("KeepAlive status {0}, reconnect status {1}.", e.Status, state);
+                        Utils.LogInfo(
+                            "KeepAlive status {0}, reconnect status {1}.",
+                            e.Status,
+                            state);
                     }
 
                     // cancel sending a new keep alive request, because reconnect is triggered.
                     e.CancelKeepAlive = true;
-
-                    return;
                 }
             }
             catch (Exception exception)
@@ -415,7 +437,9 @@ namespace Quickstarts
                     }
                     else
                     {
-                        m_output.WriteLine("--- REACTIVATED SESSION --- {0}", m_reconnectHandler.Session.SessionId);
+                        m_output.WriteLine(
+                            "--- REACTIVATED SESSION --- {0}",
+                            m_reconnectHandler.Session.SessionId);
                     }
                 }
                 else
@@ -431,7 +455,9 @@ namespace Quickstarts
         /// Handles the certificate validation event.
         /// This event is triggered every time an untrusted certificate is received from the server.
         /// </summary>
-        protected virtual void CertificateValidation(CertificateValidator sender, CertificateValidationEventArgs e)
+        protected virtual void CertificateValidation(
+            CertificateValidator sender,
+            CertificateValidationEventArgs e)
         {
             bool certificateAccepted = false;
 
@@ -450,12 +476,16 @@ namespace Quickstarts
 
             if (certificateAccepted)
             {
-                m_output.WriteLine("Untrusted Certificate accepted. Subject = {0}", e.Certificate.Subject);
+                m_output.WriteLine(
+                    "Untrusted Certificate accepted. Subject = {0}",
+                    e.Certificate.Subject);
                 e.Accept = true;
             }
             else
             {
-                m_output.WriteLine("Untrusted Certificate rejected. Subject = {0}", e.Certificate.Subject);
+                m_output.WriteLine(
+                    "Untrusted Certificate rejected. Subject = {0}",
+                    e.Certificate.Subject);
             }
         }
         #endregion

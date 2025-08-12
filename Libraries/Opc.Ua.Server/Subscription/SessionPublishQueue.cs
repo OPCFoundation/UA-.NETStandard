@@ -135,6 +135,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Adds a subscription from the publish queue.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="subscription"/> is <c>null</c>.</exception>
         public void Add(ISubscription subscription)
         {
             if (subscription == null)
@@ -148,7 +149,7 @@ namespace Opc.Ua.Server
                 {
                     ReadyToPublish = false,
                     Timestamp = DateTime.UtcNow,
-                    Subscription = subscription,
+                    Subscription = subscription
                 };
 
                 m_queuedSubscriptions.Add(queuedSubscription);
@@ -160,6 +161,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Removes a subscription from the publish queue.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="subscription"/> is <c>null</c>.</exception>
         public void Remove(ISubscription subscription, bool removeQueuedRequests)
         {
             if (subscription == null)
@@ -233,6 +235,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Processes acknowledgements for previously published messages.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public void Acknowledge(
             OperationContext context,
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
@@ -254,7 +257,8 @@ namespace Opc.Ua.Server
             {
                 bool diagnosticsExist = false;
                 acknowledgeResults = new StatusCodeCollection(subscriptionAcknowledgements.Count);
-                acknowledgeDiagnosticInfos = new DiagnosticInfoCollection(subscriptionAcknowledgements.Count);
+                acknowledgeDiagnosticInfos = new DiagnosticInfoCollection(
+                    subscriptionAcknowledgements.Count);
 
                 for (int ii = 0; ii < subscriptionAcknowledgements.Count; ii++)
                 {
@@ -288,11 +292,12 @@ namespace Opc.Ua.Server
 
                                 if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                                 {
-                                    DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
-                                        m_server,
-                                        context,
-                                        result
-                                    );
+                                    DiagnosticInfo diagnosticInfo = ServerUtils
+                                        .CreateDiagnosticInfo(
+                                            m_server,
+                                            context,
+                                            result
+                                            );
                                     acknowledgeDiagnosticInfos.Add(diagnosticInfo);
                                     diagnosticsExist = true;
                                 }
@@ -310,7 +315,10 @@ namespace Opc.Ua.Server
 
                         if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                         {
-                            DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(m_server, context, result);
+                            DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
+                                m_server,
+                                context,
+                                result);
                             acknowledgeDiagnosticInfos.Add(diagnosticInfo);
                             diagnosticsExist = true;
                         }
@@ -327,6 +335,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns a subscription that is ready to publish.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public ISubscription Publish(
             uint clientHandle,
             DateTime deadline,
@@ -414,8 +423,8 @@ namespace Opc.Ua.Server
 
                         // check if expired.
                         if (
-                            queuedRequest.Deadline < DateTime.MaxValue
-                            && queuedRequest.Deadline.AddMilliseconds(500) < DateTime.UtcNow
+                            queuedRequest.Deadline < DateTime.MaxValue &&
+                            queuedRequest.Deadline.AddMilliseconds(500) < DateTime.UtcNow
                         )
                         {
                             requestStatus = StatusCodes.BadTimeout;
@@ -438,7 +447,8 @@ namespace Opc.Ua.Server
                     }
 
                     // clear excess requests - keep the newest ones.
-                    while (m_maxPublishRequests > 0 && m_queuedRequests.Count >= m_maxPublishRequests)
+                    while (m_maxPublishRequests > 0 &&
+                        m_queuedRequests.Count >= m_maxPublishRequests)
                     {
                         request = m_queuedRequests.First.Value;
                         request.Error = StatusCodes.BadTooManyPublishRequests;
@@ -451,7 +461,7 @@ namespace Opc.Ua.Server
                         SecureChannelId = SecureChannelContext.Current.SecureChannelId,
                         Deadline = deadline,
                         Subscription = null,
-                        Error = StatusCodes.Good,
+                        Error = StatusCodes.Good
                     };
 
                     if (operation == null)
@@ -539,8 +549,11 @@ namespace Opc.Ua.Server
         /// <param name="requeue">if set to <c>true</c> the request must be requeued.</param>
         /// <param name="operation">The asynchronous operation.</param>
         /// <param name="calldata">The calldata.</param>
-        /// <returns></returns>
-        public ISubscription CompletePublish(bool requeue, AsyncPublishOperation operation, object calldata)
+        /// <exception cref="ServiceResultException"></exception>
+        public ISubscription CompletePublish(
+            bool requeue,
+            AsyncPublishOperation operation,
+            object calldata)
         {
             Utils.LogTrace("PUBLISH: #{0} Completing", operation.RequestHandle, requeue);
 
@@ -561,7 +574,10 @@ namespace Opc.Ua.Server
             // must reassign subscription on error.
             if (ServiceResult.IsBad(request.Error))
             {
-                Utils.LogTrace("PUBLISH: #{0} Reassigned ERROR({1})", operation.RequestHandle, request.Error);
+                Utils.LogTrace(
+                    "PUBLISH: #{0} Reassigned ERROR({1})",
+                    operation.RequestHandle,
+                    request.Error);
 
                 if (request.Subscription != null)
                 {
@@ -688,14 +704,18 @@ namespace Opc.Ua.Server
         private void AssignSubscriptionToRequest(QueuedSubscription subscription)
         {
             // find a request.
-            for (LinkedListNode<QueuedRequest> node = m_queuedRequests.First; node != null; node = node.Next)
+            for (
+                LinkedListNode<QueuedRequest> node = m_queuedRequests.First;
+                node != null;
+                node = node.Next)
             {
                 QueuedRequest request = node.Value;
 
                 StatusCode error = StatusCodes.Good;
 
                 // check if expired.
-                if (request.Deadline < DateTime.MaxValue && request.Deadline.AddMilliseconds(500) < DateTime.UtcNow)
+                if (request.Deadline < DateTime.MaxValue &&
+                    request.Deadline.AddMilliseconds(500) < DateTime.UtcNow)
                 {
                     error = StatusCodes.BadTimeout;
                 }
@@ -728,7 +748,9 @@ namespace Opc.Ua.Server
                 // remove request.
                 m_queuedRequests.Remove(node);
 
-                Utils.LogTrace("PUBLISH: #000 Assigned To Subscription({0}).", subscription.Subscription.Id);
+                Utils.LogTrace(
+                    "PUBLISH: #000 Assigned To Subscription({0}).",
+                    subscription.Subscription.Id);
 
                 request.Error = StatusCodes.Good;
                 request.Subscription = subscription;
@@ -881,12 +903,15 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                buffer.Append("PublishQueue ");
-                buffer.AppendFormat(CultureInfo.InvariantCulture, context, args);
+                buffer.Append("PublishQueue ")
+                    .AppendFormat(CultureInfo.InvariantCulture, context, args);
 
                 if (m_session != null)
                 {
-                    buffer.AppendFormat(CultureInfo.InvariantCulture, ", SessionId={0}", m_session.Id);
+                    buffer.AppendFormat(
+                        CultureInfo.InvariantCulture,
+                        ", SessionId={0}",
+                        m_session.Id);
                 }
 
                 buffer.AppendFormat(
@@ -906,11 +931,17 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                buffer.AppendFormat(CultureInfo.InvariantCulture, ", ReadyToPublishCount={0}", readyToPublish);
+                buffer.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    ", ReadyToPublishCount={0}",
+                    readyToPublish);
 
                 int expiredRequests = 0;
 
-                for (LinkedListNode<QueuedRequest> ii = m_queuedRequests.First; ii != null; ii = ii.Next)
+                for (
+                    LinkedListNode<QueuedRequest> ii = m_queuedRequests.First;
+                    ii != null;
+                    ii = ii.Next)
                 {
                     if (ii.Value.Deadline < DateTime.UtcNow)
                     {
@@ -918,7 +949,10 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                buffer.AppendFormat(CultureInfo.InvariantCulture, ", ExpiredCount={0}", expiredRequests);
+                buffer.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    ", ExpiredCount={0}",
+                    expiredRequests);
             }
 
             Utils.LogTrace(buffer.ToString());

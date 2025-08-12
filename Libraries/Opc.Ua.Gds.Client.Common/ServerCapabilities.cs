@@ -79,11 +79,15 @@ namespace Opc.Ua.Gds.Client
 
             if (istrm == null)
             {
-                foreach (string resourceName in typeof(Ua.ObjectIds).Assembly.GetManifestResourceNames())
+                foreach (string resourceName in typeof(Ua.ObjectIds).Assembly
+                    .GetManifestResourceNames())
                 {
-                    if (resourceName.EndsWith("ServerCapabilities.csv", StringComparison.OrdinalIgnoreCase))
+                    if (resourceName.EndsWith(
+                        "ServerCapabilities.csv",
+                        StringComparison.OrdinalIgnoreCase))
                     {
-                        istrm = typeof(Ua.ObjectIds).Assembly.GetManifestResourceStream(resourceName);
+                        istrm = typeof(Ua.ObjectIds).Assembly
+                            .GetManifestResourceStream(resourceName);
                         break;
                     }
                 }
@@ -102,7 +106,8 @@ namespace Opc.Ua.Gds.Client
                     {
                         string id = line[..index].Trim();
                         string description = line[(index + 1)..].Trim();
-                        capabilities.Add(new ServerCapability() { Id = id, Description = description });
+                        capabilities.Add(
+                            new ServerCapability { Id = id, Description = description });
                     }
 
                     line = reader.ReadLine();
@@ -176,6 +181,7 @@ namespace Opc.Ua.Gds.Client
         /// <returns>
         /// A <see cref="string" /> that represents this instance.
         /// </returns>
+        /// <exception cref="FormatException"></exception>
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format != null)

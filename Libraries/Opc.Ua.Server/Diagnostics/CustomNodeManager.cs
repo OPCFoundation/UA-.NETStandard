@@ -51,7 +51,9 @@ namespace Opc.Ua.Server
         /// Initializes the node manager.
         /// </summary>
         protected CustomNodeManager2(IServerInternal server, params string[] namespaceUris)
-            : this(server, null, namespaceUris) { }
+            : this(server, null, namespaceUris)
+        {
+        }
 
         /// <summary>
         /// Initializes the node manager.
@@ -61,7 +63,9 @@ namespace Opc.Ua.Server
             ApplicationConfiguration configuration,
             params string[] namespaceUris
         )
-            : this(server, configuration, false, namespaceUris) { }
+            : this(server, configuration, false, namespaceUris)
+        {
+        }
 
         /// <summary>
         /// Initializes the node manager.
@@ -80,7 +84,8 @@ namespace Opc.Ua.Server
             if (configuration?.ServerConfiguration != null)
             {
                 MaxQueueSize = (uint)configuration.ServerConfiguration.MaxNotificationQueueSize;
-                MaxDurableQueueSize = (uint)configuration.ServerConfiguration.MaxDurableNotificationQueueSize;
+                MaxDurableQueueSize = (uint)configuration.ServerConfiguration
+                    .MaxDurableNotificationQueueSize;
             }
 
             // save a reference to the UA server instance that owns the node manager.
@@ -112,7 +117,10 @@ namespace Opc.Ua.Server
             // create a monitored item manager that owns sampling groups / monitoredNodes
             if (useSamplingGroups)
             {
-                m_monitoredItemManager = new SamplingGroupMonitoredItemManager(this, server, configuration);
+                m_monitoredItemManager = new SamplingGroupMonitoredItemManager(
+                    this,
+                    server,
+                    configuration);
             }
             else
             {
@@ -218,12 +226,14 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the table of nodes being monitored.
         /// </summary>
-        protected NodeIdDictionary<MonitoredNode2> MonitoredNodes => m_monitoredItemManager.MonitoredNodes;
+        protected NodeIdDictionary<MonitoredNode2> MonitoredNodes
+            => m_monitoredItemManager.MonitoredNodes;
 
         /// <summary>
         /// Gets the table of monitored items managed by the node manager.
         /// </summary>
-        protected ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems => m_monitoredItemManager.MonitoredItems;
+        protected ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems
+            => m_monitoredItemManager.MonitoredItems;
 
         /// <summary>
         /// Sets the namespaces supported by the NodeManager.
@@ -309,8 +319,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public NodeState Find(NodeId nodeId)
         {
-            NodeState node;
-            if (PredefinedNodes.TryGetValue(nodeId, out node))
+            if (PredefinedNodes.TryGetValue(nodeId, out NodeState node))
             {
                 return node;
             }
@@ -327,6 +336,7 @@ namespace Opc.Ua.Server
         /// <param name="browseName">The browse name.</param>
         /// <param name="instance">The instance to create.</param>
         /// <returns>The new node id.</returns>
+        /// <exception cref="ServiceResultException"></exception>
         public NodeId CreateNode(
             ServerSystemContext context,
             NodeId parentId,
@@ -373,8 +383,7 @@ namespace Opc.Ua.Server
 
             var referencesToRemove = new List<LocalReference>();
 
-            NodeState node;
-            if (!PredefinedNodes.TryGetValue(nodeId, out node))
+            if (!PredefinedNodes.TryGetValue(nodeId, out NodeState node))
             {
                 return false;
             }
@@ -393,8 +402,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Searches the node id in all node managers
         /// </summary>
-        /// <param name="nodeId"></param>
-        /// <returns></returns>
         public NodeState FindNodeInAddressSpace(NodeId nodeId)
         {
             if (nodeId == null)
@@ -420,6 +427,7 @@ namespace Opc.Ua.Server
         /// All NodeIds exposed by the node manager must be qualified by a namespace URI. This property
         /// returns the URIs used by the node manager. In this example all NodeIds use a single URI.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"></exception>
         public virtual IEnumerable<string> NamespaceUris
         {
             get => m_namespaceUris;
@@ -443,7 +451,8 @@ namespace Opc.Ua.Server
         /// in other node managers. For example, the 'Objects' node is managed by the CoreNodeManager and
         /// should have a reference to the root folder node(s) exposed by this node manager.
         /// </remarks>
-        public virtual void CreateAddressSpace(IDictionary<NodeId, IList<IReference>> externalReferences)
+        public virtual void CreateAddressSpace(
+            IDictionary<NodeId, IList<IReference>> externalReferences)
         {
             LoadPredefinedNodes(SystemContext, externalReferences);
         }
@@ -504,7 +513,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Replaces the generic node with a node specific to the model.
         /// </summary>
-        protected virtual NodeState AddBehaviourToPredefinedNode(ISystemContext context, NodeState predefinedNode)
+        protected virtual NodeState AddBehaviourToPredefinedNode(
+            ISystemContext context,
+            NodeState predefinedNode)
         {
             if (predefinedNode is not BaseObjectState)
             {
@@ -521,9 +532,9 @@ namespace Opc.Ua.Server
         {
             // assign a default value to any variable in namespace 0
             if (
-                node is BaseVariableState nodeStateVar
-                && nodeStateVar.NodeId.NamespaceIndex == 0
-                && nodeStateVar.Value == null
+                node is BaseVariableState nodeStateVar &&
+                nodeStateVar.NodeId.NamespaceIndex == 0 &&
+                nodeStateVar.Value == null
             )
             {
                 nodeStateVar.Value = TypeInfo.GetDefaultValue(
@@ -556,9 +567,15 @@ namespace Opc.Ua.Server
                             {
                                 activeNode.OnReportEvent = OnReportEvent;
 
-                                if (!activeNode.ReferenceExists(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server))
+                                if (!activeNode.ReferenceExists(
+                                    ReferenceTypeIds.HasNotifier,
+                                    true,
+                                    ObjectIds.Server))
                                 {
-                                    activeNode.AddReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
+                                    activeNode.AddReference(
+                                        ReferenceTypeIds.HasNotifier,
+                                        true,
+                                        ObjectIds.Server);
                                 }
                             }
 
@@ -657,7 +674,8 @@ namespace Opc.Ua.Server
         /// Ensures that all reverse references exist.
         /// </summary>
         /// <param name="externalReferences">A list of references to add to external targets.</param>
-        protected virtual void AddReverseReferences(IDictionary<NodeId, IList<IReference>> externalReferences)
+        protected virtual void AddReverseReferences(
+            IDictionary<NodeId, IList<IReference>> externalReferences)
         {
             foreach (NodeState source in PredefinedNodes.Values)
             {
@@ -683,25 +701,32 @@ namespace Opc.Ua.Server
                     var targetId = (NodeId)reference.TargetId;
 
                     // check for data type encoding references.
-                    if (reference.IsInverse && reference.ReferenceTypeId == ReferenceTypeIds.HasEncoding)
+                    if (reference.IsInverse &&
+                        reference.ReferenceTypeId == ReferenceTypeIds.HasEncoding)
                     {
                         Server.TypeTree.AddEncoding(targetId, source.NodeId);
                     }
 
                     // add inverse reference to internal targets.
-                    NodeState target;
-                    if (PredefinedNodes.TryGetValue(targetId, out target))
+                    if (PredefinedNodes.TryGetValue(targetId, out NodeState target))
                     {
-                        if (!target.ReferenceExists(reference.ReferenceTypeId, !reference.IsInverse, source.NodeId))
+                        if (!target.ReferenceExists(
+                            reference.ReferenceTypeId,
+                            !reference.IsInverse,
+                            source.NodeId))
                         {
-                            target.AddReference(reference.ReferenceTypeId, !reference.IsInverse, source.NodeId);
+                            target.AddReference(
+                                reference.ReferenceTypeId,
+                                !reference.IsInverse,
+                                source.NodeId);
                         }
 
                         continue;
                     }
 
                     // check for inverse references to external notifiers.
-                    if (reference.IsInverse && reference.ReferenceTypeId == ReferenceTypeIds.HasNotifier)
+                    if (reference.IsInverse &&
+                        reference.ReferenceTypeId == ReferenceTypeIds.HasNotifier)
                     {
                         AddRootNotifier(source);
                     }
@@ -736,8 +761,7 @@ namespace Opc.Ua.Server
         )
         {
             // get list of references to external nodes.
-            IList<IReference> referencesToAdd;
-            if (!externalReferences.TryGetValue(sourceId, out referencesToAdd))
+            if (!externalReferences.TryGetValue(sourceId, out IList<IReference> referencesToAdd))
             {
                 externalReferences[sourceId] = referencesToAdd = [];
             }
@@ -747,7 +771,7 @@ namespace Opc.Ua.Server
             {
                 ReferenceTypeId = referenceTypeId,
                 IsInverse = isInverse,
-                TargetId = targetId,
+                TargetId = targetId
             };
 
             referencesToAdd.Add(referenceToAdd);
@@ -859,14 +883,13 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            NodeState node;
-            if (PredefinedNodes.TryGetValue(nodeId, out node))
+            if (PredefinedNodes.TryGetValue(nodeId, out NodeState node))
             {
                 return new NodeHandle
                 {
                     NodeId = nodeId,
                     Node = node,
-                    Validated = true,
+                    Validated = true
                 };
             }
             return null;
@@ -1018,12 +1041,13 @@ namespace Opc.Ua.Server
                 {
                     NodeClass = target.NodeClass,
                     BrowseName = target.BrowseName,
-                    DisplayName = target.DisplayName,
+                    DisplayName = target.DisplayName
                 };
 
                 if (values[0] != null && values[1] != null)
                 {
-                    metadata.WriteMask = (AttributeWriteMask)(((uint)values[0]) & ((uint)values[1]));
+                    metadata.WriteMask = (AttributeWriteMask)(((uint)values[0]) &
+                        ((uint)values[1]));
                 }
 
                 metadata.DataType = (NodeId)values[2];
@@ -1058,12 +1082,14 @@ namespace Opc.Ua.Server
 
                 if (values[11] != null)
                 {
-                    metadata.RolePermissions = [.. ExtensionObject.ToList<RolePermissionType>(values[11])];
+                    metadata.RolePermissions = [.. ExtensionObject.ToList<RolePermissionType>(
+                        values[11])];
                 }
 
                 if (values[12] != null)
                 {
-                    metadata.UserRolePermissions = [.. ExtensionObject.ToList<RolePermissionType>(values[12])];
+                    metadata.UserRolePermissions = [.. ExtensionObject.ToList<RolePermissionType>(
+                        values[12])];
                 }
 
                 SetDefaultPermissions(systemContext, target, metadata);
@@ -1083,8 +1109,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Sets the AccessRestrictions, RolePermissions and UserRolePermissions values in the metadata
         /// </summary>
-        /// <param name="values"></param>
-        /// <param name="metadata"></param>
         private static void SetAccessAndRolePermissions(List<object> values, NodeMetadata metadata)
         {
             if (values[0] != null)
@@ -1094,11 +1118,13 @@ namespace Opc.Ua.Server
             }
             if (values[1] != null)
             {
-                metadata.RolePermissions = [.. ExtensionObject.ToList<RolePermissionType>(values[1])];
+                metadata.RolePermissions = [.. ExtensionObject.ToList<RolePermissionType>(
+                    values[1])];
             }
             if (values[2] != null)
             {
-                metadata.UserRolePermissions = [.. ExtensionObject.ToList<RolePermissionType>(values[2])];
+                metadata.UserRolePermissions = [.. ExtensionObject.ToList<RolePermissionType>(
+                    values[2])];
             }
         }
 
@@ -1129,7 +1155,9 @@ namespace Opc.Ua.Server
         /// <param name="systemContext">The context</param>
         /// <param name="target">The target for which the attributes are read and cached</param>
         /// <returns>The values of the attributes</returns>
-        private static List<object> ReadValidationAttributes(ServerSystemContext systemContext, NodeState target)
+        private static List<object> ReadValidationAttributes(
+            ServerSystemContext systemContext,
+            NodeState target)
         {
             // This is the list of attributes to be populated by GetNodeMetadata from CustomNodeManagers.
             // The are originating from services in the context of AccessRestrictions and RolePermission validation.
@@ -1149,6 +1177,8 @@ namespace Opc.Ua.Server
         /// The continuation point is created for every browse operation and contains the browse parameters.
         /// The node manager can store its state information in the Data and Index properties.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="continuationPoint"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public virtual void Browse(
             OperationContext context,
             ref ContinuationPoint continuationPoint,
@@ -1214,7 +1244,10 @@ namespace Opc.Ua.Server
                 // apply filters to references.
                 var cache = new Dictionary<NodeId, NodeState>();
 
-                for (IReference reference = browser.Next(); reference != null; reference = browser.Next())
+                for (
+                    IReference reference = browser.Next();
+                    reference != null;
+                    reference = browser.Next())
                 {
                     // validate Browse permission
                     ServiceResult serviceResult = ValidateRolePermissions(
@@ -1242,8 +1275,8 @@ namespace Opc.Ua.Server
 
                     // check if limit reached.
                     if (
-                        continuationPoint.MaxResultsToReturn != 0
-                        && references.Count >= continuationPoint.MaxResultsToReturn
+                        continuationPoint.MaxResultsToReturn != 0 &&
+                        references.Count >= continuationPoint.MaxResultsToReturn
                     )
                     {
                         browser.Push(reference);
@@ -1262,7 +1295,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates the view description passed to a browse request (throws on error).
         /// </summary>
-        protected virtual void ValidateViewDescription(ServerSystemContext context, ViewDescription view)
+        /// <exception cref="ServiceResultException"></exception>
+        protected virtual void ValidateViewDescription(
+            ServerSystemContext context,
+            ViewDescription view)
         {
             if (ViewDescription.IsDefault(view))
             {
@@ -1304,7 +1340,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Checks if the node is in the view.
         /// </summary>
-        protected virtual bool IsNodeInView(ServerSystemContext context, NodeId viewId, NodeState node)
+        protected virtual bool IsNodeInView(
+            ServerSystemContext context,
+            NodeId viewId,
+            NodeState node)
         {
             var view = (ViewState)FindPredefinedNode(viewId, typeof(ViewState));
 
@@ -1337,7 +1376,10 @@ namespace Opc.Ua.Server
 
             // create the type definition reference.
             var description = new ReferenceDescription { NodeId = reference.TargetId };
-            description.SetReferenceType(continuationPoint.ResultMask, reference.ReferenceTypeId, !reference.IsInverse);
+            description.SetReferenceType(
+                continuationPoint.ResultMask,
+                reference.ReferenceTypeId,
+                !reference.IsInverse);
 
             // check if reference is in the view.
             if (!IsReferenceInView(context, continuationPoint, reference))
@@ -1388,8 +1430,8 @@ namespace Opc.Ua.Server
 
             // apply node class filter.
             if (
-                continuationPoint.NodeClassMask != 0
-                && ((continuationPoint.NodeClassMask & (uint)target.NodeClass) == 0)
+                continuationPoint.NodeClassMask != 0 &&
+                ((continuationPoint.NodeClassMask & (uint)target.NodeClass) == 0)
             )
             {
                 return null;
@@ -1473,7 +1515,10 @@ namespace Opc.Ua.Server
                 // check the browse names.
                 try
                 {
-                    for (IReference reference = browser.Next(); reference != null; reference = browser.Next())
+                    for (
+                        IReference reference = browser.Next();
+                        reference != null;
+                        reference = browser.Next())
                     {
                         // ignore unknown external references.
                         if (reference.TargetId.IsAbsolute)
@@ -1502,7 +1547,10 @@ namespace Opc.Ua.Server
                             }
 
                             // look up the target manually.
-                            NodeHandle targetHandle = GetManagerHandle(systemContext, targetId, operationCache);
+                            NodeHandle targetHandle = GetManagerHandle(
+                                systemContext,
+                                targetId,
+                                operationCache);
 
                             if (targetHandle == null)
                             {
@@ -1519,7 +1567,8 @@ namespace Opc.Ua.Server
                         }
 
                         // check browse name.
-                        if (target.BrowseName == relativePath.TargetName && !targetIds.Contains(reference.TargetId))
+                        if (target.BrowseName == relativePath.TargetName &&
+                            !targetIds.Contains(reference.TargetId))
                         {
                             targetIds.Add(reference.TargetId);
                         }
@@ -1560,7 +1609,10 @@ namespace Opc.Ua.Server
                     }
 
                     // check for valid handle.
-                    NodeHandle handle = GetManagerHandle(systemContext, nodeToRead.NodeId, operationCache);
+                    NodeHandle handle = GetManagerHandle(
+                        systemContext,
+                        nodeToRead.NodeId,
+                        operationCache);
 
                     if (handle == null)
                     {
@@ -1651,15 +1703,15 @@ namespace Opc.Ua.Server
 
             if (cache != null)
             {
-                NodeState target;
                 // lookup component in local cache for request.
-                if (cache.TryGetValue(handle.NodeId, out target))
+                if (cache.TryGetValue(handle.NodeId, out NodeState target))
                 {
                     return target;
                 }
 
                 // lookup root in local cache for request.
-                if (!string.IsNullOrEmpty(handle.ComponentPath) && cache.TryGetValue(rootId, out target))
+                if (!string.IsNullOrEmpty(handle.ComponentPath) &&
+                    cache.TryGetValue(rootId, out target))
                 {
                     target = target.FindChildBySymbolicName(context, handle.ComponentPath);
 
@@ -1769,7 +1821,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Writes the value for the specified attributes.
         /// </summary>
-        public virtual void Write(OperationContext context, IList<WriteValue> nodesToWrite, IList<ServiceResult> errors)
+        public virtual void Write(
+            OperationContext context,
+            IList<WriteValue> nodesToWrite,
+            IList<ServiceResult> errors)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
@@ -1788,7 +1843,10 @@ namespace Opc.Ua.Server
                     }
 
                     // check for valid handle.
-                    NodeHandle handle = GetManagerHandle(systemContext, nodeToWrite.NodeId, operationCache);
+                    NodeHandle handle = GetManagerHandle(
+                        systemContext,
+                        nodeToWrite.NodeId,
+                        operationCache);
 
                     if (handle == null)
                     {
@@ -1799,7 +1857,8 @@ namespace Opc.Ua.Server
                     nodeToWrite.Processed = true;
 
                     // index range is not supported.
-                    if (nodeToWrite.AttributeId != Attributes.Value && !string.IsNullOrEmpty(nodeToWrite.IndexRange))
+                    if (nodeToWrite.AttributeId != Attributes.Value &&
+                        !string.IsNullOrEmpty(nodeToWrite.IndexRange))
                     {
                         errors[ii] = StatusCodes.BadWriteNotSupported;
                         continue;
@@ -1818,7 +1877,8 @@ namespace Opc.Ua.Server
                     }
 
                     // check if the node is AnalogItem and the values are outside the InstrumentRange.
-                    if (handle.Node is AnalogItemState analogItemState && analogItemState.InstrumentRange != null)
+                    if (handle.Node is AnalogItemState analogItemState &&
+                        analogItemState.InstrumentRange != null)
                     {
                         try
                         {
@@ -1827,10 +1887,12 @@ namespace Opc.Ua.Server
                                 bool isOutOfRange = false;
                                 foreach (object arrayValue in array)
                                 {
-                                    double newValue = Convert.ToDouble(arrayValue, CultureInfo.InvariantCulture);
+                                    double newValue = Convert.ToDouble(
+                                        arrayValue,
+                                        CultureInfo.InvariantCulture);
                                     if (
-                                        newValue > analogItemState.InstrumentRange.Value.High
-                                        || newValue < analogItemState.InstrumentRange.Value.Low
+                                        newValue > analogItemState.InstrumentRange.Value.High ||
+                                        newValue < analogItemState.InstrumentRange.Value.Low
                                     )
                                     {
                                         isOutOfRange = true;
@@ -1851,8 +1913,8 @@ namespace Opc.Ua.Server
                                 );
 
                                 if (
-                                    newValue > analogItemState.InstrumentRange.Value.High
-                                    || newValue < analogItemState.InstrumentRange.Value.Low
+                                    newValue > analogItemState.InstrumentRange.Value.High ||
+                                    newValue < analogItemState.InstrumentRange.Value.Low
                                 )
                                 {
                                     errors[ii] = StatusCodes.BadOutOfRange;
@@ -1938,7 +2000,11 @@ namespace Opc.Ua.Server
                             propertyValue = nodeToWrite.Value.Value;
                         }
 
-                        CheckIfSemanticsHaveChanged(systemContext, propertyState, propertyValue, previousPropertyValue);
+                        CheckIfSemanticsHaveChanged(
+                            systemContext,
+                            propertyState,
+                            propertyValue,
+                            previousPropertyValue);
                     }
 
                     //not needed for sampling groups
@@ -1997,8 +2063,8 @@ namespace Opc.Ua.Server
             foreach (KeyValuePair<uint, IMonitoredItem> kvp in MonitoredItems)
             {
                 if (
-                    kvp.Value is not ISampledDataChangeMonitoredItem monitoredItem
-                    || monitoredItem.AttributeId != Attributes.Value
+                    kvp.Value is not ISampledDataChangeMonitoredItem monitoredItem ||
+                    monitoredItem.AttributeId != Attributes.Value
                 )
                 {
                     continue;
@@ -2011,70 +2077,77 @@ namespace Opc.Ua.Server
                 }
 
                 NodeState node = handle.Node;
-                BaseInstanceState propertyState = node.FindChild(systemContext, property.BrowseName);
+                BaseInstanceState propertyState = node.FindChild(
+                    systemContext,
+                    property.BrowseName);
 
-                if (propertyState != null && property != null && propertyState.NodeId == property.NodeId)
+                if (propertyState != null &&
+                    property != null &&
+                    propertyState.NodeId == property.NodeId)
                 {
                     if (
                         (
-                            node is AnalogItemState
-                            && (propertyName == BrowseNames.EURange || propertyName == BrowseNames.EngineeringUnits)
-                        )
-                        || (
-                            node is TwoStateDiscreteState
-                            && (propertyName == BrowseNames.FalseState || propertyName == BrowseNames.TrueState)
-                        )
-                        || (node is MultiStateDiscreteState && (propertyName == BrowseNames.EnumStrings))
-                        || (
-                            node is ArrayItemState
-                            && (
-                                propertyName == BrowseNames.InstrumentRange
-                                || propertyName == BrowseNames.EURange
-                                || propertyName == BrowseNames.EngineeringUnits
-                                || propertyName == BrowseNames.Title
+                            node is AnalogItemState &&
+                            (propertyName == BrowseNames.EURange ||
+                                propertyName == BrowseNames.EngineeringUnits)
+                        ) ||
+                        (
+                            node is TwoStateDiscreteState &&
+                            (propertyName == BrowseNames.FalseState ||
+                                propertyName == BrowseNames.TrueState)
+                        ) ||
+                        (node is MultiStateDiscreteState &&
+                            (propertyName == BrowseNames.EnumStrings)) ||
+                        (
+                            node is ArrayItemState &&
+                            (
+                                propertyName == BrowseNames.InstrumentRange ||
+                                propertyName == BrowseNames.EURange ||
+                                propertyName == BrowseNames.EngineeringUnits ||
+                                propertyName == BrowseNames.Title
                             )
-                        )
-                        || (
-                            (node is YArrayItemState || node is XYArrayItemState)
-                            && (
-                                propertyName == BrowseNames.InstrumentRange
-                                || propertyName == BrowseNames.EURange
-                                || propertyName == BrowseNames.EngineeringUnits
-                                || propertyName == BrowseNames.Title
-                                || propertyName == BrowseNames.XAxisDefinition
+                        ) ||
+                        (
+                            (node is YArrayItemState || node is XYArrayItemState) &&
+                            (
+                                propertyName == BrowseNames.InstrumentRange ||
+                                propertyName == BrowseNames.EURange ||
+                                propertyName == BrowseNames.EngineeringUnits ||
+                                propertyName == BrowseNames.Title ||
+                                propertyName == BrowseNames.XAxisDefinition
                             )
-                        )
-                        || (
-                            node is ImageItemState
-                            && (
-                                propertyName == BrowseNames.InstrumentRange
-                                || propertyName == BrowseNames.EURange
-                                || propertyName == BrowseNames.EngineeringUnits
-                                || propertyName == BrowseNames.Title
-                                || propertyName == BrowseNames.XAxisDefinition
-                                || propertyName == BrowseNames.YAxisDefinition
+                        ) ||
+                        (
+                            node is ImageItemState &&
+                            (
+                                propertyName == BrowseNames.InstrumentRange ||
+                                propertyName == BrowseNames.EURange ||
+                                propertyName == BrowseNames.EngineeringUnits ||
+                                propertyName == BrowseNames.Title ||
+                                propertyName == BrowseNames.XAxisDefinition ||
+                                propertyName == BrowseNames.YAxisDefinition
                             )
-                        )
-                        || (
-                            node is CubeItemState
-                            && (
-                                propertyName == BrowseNames.InstrumentRange
-                                || propertyName == BrowseNames.EURange
-                                || propertyName == BrowseNames.EngineeringUnits
-                                || propertyName == BrowseNames.Title
-                                || propertyName == BrowseNames.XAxisDefinition
-                                || propertyName == BrowseNames.YAxisDefinition
-                                || propertyName == BrowseNames.ZAxisDefinition
+                        ) ||
+                        (
+                            node is CubeItemState &&
+                            (
+                                propertyName == BrowseNames.InstrumentRange ||
+                                propertyName == BrowseNames.EURange ||
+                                propertyName == BrowseNames.EngineeringUnits ||
+                                propertyName == BrowseNames.Title ||
+                                propertyName == BrowseNames.XAxisDefinition ||
+                                propertyName == BrowseNames.YAxisDefinition ||
+                                propertyName == BrowseNames.ZAxisDefinition
                             )
-                        )
-                        || (
-                            node is NDimensionArrayItemState
-                            && (
-                                propertyName == BrowseNames.InstrumentRange
-                                || propertyName == BrowseNames.EURange
-                                || propertyName == BrowseNames.EngineeringUnits
-                                || propertyName == BrowseNames.Title
-                                || propertyName == BrowseNames.AxisDefinition
+                        ) ||
+                        (
+                            node is NDimensionArrayItemState &&
+                            (
+                                propertyName == BrowseNames.InstrumentRange ||
+                                propertyName == BrowseNames.EURange ||
+                                propertyName == BrowseNames.EngineeringUnits ||
+                                propertyName == BrowseNames.Title ||
+                                propertyName == BrowseNames.AxisDefinition
                             )
                         )
                     )
@@ -2083,7 +2156,12 @@ namespace Opc.Ua.Server
 
                         var value = new DataValue { ServerTimestamp = DateTime.UtcNow };
 
-                        node.ReadAttribute(systemContext, Attributes.Value, monitoredItem.IndexRange, null, value);
+                        node.ReadAttribute(
+                            systemContext,
+                            Attributes.Value,
+                            monitoredItem.IndexRange,
+                            null,
+                            value);
 
                         monitoredItem.QueueValue(value, ServiceResult.Good, true);
                     }
@@ -2168,7 +2246,10 @@ namespace Opc.Ua.Server
                     }
 
                     // check for valid handle.
-                    NodeHandle handle = GetManagerHandle(systemContext, nodeToRead.NodeId, operationCache);
+                    NodeHandle handle = GetManagerHandle(
+                        systemContext,
+                        nodeToRead.NodeId,
+                        operationCache);
 
                     if (handle == null)
                     {
@@ -2202,8 +2283,8 @@ namespace Opc.Ua.Server
                     // check for data history variable.
 
                     if (
-                        handle.Node is BaseVariableState variable
-                        && (variable.AccessLevel & AccessLevels.HistoryRead) != 0
+                        handle.Node is BaseVariableState variable &&
+                        (variable.AccessLevel & AccessLevels.HistoryRead) != 0
                     )
                     {
                         handle.Index = ii;
@@ -2214,13 +2295,12 @@ namespace Opc.Ua.Server
                     // check for event history object.
 
                     if (
-                        handle.Node is BaseObjectState notifier
-                        && (notifier.EventNotifier & EventNotifiers.HistoryRead) != 0
+                        handle.Node is BaseObjectState notifier &&
+                        (notifier.EventNotifier & EventNotifiers.HistoryRead) != 0
                     )
                     {
                         handle.Index = ii;
                         nodesToProcess.Add(handle);
-                        continue;
                     }
                 }
 
@@ -2395,6 +2475,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates the nodes and reads the values from the underlying source.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         protected virtual void HistoryRead(
             ServerSystemContext context,
             HistoryReadDetails details,
@@ -2410,7 +2491,12 @@ namespace Opc.Ua.Server
             // check if continuation points are being released.
             if (releaseContinuationPoints)
             {
-                HistoryReleaseContinuationPoints(context, nodesToRead, errors, nodesToProcess, cache);
+                HistoryReleaseContinuationPoints(
+                    context,
+                    nodesToRead,
+                    errors,
+                    nodesToProcess,
+                    cache);
 
                 return;
             }
@@ -2427,8 +2513,8 @@ namespace Opc.Ua.Server
             {
                 // at least one must be provided.
                 if (
-                    readRawModifiedDetails.StartTime == DateTime.MinValue
-                    && readRawModifiedDetails.EndTime == DateTime.MinValue
+                    readRawModifiedDetails.StartTime == DateTime.MinValue &&
+                    readRawModifiedDetails.EndTime == DateTime.MinValue
                 )
                 {
                     throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
@@ -2436,8 +2522,8 @@ namespace Opc.Ua.Server
 
                 // if one is null the num values must be provided.
                 if (
-                    readRawModifiedDetails.StartTime == DateTime.MinValue
-                    || readRawModifiedDetails.EndTime == DateTime.MinValue
+                    readRawModifiedDetails.StartTime == DateTime.MinValue ||
+                    readRawModifiedDetails.EndTime == DateTime.MinValue
                 )
                 {
                     if (readRawModifiedDetails.NumValuesPerNode == 0)
@@ -2466,8 +2552,8 @@ namespace Opc.Ua.Server
             {
                 // check the list of aggregates.
                 if (
-                    readProcessedDetails.AggregateType == null
-                    || readProcessedDetails.AggregateType.Count != nodesToRead.Count
+                    readProcessedDetails.AggregateType == null ||
+                    readProcessedDetails.AggregateType.Count != nodesToRead.Count
                 )
                 {
                     throw new ServiceResultException(StatusCodes.BadAggregateListMismatch);
@@ -2475,8 +2561,8 @@ namespace Opc.Ua.Server
 
                 // check start/end time.
                 if (
-                    readProcessedDetails.StartTime == DateTime.MinValue
-                    || readProcessedDetails.EndTime == DateTime.MinValue
+                    readProcessedDetails.StartTime == DateTime.MinValue ||
+                    readProcessedDetails.EndTime == DateTime.MinValue
                 )
                 {
                     throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
@@ -2522,16 +2608,16 @@ namespace Opc.Ua.Server
                 if (readEventDetails.NumValuesPerNode == 0)
                 {
                     if (
-                        readEventDetails.StartTime == DateTime.MinValue
-                        || readEventDetails.EndTime == DateTime.MinValue
+                        readEventDetails.StartTime == DateTime.MinValue ||
+                        readEventDetails.EndTime == DateTime.MinValue
                     )
                     {
                         throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
                     }
                 }
                 else if (
-                    readEventDetails.StartTime == DateTime.MinValue
-                    && readEventDetails.EndTime == DateTime.MinValue
+                    readEventDetails.StartTime == DateTime.MinValue &&
+                    readEventDetails.EndTime == DateTime.MinValue
                 )
                 {
                     throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
@@ -2558,8 +2644,6 @@ namespace Opc.Ua.Server
                     nodesToProcess,
                     cache
                 );
-
-                return;
             }
         }
 
@@ -2591,7 +2675,10 @@ namespace Opc.Ua.Server
                     }
 
                     // check for valid handle.
-                    NodeHandle handle = GetManagerHandle(systemContext, nodeToUpdate.NodeId, operationCache);
+                    NodeHandle handle = GetManagerHandle(
+                        systemContext,
+                        nodeToUpdate.NodeId,
+                        operationCache);
 
                     if (handle == null)
                     {
@@ -2621,8 +2708,8 @@ namespace Opc.Ua.Server
                     // check for data history variable.
 
                     if (
-                        handle.Node is BaseVariableState variable
-                        && (variable.AccessLevel & AccessLevels.HistoryWrite) != 0
+                        handle.Node is BaseVariableState variable &&
+                        (variable.AccessLevel & AccessLevels.HistoryWrite) != 0
                     )
                     {
                         handle.Index = ii;
@@ -2633,13 +2720,12 @@ namespace Opc.Ua.Server
                     // check for event history object.
 
                     if (
-                        handle.Node is BaseObjectState notifier
-                        && (notifier.EventNotifier & EventNotifiers.HistoryWrite) != 0
+                        handle.Node is BaseObjectState notifier &&
+                        (notifier.EventNotifier & EventNotifiers.HistoryWrite) != 0
                     )
                     {
                         handle.Index = ii;
                         nodesToProcess.Add(handle);
-                        continue;
                     }
                 }
 
@@ -2651,7 +2737,14 @@ namespace Opc.Ua.Server
             }
 
             // validates the nodes and updates.
-            HistoryUpdate(systemContext, detailsType, nodesToUpdate, results, errors, nodesToProcess, operationCache);
+            HistoryUpdate(
+                systemContext,
+                detailsType,
+                nodesToUpdate,
+                results,
+                errors,
+                nodesToProcess,
+                operationCache);
         }
 
         /// <summary>
@@ -2692,7 +2785,13 @@ namespace Opc.Ua.Server
                     details[ii] = (UpdateStructureDataDetails)nodesToUpdate[ii];
                 }
 
-                HistoryUpdateStructureData(context, details, results, errors, nodesToProcess, cache);
+                HistoryUpdateStructureData(
+                    context,
+                    details,
+                    results,
+                    errors,
+                    nodesToProcess,
+                    cache);
 
                 return;
             }
@@ -2753,8 +2852,6 @@ namespace Opc.Ua.Server
                 }
 
                 HistoryDeleteEvents(context, details, results, errors, nodesToProcess, cache);
-
-                return;
             }
         }
 
@@ -2952,7 +3049,10 @@ namespace Opc.Ua.Server
                 MethodState method = null;
 
                 // check for valid handle.
-                NodeHandle handle = GetManagerHandle(systemContext, methodToCall.ObjectId, operationCache);
+                NodeHandle handle = GetManagerHandle(
+                    systemContext,
+                    methodToCall.ObjectId,
+                    operationCache);
 
                 if (handle == null)
                 {
@@ -2979,9 +3079,14 @@ namespace Opc.Ua.Server
                     if (method == null)
                     {
                         // check for loose coupling.
-                        if (source.ReferenceExists(ReferenceTypeIds.HasComponent, false, methodToCall.MethodId))
+                        if (source.ReferenceExists(
+                            ReferenceTypeIds.HasComponent,
+                            false,
+                            methodToCall.MethodId))
                         {
-                            method = (MethodState)FindPredefinedNode(methodToCall.MethodId, typeof(MethodState));
+                            method = (MethodState)FindPredefinedNode(
+                                methodToCall.MethodId,
+                                typeof(MethodState));
                         }
 
                         if (method == null)
@@ -2993,7 +3098,10 @@ namespace Opc.Ua.Server
 
                     // validate the role permissions for method to be executed,
                     // it may be a different MethodState that does not have the MethodId specified in the method call
-                    errors[ii] = ValidateRolePermissions(context, method.NodeId, PermissionType.Call);
+                    errors[ii] = ValidateRolePermissions(
+                        context,
+                        method.NodeId,
+                        PermissionType.Call);
 
                     if (ServiceResult.IsBad(errors[ii]))
                     {
@@ -3058,8 +3166,9 @@ namespace Opc.Ua.Server
 
                 // only fill in diagnostic info if it is requested.
                 if (
-                    systemContext.OperationContext != null
-                    && (systemContext.OperationContext.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0
+                    systemContext.OperationContext != null &&
+                    (systemContext.OperationContext.DiagnosticsMask &
+                        DiagnosticsMasks.OperationAll) != 0
                 )
                 {
                     if (ServiceResult.IsBad(argumentError))
@@ -3164,7 +3273,11 @@ namespace Opc.Ua.Server
                 {
                     for (int ii = 0; ii < RootNotifiers.Count; ii++)
                     {
-                        SubscribeToEvents(systemContext, RootNotifiers[ii], monitoredItem, unsubscribe);
+                        SubscribeToEvents(
+                            systemContext,
+                            RootNotifiers[ii],
+                            monitoredItem,
+                            unsubscribe);
                     }
                 }
 
@@ -3213,7 +3326,10 @@ namespace Opc.Ua.Server
                 {
                     notifier.OnReportEvent = OnReportEvent;
 
-                    if (!notifier.ReferenceExists(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server))
+                    if (!notifier.ReferenceExists(
+                        ReferenceTypeIds.HasNotifier,
+                        true,
+                        ObjectIds.Server))
                     {
                         notifier.AddReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
                     }
@@ -3222,7 +3338,8 @@ namespace Opc.Ua.Server
                 // subscribe to existing events.
                 if (Server.EventManager != null)
                 {
-                    IList<IEventMonitoredItem> monitoredItems = Server.EventManager.GetMonitoredItems();
+                    IList<IEventMonitoredItem> monitoredItems = Server.EventManager
+                        .GetMonitoredItems();
 
                     for (int ii = 0; ii < monitoredItems.Count; ii++)
                     {
@@ -3250,7 +3367,10 @@ namespace Opc.Ua.Server
                         if (ReferenceEquals(notifier, RootNotifiers[ii]))
                         {
                             notifier.OnReportEvent = null;
-                            notifier.RemoveReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
+                            notifier.RemoveReference(
+                                ReferenceTypeIds.HasNotifier,
+                                true,
+                                ObjectIds.Server);
                             RootNotifiers.RemoveAt(ii);
                             break;
                         }
@@ -3262,7 +3382,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Reports an event for a root notifier.
         /// </summary>
-        protected virtual void OnReportEvent(ISystemContext context, NodeState node, IFilterTarget e)
+        protected virtual void OnReportEvent(
+            ISystemContext context,
+            NodeState node,
+            IFilterTarget e)
         {
             Server.ReportEvent(context, e);
         }
@@ -3282,12 +3405,13 @@ namespace Opc.Ua.Server
             bool unsubscribe
         )
         {
-            (MonitoredNode2 monitoredNode, ServiceResult serviceResult) = m_monitoredItemManager.SubscribeToEvents(
-                context,
-                source,
-                monitoredItem,
-                unsubscribe
-            );
+            (MonitoredNode2 monitoredNode, ServiceResult serviceResult) = m_monitoredItemManager
+                .SubscribeToEvents(
+                    context,
+                    source,
+                    monitoredItem,
+                    unsubscribe
+                    );
 
             // This call recursively updates a reference count all nodes in the notifier
             // hierarchy below the area. Sources with a reference count of 0 do not have
@@ -3392,6 +3516,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Restore a set of monitored items after a restart.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="itemsToRestore"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public virtual void RestoreMonitoredItems(
             IList<IStoredMonitoredItem> itemsToRestore,
             IList<IMonitoredItem> monitoredItems,
@@ -3410,7 +3536,8 @@ namespace Opc.Ua.Server
 
             if (Server.IsRunning)
             {
-                throw new InvalidOperationException("Subscription restore can only occur on startup");
+                throw new InvalidOperationException(
+                    "Subscription restore can only occur on startup");
             }
 
             ServerSystemContext systemContext = SystemContext.Copy();
@@ -3428,7 +3555,10 @@ namespace Opc.Ua.Server
                 }
 
                 // check for valid handle.
-                NodeHandle handle = GetManagerHandle(systemContext, itemToCreate.NodeId, operationCache);
+                NodeHandle handle = GetManagerHandle(
+                    systemContext,
+                    itemToCreate.NodeId,
+                    operationCache);
 
                 if (handle == null)
                 {
@@ -3524,8 +3654,6 @@ namespace Opc.Ua.Server
                 MaxDurableQueueSize
             );
 
-            ISampledDataChangeMonitoredItem restoredItem;
-
             bool success = m_monitoredItemManager.RestoreMonitoredItem(
                 Server,
                 this,
@@ -3534,7 +3662,7 @@ namespace Opc.Ua.Server
                 storedMonitoredItem,
                 savedOwnerIdentity,
                 AddNodeToComponentCache,
-                out restoredItem
+                out ISampledDataChangeMonitoredItem restoredItem
             );
 
             monitoredItem = restoredItem;
@@ -3582,7 +3710,10 @@ namespace Opc.Ua.Server
                 ReadValueId itemToMonitor = itemToCreate.ItemToMonitor;
 
                 // check for valid handle.
-                NodeHandle handle = GetManagerHandle(systemContext, itemToMonitor.NodeId, operationCache);
+                NodeHandle handle = GetManagerHandle(
+                    systemContext,
+                    itemToMonitor.NodeId,
+                    operationCache);
 
                 if (handle == null)
                 {
@@ -3719,9 +3850,9 @@ namespace Opc.Ua.Server
 
             // ensure minimum sampling interval is not exceeded.
             if (
-                itemToCreate.ItemToMonitor.AttributeId == Attributes.Value
-                && handle.Node is BaseVariableState variable
-                && samplingInterval < variable.MinimumSamplingInterval
+                itemToCreate.ItemToMonitor.AttributeId == Attributes.Value &&
+                handle.Node is BaseVariableState variable &&
+                samplingInterval < variable.MinimumSamplingInterval
             )
             {
                 samplingInterval = variable.MinimumSamplingInterval;
@@ -3742,8 +3873,6 @@ namespace Opc.Ua.Server
             );
 
             // validate the monitoring filter.
-            Range euRange = null;
-            MonitoringFilter filterToUse = null;
 
             ServiceResult error = ValidateMonitoringFilter(
                 context,
@@ -3752,8 +3881,8 @@ namespace Opc.Ua.Server
                 samplingInterval,
                 revisedQueueSize,
                 parameters.Filter,
-                out filterToUse,
-                out euRange,
+                out MonitoringFilter filterToUse,
+                out Range euRange,
                 out filterResult
             );
 
@@ -3762,24 +3891,25 @@ namespace Opc.Ua.Server
                 return error;
             }
 
-            ISampledDataChangeMonitoredItem dataChangeMonitoredItem = m_monitoredItemManager.CreateMonitoredItem(
-                Server,
-                this,
-                context,
-                handle,
-                subscriptionId,
-                publishingInterval,
-                diagnosticsMasks,
-                timestampsToReturn,
-                itemToCreate,
-                euRange,
-                filterToUse,
-                samplingInterval,
-                revisedQueueSize,
-                createDurable,
-                monitoredItemId,
-                AddNodeToComponentCache
-            );
+            ISampledDataChangeMonitoredItem dataChangeMonitoredItem = m_monitoredItemManager
+                .CreateMonitoredItem(
+                    Server,
+                    this,
+                    context,
+                    handle,
+                    subscriptionId,
+                    publishingInterval,
+                    diagnosticsMasks,
+                    timestampsToReturn,
+                    itemToCreate,
+                    euRange,
+                    filterToUse,
+                    samplingInterval,
+                    revisedQueueSize,
+                    createDurable,
+                    monitoredItemId,
+                    AddNodeToComponentCache
+                    );
 
             monitoredItem = dataChangeMonitoredItem;
 
@@ -3822,7 +3952,7 @@ namespace Opc.Ua.Server
                 Value = null,
                 ServerTimestamp = DateTime.UtcNow,
                 SourceTimestamp = DateTime.MinValue,
-                StatusCode = StatusCodes.BadWaitingForInitialData,
+                StatusCode = StatusCodes.BadWaitingForInitialData
             };
 
             ServiceResult error = handle.Node.ReadAttribute(
@@ -3856,10 +3986,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates Role permissions for the specified NodeId
         /// </summary>
-        /// <param name="operationContext"></param>
-        /// <param name="nodeId"></param>
-        /// <param name="requestedPermission"></param>
-        /// <returns></returns>
         public virtual ServiceResult ValidateRolePermissions(
             OperationContext operationContext,
             NodeId nodeId,
@@ -3872,8 +3998,8 @@ namespace Opc.Ua.Server
                 return StatusCodes.Good;
             }
 
-            INodeManager nodeManager;
-            object nodeHandle = Server.NodeManager.GetManagerHandle(nodeId, out nodeManager);
+            object nodeHandle = Server.NodeManager
+                .GetManagerHandle(nodeId, out INodeManager nodeManager);
 
             if (nodeHandle == null || nodeManager == null)
             {
@@ -3881,16 +4007,23 @@ namespace Opc.Ua.Server
                 return StatusCodes.Good;
             }
 
-            NodeMetadata nodeMetadata = nodeManager.GetNodeMetadata(operationContext, nodeHandle, BrowseResultMask.All);
+            NodeMetadata nodeMetadata = nodeManager.GetNodeMetadata(
+                operationContext,
+                nodeHandle,
+                BrowseResultMask.All);
 
-            return MasterNodeManager.ValidateRolePermissions(operationContext, nodeMetadata, requestedPermission);
+            return MasterNodeManager.ValidateRolePermissions(
+                operationContext,
+                nodeMetadata,
+                requestedPermission);
         }
 
         /// <summary>
         /// Validates if the specified event monitored item has enough permissions to receive the specified event
         /// </summary>
-        /// <returns></returns>
-        public ServiceResult ValidateEventRolePermissions(IEventMonitoredItem monitoredItem, IFilterTarget filterTarget)
+        public ServiceResult ValidateEventRolePermissions(
+            IEventMonitoredItem monitoredItem,
+            IFilterTarget filterTarget)
         {
             NodeId eventTypeId = null;
             NodeId sourceNodeId = null;
@@ -3911,7 +4044,10 @@ namespace Opc.Ua.Server
             var operationContext = new OperationContext(monitoredItem);
 
             // validate the event type id permissions as specified
-            ServiceResult result = ValidateRolePermissions(operationContext, eventTypeId, PermissionType.ReceiveEvents);
+            ServiceResult result = ValidateRolePermissions(
+                operationContext,
+                eventTypeId,
+                PermissionType.ReceiveEvents);
 
             if (ServiceResult.IsBad(result))
             {
@@ -3919,7 +4055,10 @@ namespace Opc.Ua.Server
             }
 
             // validate the source node id permissions as specified
-            return ValidateRolePermissions(operationContext, sourceNodeId, PermissionType.ReceiveEvents);
+            return ValidateRolePermissions(
+                operationContext,
+                sourceNodeId,
+                PermissionType.ReceiveEvents);
         }
 
         /// <summary>
@@ -3952,8 +4091,8 @@ namespace Opc.Ua.Server
             if (ExtensionObject.ToEncodeable(filter) is not DataChangeFilter deadbandFilter)
             {
                 if (
-                    ExtensionObject.ToEncodeable(filter) is not AggregateFilter aggregateFilter
-                    || attributeId != Attributes.Value
+                    ExtensionObject.ToEncodeable(filter) is not AggregateFilter aggregateFilter ||
+                    attributeId != Attributes.Value
                 )
                 {
                     return StatusCodes.BadFilterNotAllowed;
@@ -3970,10 +4109,15 @@ namespace Opc.Ua.Server
                     StartTime = aggregateFilter.StartTime,
                     ProcessingInterval = aggregateFilter.ProcessingInterval,
                     AggregateConfiguration = aggregateFilter.AggregateConfiguration,
-                    Stepped = false,
+                    Stepped = false
                 };
 
-                StatusCode error = ReviseAggregateFilter(context, handle, samplingInterval, queueSize, revisedFilter);
+                StatusCode error = ReviseAggregateFilter(
+                    context,
+                    handle,
+                    samplingInterval,
+                    queueSize,
+                    revisedFilter);
 
                 if (StatusCode.IsBad(error))
                 {
@@ -3984,7 +4128,7 @@ namespace Opc.Ua.Server
                 {
                     RevisedProcessingInterval = aggregateFilter.ProcessingInterval,
                     RevisedStartTime = aggregateFilter.StartTime,
-                    RevisedAggregateConfiguration = aggregateFilter.AggregateConfiguration,
+                    RevisedAggregateConfiguration = aggregateFilter.AggregateConfiguration
                 };
 
                 filterToUse = revisedFilter;
@@ -4026,7 +4170,8 @@ namespace Opc.Ua.Server
             // need to look up the EU range if a percent filter is requested.
             if (deadbandFilter.DeadbandType == (uint)DeadbandType.Percent)
             {
-                if (handle.Node.FindChild(context, BrowseNames.EURange) is not PropertyState property)
+                if (handle.Node
+                    .FindChild(context, BrowseNames.EURange) is not PropertyState property)
                 {
                     return StatusCodes.BadMonitoredItemFilterUnsupported;
                 }
@@ -4085,7 +4230,8 @@ namespace Opc.Ua.Server
 
             if (filterToUse.AggregateConfiguration.UseServerCapabilitiesDefaults)
             {
-                filterToUse.AggregateConfiguration = Server.AggregateManager.GetDefaultConfiguration(null);
+                filterToUse.AggregateConfiguration = Server.AggregateManager
+                    .GetDefaultConfiguration(null);
             }
 
             return StatusCodes.Good;
@@ -4146,7 +4292,6 @@ namespace Opc.Ua.Server
                     itemToModify.Processed = true;
 
                     // modify the monitored item.
-                    MonitoringFilterResult filterResult;
                     errors[ii] = ModifyMonitoredItem(
                         systemContext,
                         context.DiagnosticsMask,
@@ -4154,7 +4299,7 @@ namespace Opc.Ua.Server
                         monitoredItems[ii],
                         itemToModify,
                         handle,
-                        out filterResult
+                        out MonitoringFilterResult filterResult
                     );
 
                     // save any filter error details.
@@ -4219,9 +4364,9 @@ namespace Opc.Ua.Server
 
             // ensure minimum sampling interval is not exceeded.
             if (
-                datachangeItem.AttributeId == Attributes.Value
-                && handle.Node is BaseVariableState variable
-                && samplingInterval < variable.MinimumSamplingInterval
+                datachangeItem.AttributeId == Attributes.Value &&
+                handle.Node is BaseVariableState variable &&
+                samplingInterval < variable.MinimumSamplingInterval
             )
             {
                 samplingInterval = variable.MinimumSamplingInterval;
@@ -4242,9 +4387,7 @@ namespace Opc.Ua.Server
             );
 
             // validate the monitoring filter.
-            Range euRange;
 
-            MonitoringFilter filterToUse;
             ServiceResult error = ValidateMonitoringFilter(
                 context,
                 handle,
@@ -4252,8 +4395,8 @@ namespace Opc.Ua.Server
                 samplingInterval,
                 revisedQueueSize,
                 parameters.Filter,
-                out filterToUse,
-                out euRange,
+                out MonitoringFilter filterToUse,
+                out Range euRange,
                 out filterResult
             );
 
@@ -4536,7 +4679,11 @@ namespace Opc.Ua.Server
                     processedItems[ii] = true;
 
                     // update monitoring mode.
-                    errors[ii] = SetMonitoringMode(systemContext, monitoredItems[ii], monitoringMode, handle);
+                    errors[ii] = SetMonitoringMode(
+                        systemContext,
+                        monitoredItems[ii],
+                        monitoringMode,
+                        handle);
 
                     // save the modified item.
                     if (ServiceResult.IsGood(errors[ii]))
@@ -4578,12 +4725,13 @@ namespace Opc.Ua.Server
         {
             var sampledDataChangeMonitoredItem = monitoredItem as ISampledDataChangeMonitoredItem;
 
-            (ServiceResult result, MonitoringMode? previousMode) = m_monitoredItemManager.SetMonitoringMode(
-                context,
-                sampledDataChangeMonitoredItem,
-                monitoringMode,
-                handle
-            );
+            (ServiceResult result, MonitoringMode? previousMode) = m_monitoredItemManager
+                .SetMonitoringMode(
+                    context,
+                    sampledDataChangeMonitoredItem,
+                    monitoringMode,
+                    handle
+                    );
 
             // report change.
             if (ServiceResult.IsGood(result) && previousMode != monitoringMode)
@@ -4622,7 +4770,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Called when a session is closed.
         /// </summary>
-        public virtual void SessionClosing(OperationContext context, NodeId sessionId, bool deleteSubscriptions) { }
+        public virtual void SessionClosing(
+            OperationContext context,
+            NodeId sessionId,
+            bool deleteSubscriptions)
+        {
+        }
 
         /// <summary>
         /// Returns true if a node is in a view.
@@ -4730,10 +4883,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Set the metadata default permission values for DefaultAccessRestrictions, DefaultRolePermissions and DefaultUserRolePermissions
         /// </summary>
-        /// <param name="systemContext"></param>
-        /// <param name="target"></param>
-        /// <param name="metadata"></param>
-        private void SetDefaultPermissions(ServerSystemContext systemContext, NodeState target, NodeMetadata metadata)
+        private void SetDefaultPermissions(
+            ServerSystemContext systemContext,
+            NodeState target,
+            NodeMetadata metadata)
         {
             // check if NamespaceMetadata is defined for NamespaceUri
             string namespaceUri = Server.NamespaceUris.GetString(target.NodeId.NamespaceIndex);
@@ -4747,31 +4900,36 @@ namespace Opc.Ua.Server
                 if (namespaceMetadataState.DefaultAccessRestrictions != null)
                 {
                     // get DefaultAccessRestrictions for Namespace
-                    namespaceMetadataValues = namespaceMetadataState.DefaultAccessRestrictions.ReadAttributes(
-                        systemContext,
-                        Attributes.Value
-                    );
+                    namespaceMetadataValues = namespaceMetadataState.DefaultAccessRestrictions
+                        .ReadAttributes(
+                            systemContext,
+                            Attributes.Value
+                            );
 
                     if (namespaceMetadataValues[0] != null)
                     {
                         metadata.DefaultAccessRestrictions = (AccessRestrictionType)
-                            Enum.ToObject(typeof(AccessRestrictionType), namespaceMetadataValues[0]);
+                            Enum.ToObject(
+                                typeof(AccessRestrictionType),
+                                namespaceMetadataValues[0]);
                     }
                 }
 
                 if (namespaceMetadataState.DefaultRolePermissions != null)
                 {
                     // get DefaultRolePermissions for Namespace
-                    namespaceMetadataValues = namespaceMetadataState.DefaultRolePermissions.ReadAttributes(
-                        systemContext,
-                        Attributes.Value
-                    );
+                    namespaceMetadataValues = namespaceMetadataState.DefaultRolePermissions
+                        .ReadAttributes(
+                            systemContext,
+                            Attributes.Value
+                            );
 
                     if (namespaceMetadataValues[0] != null)
                     {
                         metadata.DefaultRolePermissions =
                         [
-                            .. ExtensionObject.ToList<RolePermissionType>(namespaceMetadataValues[0]),
+                            .. ExtensionObject.ToList<RolePermissionType>(
+                                namespaceMetadataValues[0])
                         ];
                     }
                 }
@@ -4779,16 +4937,18 @@ namespace Opc.Ua.Server
                 if (namespaceMetadataState.DefaultUserRolePermissions != null)
                 {
                     // get DefaultUserRolePermissions for Namespace
-                    namespaceMetadataValues = namespaceMetadataState.DefaultUserRolePermissions.ReadAttributes(
-                        systemContext,
-                        Attributes.Value
-                    );
+                    namespaceMetadataValues = namespaceMetadataState.DefaultUserRolePermissions
+                        .ReadAttributes(
+                            systemContext,
+                            Attributes.Value
+                            );
 
                     if (namespaceMetadataValues[0] != null)
                     {
                         metadata.DefaultUserRolePermissions =
                         [
-                            .. ExtensionObject.ToList<RolePermissionType>(namespaceMetadataValues[0]),
+                            .. ExtensionObject.ToList<RolePermissionType>(
+                                namespaceMetadataValues[0])
                         ];
                     }
                 }
@@ -4855,8 +5015,7 @@ namespace Opc.Ua.Server
                         nodeId = handle.RootId;
                     }
 
-                    CacheEntry entry;
-                    if (m_componentCache.TryGetValue(nodeId, out entry))
+                    if (m_componentCache.TryGetValue(nodeId, out CacheEntry entry))
                     {
                         entry.RefCount--;
 
@@ -4872,7 +5031,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Adds a node to the component cache.
         /// </summary>
-        protected NodeState AddNodeToComponentCache(ISystemContext context, NodeHandle handle, NodeState node)
+        protected NodeState AddNodeToComponentCache(
+            ISystemContext context,
+            NodeHandle handle,
+            NodeState node)
         {
             lock (Lock)
             {
@@ -4886,15 +5048,14 @@ namespace Opc.Ua.Server
                 // check if a component is actually specified.
                 if (!string.IsNullOrEmpty(handle.ComponentPath))
                 {
-                    CacheEntry entry = null;
-
-                    if (m_componentCache.TryGetValue(handle.RootId, out entry))
+                    if (m_componentCache.TryGetValue(handle.RootId, out CacheEntry entry))
                     {
                         entry.RefCount++;
 
                         if (!string.IsNullOrEmpty(handle.ComponentPath))
                         {
-                            return entry.Entry.FindChildBySymbolicName(context, handle.ComponentPath);
+                            return entry.Entry
+                                .FindChildBySymbolicName(context, handle.ComponentPath);
                         }
 
                         return entry.Entry;
@@ -4911,9 +5072,7 @@ namespace Opc.Ua.Server
                 // simply add the node to the cache.
                 else
                 {
-                    CacheEntry entry = null;
-
-                    if (m_componentCache.TryGetValue(handle.NodeId, out entry))
+                    if (m_componentCache.TryGetValue(handle.NodeId, out CacheEntry entry))
                     {
                         entry.RefCount++;
                         return entry.Entry;

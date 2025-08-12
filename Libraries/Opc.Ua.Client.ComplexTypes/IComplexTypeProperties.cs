@@ -67,4 +67,4 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         IEnumerable<ComplexTypePropertyInfo> GetPropertyEnumerator();
     }
-} //namespace
+}

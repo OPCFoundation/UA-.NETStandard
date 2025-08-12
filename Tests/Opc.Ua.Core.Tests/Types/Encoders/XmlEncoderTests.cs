@@ -39,8 +39,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     /// <summary>
     /// Tests for the XML encoder and decoder class.
     /// </summary>
-    [TestFixture, Category("XmlEncoder")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("XmlEncoder")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public
 #if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
@@ -179,7 +181,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var context = new ServiceMessageContext();
             string actualXmlValue;
             using (
-                var xmlEncoder = new XmlEncoder(new XmlQualifiedName("VariantTest", Namespaces.OpcUaXsd), null, context)
+                var xmlEncoder = new XmlEncoder(
+                    new XmlQualifiedName("VariantTest", Namespaces.OpcUaXsd),
+                    null,
+                    context)
             )
             {
                 xmlEncoder.PushNamespace(Namespaces.OpcUaXsd);
@@ -190,8 +195,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // Check encode result against expected XML value
             Assert.AreEqual(
-                expected.Replace("\r", "", StringComparison.Ordinal).Replace("\n", "", StringComparison.Ordinal),
-                actualXmlValue.Replace("\r", "", StringComparison.Ordinal).Replace("\n", "", StringComparison.Ordinal)
+                expected.Replace("\r", string.Empty, StringComparison.Ordinal)
+                    .Replace("\n", string.Empty, StringComparison.Ordinal),
+                actualXmlValue.Replace("\r", string.Empty, StringComparison.Ordinal)
+                    .Replace("\n", string.Empty, StringComparison.Ordinal)
             );
 
             // Decode
@@ -221,7 +228,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var context = new ServiceMessageContext();
             string actualXmlValue;
             using (
-                var xmlEncoder = new XmlEncoder(new XmlQualifiedName("VariantTest", Namespaces.OpcUaXsd), null, context)
+                var xmlEncoder = new XmlEncoder(
+                    new XmlQualifiedName("VariantTest", Namespaces.OpcUaXsd),
+                    null,
+                    context)
             )
             {
                 xmlEncoder.PushNamespace(Namespaces.OpcUaXsd);
@@ -232,8 +242,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // Check encode result against expected XML value
             Assert.AreEqual(
-                expected.Replace("\r", "", StringComparison.Ordinal).Replace("\n", "", StringComparison.Ordinal),
-                actualXmlValue.Replace("\r", "", StringComparison.Ordinal).Replace("\n", "", StringComparison.Ordinal)
+                expected.Replace("\r", string.Empty, StringComparison.Ordinal)
+                    .Replace("\n", string.Empty, StringComparison.Ordinal),
+                actualXmlValue.Replace("\r", string.Empty, StringComparison.Ordinal)
+                    .Replace("\n", string.Empty, StringComparison.Ordinal)
             );
 
             // Decode

@@ -35,7 +35,7 @@ namespace Opc.Ua.Bindings
                 MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
                 MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
                 Factory = factory,
-                NamespaceUris = namespaceUris,
+                NamespaceUris = namespaceUris
             };
         }
 

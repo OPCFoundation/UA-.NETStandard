@@ -78,16 +78,21 @@ namespace Opc.Ua.Client.Tests
 
         public void SetMaxNumberOfContinuationPoints(uint maxNumberOfContinuationPoints)
         {
-            Configuration.ServerConfiguration.MaxBrowseContinuationPoints = (int)maxNumberOfContinuationPoints;
-            ((MasterNodeManagerWithLimits)MasterNodeManagerReference).MaxContinuationPointsPerBrowseForUnitTest =
+            Configuration.ServerConfiguration.MaxBrowseContinuationPoints
+                = (int)maxNumberOfContinuationPoints;
+            ((MasterNodeManagerWithLimits)MasterNodeManagerReference)
+                .MaxContinuationPointsPerBrowseForUnitTest =
                 maxNumberOfContinuationPoints;
             foreach (Server.ISession session in SessionManagerForTest.GetSessions().ToList())
             {
                 try
                 {
-                    ((ServerSessionWithLimits)session).SetMaxNumberOfContinuationPoints(maxNumberOfContinuationPoints);
+                    ((ServerSessionWithLimits)session).SetMaxNumberOfContinuationPoints(
+                        maxNumberOfContinuationPoints);
                 }
-                catch { }
+                catch
+                {
+                }
             }
         }
 
@@ -96,12 +101,14 @@ namespace Opc.Ua.Client.Tests
             ApplicationConfiguration configuration
         )
         {
-            Utils.LogInfo(Utils.TraceMasks.StartStop, "Creating the Reference Server Node Manager.");
+            Utils.LogInfo(
+                Utils.TraceMasks.StartStop,
+                "Creating the Reference Server Node Manager.");
 
             IList<INodeManager> nodeManagers =
             [
                 // create the custom node manager.
-                new ReferenceNodeManager(server, configuration),
+                new ReferenceNodeManager(server, configuration)
             ];
 
             foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)
@@ -188,34 +195,22 @@ namespace Opc.Ua.Client.Tests
         private readonly int m_4TestMaxBrowseContinuationPoints;
         private readonly int m_4TestMaxHistoryContinuationPoints;
 
-        public SessionManagerWithLimits(IServerInternal server, ApplicationConfiguration configuration)
+        public SessionManagerWithLimits(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
             : base(server, configuration)
         {
             m_4TestServer = server;
             m_4TestMaxRequestAge = configuration.ServerConfiguration.MaxRequestAge;
-            m_4TestMaxBrowseContinuationPoints = configuration.ServerConfiguration.MaxBrowseContinuationPoints;
-            m_4TestMaxHistoryContinuationPoints = configuration.ServerConfiguration.MaxHistoryContinuationPoints;
+            m_4TestMaxBrowseContinuationPoints = configuration.ServerConfiguration
+                .MaxBrowseContinuationPoints;
+            m_4TestMaxHistoryContinuationPoints = configuration.ServerConfiguration
+                .MaxHistoryContinuationPoints;
         }
 
         /// <summary>
         /// TBD - Remove unused parameter.
         /// </summary>
-        /// <param name="context"></param>
-        /// <param name="server"></param>
-        /// <param name="serverCertificate"></param>
-        /// <param name="sessionCookie"></param>
-        /// <param name="clientNonce"></param>
-        /// <param name="serverNonceObject"></param>
-        /// <param name="sessionName"></param>
-        /// <param name="clientDescription"></param>
-        /// <param name="endpointUrl"></param>
-        /// <param name="clientCertificate"></param>
-        /// <param name="clientCertificateChain"></param>
-        /// <param name="sessionTimeout"></param>
-        /// <param name="maxResponseMessageSize"></param>
-        /// <param name="maxRequestAge"></param>
-        /// <param name="maxContinuationPoints"></param>
-        /// <returns></returns>
         protected override Server.ISession CreateSession(
             OperationContext context,
             IServerInternal server,
@@ -267,13 +262,17 @@ namespace Opc.Ua.Client.Tests
             string dynamicNamespaceUri,
             params INodeManager[] additionalManagers
         )
-            : base(server, configuration, dynamicNamespaceUri, additionalManagers) { }
+            : base(server, configuration, dynamicNamespaceUri, additionalManagers)
+        {
+        }
 
         public uint MaxContinuationPointsPerBrowseForUnitTest { get; set; }
 
         /// <summary>
         /// Returns the set of references that meet the filter criteria.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public override void Browse(
             OperationContext context,
             ViewDescription view,
@@ -295,12 +294,14 @@ namespace Opc.Ua.Client.Tests
 
             if (view != null && !NodeId.IsNull(view.ViewId))
             {
-                INodeManager viewManager;
                 object viewHandle =
-                    GetManagerHandle(view.ViewId, out viewManager)
+                    GetManagerHandle(view.ViewId, out INodeManager viewManager)
                     ?? throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
 
-                NodeMetadata metadata = viewManager.GetNodeMetadata(context, viewHandle, BrowseResultMask.NodeClass);
+                NodeMetadata metadata = viewManager.GetNodeMetadata(
+                    context,
+                    viewHandle,
+                    BrowseResultMask.NodeClass);
 
                 if (metadata == null || metadata.NodeClass != NodeClass.View)
                 {
@@ -338,12 +339,13 @@ namespace Opc.Ua.Client.Tests
                     foreach (BrowseResult current in results)
                     {
                         if (
-                            current != null
-                            && current.ContinuationPoint != null
-                            && current.ContinuationPoint.Length > 0
+                            current != null &&
+                            current.ContinuationPoint != null &&
+                            current.ContinuationPoint.Length > 0
                         )
                         {
-                            ContinuationPoint cp = context.Session.RestoreContinuationPoint(current.ContinuationPoint);
+                            ContinuationPoint cp = context.Session
+                                .RestoreContinuationPoint(current.ContinuationPoint);
                             cp.Dispose();
                         }
                     }
@@ -366,15 +368,18 @@ namespace Opc.Ua.Client.Tests
                         context,
                         view,
                         maxReferencesPerNode,
-                        MaxContinuationPointsPerBrowseForUnitTest <= 0
-                            || continuationPointsAssigned < MaxContinuationPointsPerBrowseForUnitTest,
+                        MaxContinuationPointsPerBrowseForUnitTest <= 0 ||
+                        continuationPointsAssigned < MaxContinuationPointsPerBrowseForUnitTest,
                         nodeToBrowse,
                         result
                     );
                 }
                 catch (Exception e)
                 {
-                    error = ServiceResult.Create(e, StatusCodes.BadUnexpectedError, "Unexpected error browsing node.");
+                    error = ServiceResult.Create(
+                        e,
+                        StatusCodes.BadUnexpectedError,
+                        "Unexpected error browsing node.");
                 }
 
                 // check for continuation point.

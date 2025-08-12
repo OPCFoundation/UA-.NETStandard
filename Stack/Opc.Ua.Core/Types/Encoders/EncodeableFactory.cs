@@ -117,7 +117,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="systemType">The underlying system type to add to the factory</param>
         /// <param name="unboundTypeIds">A dictionary of unbound typeIds, e.g. JSON type ids referenced by object name.</param>
-        private void AddEncodeableType(Type systemType, Dictionary<string, ExpandedNodeId> unboundTypeIds)
+        private void AddEncodeableType(
+            Type systemType,
+            Dictionary<string, ExpandedNodeId> unboundTypeIds)
         {
             if (systemType == null)
             {
@@ -137,7 +139,10 @@ namespace Opc.Ua
 #if DEBUG
             if (m_shared)
             {
-                Utils.LogTrace("WARNING: Adding type '{0}' to shared Factory #{1}.", systemType.Name, InstanceId);
+                Utils.LogTrace(
+                    "WARNING: Adding type '{0}' to shared Factory #{1}.",
+                    systemType.Name,
+                    InstanceId);
             }
 #endif
 
@@ -213,8 +218,8 @@ namespace Opc.Ua
                 }
             }
             else if (
-                unboundTypeIds != null
-                && unboundTypeIds.TryGetValue(systemType.Name, out ExpandedNodeId jsonEncodingId)
+                unboundTypeIds != null &&
+                unboundTypeIds.TryGetValue(systemType.Name, out ExpandedNodeId jsonEncodingId)
             )
             {
                 m_encodeableTypes[jsonEncodingId] = systemType;
@@ -245,7 +250,7 @@ namespace Opc.Ua
 
             object[] attributes =
             [
-                .. systemType.GetTypeInfo().GetCustomAttributes(typeof(DataContractAttribute), true),
+                .. systemType.GetTypeInfo().GetCustomAttributes(typeof(DataContractAttribute), true)
             ];
 
             if (attributes != null)
@@ -266,7 +271,8 @@ namespace Opc.Ua
 
             attributes =
             [
-                .. systemType.GetTypeInfo().GetCustomAttributes(typeof(CollectionDataContractAttribute), true),
+                .. systemType.GetTypeInfo()
+                    .GetCustomAttributes(typeof(CollectionDataContractAttribute), true)
             ];
 
             if (attributes != null)
@@ -300,7 +306,7 @@ namespace Opc.Ua
         /// Returns the xml qualified name for the specified object.
         /// </remarks>
         /// <param name="value">The object to query and return the Xml qualified name of</param>
-        /// <param name="context"></param>
+        /// <param name="context">Context</param>
         public static XmlQualifiedName GetXmlName(object value, IServiceMessageContext context)
         {
             if (value is IDynamicComplexTypeInstance xmlEncodeable)
@@ -355,7 +361,10 @@ namespace Opc.Ua
 #if DEBUG
                 if (m_shared)
                 {
-                    Utils.LogWarning("WARNING: Adding type '{0}' to shared Factory #{1}.", systemType.Name, InstanceId);
+                    Utils.LogWarning(
+                        "WARNING: Adding type '{0}' to shared Factory #{1}.",
+                        systemType.Name,
+                        InstanceId);
                 }
 #endif
                 m_readerWriterLockSlim.EnterWriteLock();
@@ -415,7 +424,8 @@ namespace Opc.Ua
                         }
 
                         foreach (
-                            FieldInfo field in systemTypes[ii].GetFields(BindingFlags.Static | BindingFlags.Public)
+                            FieldInfo field in systemTypes[ii].GetFields(
+                                BindingFlags.Static | BindingFlags.Public)
                         )
                         {
                             if (field.Name.EndsWith(jsonEncodingSuffix, StringComparison.Ordinal))
@@ -499,9 +509,8 @@ namespace Opc.Ua
             m_readerWriterLockSlim.EnterReadLock();
             try
             {
-                Type systemType = null;
-
-                if (NodeId.IsNull(typeId) || !m_encodeableTypes.TryGetValue(typeId, out systemType))
+                if (NodeId.IsNull(typeId) ||
+                    !m_encodeableTypes.TryGetValue(typeId, out Type systemType))
                 {
                     return null;
                 }
@@ -552,5 +561,5 @@ namespace Opc.Ua
         private readonly bool m_shared;
         private static int s_globalInstanceCount;
 #endif
-    } //class
-} //namespace
+    }
+}

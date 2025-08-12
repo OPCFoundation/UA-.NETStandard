@@ -161,7 +161,11 @@ namespace Opc.Ua
         /// <param name="statusCode">The status code to set</param>
         /// <param name="sourceTimestamp">The source timestamp to set</param>
         /// <param name="serverTimestamp">The servers timestamp to set</param>
-        public DataValue(Variant value, StatusCode statusCode, DateTime sourceTimestamp, DateTime serverTimestamp)
+        public DataValue(
+            Variant value,
+            StatusCode statusCode,
+            DateTime sourceTimestamp,
+            DateTime serverTimestamp)
         {
             Initialize();
 
@@ -457,6 +461,7 @@ namespace Opc.Ua
         /// <summary>
         /// Ensures the data value contains a value with the specified type.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public object GetValue(Type expectedType)
         {
             object value = Value;
@@ -498,6 +503,7 @@ namespace Opc.Ua
         /// Extracts the body from an ExtensionObject value if it has the correct type.
         /// Throws exception only if there is a type mismatch;
         /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
         public T GetValueOrDefault<T>()
         {
             // return default for a DataValue with bad status code.
@@ -579,27 +585,36 @@ namespace Opc.Ua
     /// <remarks>
     /// A strongly-typed collection of DataValues.
     /// </remarks>
-    [CollectionDataContract(Name = "ListOfDataValue", Namespace = Namespaces.OpcUaXsd, ItemName = "DataValue")]
+    [CollectionDataContract(
+        Name = "ListOfDataValue",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "DataValue")]
     public class DataValueCollection : List<DataValue>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public DataValueCollection() { }
+        public DataValueCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">A collection of <see cref="DataValue"/> objects to pre-populate this new collection with</param>
         public DataValueCollection(IEnumerable<DataValue> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The max capacity of this collection</param>
         public DataValueCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -645,4 +660,4 @@ namespace Opc.Ua
             return clone;
         }
     }
-} //namespace
+}

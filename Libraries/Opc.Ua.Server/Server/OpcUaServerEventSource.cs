@@ -64,15 +64,27 @@ namespace Opc.Ua.Server
         /// </summary>
         private const string kSendResponseMessage = "ChannelId {0}: SendResponse {1}";
         private const string kServerCallMessage = "Server Call={0}, Id={1}";
-        private const string kSessionStateMessage = "Session {0}, Id={1}, Name={2}, ChannelId={3}, User={4}";
+
+        private const string kSessionStateMessage
+            = "Session {0}, Id={1}, Name={2}, ChannelId={3}, User={4}";
+
         private const string kMonitoredItemReadyMessage = "IsReadyToPublish[{0}] {1}";
 
         /// <summary>
         /// The Server ILogger event Ids used for event messages, when calling back to ILogger.
         /// </summary>
-        private readonly EventId m_sendResponseEventId = new(TraceMasks.ServiceDetail, nameof(SendResponse));
-        private readonly EventId m_serverCallEventId = new(TraceMasks.ServiceDetail, nameof(ServerCall));
-        private readonly EventId m_sessionStateMessageEventId = new(TraceMasks.Information, nameof(SessionState));
+        private readonly EventId m_sendResponseEventId = new(
+            TraceMasks.ServiceDetail,
+            nameof(SendResponse));
+
+        private readonly EventId m_serverCallEventId = new(
+            TraceMasks.ServiceDetail,
+            nameof(ServerCall));
+
+        private readonly EventId m_sessionStateMessageEventId = new(
+            TraceMasks.Information,
+            nameof(SessionState));
+
         private readonly EventId m_monitoredItemReadyEventId = new(
             TraceMasks.OperationDetail,
             nameof(MonitoredItemReady)
@@ -88,7 +100,8 @@ namespace Opc.Ua.Server
             {
                 WriteEvent(kSendResponseId, channelId, requestId);
             }
-            else if ((TraceMask & TraceMasks.ServiceDetail) != 0 && Logger.IsEnabled(LogLevel.Trace))
+            else if ((TraceMask & TraceMasks.ServiceDetail) != 0 &&
+                Logger.IsEnabled(LogLevel.Trace))
             {
                 LogTrace(m_sendResponseEventId, kSendResponseMessage, channelId, requestId);
             }
@@ -117,7 +130,13 @@ namespace Opc.Ua.Server
         {
             if (IsEnabled())
             {
-                WriteEvent(kSessionStateId, context, sessionId, sessionName, secureChannelId, identity);
+                WriteEvent(
+                    kSessionStateId,
+                    context,
+                    sessionId,
+                    sessionName,
+                    secureChannelId,
+                    identity);
             }
             else if (Logger.IsEnabled(LogLevel.Information))
             {
@@ -136,7 +155,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The state of the server session.
         /// </summary>
-        [Event(kMonitoredItemReadyId, Message = kMonitoredItemReadyMessage, Level = EventLevel.Verbose)]
+        [Event(
+            kMonitoredItemReadyId,
+            Message = kMonitoredItemReadyMessage,
+            Level = EventLevel.Verbose)]
         public void MonitoredItemReady(uint id, string state)
         {
             if ((TraceMask & TraceMasks.OperationDetail) != 0)
@@ -167,7 +189,8 @@ namespace Opc.Ua.Server
             {
                 ServerCall(requestTypeString, requestId);
             }
-            else if ((TraceMask & TraceMasks.ServiceDetail) != 0 && Logger.IsEnabled(LogLevel.Trace))
+            else if ((TraceMask & TraceMasks.ServiceDetail) != 0 &&
+                Logger.IsEnabled(LogLevel.Trace))
             {
                 LogTrace(m_serverCallEventId, kServerCallMessage, requestTypeString, requestId);
             }

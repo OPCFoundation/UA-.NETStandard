@@ -23,17 +23,31 @@ namespace Opc.Ua
         /// Initializes the instance with its default attribute values.
         /// </summary>
         public BaseObjectTypeState()
-            : base(NodeClass.ObjectType) { }
+            : base(NodeClass.ObjectType)
+        {
+        }
 
         /// <summary>
         /// Initializes the instance with the default values.
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
-            SuperTypeId = NodeId.Create(ObjectTypes.BaseObjectType, Namespaces.OpcUa, context.NamespaceUris);
-            NodeId = NodeId.Create(ObjectTypes.BaseObjectType, Namespaces.OpcUa, context.NamespaceUris);
-            BrowseName = QualifiedName.Create(BrowseNames.BaseObjectType, Namespaces.OpcUa, context.NamespaceUris);
-            DisplayName = new LocalizedText(BrowseNames.BaseObjectType, string.Empty, BrowseNames.BaseObjectType);
+            SuperTypeId = NodeId.Create(
+                ObjectTypes.BaseObjectType,
+                Namespaces.OpcUa,
+                context.NamespaceUris);
+            NodeId = NodeId.Create(
+                ObjectTypes.BaseObjectType,
+                Namespaces.OpcUa,
+                context.NamespaceUris);
+            BrowseName = QualifiedName.Create(
+                BrowseNames.BaseObjectType,
+                Namespaces.OpcUa,
+                context.NamespaceUris);
+            DisplayName = new LocalizedText(
+                BrowseNames.BaseObjectType,
+                string.Empty,
+                BrowseNames.BaseObjectType);
             Description = null;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
@@ -77,17 +91,28 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        public FolderTypeState() { }
+        public FolderTypeState()
+        {
+        }
 
         /// <summary>
         /// Initializes the instance with the default values.
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
-            SuperTypeId = NodeId.Create(ObjectTypes.FolderType, Namespaces.OpcUa, context.NamespaceUris);
+            SuperTypeId = NodeId.Create(
+                ObjectTypes.FolderType,
+                Namespaces.OpcUa,
+                context.NamespaceUris);
             NodeId = NodeId.Create(ObjectTypes.FolderType, Namespaces.OpcUa, context.NamespaceUris);
-            BrowseName = QualifiedName.Create(BrowseNames.FolderType, Namespaces.OpcUa, context.NamespaceUris);
-            DisplayName = new LocalizedText(BrowseNames.FolderType, string.Empty, BrowseNames.FolderType);
+            BrowseName = QualifiedName.Create(
+                BrowseNames.FolderType,
+                Namespaces.OpcUa,
+                context.NamespaceUris);
+            DisplayName = new LocalizedText(
+                BrowseNames.FolderType,
+                string.Empty,
+                BrowseNames.FolderType);
             Description = null;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;

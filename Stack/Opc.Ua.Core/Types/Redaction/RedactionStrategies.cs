@@ -47,16 +47,19 @@ namespace Opc.Ua.Redaction
     /// </remarks>
     public static class RedactionStrategies
     {
-        private static readonly IRedactionStrategy s_fallbackStrategy = new FallbackRedactionStrategy();
+        private static readonly IRedactionStrategy s_fallbackStrategy
+            = new FallbackRedactionStrategy();
 
         /// <summary>
         /// Gets the current redaction strategy.
         /// </summary>
-        internal static IRedactionStrategy CurrentStrategy { get; private set; } = s_fallbackStrategy;
+        internal static IRedactionStrategy CurrentStrategy { get; private set; }
+            = s_fallbackStrategy;
 
         /// <summary>
         /// Sets the current redaction strategy.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public static void SetStrategy(IRedactionStrategy strategy)
         {
             CurrentStrategy = strategy ?? throw new ArgumentNullException(nameof(strategy));

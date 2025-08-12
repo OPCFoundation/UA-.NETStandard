@@ -39,14 +39,9 @@ namespace Opc.Ua.Security.Certificates
     public abstract class CertificateBuilderBase
         : IX509Certificate,
             ICertificateBuilder,
-            ICertificateBuilderConfig,
-            ICertificateBuilderSetIssuer,
-            ICertificateBuilderParameter,
+
             ICertificateBuilderIssuer,
-            ICertificateBuilderRSAParameter,
-            ICertificateBuilderPublicKey,
-            ICertificateBuilderRSAPublicKey,
-            ICertificateBuilderCreateForRSA,
+
             ICertificateBuilderCreateForRSAAny
 #if ECC_SUPPORT
             ,
@@ -132,7 +127,9 @@ namespace Opc.Ua.Security.Certificates
         {
             if (length > X509Defaults.SerialNumberLengthMax || length == 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(length), "SerialNumber length out of Range");
+                throw new ArgumentOutOfRangeException(
+                    nameof(length),
+                    "SerialNumber length out of Range");
             }
             m_serialNumberLength = length;
             m_presetSerial = false;
@@ -142,7 +139,8 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public ICertificateBuilder SetSerialNumber(byte[] serialNumber)
         {
-            if (serialNumber.Length > X509Defaults.SerialNumberLengthMax || serialNumber.Length == 0)
+            if (serialNumber.Length > X509Defaults.SerialNumberLengthMax ||
+                serialNumber.Length == 0)
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(serialNumber),
@@ -217,7 +215,9 @@ namespace Opc.Ua.Security.Certificates
                 keySize = X509Defaults.RSAKeySize;
             }
 
-            if (keySize % 1024 != 0 || keySize < X509Defaults.RSAKeySizeMin || keySize > X509Defaults.RSAKeySizeMax)
+            if (keySize % 1024 != 0 ||
+                keySize < X509Defaults.RSAKeySizeMin ||
+                keySize > X509Defaults.RSAKeySizeMax)
             {
                 throw new ArgumentException(
                     "KeySize must be a multiple of 1024 or is not in the allowed range.",
@@ -279,7 +279,8 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public virtual ICertificateBuilderIssuer SetIssuer(X509Certificate2 issuerCertificate)
         {
-            IssuerCAKeyCert = issuerCertificate ?? throw new ArgumentNullException(nameof(issuerCertificate));
+            IssuerCAKeyCert = issuerCertificate ??
+                throw new ArgumentNullException(nameof(issuerCertificate));
             IssuerName = issuerCertificate.SubjectName;
             return this;
         }
@@ -289,22 +290,25 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Set the hash algorithm depending on the curve size
         /// </summary>
-        /// <param name="curve"></param>
         private void SetHashAlgorithmSize(ECCurve curve)
         {
             if (
-                curve.Oid.FriendlyName.CompareTo(ECCurve.NamedCurves.nistP384.Oid.FriendlyName) == 0
-                || curve.Oid.FriendlyName.CompareTo(ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName) == 0
-                ||
+                curve.Oid.FriendlyName
+                    .CompareTo(ECCurve.NamedCurves.nistP384.Oid.FriendlyName) == 0 ||
+                curve.Oid.FriendlyName
+                    .CompareTo(ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName) == 0 ||
                 // special case for linux where friendly name could be ECDSA_P384 instead of nistP384
-                (curve.Oid?.Value != null && curve.Oid.Value.CompareTo(ECCurve.NamedCurves.nistP384.Oid.Value) == 0)
+                (curve.Oid?.Value != null &&
+                    curve.Oid.Value.CompareTo(ECCurve.NamedCurves.nistP384.Oid.Value) == 0)
             )
             {
                 SetHashAlgorithm(HashAlgorithmName.SHA384);
             }
             if (
-                curve.Oid.FriendlyName.CompareTo(ECCurve.NamedCurves.nistP521.Oid.FriendlyName) == 0
-                || (curve.Oid.FriendlyName.CompareTo(ECCurve.NamedCurves.brainpoolP512r1.Oid.FriendlyName) == 0)
+                curve.Oid.FriendlyName
+                    .CompareTo(ECCurve.NamedCurves.nistP521.Oid.FriendlyName) == 0 ||
+                (curve.Oid.FriendlyName
+                    .CompareTo(ECCurve.NamedCurves.brainpoolP512r1.Oid.FriendlyName) == 0)
             )
             {
                 SetHashAlgorithm(HashAlgorithmName.SHA512);

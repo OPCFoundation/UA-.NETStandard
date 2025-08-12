@@ -12,7 +12,8 @@ using System.Runtime.InteropServices;
 
 namespace Opc.Ua.Security.Certificates.Tests
 {
-    [TestFixture, Category("PEM")]
+    [TestFixture]
+    [Category("PEM")]
     public class PEMTests
     {
         [Test]
@@ -21,11 +22,13 @@ namespace Opc.Ua.Security.Certificates.Tests
 #if !NET8_0_OR_GREATER
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                NUnit.Framework.Assert.Ignore("Skipped due to https://github.com/dotnet/runtime/issues/82682");
+                NUnit.Framework.Assert
+                    .Ignore("Skipped due to https://github.com/dotnet/runtime/issues/82682");
             }
 #endif
             // Arrange
-            byte[] file = File.ReadAllBytes(TestUtils.EnumerateTestAssets("Test_chain.pem").First());
+            byte[] file = File.ReadAllBytes(
+                TestUtils.EnumerateTestAssets("Test_chain.pem").First());
 
             // Act
             X509Certificate2Collection certs = PEMReader.ImportPublicKeysFromPEM(file);
@@ -34,28 +37,42 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.IsNotNull(certs, "Certificates collection should not be null.");
             Assert.IsNotEmpty(certs, "Certificates collection should not be empty.");
             Assert.AreEqual(3, certs.Count, "Expected 3 certificates in the collection.");
-            Assert.NotNull(certs.Find(X509FindType.FindBySerialNumber, "029D603370C20AE2", false)[0]);
-            Assert.NotNull(certs.Find(X509FindType.FindBySerialNumber, "6E4385A67BDE4505", false)[0]);
-            X509Certificate2 leaf = certs.Find(X509FindType.FindBySerialNumber, "51BB4F74500125AD", false)[0];
+            Assert.NotNull(
+                certs.Find(X509FindType.FindBySerialNumber, "029D603370C20AE2", false)[0]);
+            Assert.NotNull(
+                certs.Find(X509FindType.FindBySerialNumber, "6E4385A67BDE4505", false)[0]);
+            X509Certificate2 leaf = certs.Find(
+                X509FindType.FindBySerialNumber,
+                "51BB4F74500125AD",
+                false)[0];
             Assert.NotNull(leaf);
 
             //Act
-            Assert.False(PEMReader.ContainsPrivateKey(file), "PEM file should not contain a private key.");
+            Assert.False(
+                PEMReader.ContainsPrivateKey(file),
+                "PEM file should not contain a private key.");
 
             // Remove leaf certificate from the collection
-            Assert.True(PEMWriter.TryRemovePublicKeyFromPEM(leaf.Thumbprint, file, out byte[] updatedFile));
+            Assert.True(
+                PEMWriter.TryRemovePublicKeyFromPEM(leaf.Thumbprint, file, out byte[] updatedFile));
 
             Assert.IsNotNull(updatedFile, "Updated PEM file should not be null.");
-            X509Certificate2Collection updatedCerts = PEMReader.ImportPublicKeysFromPEM(updatedFile);
+            X509Certificate2Collection updatedCerts = PEMReader.ImportPublicKeysFromPEM(
+                updatedFile);
             Assert.IsNotNull(updatedCerts, "Certificates collection should not be null.");
             Assert.IsNotEmpty(updatedCerts, "Certificates collection should not be empty.");
             Assert.AreEqual(2, updatedCerts.Count, "Expected 2 certificates in the collection.");
             //root
-            Assert.NotNull(updatedCerts.Find(X509FindType.FindBySerialNumber, "029D603370C20AE2", false)[0]);
+            Assert.NotNull(
+                updatedCerts.Find(X509FindType.FindBySerialNumber, "029D603370C20AE2", false)[0]);
             //intermediate
-            Assert.NotNull(updatedCerts.Find(X509FindType.FindBySerialNumber, "6E4385A67BDE4505", false)[0]);
+            Assert.NotNull(
+                updatedCerts.Find(X509FindType.FindBySerialNumber, "6E4385A67BDE4505", false)[0]);
             // leaf
-            Assert.AreEqual(0, updatedCerts.Find(X509FindType.FindBySerialNumber, "51BB4F74500125AD", false).Count);
+            Assert.AreEqual(
+                0,
+                updatedCerts.Find(X509FindType.FindBySerialNumber, "51BB4F74500125AD", false)
+                    .Count);
         }
 
         [Test]
@@ -64,7 +81,8 @@ namespace Opc.Ua.Security.Certificates.Tests
 #if !NET8_0_OR_GREATER
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                NUnit.Framework.Assert.Ignore("Skipped due to https://github.com/dotnet/runtime/issues/82682");
+                NUnit.Framework.Assert
+                    .Ignore("Skipped due to https://github.com/dotnet/runtime/issues/82682");
             }
 #endif
             // Arrange
@@ -77,11 +95,16 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.IsNotNull(certs, "Certificates collection should not be null.");
             Assert.IsNotEmpty(certs, "Certificates collection should not be empty.");
             Assert.AreEqual(1, certs.Count, "Expected 1 certificate in the collection.");
-            X509Certificate2 leaf = certs.Find(X509FindType.FindBySerialNumber, "51BB4F74500125AD", false)[0];
+            X509Certificate2 leaf = certs.Find(
+                X509FindType.FindBySerialNumber,
+                "51BB4F74500125AD",
+                false)[0];
             Assert.NotNull(leaf);
 
             //Act
-            Assert.True(PEMReader.ContainsPrivateKey(file), "PEM file should contain a private key.");
+            Assert.True(
+                PEMReader.ContainsPrivateKey(file),
+                "PEM file should contain a private key.");
 
             X509Certificate2 newCert = null;
             try
@@ -120,7 +143,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             0x3a,
             0xbb,
             0xde,
-            0x02,
+            0x02
         ];
 
         /// <summary>
@@ -143,7 +166,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             0x67,
             0x45,
             0x23,
-            0x01,
+            0x01
         ];
 
         private static byte[] DecryptKeyPairPemBase64()

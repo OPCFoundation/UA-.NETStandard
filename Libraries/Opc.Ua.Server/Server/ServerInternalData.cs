@@ -178,7 +178,9 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="sessionManager">The session manager.</param>
         /// <param name="subscriptionManager">The subscription manager.</param>
-        public void SetSessionManager(ISessionManager sessionManager, ISubscriptionManager subscriptionManager)
+        public void SetSessionManager(
+            ISessionManager sessionManager,
+            ISubscriptionManager subscriptionManager)
         {
             SessionManager = sessionManager;
             SubscriptionManager = subscriptionManager;
@@ -188,7 +190,8 @@ namespace Opc.Ua.Server
         /// Stores the MonitoredItemQueueFactory in the datastore.
         /// </summary>
         /// <param name="monitoredItemQueueFactory">The MonitoredItemQueueFactory.</param>
-        public void SetMonitoredItemQueueFactory(IMonitoredItemQueueFactory monitoredItemQueueFactory)
+        public void SetMonitoredItemQueueFactory(
+            IMonitoredItemQueueFactory monitoredItemQueueFactory)
         {
             MonitoredItemQueueFactory = monitoredItemQueueFactory;
         }
@@ -391,7 +394,7 @@ namespace Opc.Ua.Server
         /// Whether the server is currently running.
         /// </summary>
         /// <value>
-        /// 	<c>true</c> if this instance is running; otherwise, <c>false</c>.
+        /// <c>true</c> if this instance is running; otherwise, <c>false</c>.
         /// </value>
         /// <remarks>
         /// This flag is set to false when the server shuts down. Threads running should check this flag whenever
@@ -414,7 +417,8 @@ namespace Opc.Ua.Server
                         return true;
                     }
 
-                    if (Status.Value.State == ServerState.Shutdown && Status.Value.SecondsTillShutdown > 0)
+                    if (Status.Value.State == ServerState.Shutdown &&
+                        Status.Value.SecondsTillShutdown > 0)
                     {
                         return true;
                     }
@@ -448,7 +452,10 @@ namespace Opc.Ua.Server
         /// <param name="context">The context.</param>
         /// <param name="sessionId">The session identifier.</param>
         /// <param name="deleteSubscriptions">if set to <c>true</c> subscriptions are to be deleted.</param>
-        public void CloseSession(OperationContext context, NodeId sessionId, bool deleteSubscriptions)
+        public void CloseSession(
+            OperationContext context,
+            NodeId sessionId,
+            bool deleteSubscriptions)
         {
             NodeManager.SessionClosing(context, sessionId, deleteSubscriptions);
             SubscriptionManager.SessionClosing(context, sessionId, deleteSubscriptions);
@@ -505,7 +512,10 @@ namespace Opc.Ua.Server
         /// <param name="context">The context.</param>
         /// <param name="subscriptionId">The subscription identifier.</param>
         /// <param name="monitoredItemId">The monitored item identifier.</param>
-        public void ConditionRefresh2(OperationContext context, uint subscriptionId, uint monitoredItemId)
+        public void ConditionRefresh2(
+            OperationContext context,
+            uint subscriptionId,
+            uint monitoredItemId)
         {
             SubscriptionManager.ConditionRefresh2(context, subscriptionId, monitoredItemId);
         }
@@ -514,6 +524,7 @@ namespace Opc.Ua.Server
         /// Updates the server status safely.
         /// </summary>
         /// <param name="action">Action to perform on the server status object.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="action"/> is <c>null</c>.</exception>
         public void UpdateServerStatus(Action<ServerStatusValue> action)
         {
             if (action == null)
@@ -556,14 +567,17 @@ namespace Opc.Ua.Server
             {
                 // get the server object.
                 ServerObjectState serverObject = ServerObject = (ServerObjectState)
-                    DiagnosticsNodeManager.FindPredefinedNode(ObjectIds.Server, typeof(ServerObjectState));
+                    DiagnosticsNodeManager.FindPredefinedNode(
+                        ObjectIds.Server,
+                        typeof(ServerObjectState));
 
                 // update server capabilities.
                 serverObject.ServiceLevel.Value = 255;
-                serverObject.ServerCapabilities.LocaleIdArray.Value = ResourceManager.GetAvailableLocales();
+                serverObject.ServerCapabilities.LocaleIdArray.Value = ResourceManager
+                    .GetAvailableLocales();
                 serverObject.ServerCapabilities.ServerProfileArray.Value =
                 [
-                    .. m_configuration.ServerConfiguration.ServerProfileArray,
+                    .. m_configuration.ServerConfiguration.ServerProfileArray
                 ];
                 serverObject.ServerCapabilities.MinSupportedSampleRate.Value = 0;
                 serverObject.ServerCapabilities.MaxBrowseContinuationPoints.Value = (ushort)
@@ -580,8 +594,10 @@ namespace Opc.Ua.Server
                     m_configuration.TransportQuotas.MaxByteStringLength;
 
                 // Any operational limits Property that is provided shall have a non zero value.
-                OperationLimitsState operationLimits = serverObject.ServerCapabilities.OperationLimits;
-                OperationLimits configOperationLimits = m_configuration.ServerConfiguration.OperationLimits;
+                OperationLimitsState operationLimits = serverObject.ServerCapabilities
+                    .OperationLimits;
+                OperationLimits configOperationLimits = m_configuration.ServerConfiguration
+                    .OperationLimits;
                 if (configOperationLimits != null)
                 {
                     operationLimits.MaxNodesPerRead = SetPropertyValue(
@@ -677,9 +693,12 @@ namespace Opc.Ua.Server
 
                 // dynamic change of enabledFlag is disabled to pass CTT
                 serverObject.ServerDiagnostics.EnabledFlag.AccessLevel = AccessLevels.CurrentRead;
-                serverObject.ServerDiagnostics.EnabledFlag.UserAccessLevel = AccessLevels.CurrentRead;
-                serverObject.ServerDiagnostics.EnabledFlag.OnSimpleReadValue = OnReadDiagnosticsEnabledFlag;
-                serverObject.ServerDiagnostics.EnabledFlag.OnSimpleWriteValue = OnWriteDiagnosticsEnabledFlag;
+                serverObject.ServerDiagnostics.EnabledFlag.UserAccessLevel = AccessLevels
+                    .CurrentRead;
+                serverObject.ServerDiagnostics.EnabledFlag.OnSimpleReadValue
+                    = OnReadDiagnosticsEnabledFlag;
+                serverObject.ServerDiagnostics.EnabledFlag.OnSimpleWriteValue
+                    = OnWriteDiagnosticsEnabledFlag;
                 serverObject.ServerDiagnostics.EnabledFlag.MinimumSamplingInterval = 1000;
 
                 // initialize status.
@@ -687,34 +706,40 @@ namespace Opc.Ua.Server
                 {
                     StartTime = DateTime.UtcNow,
                     CurrentTime = DateTime.UtcNow,
-                    State = ServerState.Shutdown,
+                    State = ServerState.Shutdown
                 };
 
-                var buildInfo = new BuildInfo()
+                var buildInfo = new BuildInfo
                 {
                     ProductName = m_serverDescription.ProductName,
                     ProductUri = m_serverDescription.ProductUri,
                     ManufacturerName = m_serverDescription.ManufacturerName,
                     SoftwareVersion = m_serverDescription.SoftwareVersion,
                     BuildNumber = m_serverDescription.BuildNumber,
-                    BuildDate = m_serverDescription.BuildDate,
+                    BuildDate = m_serverDescription.BuildDate
                 };
                 var buildInfoVariableState = (BuildInfoVariableState)
                     DiagnosticsNodeManager.FindPredefinedNode(
                         VariableIds.Server_ServerStatus_BuildInfo,
                         typeof(BuildInfoVariableState)
                     );
-                var buildInfoVariable = new BuildInfoVariableValue(buildInfoVariableState, buildInfo, null);
+                var buildInfoVariable = new BuildInfoVariableValue(
+                    buildInfoVariableState,
+                    buildInfo,
+                    null);
                 serverStatus.BuildInfo = buildInfoVariable.Value;
 
                 serverObject.ServerStatus.MinimumSamplingInterval = 1000;
                 serverObject.ServerStatus.CurrentTime.MinimumSamplingInterval = 1000;
 
 #pragma warning disable CS0618 // Type or member is obsolete
-                Status = new ServerStatusValue(serverObject.ServerStatus, serverStatus, DiagnosticsLock)
+                Status = new ServerStatusValue(
+                    serverObject.ServerStatus,
+                    serverStatus,
+                    DiagnosticsLock)
                 {
                     Timestamp = DateTime.UtcNow,
-                    OnBeforeRead = OnReadServerStatus,
+                    OnBeforeRead = OnReadServerStatus
                 };
 #pragma warning restore CS0618 // Type or member is obsolete
 
@@ -732,7 +757,7 @@ namespace Opc.Ua.Server
                     CurrentSubscriptionCount = 0,
                     CumulatedSubscriptionCount = 0,
                     SecurityRejectedRequestsCount = 0,
-                    RejectedRequestsCount = 0,
+                    RejectedRequestsCount = 0
                 };
 
                 DiagnosticsNodeManager.CreateServerDiagnostics(
@@ -748,7 +773,9 @@ namespace Opc.Ua.Server
                 );
 
                 var configurationNodeManager = DiagnosticsNodeManager as ConfigurationNodeManager;
-                configurationNodeManager?.CreateServerConfiguration(DefaultSystemContext, m_configuration);
+                configurationNodeManager?.CreateServerConfiguration(
+                    DefaultSystemContext,
+                    m_configuration);
 
                 Auditing = m_configuration.ServerConfiguration.AuditingEnabled;
                 PropertyState<bool> auditing = serverObject.Auditing;
@@ -760,18 +787,18 @@ namespace Opc.Ua.Server
                     new RolePermissionType
                     {
                         RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
-                        Permissions = (uint)(PermissionType.Browse | PermissionType.Read),
+                        Permissions = (uint)(PermissionType.Browse | PermissionType.Read)
                     },
                     new RolePermissionType
                     {
                         RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
                         Permissions = (uint)(
-                            PermissionType.Browse
-                            | PermissionType.Write
-                            | PermissionType.ReadRolePermissions
-                            | PermissionType.Read
-                        ),
-                    },
+                            PermissionType.Browse |
+                            PermissionType.Write |
+                            PermissionType.ReadRolePermissions |
+                            PermissionType.Read
+                        )
+                    }
                 ];
                 auditing.AccessLevel = AccessLevels.CurrentRead;
                 auditing.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
@@ -782,7 +809,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Updates the server status before a read.
         /// </summary>
-        private void OnReadServerStatus(ISystemContext context, BaseVariableValue variable, NodeState component)
+        private void OnReadServerStatus(
+            ISystemContext context,
+            BaseVariableValue variable,
+            NodeState component)
         {
             lock (DiagnosticsLock)
             {
@@ -796,8 +826,8 @@ namespace Opc.Ua.Server
 
                 // update other timestamps in NodeState objects which are used to derive the source timestamp
                 if (
-                    variable is ServerStatusValue serverStatusValue
-                    && serverStatusValue.Variable is ServerStatusState serverStatusState
+                    variable is ServerStatusValue serverStatusValue &&
+                    serverStatusValue.Variable is ServerStatusState serverStatusState
                 )
                 {
                     serverStatusState.Timestamp = now;
@@ -809,7 +839,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns a copy of the namespace array.
         /// </summary>
-        private ServiceResult OnReadNamespaceArray(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnReadNamespaceArray(
+            ISystemContext context,
+            NodeState node,
+            ref object value)
         {
             value = NamespaceUris.ToArray();
             return ServiceResult.Good;
@@ -818,7 +851,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns a copy of the server array.
         /// </summary>
-        private ServiceResult OnReadServerArray(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnReadServerArray(
+            ISystemContext context,
+            NodeState node,
+            ref object value)
         {
             value = ServerUris.ToArray();
             return ServiceResult.Good;
@@ -827,7 +863,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns Diagnostics.EnabledFlag
         /// </summary>
-        private ServiceResult OnReadDiagnosticsEnabledFlag(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnReadDiagnosticsEnabledFlag(
+            ISystemContext context,
+            NodeState node,
+            ref object value)
         {
             value = DiagnosticsNodeManager.DiagnosticsEnabled;
             return ServiceResult.Good;
@@ -836,7 +875,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Sets the Diagnostics.EnabledFlag
         /// </summary>
-        private ServiceResult OnWriteDiagnosticsEnabledFlag(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWriteDiagnosticsEnabledFlag(
+            ISystemContext context,
+            NodeState node,
+            ref object value)
         {
             bool enabled = (bool)value;
             DiagnosticsNodeManager.SetDiagnosticsEnabled(DefaultSystemContext, enabled);
@@ -847,7 +889,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Updates the Server.Auditing flag.
         /// </summary>
-        private ServiceResult OnWriteAuditing(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWriteAuditing(
+            ISystemContext context,
+            NodeState node,
+            ref object value)
         {
             Auditing = Convert.ToBoolean(value, CultureInfo.InvariantCulture);
             return ServiceResult.Good;
@@ -856,7 +901,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Reads the Server.Auditing flag.
         /// </summary>
-        private ServiceResult OnReadAuditing(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnReadAuditing(
+            ISystemContext context,
+            NodeState node,
+            ref object value)
         {
             value = Auditing;
             return ServiceResult.Good;
@@ -865,7 +913,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns a copy of the current diagnostics.
         /// </summary>
-        private ServiceResult OnUpdateDiagnostics(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnUpdateDiagnostics(
+            ISystemContext context,
+            NodeState node,
+            ref object value)
         {
             lock (ServerDiagnostics)
             {
@@ -879,7 +930,9 @@ namespace Opc.Ua.Server
         /// Set the property to null if the value is zero,
         /// to the value otherwise.
         /// </summary>
-        private static PropertyState<uint> SetPropertyValue(PropertyState<uint> property, uint value)
+        private static PropertyState<uint> SetPropertyValue(
+            PropertyState<uint> property,
+            uint value)
         {
             if (value != 0)
             {

@@ -84,7 +84,10 @@ namespace Opc.Ua.Server
             params object[] args
         )
         {
-            return Translate(preferredLocales, null, new TranslationInfo(key, string.Empty, text, args));
+            return Translate(
+                preferredLocales,
+                null,
+                new TranslationInfo(key, string.Empty, text, args));
         }
 
         /// <inheritdoc/>
@@ -175,6 +178,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Adds a translation to the resource manager.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="key"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         public void Add(string key, string locale, string text)
         {
             if (key == null)
@@ -196,7 +201,9 @@ namespace Opc.Ua.Server
 
             if (culture.IsNeutralCulture)
             {
-                throw new ArgumentException("Cannot specify neutral locales for translation tables.", nameof(locale));
+                throw new ArgumentException(
+                    "Cannot specify neutral locales for translation tables.",
+                    nameof(locale));
             }
 
             lock (m_lock)
@@ -209,6 +216,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Adds the translations to the resource manager.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="locale"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         public void Add(string locale, IDictionary<string, string> translations)
         {
             if (locale == null)
@@ -225,7 +234,9 @@ namespace Opc.Ua.Server
 
             if (culture.IsNeutralCulture)
             {
-                throw new ArgumentException("Cannot specify neutral locales for translation tables.", nameof(locale));
+                throw new ArgumentException(
+                    "Cannot specify neutral locales for translation tables.",
+                    nameof(locale));
             }
 
             lock (m_lock)
@@ -314,7 +325,8 @@ namespace Opc.Ua.Server
             defaultText = defaultText?.FilterByPreferredLocales(preferredLocales);
 
             bool isMultilanguageRequested =
-                preferredLocales?.Count > 0 && preferredLocales[0].ToLowerInvariant() is "mul" or "qst";
+                preferredLocales?.Count > 0 &&
+                preferredLocales[0].ToLowerInvariant() is "mul" or "qst";
 
             // check for trivial case.
             if (info == null || (string.IsNullOrEmpty(info.Text) && string.IsNullOrEmpty(info.Key)))
@@ -325,16 +337,18 @@ namespace Opc.Ua.Server
             // check for exact match.
             if (preferredLocales != null && preferredLocales.Count > 0)
             {
-                if (defaultText != null && !isMultilanguageRequested && preferredLocales[0] == defaultText?.Locale)
+                if (defaultText != null &&
+                    !isMultilanguageRequested &&
+                    preferredLocales[0] == defaultText?.Locale)
                 {
                     return defaultText;
                 }
 
                 // MultiLanguageText requested, specified numer of locales was found in the default text.
                 if (
-                    isMultilanguageRequested
-                    && preferredLocales.Count > 1
-                    && defaultText?.Translations?.Count == preferredLocales.Count - 1
+                    isMultilanguageRequested &&
+                    preferredLocales.Count > 1 &&
+                    defaultText?.Translations?.Count == preferredLocales.Count - 1
                 )
                 {
                     return defaultText;
@@ -351,7 +365,9 @@ namespace Opc.Ua.Server
             {
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
                 Dictionary<string, string> translations =
-                    defaultText?.Translations != null ? new Dictionary<string, string>(defaultText.Translations) : [];
+                    defaultText?.Translations != null
+                        ? new Dictionary<string, string>(defaultText.Translations)
+                        : [];
 #else
                 Dictionary<string, string> translations =
                     defaultText?.Translations != null
@@ -367,16 +383,22 @@ namespace Opc.Ua.Server
                     {
                         foreach (TranslationTable table in m_translationTables)
                         {
-                            if (table.Translations.TryGetValue(info.Key ?? info.Text, out string translation))
+                            if (table.Translations
+                                .TryGetValue(info.Key ?? info.Text, out string translation))
                             {
                                 // format translated text.
                                 if (info.Args?.Length > 0)
                                 {
                                     try
                                     {
-                                        translation = string.Format(table.Locale, translation, info.Args);
+                                        translation = string.Format(
+                                            table.Locale,
+                                            translation,
+                                            info.Args);
                                     }
-                                    catch { }
+                                    catch
+                                    {
+                                    }
                                 }
 
                                 translations[table.Locale.Name] = translation;
@@ -404,9 +426,14 @@ namespace Opc.Ua.Server
                                 {
                                     try
                                     {
-                                        translation = string.Format(culture, translation, info.Args);
+                                        translation = string.Format(
+                                            culture,
+                                            translation,
+                                            info.Args);
                                     }
-                                    catch { }
+                                    catch
+                                    {
+                                    }
                                 }
 
                                 translations[preferredLocales[i]] = translation;
@@ -425,7 +452,10 @@ namespace Opc.Ua.Server
 
                 lock (m_lock)
                 {
-                    translatedText = FindBestTranslation(preferredLocales, info.Key ?? info.Text, out culture);
+                    translatedText = FindBestTranslation(
+                        preferredLocales,
+                        info.Key ?? info.Text,
+                        out culture);
 
                     // use the default if no translation available.
                     if (translatedText == null)
@@ -434,7 +464,9 @@ namespace Opc.Ua.Server
                     }
 
                     // get a culture to use for formatting
-                    if (culture == null && info.Args?.Length > 0 && !string.IsNullOrEmpty(info.Locale))
+                    if (culture == null &&
+                        info.Args?.Length > 0 &&
+                        !string.IsNullOrEmpty(info.Locale))
                     {
                         try
                         {
@@ -505,7 +537,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Finds the best translation for the requested locales.
         /// </summary>
-        private string FindBestTranslation(IList<string> preferredLocales, string key, out CultureInfo culture)
+        private string FindBestTranslation(
+            IList<string> preferredLocales,
+            string key,
+            out CultureInfo culture)
         {
             culture = null;
             TranslationTable match = null;
@@ -541,8 +576,8 @@ namespace Opc.Ua.Server
 
                     // all done if exact match found.
                     if (
-                        translationTable.Locale.Name == preferredLocales[jj]
-                        && translationTable.Translations.TryGetValue(key, out translatedText)
+                        translationTable.Locale.Name == preferredLocales[jj] &&
+                        translationTable.Translations.TryGetValue(key, out translatedText)
                     )
                     {
                         culture = translationTable.Locale;
@@ -550,15 +585,12 @@ namespace Opc.Ua.Server
                     }
 
                     // check for matching language but different region.
-                    if (match == null && translationTable.Locale.TwoLetterISOLanguageName == language)
+                    if (match == null &&
+                        translationTable.Locale.TwoLetterISOLanguageName == language &&
+                        translationTable.Translations.TryGetValue(key, out translatedText))
                     {
-                        if (translationTable.Translations.TryGetValue(key, out translatedText))
-                        {
-                            culture = translationTable.Locale;
-                            match = translationTable;
-                        }
-
-                        continue;
+                        culture = translationTable.Locale;
+                        match = translationTable;
                     }
                 }
 
@@ -576,23 +608,25 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Translates a status code.
         /// </summary>
-        private LocalizedText TranslateStatusCode(IList<string> preferredLocales, StatusCode statusCode, object[] args)
+        private LocalizedText TranslateStatusCode(
+            IList<string> preferredLocales,
+            StatusCode statusCode,
+            object[] args)
         {
             lock (m_lock)
             {
-                if (m_statusCodeMapping != null)
+                if (
+                    m_statusCodeMapping != null &&
+                    m_statusCodeMapping.TryGetValue(statusCode.Code, out TranslationInfo info)
+                )
                 {
-                    TranslationInfo info;
-                    if (m_statusCodeMapping.TryGetValue(statusCode.Code, out info))
+                    // merge the argument list with the translation info cached for the status code.
+                    if (args != null)
                     {
-                        // merge the argument list with the translation info cached for the status code.
-                        if (args != null)
-                        {
-                            info = new TranslationInfo(info.Key, info.Locale, info.Text, args);
-                        }
-
-                        return Translate(preferredLocales, null, info);
+                        info = new TranslationInfo(info.Key, info.Locale, info.Text, args);
                     }
+
+                    return Translate(preferredLocales, null, info);
                 }
             }
 
@@ -611,19 +645,21 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                if (m_symbolicIdMapping != null)
+                if (
+                    m_symbolicIdMapping != null &&
+                    m_symbolicIdMapping.TryGetValue(
+                        new XmlQualifiedName(symbolicId, namespaceUri),
+                        out TranslationInfo info
+                    )
+                )
                 {
-                    TranslationInfo info;
-                    if (m_symbolicIdMapping.TryGetValue(new XmlQualifiedName(symbolicId, namespaceUri), out info))
+                    // merge the argument list with the translation info cached for the symbolic id.
+                    if (args != null)
                     {
-                        // merge the argument list with the translation info cached for the symbolic id.
-                        if (args != null)
-                        {
-                            info = new TranslationInfo(info.Key, info.Locale, info.Text, args);
-                        }
-
-                        return Translate(preferredLocales, null, info);
+                        info = new TranslationInfo(info.Key, info.Locale, info.Text, args);
                     }
+
+                    return Translate(preferredLocales, null, info);
                 }
             }
 

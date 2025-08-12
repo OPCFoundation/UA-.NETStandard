@@ -45,7 +45,15 @@ namespace Alarms
             int interval,
             bool optional
         )
-            : base(alarmNodeManager, parent, trigger, name, alarmConditionType, controllerType, interval, optional)
+            : base(
+                alarmNodeManager,
+                parent,
+                trigger,
+                name,
+                alarmConditionType,
+                controllerType,
+                interval,
+                optional)
         {
             m_alarmConditionType = alarmConditionType;
         }
@@ -63,7 +71,8 @@ namespace Alarms
             // Set all ConditionType Parameters
             alarm.ClientUserId.Value = "Anonymous";
             alarm.ConditionClassId.Value = m_alarmConditionType.Node;
-            alarm.ConditionClassName.Value = new LocalizedText("", m_alarmConditionType.ConditionName);
+            alarm.ConditionClassName.Value
+                = new LocalizedText(string.Empty, m_alarmConditionType.ConditionName);
             alarm.ConditionName.Value = m_alarmRootName;
             Utils.LogTrace("Alarm ConditionName = {0}", alarm.ConditionName.Value);
 
@@ -74,7 +83,7 @@ namespace Alarms
             alarm.Quality.Value = StatusCodes.Good;
             alarm.LastSeverity.Value = AlarmDefines.INACTIVE_SEVERITY;
             alarm.Severity.Value = AlarmDefines.INACTIVE_SEVERITY;
-            alarm.Comment.Value = new LocalizedText("en", "");
+            alarm.Comment.Value = new LocalizedText("en", string.Empty);
 
             // Set Method Handlers
             alarm.OnEnableDisable = OnEnableDisableAlarm;
@@ -101,7 +110,8 @@ namespace Alarms
                 // This could be a transition between alarm states,
                 // or a transition to inactive
                 // So a branch can only be created when the severity changes
-                if (currentSeverity > AlarmDefines.INACTIVE_SEVERITY && newSeverity != currentSeverity)
+                if (currentSeverity > AlarmDefines.INACTIVE_SEVERITY &&
+                    newSeverity != currentSeverity)
                 {
                     NodeId branchId = GetNewBranchId();
                     ConditionState branch = alarm.CreateBranch(SystemContext, branchId);
@@ -110,12 +120,12 @@ namespace Alarms
 
                     Log(
                         "CreateBranch",
-                        " Branch "
-                            + branchId
-                            + " EventId "
-                            + postEventId
-                            + " created, Message "
-                            + alarm.Message.Value.Text
+                        " Branch " +
+                        branchId +
+                        " EventId " +
+                        postEventId +
+                        " created, Message " +
+                        alarm.Message.Value.Text
                     );
 
                     m_alarmController.SetBranchCount(alarm.GetBranchCount());
@@ -157,10 +167,10 @@ namespace Alarms
 
                 Log(
                     "ReportEvent",
-                    " Value "
-                        + m_alarmController.GetValue().ToString(CultureInfo.InvariantCulture)
-                        + " Message "
-                        + alarm.Message.Value.Text
+                    " Value " +
+                    m_alarmController.GetValue().ToString(CultureInfo.InvariantCulture) +
+                    " Message " +
+                    alarm.Message.Value.Text
                 );
 
                 alarm.ClearChangeMasks(SystemContext, true);
@@ -269,7 +279,10 @@ namespace Alarms
             return " Requested Event " + Utils.ToHexString(eventId);
         }
 
-        public ServiceResult OnEnableDisableAlarm(ISystemContext context, ConditionState condition, bool enabling)
+        public ServiceResult OnEnableDisableAlarm(
+            ISystemContext context,
+            ConditionState condition,
+            bool enabling)
         {
             StatusCode status = StatusCodes.Good;
 

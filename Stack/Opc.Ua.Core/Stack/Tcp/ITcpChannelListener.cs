@@ -29,14 +29,6 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Binds a new socket to an existing channel.
         /// </summary>
-        /// <param name="socket"></param>
-        /// <param name="requestId"></param>
-        /// <param name="sequenceNumber"></param>
-        /// <param name="channelId"></param>
-        /// <param name="clientCertificate"></param>
-        /// <param name="token"></param>
-        /// <param name="request"></param>
-        /// <returns></returns>
         bool ReconnectToExistingChannel(
             IMessageSocket socket,
             uint requestId,

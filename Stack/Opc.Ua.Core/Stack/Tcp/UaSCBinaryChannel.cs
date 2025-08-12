@@ -71,7 +71,8 @@ namespace Opc.Ua.Bindings
                 securityMode,
                 securityPolicyUri
             )
-        { }
+        {
+        }
 
         /// <summary>
         /// Attaches the object to an existing socket.
@@ -104,7 +105,8 @@ namespace Opc.Ua.Bindings
             X509Certificate2Collection serverCertificateChain = null;
             if (serverCertificateTypesProvider != null && securityMode != MessageSecurityMode.None)
             {
-                serverCertificate = serverCertificateTypesProvider.GetInstanceCertificate(securityPolicyUri);
+                serverCertificate = serverCertificateTypesProvider.GetInstanceCertificate(
+                    securityPolicyUri);
 
                 if (serverCertificate == null)
                 {
@@ -128,7 +130,8 @@ namespace Opc.Ua.Bindings
                     .GetResult();
             }
 
-            if (Encoding.UTF8.GetByteCount(securityPolicyUri) > TcpMessageLimits.MaxSecurityPolicyUriSize)
+            if (Encoding.UTF8.GetByteCount(securityPolicyUri) > TcpMessageLimits
+                .MaxSecurityPolicyUriSize)
             {
                 throw new ArgumentException(
                     Utils.Format(
@@ -178,8 +181,12 @@ namespace Opc.Ua.Bindings
             MaxRequestMessageSize = quotas.MaxMessageSize;
             MaxResponseMessageSize = quotas.MaxMessageSize;
 
-            MaxRequestChunkCount = CalculateChunkCount(MaxRequestMessageSize, TcpMessageLimits.MinBufferSize);
-            MaxResponseChunkCount = CalculateChunkCount(MaxResponseMessageSize, TcpMessageLimits.MinBufferSize);
+            MaxRequestChunkCount = CalculateChunkCount(
+                MaxRequestMessageSize,
+                TcpMessageLimits.MinBufferSize);
+            MaxResponseChunkCount = CalculateChunkCount(
+                MaxResponseMessageSize,
+                TcpMessageLimits.MinBufferSize);
 
             CalculateSymmetricKeySizes();
         }
@@ -263,7 +270,9 @@ namespace Opc.Ua.Bindings
             bool isLegacy = !EccUtils.IsEccPolicy(SecurityPolicyUri);
 
             long newSeqNumber = Interlocked.Increment(ref m_sequenceNumber);
-            bool maxValueOverflow = isLegacy ? newSeqNumber > kMaxValueLegacyTrue : newSeqNumber > kMaxValueLegacyFalse;
+            bool maxValueOverflow = isLegacy
+                ? newSeqNumber > kMaxValueLegacyTrue
+                : newSeqNumber > kMaxValueLegacyFalse;
 
             // LegacySequenceNumbers are TRUE for non ECC profiles
             // https://reference.opcfoundation.org/Core/Part6/v105/docs/6.7.2.4
@@ -278,19 +287,17 @@ namespace Opc.Ua.Bindings
                 }
                 return (uint)newSeqNumber;
             }
-            else
+            uint retVal = (uint)newSeqNumber - 1;
+            if (maxValueOverflow)
             {
-                uint retVal = (uint)newSeqNumber - 1;
-                if (maxValueOverflow)
-                {
-                    // First number after wrap around and as initial value shall be 0
-                    Interlocked.Exchange(ref m_sequenceNumber, 0);
-                    Interlocked.Exchange(ref m_localSequenceNumber, 0);
-                    return retVal;
-                }
-                Interlocked.Exchange(ref m_localSequenceNumber, retVal);
+                // First number after wrap around and as initial value shall be 0
+                Interlocked.Exchange(ref m_sequenceNumber, 0);
+                Interlocked.Exchange(ref m_localSequenceNumber, 0);
                 return retVal;
             }
+            Interlocked.Exchange(ref m_localSequenceNumber, retVal);
+
+            return retVal;
         }
 
         /// <summary>
@@ -308,10 +315,10 @@ namespace Opc.Ua.Bindings
         {
             // Accept the first sequence number depending on security policy
             if (
-                m_firstReceivedSequenceNumber
-                && (
-                    !EccUtils.IsEccPolicy(SecurityPolicyUri)
-                    || (EccUtils.IsEccPolicy(SecurityPolicyUri) && (sequenceNumber == 0))
+                m_firstReceivedSequenceNumber &&
+                (
+                    !EccUtils.IsEccPolicy(SecurityPolicyUri) ||
+                    (EccUtils.IsEccPolicy(SecurityPolicyUri) && (sequenceNumber == 0))
                 )
             )
             {
@@ -329,16 +336,16 @@ namespace Opc.Ua.Bindings
 
             // check for a valid rollover.
             if (
-                m_remoteSequenceNumber > TcpMessageLimits.MinSequenceNumber
-                && sequenceNumber < TcpMessageLimits.MaxRolloverSequenceNumber
+                m_remoteSequenceNumber > TcpMessageLimits.MinSequenceNumber &&
+                sequenceNumber < TcpMessageLimits.MaxRolloverSequenceNumber
             )
             {
                 // only one rollover per token is allowed and with valid values depending on security policy
                 if (
-                    !m_sequenceRollover
-                    && (
-                        !EccUtils.IsEccPolicy(SecurityPolicyUri)
-                        || (EccUtils.IsEccPolicy(SecurityPolicyUri) && (sequenceNumber == 0))
+                    !m_sequenceRollover &&
+                    (
+                        !EccUtils.IsEccPolicy(SecurityPolicyUri) ||
+                        (EccUtils.IsEccPolicy(SecurityPolicyUri) && (sequenceNumber == 0))
                     )
                 )
                 {
@@ -361,7 +368,10 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Saves an intermediate chunk for an incoming message.
         /// </summary>
-        protected bool SaveIntermediateChunk(uint requestId, ArraySegment<byte> chunk, bool isServerContext)
+        protected bool SaveIntermediateChunk(
+            uint requestId,
+            ArraySegment<byte> chunk,
+            bool isServerContext)
         {
             bool firstChunk = false;
             if (m_partialMessageChunks == null)
@@ -407,7 +417,10 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns the chunks saved for message.
         /// </summary>
-        protected BufferCollection GetSavedChunks(uint requestId, ArraySegment<byte> chunk, bool isServerContext)
+        protected BufferCollection GetSavedChunks(
+            uint requestId,
+            ArraySegment<byte> chunk,
+            bool isServerContext)
         {
             SaveIntermediateChunk(requestId, chunk, isServerContext);
             BufferCollection savedChunks = m_partialMessageChunks;
@@ -464,7 +477,9 @@ namespace Opc.Ua.Bindings
         /// Processes an incoming message.
         /// </summary>
         /// <returns>True if the implementor takes ownership of the buffer.</returns>
-        protected virtual bool HandleIncomingMessage(uint messageType, ArraySegment<byte> messageChunk)
+        protected virtual bool HandleIncomingMessage(
+            uint messageType,
+            ArraySegment<byte> messageChunk)
         {
             return false;
         }
@@ -472,7 +487,11 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Handles an error parsing or verifying a message.
         /// </summary>
-        protected void HandleMessageProcessingError(Exception e, uint defaultCode, string format, params object[] args)
+        protected void HandleMessageProcessingError(
+            Exception e,
+            uint defaultCode,
+            string format,
+            params object[] args)
         {
             HandleMessageProcessingError(ServiceResult.Create(e, defaultCode, format, args));
         }
@@ -480,7 +499,10 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Handles an error parsing or verifying a message.
         /// </summary>
-        protected void HandleMessageProcessingError(uint statusCode, string format, params object[] args)
+        protected void HandleMessageProcessingError(
+            uint statusCode,
+            string format,
+            params object[] args)
         {
             HandleMessageProcessingError(ServiceResult.Create(statusCode, format, args));
         }
@@ -488,7 +510,9 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Handles an error parsing or verifying a message.
         /// </summary>
-        protected virtual void HandleMessageProcessingError(ServiceResult result) { }
+        protected virtual void HandleMessageProcessingError(ServiceResult result)
+        {
+        }
 
         /// <inheritdoc/>
         public virtual void OnReceiveError(IMessageSocket source, ServiceResult result)
@@ -502,7 +526,9 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Handles a socket error.
         /// </summary>
-        protected virtual void HandleSocketError(ServiceResult result) { }
+        protected virtual void HandleSocketError(ServiceResult result)
+        {
+        }
 
         /// <summary>
         /// Handles a write complete event.
@@ -546,6 +572,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Queues a write request.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         protected void BeginWriteMessage(ArraySegment<byte> buffer, object state)
         {
             ServiceResult error = ServiceResult.Good;
@@ -567,7 +594,9 @@ namespace Opc.Ua.Bindings
                     // I/O completed synchronously
                     if (args.IsSocketError || (args.BytesTransferred < buffer.Count))
                     {
-                        error = ServiceResult.Create(StatusCodes.BadConnectionClosed, args.SocketErrorString);
+                        error = ServiceResult.Create(
+                            StatusCodes.BadConnectionClosed,
+                            args.SocketErrorString);
                         HandleWriteComplete(null, state, args.BytesTransferred, error);
                         args.Dispose();
                     }
@@ -613,7 +642,9 @@ namespace Opc.Ua.Bindings
                     // I/O completed synchronously
                     if (args.IsSocketError || (args.BytesTransferred < buffers.TotalSize))
                     {
-                        error = ServiceResult.Create(StatusCodes.BadConnectionClosed, args.SocketErrorString);
+                        error = ServiceResult.Create(
+                            StatusCodes.BadConnectionClosed,
+                            args.SocketErrorString);
                         HandleWriteComplete(buffers, state, args.BytesTransferred, error);
                         args.Dispose();
                     }
@@ -660,9 +691,11 @@ namespace Opc.Ua.Bindings
             string reason = error.LocalizedText?.Text;
 
             // check that length is not exceeded.
-            if (reason != null && Encoding.UTF8.GetByteCount(reason) > TcpMessageLimits.MaxErrorReasonLength)
+            if (reason != null &&
+                Encoding.UTF8.GetByteCount(reason) > TcpMessageLimits.MaxErrorReasonLength)
             {
-                reason = reason[..(TcpMessageLimits.MaxErrorReasonLength / Encoding.UTF8.GetMaxByteCount(1))];
+                reason = reason[
+                    ..(TcpMessageLimits.MaxErrorReasonLength / Encoding.UTF8.GetMaxByteCount(1))];
             }
 
             encoder.WriteStatusCode(null, error.StatusCode);
@@ -746,6 +779,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Updates the message size stored in the message header.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         protected static void UpdateMessageSize(byte[] buffer, int offset, int messageSize)
         {
             if (offset >= int.MaxValue - 4)
@@ -853,7 +887,9 @@ namespace Opc.Ua.Bindings
             /// Initializes the object with a callback
             /// </summary>
             public WriteOperation(int timeout, AsyncCallback callback, object asyncState)
-                : base(timeout, callback, asyncState) { }
+                : base(timeout, callback, asyncState)
+            {
+            }
 
             /// <summary>
             /// The request id associated with the operation.
@@ -892,7 +928,11 @@ namespace Opc.Ua.Bindings
         /// <param name="decoder">The decoder of the stream.</param>
         /// <param name="expectedMessageType">The message type to be checked.</param>
         /// <param name="count">The length of the message.</param>
-        protected static void ReadAndVerifyMessageTypeAndSize(IDecoder decoder, uint expectedMessageType, int count)
+        /// <exception cref="ServiceResultException"></exception>
+        protected static void ReadAndVerifyMessageTypeAndSize(
+            IDecoder decoder,
+            uint expectedMessageType,
+            int count)
         {
             uint messageType = decoder.ReadUInt32(null);
             if (messageType != expectedMessageType)
@@ -947,7 +987,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// The possible channel states.
     /// </summary>
-    public enum TcpChannelState : int
+    public enum TcpChannelState
     {
         /// <summary>
         /// The channel is closed.
@@ -977,7 +1017,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The channel is in a error state.
         /// </summary>
-        Faulted,
+        Faulted
     }
 
     /// <summary>

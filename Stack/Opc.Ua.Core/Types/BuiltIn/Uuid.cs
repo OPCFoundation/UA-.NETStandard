@@ -53,7 +53,7 @@ namespace Opc.Ua
         /// <summary>
         /// A constant containing an empty GUID.
         /// </summary>
-        public static readonly Uuid Empty = new();
+        public static readonly Uuid Empty;
 
         /// <summary>
         /// The GUID serialized as a string.
@@ -270,7 +270,10 @@ namespace Opc.Ua
     /// <summary>
     /// A collection of Uuids.
     /// </summary>
-    [CollectionDataContract(Name = "ListOfGuid", Namespace = Namespaces.OpcUaXsd, ItemName = "Guid")]
+    [CollectionDataContract(
+        Name = "ListOfGuid",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "Guid")]
     public class UuidCollection : List<Uuid>, ICloneable
     {
         /// <summary>
@@ -279,7 +282,9 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes an empty collection.
         /// </remarks>
-        public UuidCollection() { }
+        public UuidCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -289,7 +294,9 @@ namespace Opc.Ua
         /// </remarks>
         /// <param name="collection">The collection to copy</param>
         public UuidCollection(IEnumerable<Uuid> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
@@ -299,7 +306,9 @@ namespace Opc.Ua
         /// </remarks>
         /// <param name="capacity">The maximum size of the collection</param>
         public UuidCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -347,4 +356,4 @@ namespace Opc.Ua
             return new UuidCollection(this);
         }
     }
-} //namespace
+}

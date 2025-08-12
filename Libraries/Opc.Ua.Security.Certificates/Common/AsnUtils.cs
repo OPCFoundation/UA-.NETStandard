@@ -146,7 +146,9 @@ namespace Opc.Ua.Security.Certificates
         /// </remarks>
         /// <param name="writer">The writer</param>
         /// <param name="integer">The key parameter</param>
-        internal static void WriteKeyParameterInteger(this AsnWriter writer, ReadOnlySpan<byte> integer)
+        internal static void WriteKeyParameterInteger(
+            this AsnWriter writer,
+            ReadOnlySpan<byte> integer)
         {
             if (integer[0] == 0)
             {
@@ -184,6 +186,8 @@ namespace Opc.Ua.Security.Certificates
         /// return the byte array which contains the X509 blob.
         /// </summary>
         /// <param name="blob">The encoded CRL or certificate sequence.</param>
+        /// <exception cref="CryptographicException"></exception>
+        /// <exception cref="AsnContentException"></exception>
         public static ReadOnlyMemory<byte> ParseX509Blob(ReadOnlyMemory<byte> blob)
         {
             try
@@ -202,8 +206,7 @@ namespace Opc.Ua.Security.Certificates
                     HashAlgorithmName name = Oids.GetHashAlgorithmName(signatureAlgorithm);
 
                     // Signature
-                    int unusedBitCount;
-                    byte[] signature = seqReader.ReadBitString(out unusedBitCount);
+                    byte[] signature = seqReader.ReadBitString(out int unusedBitCount);
                     if (unusedBitCount != 0)
                     {
                         throw new AsnContentException("Unexpected data in signature.");

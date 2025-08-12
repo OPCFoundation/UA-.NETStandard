@@ -58,6 +58,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <typeparam name="T">The type of the extension.</typeparam>
         /// <param name="extensions">The extensions to search.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="extensions"/> is <c>null</c>.</exception>
         public static T FindExtension<T>(this X509ExtensionCollection extensions)
             where T : X509Extension
         {
@@ -76,11 +77,14 @@ namespace Opc.Ua.Security.Certificates
                         .FirstOrDefault(e =>
                             e.Oid.Value
                                 is X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifierOid
-                                    or X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifier2Oid
+                                    or X509AuthorityKeyIdentifierExtension
+                                        .AuthorityKeyIdentifier2Oid
                         );
                     if (extension != null)
                     {
-                        return new X509AuthorityKeyIdentifierExtension(extension, extension.Critical) as T;
+                        return new X509AuthorityKeyIdentifierExtension(
+                            extension,
+                            extension.Critical) as T;
                     }
                 }
 
@@ -120,12 +124,14 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="caIssuerUrls">Array of CA Issuer Urls</param>
         /// <param name="ocspResponder">optional, the OCSP responder </param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static X509Extension BuildX509AuthorityInformationAccess(
             this string[] caIssuerUrls,
             string ocspResponder = null
         )
         {
-            if (string.IsNullOrEmpty(ocspResponder) && (caIssuerUrls == null || caIssuerUrls.Length == 0))
+            if (string.IsNullOrEmpty(ocspResponder) &&
+                (caIssuerUrls == null || caIssuerUrls.Length == 0))
             {
                 throw new ArgumentNullException(
                     nameof(caIssuerUrls),
@@ -142,7 +148,10 @@ namespace Opc.Ua.Security.Certificates
                 {
                     writer.PushSequence();
                     writer.WriteObjectIdentifier(Oids.CertificateAuthorityIssuers);
-                    writer.WriteCharacterString(UniversalTagNumber.IA5String, caIssuerUrl, generalNameUriChoice);
+                    writer.WriteCharacterString(
+                        UniversalTagNumber.IA5String,
+                        caIssuerUrl,
+                        generalNameUriChoice);
                     writer.PopSequence();
                 }
             }
@@ -150,7 +159,10 @@ namespace Opc.Ua.Security.Certificates
             {
                 writer.PushSequence();
                 writer.WriteObjectIdentifier(Oids.OnlineCertificateStatusProtocol);
-                writer.WriteCharacterString(UniversalTagNumber.IA5String, ocspResponder, generalNameUriChoice);
+                writer.WriteCharacterString(
+                    UniversalTagNumber.IA5String,
+                    ocspResponder,
+                    generalNameUriChoice);
                 writer.PopSequence();
             }
             writer.PopSequence();
@@ -170,7 +182,8 @@ namespace Opc.Ua.Security.Certificates
         /// Build the CRL Distribution Point extension with multiple distribution points.
         /// </summary>
         /// <param name="distributionPoints">The CRL distribution points</param>
-        public static X509Extension BuildX509CRLDistributionPoints(this IEnumerable<string> distributionPoints)
+        public static X509Extension BuildX509CRLDistributionPoints(
+            this IEnumerable<string> distributionPoints)
         {
             var context0 = new Asn1Tag(TagClass.ContextSpecific, 0, true);
             Asn1Tag distributionPointChoice = context0;
@@ -183,7 +196,10 @@ namespace Opc.Ua.Security.Certificates
             writer.PushSequence(fullNameChoice);
             foreach (string distributionPoint in distributionPoints)
             {
-                writer.WriteCharacterString(UniversalTagNumber.IA5String, distributionPoint, generalNameUriChoice);
+                writer.WriteCharacterString(
+                    UniversalTagNumber.IA5String,
+                    distributionPoint,
+                    generalNameUriChoice);
             }
             writer.PopSequence(fullNameChoice);
             writer.PopSequence(distributionPointChoice);
@@ -219,8 +235,6 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Write an extension object as ASN.1.
         /// </summary>
-        /// <param name="writer"></param>
-        /// <param name="extension"></param>
         public static void WriteExtension(this AsnWriter writer, X509Extension extension)
         {
             Asn1Tag etag = Asn1Tag.Sequence;
@@ -248,11 +262,13 @@ namespace Opc.Ua.Security.Certificates
         /// Build the Authority Key Identifier from an Issuer CA certificate.
         /// </summary>
         /// <param name="issuerCaCertificate">The issuer CA certificate</param>
-        public static X509Extension BuildAuthorityKeyIdentifier(this X509Certificate2 issuerCaCertificate)
+        public static X509Extension BuildAuthorityKeyIdentifier(
+            this X509Certificate2 issuerCaCertificate)
         {
             // force exception if SKI is not present
             X509SubjectKeyIdentifierExtension ski = issuerCaCertificate
-                .Extensions.OfType<X509SubjectKeyIdentifierExtension>()
+                .Extensions
+                .OfType<X509SubjectKeyIdentifierExtension>()
                 .Single();
             return new X509AuthorityKeyIdentifierExtension(
                 ski.SubjectKeyIdentifier.FromHexString(),

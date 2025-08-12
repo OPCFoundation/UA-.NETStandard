@@ -20,9 +20,6 @@ namespace Opc.Ua
     /// <summary>
     /// Callback when the token is activated
     /// </summary>
-    /// <param name="channel"></param>
-    /// <param name="currentToken"></param>
-    /// <param name="previousToken"></param>
     public delegate void ChannelTokenActivatedEventHandler(
         ITransportChannel channel,
         ChannelToken currentToken,
@@ -199,7 +196,10 @@ namespace Opc.Ua
         /// <returns>The result which must be passed to the EndSendRequest method.</returns>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
         /// <seealso cref="SendRequest" />
-        IAsyncResult BeginSendRequest(IServiceRequest request, AsyncCallback callback, object callbackData);
+        IAsyncResult BeginSendRequest(
+            IServiceRequest request,
+            AsyncCallback callback,
+            object callbackData);
 
         /// <summary>
         /// Completes an asynchronous operation to send a request over the secure channel.
@@ -269,6 +269,6 @@ namespace Opc.Ua
         /// <summary>
         /// The channel supports asynchronous SendRequestAsync.
         /// </summary>
-        SendRequestAsync = 0x0080,
+        SendRequestAsync = 0x0080
     }
 }

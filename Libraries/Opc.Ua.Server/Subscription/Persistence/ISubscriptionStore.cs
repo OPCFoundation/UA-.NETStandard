@@ -79,7 +79,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a new instance of the result
         /// </summary>
-        public RestoreSubscriptionResult(bool succcess, IEnumerable<IStoredSubscription> subscriptions)
+        public RestoreSubscriptionResult(
+            bool succcess,
+            IEnumerable<IStoredSubscription> subscriptions)
         {
             Success = succcess;
             Subscriptions = subscriptions;

@@ -52,29 +52,65 @@ namespace TestData
             InitializeVariable(context, FloatValue, Variables.ScalarValueObjectType_FloatValue);
             InitializeVariable(context, DoubleValue, Variables.ScalarValueObjectType_DoubleValue);
             InitializeVariable(context, StringValue, Variables.ScalarValueObjectType_StringValue);
-            InitializeVariable(context, DateTimeValue, Variables.ScalarValueObjectType_DateTimeValue);
+            InitializeVariable(
+                context,
+                DateTimeValue,
+                Variables.ScalarValueObjectType_DateTimeValue);
             InitializeVariable(context, GuidValue, Variables.ScalarValueObjectType_GuidValue);
-            InitializeVariable(context, ByteStringValue, Variables.ScalarValueObjectType_ByteStringValue);
-            InitializeVariable(context, XmlElementValue, Variables.ScalarValueObjectType_XmlElementValue);
+            InitializeVariable(
+                context,
+                ByteStringValue,
+                Variables.ScalarValueObjectType_ByteStringValue);
+            InitializeVariable(
+                context,
+                XmlElementValue,
+                Variables.ScalarValueObjectType_XmlElementValue);
             InitializeVariable(context, NodeIdValue, Variables.ScalarValueObjectType_NodeIdValue);
-            InitializeVariable(context, ExpandedNodeIdValue, Variables.ScalarValueObjectType_ExpandedNodeIdValue);
-            InitializeVariable(context, QualifiedNameValue, Variables.ScalarValueObjectType_QualifiedNameValue);
-            InitializeVariable(context, LocalizedTextValue, Variables.ScalarValueObjectType_LocalizedTextValue);
-            InitializeVariable(context, StatusCodeValue, Variables.ScalarValueObjectType_StatusCodeValue);
+            InitializeVariable(
+                context,
+                ExpandedNodeIdValue,
+                Variables.ScalarValueObjectType_ExpandedNodeIdValue);
+            InitializeVariable(
+                context,
+                QualifiedNameValue,
+                Variables.ScalarValueObjectType_QualifiedNameValue);
+            InitializeVariable(
+                context,
+                LocalizedTextValue,
+                Variables.ScalarValueObjectType_LocalizedTextValue);
+            InitializeVariable(
+                context,
+                StatusCodeValue,
+                Variables.ScalarValueObjectType_StatusCodeValue);
             InitializeVariable(context, VariantValue, Variables.ScalarValueObjectType_VariantValue);
-            InitializeVariable(context, EnumerationValue, Variables.ScalarValueObjectType_EnumerationValue);
-            InitializeVariable(context, StructureValue, Variables.ScalarValueObjectType_StructureValue);
+            InitializeVariable(
+                context,
+                EnumerationValue,
+                Variables.ScalarValueObjectType_EnumerationValue);
+            InitializeVariable(
+                context,
+                StructureValue,
+                Variables.ScalarValueObjectType_StructureValue);
             InitializeVariable(context, NumberValue, Variables.ScalarValueObjectType_NumberValue);
             InitializeVariable(context, IntegerValue, Variables.ScalarValueObjectType_IntegerValue);
-            InitializeVariable(context, UIntegerValue, Variables.ScalarValueObjectType_UIntegerValue);
+            InitializeVariable(
+                context,
+                UIntegerValue,
+                Variables.ScalarValueObjectType_UIntegerValue);
             InitializeVariable(context, VectorValue, Variables.ScalarValueObjectType_VectorValue);
-            InitializeVariable(context, VectorUnionValue, Variables.ScalarValueObjectType_VectorUnionValue);
+            InitializeVariable(
+                context,
+                VectorUnionValue,
+                Variables.ScalarValueObjectType_VectorUnionValue);
             InitializeVariable(
                 context,
                 VectorWithOptionalFieldsValue,
                 Variables.ScalarValueObjectType_VectorWithOptionalFieldsValue
             );
-            InitializeVariable(context, MultipleVectorsValue, Variables.ScalarValueObjectType_MultipleVectorsValue);
+            InitializeVariable(
+                context,
+                MultipleVectorsValue,
+                Variables.ScalarValueObjectType_MultipleVectorsValue);
         }
 
         /// <summary>

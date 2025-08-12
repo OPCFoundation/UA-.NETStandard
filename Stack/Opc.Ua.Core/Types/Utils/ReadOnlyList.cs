@@ -19,6 +19,7 @@ namespace Opc.Ua
     /// <summary>
     /// A template list class that can be used to expose members of immutable classes.
     /// </summary>
+    /// <typeparam name="T"></typeparam>
     public class ReadOnlyList<T> : IList<T>, IList
     {
         /// <summary>
@@ -57,6 +58,7 @@ namespace Opc.Ua
         /// <summary>
         /// Adds new item to the list (not supported).
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         public void Add(T item)
         {
             throw new NotSupportedException();
@@ -65,6 +67,7 @@ namespace Opc.Ua
         /// <summary>
         /// Removes all items from the list (not supported).
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         public void Clear()
         {
             throw new NotSupportedException();
@@ -94,6 +97,7 @@ namespace Opc.Ua
         /// <summary>
         /// Removes an item from the list (not supported).
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         public bool Remove(T item)
         {
             throw new NotSupportedException();
@@ -110,6 +114,7 @@ namespace Opc.Ua
         /// <summary>
         /// Inserts an item into the list (not supported).
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         public void Insert(int index, T item)
         {
             throw new NotSupportedException();
@@ -118,6 +123,7 @@ namespace Opc.Ua
         /// <summary>
         /// Removes an item from the list (not supported).
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         public void RemoveAt(int index)
         {
             throw new NotSupportedException();
@@ -126,6 +132,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the item at the specified index.
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         public T this[int index]
         {
             get => m_list[index];

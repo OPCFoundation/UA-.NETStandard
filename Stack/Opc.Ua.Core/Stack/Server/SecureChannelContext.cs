@@ -100,6 +100,6 @@ namespace Opc.Ua
         /// <summary>
         /// The request used the UA JSON encoding.
         /// </summary>
-        Json,
+        Json
     }
 }

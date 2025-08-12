@@ -25,7 +25,7 @@ namespace Opc.Ua.Bindings
                 [
                     typeof(TcpTransportChannelFactory),
                     typeof(HttpsTransportChannelFactory),
-                    typeof(OpcHttpsTransportChannelFactory),
+                    typeof(OpcHttpsTransportChannelFactory)
                 ]
             );
             Listeners = new TransportListenerBindings([typeof(TcpTransportListenerFactory)]);
@@ -52,7 +52,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="defaultBindings">List of known default bindings.</param>
         public TransportChannelBindings(Type[] defaultBindings)
-            : base(defaultBindings) { }
+            : base(defaultBindings)
+        {
+        }
 
         /// <summary>
         /// Get a transport channel for the specified uri scheme.
@@ -75,7 +77,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="defaultBindings">List of known default bindings.</param>
         public TransportListenerBindings(Type[] defaultBindings)
-            : base(defaultBindings) { }
+            : base(defaultBindings)
+        {
+        }
 
         /// <summary>
         /// Get a transport listener for the specified uri scheme.

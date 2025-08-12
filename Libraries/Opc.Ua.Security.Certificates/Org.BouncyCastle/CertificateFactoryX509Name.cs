@@ -51,7 +51,9 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// </summary>
         /// <param name="distinguishedName">The distinguished name.</param>
         public CertificateFactoryX509Name(X500DistinguishedName distinguishedName)
-            : base((Asn1Sequence)Asn1Object.FromByteArray(distinguishedName.RawData)) { }
+            : base((Asn1Sequence)Asn1Object.FromByteArray(distinguishedName.RawData))
+        {
+        }
     }
 }
 #endif

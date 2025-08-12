@@ -38,7 +38,9 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Used to handle renews of user identity tokens before reconnect.
     /// </summary>
-    public delegate IUserIdentity RenewUserIdentityEventHandler(ISession session, IUserIdentity identity);
+    public delegate IUserIdentity RenewUserIdentityEventHandler(
+        ISession session,
+        IUserIdentity identity);
 
     /// <summary>
     /// The delegate used to receive keep alive notifications.
@@ -348,18 +350,24 @@ namespace Opc.Ua.Client
         /// Saves all the subscriptions of the session.
         /// </summary>
         /// <param name="filePath">The file path.</param>
-        /// <param name="knownTypes"></param>
+        /// <param name="knownTypes">Known types</param>
         void Save(string filePath, IEnumerable<Type> knownTypes = null);
 
         /// <summary>
         /// Saves a set of subscriptions to a stream.
         /// </summary>
-        void Save(Stream stream, IEnumerable<Subscription> subscriptions, IEnumerable<Type> knownTypes = null);
+        void Save(
+            Stream stream,
+            IEnumerable<Subscription> subscriptions,
+            IEnumerable<Type> knownTypes = null);
 
         /// <summary>
         /// Saves a set of subscriptions to a file.
         /// </summary>
-        void Save(string filePath, IEnumerable<Subscription> subscriptions, IEnumerable<Type> knownTypes = null);
+        void Save(
+            string filePath,
+            IEnumerable<Subscription> subscriptions,
+            IEnumerable<Type> knownTypes = null);
 
         /// <summary>
         /// Load the list of subscriptions saved in a stream.
@@ -528,7 +536,10 @@ namespace Opc.Ua.Client
         /// <param name="nodeIds">The node Id.</param>
         /// <param name="values">The data values read from the server.</param>
         /// <param name="errors">The errors reported by the server.</param>
-        void ReadValues(IList<NodeId> nodeIds, out DataValueCollection values, out IList<ServiceResult> errors);
+        void ReadValues(
+            IList<NodeId> nodeIds,
+            out DataValueCollection values,
+            out IList<ServiceResult> errors);
 
         /// <summary>
         /// Reads a byte string which is too large for the (server side) encoder to handle.
@@ -561,22 +572,23 @@ namespace Opc.Ua.Client
         /// Reads a byte string which is too large for the (server side) encoder to handle.
         /// </summary>
         /// <param name="nodeId">The node id of a byte string variable</param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
+        /// <param name="ct">Cancelation token to cancel operation with</param>
         Task<byte[]> ReadByteStringInChunksAsync(NodeId nodeId, CancellationToken ct);
 
         /// <summary>
         /// Fetches all references for the specified node.
         /// </summary>
         /// <param name="nodeId">The node id.</param>
-        /// <param name="ct"></param>
-        Task<ReferenceDescriptionCollection> FetchReferencesAsync(NodeId nodeId, CancellationToken ct);
+        /// <param name="ct">Cancelation token to cancel operation with</param>
+        Task<ReferenceDescriptionCollection> FetchReferencesAsync(
+            NodeId nodeId,
+            CancellationToken ct);
 
         /// <summary>
         /// Fetches all references for the specified nodes.
         /// </summary>
         /// <param name="nodeIds">The node id collection.</param>
-        /// <param name="ct"></param>
+        /// <param name="ct">Cancelation token to cancel operation with</param>
         /// <returns>A list of reference collections and the errors reported by the server.</returns>
         Task<(IList<ReferenceDescriptionCollection>, IList<ServiceResult>)> FetchReferencesAsync(
             IList<NodeId> nodeIds,
@@ -598,7 +610,11 @@ namespace Opc.Ua.Client
         /// <param name="sessionTimeout">The session timeout.</param>
         /// <param name="identity">The user identity.</param>
         /// <param name="preferredLocales">The list of preferred locales.</param>
-        void Open(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales);
+        void Open(
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string> preferredLocales);
 
         /// <summary>
         /// Establishes a session with the server.
@@ -674,7 +690,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Reads the display name for a set of Nodes.
         /// </summary>
-        void ReadDisplayName(IList<NodeId> nodeIds, out IList<string> displayNames, out IList<ServiceResult> errors);
+        void ReadDisplayName(
+            IList<NodeId> nodeIds,
+            out IList<string> displayNames,
+            out IList<ServiceResult> errors);
 
 #if CLIENT_ASYNC
         /// <summary>
@@ -893,14 +912,18 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="subscription">The subscription to remove.</param>
         /// <param name="ct">The cancellation token for the request.</param>
-        Task<bool> RemoveSubscriptionAsync(Subscription subscription, CancellationToken ct = default);
+        Task<bool> RemoveSubscriptionAsync(
+            Subscription subscription,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Removes a list of subscriptions from the session.
         /// </summary>
         /// <param name="subscriptions">The list of subscriptions to remove.</param>
         /// <param name="ct">The cancellation token for the request.</param>
-        Task<bool> RemoveSubscriptionsAsync(IEnumerable<Subscription> subscriptions, CancellationToken ct = default);
+        Task<bool> RemoveSubscriptionsAsync(
+            IEnumerable<Subscription> subscriptions,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Reactivates a list of subscriptions loaded from storage.
@@ -965,7 +988,7 @@ namespace Opc.Ua.Client
         /// <param name="includeSubtypes">If set to <c>true</c> the subtypes of the ReferenceType will be included in the browse.</param>
         /// <param name="nodeClassMask">The node class mask.</param>
         /// <param name="callback">The callback.</param>
-        /// <param name="asyncState"></param>
+        /// <param name="asyncState">Async state</param>
         IAsyncResult BeginBrowse(
             RequestHeader requestHeader,
             ViewDescription view,
@@ -1147,6 +1170,6 @@ namespace Opc.Ua.Client
         /// continuation points the server can allocae
         /// (if set to a value different from 0)
         /// </summary>
-        Balanced,
+        Balanced
     }
 }

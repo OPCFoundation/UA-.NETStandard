@@ -85,6 +85,7 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Formats a string and throws an exception.
         /// </summary>
+        /// <exception cref="FormatException"></exception>
         protected static Exception Exception(string format)
         {
             throw new FormatException(format);
@@ -174,8 +175,7 @@ namespace Opc.Ua.Schema
             }
 
             // check if path specified in the file table.
-            string location;
-            if (KnownFiles.TryGetValue(namespaceUri, out location))
+            if (KnownFiles.TryGetValue(namespaceUri, out string location))
             {
                 fileInfo = new FileInfo(location);
 
@@ -199,7 +199,8 @@ namespace Opc.Ua.Schema
                 // check for file in the same directory as the input file.
                 var inputInfo = new FileInfo(FilePath);
 
-                fileInfo = new FileInfo(inputInfo.DirectoryName + Path.DirectorySeparatorChar + fileInfo.Name);
+                fileInfo = new FileInfo(
+                    inputInfo.DirectoryName + Path.DirectorySeparatorChar + fileInfo.Name);
 
                 if (fileInfo.Exists)
                 {
@@ -207,7 +208,8 @@ namespace Opc.Ua.Schema
                 }
 
                 // check for file in the process directory.
-                fileInfo = new FileInfo(Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar + fileInfo.Name);
+                fileInfo = new FileInfo(
+                    Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar + fileInfo.Name);
 
                 if (fileInfo.Exists)
                 {
@@ -243,6 +245,7 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Loads a schema from an embedded resource.
         /// </summary>
+        /// <exception cref="FileNotFoundException"></exception>
         protected static object LoadResource(Type type, string path, Assembly assembly)
         {
             try
@@ -259,7 +262,9 @@ namespace Opc.Ua.Schema
             }
             catch (Exception e)
             {
-                throw new FileNotFoundException(Utils.Format("Could not load resource '{0}'.", path), e);
+                throw new FileNotFoundException(
+                    Utils.Format("Could not load resource '{0}'.", path),
+                    e);
             }
         }
 

@@ -65,7 +65,11 @@ namespace Opc.Ua
         /// <param name="algorithm">The hash algorithm to use in key derivation.</param>
         /// <param name="length">The length of the derived key.</param>
         /// <returns>The derived key.</returns>
-        public byte[] DeriveKey(Nonce remoteNonce, byte[] salt, HashAlgorithmName algorithm, int length)
+        public byte[] DeriveKey(
+            Nonce remoteNonce,
+            byte[] salt,
+            HashAlgorithmName algorithm,
+            int length)
         {
 #if CURVE25519
             if (m_bcKeyPair != null)
@@ -111,7 +115,12 @@ namespace Opc.Ua
 #endif
             if (m_ecdh != null)
             {
-                byte[] secret = m_ecdh.DeriveKeyFromHmac(remoteNonce.m_ecdh.PublicKey, algorithm, salt, null, null);
+                byte[] secret = m_ecdh.DeriveKeyFromHmac(
+                    remoteNonce.m_ecdh.PublicKey,
+                    algorithm,
+                    salt,
+                    null,
+                    null);
 
                 byte[] output = new byte[length];
 
@@ -119,7 +128,7 @@ namespace Opc.Ua
                 {
                     "SHA256" => new HMACSHA256(secret),
                     "SHA384" => new HMACSHA384(secret),
-                    _ => new HMACSHA256(secret),
+                    _ => new HMACSHA256(secret)
                 };
 
                 byte counter = 1;
@@ -163,6 +172,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="securityPolicyUri">The security policy URI.</param>
         /// <returns>A <see cref="Nonce"/> object containing the generated nonce.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="securityPolicyUri"/> is <c>null</c>.</exception>
         public static Nonce CreateNonce(string securityPolicyUri)
         {
             if (securityPolicyUri == null)
@@ -175,13 +185,10 @@ namespace Opc.Ua
 #if ECC_SUPPORT
                 case SecurityPolicies.ECC_nistP256:
                     return CreateNonce(ECCurve.NamedCurves.nistP256);
-
                 case SecurityPolicies.ECC_nistP384:
                     return CreateNonce(ECCurve.NamedCurves.nistP384);
-
                 case SecurityPolicies.ECC_brainpoolP256r1:
                     return CreateNonce(ECCurve.NamedCurves.brainpoolP256r1);
-
                 case SecurityPolicies.ECC_brainpoolP384r1:
                     return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1);
 
@@ -199,7 +206,7 @@ namespace Opc.Ua
 #endif
                 default:
                     uint rsaNonceLength = GetNonceLength(securityPolicyUri);
-                    return new Nonce() { Data = CreateRandomNonceData(rsaNonceLength) };
+                    return new Nonce { Data = CreateRandomNonceData(rsaNonceLength) };
             }
         }
 
@@ -209,6 +216,7 @@ namespace Opc.Ua
         /// <param name="securityPolicyUri">The security policy URI.</param>
         /// <param name="nonceData">The nonce data.</param>
         /// <returns>A new Nonce object.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="securityPolicyUri"/> is <c>null</c>.</exception>
         public static Nonce CreateNonce(string securityPolicyUri, byte[] nonceData)
         {
             if (securityPolicyUri == null)
@@ -221,32 +229,25 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(nonceData));
             }
 
-            var nonce = new Nonce() { Data = nonceData };
+            var nonce = new Nonce { Data = nonceData };
 
             switch (securityPolicyUri)
             {
 #if ECC_SUPPORT
                 case SecurityPolicies.ECC_nistP256:
                     return CreateNonce(ECCurve.NamedCurves.nistP256, nonceData);
-
                 case SecurityPolicies.ECC_nistP384:
                     return CreateNonce(ECCurve.NamedCurves.nistP384, nonceData);
-
                 case SecurityPolicies.ECC_brainpoolP256r1:
                     return CreateNonce(ECCurve.NamedCurves.brainpoolP256r1, nonceData);
-
                 case SecurityPolicies.ECC_brainpoolP384r1:
                     return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1, nonceData);
 
 #endif
                 case SecurityPolicies.ECC_curve25519:
                     return CreateNonceForCurve25519(nonceData);
-
                 case SecurityPolicies.ECC_curve448:
                     return CreateNonceForCurve448(nonceData);
-
-                default:
-                    break;
             }
 
             return nonce;
@@ -255,7 +256,6 @@ namespace Opc.Ua
         /// <summary>
         /// Generates a Nonce for cryptographic functions of a given length.
         /// </summary>
-        /// <param name="length"></param>
         /// <returns>The requested Nonce as a</returns>
         public static byte[] CreateRandomNonceData(uint length)
         {
@@ -267,7 +267,10 @@ namespace Opc.Ua
         /// <summary>
         /// Validates the nonce for a message security mode and security policy.
         /// </summary>
-        public static bool ValidateNonce(byte[] nonce, MessageSecurityMode securityMode, string securityPolicyUri)
+        public static bool ValidateNonce(
+            byte[] nonce,
+            MessageSecurityMode securityMode,
+            string securityPolicyUri)
         {
             return ValidateNonce(nonce, securityMode, GetNonceLength(securityPolicyUri));
         }
@@ -275,7 +278,10 @@ namespace Opc.Ua
         /// <summary>
         /// Validates the nonce for a message security mode and a minimum length.
         /// </summary>
-        public static bool ValidateNonce(byte[] nonce, MessageSecurityMode securityMode, uint minNonceLength)
+        public static bool ValidateNonce(
+            byte[] nonce,
+            MessageSecurityMode securityMode,
+            uint minNonceLength)
         {
             // no nonce needed for no security.
             if (securityMode == MessageSecurityMode.None)
@@ -314,22 +320,17 @@ namespace Opc.Ua
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
                 case SecurityPolicies.ECC_curve25519:
                     return 32;
-
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_brainpoolP256r1:
                     // Q.X + Q.Y = 32 + 32 = 64
                     return 64;
-
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP384r1:
                     // Q.X + Q.Y = 48 + 48 = 96
                     return 96;
-
                 case SecurityPolicies.ECC_curve448:
                     // Q.X
                     return 56;
-
-                case SecurityPolicies.None:
                 default:
                     // Minimum nonce length by default
                     return s_minNonceLength;
@@ -363,7 +364,6 @@ namespace Opc.Ua
         /// <summary>
         /// Sets the minimum nonce value to be used as default
         /// </summary>
-        /// <param name="nonceLength"></param>
         public static void SetMinNonceValue(uint nonceLength)
         {
             s_minNonceLength = nonceLength;
@@ -376,7 +376,7 @@ namespace Opc.Ua
         /// <returns>A new Nonce object.</returns>
         private static Nonce CreateNonceForCurve25519(byte[] nonceData)
         {
-            return new Nonce() { Data = nonceData };
+            return new Nonce { Data = nonceData };
         }
 
         /// <summary>
@@ -386,7 +386,7 @@ namespace Opc.Ua
         /// <returns>A new Nonce instance.</returns>
         private static Nonce CreateNonceForCurve448(byte[] nonceData)
         {
-            return new Nonce() { Data = nonceData };
+            return new Nonce { Data = nonceData };
         }
 
 #if ECC_SUPPORT
@@ -396,9 +396,10 @@ namespace Opc.Ua
         /// <param name="curve">The elliptic curve to use for the ECDH key exchange.</param>
         /// <param name="nonceData">The nonce data to use for the ECDH key exchange.</param>
         /// <returns>A new Nonce instance with the specified curve and nonce data.</returns>
+        /// <exception cref="ArgumentException"></exception>
         private static Nonce CreateNonce(ECCurve curve, byte[] nonceData)
         {
-            var nonce = new Nonce() { Data = nonceData };
+            var nonce = new Nonce { Data = nonceData };
 
             int keyLength = nonceData.Length;
 
@@ -443,7 +444,7 @@ namespace Opc.Ua
             Array.Copy(ecdhParameters.Q.X, senderNonce, xLen);
             Array.Copy(ecdhParameters.Q.Y, 0, senderNonce, xLen, yLen);
 
-            return new Nonce() { Data = senderNonce, m_ecdh = ecdh };
+            return new Nonce { Data = senderNonce, m_ecdh = ecdh };
         }
 #endif
 
@@ -492,8 +493,6 @@ namespace Opc.Ua
         /// <summary>
         /// Custom deserialization
         /// </summary>
-        /// <param name="info"></param>
-        /// <param name="context"></param>
         protected Nonce(SerializationInfo info, StreamingContext context)
         {
 #if ECC_SUPPORT
@@ -507,8 +506,8 @@ namespace Opc.Ua
                     Q = new ECPoint
                     {
                         X = (byte[])info.GetValue("QX", typeof(byte[])),
-                        Y = (byte[])info.GetValue("QY", typeof(byte[])),
-                    },
+                        Y = (byte[])info.GetValue("QY", typeof(byte[]))
+                    }
                 };
                 m_ecdh = ECDiffieHellman.Create(ecParams);
             }
@@ -554,8 +553,6 @@ namespace Opc.Ua
         /// <summary>
         /// Custom serialization
         /// </summary>
-        /// <param name="info"></param>
-        /// <param name="context"></param>
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
 #if ECC_SUPPORT

@@ -42,7 +42,6 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Gets the name of the HTTPS domain for the application.
         /// </summary>
-        /// <returns></returns>
         public string GetHttpsDomainName()
         {
             if (DiscoveryUrl != null)
@@ -52,7 +51,8 @@ namespace Opc.Ua.Gds.Client
                     if (Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
                     {
                         var url = new Uri(discoveryUrl);
-                        return url.DnsSafeHost.Replace("localhost", Utils.GetHostName(), StringComparison.Ordinal);
+                        return url.DnsSafeHost
+                            .Replace("localhost", Utils.GetHostName(), StringComparison.Ordinal);
                     }
                 }
             }
@@ -67,8 +67,8 @@ namespace Opc.Ua.Gds.Client
             if (RegistrationType != RegistrationType.ServerPush)
             {
                 if (
-                    !string.IsNullOrEmpty(CertificatePrivateKeyPath)
-                    && CertificatePrivateKeyPath.EndsWith("PEM", StringComparison.OrdinalIgnoreCase)
+                    !string.IsNullOrEmpty(CertificatePrivateKeyPath) &&
+                    CertificatePrivateKeyPath.EndsWith("PEM", StringComparison.OrdinalIgnoreCase)
                 )
                 {
                     privateKeyFormat = "PEM";

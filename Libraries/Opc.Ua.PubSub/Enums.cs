@@ -41,7 +41,7 @@ namespace Opc.Ua.PubSub
         Variant = 0,
         RawData = 1,
         DataValue = 2,
-        Reserved = RawData | DataValue,
+        Reserved = RawData | DataValue
     }
 
     /// <summary>
@@ -84,7 +84,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// DataSetFlags2 option is set.
         /// </summary>
-        DataSetFlags2 = 128,
+        DataSetFlags2 = 128
     }
 
     /// <summary>
@@ -126,7 +126,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Dataset flag is reserved for extended flags.
         /// </summary>
-        ReservedForExtendedFlags = 128,
+        ReservedForExtendedFlags = 128
     }
 
     /// <summary>
@@ -158,7 +158,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// UADP ExtendedFlags1 option is used.
         /// </summary>
-        ExtendedFlags1 = 128,
+        ExtendedFlags1 = 128
     }
 
     /// <summary>
@@ -180,7 +180,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Discovery Response message
         /// </summary>
-        DiscoveryResponse = 8,
+        DiscoveryResponse = 8
     }
 
     /// <summary>
@@ -207,7 +207,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Discovery Response message - MetaData
         /// </summary>
-        DataSetWriterConfiguration = 8,
+        DataSetWriterConfiguration = 8
     }
 
     /// <summary>
@@ -245,7 +245,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// UADP ExtendedFlags2 options are used.
         /// </summary>
-        ExtendedFlags2 = 128,
+        ExtendedFlags2 = 128
     }
 
     /// <summary>
@@ -282,7 +282,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// UADP ExtendedFlags2 type is reserved.
         /// </summary>
-        Reserved = 16,
+        Reserved = 16
     }
 
     /// <summary>
@@ -296,7 +296,7 @@ namespace Opc.Ua.PubSub
         UInt32 = 2,
         UInt64 = UInt16 | UInt32,
         String = 4,
-        Reserved = UInt16 | String,
+        Reserved = UInt16 | String
     }
 
     /// <summary>
@@ -328,7 +328,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// UADP GroupFlags SequenceNumber is used.
         /// </summary>
-        SequenceNumber = 8,
+        SequenceNumber = 8
     }
 
     /// <summary>
@@ -365,7 +365,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// UADP SecurityFlags is reserved.
         /// </summary>
-        Reserved = 16,
+        Reserved = 16
     }
 
     /// <summary>
@@ -391,7 +391,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// AMQP protocol.
         /// </summary>
-        AMQP,
+        AMQP
     }
 
     /// <summary>
@@ -417,7 +417,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Mqtt V500
         /// </summary>
-        V500 = MqttProtocolVersion.V500,
+        V500 = MqttProtocolVersion.V500
     }
 
     /// <summary>
@@ -444,7 +444,7 @@ namespace Opc.Ua.PubSub
         TrustedPeerCertificatesStoreType,
         TrustedPeerCertificatesStorePath,
         RejectedCertificateStoreStoreType,
-        RejectedCertificateStoreStorePath,
+        RejectedCertificateStoreStorePath
     }
 
     /// <summary>
@@ -465,7 +465,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Discovery context call
         /// </summary>
-        Discovery,
+        Discovery
     }
 
     /// <summary>
@@ -481,7 +481,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// The MetadataMajorVersion is different
         /// </summary>
-        MetadataMajorVersion,
+        MetadataMajorVersion
     }
 
     /// <summary>
@@ -497,7 +497,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// JSON message type
         /// </summary>
-        Json,
+        Json
     }
 
     /// <summary>
@@ -519,7 +519,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// DataSetMetaData message
         /// </summary>
-        DataSetMetaData = 2,
+        DataSetMetaData = 2
     }
 
     /// <summary>
@@ -540,6 +540,6 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// ConfigurationVersion
         /// </summary>
-        ConfigurationVersion,
+        ConfigurationVersion
     }
 }

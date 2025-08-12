@@ -9,8 +9,10 @@ namespace Opc.Ua.Server.Tests
     /// <summary>
     /// Test MonitoredItem
     /// </summary>
-    [TestFixture, Category("MonitoredItem")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("MonitoredItem")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     [MemoryDiagnoser]
     public class MonitoreItemTests
@@ -39,7 +41,9 @@ namespace Opc.Ua.Server.Tests
             MonitoredItemNotification publishResult = result.FirstOrDefault();
             Assert.That(publishResult?.Value, Is.EqualTo(dataValue));
             DiagnosticInfo publishErrorResult = result2.FirstOrDefault();
-            Assert.That(publishErrorResult.InnerStatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(
+                publishErrorResult.InnerStatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.Good));
         }
 
         [Test]
@@ -83,7 +87,9 @@ namespace Opc.Ua.Server.Tests
             MonitoredItemNotification publishResult = result.FirstOrDefault();
             Assert.That(publishResult?.Value, Is.EqualTo(dataValue));
             DiagnosticInfo publishErrorResult = result2.FirstOrDefault();
-            Assert.That(publishErrorResult.InnerStatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(
+                publishErrorResult.InnerStatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.Good));
         }
 
         [Test]
@@ -139,7 +145,10 @@ namespace Opc.Ua.Server.Tests
             Assert.That(publishResult.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());
 
             var result2 = new Queue<EventFieldList>();
-            bool moreItems2 = monitoredItem.Publish(new OperationContext(monitoredItem), result2, 2);
+            bool moreItems2 = monitoredItem.Publish(
+                new OperationContext(monitoredItem),
+                result2,
+                2);
 
             Assert.That(moreItems2, Is.False);
             Assert.That(result2, Is.Not.Empty);
@@ -199,7 +208,10 @@ namespace Opc.Ua.Server.Tests
             Assert.That(publishResult.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());
 
             var result2 = new Queue<EventFieldList>();
-            bool moreItems2 = monitoredItem.Publish(new OperationContext(monitoredItem), result2, 2);
+            bool moreItems2 = monitoredItem.Publish(
+                new OperationContext(monitoredItem),
+                result2,
+                2);
 
             Assert.That(moreItems2, Is.False);
             Assert.That(result2, Is.Not.Empty);
@@ -218,7 +230,8 @@ namespace Opc.Ua.Server.Tests
             MonitoringFilter filter = events ? new EventFilter() : new MonitoringFilter();
 
             var serverMock = new Mock<IServerInternal>();
-            serverMock.Setup(s => s.MonitoredItemQueueFactory).Returns(new MonitoredItemQueueFactory());
+            serverMock.Setup(s => s.MonitoredItemQueueFactory)
+                .Returns(new MonitoredItemQueueFactory());
             serverMock.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
             serverMock.Setup(s => s.TypeTree).Returns(new TypeTable(new NamespaceTable()));
 

@@ -47,7 +47,7 @@ namespace Opc.Ua.Server
                 TreatUncertainAsBad = false,
                 PercentDataBad = 100,
                 PercentDataGood = 100,
-                UseSlopedExtrapolation = false,
+                UseSlopedExtrapolation = false
             };
             Initialize(aggregateId, DateTime.UtcNow, DateTime.MaxValue, 1000, false, configuration);
         }
@@ -82,6 +82,7 @@ namespace Opc.Ua.Server
         /// <param name="processingInterval">The processing interval.</param>
         /// <param name="stepped">Whether to use stepped interpolation.</param>
         /// <param name="configuration">The aggregate configuration.</param>
+        /// <exception cref="ArgumentException"></exception>
         protected void Initialize(
             NodeId aggregateId,
             DateTime startTime,
@@ -103,7 +104,9 @@ namespace Opc.Ua.Server
             {
                 if (endTime == DateTime.MinValue || startTime == DateTime.MinValue)
                 {
-                    throw new ArgumentException("Non-zero processingInterval required.", nameof(processingInterval));
+                    throw new ArgumentException(
+                        "Non-zero processingInterval required.",
+                        nameof(processingInterval));
                 }
 
                 ProcessingInterval = Math.Abs((endTime - startTime).TotalMilliseconds);
@@ -204,7 +207,8 @@ namespace Opc.Ua.Server
             DateTime earlyTime = CurrentSlice.StartTime;
             DateTime lateTime = CurrentSlice.EndTime;
 
-            if (CompareTimestamps(lateTime, m_values.First) < 0 || CompareTimestamps(earlyTime, m_values.Last) > 0)
+            if (CompareTimestamps(lateTime, m_values.First) < 0 ||
+                CompareTimestamps(earlyTime, m_values.Last) > 0)
             {
                 CurrentSlice.OutOfDataRange = true;
             }
@@ -224,7 +228,10 @@ namespace Opc.Ua.Server
                     );
                 }
 
-                if (!UsingExtrapolation && !TimeFlowsBackward && m_endOfData >= earlyTime && m_endOfData < lateTime)
+                if (!UsingExtrapolation &&
+                    !TimeFlowsBackward &&
+                    m_endOfData >= earlyTime &&
+                    m_endOfData < lateTime)
                 {
                     value.StatusCode = value.StatusCode.SetAggregateBits(
                         value.StatusCode.AggregateBits | AggregateBits.Partial
@@ -272,18 +279,18 @@ namespace Opc.Ua.Server
 
             // check if more to be done.
             Complete =
-                (!TimeFlowsBackward && CurrentSlice.EndTime >= EndTime)
-                || (TimeFlowsBackward && CurrentSlice.StartTime <= EndTime);
+                (!TimeFlowsBackward && CurrentSlice.EndTime >= EndTime) ||
+                (TimeFlowsBackward && CurrentSlice.StartTime <= EndTime);
 
             if (Complete)
             {
                 // check if overlapping the end of data.
                 if (
-                    SetPartialBit
-                    && !UsingExtrapolation
-                    && !TimeFlowsBackward
-                    && m_endOfData >= earlyTime
-                    && m_endOfData < lateTime
+                    SetPartialBit &&
+                    !UsingExtrapolation &&
+                    !TimeFlowsBackward &&
+                    m_endOfData >= earlyTime &&
+                    m_endOfData < lateTime
                 )
                 {
                     value.StatusCode = value.StatusCode.SetAggregateBits(
@@ -384,7 +391,7 @@ namespace Opc.Ua.Server
         {
             if (value1 == null)
             {
-                return (value2 == null) ? 0 : -1;
+                return value2 == null ? 0 : -1;
             }
 
             if (value2 == null)
@@ -426,7 +433,7 @@ namespace Opc.Ua.Server
         {
             if (value2 == null)
             {
-                return (value1 == null) ? 0 : +1;
+                return value1 == null ? 0 : +1;
             }
 
             return CompareTimestamps(value1, value2.Value);
@@ -438,11 +445,13 @@ namespace Opc.Ua.Server
         /// <param name="value1">The first value to compare.</param>
         /// <param name="value2">The second value to compare.</param>
         /// <returns>Less than 0 if value1 is earlier than value2; 0 if they are equal; Greater than zero otherwise.</returns>
-        protected int CompareTimestamps(LinkedListNode<DataValue> value1, LinkedListNode<DataValue> value2)
+        protected int CompareTimestamps(
+            LinkedListNode<DataValue> value1,
+            LinkedListNode<DataValue> value2)
         {
             if (value1 == null)
             {
-                return (value2 == null) ? 0 : -1;
+                return value2 == null ? 0 : -1;
             }
 
             if (value2 == null)
@@ -470,10 +479,8 @@ namespace Opc.Ua.Server
             {
                 return value1.CompareTo(value2.Value.ServerTimestamp);
             }
-            else
-            {
-                return value1.CompareTo(value2.Value.SourceTimestamp);
-            }
+
+            return value1.CompareTo(value2.Value.SourceTimestamp);
         }
 
         /// <summary>
@@ -770,10 +777,8 @@ namespace Opc.Ua.Server
             {
                 return Interpolate(slice.EndTime, slice);
             }
-            else
-            {
-                return Interpolate(slice.StartTime, slice);
-            }
+
+            return Interpolate(slice.StartTime, slice);
         }
 
         /// <summary>
@@ -785,10 +790,8 @@ namespace Opc.Ua.Server
             {
                 return GetNoDataValue(slice.EndTime);
             }
-            else
-            {
-                return GetNoDataValue(slice.StartTime);
-            }
+
+            return GetNoDataValue(slice.StartTime);
         }
 
         /// <summary>
@@ -800,10 +803,8 @@ namespace Opc.Ua.Server
             {
                 return slice.EndTime;
             }
-            else
-            {
-                return slice.StartTime;
-            }
+
+            return slice.StartTime;
         }
 
         /// <summary>
@@ -840,11 +841,15 @@ namespace Opc.Ua.Server
                 // check if sloped interpolation is possible.
                 if (slice.EarlyBound != null && slice.LateBound != null)
                 {
-                    dataValue = SlopedInterpolate(timestamp, slice.EarlyBound.Value, slice.LateBound.Value);
+                    dataValue = SlopedInterpolate(
+                        timestamp,
+                        slice.EarlyBound.Value,
+                        slice.LateBound.Value);
 
                     if (!ReferenceEquals(slice.EarlyBound.Next, slice.LateBound))
                     {
-                        dataValue.StatusCode = dataValue.StatusCode.SetCodeBits(StatusCodes.UncertainDataSubNormal);
+                        dataValue.StatusCode = dataValue.StatusCode
+                            .SetCodeBits(StatusCodes.UncertainDataSubNormal);
                     }
 
                     return dataValue;
@@ -854,14 +859,18 @@ namespace Opc.Ua.Server
                 if (slice.EarlyBound != null)
                 {
                     if (
-                        Configuration.UseSlopedExtrapolation
-                        && slice.EarlyBound != null
-                        && slice.SecondEarlyBound != null
+                        Configuration.UseSlopedExtrapolation &&
+                        slice.EarlyBound != null &&
+                        slice.SecondEarlyBound != null
                     )
                     {
                         UsingExtrapolation = true;
-                        dataValue = SlopedInterpolate(timestamp, slice.SecondEarlyBound.Value, slice.EarlyBound.Value);
-                        dataValue.StatusCode = dataValue.StatusCode.SetCodeBits(StatusCodes.UncertainDataSubNormal);
+                        dataValue = SlopedInterpolate(
+                            timestamp,
+                            slice.SecondEarlyBound.Value,
+                            slice.EarlyBound.Value);
+                        dataValue.StatusCode = dataValue.StatusCode
+                            .SetCodeBits(StatusCodes.UncertainDataSubNormal);
                         return dataValue;
                     }
 
@@ -875,10 +884,12 @@ namespace Opc.Ua.Server
             {
                 dataValue = SteppedInterpolate(timestamp, slice.EarlyBound.Value);
 
-                if (slice.EarlyBound.Next == null || CompareTimestamps(timestamp, slice.EarlyBound.Next) > 0)
+                if (slice.EarlyBound.Next == null ||
+                    CompareTimestamps(timestamp, slice.EarlyBound.Next) > 0)
                 {
                     UsingExtrapolation = true;
-                    dataValue.StatusCode = dataValue.StatusCode.SetCodeBits(StatusCodes.UncertainDataSubNormal);
+                    dataValue.StatusCode = dataValue.StatusCode
+                        .SetCodeBits(StatusCodes.UncertainDataSubNormal);
                 }
 
                 return dataValue;
@@ -904,7 +915,7 @@ namespace Opc.Ua.Server
                 WrappedValue = earlyBound.WrappedValue,
                 SourceTimestamp = timestamp,
                 ServerTimestamp = timestamp,
-                StatusCode = StatusCodes.Good,
+                StatusCode = StatusCodes.Good
             };
 
             // update status code.
@@ -919,14 +930,18 @@ namespace Opc.Ua.Server
                 dataValue.StatusCode = StatusCodes.UncertainDataSubNormal;
             }
 
-            dataValue.StatusCode = dataValue.StatusCode.SetAggregateBits(AggregateBits.Interpolated);
+            dataValue.StatusCode = dataValue.StatusCode
+                .SetAggregateBits(AggregateBits.Interpolated);
             return dataValue;
         }
 
         /// <summary>
         /// Calculate the value at the timestamp using slopped interpolation.
         /// </summary>
-        public static DataValue SlopedInterpolate(DateTime timestamp, DataValue earlyBound, DataValue lateBound)
+        public static DataValue SlopedInterpolate(
+            DateTime timestamp,
+            DataValue earlyBound,
+            DataValue lateBound)
         {
             try
             {
@@ -943,7 +958,8 @@ namespace Opc.Ua.Server
 
                     if (StatusCode.IsNotBad(dataValue2.StatusCode))
                     {
-                        dataValue2.StatusCode = dataValue2.StatusCode.SetCodeBits(StatusCodes.UncertainDataSubNormal);
+                        dataValue2.StatusCode = dataValue2.StatusCode
+                            .SetCodeBits(StatusCodes.UncertainDataSubNormal);
                     }
 
                     return dataValue2;
@@ -954,10 +970,12 @@ namespace Opc.Ua.Server
                 double lateValue = CastToDouble(lateBound);
 
                 // do interpolation.
-                double range = (lateBound.SourceTimestamp - earlyBound.SourceTimestamp).TotalMilliseconds;
+                double range = (lateBound.SourceTimestamp - earlyBound.SourceTimestamp)
+                    .TotalMilliseconds;
                 double slope = (lateValue - earlyValue) / range;
                 double calculatedValue =
-                    (slope * (timestamp - earlyBound.SourceTimestamp).TotalMilliseconds) + earlyValue;
+                    (slope * (timestamp - earlyBound.SourceTimestamp).TotalMilliseconds) +
+                    earlyValue;
 
                 // convert back to original type.
                 var dataValue = new DataValue
@@ -965,23 +983,29 @@ namespace Opc.Ua.Server
                     WrappedValue = CastToOriginalType(calculatedValue, earlyBound),
                     SourceTimestamp = timestamp,
                     ServerTimestamp = timestamp,
-                    StatusCode = StatusCodes.Good,
+                    StatusCode = StatusCodes.Good
                 };
 
                 // update status code.
-                if (StatusCode.IsNotGood(earlyBound.StatusCode) || StatusCode.IsNotGood(lateBound.StatusCode))
+                if (StatusCode.IsNotGood(earlyBound.StatusCode) ||
+                    StatusCode.IsNotGood(lateBound.StatusCode))
                 {
                     dataValue.StatusCode = StatusCodes.UncertainDataSubNormal;
                 }
 
-                dataValue.StatusCode = dataValue.StatusCode.SetAggregateBits(AggregateBits.Interpolated);
+                dataValue.StatusCode = dataValue.StatusCode
+                    .SetAggregateBits(AggregateBits.Interpolated);
 
                 return dataValue;
             }
             // exception occurs on data conversion errors.
             catch (Exception)
             {
-                return new DataValue(Variant.Null, StatusCodes.BadTypeMismatch, timestamp, timestamp);
+                return new DataValue(
+                    Variant.Null,
+                    StatusCodes.BadTypeMismatch,
+                    timestamp,
+                    timestamp);
             }
         }
 
@@ -990,7 +1014,10 @@ namespace Opc.Ua.Server
         /// </summary>
         protected static double CastToDouble(DataValue value)
         {
-            return (double)TypeInfo.Cast(value.Value, value.WrappedValue.TypeInfo, BuiltInType.Double);
+            return (double)TypeInfo.Cast(
+                value.Value,
+                value.WrappedValue.TypeInfo,
+                BuiltInType.Double);
         }
 
         /// <summary>
@@ -1093,8 +1120,8 @@ namespace Opc.Ua.Server
         {
             // check if slice is beyond end of available data.
             if (
-                CompareTimestamps(slice.StartTime, m_values.Last) > 0
-                || CompareTimestamps(slice.EndTime, m_values.First) < 0
+                CompareTimestamps(slice.StartTime, m_values.Last) > 0 ||
+                CompareTimestamps(slice.EndTime, m_values.First) < 0
             )
             {
                 return null;
@@ -1142,8 +1169,8 @@ namespace Opc.Ua.Server
         {
             // check if slice is beyond end of available data.
             if (
-                CompareTimestamps(slice.StartTime, m_values.Last) > 0
-                || CompareTimestamps(slice.EndTime, m_values.First) < 0
+                CompareTimestamps(slice.StartTime, m_values.Last) > 0 ||
+                CompareTimestamps(slice.EndTime, m_values.First) < 0
             )
             {
                 return null;
@@ -1330,7 +1357,8 @@ namespace Opc.Ua.Server
                                 continue;
                             }
                         }
-                        else if (!useSteppedCalculations && StatusCode.IsNotGood(values[ii].StatusCode))
+                        else if (!useSteppedCalculations &&
+                            StatusCode.IsNotGood(values[ii].StatusCode))
                         {
                             currentRegion.StatusCode = StatusCodes.UncertainDataSubNormal;
                         }
@@ -1349,7 +1377,8 @@ namespace Opc.Ua.Server
                     {
                         // handle case with uncertain end point.
                         if (
-                            StatusCode.IsNotGood(values[ii].StatusCode) && StatusCode.IsNotBad(currentRegion.StatusCode)
+                            StatusCode.IsNotGood(values[ii].StatusCode) &&
+                            StatusCode.IsNotBad(currentRegion.StatusCode)
                         )
                         {
                             currentRegion.StatusCode = StatusCodes.UncertainDataSubNormal;
@@ -1373,11 +1402,11 @@ namespace Opc.Ua.Server
                     // if at end of data then duration is 1 tick.
                     // must be end of data if start of region is good yet end bound is bad.
                     if (
-                        !ignoreBadData
-                        && currentRegion != null
-                        && IsGood(currentRegion.DataPoint)
-                        && currentStatus == StatusCodes.BadNoData
-                        && ii == values.Count - 1
+                        !ignoreBadData &&
+                        currentRegion != null &&
+                        IsGood(currentRegion.DataPoint) &&
+                        currentStatus == StatusCodes.BadNoData &&
+                        ii == values.Count - 1
                     )
                     {
                         currentRegion.Duration = 1;
@@ -1391,7 +1420,8 @@ namespace Opc.Ua.Server
                             currentStatus = StatusCodes.BadNoData;
                         }
 
-                        currentRegion.Duration = (currentTime - currentRegion.StartTime).TotalMilliseconds;
+                        currentRegion.Duration = (currentTime - currentRegion.StartTime)
+                            .TotalMilliseconds;
                     }
 
                     regions.Add(currentRegion);
@@ -1404,7 +1434,7 @@ namespace Opc.Ua.Server
                     EndValue = currentValue,
                     StartTime = currentTime,
                     StatusCode = currentStatus,
-                    DataPoint = values[ii],
+                    DataPoint = values[ii]
                 };
             }
 
@@ -1414,7 +1444,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Calculates the value based status code for the slice
         /// </summary>
-        protected StatusCode GetValueBasedStatusCode(TimeSlice slice, List<DataValue> values, StatusCode statusCode)
+        protected StatusCode GetValueBasedStatusCode(
+            TimeSlice slice,
+            List<DataValue> values,
+            StatusCode statusCode)
         {
             // compute the total good/bad/uncertain.
             double badCount = 0;
@@ -1459,7 +1492,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Calculates the status code for the slice
         /// </summary>
-        protected StatusCode GetTimeBasedStatusCode(TimeSlice slice, List<DataValue> values, StatusCode defaultCode)
+        protected StatusCode GetTimeBasedStatusCode(
+            TimeSlice slice,
+            List<DataValue> values,
+            StatusCode defaultCode)
         {
             // get the regions in the slice.
             List<SubRegion> regions = GetRegionsInValueSet(values, false, Stepped);
@@ -1500,15 +1536,17 @@ namespace Opc.Ua.Server
 
                 // Take into account the Uncertain status code
                 if (
-                    StatusCode.IsGood(region.StatusCode)
-                    || (!Configuration.TreatUncertainAsBad && StatusCode.IsUncertain(region.StatusCode))
+                    StatusCode.IsGood(region.StatusCode) ||
+                    (!Configuration.TreatUncertainAsBad &&
+                        StatusCode.IsUncertain(region.StatusCode))
                 )
                 {
                     goodDuration += region.Duration;
                 }
             }
 
-            if (totalDuration == 0 || goodDuration / totalDuration * 100 >= Configuration.PercentDataGood)
+            if (totalDuration == 0 ||
+                goodDuration / totalDuration * 100 >= Configuration.PercentDataGood)
             {
                 // good if the good duration is greater than or equal to the configured threshold.
                 statusCode = statusCode.SetCodeBits(StatusCodes.Good);

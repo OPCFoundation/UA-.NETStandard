@@ -38,8 +38,10 @@ using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
-    [TestFixture, Category("JsonEncoder")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("JsonEncoder")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [NonParallelizable]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
@@ -98,7 +100,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         public void JsonEncoderArraySegmentStreamTest(bool toText)
         {
-            using var memoryStream = new ArraySegmentStream(m_bufferManager, StreamBufferSize, 0, StreamBufferSize);
+            using var memoryStream = new ArraySegmentStream(
+                m_bufferManager,
+                StreamBufferSize,
+                0,
+                StreamBufferSize);
             TestStreamEncode(memoryStream, toText);
         }
 
@@ -187,12 +193,24 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         private void TestStreamEncode(MemoryStream memoryStream, bool toArray)
         {
-            using (var jsonEncoder = new JsonEncoder(m_context, false, false, memoryStream, true, StreamSize))
+            using (var jsonEncoder = new JsonEncoder(
+                m_context,
+                false,
+                false,
+                memoryStream,
+                true,
+                StreamSize))
             {
                 TestEncoding(jsonEncoder);
                 _ = jsonEncoder.Close();
             }
-            using (var jsonEncoder = new JsonEncoder(m_context, false, false, memoryStream, true, StreamSize))
+            using (var jsonEncoder = new JsonEncoder(
+                m_context,
+                false,
+                false,
+                memoryStream,
+                true,
+                StreamSize))
             {
                 TestEncoding(jsonEncoder);
                 if (toArray)
@@ -216,12 +234,24 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int length1;
             int length2;
             stream.Position = 0;
-            using (var jsonEncoder = new JsonEncoder(m_context, false, false, stream, true, StreamSize))
+            using (var jsonEncoder = new JsonEncoder(
+                m_context,
+                false,
+                false,
+                stream,
+                true,
+                StreamSize))
             {
                 TestEncoding(jsonEncoder);
                 length1 = jsonEncoder.Close();
             }
-            using (var jsonEncoder = new JsonEncoder(m_context, false, false, stream, true, StreamSize))
+            using (var jsonEncoder = new JsonEncoder(
+                m_context,
+                false,
+                false,
+                stream,
+                true,
+                StreamSize))
             {
                 TestEncoding(jsonEncoder);
                 length2 = jsonEncoder.Close();

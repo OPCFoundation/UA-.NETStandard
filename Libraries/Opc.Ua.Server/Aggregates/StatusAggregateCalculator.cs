@@ -72,19 +72,14 @@ namespace Opc.Ua.Server
                 {
                     case Objects.AggregateFunction_DurationGood:
                         return ComputeDurationGoodBad(slice, false, false);
-
                     case Objects.AggregateFunction_DurationBad:
                         return ComputeDurationGoodBad(slice, true, false);
-
                     case Objects.AggregateFunction_PercentGood:
                         return ComputeDurationGoodBad(slice, false, true);
-
                     case Objects.AggregateFunction_PercentBad:
                         return ComputeDurationGoodBad(slice, true, true);
-
                     case Objects.AggregateFunction_WorstQuality:
                         return ComputeWorstQuality(slice, false);
-
                     case Objects.AggregateFunction_WorstQuality2:
                         return ComputeWorstQuality(slice, true);
                 }
@@ -140,7 +135,7 @@ namespace Opc.Ua.Server
             {
                 WrappedValue = new Variant(duration, TypeInfo.Scalars.Double),
                 SourceTimestamp = GetTimestamp(slice),
-                ServerTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
             };
             value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
 
@@ -201,8 +196,6 @@ namespace Opc.Ua.Server
                     {
                         worstQuality = quality.CodeBits;
                     }
-
-                    continue;
                 }
             }
 
@@ -211,13 +204,13 @@ namespace Opc.Ua.Server
             {
                 WrappedValue = new Variant(worstQuality, TypeInfo.Scalars.StatusCode),
                 SourceTimestamp = GetTimestamp(slice),
-                ServerTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
             };
             value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
 
             if (
-                (StatusCode.IsBad(worstQuality) && badQualityCount > 1)
-                || (StatusCode.IsUncertain(worstQuality) && uncertainQualityCount > 1)
+                (StatusCode.IsBad(worstQuality) && badQualityCount > 1) ||
+                (StatusCode.IsUncertain(worstQuality) && uncertainQualityCount > 1)
             )
             {
                 value.StatusCode = value.StatusCode.SetAggregateBits(

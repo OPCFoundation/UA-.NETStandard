@@ -59,7 +59,9 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private static void Initialize() { }
+        private static void Initialize()
+        {
+        }
 
         [DataMember(Order = 1)]
         public string AuthoritiesStorePath { get; set; }
@@ -198,7 +200,9 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public CertificateGroupConfigurationCollection() { }
+        public CertificateGroupConfigurationCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -207,14 +211,19 @@ namespace Opc.Ua.Gds.Server
         /// <exception cref="System.ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
-        public CertificateGroupConfigurationCollection(IEnumerable<CertificateGroupConfiguration> collection)
-            : base(collection) { }
+        public CertificateGroupConfigurationCollection(
+            IEnumerable<CertificateGroupConfiguration> collection)
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The capacity.</param>
         public CertificateGroupConfigurationCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
     }
 }

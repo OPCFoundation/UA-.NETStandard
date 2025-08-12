@@ -64,13 +64,18 @@ namespace Opc.Ua
     /// <summary>
     /// A collection of encodeable objects.
     /// </summary>
-    [CollectionDataContract(Name = "ListOfEncodeable", Namespace = Namespaces.OpcUaXsd, ItemName = "Encodeable")]
+    [CollectionDataContract(
+        Name = "ListOfEncodeable",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "Encodeable")]
     public class IEncodeableCollection : List<IEncodeable>
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public IEncodeableCollection() { }
+        public IEncodeableCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -80,14 +85,18 @@ namespace Opc.Ua
         /// 	<paramref name="collection"/> is null.
         /// </exception>
         public IEncodeableCollection(IEnumerable<IEncodeable> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The initial capacity of the collection.</param>
         public IEncodeableCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Converts an array to a collection.

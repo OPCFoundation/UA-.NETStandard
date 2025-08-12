@@ -375,10 +375,9 @@ namespace Opc.Ua
                     if (ch == ',' || ii == textToParse.Length - 1)
                     {
                         _ = new NumericRange();
-                        string subtext = (ch == ',') ? textToParse[start..ii] : textToParse[start..];
+                        string subtext = ch == ',' ? textToParse[start..ii] : textToParse[start..];
 
-                        NumericRange subrange;
-                        ServiceResult result = Validate(subtext, out subrange);
+                        ServiceResult result = Validate(subtext, out NumericRange subrange);
 
                         if (ServiceResult.IsBad(result))
                         {
@@ -409,8 +408,12 @@ namespace Opc.Ua
 
                 if (index != -1)
                 {
-                    range.Begin = Convert.ToInt32(textToParse[..index], CultureInfo.InvariantCulture);
-                    range.End = Convert.ToInt32(textToParse[(index + 1)..], CultureInfo.InvariantCulture);
+                    range.Begin = Convert.ToInt32(
+                        textToParse[..index],
+                        CultureInfo.InvariantCulture);
+                    range.End = Convert.ToInt32(
+                        textToParse[(index + 1)..],
+                        CultureInfo.InvariantCulture);
 
                     if (range.End < 0)
                     {
@@ -485,8 +488,8 @@ namespace Opc.Ua
             if (SubRanges.Length > typeInfo.ValueRank)
             {
                 if (
-                    typeInfo.BuiltInType is BuiltInType.ByteString or BuiltInType.String
-                    && SubRanges.Length == typeInfo.ValueRank + 1
+                    typeInfo.BuiltInType is BuiltInType.ByteString or BuiltInType.String &&
+                    SubRanges.Length == typeInfo.ValueRank + 1
                 )
                 {
                     finalRange = SubRanges[^1];
@@ -663,7 +666,9 @@ namespace Opc.Ua
             // check for destinations specified as a matrix.
             if (dstArray == null)
             {
-                if (dst is not Matrix matrix || SubRanges == null || matrix.Dimensions.Length != SubRanges.Length)
+                if (dst is not Matrix matrix ||
+                    SubRanges == null ||
+                    matrix.Dimensions.Length != SubRanges.Length)
                 {
                     return StatusCodes.BadIndexRangeInvalid;
                 }
@@ -674,7 +679,9 @@ namespace Opc.Ua
             // check for input specified as a matrix.
             if (srcArray == null)
             {
-                if (src is not Matrix matrix || SubRanges == null || matrix.Dimensions.Length != SubRanges.Length)
+                if (src is not Matrix matrix ||
+                    SubRanges == null ||
+                    matrix.Dimensions.Length != SubRanges.Length)
                 {
                     return StatusCodes.BadIndexRangeInvalid;
                 }
@@ -732,8 +739,8 @@ namespace Opc.Ua
             if (SubRanges != null && SubRanges.Length > srcTypeInfo.ValueRank)
             {
                 if (
-                    srcTypeInfo.BuiltInType is BuiltInType.ByteString or BuiltInType.String
-                    && SubRanges.Length == srcTypeInfo.ValueRank + 1
+                    srcTypeInfo.BuiltInType is BuiltInType.ByteString or BuiltInType.String &&
+                    SubRanges.Length == srcTypeInfo.ValueRank + 1
                 )
                 {
                     finalRange = SubRanges[^1];
@@ -1070,5 +1077,5 @@ namespace Opc.Ua
 
         private int m_begin;
         private int m_end;
-    } //class
-} //namespace
+    }
+}

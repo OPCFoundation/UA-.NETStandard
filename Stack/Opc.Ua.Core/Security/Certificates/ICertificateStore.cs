@@ -80,8 +80,11 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="certificate">The certificate.</param>
         /// <param name="password">The certificate password.</param>
-        /// <param name="ct"></param>
-        Task AddAsync(X509Certificate2 certificate, string password = null, CancellationToken ct = default);
+        /// <param name="ct">Cancellation token to cancel operation with</param>
+        Task AddAsync(
+            X509Certificate2 certificate,
+            string password = null,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Adds a rejected certificate chain to the store.
@@ -98,7 +101,7 @@ namespace Opc.Ua
         /// <param name="certificates">The certificate collection.</param>
         /// <param name="maxCertificates">The max number of rejected certificates to keep in the store.
         /// A negative number keeps no history, 0 is unlimited.</param>
-        /// <param name="ct"></param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
         Task AddRejectedAsync(
             X509Certificate2Collection certificates,
             int maxCertificates,
@@ -117,7 +120,7 @@ namespace Opc.Ua
         /// Deletes a certificate from the store.
         /// </summary>
         /// <param name="thumbprint">The thumbprint.</param>
-        /// <param name="ct"></param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>True if the certificate exists.</returns>
         Task<bool> DeleteAsync(string thumbprint, CancellationToken ct = default);
 
@@ -133,9 +136,11 @@ namespace Opc.Ua
         /// Finds the certificate with the specified thumbprint.
         /// </summary>
         /// <param name="thumbprint">The thumbprint.</param>
-        /// <param name="ct"></param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>The matching certificate</returns>
-        Task<X509Certificate2Collection> FindByThumbprintAsync(string thumbprint, CancellationToken ct = default);
+        Task<X509Certificate2Collection> FindByThumbprintAsync(
+            string thumbprint,
+            CancellationToken ct = default);
 
         /// <summary>
         /// If the store supports the LoadPrivateKey operation.
@@ -169,7 +174,7 @@ namespace Opc.Ua
         /// <param name="applicationUri">The application uri in the cert extension.</param>
         /// <param name="certificateType">The certificate type to load.</param>
         /// <param name="password">The certificate password.</param>
-        /// <param name="ct"></param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <remarks>Returns always null if SupportsLoadPrivateKey returns false.</remarks>
         /// <returns>The matching certificate with private key</returns>
         Task<X509Certificate2> LoadPrivateKeyAsync(
@@ -216,7 +221,9 @@ namespace Opc.Ua
         /// Returns the CRLs for the issuer.
         /// </summary>
         [Obsolete("Use EnumerateCRLsAsync instead.")]
-        Task<X509CRLCollection> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true);
+        Task<X509CRLCollection> EnumerateCRLs(
+            X509Certificate2 issuer,
+            bool validateUpdateTime = true);
 
         /// <summary>
         /// Returns the CRLs for the issuer.

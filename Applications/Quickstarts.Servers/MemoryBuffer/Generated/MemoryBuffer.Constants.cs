@@ -29,10 +29,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Reflection;
-using System.Xml;
 using System.Runtime.Serialization;
+using System.Text;
+using System.Xml;
 using Opc.Ua;
 
 namespace MemoryBuffer
@@ -91,7 +91,10 @@ namespace MemoryBuffer
     public static partial class ObjectIds
     {
         /// <remarks />
-        public static readonly ExpandedNodeId MemoryBuffers = new ExpandedNodeId(MemoryBuffer.Objects.MemoryBuffers, MemoryBuffer.Namespaces.MemoryBuffer);
+        public static readonly ExpandedNodeId MemoryBuffers = new ExpandedNodeId(
+            MemoryBuffer.Objects.MemoryBuffers,
+            MemoryBuffer.Namespaces.MemoryBuffer
+        );
     }
     #endregion
 
@@ -102,7 +105,10 @@ namespace MemoryBuffer
     public static partial class ObjectTypeIds
     {
         /// <remarks />
-        public static readonly ExpandedNodeId MemoryBufferType = new ExpandedNodeId(MemoryBuffer.ObjectTypes.MemoryBufferType, MemoryBuffer.Namespaces.MemoryBuffer);
+        public static readonly ExpandedNodeId MemoryBufferType = new ExpandedNodeId(
+            MemoryBuffer.ObjectTypes.MemoryBufferType,
+            MemoryBuffer.Namespaces.MemoryBuffer
+        );
     }
     #endregion
 
@@ -113,10 +119,16 @@ namespace MemoryBuffer
     public static partial class VariableIds
     {
         /// <remarks />
-        public static readonly ExpandedNodeId MemoryBufferType_StartAddress = new ExpandedNodeId(MemoryBuffer.Variables.MemoryBufferType_StartAddress, MemoryBuffer.Namespaces.MemoryBuffer);
+        public static readonly ExpandedNodeId MemoryBufferType_StartAddress = new ExpandedNodeId(
+            MemoryBuffer.Variables.MemoryBufferType_StartAddress,
+            MemoryBuffer.Namespaces.MemoryBuffer
+        );
 
         /// <remarks />
-        public static readonly ExpandedNodeId MemoryBufferType_SizeInBytes = new ExpandedNodeId(MemoryBuffer.Variables.MemoryBufferType_SizeInBytes, MemoryBuffer.Namespaces.MemoryBuffer);
+        public static readonly ExpandedNodeId MemoryBufferType_SizeInBytes = new ExpandedNodeId(
+            MemoryBuffer.Variables.MemoryBufferType_SizeInBytes,
+            MemoryBuffer.Namespaces.MemoryBuffer
+        );
     }
     #endregion
 
@@ -127,7 +139,10 @@ namespace MemoryBuffer
     public static partial class VariableTypeIds
     {
         /// <remarks />
-        public static readonly ExpandedNodeId MemoryTagType = new ExpandedNodeId(MemoryBuffer.VariableTypes.MemoryTagType, MemoryBuffer.Namespaces.MemoryBuffer);
+        public static readonly ExpandedNodeId MemoryTagType = new ExpandedNodeId(
+            MemoryBuffer.VariableTypes.MemoryTagType,
+            MemoryBuffer.Namespaces.MemoryBuffer
+        );
     }
     #endregion
 

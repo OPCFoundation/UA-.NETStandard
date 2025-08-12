@@ -28,14 +28,18 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes a new instance of the <see cref="NodeStateCollection"/> class.
         /// </summary>
-        public NodeStateCollection() { }
+        public NodeStateCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="NodeStateCollection"/> class.
         /// </summary>
         /// <param name="capacity">The initial capacity.</param>
         public NodeStateCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="NodeStateCollection"/> class.
@@ -45,7 +49,9 @@ namespace Opc.Ua
         /// 	<paramref name="collection"/> is null.
         /// </exception>
         public NodeStateCollection(IEnumerable<NodeState> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Writes the collection to a stream using the NodeSet schema.
@@ -144,7 +150,9 @@ namespace Opc.Ua
             new(BrowseNames.HasOrderedComponent, ReferenceTypeIds.HasOrderedComponent),
             new(BrowseNames.HasAlarmSuppressionGroup, ReferenceTypeIds.HasAlarmSuppressionGroup),
             new(BrowseNames.AlarmGroupMember, ReferenceTypeIds.AlarmGroupMember),
-            new(BrowseNames.AlarmSuppressionGroupMember, ReferenceTypeIds.AlarmSuppressionGroupMember),
+            new(
+                BrowseNames.AlarmSuppressionGroupMember,
+                ReferenceTypeIds.AlarmSuppressionGroupMember)
         ];
 
         /// <summary>
@@ -160,7 +168,11 @@ namespace Opc.Ua
         /// </summary>
         public void SaveAsNodeSet2(ISystemContext context, Stream ostrm, string version)
         {
-            var nodeSet = new Export.UANodeSet { LastModified = DateTime.UtcNow, LastModifiedSpecified = true };
+            var nodeSet = new Export.UANodeSet
+            {
+                LastModified = DateTime.UtcNow,
+                LastModifiedSpecified = true
+            };
 
             for (int ii = 0; ii < s_aliasesToUse.Length; ii++)
             {
@@ -195,7 +207,7 @@ namespace Opc.Ua
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
-                Factory = context.EncodeableFactory,
+                Factory = context.EncodeableFactory
             };
 
             using var writer = XmlWriter.Create(ostrm, settings);
@@ -223,7 +235,7 @@ namespace Opc.Ua
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
-                Factory = context.EncodeableFactory,
+                Factory = context.EncodeableFactory
             };
 
             using var encoder = new BinaryEncoder(ostrm, messageContext, true);
@@ -250,7 +262,7 @@ namespace Opc.Ua
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
-                Factory = context.EncodeableFactory,
+                Factory = context.EncodeableFactory
             };
 
             using var decoder = new BinaryDecoder(istrm, messageContext);
@@ -320,7 +332,7 @@ namespace Opc.Ua
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
-                Factory = context.EncodeableFactory,
+                Factory = context.EncodeableFactory
             };
 
             using var reader = XmlReader.Create(istrm, Utils.DefaultXmlReaderSettings());
@@ -387,7 +399,13 @@ namespace Opc.Ua
         /// <param name="resourcePath">The resource path.</param>
         /// <param name="assembly">The assembly containing the resource.</param>
         /// <param name="updateTables">if set to <c>true</c> the namespace and server tables are updated with any new URIs.</param>
-        public void LoadFromResource(ISystemContext context, string resourcePath, Assembly assembly, bool updateTables)
+        /// <exception cref="ArgumentNullException"><paramref name="resourcePath"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public void LoadFromResource(
+            ISystemContext context,
+            string resourcePath,
+            Assembly assembly,
+            bool updateTables)
         {
             if (resourcePath == null)
             {
@@ -425,6 +443,8 @@ namespace Opc.Ua
         /// <param name="resourcePath">The resource path.</param>
         /// <param name="assembly">The assembly containing the resource.</param>
         /// <param name="updateTables">if set to <c>true</c> the namespace and server tables are updated with any new URIs.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="resourcePath"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public void LoadFromBinaryResource(
             ISystemContext context,
             string resourcePath,
@@ -486,13 +506,13 @@ namespace Opc.Ua
             NodeId typeDefinitionId
         )
         {
-            if (m_types != null && !NodeId.IsNull(typeDefinitionId))
+            if (
+                m_types != null &&
+                !NodeId.IsNull(typeDefinitionId) &&
+                m_types.TryGetValue(typeDefinitionId, out Type type)
+            )
             {
-                Type type;
-                if (m_types.TryGetValue(typeDefinitionId, out type))
-                {
-                    return Activator.CreateInstance(type, parent) as NodeState;
-                }
+                return Activator.CreateInstance(type, parent) as NodeState;
             }
 
             NodeState child;
@@ -500,8 +520,8 @@ namespace Opc.Ua
             {
                 case NodeClass.Variable:
                     if (
-                        context.TypeTable != null
-                        && context.TypeTable.IsTypeOf(referenceTypeId, ReferenceTypeIds.HasProperty)
+                        context.TypeTable != null &&
+                        context.TypeTable.IsTypeOf(referenceTypeId, ReferenceTypeIds.HasProperty)
                     )
                     {
                         child = new PropertyState(parent);
@@ -510,35 +530,27 @@ namespace Opc.Ua
 
                     child = new BaseDataVariableState(parent);
                     break;
-
                 case NodeClass.Object:
                     child = new BaseObjectState(parent);
                     break;
-
                 case NodeClass.Method:
                     child = new MethodState(parent);
                     break;
-
                 case NodeClass.ReferenceType:
                     child = new ReferenceTypeState();
                     break;
-
                 case NodeClass.ObjectType:
                     child = new BaseObjectTypeState();
                     break;
-
                 case NodeClass.VariableType:
                     child = new BaseDataVariableTypeState();
                     break;
-
                 case NodeClass.DataType:
                     child = new DataTypeState();
                     break;
-
                 case NodeClass.View:
                     child = new ViewState();
                     break;
-
                 default:
                     child = null;
                     break;
@@ -552,6 +564,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="typeDefinitionId">The type definition.</param>
         /// <param name="type">The system type.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public void RegisterType(NodeId typeDefinitionId, Type type)
         {
             if (NodeId.IsNull(typeDefinitionId))
@@ -568,6 +581,7 @@ namespace Opc.Ua
         /// Unregisters a type with the factory.
         /// </summary>
         /// <param name="typeDefinitionId">The type definition.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public void UnRegisterType(NodeId typeDefinitionId)
         {
             if (NodeId.IsNull(typeDefinitionId))

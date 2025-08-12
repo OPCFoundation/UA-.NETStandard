@@ -30,8 +30,10 @@ namespace Opc.Ua
             var parsedUrl = new UriBuilder(url);
 
             if (
-                Utils.IsUriHttpRelatedScheme(parsedUrl.Scheme)
-                && !parsedUrl.Path.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase)
+                Utils.IsUriHttpRelatedScheme(parsedUrl.Scheme) &&
+                !parsedUrl.Path.EndsWith(
+                    ConfiguredEndpoint.DiscoverySuffix,
+                    StringComparison.OrdinalIgnoreCase)
             )
             {
                 parsedUrl.Path += ConfiguredEndpoint.DiscoverySuffix;
@@ -53,7 +55,8 @@ namespace Opc.Ua
         {
             get
             {
-                if (!string.IsNullOrEmpty(EndpointUrl) && EndpointUrl.StartsWith(Utils.UriSchemeOpcTcp))
+                if (!string.IsNullOrEmpty(EndpointUrl) &&
+                    EndpointUrl.StartsWith(Utils.UriSchemeOpcTcp))
                 {
                     return BinaryEncodingSupport.Required;
                 }
@@ -93,14 +96,14 @@ namespace Opc.Ua
                     }
                     else if (
                         (
-                            policy.SecurityPolicyUri != null
-                            && tokenSecurityPolicyUri != null
-                            && EccUtils.IsEccPolicy(policy.SecurityPolicyUri)
-                            && EccUtils.IsEccPolicy(tokenSecurityPolicyUri)
-                        )
-                        || (
-                            !EccUtils.IsEccPolicy(policy.SecurityPolicyUri)
-                            && !EccUtils.IsEccPolicy(tokenSecurityPolicyUri)
+                            policy.SecurityPolicyUri != null &&
+                            tokenSecurityPolicyUri != null &&
+                            EccUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
+                            EccUtils.IsEccPolicy(tokenSecurityPolicyUri)
+                        ) ||
+                        (
+                            !EccUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
+                            !EccUtils.IsEccPolicy(tokenSecurityPolicyUri)
                         )
                     )
                     {
@@ -135,7 +138,10 @@ namespace Opc.Ua
                 return FindUserTokenPolicy(tokenType, (string)null, tokenSecurityPolicyUri);
             }
 
-            return FindUserTokenPolicy(tokenType, issuedTokenType.Namespace, tokenSecurityPolicyUri);
+            return FindUserTokenPolicy(
+                tokenType,
+                issuedTokenType.Namespace,
+                tokenSecurityPolicyUri);
         }
 
         /// <summary>
@@ -155,22 +161,24 @@ namespace Opc.Ua
             // The specified security policies take precedence
             foreach (UserTokenPolicy policy in m_userIdentityTokens)
             {
-                if ((policy.TokenType == tokenType) && (issuedTokenTypeText == policy.IssuedTokenType))
+                if ((policy.TokenType == tokenType) &&
+                    (issuedTokenTypeText == policy.IssuedTokenType))
                 {
-                    if ((policy.SecurityPolicyUri == tokenSecurityPolicyUri) || (tokenType == UserTokenType.Anonymous))
+                    if ((policy.SecurityPolicyUri == tokenSecurityPolicyUri) ||
+                        (tokenType == UserTokenType.Anonymous))
                     {
                         return policy;
                     }
                     else if (
                         (
-                            policy.SecurityPolicyUri != null
-                            && tokenSecurityPolicyUri != null
-                            && EccUtils.IsEccPolicy(policy.SecurityPolicyUri)
-                            && EccUtils.IsEccPolicy(tokenSecurityPolicyUri)
-                        )
-                        || (
-                            !EccUtils.IsEccPolicy(policy.SecurityPolicyUri)
-                            && !EccUtils.IsEccPolicy(tokenSecurityPolicyUri)
+                            policy.SecurityPolicyUri != null &&
+                            tokenSecurityPolicyUri != null &&
+                            EccUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
+                            EccUtils.IsEccPolicy(tokenSecurityPolicyUri)
+                        ) ||
+                        (
+                            !EccUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
+                            !EccUtils.IsEccPolicy(tokenSecurityPolicyUri)
                         )
                     )
                     {

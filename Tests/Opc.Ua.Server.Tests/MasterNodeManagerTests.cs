@@ -38,8 +38,10 @@ namespace Opc.Ua.Server.Tests
     /// <summary>
     /// Test <see cref="MasterNodeManager"/>
     /// </summary>
-    [TestFixture, Category("MasterNodeManager")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("MasterNodeManager")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class MasterNodeManagerTests
     {
@@ -61,8 +63,13 @@ namespace Opc.Ua.Server.Tests
                 nodeManager.Setup(x => x.NamespaceUris).Returns([]);
 
                 //-- Act
-                StandardServer server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
-                var sut = new MasterNodeManager(server.CurrentInstance, fixture.Config, null, nodeManager.Object);
+                StandardServer server = await fixture.StartAsync(TestContext.Out)
+                    .ConfigureAwait(false);
+                var sut = new MasterNodeManager(
+                    server.CurrentInstance,
+                    fixture.Config,
+                    null,
+                    nodeManager.Object);
                 sut.RegisterNamespaceManager(ns, nodeManager.Object);
 
                 //-- Assert
@@ -101,7 +108,8 @@ namespace Opc.Ua.Server.Tests
                 newNodeManager.Setup(x => x.NamespaceUris).Returns(namespaceUris);
 
                 //-- Act
-                StandardServer server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
+                StandardServer server = await fixture.StartAsync(TestContext.Out)
+                    .ConfigureAwait(false);
                 var sut = new MasterNodeManager(
                     server.CurrentInstance,
                     fixture.Config,
@@ -133,7 +141,9 @@ namespace Opc.Ua.Server.Tests
         [TestCase(3, 0)]
         [TestCase(3, 1)]
         [TestCase(3, 2)]
-        public async Task UnregisterNamespaceManagerInCollectionAsync(int totalManagers, int indexToRemove)
+        public async Task UnregisterNamespaceManagerInCollectionAsync(
+            int totalManagers,
+            int indexToRemove)
         {
             var fixture = new ServerFixture<StandardServer>();
 
@@ -155,8 +165,13 @@ namespace Opc.Ua.Server.Tests
                 INodeManager nodeManagerToRemove = additionalManagers[indexToRemove];
 
                 //-- Act
-                StandardServer server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
-                var sut = new MasterNodeManager(server.CurrentInstance, fixture.Config, null, additionalManagers);
+                StandardServer server = await fixture.StartAsync(TestContext.Out)
+                    .ConfigureAwait(false);
+                var sut = new MasterNodeManager(
+                    server.CurrentInstance,
+                    fixture.Config,
+                    null,
+                    additionalManagers);
                 bool result = sut.UnregisterNamespaceManager(ns, nodeManagerToRemove);
 
                 //-- Assert
@@ -199,7 +214,8 @@ namespace Opc.Ua.Server.Tests
                 thirdNodeManager.Setup(x => x.NamespaceUris).Returns(namespaceUris);
 
                 //-- Act
-                StandardServer server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
+                StandardServer server = await fixture.StartAsync(TestContext.Out)
+                    .ConfigureAwait(false);
                 var sut = new MasterNodeManager(
                     server.CurrentInstance,
                     fixture.Config,
@@ -249,7 +265,8 @@ namespace Opc.Ua.Server.Tests
                 newNodeManager.Setup(x => x.NamespaceUris).Returns([originalNs, newNs]);
 
                 //-- Act
-                StandardServer server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
+                StandardServer server = await fixture.StartAsync(TestContext.Out)
+                    .ConfigureAwait(false);
                 var sut = new MasterNodeManager(
                     server.CurrentInstance,
                     fixture.Config,
@@ -260,7 +277,8 @@ namespace Opc.Ua.Server.Tests
 
                 //-- Assert
                 Assert.IsFalse(result);
-                NUnit.Framework.Assert.That(server.CurrentInstance.NamespaceUris.ToArray(), Has.No.Member(newNs));
+                NUnit.Framework.Assert
+                    .That(server.CurrentInstance.NamespaceUris.ToArray(), Has.No.Member(newNs));
 
                 Assert.Contains(originalNs, server.CurrentInstance.NamespaceUris.ToArray());
                 INodeManager[] registeredManagers = sut.NamespaceManagers[

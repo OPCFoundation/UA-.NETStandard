@@ -36,7 +36,9 @@ namespace Opc.Ua.Gds.Server.Database
     [Serializable]
     public abstract class ApplicationsDatabaseBase : IApplicationsDatabase
     {
-        public virtual void Initialize() { }
+        public virtual void Initialize()
+        {
+        }
 
         public ushort NamespaceIndex { get; set; }
 
@@ -54,10 +56,13 @@ namespace Opc.Ua.Gds.Server.Database
 
             if (!Uri.IsWellFormedUriString(application.ApplicationUri, UriKind.Absolute))
             {
-                throw new ArgumentException(application.ApplicationUri + " is not a valid URI.", nameof(application));
+                throw new ArgumentException(
+                    application.ApplicationUri + " is not a valid URI.",
+                    nameof(application));
             }
 
-            if (application.ApplicationType is < ApplicationType.Server or > ApplicationType.DiscoveryServer)
+            if (application
+                .ApplicationType is < ApplicationType.Server or > ApplicationType.DiscoveryServer)
             {
                 throw new ArgumentException(
                     application.ApplicationType.ToString() + " is not a valid ApplicationType.",
@@ -66,12 +71,14 @@ namespace Opc.Ua.Gds.Server.Database
             }
 
             if (
-                application.ApplicationNames == null
-                || application.ApplicationNames.Count == 0
-                || LocalizedText.IsNullOrEmpty(application.ApplicationNames[0])
+                application.ApplicationNames == null ||
+                application.ApplicationNames.Count == 0 ||
+                LocalizedText.IsNullOrEmpty(application.ApplicationNames[0])
             )
             {
-                throw new ArgumentException("At least one ApplicationName must be provided.", nameof(application));
+                throw new ArgumentException(
+                    "At least one ApplicationName must be provided.",
+                    nameof(application));
             }
 
             if (string.IsNullOrEmpty(application.ProductUri))
@@ -81,7 +88,9 @@ namespace Opc.Ua.Gds.Server.Database
 
             if (!Uri.IsWellFormedUriString(application.ProductUri, UriKind.Absolute))
             {
-                throw new ArgumentException(application.ProductUri + " is not a valid URI.", nameof(application));
+                throw new ArgumentException(
+                    application.ProductUri + " is not a valid URI.",
+                    nameof(application));
             }
 
             if (application.DiscoveryUrls != null)
@@ -95,7 +104,9 @@ namespace Opc.Ua.Gds.Server.Database
 
                     if (!Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
                     {
-                        throw new ArgumentException(discoveryUrl + " is not a valid URL.", nameof(application));
+                        throw new ArgumentException(
+                            discoveryUrl + " is not a valid URL.",
+                            nameof(application));
                     }
                 }
             }
@@ -104,17 +115,22 @@ namespace Opc.Ua.Gds.Server.Database
             {
                 if (application.DiscoveryUrls == null || application.DiscoveryUrls.Count == 0)
                 {
-                    throw new ArgumentException("At least one DiscoveryUrl must be provided.", nameof(application));
+                    throw new ArgumentException(
+                        "At least one DiscoveryUrl must be provided.",
+                        nameof(application));
                 }
 
-                if (application.ServerCapabilities == null || application.ServerCapabilities.Count == 0)
+                if (application.ServerCapabilities == null ||
+                    application.ServerCapabilities.Count == 0)
                 {
                     application.ServerCapabilities = ["NA"];
                 }
             }
             else if (application.DiscoveryUrls != null && application.DiscoveryUrls.Count > 0)
             {
-                throw new ArgumentException("DiscoveryUrls must not be specified for clients.", nameof(application));
+                throw new ArgumentException(
+                    "DiscoveryUrls must not be specified for clients.",
+                    nameof(application));
             }
 
             NodeId nodeId = NodeId.Null;
@@ -124,13 +140,19 @@ namespace Opc.Ua.Gds.Server.Database
                 switch (application.ApplicationId.IdType)
                 {
                     case IdType.Guid:
-                        nodeId = new NodeId((Guid)application.ApplicationId.Identifier, NamespaceIndex);
+                        nodeId = new NodeId(
+                            (Guid)application.ApplicationId.Identifier,
+                            NamespaceIndex);
                         break;
                     case IdType.String:
-                        nodeId = new NodeId((string)application.ApplicationId.Identifier, NamespaceIndex);
+                        nodeId = new NodeId(
+                            (string)application.ApplicationId.Identifier,
+                            NamespaceIndex);
                         break;
                     default:
-                        throw new ArgumentException("The ApplicationId has invalid type {0}", nameof(application));
+                        throw new ArgumentException(
+                            "The ApplicationId has invalid type {0}",
+                            nameof(application));
                 }
             }
 
@@ -184,7 +206,10 @@ namespace Opc.Ua.Gds.Server.Database
             return null;
         }
 
-        public virtual bool SetApplicationCertificate(NodeId applicationId, string certificateType, byte[] certificate)
+        public virtual bool SetApplicationCertificate(
+            NodeId applicationId,
+            string certificateType,
+            byte[] certificate)
         {
             ValidateApplicationNodeId(applicationId);
             return false;
@@ -201,7 +226,10 @@ namespace Opc.Ua.Gds.Server.Database
             return false;
         }
 
-        public virtual bool SetApplicationTrustLists(NodeId applicationId, string certificateTypeId, string trustListId)
+        public virtual bool SetApplicationTrustLists(
+            NodeId applicationId,
+            string certificateTypeId,
+            string trustListId)
         {
             ValidateApplicationNodeId(applicationId);
             return false;
@@ -280,7 +308,8 @@ namespace Opc.Ua.Gds.Server.Database
         {
             if (application.ApplicationType != ApplicationType.Client)
             {
-                if (application.ServerCapabilities == null || application.ServerCapabilities.Count == 0)
+                if (application.ServerCapabilities == null ||
+                    application.ServerCapabilities.Count == 0)
                 {
                     throw new ArgumentException(
                         "At least one Server Capability must be provided.",
@@ -358,8 +387,8 @@ namespace Opc.Ua.Gds.Server.Database
             }
 
             if (
-                (nodeId.IdType != IdType.Guid && nodeId.IdType != IdType.String)
-                || NamespaceIndex != nodeId.NamespaceIndex
+                (nodeId.IdType != IdType.Guid && nodeId.IdType != IdType.String) ||
+                NamespaceIndex != nodeId.NamespaceIndex
             )
             {
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
@@ -485,7 +514,11 @@ namespace Opc.Ua.Gds.Server.Database
             return tokens;
         }
 
-        private static int SkipToNext(string target, int targetIndex, IList<string> tokens, ref int tokenIndex)
+        private static int SkipToNext(
+            string target,
+            int targetIndex,
+            IList<string> tokens,
+            ref int tokenIndex)
         {
             if (targetIndex >= target.Length - 1)
             {
@@ -502,7 +535,8 @@ namespace Opc.Ua.Gds.Server.Database
                 int nextTokenIndex = tokenIndex + 1;
 
                 // skip over unmatched chars.
-                while (targetIndex < target.Length && Match(target, targetIndex, tokens, ref nextTokenIndex) < 0)
+                while (targetIndex < target.Length &&
+                    Match(target, targetIndex, tokens, ref nextTokenIndex) < 0)
                 {
                     targetIndex++;
                     nextTokenIndex = tokenIndex + 1;
@@ -511,7 +545,8 @@ namespace Opc.Ua.Gds.Server.Database
                 nextTokenIndex = tokenIndex + 1;
 
                 // skip over duplicate matches.
-                while (targetIndex < target.Length && Match(target, targetIndex, tokens, ref nextTokenIndex) >= 0)
+                while (targetIndex < target.Length &&
+                    Match(target, targetIndex, tokens, ref nextTokenIndex) >= 0)
                 {
                     targetIndex++;
                     nextTokenIndex = tokenIndex + 1;
@@ -529,7 +564,8 @@ namespace Opc.Ua.Gds.Server.Database
                 int nextTokenIndex = tokenIndex + 1;
 
                 // skip over matches.
-                while (targetIndex < target.Length && Match(target, targetIndex, tokens, ref nextTokenIndex) >= 0)
+                while (targetIndex < target.Length &&
+                    Match(target, targetIndex, tokens, ref nextTokenIndex) >= 0)
                 {
                     targetIndex++;
                     nextTokenIndex = tokenIndex + 1;
@@ -555,7 +591,11 @@ namespace Opc.Ua.Gds.Server.Database
             return -1;
         }
 
-        private static int Match(string target, int targetIndex, IList<string> tokens, ref int tokenIndex)
+        private static int Match(
+            string target,
+            int targetIndex,
+            IList<string> tokens,
+            ref int tokenIndex)
         {
             if (tokens == null || tokenIndex < 0 || tokenIndex >= tokens.Count)
             {

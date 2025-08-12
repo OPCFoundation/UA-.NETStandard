@@ -45,7 +45,7 @@ namespace Opc.Ua.Server
             QueueValue,
             FilterValue,
             DiscardValue,
-            PublishValue,
+            PublishValue
         }
 
         private class Event
@@ -102,7 +102,7 @@ namespace Opc.Ua.Server
                     Timestamp = HiResClock.UtcNow,
                     Value = value,
                     Parameters = null,
-                    MonitoringMode = MonitoringMode.Disabled,
+                    MonitoringMode = MonitoringMode.Disabled
                 };
 
                 if (StatusCode.IsBad(error))
@@ -134,7 +134,7 @@ namespace Opc.Ua.Server
                     Timestamp = HiResClock.UtcNow,
                     Value = value,
                     Parameters = null,
-                    MonitoringMode = MonitoringMode.Disabled,
+                    MonitoringMode = MonitoringMode.Disabled
                 };
                 s_events.Enqueue(e);
             }
@@ -160,7 +160,7 @@ namespace Opc.Ua.Server
                     Timestamp = HiResClock.UtcNow,
                     Value = value,
                     Parameters = null,
-                    MonitoringMode = MonitoringMode.Disabled,
+                    MonitoringMode = MonitoringMode.Disabled
                 };
                 s_events.Enqueue(e);
             }
@@ -186,7 +186,7 @@ namespace Opc.Ua.Server
                     Timestamp = HiResClock.UtcNow,
                     Value = value,
                     Parameters = null,
-                    MonitoringMode = MonitoringMode.Disabled,
+                    MonitoringMode = MonitoringMode.Disabled
                 };
                 s_events.Enqueue(e);
             }
@@ -212,7 +212,7 @@ namespace Opc.Ua.Server
                     Timestamp = HiResClock.UtcNow,
                     Value = value,
                     Parameters = null,
-                    MonitoringMode = MonitoringMode.Disabled,
+                    MonitoringMode = MonitoringMode.Disabled
                 };
                 s_events.Enqueue(e);
             }
@@ -250,9 +250,9 @@ namespace Opc.Ua.Server
                         SamplingInterval = samplingInterval,
                         QueueSize = queueSize,
                         DiscardOldest = discardOldest,
-                        Filter = new ExtensionObject(filter),
+                        Filter = new ExtensionObject(filter)
                     },
-                    MonitoringMode = monitoringMode,
+                    MonitoringMode = monitoringMode
                 };
                 s_events.Enqueue(e);
             }
@@ -290,9 +290,9 @@ namespace Opc.Ua.Server
                         SamplingInterval = samplingInterval,
                         QueueSize = queueSize,
                         DiscardOldest = discardOldest,
-                        Filter = new ExtensionObject(filter),
+                        Filter = new ExtensionObject(filter)
                     },
-                    MonitoringMode = monitoringMode,
+                    MonitoringMode = monitoringMode
                 };
                 s_events.Enqueue(e);
             }
@@ -312,7 +312,11 @@ namespace Opc.Ua.Server
 
             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
             {
-                diagnosticInfos[index] = new DiagnosticInfo(error, context.DiagnosticsMask, false, context.StringTable);
+                diagnosticInfos[index] = new DiagnosticInfo(
+                    error,
+                    context.DiagnosticsMask,
+                    false,
+                    context.StringTable);
             }
 
             return error.Code;
@@ -333,7 +337,8 @@ namespace Opc.Ua.Server
 
             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
             {
-                diagnosticInfos.Add(new DiagnosticInfo(error, context.DiagnosticsMask, false, context.StringTable));
+                diagnosticInfos.Add(
+                    new DiagnosticInfo(error, context.DiagnosticsMask, false, context.StringTable));
                 return true;
             }
 
@@ -356,7 +361,11 @@ namespace Opc.Ua.Server
 
             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
             {
-                diagnosticInfos[index] = new DiagnosticInfo(error, context.DiagnosticsMask, false, context.StringTable);
+                diagnosticInfos[index] = new DiagnosticInfo(
+                    error,
+                    context.DiagnosticsMask,
+                    false,
+                    context.StringTable);
                 return true;
             }
 
@@ -401,7 +410,11 @@ namespace Opc.Ua.Server
             {
                 if (ServiceResult.IsBad(error))
                 {
-                    results.Add(new DiagnosticInfo(error, context.DiagnosticsMask, false, context.StringTable));
+                    results.Add(new DiagnosticInfo(
+                        error,
+                        context.DiagnosticsMask,
+                        false,
+                        context.StringTable));
                 }
                 else
                 {
@@ -473,7 +486,11 @@ namespace Opc.Ua.Server
                 translatedError = server.ResourceManager.Translate(context.PreferredLocales, error);
             }
 
-            return new DiagnosticInfo(translatedError, context.DiagnosticsMask, false, context.StringTable);
+            return new DiagnosticInfo(
+                translatedError,
+                context.DiagnosticsMask,
+                false,
+                context.StringTable);
         }
     }
 }

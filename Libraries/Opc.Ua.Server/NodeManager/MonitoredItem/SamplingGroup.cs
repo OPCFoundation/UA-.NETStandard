@@ -54,7 +54,8 @@ namespace Opc.Ua.Server
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_nodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
-            m_samplingRates = samplingRates ?? throw new ArgumentNullException(nameof(samplingRates));
+            m_samplingRates = samplingRates ??
+                throw new ArgumentNullException(nameof(samplingRates));
             m_session = context.Session;
             if (m_session == null)
             {
@@ -180,7 +181,9 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// The ApplyChanges() method must be called to actually stop sampling the item.
         /// </remarks>
-        public bool ModifyMonitoring(OperationContext context, ISampledDataChangeMonitoredItem monitoredItem)
+        public bool ModifyMonitoring(
+            OperationContext context,
+            ISampledDataChangeMonitoredItem monitoredItem)
         {
             lock (m_lock)
             {
@@ -237,8 +240,8 @@ namespace Opc.Ua.Server
                     ISampledDataChangeMonitoredItem monitoredItem = m_itemsToAdd[ii];
 
                     if (
-                        m_items.TryAdd(monitoredItem.Id, monitoredItem)
-                        && monitoredItem.MonitoringMode != MonitoringMode.Disabled
+                        m_items.TryAdd(monitoredItem.Id, monitoredItem) &&
+                        monitoredItem.MonitoringMode != MonitoringMode.Disabled
                     )
                     {
                         itemsToSample.Add(monitoredItem);
@@ -307,7 +310,8 @@ namespace Opc.Ua.Server
             if (m_session == null && context?.SessionId == null)
             {
                 //fallback to compare user Identity if session is not set.
-                if (savedOwnerIdentity?.GetIdentityToken() != m_effectiveIdentity.GetIdentityToken())
+                if (savedOwnerIdentity?.GetIdentityToken() != m_effectiveIdentity
+                    .GetIdentityToken())
                 {
                     return false;
                 }
@@ -357,7 +361,10 @@ namespace Opc.Ua.Server
                     return maxSamplingRate;
                 }
 
-                for (double ii = samplingRate.Start; ii <= maxSamplingRate; ii += samplingRate.Increment)
+                for (
+                    double ii = samplingRate.Start;
+                    ii <= maxSamplingRate;
+                    ii += samplingRate.Increment)
                 {
                     if (ii >= samplingInterval)
                     {
@@ -402,7 +409,8 @@ namespace Opc.Ua.Server
 
                         while (enumerator.MoveNext())
                         {
-                            ISampledDataChangeMonitoredItem monitoredItem = enumerator.Current.Value;
+                            ISampledDataChangeMonitoredItem monitoredItem = enumerator.Current
+                                .Value;
 
                             if (monitoredItem.MonitoringMode == MonitoringMode.Disabled)
                             {
@@ -497,7 +505,9 @@ namespace Opc.Ua.Server
                     {
                         if (values[ii] == null)
                         {
-                            values[ii] = new DataValue(StatusCodes.BadInternalError, DateTime.UtcNow);
+                            values[ii] = new DataValue(
+                                StatusCodes.BadInternalError,
+                                DateTime.UtcNow);
                         }
 
                         items[ii].QueueValue(values[ii], errors[ii]);

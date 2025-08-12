@@ -54,17 +54,19 @@ namespace Opc.Ua.Server.Tests
         public int MaxChannelCount { get; set; } = 10;
         public int ReverseConnectTimeout { get; set; }
         public bool AllNodeManagers { get; set; }
+
         public int TraceMasks { get; set; } =
-            Utils.TraceMasks.Error
-            | Utils.TraceMasks.StackTrace
-            | Utils.TraceMasks.Security
-            | Utils.TraceMasks.Information;
-        public bool SecurityNone { get; set; } = false;
+            Utils.TraceMasks.Error |
+            Utils.TraceMasks.StackTrace |
+            Utils.TraceMasks.Security |
+            Utils.TraceMasks.Information;
+
+        public bool SecurityNone { get; set; }
         public string UriScheme { get; set; } = Utils.UriSchemeOpcTcp;
         public int Port { get; private set; }
         public bool UseTracing { get; set; }
-        public bool DurableSubscriptionsEnabled { get; set; } = false;
-        public bool UseSamplingGroupsInReferenceNodeManager { get; set; } = false;
+        public bool DurableSubscriptionsEnabled { get; set; }
+        public bool UseSamplingGroupsInReferenceNodeManager { get; set; }
         public ActivityListener ActivityListener { get; private set; }
 
         public ServerFixture(bool useTracing, bool disableActivityLogging)
@@ -76,21 +78,25 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
-        public ServerFixture() { }
+        public ServerFixture()
+        {
+        }
 
         public async Task LoadConfigurationAsync(string pkiRoot = null)
         {
             Application = new ApplicationInstance
             {
                 ApplicationName = typeof(T).Name,
-                ApplicationType = ApplicationType.Server,
+                ApplicationType = ApplicationType.Server
             };
 
             // create the application configuration. Use temp path for cert stores.
             pkiRoot ??= Path.GetTempPath() + Path.GetRandomFileName();
             string endpointUrl = $"{UriScheme}://localhost:0/" + typeof(T).Name;
             IApplicationConfigurationBuilderServerSelected serverConfig = Application
-                .Build("urn:localhost:UA:" + typeof(T).Name, "uri:opcfoundation.org:" + typeof(T).Name)
+                .Build(
+                    "urn:localhost:UA:" + typeof(T).Name,
+                    "uri:opcfoundation.org:" + typeof(T).Name)
                 .SetMaxByteStringLength(4 * 1024 * 1024)
                 .SetMaxArrayLength(1024 * 1024)
                 .SetChannelLifetime(30000)
@@ -102,7 +108,9 @@ namespace Opc.Ua.Server.Tests
             }
             if (Utils.IsUriHttpsScheme(endpointUrl))
             {
-                serverConfig.AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256);
+                serverConfig.AddPolicy(
+                    MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicies.Basic256Sha256);
             }
             else if (endpointUrl.StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
             {
@@ -121,7 +129,7 @@ namespace Opc.Ua.Server.Tests
             if (OperationLimits)
             {
                 serverConfig.SetOperationLimits(
-                    new OperationLimits()
+                    new OperationLimits
                     {
                         MaxNodesPerBrowse = 2500,
                         MaxNodesPerRead = 1000,
@@ -134,7 +142,7 @@ namespace Opc.Ua.Server.Tests
                         MaxNodesPerHistoryUpdateEvents = 1000,
                         MaxNodesPerNodeManagement = 1000,
                         MaxNodesPerRegisterNodes = 1000,
-                        MaxNodesPerTranslateBrowsePathsToNodeIds = 1000,
+                        MaxNodesPerTranslateBrowsePathsToNodeIds = 1000
                     }
                 );
             }
@@ -148,11 +156,11 @@ namespace Opc.Ua.Server.Tests
             if (ReverseConnectTimeout != 0)
             {
                 serverConfig.SetReverseConnect(
-                    new ReverseConnectServerConfiguration()
+                    new ReverseConnectServerConfiguration
                     {
                         ConnectInterval = ReverseConnectTimeout / 4,
                         ConnectTimeout = ReverseConnectTimeout,
-                        RejectTimeout = ReverseConnectTimeout / 4,
+                        RejectTimeout = ReverseConnectTimeout / 4
                     }
                 );
             }
@@ -216,10 +224,13 @@ namespace Opc.Ua.Server.Tests
                     await InternalStartServerAsync(writer, testPort).ConfigureAwait(false);
                 }
                 catch (ServiceResultException sre)
-                    when (serverStartRetries > 0 && sre.StatusCode == StatusCodes.BadNoCommunication)
+                    when (serverStartRetries > 0 &&
+                        sre.StatusCode == StatusCodes.BadNoCommunication)
                 {
                     serverStartRetries--;
-                    testPort = random.Next(ServerFixtureUtils.MinTestPort, ServerFixtureUtils.MaxTestPort);
+                    testPort = random.Next(
+                        ServerFixtureUtils.MinTestPort,
+                        ServerFixtureUtils.MaxTestPort);
                     retryStartServer = true;
                 }
                 await Task.Delay(random.Next(100, 1000)).ConfigureAwait(false);
@@ -233,7 +244,8 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         private async Task InternalStartServerAsync(TextWriter writer, int port)
         {
-            Config.ServerConfiguration.BaseAddresses = [$"{UriScheme}://localhost:{port}/{typeof(T).Name}"];
+            Config.ServerConfiguration.BaseAddresses
+                = [$"{UriScheme}://localhost:{port}/{typeof(T).Name}"];
 
             if (writer != null)
             {
@@ -255,7 +267,8 @@ namespace Opc.Ua.Server.Tests
             {
                 Quickstarts.Servers.Utils.AddDefaultNodeManagers(standardServer);
             }
-            if (UseSamplingGroupsInReferenceNodeManager && server is ReferenceServer referenceServer)
+            if (UseSamplingGroupsInReferenceNodeManager &&
+                server is ReferenceServer referenceServer)
             {
                 Quickstarts.Servers.Utils.UseSamplingGroupsInReferenceNodeManager(referenceServer);
             }
@@ -291,19 +304,19 @@ namespace Opc.Ua.Server.Tests
             if (disableActivityLogging)
             {
                 // Create an instance of ActivityListener without logging
-                ActivityListener = new ActivityListener()
+                ActivityListener = new ActivityListener
                 {
                     ShouldListenTo = (source) => source.Name == EndpointBase.ActivitySourceName,
                     Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
                         ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = _ => { },
-                    ActivityStopped = _ => { },
+                    ActivityStopped = _ => { }
                 };
             }
             else
             {
                 // Create an instance of ActivityListener and configure its properties with logging
-                ActivityListener = new ActivityListener()
+                ActivityListener = new ActivityListener
                 {
                     ShouldListenTo = (source) => source.Name == EndpointBase.ActivitySourceName,
                     Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
@@ -324,7 +337,7 @@ namespace Opc.Ua.Server.Tests
                             activity.SpanId,
                             activity.ParentId,
                             activity.Duration
-                        ),
+                        )
                 };
             }
             ActivitySource.AddActivityListener(ActivityListener);

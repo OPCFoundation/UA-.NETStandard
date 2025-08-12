@@ -56,6 +56,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// - The selector bits of optional fields are not stored in a 32 bit variable
         ///   and do not add up to 32 bits.
         /// </remarks>
+        /// <exception cref="DataTypeNotSupportedException"></exception>
         public static StructureDefinition ToStructureDefinition(
             this Schema.Binary.StructuredType structuredType,
             ExpandedNodeId defaultEncodingId,
@@ -64,12 +65,12 @@ namespace Opc.Ua.Client.ComplexTypes
             NodeId dataTypeNodeId
         )
         {
-            var structureDefinition = new StructureDefinition()
+            var structureDefinition = new StructureDefinition
             {
                 BaseDataType = null,
                 DefaultEncodingId = ExpandedNodeId.ToNodeId(defaultEncodingId, namespaceTable),
                 Fields = [],
-                StructureType = StructureType.Structure,
+                StructureType = StructureType.Structure
             };
 
             bool isSupportedType = true;
@@ -90,8 +91,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
 
                 if (
-                    field.TypeName.Namespace is Namespaces.OpcBinarySchema or Namespaces.OpcUa
-                    && field.TypeName.Name == "Bit"
+                    field.TypeName.Namespace is Namespaces.OpcBinarySchema or Namespaces.OpcUa &&
+                    field.TypeName.Name == "Bit"
                 )
                 {
                     hasBitField = true;
@@ -140,8 +141,9 @@ namespace Opc.Ua.Client.ComplexTypes
                     int count = structureDefinition.Fields.Count;
                     if (count == 0 && switchFieldBitPosition < 32)
                     {
-                        structureDefinition.StructureType = StructureType.StructureWithOptionalFields;
-                        byte fieldLength = (byte)((field.Length == 0) ? 1u : field.Length);
+                        structureDefinition.StructureType
+                            = StructureType.StructureWithOptionalFields;
+                        byte fieldLength = (byte)(field.Length == 0 ? 1u : field.Length);
                         switchFieldBits[field.Name] = switchFieldBitPosition;
                         switchFieldBitPosition += fieldLength;
                     }
@@ -156,7 +158,8 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 if (switchFieldBitPosition is not 0 and not 32)
                 {
-                    throw new DataTypeNotSupportedException("Bitwise option selectors must have 32 bits.");
+                    throw new DataTypeNotSupportedException(
+                        "Bitwise option selectors must have 32 bits.");
                 }
                 NodeId fieldDataTypeNodeId;
                 if (field.TypeName == structuredType.QName)
@@ -168,7 +171,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     fieldDataTypeNodeId = field.TypeName.ToNodeId(typeDictionary);
                 }
-                var dataTypeField = new StructureField()
+                var dataTypeField = new StructureField
                 {
                     Name = field.Name,
                     Description = null,
@@ -176,7 +179,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     IsOptional = false,
                     MaxStringLength = 0,
                     ArrayDimensions = null,
-                    ValueRank = -1,
+                    ValueRank = -1
                 };
 
                 if (field.LengthField != null)
@@ -219,8 +222,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     else if (field.SwitchField != null)
                     {
                         dataTypeField.IsOptional = true;
-                        byte value;
-                        if (!switchFieldBits.TryGetValue(field.SwitchField, out value))
+                        if (!switchFieldBits.TryGetValue(field.SwitchField, out byte value))
                         {
                             throw new DataTypeNotSupportedException(
                                 $"The switch field for {field.SwitchField} does not exist."
@@ -265,7 +267,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         Name = fieldName,
                         Value = enumValue.Value,
                         Description = enumValue.Documentation?.Text?.FirstOrDefault(),
-                        DisplayName = enumValue.Name,
+                        DisplayName = enumValue.Name
                     };
                     enumDefinition.Fields.Add(enumTypeField);
                 }
@@ -278,7 +280,9 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Convert a list of EnumValues to an enum data type definition
         /// Available before OPC UA V1.04.
         /// </summary>
-        public static EnumDefinition ToEnumDefinition(this ExtensionObject[] enumValueTypes, string enumTypeName)
+        public static EnumDefinition ToEnumDefinition(
+            this ExtensionObject[] enumValueTypes,
+            string enumTypeName)
         {
             var enumDefinition = new EnumDefinition();
 
@@ -307,7 +311,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     Name = name,
                     Value = enumValue.Value,
-                    DisplayName = name,
+                    DisplayName = name
                 };
                 enumDefinition.Fields.Add(enumTypeField);
             }
@@ -319,7 +323,9 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Convert a list of EnumValues to an enum data type definition
         /// Available before OPC UA V1.04.
         /// </summary>
-        public static EnumDefinition ToEnumDefinition(this LocalizedText[] enumFieldNames, string enumTypeName)
+        public static EnumDefinition ToEnumDefinition(
+            this LocalizedText[] enumFieldNames,
+            string enumTypeName)
         {
             var enumDefinition = new EnumDefinition();
 
@@ -342,7 +348,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     Name = name,
                     Value = ii,
-                    DisplayName = name,
+                    DisplayName = name
                 };
 
                 enumDefinition.Fields.Add(enumTypeField);
@@ -356,7 +362,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private static bool IsXmlBitType(this XmlQualifiedName typeName)
         {
-            return typeName.Namespace is Namespaces.OpcBinarySchema or Namespaces.OpcUa && typeName.Name == "Bit";
+            return typeName.Namespace is Namespaces.OpcBinarySchema or Namespaces.OpcUa &&
+                typeName.Name == "Bit";
         }
 
         /// <summary>
@@ -378,10 +385,9 @@ namespace Opc.Ua.Client.ComplexTypes
                         return DataTypeIds.BaseDataType;
                     case "ExtensionObject":
                         return DataTypeIds.Structure;
-                    default:
-                        break;
                 }
-                System.Reflection.FieldInfo internalField = typeof(DataTypeIds).GetField(typeName.Name);
+                System.Reflection.FieldInfo internalField = typeof(DataTypeIds).GetField(
+                    typeName.Name);
                 if (internalField == null)
                 {
                     // The type was not found in the internal type factory.
@@ -389,15 +395,13 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 return (NodeId)internalField.GetValue(typeName.Name);
             }
-            else
+            if (!typeCollection.TryGetValue(typeName, out NodeId referenceId))
             {
-                if (!typeCollection.TryGetValue(typeName, out NodeId referenceId))
-                {
-                    // The type was not found in the namespace
-                    return NodeId.Null;
-                }
-                return referenceId;
+                // The type was not found in the namespace
+                return NodeId.Null;
             }
+
+            return referenceId;
         }
     }
-} //namespace
+}

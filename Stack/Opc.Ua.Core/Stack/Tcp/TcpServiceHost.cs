@@ -96,9 +96,11 @@ namespace Opc.Ua.Bindings
                             SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(
                                 policy.SecurityMode,
                                 policy.SecurityPolicyUri
-                            ),
+                            )
                         };
-                        description.UserIdentityTokens = serverBase.GetUserTokenPolicies(configuration, description);
+                        description.UserIdentityTokens = serverBase.GetUserTokenPolicies(
+                            configuration,
+                            description);
 
                         ServerBase.SetServerCertificateInEndpointDescription(
                             description,

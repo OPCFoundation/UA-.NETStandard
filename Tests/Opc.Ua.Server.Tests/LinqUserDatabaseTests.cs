@@ -5,8 +5,10 @@ using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Server.Tests
 {
-    [TestFixture, Category("Server")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("Server")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     internal class LinqUserDatabaseTests
     {
@@ -18,10 +20,10 @@ namespace Opc.Ua.Server.Tests
 
             //Act+ Assert
             NUnit.Framework.Assert.Throws<ArgumentException>(() =>
-                usersDb.CreateUser("", "PW", [Role.AuthenticatedUser])
+                usersDb.CreateUser(string.Empty, "PW", [Role.AuthenticatedUser])
             );
             NUnit.Framework.Assert.Throws<ArgumentException>(() =>
-                usersDb.CreateUser("Name", "", [Role.AuthenticatedUser])
+                usersDb.CreateUser("Name", string.Empty, [Role.AuthenticatedUser])
             );
         }
 

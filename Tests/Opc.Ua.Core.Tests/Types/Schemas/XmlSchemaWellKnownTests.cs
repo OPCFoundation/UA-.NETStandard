@@ -40,8 +40,10 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
     /// <summary>
     /// Tests for the Binary Schema Validator class.
     /// </summary>
-    [TestFixture, Category("XmlSchema")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("XmlSchema")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class XmlSchemaWellKnownTests : XmlSchemaValidator
     {
@@ -87,7 +89,8 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
             const string zipExtension = ".zip";
             Assembly assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
 
-            using Stream stream = assembly.GetManifestResourceStream(schemaPrefix + resource + zipExtension);
+            using Stream stream = assembly.GetManifestResourceStream(
+                schemaPrefix + resource + zipExtension);
             Assert.IsNotNull(stream);
             using var zipArchive = new ZipArchive(stream, ZipArchiveMode.Read);
             Assert.NotNull(zipArchive);

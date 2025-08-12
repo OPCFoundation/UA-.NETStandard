@@ -49,7 +49,9 @@ namespace Opc.Ua.Server
         /// The Role is allowed to browse and read non-security related Nodes.
         /// </summary>
         public static Role AuthenticatedUser { get; } =
-            new Role(ObjectIds.WellKnownRole_AuthenticatedUser, BrowseNames.WellKnownRole_AuthenticatedUser);
+            new Role(
+                ObjectIds.WellKnownRole_AuthenticatedUser,
+                BrowseNames.WellKnownRole_AuthenticatedUser);
 
         /// <summary>
         /// The Role is allowed to browse, read live data, read historical data/events or subscribe to data/events.
@@ -80,13 +82,17 @@ namespace Opc.Ua.Server
         /// The Role is allowed to change the non-security related configuration settings.
         /// </summary>
         public static Role ConfigureAdmin { get; } =
-            new Role(ObjectIds.WellKnownRole_ConfigureAdmin, BrowseNames.WellKnownRole_ConfigureAdmin);
+            new Role(
+                ObjectIds.WellKnownRole_ConfigureAdmin,
+                BrowseNames.WellKnownRole_ConfigureAdmin);
 
         /// <summary>
         /// The Role is allowed to change security related settings.
         /// </summary>
         public static Role SecurityAdmin { get; } =
-            new Role(ObjectIds.WellKnownRole_SecurityAdmin, BrowseNames.WellKnownRole_SecurityAdmin);
+            new Role(
+                ObjectIds.WellKnownRole_SecurityAdmin,
+                BrowseNames.WellKnownRole_SecurityAdmin);
 
         /// <summary>
         /// Constructor for new Role

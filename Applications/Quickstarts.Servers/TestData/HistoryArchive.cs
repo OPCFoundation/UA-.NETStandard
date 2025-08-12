@@ -71,9 +71,7 @@ namespace TestData
                     return null;
                 }
 
-                HistoryRecord record = null;
-
-                if (!m_records.TryGetValue(nodeId, out record))
+                if (!m_records.TryGetValue(nodeId, out HistoryRecord record))
                 {
                     return null;
                 }
@@ -93,7 +91,7 @@ namespace TestData
                 {
                     RawData = [],
                     Historizing = true,
-                    DataType = dataType,
+                    DataType = dataType
                 };
 
                 DateTime now = DateTime.UtcNow;
@@ -102,7 +100,7 @@ namespace TestData
                 {
                     var entry = new HistoryEntry
                     {
-                        Value = new DataValue { ServerTimestamp = now.AddSeconds(-(ii * 10)) },
+                        Value = new DataValue { ServerTimestamp = now.AddSeconds(-(ii * 10)) }
                     };
                     entry.Value.SourceTimestamp = entry.Value.ServerTimestamp.AddMilliseconds(1234);
                     entry.IsModified = false;
@@ -143,8 +141,12 @@ namespace TestData
                             continue;
                         }
 
-                        var entry = new HistoryEntry { Value = new DataValue { ServerTimestamp = now } };
-                        entry.Value.SourceTimestamp = entry.Value.ServerTimestamp.AddMilliseconds(-4567);
+                        var entry = new HistoryEntry
+                        {
+                            Value = new DataValue { ServerTimestamp = now }
+                        };
+                        entry.Value.SourceTimestamp = entry.Value.ServerTimestamp
+                            .AddMilliseconds(-4567);
                         entry.IsModified = false;
 
                         switch (record.DataType)

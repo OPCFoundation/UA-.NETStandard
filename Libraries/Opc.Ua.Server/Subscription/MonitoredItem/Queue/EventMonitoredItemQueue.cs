@@ -94,7 +94,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
-        protected virtual void Dispose(bool disposing) { }
+        protected virtual void Dispose(bool disposing)
+        {
+        }
 
         /// <inheritdoc/>
         public void Enqueue(EventFieldList value)
@@ -126,7 +128,8 @@ namespace Opc.Ua.Server
 
             for (int i = 0; i < maxCount; i++)
             {
-                if (m_events[i] is EventFieldList processedEvent && ReferenceEquals(instance, processedEvent.Handle))
+                if (m_events[i] is EventFieldList processedEvent &&
+                    ReferenceEquals(instance, processedEvent.Handle))
                 {
                     return true;
                 }

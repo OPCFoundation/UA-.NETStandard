@@ -55,10 +55,10 @@ namespace Opc.Ua.PubSub
         {
             DecodeErrorReason = DataSetDecodeErrorReason.NoError;
             Timestamp = DateTime.UtcNow;
-            MetaDataVersion = new ConfigurationVersionDataType()
+            MetaDataVersion = new ConfigurationVersionDataType
             {
                 MajorVersion = kDefaultConfigMajorVersion,
-                MinorVersion = kDefaultConfigMinorVersion,
+                MinorVersion = kDefaultConfigMinorVersion
             };
         }
 
@@ -108,7 +108,8 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Checks if the MetadataMajorVersion has changed depending on the value of DataSetDecodeErrorReason
         /// </summary>
-        public bool IsMetadataMajorVersionChange => DecodeErrorReason == DataSetDecodeErrorReason.MetadataMajorVersion;
+        public bool IsMetadataMajorVersionChange
+            => DecodeErrorReason == DataSetDecodeErrorReason.MetadataMajorVersion;
 
         /// <summary>
         /// Set DataSetFieldContentMask
@@ -126,8 +127,8 @@ namespace Opc.Ua.PubSub
         )
         {
             if (
-                MetaDataVersion.MajorVersion != kDefaultConfigMajorVersion
-                && MetaDataVersion.MajorVersion != configurationVersionDataType.MajorVersion
+                MetaDataVersion.MajorVersion != kDefaultConfigMajorVersion &&
+                MetaDataVersion.MajorVersion != configurationVersionDataType.MajorVersion
             )
             {
                 return DataSetDecodeErrorReason.MetadataMajorVersion;

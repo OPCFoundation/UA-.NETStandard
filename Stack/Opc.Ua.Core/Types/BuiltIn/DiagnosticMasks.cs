@@ -53,7 +53,9 @@ namespace Opc.Ua
         /// <summary>
         /// ServiceNoInnerStatus = 15,
         /// </summary>
-        ServiceNoInnerStatus = ServiceSymbolicIdAndText | ServiceAdditionalInfo | ServiceInnerStatusCode,
+        ServiceNoInnerStatus = ServiceSymbolicIdAndText |
+            ServiceAdditionalInfo |
+            ServiceInnerStatusCode,
 
         /// <summary>
         /// ServiceInnerDiagnostics = 16,
@@ -138,7 +140,9 @@ namespace Opc.Ua
         /// <summary>
         /// OperationAll = 992,
         /// </summary>
-        OperationAll = OperationNoInnerStatus | OperationInnerStatusCode | OperationInnerDiagnostics,
+        OperationAll = OperationNoInnerStatus |
+            OperationInnerStatusCode |
+            OperationInnerDiagnostics,
 
         /// <summary>
         /// All = 1023
@@ -151,6 +155,6 @@ namespace Opc.Ua
         /// <remarks>
         /// Mask for internal use only.
         /// </remarks>
-        UserPermissionAdditionalInfo = 0x80000000,
+        UserPermissionAdditionalInfo = 0x80000000
     }
 }

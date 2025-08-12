@@ -56,6 +56,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             "Configuration",
             "PublisherConfiguration.xml"
         );
+
         internal static readonly string SubscriberConfigurationFileName = Path.Combine(
             "Configuration",
             "SubscriberConfiguration.xml"
@@ -73,30 +74,49 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             // Attach triggers that count calls
             m_uaPubSubConfigurator.ConnectionAdded += (sender, e) => ++CallCountConnectionAdded;
             m_uaPubSubConfigurator.ConnectionRemoved += (sender, e) => ++CallCountConnectionRemoved;
-            m_uaPubSubConfigurator.PublishedDataSetAdded += (sender, e) => ++CallCountPublishedDataSetAdded;
-            m_uaPubSubConfigurator.PublishedDataSetRemoved += (sender, e) => ++CallCountPublishedDataSetRemoved;
-            m_uaPubSubConfigurator.DataSetReaderAdded += (sender, e) => ++CallCountDataSetReaderAdded;
-            m_uaPubSubConfigurator.DataSetReaderRemoved += (sender, e) => ++CallCountDataSetReaderRemoved;
-            m_uaPubSubConfigurator.DataSetWriterAdded += (sender, e) => ++CallCountDataSetWriterAdded;
-            m_uaPubSubConfigurator.DataSetWriterRemoved += (sender, e) => ++CallCountDataSetWriterRemoved;
+            m_uaPubSubConfigurator.PublishedDataSetAdded
+                += (sender, e) => ++CallCountPublishedDataSetAdded;
+            m_uaPubSubConfigurator.PublishedDataSetRemoved
+                += (sender, e) => ++CallCountPublishedDataSetRemoved;
+            m_uaPubSubConfigurator.DataSetReaderAdded
+                += (sender, e) => ++CallCountDataSetReaderAdded;
+            m_uaPubSubConfigurator.DataSetReaderRemoved
+                += (sender, e) => ++CallCountDataSetReaderRemoved;
+            m_uaPubSubConfigurator.DataSetWriterAdded
+                += (sender, e) => ++CallCountDataSetWriterAdded;
+            m_uaPubSubConfigurator.DataSetWriterRemoved
+                += (sender, e) => ++CallCountDataSetWriterRemoved;
             m_uaPubSubConfigurator.ReaderGroupAdded += (sender, e) => ++CallCountReaderGroupAdded;
-            m_uaPubSubConfigurator.ReaderGroupRemoved += (sender, e) => ++CallCountReaderGroupRemoved;
+            m_uaPubSubConfigurator.ReaderGroupRemoved
+                += (sender, e) => ++CallCountReaderGroupRemoved;
             m_uaPubSubConfigurator.WriterGroupAdded += (sender, e) => ++CallCountWriterGroupAdded;
-            m_uaPubSubConfigurator.WriterGroupRemoved += (sender, e) => ++CallCountWriterGroupRemoved;
+            m_uaPubSubConfigurator.WriterGroupRemoved
+                += (sender, e) => ++CallCountWriterGroupRemoved;
 
             // A publisher configuration source
-            string publisherConfigFile = Utils.GetAbsoluteFilePath(PublisherConfigurationFileName, true, true, false);
-            m_pubConfigurationLoaded = UaPubSubConfigurationHelper.LoadConfiguration(publisherConfigFile);
+            string publisherConfigFile = Utils.GetAbsoluteFilePath(
+                PublisherConfigurationFileName,
+                true,
+                true,
+                false);
+            m_pubConfigurationLoaded = UaPubSubConfigurationHelper.LoadConfiguration(
+                publisherConfigFile);
             // A subscriber configuration source
-            string subscriberConfigFile = Utils.GetAbsoluteFilePath(SubscriberConfigurationFileName, true, true, false);
-            m_subConfigurationLoaded = UaPubSubConfigurationHelper.LoadConfiguration(subscriberConfigFile);
+            string subscriberConfigFile = Utils.GetAbsoluteFilePath(
+                SubscriberConfigurationFileName,
+                true,
+                true,
+                false);
+            m_subConfigurationLoaded = UaPubSubConfigurationHelper.LoadConfiguration(
+                subscriberConfigFile);
         }
 
         [Test(Description = "Validate ConnectionAdded event is triggered")]
         public void ValidateConnectionAdded()
         {
             int expected = CallCountConnectionAdded + 1;
-            StatusCode result = m_uaPubSubConfigurator.AddConnection(new PubSubConnectionDataType());
+            StatusCode result = m_uaPubSubConfigurator.AddConnection(
+                new PubSubConnectionDataType());
             Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
             Assert.AreEqual(
                 expected,
@@ -146,7 +166,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var newConnection = new PubSubConnectionDataType();
             m_uaPubSubConfigurator.AddConnection(newConnection);
             uint lastAddedConnId = m_uaPubSubConfigurator.FindIdForObject(newConnection);
-            Assert.IsTrue(StatusCode.IsGood(m_uaPubSubConfigurator.RemoveConnection(lastAddedConnId)));
+            Assert.IsTrue(
+                StatusCode.IsGood(m_uaPubSubConfigurator.RemoveConnection(lastAddedConnId)));
             Assert.AreEqual(expected, CallCountConnectionRemoved, 0);
         }
 
@@ -154,7 +175,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ValidatePublishedDataSetAdded()
         {
             int expected = CallCountPublishedDataSetAdded + 1;
-            StatusCode result = m_uaPubSubConfigurator.AddPublishedDataSet(new PublishedDataSetDataType());
+            StatusCode result = m_uaPubSubConfigurator.AddPublishedDataSet(
+                new PublishedDataSetDataType());
             Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
             Assert.AreEqual(expected, CallCountPublishedDataSetAdded, 0);
         }
@@ -163,7 +185,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ValidateAddPublishedDataSetBadBrowseNameDuplicated()
         {
             var publishedDataSetDataType = new PublishedDataSetDataType { Name = "Name" };
-            StatusCode result = m_uaPubSubConfigurator.AddPublishedDataSet(publishedDataSetDataType);
+            StatusCode result = m_uaPubSubConfigurator.AddPublishedDataSet(
+                publishedDataSetDataType);
             Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
 
             var publishedDataSetDataType2 = new PublishedDataSetDataType { Name = "Name" };
@@ -197,7 +220,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             m_uaPubSubConfigurator.AddConnection(newConnection);
             uint lastAddedConnId = m_uaPubSubConfigurator.FindIdForObject(newConnection);
             Assert.IsTrue(
-                StatusCode.IsGood(m_uaPubSubConfigurator.AddReaderGroup(lastAddedConnId, new ReaderGroupDataType()))
+                StatusCode.IsGood(m_uaPubSubConfigurator.AddReaderGroup(
+                    lastAddedConnId,
+                    new ReaderGroupDataType()))
             );
             Assert.AreEqual(expected, CallCountReaderGroupAdded, 0);
         }
@@ -210,7 +235,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             m_uaPubSubConfigurator.AddConnection(newConnection);
             uint lastAddedConnId = m_uaPubSubConfigurator.FindIdForObject(newConnection);
             var readerGroup = new ReaderGroupDataType();
-            Assert.IsTrue(StatusCode.IsGood(m_uaPubSubConfigurator.AddReaderGroup(lastAddedConnId, readerGroup)));
+            Assert.IsTrue(StatusCode.IsGood(
+                m_uaPubSubConfigurator.AddReaderGroup(lastAddedConnId, readerGroup)));
             Assert.IsTrue(StatusCode.IsGood(m_uaPubSubConfigurator.RemoveReaderGroup(readerGroup)));
             Assert.AreEqual(expected, CallCountReaderGroupRemoved, 0);
         }
@@ -222,7 +248,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             m_uaPubSubConfigurator.AddConnection(newConnection);
             uint lastAddedConnId = m_uaPubSubConfigurator.FindIdForObject(newConnection);
             var readerGroup1 = new ReaderGroupDataType { Name = "Name" };
-            StatusCode result = m_uaPubSubConfigurator.AddReaderGroup(lastAddedConnId, readerGroup1);
+            StatusCode result = m_uaPubSubConfigurator.AddReaderGroup(
+                lastAddedConnId,
+                readerGroup1);
             Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
 
             NUnit.Framework.Assert.Throws<ArgumentException>(
@@ -267,7 +295,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             );
         }
 
-        [Test(Description = "Validate AddREaderGroup throws ArgumentException if parent id is unknown")]
+        [Test(
+            Description = "Validate AddREaderGroup throws ArgumentException if parent id is unknown")]
         public void ValidateAddReaderGroupThrowsArgumentExceptionIfInvalidParent()
         {
             const uint lastAddedConnId = 7;
@@ -286,7 +315,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             m_uaPubSubConfigurator.AddConnection(newConnection);
             uint lastAddedConnId = m_uaPubSubConfigurator.FindIdForObject(newConnection);
             Assert.IsTrue(
-                StatusCode.IsGood(m_uaPubSubConfigurator.AddWriterGroup(lastAddedConnId, new WriterGroupDataType()))
+                StatusCode.IsGood(m_uaPubSubConfigurator.AddWriterGroup(
+                    lastAddedConnId,
+                    new WriterGroupDataType()))
             );
             Assert.AreEqual(expected, CallCountWriterGroupAdded, 0);
         }
@@ -299,7 +330,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             m_uaPubSubConfigurator.AddConnection(newConnection);
             uint lastAddedConnId = m_uaPubSubConfigurator.FindIdForObject(newConnection);
             var writerGrp = new WriterGroupDataType();
-            Assert.IsTrue(StatusCode.IsGood(m_uaPubSubConfigurator.AddWriterGroup(lastAddedConnId, writerGrp)));
+            Assert.IsTrue(
+                StatusCode.IsGood(
+                    m_uaPubSubConfigurator.AddWriterGroup(lastAddedConnId, writerGrp)));
             Assert.IsTrue(StatusCode.IsGood(m_uaPubSubConfigurator.RemoveWriterGroup(writerGrp)));
             Assert.AreEqual(expected, CallCountWriterGroupRemoved, 0);
         }
@@ -313,7 +346,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             m_uaPubSubConfigurator.AddConnection(newConnection);
             uint lastAddedConnId = m_uaPubSubConfigurator.FindIdForObject(newConnection);
             var writerGroup1 = new WriterGroupDataType { Name = "Name" };
-            StatusCode result = m_uaPubSubConfigurator.AddWriterGroup(lastAddedConnId, writerGroup1);
+            StatusCode result = m_uaPubSubConfigurator.AddWriterGroup(
+                lastAddedConnId,
+                writerGroup1);
             Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
 
             var writerGroup2 = new WriterGroupDataType { Name = "Name" };
@@ -347,7 +382,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             m_uaPubSubConfigurator.AddConnection(newConnection);
             uint lastAddedConnId = m_uaPubSubConfigurator.FindIdForObject(newConnection);
             var writerGroup1 = new WriterGroupDataType { Name = "Name" };
-            StatusCode result = m_uaPubSubConfigurator.AddWriterGroup(lastAddedConnId, writerGroup1);
+            StatusCode result = m_uaPubSubConfigurator.AddWriterGroup(
+                lastAddedConnId,
+                writerGroup1);
             Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
 
             NUnit.Framework.Assert.Throws<ArgumentException>(
@@ -356,7 +393,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             );
         }
 
-        [Test(Description = "Validate AddWriterGroup throws ArgumentException if parent id is unknown")]
+        [Test(
+            Description = "Validate AddWriterGroup throws ArgumentException if parent id is unknown")]
         public void ValidateAddWriterGroupThrowsArgumentExceptionIfInvalidParent()
         {
             const uint lastAddedConnId = 7;
@@ -381,7 +419,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             Assert.IsTrue(
                 StatusCode.IsGood(
-                    m_uaPubSubConfigurator.AddDataSetReader(lastAddedReaderGroupId, new DataSetReaderDataType())
+                    m_uaPubSubConfigurator.AddDataSetReader(
+                        lastAddedReaderGroupId,
+                        new DataSetReaderDataType())
                 )
             );
             Assert.AreEqual(expected, CallCountDataSetReaderAdded, 0);
@@ -401,7 +441,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             var dsReader = new DataSetReaderDataType();
 
-            Assert.IsTrue(StatusCode.IsGood(m_uaPubSubConfigurator.AddDataSetReader(lastAddedReaderGroupId, dsReader)));
+            Assert.IsTrue(StatusCode.IsGood(
+                m_uaPubSubConfigurator.AddDataSetReader(lastAddedReaderGroupId, dsReader)));
             Assert.IsTrue(StatusCode.IsGood(m_uaPubSubConfigurator.RemoveDataSetReader(dsReader)));
             Assert.AreEqual(expected, CallCountDataSetReaderRemoved, 0);
         }
@@ -415,7 +456,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             m_uaPubSubConfigurator.AddConnection(newConnection);
             uint lastAddedConnId = m_uaPubSubConfigurator.FindIdForObject(newConnection);
             var readerGroup1 = new ReaderGroupDataType { Name = "Name" };
-            StatusCode result = m_uaPubSubConfigurator.AddReaderGroup(lastAddedConnId, readerGroup1);
+            StatusCode result = m_uaPubSubConfigurator.AddReaderGroup(
+                lastAddedConnId,
+                readerGroup1);
             Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
 
             uint lastAddedGroup = m_uaPubSubConfigurator.FindIdForObject(readerGroup1);
@@ -440,7 +483,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             m_uaPubSubConfigurator.AddConnection(newConnection);
             uint lastAddedConnId = m_uaPubSubConfigurator.FindIdForObject(newConnection);
             var readerGroup1 = new ReaderGroupDataType { Name = "Name" };
-            StatusCode result = m_uaPubSubConfigurator.AddReaderGroup(lastAddedConnId, readerGroup1);
+            StatusCode result = m_uaPubSubConfigurator.AddReaderGroup(
+                lastAddedConnId,
+                readerGroup1);
             Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
 
             uint lastAddedGroup = m_uaPubSubConfigurator.FindIdForObject(readerGroup1);
@@ -483,7 +528,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             Assert.IsTrue(
                 StatusCode.IsGood(
-                    m_uaPubSubConfigurator.AddDataSetWriter(lastAddedWriterGroupId, new DataSetWriterDataType())
+                    m_uaPubSubConfigurator.AddDataSetWriter(
+                        lastAddedWriterGroupId,
+                        new DataSetWriterDataType())
                 )
             );
             Assert.AreEqual(expected, CallCountDataSetWriterAdded, 0);
@@ -503,7 +550,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             uint lastAddedWriterGroupId = m_uaPubSubConfigurator.FindIdForObject(newWriterGroup);
 
             var dsWriter = new DataSetWriterDataType();
-            Assert.IsTrue(StatusCode.IsGood(m_uaPubSubConfigurator.AddDataSetWriter(lastAddedWriterGroupId, dsWriter)));
+            Assert.IsTrue(StatusCode.IsGood(
+                m_uaPubSubConfigurator.AddDataSetWriter(lastAddedWriterGroupId, dsWriter)));
             Assert.IsTrue(StatusCode.IsGood(m_uaPubSubConfigurator.RemoveDataSetWriter(dsWriter)));
             Assert.AreEqual(expected, CallCountDataSetWriterRemoved, 0);
         }
@@ -517,7 +565,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             m_uaPubSubConfigurator.AddConnection(newConnection);
             uint lastAddedConnId = m_uaPubSubConfigurator.FindIdForObject(newConnection);
             var writerGroup1 = new WriterGroupDataType { Name = "Name" };
-            StatusCode result = m_uaPubSubConfigurator.AddWriterGroup(lastAddedConnId, writerGroup1);
+            StatusCode result = m_uaPubSubConfigurator.AddWriterGroup(
+                lastAddedConnId,
+                writerGroup1);
             Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
 
             uint lastAddedGroup = m_uaPubSubConfigurator.FindIdForObject(writerGroup1);
@@ -542,7 +592,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             m_uaPubSubConfigurator.AddConnection(newConnection);
             uint lastAddedConnId = m_uaPubSubConfigurator.FindIdForObject(newConnection);
             var writerGroup1 = new WriterGroupDataType { Name = "Name" };
-            StatusCode result = m_uaPubSubConfigurator.AddWriterGroup(lastAddedConnId, writerGroup1);
+            StatusCode result = m_uaPubSubConfigurator.AddWriterGroup(
+                lastAddedConnId,
+                writerGroup1);
             Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
 
             uint lastAddedGroup = m_uaPubSubConfigurator.FindIdForObject(writerGroup1);
@@ -582,7 +634,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             {
                 StatusCode result = uaPubSubApplication.UaPubSubConfigurator.AddConnection(pscon);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
-                Assert.AreEqual(uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration, pscon);
+                Assert.AreEqual(
+                    uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration,
+                    pscon);
 
                 targetIdx++;
             }
@@ -619,7 +673,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             {
                 var psconNew = (PubSubConnectionDataType)pscon.MemberwiseClone();
 
-                StatusCode result = uaPubSubApplication.UaPubSubConfigurator.AddConnection(psconNew);
+                StatusCode result = uaPubSubApplication.UaPubSubConfigurator
+                    .AddConnection(psconNew);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
 
                 // Add the first writer group in the configuration and check that it is reflected in Application
@@ -632,17 +687,20 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 var writerGroup = (WriterGroupDataType)psconNew.WriterGroups[0].MemberwiseClone();
                 writerGroup.Name += "_";
 
-                uint lastAddedConnId = uaPubSubApplication.UaPubSubConfigurator.FindIdForObject(psconNew);
-                uaPubSubApplication.UaPubSubConfigurator.AddWriterGroup(lastAddedConnId, writerGroup);
+                uint lastAddedConnId = uaPubSubApplication.UaPubSubConfigurator
+                    .FindIdForObject(psconNew);
+                uaPubSubApplication.UaPubSubConfigurator
+                    .AddWriterGroup(lastAddedConnId, writerGroup);
 
                 Assert.AreEqual(
                     uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration,
                     psconNew
                 );
                 Assert.AreEqual(
-                    uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration.WriterGroups[
-                        lastAddedWriterGroupIdx
-                    ],
+                    uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration
+                        .WriterGroups[
+                            lastAddedWriterGroupIdx
+                            ],
                     writerGroup
                 );
                 break;
@@ -660,7 +718,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             {
                 var psconNew = (PubSubConnectionDataType)pscon.MemberwiseClone();
 
-                StatusCode result = uaPubSubApplication.UaPubSubConfigurator.AddConnection(psconNew);
+                StatusCode result = uaPubSubApplication.UaPubSubConfigurator
+                    .AddConnection(psconNew);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
 
                 // Add the first writer group in the configuration and check that it is reflected in Application
@@ -668,7 +727,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 var writerGroup = (WriterGroupDataType)psconNew.WriterGroups[0].MemberwiseClone();
                 writerGroup.Name += "_";
 
-                uint lastAddedConnId = uaPubSubApplication.UaPubSubConfigurator.FindIdForObject(psconNew);
+                uint lastAddedConnId = uaPubSubApplication.UaPubSubConfigurator
+                    .FindIdForObject(psconNew);
 
                 int nrInitialWriterGroups = uaPubSubApplication
                     .PubSubConnections[targetIdx]
@@ -676,7 +736,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     .WriterGroups
                     .Count;
 
-                result = uaPubSubApplication.UaPubSubConfigurator.AddWriterGroup(lastAddedConnId, writerGroup);
+                result = uaPubSubApplication.UaPubSubConfigurator
+                    .AddWriterGroup(lastAddedConnId, writerGroup);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
                 result = uaPubSubApplication.UaPubSubConfigurator.RemoveWriterGroup(writerGroup);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
@@ -704,7 +765,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             {
                 var psconNew = (PubSubConnectionDataType)pscon.MemberwiseClone();
 
-                StatusCode result = uaPubSubApplication.UaPubSubConfigurator.AddConnection(psconNew);
+                StatusCode result = uaPubSubApplication.UaPubSubConfigurator
+                    .AddConnection(psconNew);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
 
                 // Add the first writer group in the configuration and check that it is reflected in Application
@@ -715,21 +777,25 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     .Count;
 
                 var writerGroup = (WriterGroupDataType)psconNew.WriterGroups[0].MemberwiseClone();
-                uint lastAddedConnId = uaPubSubApplication.UaPubSubConfigurator.FindIdForObject(psconNew);
+                uint lastAddedConnId = uaPubSubApplication.UaPubSubConfigurator
+                    .FindIdForObject(psconNew);
                 writerGroup.Name += "_";
 
-                result = uaPubSubApplication.UaPubSubConfigurator.AddWriterGroup(lastAddedConnId, writerGroup);
+                result = uaPubSubApplication.UaPubSubConfigurator
+                    .AddWriterGroup(lastAddedConnId, writerGroup);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
 
-                uint addedWriterGroupId = uaPubSubApplication.UaPubSubConfigurator.FindIdForObject(writerGroup);
+                uint addedWriterGroupId = uaPubSubApplication.UaPubSubConfigurator
+                    .FindIdForObject(writerGroup);
                 Assert.AreEqual(
                     uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration,
                     psconNew
                 );
                 Assert.AreEqual(
-                    uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration.WriterGroups[
-                        lastAddedWriterGroupIdx
-                    ],
+                    uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration
+                        .WriterGroups[
+                            lastAddedWriterGroupIdx
+                            ],
                     writerGroup
                 );
 
@@ -740,9 +806,12 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     .WriterGroups[0]
                     .DataSetWriters
                     .Count;
-                var dataSetWriter = (DataSetWriterDataType)psconNew.WriterGroups[0].DataSetWriters[0].MemberwiseClone();
+                var dataSetWriter = (DataSetWriterDataType)psconNew.WriterGroups[0]
+                    .DataSetWriters[0]
+                    .MemberwiseClone();
                 dataSetWriter.Name += "_";
-                result = uaPubSubApplication.UaPubSubConfigurator.AddDataSetWriter(addedWriterGroupId, dataSetWriter);
+                result = uaPubSubApplication.UaPubSubConfigurator
+                    .AddDataSetWriter(addedWriterGroupId, dataSetWriter);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
 
                 Assert.AreEqual(
@@ -768,7 +837,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             {
                 var psconNew = (PubSubConnectionDataType)pscon.MemberwiseClone();
 
-                StatusCode result = uaPubSubApplication.UaPubSubConfigurator.AddConnection(psconNew);
+                StatusCode result = uaPubSubApplication.UaPubSubConfigurator
+                    .AddConnection(psconNew);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
 
                 // Add the first writer group in the configuration and check that it is reflected in Application
@@ -779,26 +849,32 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     .Count;
 
                 var writerGroup = (WriterGroupDataType)psconNew.WriterGroups[0].MemberwiseClone();
-                uint lastAddedConnId = uaPubSubApplication.UaPubSubConfigurator.FindIdForObject(psconNew);
+                uint lastAddedConnId = uaPubSubApplication.UaPubSubConfigurator
+                    .FindIdForObject(psconNew);
                 writerGroup.Name += "_";
 
-                result = uaPubSubApplication.UaPubSubConfigurator.AddWriterGroup(lastAddedConnId, writerGroup);
+                result = uaPubSubApplication.UaPubSubConfigurator
+                    .AddWriterGroup(lastAddedConnId, writerGroup);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
 
-                uint addedWriterGroupId = uaPubSubApplication.UaPubSubConfigurator.FindIdForObject(writerGroup);
+                uint addedWriterGroupId = uaPubSubApplication.UaPubSubConfigurator
+                    .FindIdForObject(writerGroup);
                 Assert.AreEqual(
                     uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration,
                     psconNew
                 );
                 Assert.AreEqual(
-                    uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration.WriterGroups[
-                        lastAddedWriterGroupIdx
-                    ],
+                    uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration
+                        .WriterGroups[
+                            lastAddedWriterGroupIdx
+                            ],
                     writerGroup
                 );
 
                 // Add the first data set writer in the configuration and check that it is reflected in Application
-                var dataSetWriter = (DataSetWriterDataType)psconNew.WriterGroups[0].DataSetWriters[0].MemberwiseClone();
+                var dataSetWriter = (DataSetWriterDataType)psconNew.WriterGroups[0]
+                    .DataSetWriters[0]
+                    .MemberwiseClone();
                 dataSetWriter.Name += "_";
 
                 int nrInitialDsWriters = uaPubSubApplication
@@ -808,9 +884,11 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     .DataSetWriters
                     .Count;
 
-                result = uaPubSubApplication.UaPubSubConfigurator.AddDataSetWriter(addedWriterGroupId, dataSetWriter);
+                result = uaPubSubApplication.UaPubSubConfigurator
+                    .AddDataSetWriter(addedWriterGroupId, dataSetWriter);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
-                result = uaPubSubApplication.UaPubSubConfigurator.RemoveDataSetWriter(dataSetWriter);
+                result = uaPubSubApplication.UaPubSubConfigurator
+                    .RemoveDataSetWriter(dataSetWriter);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
 
                 int nrActualDsWriters = uaPubSubApplication
@@ -833,17 +911,21 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var appConfPubSubConfiguration = new PubSubConfigurationDataType
             {
                 Connections = [],
-                PublishedDataSets = [],
+                PublishedDataSets = []
             };
             var uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration);
 
-            int targetIdx = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration.PublishedDataSets.Count;
+            int targetIdx = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration
+                .PublishedDataSets
+                .Count;
             foreach (PublishedDataSetDataType pds in m_pubConfigurationLoaded.PublishedDataSets)
             {
-                StatusCode result = uaPubSubApplication.UaPubSubConfigurator.AddPublishedDataSet(pds);
+                StatusCode result = uaPubSubApplication.UaPubSubConfigurator
+                    .AddPublishedDataSet(pds);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
                 Assert.AreEqual(
-                    uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration.PublishedDataSets[targetIdx],
+                    uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration
+                        .PublishedDataSets[targetIdx],
                     pds
                 );
 
@@ -859,7 +941,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var appConfPubSubConfiguration = new PubSubConfigurationDataType
             {
                 Connections = [],
-                PublishedDataSets = [],
+                PublishedDataSets = []
             };
             var uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration);
 
@@ -870,7 +952,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 .Count;
             foreach (PublishedDataSetDataType pds in m_pubConfigurationLoaded.PublishedDataSets)
             {
-                StatusCode result = uaPubSubApplication.UaPubSubConfigurator.AddPublishedDataSet(pds);
+                StatusCode result = uaPubSubApplication.UaPubSubConfigurator
+                    .AddPublishedDataSet(pds);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
                 result = uaPubSubApplication.UaPubSubConfigurator.RemovePublishedDataSet(pds);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
@@ -891,7 +974,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var appConfPubSubConfiguration = new PubSubConfigurationDataType
             {
                 Connections = [],
-                PublishedDataSets = [],
+                PublishedDataSets = []
             };
             var uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration);
 
@@ -900,7 +983,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             {
                 StatusCode result = uaPubSubApplication.UaPubSubConfigurator.AddConnection(pscon);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
-                Assert.AreEqual(uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration, pscon);
+                Assert.AreEqual(
+                    uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration,
+                    pscon);
 
                 targetIdx++;
             }
@@ -934,7 +1019,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var appConfPubSubConfiguration = new PubSubConfigurationDataType
             {
                 Connections = [],
-                PublishedDataSets = [],
+                PublishedDataSets = []
             };
             var uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration);
 
@@ -943,7 +1028,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             {
                 var psconNew = (PubSubConnectionDataType)pscon.MemberwiseClone();
 
-                StatusCode result = uaPubSubApplication.UaPubSubConfigurator.AddConnection(psconNew);
+                StatusCode result = uaPubSubApplication.UaPubSubConfigurator
+                    .AddConnection(psconNew);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
 
                 // Add the first writer group in the configuration and check that it is reflected in Application
@@ -955,18 +1041,21 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
                 var readerGroup = (ReaderGroupDataType)psconNew.ReaderGroups[0].MemberwiseClone();
                 readerGroup.Name += "_";
-                uint lastAddedConnId = uaPubSubApplication.UaPubSubConfigurator.FindIdForObject(psconNew);
+                uint lastAddedConnId = uaPubSubApplication.UaPubSubConfigurator
+                    .FindIdForObject(psconNew);
 
-                uaPubSubApplication.UaPubSubConfigurator.AddReaderGroup(lastAddedConnId, readerGroup);
+                uaPubSubApplication.UaPubSubConfigurator
+                    .AddReaderGroup(lastAddedConnId, readerGroup);
 
                 Assert.AreEqual(
                     uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration,
                     psconNew
                 );
                 Assert.AreEqual(
-                    uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration.ReaderGroups[
-                        lastAddedReaderGroupIdx
-                    ],
+                    uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration
+                        .ReaderGroups[
+                            lastAddedReaderGroupIdx
+                            ],
                     readerGroup
                 );
                 break;
@@ -981,7 +1070,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var appConfPubSubConfiguration = new PubSubConfigurationDataType
             {
                 Connections = [],
-                PublishedDataSets = [],
+                PublishedDataSets = []
             };
             var uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration);
 
@@ -990,13 +1079,15 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             {
                 var psconNew = (PubSubConnectionDataType)pscon.MemberwiseClone();
 
-                StatusCode result = uaPubSubApplication.UaPubSubConfigurator.AddConnection(psconNew);
+                StatusCode result = uaPubSubApplication.UaPubSubConfigurator
+                    .AddConnection(psconNew);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
 
                 // Add the first writer group in the configuration and check that it is reflected in Application
                 var readerGroup = (ReaderGroupDataType)psconNew.ReaderGroups[0].MemberwiseClone();
                 readerGroup.Name += "_";
-                uint lastAddedConnId = uaPubSubApplication.UaPubSubConfigurator.FindIdForObject(psconNew);
+                uint lastAddedConnId = uaPubSubApplication.UaPubSubConfigurator
+                    .FindIdForObject(psconNew);
 
                 int nrInitialReaderGroups = uaPubSubApplication
                     .PubSubConnections[targetIdx]
@@ -1004,7 +1095,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     .ReaderGroups
                     .Count;
 
-                result = uaPubSubApplication.UaPubSubConfigurator.AddReaderGroup(lastAddedConnId, readerGroup);
+                result = uaPubSubApplication.UaPubSubConfigurator
+                    .AddReaderGroup(lastAddedConnId, readerGroup);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
                 result = uaPubSubApplication.UaPubSubConfigurator.RemoveReaderGroup(readerGroup);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
@@ -1031,7 +1123,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             {
                 var psconNew = (PubSubConnectionDataType)pscon.MemberwiseClone();
 
-                StatusCode result = uaPubSubApplication.UaPubSubConfigurator.AddConnection(psconNew);
+                StatusCode result = uaPubSubApplication.UaPubSubConfigurator
+                    .AddConnection(psconNew);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
 
                 // Add the first Reader group in the configuration and check that it is reflected in Application
@@ -1043,18 +1136,21 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
                 var readerGroup = (ReaderGroupDataType)psconNew.ReaderGroups[0].MemberwiseClone();
                 readerGroup.Name += "_";
-                uint lastAddedConnId = uaPubSubApplication.UaPubSubConfigurator.FindIdForObject(psconNew);
+                uint lastAddedConnId = uaPubSubApplication.UaPubSubConfigurator
+                    .FindIdForObject(psconNew);
 
-                result = uaPubSubApplication.UaPubSubConfigurator.AddReaderGroup(lastAddedConnId, readerGroup);
+                result = uaPubSubApplication.UaPubSubConfigurator
+                    .AddReaderGroup(lastAddedConnId, readerGroup);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
                 Assert.AreEqual(
                     uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration,
                     psconNew
                 );
                 Assert.AreEqual(
-                    uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration.ReaderGroups[
-                        lastAddedReaderGroupIdx
-                    ],
+                    uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration
+                        .ReaderGroups[
+                            lastAddedReaderGroupIdx
+                            ],
                     readerGroup
                 );
 
@@ -1065,10 +1161,14 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     .ReaderGroups[0]
                     .DataSetReaders
                     .Count;
-                var dataSetReader = (DataSetReaderDataType)psconNew.ReaderGroups[0].DataSetReaders[0].MemberwiseClone();
+                var dataSetReader = (DataSetReaderDataType)psconNew.ReaderGroups[0]
+                    .DataSetReaders[0]
+                    .MemberwiseClone();
                 dataSetReader.Name += "_";
-                uint addedReaderGroupId = uaPubSubApplication.UaPubSubConfigurator.FindIdForObject(readerGroup);
-                result = uaPubSubApplication.UaPubSubConfigurator.AddDataSetReader(addedReaderGroupId, dataSetReader);
+                uint addedReaderGroupId = uaPubSubApplication.UaPubSubConfigurator
+                    .FindIdForObject(readerGroup);
+                result = uaPubSubApplication.UaPubSubConfigurator
+                    .AddDataSetReader(addedReaderGroupId, dataSetReader);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
                 Assert.AreEqual(
                     uaPubSubApplication
@@ -1093,7 +1193,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             {
                 var psconNew = (PubSubConnectionDataType)pscon.MemberwiseClone();
 
-                StatusCode result = uaPubSubApplication.UaPubSubConfigurator.AddConnection(psconNew);
+                StatusCode result = uaPubSubApplication.UaPubSubConfigurator
+                    .AddConnection(psconNew);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
 
                 // Add the first Reader group in the configuration and check that it is reflected in Application
@@ -1105,24 +1206,30 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
                 var readerGroup = (ReaderGroupDataType)psconNew.ReaderGroups[0].MemberwiseClone();
                 readerGroup.Name += "_";
-                uint lastAddedConnId = uaPubSubApplication.UaPubSubConfigurator.FindIdForObject(psconNew);
+                uint lastAddedConnId = uaPubSubApplication.UaPubSubConfigurator
+                    .FindIdForObject(psconNew);
 
-                result = uaPubSubApplication.UaPubSubConfigurator.AddReaderGroup(lastAddedConnId, readerGroup);
+                result = uaPubSubApplication.UaPubSubConfigurator
+                    .AddReaderGroup(lastAddedConnId, readerGroup);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
-                uint addedReaderGroupId = uaPubSubApplication.UaPubSubConfigurator.FindIdForObject(readerGroup);
+                uint addedReaderGroupId = uaPubSubApplication.UaPubSubConfigurator
+                    .FindIdForObject(readerGroup);
                 Assert.AreEqual(
                     uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration,
                     psconNew
                 );
                 Assert.AreEqual(
-                    uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration.ReaderGroups[
-                        lastAddedReaderGroupIdx
-                    ],
+                    uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration
+                        .ReaderGroups[
+                            lastAddedReaderGroupIdx
+                            ],
                     readerGroup
                 );
 
                 // Add the first data set Reader in the configuration and check that it is reflected in Application
-                var dataSetReader = (DataSetReaderDataType)psconNew.ReaderGroups[0].DataSetReaders[0].MemberwiseClone();
+                var dataSetReader = (DataSetReaderDataType)psconNew.ReaderGroups[0]
+                    .DataSetReaders[0]
+                    .MemberwiseClone();
                 dataSetReader.Name += "_";
 
                 int nrInitialDsReaders = uaPubSubApplication
@@ -1132,9 +1239,11 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     .DataSetReaders
                     .Count;
 
-                result = uaPubSubApplication.UaPubSubConfigurator.AddDataSetReader(addedReaderGroupId, dataSetReader);
+                result = uaPubSubApplication.UaPubSubConfigurator
+                    .AddDataSetReader(addedReaderGroupId, dataSetReader);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
-                result = uaPubSubApplication.UaPubSubConfigurator.RemoveDataSetReader(dataSetReader);
+                result = uaPubSubApplication.UaPubSubConfigurator
+                    .RemoveDataSetReader(dataSetReader);
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
 
                 int nrActualDsReaders = uaPubSubApplication

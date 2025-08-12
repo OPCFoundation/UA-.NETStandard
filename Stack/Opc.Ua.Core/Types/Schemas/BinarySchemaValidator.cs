@@ -104,24 +104,20 @@ namespace Opc.Ua.Schema.Binary
                     var serializer = new XmlSerializer(typeof(TypeDictionary));
                     serializer.Serialize(writer, Dictionary);
                 }
+                else if (
+                    !m_descriptions.TryGetValue(
+                        new XmlQualifiedName(typeName, Dictionary.TargetNamespace),
+                        out TypeDescription description
+                    )
+                )
+                {
+                    var serializer = new XmlSerializer(typeof(TypeDictionary));
+                    serializer.Serialize(writer, Dictionary);
+                }
                 else
                 {
-                    TypeDescription description;
-                    if (
-                        !m_descriptions.TryGetValue(
-                            new XmlQualifiedName(typeName, Dictionary.TargetNamespace),
-                            out description
-                        )
-                    )
-                    {
-                        var serializer = new XmlSerializer(typeof(TypeDictionary));
-                        serializer.Serialize(writer, Dictionary);
-                    }
-                    else
-                    {
-                        var serializer = new XmlSerializer(typeof(TypeDescription));
-                        serializer.Serialize(writer, description);
-                    }
+                    var serializer = new XmlSerializer(typeof(TypeDescription));
+                    serializer.Serialize(writer, description);
                 }
             }
             finally
@@ -206,10 +202,14 @@ namespace Opc.Ua.Schema.Binary
                 return;
             }
 
-            var dictionary = (TypeDictionary)Load(typeof(TypeDictionary), directive.Namespace, directive.Location);
+            var dictionary = (TypeDictionary)Load(
+                typeof(TypeDictionary),
+                directive.Namespace,
+                directive.Location);
 
             // verify namespace.
-            if (!string.IsNullOrEmpty(dictionary.TargetNamespace) && directive.Namespace != dictionary.TargetNamespace)
+            if (!string.IsNullOrEmpty(dictionary.TargetNamespace) &&
+                directive.Namespace != dictionary.TargetNamespace)
             {
                 throw Exception(
                     "Imported dictionary '{0}' does not match uri specified: '{1}'.",
@@ -269,8 +269,7 @@ namespace Opc.Ua.Schema.Binary
         /// </summary>
         private bool IsIntegerType(FieldType field)
         {
-            TypeDescription description;
-            if (!m_descriptions.TryGetValue(field.TypeName, out description))
+            if (!m_descriptions.TryGetValue(field.TypeName, out TypeDescription description))
             {
                 return false;
             }
@@ -293,8 +292,7 @@ namespace Opc.Ua.Schema.Binary
         /// </summary>
         private int GetFieldLength(FieldType field)
         {
-            TypeDescription description;
-            if (!m_descriptions.TryGetValue(field.TypeName, out description))
+            if (!m_descriptions.TryGetValue(field.TypeName, out TypeDescription description))
             {
                 return -1;
             }
@@ -390,7 +388,9 @@ namespace Opc.Ua.Schema.Binary
 
             if (m_descriptions.ContainsKey(description.QName))
             {
-                throw Exception("The description name '{0}' already used by another description.", description.Name);
+                throw Exception(
+                    "The description name '{0}' already used by another description.",
+                    description.Name);
             }
 
             m_descriptions.Add(description.QName, description);
@@ -428,7 +428,9 @@ namespace Opc.Ua.Schema.Binary
 
             if (description is EnumeratedType enumerated && !enumerated.LengthInBitsSpecified)
             {
-                throw Exception("The enumerated type '{0}' does not have a length specified.", description.Name);
+                throw Exception(
+                    "The enumerated type '{0}' does not have a length specified.",
+                    description.Name);
             }
 
             if (description is StructuredType structure)
@@ -476,11 +478,16 @@ namespace Opc.Ua.Schema.Binary
         /// <summary>
         /// Validates a field in a structured type description.
         /// </summary>
-        private void ValidateField(StructuredType description, Dictionary<string, FieldType> fields, FieldType field)
+        private void ValidateField(
+            StructuredType description,
+            Dictionary<string, FieldType> fields,
+            FieldType field)
         {
             if (field == null || string.IsNullOrEmpty(field.Name))
             {
-                throw Exception("The structured type '{0}' has an unnamed field.", description.Name);
+                throw Exception(
+                    "The structured type '{0}' has an unnamed field.",
+                    description.Name);
             }
 
             if (fields.ContainsKey(field.Name))
@@ -565,7 +572,7 @@ namespace Opc.Ua.Schema.Binary
         [
             [Namespaces.OpcBinarySchema, "Opc.Ua.Types.Schemas.StandardTypes.bsd"],
             [Namespaces.OpcUaBuiltInTypes, "Opc.Ua.Types.Schemas.BuiltInTypes.bsd"],
-            [Namespaces.OpcUa, "Opc.Ua.Schema.Opc.Ua.Types.bsd"],
+            [Namespaces.OpcUa, "Opc.Ua.Schema.Opc.Ua.Types.bsd"]
         ];
 
         private Dictionary<XmlQualifiedName, TypeDescription> m_descriptions;

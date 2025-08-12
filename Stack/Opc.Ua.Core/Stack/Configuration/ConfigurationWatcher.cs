@@ -34,7 +34,9 @@ namespace Opc.Ua
 
             if (!fileInfo.Exists)
             {
-                throw new FileNotFoundException("Could not load configuration file", configuration.SourceFilePath);
+                throw new FileNotFoundException(
+                    "Could not load configuration file",
+                    configuration.SourceFilePath);
             }
 
             m_configuration = configuration;
@@ -95,12 +97,16 @@ namespace Opc.Ua
 
                 m_Changed?.Invoke(
                     this,
-                    new ConfigurationWatcherEventArgs(m_configuration, m_configuration.SourceFilePath)
+                    new ConfigurationWatcherEventArgs(
+                        m_configuration,
+                        m_configuration.SourceFilePath)
                 );
             }
             catch (Exception exception)
             {
-                Utils.LogError(exception, "Unexpected error raising configuration file changed event.");
+                Utils.LogError(
+                    exception,
+                    "Unexpected error raising configuration file changed event.");
             }
         }
 
@@ -118,7 +124,9 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a configuration and a file path.
         /// </summary>
-        public ConfigurationWatcherEventArgs(ApplicationConfiguration configuration, string filePath)
+        public ConfigurationWatcherEventArgs(
+            ApplicationConfiguration configuration,
+            string filePath)
         {
             Configuration = configuration;
             FilePath = filePath;

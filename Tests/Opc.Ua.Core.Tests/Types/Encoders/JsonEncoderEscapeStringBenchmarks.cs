@@ -46,8 +46,10 @@ using System.Text.Json;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
-    [TestFixture, Category("JsonEncoder")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("JsonEncoder")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [NonParallelizable]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser(printSource: true)]
@@ -82,7 +84,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // The use case with many binary characters escaped, 5 char spaces
             "     \0     \x01     \x02     \x03     \x04     ",
             // The use case with all escape characters and a long string
-            "Ascii characters, special characters \n \b & control characters \0 \x04 ␀ ␁ ␂ ␃ ␄. This is a test.",
+            "Ascii characters, special characters \n \b & control characters \0 \x04 ␀ ␁ ␂ ␃ ␄. This is a test."
         ];
 
         /// <summary>
@@ -267,7 +269,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void EscapeStringValidation(string name, int index)
         {
             m_memoryStream = new RecyclableMemoryStream(m_memoryManager);
-            m_streamWriter = new StreamWriter(m_memoryStream, new UTF8Encoding(false), m_streamSize, false);
+            m_streamWriter = new StreamWriter(
+                m_memoryStream,
+                new UTF8Encoding(false),
+                m_streamSize,
+                false);
 
             s_testString = EscapeTestStrings[index];
             TestContext.Out.WriteLine(s_testString);
@@ -328,7 +334,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultSpanDict));
 
             m_memoryStream = new RecyclableMemoryStream(m_memoryManager);
-            m_streamWriter = new StreamWriter(m_memoryStream, new UTF8Encoding(false), m_streamSize, false);
+            m_streamWriter = new StreamWriter(
+                m_memoryStream,
+                new UTF8Encoding(false),
+                m_streamSize,
+                false);
             EscapeStringNewtonSoft(s_testString);
             m_streamWriter.Flush();
             byte[] resultNewtonSoft = m_memoryStream.ToArray();
@@ -358,7 +368,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             m_memoryManager = new RecyclableMemoryStreamManager();
             m_memoryStream = new RecyclableMemoryStream(m_memoryManager);
-            m_streamWriter = new StreamWriter(m_memoryStream, new UTF8Encoding(false), m_streamSize, false);
+            m_streamWriter = new StreamWriter(
+                m_memoryStream,
+                new UTF8Encoding(false),
+                m_streamSize,
+                false);
         }
 
         [OneTimeTearDown]
@@ -456,7 +470,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     {
                         m_streamWriter.Write('\\');
                         m_streamWriter.Write('u');
-                        m_streamWriter.Write(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
+                        m_streamWriter.Write(
+                            ((int)ch).ToString("X4", CultureInfo.InvariantCulture));
                         continue;
                     }
 
@@ -517,7 +532,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// <summary>
         /// Use span to escape the string, write only chars to stream writer.
         /// </summary>
-        /// <param name="value"></param>
         private void EscapeStringSpanChars(string value)
         {
             ReadOnlySpan<char> charSpan = value.AsSpan();
@@ -594,7 +608,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// <summary>
         /// Write only chars to stream writer, inline the write sequence for readability.
         /// </summary>
-        /// <param name="value"></param>
         private void EscapeStringSpanCharsInline(string value)
         {
             ReadOnlySpan<char> charSpan = value.AsSpan();
@@ -639,7 +652,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// <summary>
         /// create version of EscapeStringSpanCharsInline that references cosnt arrays
         /// </summary>
-        /// <param name="value"></param>
         private void EscapeStringSpanCharsInlineConst(string value)
         {
             ReadOnlySpan<char> charSpan = value.AsSpan();
@@ -776,7 +788,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 #if NET6_0_OR_GREATER
         private void EscapeStringSystemTextJson(string value)
         {
-            var jsonEncodedText = JsonEncodedText.Encode(s_testString, JavaScriptEncoder.UnsafeRelaxedJsonEscaping);
+            var jsonEncodedText = JsonEncodedText.Encode(
+                s_testString,
+                JavaScriptEncoder.UnsafeRelaxedJsonEscaping);
             m_memoryStream.Write(jsonEncodedText.EncodedUtf8Bytes);
         }
 #endif
@@ -793,8 +807,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }
                 else if (ch < 32)
                 {
-                    stringBuilder.Append("\\u");
-                    stringBuilder.Append(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
+                    stringBuilder.Append("\\u")
+                        .Append(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
                 }
                 else
                 {
@@ -829,7 +843,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             kSroReturn,
             kSroTab,
             kSroBackspace,
-            kSroFormfeed,
+            kSroFormfeed
         ];
 
         /// <summary>
@@ -850,7 +864,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             kSro_returnSub,
             kSro_tabSub,
             kSro_backspaceSub,
-            kSro_formfeedSub,
+            kSro_formfeedSub
         ];
 
         /// <summary>
@@ -872,7 +886,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             kReturn,
             kTab,
             kBackspace,
-            kFormfeed,
+            kFormfeed
         ];
 
         /// <summary>
@@ -894,10 +908,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             kReturnSub,
             kTabSub,
             kBackspaceSub,
-            kFormfeedSub,
+            kFormfeedSub
         ];
 
-        private static readonly string[] s_substitutionStrings = ["\\\"", "\\\\", "\\n", "\\r", "\\t", "\\b", "\\f"];
+        private static readonly string[] s_substitutionStrings
+            = ["\\\"", "\\\\", "\\n", "\\r", "\\t", "\\b", "\\f"];
         private static readonly Dictionary<char, string> s_replace = new()
         {
             { '\"', "\\\"" },
@@ -906,7 +921,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             { '\r', "\\r" },
             { '\t', "\\t" },
             { '\b', "\\b" },
-            { '\f', "\\f" },
+            { '\f', "\\f" }
         };
     }
 }

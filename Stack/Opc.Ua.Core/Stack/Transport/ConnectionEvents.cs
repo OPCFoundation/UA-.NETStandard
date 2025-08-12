@@ -52,7 +52,10 @@ namespace Opc.Ua
     /// </summary>
     public class ConnectionStatusEventArgs : EventArgs
     {
-        internal ConnectionStatusEventArgs(Uri endpointUrl, ServiceResult channelStatus, bool closed)
+        internal ConnectionStatusEventArgs(
+            Uri endpointUrl,
+            ServiceResult channelStatus,
+            bool closed)
         {
             EndpointUrl = endpointUrl;
             ChannelStatus = channelStatus;

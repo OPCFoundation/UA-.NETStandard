@@ -40,8 +40,14 @@ namespace TestData
         {
             base.OnAfterCreate(context, node);
 
-            InitializeVariable(context, ScalarStructure, Variables.StructureValueObjectType_ScalarStructure);
-            InitializeVariable(context, VectorStructure, Variables.StructureValueObjectType_VectorStructure);
+            InitializeVariable(
+                context,
+                ScalarStructure,
+                Variables.StructureValueObjectType_ScalarStructure);
+            InitializeVariable(
+                context,
+                VectorStructure,
+                Variables.StructureValueObjectType_VectorStructure);
         }
 
         /// <summary>

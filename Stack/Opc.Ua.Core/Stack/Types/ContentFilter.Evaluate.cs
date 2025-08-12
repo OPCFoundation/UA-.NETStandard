@@ -28,7 +28,8 @@ namespace Opc.Ua
         /// Set the default StringComparison to use when evaluating the Equals operator.
         /// This property is meant to be set as a config setting and not set / reset on a per context basis, to ensure consistency
         /// </summary>
-        public static StringComparison EqualsOperatorDefaultStringComparison { get; set; } = StringComparison.Ordinal;
+        public static StringComparison EqualsOperatorDefaultStringComparison { get; set; }
+            = StringComparison.Ordinal;
 
         /// <summary>
         /// Evaluates the first element in the ContentFilter. If the first or any
@@ -56,6 +57,7 @@ namespace Opc.Ua
         /// <summary>
         /// Evaluates element at the specified index.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object Evaluate(FilterContext context, IFilterTarget target, int index)
         {
             // get the element to evaluate.
@@ -65,65 +67,51 @@ namespace Opc.Ua
             {
                 case FilterOperator.And:
                     return And(context, target, element);
-
                 case FilterOperator.Or:
                     return Or(context, target, element);
-
                 case FilterOperator.Not:
                     return Not(context, target, element);
-
                 case FilterOperator.Equals:
                     return Equals(context, target, element);
-
                 case FilterOperator.GreaterThan:
                     return GreaterThan(context, target, element);
-
                 case FilterOperator.GreaterThanOrEqual:
                     return GreaterThanOrEqual(context, target, element);
-
                 case FilterOperator.LessThan:
                     return LessThan(context, target, element);
-
                 case FilterOperator.LessThanOrEqual:
                     return LessThanOrEqual(context, target, element);
-
                 case FilterOperator.Between:
                     return Between(context, target, element);
-
                 case FilterOperator.InList:
                     return InList(context, target, element);
-
                 case FilterOperator.Like:
                     return Like(context, target, element);
-
                 case FilterOperator.IsNull:
                     return IsNull(context, target, element);
-
                 case FilterOperator.Cast:
                     return Cast(context, target, element);
-
                 case FilterOperator.OfType:
                     return OfType(context, target, element);
-
                 case FilterOperator.InView:
                     return InView(context, target, element);
-
                 case FilterOperator.RelatedTo:
                     return RelatedTo(context, target, element);
-
                 case FilterOperator.BitwiseAnd:
                     return BitwiseAnd(context, target, element);
-
                 case FilterOperator.BitwiseOr:
                     return BitwiseOr(context, target, element);
             }
 
-            throw new ServiceResultException(StatusCodes.BadUnexpectedError, "FilterOperator is not recognized.");
+            throw new ServiceResultException(
+                StatusCodes.BadUnexpectedError,
+                "FilterOperator is not recognized.");
         }
 
         /// <summary>
         /// Returns the operands for the element.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private static FilterOperand[] GetOperands(ContentFilterElement element, int expectedCount)
         {
             var operands = new FilterOperand[element.FilterOperands.Count];
@@ -134,12 +122,16 @@ namespace Opc.Ua
             {
                 if (ExtensionObject.IsNull(extension))
                 {
-                    throw new ServiceResultException(StatusCodes.BadUnexpectedError, "FilterOperand is null.");
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        "FilterOperand is null.");
                 }
 
                 if (extension.Body is not FilterOperand operand)
                 {
-                    throw new ServiceResultException(StatusCodes.BadUnexpectedError, "FilterOperand is not supported.");
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        "FilterOperand is not supported.");
                 }
 
                 operands[ii++] = operand;
@@ -188,6 +180,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the value for the element.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private object GetValue(FilterContext context, FilterOperand operand, IFilterTarget target)
         {
             // return the contained value for literal operands.
@@ -238,7 +231,9 @@ namespace Opc.Ua
             }
 
             // oops - Validate() was not called.
-            throw new ServiceResultException(StatusCodes.BadUnexpectedError, "FilterOperand is not supported.");
+            throw new ServiceResultException(
+                StatusCodes.BadUnexpectedError,
+                "FilterOperand is not supported.");
         }
 
         /// <summary>
@@ -382,7 +377,9 @@ namespace Opc.Ua
         /// </summary>
         private static BuiltInType GetBuiltInType(NodeId datatypeId)
         {
-            if (datatypeId == null || datatypeId.NamespaceIndex != 0 || datatypeId.IdType != IdType.Numeric)
+            if (datatypeId == null ||
+                datatypeId.NamespaceIndex != 0 ||
+                datatypeId.IdType != IdType.Numeric)
             {
                 return BuiltInType.Null;
             }
@@ -399,55 +396,38 @@ namespace Opc.Ua
             {
                 case BuiltInType.Double:
                     return 18;
-
                 case BuiltInType.Float:
                     return 17;
-
                 case BuiltInType.Int64:
                     return 16;
-
                 case BuiltInType.UInt64:
                     return 15;
-
                 case BuiltInType.Int32:
                     return 14;
-
                 case BuiltInType.UInt32:
                     return 13;
-
                 case BuiltInType.StatusCode:
                     return 12;
-
                 case BuiltInType.Int16:
                     return 11;
-
                 case BuiltInType.UInt16:
                     return 10;
-
                 case BuiltInType.SByte:
                     return 9;
-
                 case BuiltInType.Byte:
                     return 8;
-
                 case BuiltInType.Boolean:
                     return 7;
-
                 case BuiltInType.Guid:
                     return 6;
-
                 case BuiltInType.String:
                     return 5;
-
                 case BuiltInType.ExpandedNodeId:
                     return 4;
-
                 case BuiltInType.NodeId:
                     return 3;
-
                 case BuiltInType.LocalizedText:
                     return 2;
-
                 case BuiltInType.QualifiedName:
                     return 1;
             }
@@ -547,7 +527,11 @@ namespace Opc.Ua
             // The specail meaning of the regular expression characters not coincident with the
             // OPC UA wildcards must be suppressed so as not to interfere with matching.
             // preceed all '^', '$', '.', '|', '?', '*', '+', '(', ')' with a '\'
-            expression = Regex.Replace(expression, "([\\^\\$\\.\\|\\?\\*\\+\\(\\)])", "\\$1", RegexOptions.Compiled);
+            expression = Regex.Replace(
+                expression,
+                "([\\^\\$\\.\\|\\?\\*\\+\\(\\)])",
+                "\\$1",
+                RegexOptions.Compiled);
 
             // 2) Replace all OPC UA wildcards with their regular expression equivalents
             // replace all '%' with ".+", except "\%"
@@ -605,7 +589,6 @@ namespace Opc.Ua
             {
                 case BuiltInType.Boolean:
                     return (bool)value;
-
                 case BuiltInType.SByte:
                 case BuiltInType.Byte:
                     return Convert.ToBoolean((byte)value);
@@ -625,7 +608,6 @@ namespace Opc.Ua
                     return Convert.ToBoolean((float)value);
                 case BuiltInType.Double:
                     return Convert.ToBoolean((double)value);
-
                 case BuiltInType.String:
                     return XmlConvert.ToBoolean((string)value);
             }
@@ -658,7 +640,6 @@ namespace Opc.Ua
             {
                 case BuiltInType.SByte:
                     return (sbyte)value;
-
                 case BuiltInType.Boolean:
                     return Convert.ToSByte((bool)value);
                 case BuiltInType.Byte:
@@ -679,7 +660,6 @@ namespace Opc.Ua
                     return Convert.ToSByte((float)value);
                 case BuiltInType.Double:
                     return Convert.ToSByte((double)value);
-
                 case BuiltInType.String:
                     return XmlConvert.ToSByte((string)value);
             }
@@ -691,13 +671,15 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a value to a Byte
         /// </summary>
+        /// <exception cref="NotImplementedException"></exception>
         private static object ToByte(object value, BuiltInType sourceType)
         {
             // check for array conversions.
 
             if (value is Array)
             {
-                throw new NotImplementedException("Arrays of Byte not supported. Use ByteString instead.");
+                throw new NotImplementedException(
+                    "Arrays of Byte not supported. Use ByteString instead.");
             }
 
             // handle for supported conversions.
@@ -705,7 +687,6 @@ namespace Opc.Ua
             {
                 case BuiltInType.Byte:
                     return (byte)value;
-
                 case BuiltInType.Boolean:
                     return Convert.ToByte((bool)value);
                 case BuiltInType.SByte:
@@ -726,7 +707,6 @@ namespace Opc.Ua
                     return Convert.ToByte((float)value);
                 case BuiltInType.Double:
                     return Convert.ToByte((double)value);
-
                 case BuiltInType.String:
                     return XmlConvert.ToByte((string)value);
             }
@@ -759,7 +739,6 @@ namespace Opc.Ua
             {
                 case BuiltInType.Int16:
                     return (short)value;
-
                 case BuiltInType.Boolean:
                     return Convert.ToInt16((bool)value);
                 case BuiltInType.SByte:
@@ -780,7 +759,6 @@ namespace Opc.Ua
                     return Convert.ToInt16((float)value);
                 case BuiltInType.Double:
                     return Convert.ToInt16((double)value);
-
                 case BuiltInType.String:
                     return XmlConvert.ToInt16((string)value);
             }
@@ -813,7 +791,6 @@ namespace Opc.Ua
             {
                 case BuiltInType.UInt16:
                     return (ushort)value;
-
                 case BuiltInType.Boolean:
                     return Convert.ToUInt16((bool)value);
                 case BuiltInType.SByte:
@@ -834,10 +811,8 @@ namespace Opc.Ua
                     return Convert.ToUInt16((float)value);
                 case BuiltInType.Double:
                     return Convert.ToUInt16((double)value);
-
                 case BuiltInType.String:
                     return XmlConvert.ToUInt16((string)value);
-
                 case BuiltInType.StatusCode:
                     var code = (StatusCode)value;
                     return (ushort)(code.CodeBits >> 16);
@@ -871,7 +846,6 @@ namespace Opc.Ua
             {
                 case BuiltInType.Int32:
                     return (int)value;
-
                 case BuiltInType.Boolean:
                     return Convert.ToInt32((bool)value);
                 case BuiltInType.SByte:
@@ -892,10 +866,8 @@ namespace Opc.Ua
                     return Convert.ToInt32((float)value);
                 case BuiltInType.Double:
                     return Convert.ToInt32((double)value);
-
                 case BuiltInType.String:
                     return XmlConvert.ToInt32((string)value);
-
                 case BuiltInType.StatusCode:
                     return Convert.ToInt32(((StatusCode)value).Code);
             }
@@ -928,7 +900,6 @@ namespace Opc.Ua
             {
                 case BuiltInType.UInt32:
                     return (uint)value;
-
                 case BuiltInType.Boolean:
                     return Convert.ToUInt32((bool)value);
                 case BuiltInType.SByte:
@@ -949,10 +920,8 @@ namespace Opc.Ua
                     return Convert.ToUInt32((float)value);
                 case BuiltInType.Double:
                     return Convert.ToUInt32((double)value);
-
                 case BuiltInType.String:
                     return XmlConvert.ToUInt32((string)value);
-
                 case BuiltInType.StatusCode:
                     return Convert.ToUInt32(((StatusCode)value).Code);
             }
@@ -985,7 +954,6 @@ namespace Opc.Ua
             {
                 case BuiltInType.Int64:
                     return (long)value;
-
                 case BuiltInType.Boolean:
                     return Convert.ToInt64((bool)value);
                 case BuiltInType.SByte:
@@ -1006,10 +974,8 @@ namespace Opc.Ua
                     return Convert.ToInt64((float)value);
                 case BuiltInType.Double:
                     return Convert.ToInt64((double)value);
-
                 case BuiltInType.String:
                     return XmlConvert.ToInt64((string)value);
-
                 case BuiltInType.StatusCode:
                     return Convert.ToInt64(((StatusCode)value).Code);
             }
@@ -1042,7 +1008,6 @@ namespace Opc.Ua
             {
                 case BuiltInType.UInt64:
                     return (ulong)value;
-
                 case BuiltInType.Boolean:
                     return Convert.ToUInt64((bool)value);
                 case BuiltInType.SByte:
@@ -1063,10 +1028,8 @@ namespace Opc.Ua
                     return Convert.ToUInt64((float)value);
                 case BuiltInType.Double:
                     return Convert.ToUInt64((double)value);
-
                 case BuiltInType.String:
                     return XmlConvert.ToUInt64((string)value);
-
                 case BuiltInType.StatusCode:
                     return Convert.ToUInt64(((StatusCode)value).Code);
             }
@@ -1099,7 +1062,6 @@ namespace Opc.Ua
             {
                 case BuiltInType.Float:
                     return (float)value;
-
                 case BuiltInType.Boolean:
                     return Convert.ToSingle((bool)value);
                 case BuiltInType.SByte:
@@ -1120,7 +1082,6 @@ namespace Opc.Ua
                     return Convert.ToSingle((ulong)value);
                 case BuiltInType.Double:
                     return Convert.ToSingle((double)value);
-
                 case BuiltInType.String:
                     return XmlConvert.ToSingle((string)value);
             }
@@ -1153,7 +1114,6 @@ namespace Opc.Ua
             {
                 case BuiltInType.Double:
                     return (double)value;
-
                 case BuiltInType.Boolean:
                     return Convert.ToDouble((bool)value);
                 case BuiltInType.SByte:
@@ -1174,7 +1134,6 @@ namespace Opc.Ua
                     return Convert.ToDouble((ulong)value);
                 case BuiltInType.Float:
                     return Convert.ToDouble((float)value);
-
                 case BuiltInType.String:
                     return XmlConvert.ToDouble((string)value);
             }
@@ -1207,55 +1166,40 @@ namespace Opc.Ua
             {
                 case BuiltInType.String:
                     return (string)value;
-
                 case BuiltInType.Boolean:
                     return XmlConvert.ToString((bool)value);
-
                 case BuiltInType.SByte:
                     return XmlConvert.ToString((sbyte)value);
-
                 case BuiltInType.Byte:
                     return XmlConvert.ToString((byte)value);
-
                 case BuiltInType.Int16:
                     return XmlConvert.ToString((short)value);
-
                 case BuiltInType.UInt16:
                     return XmlConvert.ToString((ushort)value);
-
                 case BuiltInType.Int32:
                     return XmlConvert.ToString((int)value);
-
                 case BuiltInType.UInt32:
                     return XmlConvert.ToString((uint)value);
-
                 case BuiltInType.Int64:
                     return XmlConvert.ToString((long)value);
-
                 case BuiltInType.UInt64:
                     return XmlConvert.ToString((ulong)value);
-
                 case BuiltInType.Float:
                     return XmlConvert.ToString((float)value);
-
                 case BuiltInType.Double:
                     return XmlConvert.ToString((double)value);
-
                 case BuiltInType.DateTime:
-                    return XmlConvert.ToString((DateTime)value, XmlDateTimeSerializationMode.Unspecified);
-
+                    return XmlConvert.ToString(
+                        (DateTime)value,
+                        XmlDateTimeSerializationMode.Unspecified);
                 case BuiltInType.Guid:
                     return ((Guid)value).ToString();
-
                 case BuiltInType.NodeId:
                     return ((NodeId)value).ToString();
-
                 case BuiltInType.ExpandedNodeId:
                     return ((ExpandedNodeId)value).ToString();
-
                 case BuiltInType.LocalizedText:
                     return ((LocalizedText)value).Text;
-
                 case BuiltInType.QualifiedName:
                     return ((QualifiedName)value).ToString();
             }
@@ -1288,7 +1232,6 @@ namespace Opc.Ua
             {
                 case BuiltInType.DateTime:
                     return (DateTime)value;
-
                 case BuiltInType.String:
                     return XmlConvert.ToDateTimeOffset((string)value);
             }
@@ -1321,10 +1264,8 @@ namespace Opc.Ua
             {
                 case BuiltInType.Guid:
                     return (Guid)value;
-
                 case BuiltInType.String:
                     return new Guid((string)value);
-
                 case BuiltInType.ByteString:
                     return new Guid((byte[])value);
             }
@@ -1357,7 +1298,6 @@ namespace Opc.Ua
             {
                 case BuiltInType.ByteString:
                     return (byte[])value;
-
                 case BuiltInType.Guid:
                     return ((Guid)value).ToByteArray();
             }
@@ -1390,10 +1330,8 @@ namespace Opc.Ua
             {
                 case BuiltInType.NodeId:
                     return (NodeId)value;
-
                 case BuiltInType.ExpandedNodeId:
                     return (NodeId)(ExpandedNodeId)value;
-
                 case BuiltInType.String:
                     return NodeId.Parse((string)value);
             }
@@ -1415,7 +1353,9 @@ namespace Opc.Ua
 
                 for (int ii = 0; ii < array.Length; ii++)
                 {
-                    output[ii] = (ExpandedNodeId)Cast(array.GetValue(ii), BuiltInType.ExpandedNodeId);
+                    output[ii] = (ExpandedNodeId)Cast(
+                        array.GetValue(ii),
+                        BuiltInType.ExpandedNodeId);
                 }
 
                 return output;
@@ -1426,10 +1366,8 @@ namespace Opc.Ua
             {
                 case BuiltInType.ExpandedNodeId:
                     return (ExpandedNodeId)value;
-
                 case BuiltInType.NodeId:
                     return (ExpandedNodeId)(NodeId)value;
-
                 case BuiltInType.String:
                     return ExpandedNodeId.Parse((string)value);
             }
@@ -1462,21 +1400,16 @@ namespace Opc.Ua
             {
                 case BuiltInType.StatusCode:
                     return (StatusCode)value;
-
                 case BuiltInType.UInt16:
                     uint code = Convert.ToUInt32((ushort)value);
                     code <<= 16;
                     return (StatusCode)code;
-
                 case BuiltInType.Int32:
                     return (StatusCode)Convert.ToUInt32((int)value);
-
                 case BuiltInType.UInt32:
                     return (StatusCode)(uint)value;
-
                 case BuiltInType.Int64:
                     return (StatusCode)Convert.ToUInt32((long)value);
-
                 case BuiltInType.UInt64:
                     return (StatusCode)Convert.ToUInt32((ulong)value);
             }
@@ -1509,7 +1442,6 @@ namespace Opc.Ua
             {
                 case BuiltInType.QualifiedName:
                     return (QualifiedName)value;
-
                 case BuiltInType.String:
                     return QualifiedName.Parse((string)value);
             }
@@ -1542,7 +1474,6 @@ namespace Opc.Ua
             {
                 case BuiltInType.LocalizedText:
                     return (LocalizedText)value;
-
                 case BuiltInType.String:
                     return new LocalizedText((string)value);
             }
@@ -1632,7 +1563,12 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Error converting a {0} (Value={1}) to {2}.", sourceType, source, targetType);
+                Utils.LogError(
+                    e,
+                    "Error converting a {0} (Value={1}) to {2}.",
+                    sourceType,
+                    source,
+                    targetType);
             }
 
             // conversion not supported.
@@ -1662,10 +1598,8 @@ namespace Opc.Ua
                 {
                     return null;
                 }
-                else
-                {
-                    return false;
-                }
+
+                return false;
             }
 
             if (rhs == null)
@@ -1674,10 +1608,8 @@ namespace Opc.Ua
                 {
                     return null;
                 }
-                else
-                {
-                    return false;
-                }
+
+                return false;
             }
 
             return lhs.Value && rhs.Value;
@@ -1706,10 +1638,8 @@ namespace Opc.Ua
                 {
                     return null;
                 }
-                else
-                {
-                    return true;
-                }
+
+                return true;
             }
 
             if (rhs == null)
@@ -1718,10 +1648,8 @@ namespace Opc.Ua
                 {
                     return null;
                 }
-                else
-                {
-                    return true;
-                }
+
+                return true;
             }
 
             return lhs.Value || rhs.Value;
@@ -1747,7 +1675,10 @@ namespace Opc.Ua
         /// <summary>
         /// Equals FilterOperator
         /// </summary>
-        private bool Equals(FilterContext context, IFilterTarget target, ContentFilterElement element)
+        private bool Equals(
+            FilterContext context,
+            IFilterTarget target,
+            ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 2);
 
@@ -1762,7 +1693,10 @@ namespace Opc.Ua
         /// <summary>
         /// GreaterThan FilterOperator
         /// </summary>
-        private bool? GreaterThan(FilterContext context, IFilterTarget target, ContentFilterElement element)
+        private bool? GreaterThan(
+            FilterContext context,
+            IFilterTarget target,
+            ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 2);
 
@@ -1783,7 +1717,10 @@ namespace Opc.Ua
         /// <summary>
         /// GreaterThanOrEqual FilterOperator
         /// </summary>
-        private bool? GreaterThanOrEqual(FilterContext context, IFilterTarget target, ContentFilterElement element)
+        private bool? GreaterThanOrEqual(
+            FilterContext context,
+            IFilterTarget target,
+            ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 2);
 
@@ -1804,7 +1741,10 @@ namespace Opc.Ua
         /// <summary>
         /// LessThan FilterOperator
         /// </summary>
-        private bool? LessThan(FilterContext context, IFilterTarget target, ContentFilterElement element)
+        private bool? LessThan(
+            FilterContext context,
+            IFilterTarget target,
+            ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 2);
 
@@ -1825,7 +1765,10 @@ namespace Opc.Ua
         /// <summary>
         /// LessThanOrEqual FilterOperator
         /// </summary>
-        private bool? LessThanOrEqual(FilterContext context, IFilterTarget target, ContentFilterElement element)
+        private bool? LessThanOrEqual(
+            FilterContext context,
+            IFilterTarget target,
+            ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 2);
 
@@ -1846,7 +1789,10 @@ namespace Opc.Ua
         /// <summary>
         /// Between FilterOperator
         /// </summary>
-        private bool? Between(FilterContext context, IFilterTarget target, ContentFilterElement element)
+        private bool? Between(
+            FilterContext context,
+            IFilterTarget target,
+            ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 3);
 
@@ -1894,7 +1840,10 @@ namespace Opc.Ua
         /// <summary>
         /// InList FilterOperator
         /// </summary>
-        private bool? InList(FilterContext context, IFilterTarget target, ContentFilterElement element)
+        private bool? InList(
+            FilterContext context,
+            IFilterTarget target,
+            ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 0);
 
@@ -1961,7 +1910,10 @@ namespace Opc.Ua
         /// <summary>
         /// IsNull FilterOperator
         /// </summary>
-        private bool IsNull(FilterContext context, IFilterTarget target, ContentFilterElement element)
+        private bool IsNull(
+            FilterContext context,
+            IFilterTarget target,
+            ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 1);
 
@@ -1973,7 +1925,10 @@ namespace Opc.Ua
         /// <summary>
         /// Cast FilterOperator
         /// </summary>
-        private object Cast(FilterContext context, IFilterTarget target, ContentFilterElement element)
+        private object Cast(
+            FilterContext context,
+            IFilterTarget target,
+            ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 2);
 
@@ -2000,7 +1955,10 @@ namespace Opc.Ua
         /// <summary>
         /// OfType FilterOperator
         /// </summary>
-        private bool OfType(FilterContext context, IFilterTarget target, ContentFilterElement element)
+        private bool OfType(
+            FilterContext context,
+            IFilterTarget target,
+            ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 1);
 
@@ -2026,7 +1984,10 @@ namespace Opc.Ua
         /// <summary>
         /// InView FilterOperator
         /// </summary>
-        private bool InView(FilterContext context, IFilterTarget target, ContentFilterElement element)
+        private bool InView(
+            FilterContext context,
+            IFilterTarget target,
+            ContentFilterElement element)
         {
             // views only supported in advanced filter targets.
 
@@ -2059,7 +2020,10 @@ namespace Opc.Ua
         /// <summary>
         /// RelatedTo FilterOperator
         /// </summary>
-        private bool RelatedTo(FilterContext context, IFilterTarget target, ContentFilterElement element)
+        private bool RelatedTo(
+            FilterContext context,
+            IFilterTarget target,
+            ContentFilterElement element)
         {
             return RelatedTo(context, target, element, null);
         }
@@ -2112,7 +2076,8 @@ namespace Opc.Ua
 
             if (includeValue != null)
             {
-                includeTypeDefinitionSubtypes = Cast(includeValue, BuiltInType.Boolean) as bool? ?? (bool?)true;
+                includeTypeDefinitionSubtypes = Cast(includeValue, BuiltInType.Boolean) as bool? ??
+                    (bool?)true;
             }
 
             // get whether to include reference type subtypes.
@@ -2122,7 +2087,8 @@ namespace Opc.Ua
 
             if (includeValue != null)
             {
-                includeReferenceTypeSubtypes = Cast(includeValue, BuiltInType.Boolean) as bool? ?? (bool?)true;
+                includeReferenceTypeSubtypes = Cast(includeValue, BuiltInType.Boolean) as bool? ??
+                    (bool?)true;
             }
 
             NodeId targetTypeId = null;
@@ -2143,7 +2109,8 @@ namespace Opc.Ua
                 // get the target type from the first operand of the chained element.
                 if (chainedElement.FilterOperator == FilterOperator.RelatedTo)
                 {
-                    var nestedType = ExtensionObject.ToEncodeable(chainedElement.FilterOperands[0]) as FilterOperand;
+                    var nestedType = ExtensionObject.ToEncodeable(
+                        chainedElement.FilterOperands[0]) as FilterOperand;
 
                     targetTypeId = GetValue(context, nestedType, target) as NodeId;
 
@@ -2218,7 +2185,10 @@ namespace Opc.Ua
         /// <summary>
         /// BitwiseAnd FilterOperator
         /// </summary>
-        private object BitwiseAnd(FilterContext context, IFilterTarget target, ContentFilterElement element)
+        private object BitwiseAnd(
+            FilterContext context,
+            IFilterTarget target,
+            ContentFilterElement element)
         {
             (object lhs, object rhs) = GetBitwiseOperands(context, target, element);
             if (lhs == null || rhs == null)
@@ -2265,7 +2235,10 @@ namespace Opc.Ua
         /// <summary>
         /// BitwiseOr FilterOperator
         /// </summary>
-        private object BitwiseOr(FilterContext context, IFilterTarget target, ContentFilterElement element)
+        private object BitwiseOr(
+            FilterContext context,
+            IFilterTarget target,
+            ContentFilterElement element)
         {
             (object lhs, object rhs) = GetBitwiseOperands(context, target, element);
             if (lhs == null || rhs == null)

@@ -39,28 +39,39 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
     /// <summary>
     /// Tests for the UANodeSet helper.
     /// </summary>
-    [TestFixture, Category("UANodeSet")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("UANodeSet")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class UANodeSetHelpersTests
     {
         [DatapointSource]
         public static readonly NodeSet2Asset[] NodeSet2AssetArray =
         [
-            .. AssetCollection<NodeSet2Asset>.CreateFromFiles(Ua.Tests.TestUtils.EnumerateTestAssets("*.NodeSet2.xml")),
+            .. AssetCollection<NodeSet2Asset>.CreateFromFiles(
+                Ua.Tests.TestUtils.EnumerateTestAssets("*.NodeSet2.xml"))
         ];
 
         [OneTimeSetUp]
-        protected void OneTimeSetUp() { }
+        protected void OneTimeSetUp()
+        {
+        }
 
         [OneTimeTearDown]
-        protected void OneTimeTearDown() { }
+        protected void OneTimeTearDown()
+        {
+        }
 
         [SetUp]
-        protected void SetUp() { }
+        protected void SetUp()
+        {
+        }
 
         [TearDown]
-        protected void TearDown() { }
+        protected void TearDown()
+        {
+        }
 
         /// <summary>
         /// Test Structure Field ArrayDimensions attribute is correctly imported respectively exported
@@ -197,11 +208,16 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
         [Test]
         [TestCase("Stack/Opc.Ua.Core/Schema/Opc.Ua.NodeSet2.xml")]
         [TestCase("Applications/Quickstarts.Servers/TestData/Generated/TestData.NodeSet2.xml")]
-        [TestCase("Applications/Quickstarts.Servers/MemoryBuffer/Generated/MemoryBuffer.NodeSet2.xml")]
+        [TestCase(
+            "Applications/Quickstarts.Servers/MemoryBuffer/Generated/MemoryBuffer.NodeSet2.xml")]
         [TestCase("Applications/Quickstarts.Servers/Boiler/Generated/Boiler.NodeSet2.xml")]
         public void NodeSet2ValidationTest(string nodeset2File)
         {
-            string assetPath = Utils.GetAbsoluteFilePath("../../../../../" + nodeset2File, true, false, false);
+            string assetPath = Utils.GetAbsoluteFilePath(
+                "../../../../../" + nodeset2File,
+                true,
+                false,
+                false);
             using var importStream = new FileStream(assetPath, FileMode.Open);
             var importedNodeSet = Export.UANodeSet.Read(importStream);
             Assert.NotNull(importedNodeSet);
@@ -246,8 +262,6 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
     /// </summary>
     public class NodeSet2Asset : IAsset, IFormattable
     {
-        public NodeSet2Asset() { }
-
         public string Path { get; private set; }
         public byte[] Xml { get; private set; }
 

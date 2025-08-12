@@ -11,7 +11,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
     /// Serialization of the attribute in case ValueRanks.Any is used is ommited thus saving space.
     /// </summary>
     [TestFixture]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     public class ValueRankSerializationTestForBaseVariableStateAndBaseVariableTypeState
     {
         [Test]
@@ -29,9 +30,12 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             var typeNode = new BaseDataVariableTypeState();
             var serviceMessageContext = new ServiceMessageContext();
-            var systemContext = new SystemContext() { NamespaceUris = serviceMessageContext.NamespaceUris };
+            var systemContext = new SystemContext
+            {
+                NamespaceUris = serviceMessageContext.NamespaceUris
+            };
             typeNode.Create(
-                new SystemContext() { NamespaceUris = serviceMessageContext.NamespaceUris },
+                new SystemContext { NamespaceUris = serviceMessageContext.NamespaceUris },
                 VariableTypeIds.DataItemType,
                 BrowseNames.DataItemType,
                 new LocalizedText("DataItemType"),
@@ -66,9 +70,12 @@ namespace Opc.Ua.Core.Tests.Stack.State
             // Here this type node is used just as support for the instanceNode to refer to
             var typeNode = new BaseDataVariableTypeState();
             var serviceMessageContext = new ServiceMessageContext();
-            var systemContext = new SystemContext() { NamespaceUris = serviceMessageContext.NamespaceUris };
+            var systemContext = new SystemContext
+            {
+                NamespaceUris = serviceMessageContext.NamespaceUris
+            };
             typeNode.Create(
-                new SystemContext() { NamespaceUris = serviceMessageContext.NamespaceUris },
+                new SystemContext { NamespaceUris = serviceMessageContext.NamespaceUris },
                 VariableTypeIds.DataItemType,
                 BrowseNames.DataItemType,
                 new LocalizedText("DataItemType"),

@@ -23,6 +23,8 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new reverse listener host for a client.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="url"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public void CreateListener(
             Uri url,
             ConnectionWaitingHandlerAsync onConnectionWaiting,
@@ -69,7 +71,7 @@ namespace Opc.Ua
                     NamespaceUris = null,
                     Factory = null,
                     ReverseConnectListener = true,
-                    MaxChannelCount = 0,
+                    MaxChannelCount = 0
                 };
 
                 Utils.LogInfo("Open reverse connect listener for {0}.", Url);

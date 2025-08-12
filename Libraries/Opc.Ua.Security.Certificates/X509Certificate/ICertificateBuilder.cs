@@ -120,7 +120,6 @@ namespace Opc.Ua.Security.Certificates
         /// The length of the serial number shall
         /// not exceed <see cref="X509Defaults.SerialNumberLengthMax"/> octets.
         /// </remarks>
-        /// <param name="length"></param>
         ICertificateBuilder SetSerialNumberLength(int length);
 
         /// <summary>

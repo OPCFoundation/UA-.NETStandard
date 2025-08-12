@@ -23,7 +23,9 @@ namespace Opc.Ua
         /// Initializes the instance with its default attribute values.
         /// </summary>
         public DataTypeState()
-            : base(NodeClass.DataType) { }
+            : base(NodeClass.DataType)
+        {
+        }
 
         /// <summary>
         /// Constructs an instance of a node.
@@ -136,7 +138,10 @@ namespace Opc.Ua
         /// <param name="context">The context for the system being accessed.</param>
         /// <param name="encoder">The encoder to write to.</param>
         /// <param name="attributesToSave">The masks indicating what attributes to write.</param>
-        public override void Save(ISystemContext context, BinaryEncoder encoder, AttributesToSave attributesToSave)
+        public override void Save(
+            ISystemContext context,
+            BinaryEncoder encoder,
+            AttributesToSave attributesToSave)
         {
             base.Save(context, encoder, attributesToSave);
 
@@ -152,7 +157,10 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         /// <param name="decoder">The decoder.</param>
         /// <param name="attributesToLoad">The attributes to load.</param>
-        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attributesToLoad)
+        public override void Update(
+            ISystemContext context,
+            BinaryDecoder decoder,
+            AttributesToSave attributesToLoad)
         {
             base.Update(context, decoder, attributesToLoad);
 
@@ -188,7 +196,8 @@ namespace Opc.Ua
                 case Attributes.DataTypeDefinition:
                     ExtensionObject dataTypeDefinition = m_dataTypeDefinition;
 
-                    NodeAttributeEventHandler<ExtensionObject> onReadDataTypeDefinition = OnReadDataTypeDefinition;
+                    NodeAttributeEventHandler<ExtensionObject> onReadDataTypeDefinition
+                        = OnReadDataTypeDefinition;
 
                     if (onReadDataTypeDefinition != null)
                     {
@@ -198,8 +207,9 @@ namespace Opc.Ua
                     if (ServiceResult.IsGood(result))
                     {
                         if (
-                            dataTypeDefinition?.Body is StructureDefinition structureType
-                            && (structureType.DefaultEncodingId == null || structureType.DefaultEncodingId.IsNullNodeId)
+                            dataTypeDefinition?.Body is StructureDefinition structureType &&
+                            (structureType.DefaultEncodingId == null ||
+                                structureType.DefaultEncodingId.IsNullNodeId)
                         )
                         {
                             // one time set the id for binary encoding, currently the only supported encoding
@@ -222,7 +232,10 @@ namespace Opc.Ua
         /// <summary>
         /// Write the value for DataTypeDefinition attribute.
         /// </summary>
-        protected override ServiceResult WriteNonValueAttribute(ISystemContext context, uint attributeId, object value)
+        protected override ServiceResult WriteNonValueAttribute(
+            ISystemContext context,
+            uint attributeId,
+            object value)
         {
             ServiceResult result = null;
 
@@ -236,7 +249,8 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<ExtensionObject> onWriteDataTypeDefinition = OnWriteDataTypeDefinition;
+                    NodeAttributeEventHandler<ExtensionObject> onWriteDataTypeDefinition
+                        = OnWriteDataTypeDefinition;
 
                     if (onWriteDataTypeDefinition != null)
                     {

@@ -409,8 +409,8 @@ namespace Opc.Ua.Server
             {
                 // do nothing for disabled or exception based items.
                 if (
-                    monitoredItem.MonitoringMode == MonitoringMode.Disabled
-                    || monitoredItem.MinimumSamplingInterval == 0
+                    monitoredItem.MonitoringMode == MonitoringMode.Disabled ||
+                    monitoredItem.MinimumSamplingInterval == 0
                 )
                 {
                     m_sampledItems.Add(monitoredItem, null);
@@ -451,16 +451,18 @@ namespace Opc.Ua.Server
         /// It will call the external source to change the monitoring if an external source was provided originally.
         /// The changes will not take affect until the ApplyChanges() method is called.
         /// </remarks>
-        public virtual void ModifyMonitoring(OperationContext context, ISampledDataChangeMonitoredItem monitoredItem)
+        public virtual void ModifyMonitoring(
+            OperationContext context,
+            ISampledDataChangeMonitoredItem monitoredItem)
         {
             lock (m_lock)
             {
                 // find existing sampling group.
-                SamplingGroup samplingGroup = null;
 
-                if (m_sampledItems.TryGetValue(monitoredItem, out samplingGroup))
+                if (m_sampledItems.TryGetValue(monitoredItem, out SamplingGroup samplingGroup))
                 {
-                    if (samplingGroup != null && samplingGroup.ModifyMonitoring(context, monitoredItem))
+                    if (samplingGroup != null &&
+                        samplingGroup.ModifyMonitoring(context, monitoredItem))
                     {
                         return;
                     }
@@ -486,9 +488,8 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 // check for sampling group.
-                SamplingGroup samplingGroup = null;
 
-                if (m_sampledItems.TryGetValue(monitoredItem, out samplingGroup))
+                if (m_sampledItems.TryGetValue(monitoredItem, out SamplingGroup samplingGroup))
                 {
                     samplingGroup?.StopMonitoring(monitoredItem);
 
@@ -547,7 +548,7 @@ namespace Opc.Ua.Server
             new SamplingRateGroup(60000, 30000, 10),
             new SamplingRateGroup(300000, 60000, 15),
             new SamplingRateGroup(900000, 300000, 9),
-            new SamplingRateGroup(3600000, 900000, 0),
+            new SamplingRateGroup(3600000, 900000, 0)
         ];
     }
 }

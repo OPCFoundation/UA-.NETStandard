@@ -20,6 +20,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Stores the results of an asynchronous operation.
     /// </summary>
+    /// <typeparam name="T"></typeparam>
     public class ChannelAsyncOperation<T> : IAsyncResult, IDisposable
     {
         /// <summary>
@@ -137,7 +138,12 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Called when an asynchronous operation completes.
         /// </summary>
-        public bool Fault(bool doNotBlock, Exception e, uint defaultCode, string format, params object[] args)
+        public bool Fault(
+            bool doNotBlock,
+            Exception e,
+            uint defaultCode,
+            string format,
+            params object[] args)
         {
             return InternalComplete(doNotBlock, ServiceResult.Create(e, defaultCode, format, args));
         }
@@ -145,6 +151,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The response returned from the server.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public T End(int timeout, bool throwOnError = true)
         {
             // check if the request has already completed.
@@ -199,7 +206,11 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The awaitable response returned from the server.
         /// </summary>
-        public async Task<T> EndAsync(int timeout, bool throwOnError = true, CancellationToken ct = default)
+        /// <exception cref="ServiceResultException"></exception>
+        public async Task<T> EndAsync(
+            int timeout,
+            bool throwOnError = true,
+            CancellationToken ct = default)
         {
             // check if the request has already completed.
             bool mustWait = false;
@@ -210,7 +221,8 @@ namespace Opc.Ua.Bindings
 
                 if (mustWait)
                 {
-                    m_tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    m_tcs = new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
                 }
             }
 
@@ -224,7 +236,8 @@ namespace Opc.Ua.Bindings
 #if NET6_0_OR_GREATER
                     if (timeout != int.MaxValue)
                     {
-                        awaitableTask = m_tcs.Task.WaitAsync(TimeSpan.FromMilliseconds(timeout), ct);
+                        awaitableTask = m_tcs.Task
+                            .WaitAsync(TimeSpan.FromMilliseconds(timeout), ct);
                     }
                     else if (ct != default)
                     {
@@ -421,7 +434,9 @@ namespace Opc.Ua.Bindings
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(e, "ClientChannel: Unexpected error invoking AsyncCallback.");
+                        Utils.LogError(
+                            e,
+                            "ClientChannel: Unexpected error invoking AsyncCallback.");
                     }
                 }
             }

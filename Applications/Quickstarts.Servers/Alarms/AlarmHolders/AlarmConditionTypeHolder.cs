@@ -107,8 +107,12 @@ namespace Alarms
             if (Optional)
             {
                 alarm.SetSuppressedState(SystemContext, suppressed: false);
-                alarm.SetShelvingState(SystemContext, shelved: false, oneShot: false, shelvingTime: double.MaxValue);
-                alarm.ShelvingState.LastTransition.Value = new LocalizedText("");
+                alarm.SetShelvingState(
+                    SystemContext,
+                    shelved: false,
+                    oneShot: false,
+                    shelvingTime: double.MaxValue);
+                alarm.ShelvingState.LastTransition.Value = new LocalizedText(string.Empty);
                 alarm.ShelvingState.LastTransition.Id.Value = 0;
 
                 alarm.OnShelve = OnShelve;
@@ -117,7 +121,7 @@ namespace Alarms
 
                 alarm.MaxTimeShelved.Value = maxTimeShelved;
 
-                alarm.LatchedState.Value = new LocalizedText("");
+                alarm.LatchedState.Value = new LocalizedText(string.Empty);
                 alarm.LatchedState.Id.Value = false;
             }
             else
@@ -146,7 +150,8 @@ namespace Alarms
             {
                 if (message.Length == 0)
                 {
-                    message = "Updating due to Shelving State Update: " + alarm.ShelvingState.CurrentState.Value;
+                    message = "Updating due to Shelving State Update: " +
+                        alarm.ShelvingState.CurrentState.Value;
                 }
                 setValue = true;
             }
@@ -238,7 +243,7 @@ namespace Alarms
         )
         {
             string shelved = "Shelved";
-            string dueTo = "";
+            string dueTo = string.Empty;
 
             if (shelving)
             {
@@ -248,7 +253,8 @@ namespace Alarms
                 }
                 else
                 {
-                    dueTo = " due to TimedShelve of " + shelvingTime.ToString(CultureInfo.InvariantCulture);
+                    dueTo = " due to TimedShelve of " +
+                        shelvingTime.ToString(CultureInfo.InvariantCulture);
                 }
             }
             else

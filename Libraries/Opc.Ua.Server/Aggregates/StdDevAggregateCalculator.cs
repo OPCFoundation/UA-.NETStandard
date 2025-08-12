@@ -77,13 +77,10 @@ namespace Opc.Ua.Server
 
                     case Objects.AggregateFunction_StandardDeviationPopulation:
                         return ComputeStdDev(slice, false, 1);
-
                     case Objects.AggregateFunction_StandardDeviationSample:
                         return ComputeStdDev(slice, true, 1);
-
                     case Objects.AggregateFunction_VariancePopulation:
                         return ComputeStdDev(slice, false, 2);
-
                     case Objects.AggregateFunction_VarianceSample:
                         return ComputeStdDev(slice, true, 2);
                 }
@@ -198,11 +195,9 @@ namespace Opc.Ua.Server
                 case 1:
                     result = regSlope;
                     break;
-
                 case 2:
                     result = regConst;
                     break;
-
                 case 3:
                     result = regStdDev;
                     break;
@@ -213,7 +208,7 @@ namespace Opc.Ua.Server
             {
                 WrappedValue = new Variant(result, TypeInfo.Scalars.Double),
                 SourceTimestamp = GetTimestamp(slice),
-                ServerTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
             };
 
             if (nonGoodDataExists)
@@ -313,7 +308,6 @@ namespace Opc.Ua.Server
                 case 1:
                     result = Math.Sqrt(variance);
                     break;
-
                 case 2:
                     result = variance;
                     break;
@@ -324,7 +318,7 @@ namespace Opc.Ua.Server
             {
                 WrappedValue = new Variant(result, TypeInfo.Scalars.Double),
                 SourceTimestamp = GetTimestamp(slice),
-                ServerTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
             };
 
             if (nonGoodDataExists)

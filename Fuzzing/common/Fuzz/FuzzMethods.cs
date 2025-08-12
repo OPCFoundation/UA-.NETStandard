@@ -40,18 +40,18 @@ namespace Opc.Ua.Fuzzing
         /// <summary>
         /// signatures supported by fuzzers
         /// </summary>
-        /// <param name="stream"></param>
         public delegate void AflFuzzStream(Stream stream);
         public delegate void AflFuzzString(string text);
         public delegate void LibFuzzSpan(ReadOnlySpan<byte> bytes);
 
-        public static readonly Type[] Delegates = [typeof(AflFuzzStream), typeof(AflFuzzString), typeof(LibFuzzSpan)];
+        public static readonly Type[] Delegates
+            = [typeof(AflFuzzStream), typeof(AflFuzzString), typeof(LibFuzzSpan)];
 
         public static readonly Dictionary<Type, Type> FuzzMethodsToParameterType = new()
         {
             { typeof(AflFuzzStream), typeof(Stream) },
             { typeof(AflFuzzString), typeof(string) },
-            { typeof(LibFuzzSpan), typeof(ReadOnlySpan<byte>) },
+            { typeof(LibFuzzSpan), typeof(ReadOnlySpan<byte>) }
         };
 
         /// <summary>
@@ -60,9 +60,10 @@ namespace Opc.Ua.Fuzzing
         public static List<Delegate> FindFuzzMethods(Type delegateType)
         {
             var fuzzMethods = new List<Delegate>();
-            Type delegateParameterType;
             Type type = typeof(FuzzableCode);
-            if (FuzzMethodsToParameterType.TryGetValue(delegateType, out delegateParameterType))
+            if (FuzzMethodsToParameterType.TryGetValue(
+                delegateType,
+                out Type delegateParameterType))
             {
                 foreach (
                     MethodInfo method in type.GetMethods(
@@ -72,7 +73,8 @@ namespace Opc.Ua.Fuzzing
                 {
                     // Determine the target signature
                     ParameterInfo[] parameters = method.GetParameters();
-                    if (parameters.Length == 1 && parameters[0].ParameterType == delegateParameterType)
+                    if (parameters.Length == 1 &&
+                        parameters[0].ParameterType == delegateParameterType)
                     {
                         fuzzMethods.Add(method.CreateDelegate(delegateType));
                     }
@@ -160,7 +162,6 @@ namespace Opc.Ua.Fuzzing
                 {
                     Fuzzer.Run(stream => aflFuzzStreamMethod(stream));
                 }
-                return;
             }
             else if (fuzzingMethod is AflFuzzString aflFuzzStringMethod)
             {

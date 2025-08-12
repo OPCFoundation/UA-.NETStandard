@@ -35,7 +35,8 @@ namespace Opc.Ua.Fuzzing
 {
     public static partial class FuzzableCode
     {
-        private static readonly ServiceMessageContext s_messageContext = ServiceMessageContext.GlobalContext;
+        private static readonly ServiceMessageContext s_messageContext = ServiceMessageContext
+            .GlobalContext;
 
         /// <summary>
         /// Print information about the fuzzer target.
@@ -43,7 +44,8 @@ namespace Opc.Ua.Fuzzing
         public static void FuzzInfo()
         {
             Console.WriteLine("OPC UA Core Encoder Fuzzer for afl-fuzz and libfuzzer.");
-            Console.WriteLine("Fuzzing targets for various aspects of the Binary, Json and Xml encoders.");
+            Console.WriteLine(
+                "Fuzzing targets for various aspects of the Binary, Json and Xml encoders.");
         }
 
         /// <summary>

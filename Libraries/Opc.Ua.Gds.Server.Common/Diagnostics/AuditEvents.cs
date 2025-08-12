@@ -63,17 +63,31 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                 e.Initialize(systemContext, null, EventSeverity.Min, new LocalizedText(message), true, DateTime.UtcNow); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, Ua.BrowseNames.SourceNode, objectId, false);
-                e.SetChildValue(systemContext, Ua.BrowseNames.SourceName, "Method/UpdateCertificate", false);
-                e.SetChildValue(systemContext, Ua.BrowseNames.LocalTime, Utils.GetTimeZoneInfo(), false);
+                e.SetChildValue(
+                    systemContext,
+                    Ua.BrowseNames.SourceName,
+                    "Method/UpdateCertificate",
+                    false);
+                e.SetChildValue(
+                    systemContext,
+                    Ua.BrowseNames.LocalTime,
+                    Utils.GetTimeZoneInfo(),
+                    false);
 
                 e.SetChildValue(systemContext, Ua.BrowseNames.MethodId, method?.NodeId, false);
-                e.SetChildValue(systemContext, Ua.BrowseNames.InputArguments, inputArguments, false);
+                e.SetChildValue(
+                    systemContext,
+                    Ua.BrowseNames.InputArguments,
+                    inputArguments,
+                    false);
 
                 server?.ReportAuditEvent(systemContext, e);
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Error while reporting CertificateDeliveredAuditEventState event.");
+                Utils.LogError(
+                    ex,
+                    "Error while reporting CertificateDeliveredAuditEventState event.");
             }
         }
 
@@ -131,20 +145,42 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                 ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, Ua.BrowseNames.SourceNode, objectId, false);
-                e.SetChildValue(systemContext, Ua.BrowseNames.SourceName, "Method/UpdateCertificate", false);
-                e.SetChildValue(systemContext, Ua.BrowseNames.LocalTime, Utils.GetTimeZoneInfo(), false);
+                e.SetChildValue(
+                    systemContext,
+                    Ua.BrowseNames.SourceName,
+                    "Method/UpdateCertificate",
+                    false);
+                e.SetChildValue(
+                    systemContext,
+                    Ua.BrowseNames.LocalTime,
+                    Utils.GetTimeZoneInfo(),
+                    false);
 
                 e.SetChildValue(systemContext, Ua.BrowseNames.MethodId, method?.NodeId, false);
-                e.SetChildValue(systemContext, Ua.BrowseNames.InputArguments, inputArguments, false);
+                e.SetChildValue(
+                    systemContext,
+                    Ua.BrowseNames.InputArguments,
+                    inputArguments,
+                    false);
 
-                e.SetChildValue(systemContext, BrowseNames.CertificateGroup, certificateGroupId, false);
-                e.SetChildValue(systemContext, BrowseNames.CertificateType, certificateTypeId, false);
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.CertificateGroup,
+                    certificateGroupId,
+                    false);
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.CertificateType,
+                    certificateTypeId,
+                    false);
 
                 server?.ReportAuditEvent(systemContext, e);
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Error while reporting CertificateDeliveredAuditEventState event.");
+                Utils.LogError(
+                    ex,
+                    "Error while reporting CertificateDeliveredAuditEventState event.");
             }
         }
 
@@ -177,17 +213,31 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                 e.Initialize(systemContext, null, EventSeverity.Min, new LocalizedText(message), true, DateTime.UtcNow); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, Ua.BrowseNames.SourceNode, objectId, false);
-                e.SetChildValue(systemContext, Ua.BrowseNames.SourceName, "Method/UpdateCertificate", false);
-                e.SetChildValue(systemContext, Ua.BrowseNames.LocalTime, Utils.GetTimeZoneInfo(), false);
+                e.SetChildValue(
+                    systemContext,
+                    Ua.BrowseNames.SourceName,
+                    "Method/UpdateCertificate",
+                    false);
+                e.SetChildValue(
+                    systemContext,
+                    Ua.BrowseNames.LocalTime,
+                    Utils.GetTimeZoneInfo(),
+                    false);
 
                 e.SetChildValue(systemContext, Ua.BrowseNames.MethodId, method?.NodeId, false);
-                e.SetChildValue(systemContext, Ua.BrowseNames.InputArguments, inputArguments, false);
+                e.SetChildValue(
+                    systemContext,
+                    Ua.BrowseNames.InputArguments,
+                    inputArguments,
+                    false);
 
                 server?.ReportAuditEvent(systemContext, e);
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Error while reporting CertificateDeliveredAuditEventState event.");
+                Utils.LogError(
+                    ex,
+                    "Error while reporting CertificateDeliveredAuditEventState event.");
             }
         }
     }

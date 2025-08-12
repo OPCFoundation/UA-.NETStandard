@@ -43,21 +43,40 @@ namespace Opc.Ua
         /// <summary>
         /// The core messages.
         /// </summary>
-        internal const string ServiceCallStartMessage = "{0} Called. RequestHandle={1}, PendingRequestCount={2}";
-        internal const string ServiceCallStopMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={2}";
+        internal const string ServiceCallStartMessage
+            = "{0} Called. RequestHandle={1}, PendingRequestCount={2}";
+
+        internal const string ServiceCallStopMessage
+            = "{0} Completed. RequestHandle={1}, PendingRequestCount={2}";
+
         internal const string ServiceCallBadStopMessage =
             "{0} Completed. RequestHandle={1}, PendingRequestCount={2}, StatusCode={3}";
+
         internal const string SendResponseMessage = "ChannelId {0}: SendResponse {1}";
         internal const string ServiceFaultMessage = "Service Fault Occured. Reason={0}";
 
         /// <summary>
         /// The Core ILogger event Ids used for event messages, when calling back to ILogger.
         /// </summary>
-        internal readonly EventId ServiceCallStartEventId = new(TraceMasks.Service, nameof(ServiceCallStart));
-        internal readonly EventId ServiceCallStopEventId = new(TraceMasks.Service, nameof(ServiceCallStop));
-        internal readonly EventId ServiceCallBadStopEventId = new(TraceMasks.Service, nameof(ServiceCallBadStop));
-        internal readonly EventId SendResponseEventId = new(TraceMasks.Service, nameof(SendResponse));
-        internal readonly EventId ServiceFaultEventId = new(TraceMasks.Service, nameof(ServiceFault));
+        internal readonly EventId ServiceCallStartEventId = new(
+            TraceMasks.Service,
+            nameof(ServiceCallStart));
+
+        internal readonly EventId ServiceCallStopEventId = new(
+            TraceMasks.Service,
+            nameof(ServiceCallStop));
+
+        internal readonly EventId ServiceCallBadStopEventId = new(
+            TraceMasks.Service,
+            nameof(ServiceCallBadStop));
+
+        internal readonly EventId SendResponseEventId = new(
+            TraceMasks.Service,
+            nameof(SendResponse));
+
+        internal readonly EventId ServiceFaultEventId = new(
+            TraceMasks.Service,
+            nameof(ServiceFault));
 
         /// <summary>
         /// The task definitions.
@@ -187,12 +206,12 @@ namespace Opc.Ua
         /// <summary>
         /// The helper to write the formatted message as event.
         /// </summary>
-        /// <param name="id"></param>
-        /// <param name="eventId"></param>
-        /// <param name="eventName"></param>
-        /// <param name="formattedMessage"></param>
         [NonEvent]
-        internal void WriteFormattedMessage(int id, int eventId, string eventName, string formattedMessage)
+        internal void WriteFormattedMessage(
+            int id,
+            int eventId,
+            string eventName,
+            string formattedMessage)
         {
             if (IsEnabled())
             {
@@ -300,11 +319,20 @@ namespace Opc.Ua
             Level = EventLevel.Warning,
             Task = Tasks.ServiceCallTask
         )]
-        public void ServiceCallBadStop(string serviceName, int requestHandle, int statusCode, int pendingRequestCount)
+        public void ServiceCallBadStop(
+            string serviceName,
+            int requestHandle,
+            int statusCode,
+            int pendingRequestCount)
         {
             if (IsEnabled())
             {
-                WriteEvent(ServiceCallBadStopId, serviceName, requestHandle, pendingRequestCount, statusCode);
+                WriteEvent(
+                    ServiceCallBadStopId,
+                    serviceName,
+                    requestHandle,
+                    pendingRequestCount,
+                    statusCode);
             }
             else if (Logger.IsEnabled(LogLevel.Trace))
             {
@@ -348,7 +376,12 @@ namespace Opc.Ua
             }
             else if (Logger.IsEnabled(LogLevel.Trace))
             {
-                Utils.Log(LogLevel.Trace, SendResponseEventId, SendResponseMessage, channelId, requestId);
+                Utils.Log(
+                    LogLevel.Trace,
+                    SendResponseEventId,
+                    SendResponseMessage,
+                    channelId,
+                    requestId);
             }
         }
     }

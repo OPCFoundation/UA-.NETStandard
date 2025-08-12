@@ -39,7 +39,6 @@ namespace Opc.Ua.PubSub.PublishedData
         /// <summary>
         /// Create new instance of <see cref="DataSet"/>
         /// </summary>
-        /// <param name="name"></param>
         public DataSet(string name = null)
         {
             Name = name;

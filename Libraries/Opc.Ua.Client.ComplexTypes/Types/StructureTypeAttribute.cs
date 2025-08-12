@@ -52,4 +52,4 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public string XmlEncodingId { get; set; }
     }
-} //namespace
+}

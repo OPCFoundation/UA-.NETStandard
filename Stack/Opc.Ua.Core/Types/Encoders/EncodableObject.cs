@@ -33,14 +33,19 @@ namespace Opc.Ua
         public abstract ExpandedNodeId XmlEncodingId { get; }
 
         /// <inheritdoc/>
-        public virtual void Encode(IEncoder encoder) { }
+        public virtual void Encode(IEncoder encoder)
+        {
+        }
 
         /// <inheritdoc/>
-        public virtual void Decode(IDecoder decoder) { }
+        public virtual void Decode(IDecoder decoder)
+        {
+        }
 
         /// <summary>
         /// Checks if the value has changed.
         /// </summary>
+        /// <exception cref="NotImplementedException"></exception>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             throw new NotImplementedException("Subclass must implement this method.");
@@ -155,7 +160,10 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes the object in XML or Binary
         /// </summary>
-        public static ExtensionObject Encode(IServiceMessageContext context, IEncodeable encodeable, bool useXml)
+        public static ExtensionObject Encode(
+            IServiceMessageContext context,
+            IEncodeable encodeable,
+            bool useXml)
         {
             if (useXml)
             {

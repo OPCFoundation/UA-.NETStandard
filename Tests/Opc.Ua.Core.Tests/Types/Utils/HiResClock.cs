@@ -39,8 +39,10 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
     /// <summary>
     /// Tests for the BuiltIn Types.
     /// </summary>
-    [TestFixture, Category("Utils")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("Utils")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [NonParallelizable]
     public
 #if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
@@ -79,7 +81,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// <summary>
         /// Validate HiResClock defaults, platform dependant.
         /// </summary>
-        [Test, Order(100)]
+        [Test]
+        [Order(100)]
         public void HiResParameters()
         {
             Assert.LessOrEqual(1.0, HiResClock.TicksPerMillisecond);
@@ -100,7 +103,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// <summary>
         /// Validate tick counts forward only and has at least one tick per millisecond resolution.
         /// </summary>
-        [Theory, Order(200)]
+        [Theory]
+        [Order(200)]
         public void HiResClockTickCount(bool disabled)
         {
             HiResClock.Disabled = disabled;
@@ -123,7 +127,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             }
             if (counts < 500)
             {
-                NUnit.Framework.Assert.Inconclusive("Polling tick count unsuccessful, maybe CPU is overloaded.");
+                NUnit.Framework.Assert
+                    .Inconclusive("Polling tick count unsuccessful, maybe CPU is overloaded.");
             }
             stopWatch.Stop();
             long elapsed = lastTickCount - firstTickCount;
@@ -135,7 +140,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             // test accuracy of counter vs. stop watch
             try
             {
-                NUnit.Framework.Assert.That(elapsed, Is.EqualTo(stopWatch.ElapsedMilliseconds).Within(Percent).Percent);
+                NUnit.Framework.Assert.That(
+                    elapsed,
+                    Is.EqualTo(stopWatch.ElapsedMilliseconds).Within(Percent).Percent);
             }
             catch (Exception ex)
             {
@@ -146,7 +153,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// <summary>
         /// Validate DateTime.UtcNow counts forward and has a high resolution.
         /// </summary>
-        [Theory, Order(300)]
+        [Theory]
+        [Order(300)]
         public void HiResUtcNowTickCount(bool disabled)
         {
             HiResClock.Disabled = disabled;
@@ -181,7 +189,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             // test accuracy of counter vs. stop watch
             try
             {
-                NUnit.Framework.Assert.That(elapsed, Is.EqualTo(stopWatch.ElapsedMilliseconds).Within(Percent).Percent);
+                NUnit.Framework.Assert.That(
+                    elapsed,
+                    Is.EqualTo(stopWatch.ElapsedMilliseconds).Within(Percent).Percent);
             }
             catch (Exception ex)
             {

@@ -111,7 +111,9 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Returns a byte array containing the private key in PEM format.
         /// </summary>
-        public static byte[] ExportPrivateKeyAsPEM(X509Certificate2 certificate, string password = null)
+        public static byte[] ExportPrivateKeyAsPEM(
+            X509Certificate2 certificate,
+            string password = null)
         {
             byte[] exportedPkcs8PrivateKey = null;
             using (RSA rsaPrivateKey = certificate.GetRSAPrivateKey())
@@ -123,7 +125,10 @@ namespace Opc.Ua.Security.Certificates
                         ? rsaPrivateKey.ExportPkcs8PrivateKey()
                         : rsaPrivateKey.ExportEncryptedPkcs8PrivateKey(
                             password.ToCharArray(),
-                            new PbeParameters(PbeEncryptionAlgorithm.TripleDes3KeyPkcs12, HashAlgorithmName.SHA1, 2000)
+                            new PbeParameters(
+                                PbeEncryptionAlgorithm.TripleDes3KeyPkcs12,
+                                HashAlgorithmName.SHA1,
+                                2000)
                         );
                 }
                 else
@@ -174,7 +179,10 @@ namespace Opc.Ua.Security.Certificates
                 while (endIndex > -1 && count < 99)
                 {
                     count++;
-                    int beginIndex = pemText.IndexOf(beginlabel, searchPosition, StringComparison.Ordinal);
+                    int beginIndex = pemText.IndexOf(
+                        beginlabel,
+                        searchPosition,
+                        StringComparison.Ordinal);
                     if (beginIndex < 0)
                     {
                         return false;
@@ -186,21 +194,30 @@ namespace Opc.Ua.Security.Certificates
                         return false;
                     }
                     string pemCertificateContent = pemText[beginIndex..endIndex];
-                    var pemCertificateDecoded = new Span<byte>(new byte[pemCertificateContent.Length]);
-                    if (Convert.TryFromBase64Chars(pemCertificateContent, pemCertificateDecoded, out int bytesWritten))
+                    var pemCertificateDecoded = new Span<byte>(
+                        new byte[pemCertificateContent.Length]);
+                    if (Convert.TryFromBase64Chars(
+                        pemCertificateContent,
+                        pemCertificateDecoded,
+                        out int bytesWritten))
                     {
 #if NET6_0_OR_GREATER
-                        X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(pemCertificateDecoded);
+                        X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(
+                            pemCertificateDecoded);
 #else
                         X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(
                             pemCertificateDecoded.ToArray()
                         );
 #endif
-                        if (thumbprint.Equals(certificate.Thumbprint, StringComparison.OrdinalIgnoreCase))
+                        if (thumbprint.Equals(
+                            certificate.Thumbprint,
+                            StringComparison.OrdinalIgnoreCase))
                         {
                             modifiedPemDataBlob = Encoding.ASCII.GetBytes(
                                 pemText.Replace(
-                                    pemText.Substring(beginIndex -= beginlabel.Length, endIndex + endlabel.Length),
+                                    pemText.Substring(
+                                        beginIndex -= beginlabel.Length,
+                                        endIndex + endlabel.Length),
                                     string.Empty,
                                     StringComparison.Ordinal
                                 )

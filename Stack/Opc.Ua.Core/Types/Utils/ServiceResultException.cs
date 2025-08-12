@@ -147,8 +147,8 @@ namespace Opc.Ua
         {
             var buffer = new StringBuilder();
 
-            buffer.AppendLine(Message);
-            buffer.Append(Result.ToLongString());
+            buffer.AppendLine(Message)
+                .Append(Result.ToLongString());
 
             return buffer.ToString();
         }
@@ -169,7 +169,11 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new instance of a ServiceResultException
         /// </summary>
-        public static ServiceResultException Create(uint code, Exception e, string format, params object[] args)
+        public static ServiceResultException Create(
+            uint code,
+            Exception e,
+            string format,
+            params object[] args)
         {
             if (format == null)
             {
@@ -189,7 +193,8 @@ namespace Opc.Ua
             IList<string> stringTable
         )
         {
-            return new ServiceResultException(new ServiceResult(code, index, diagnosticInfos, stringTable));
+            return new ServiceResultException(
+                new ServiceResult(code, index, diagnosticInfos, stringTable));
         }
 
         /// <summary>

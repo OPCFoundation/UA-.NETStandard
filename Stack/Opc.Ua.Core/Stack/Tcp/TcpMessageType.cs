@@ -137,7 +137,6 @@ namespace Opc.Ua.Bindings
                 case Open:
                 case Close:
                     break;
-
                 default:
                     return false;
             }

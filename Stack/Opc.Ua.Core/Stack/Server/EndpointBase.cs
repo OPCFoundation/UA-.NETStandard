@@ -84,6 +84,7 @@ namespace Opc.Ua
         /// </returns>
         /// <seealso cref="EndProcessRequest"/>
         /// <seealso cref="ITransportListener"/>
+        /// <exception cref="ArgumentNullException"><paramref name="channeId"/> is <c>null</c>.</exception>
         public IAsyncResult BeginProcessRequest(
             string channeId,
             EndpointDescription endpointDescription,
@@ -105,7 +106,10 @@ namespace Opc.Ua
             // create operation.
             var result = new ProcessRequestAsyncResult(this, callback, callbackData, 0);
 
-            var context = new SecureChannelContext(channeId, endpointDescription, RequestEncoding.Binary);
+            var context = new SecureChannelContext(
+                channeId,
+                endpointDescription,
+                RequestEncoding.Binary);
 
             // begin invoke service.
             return result.BeginProcessRequest(context, request);
@@ -132,9 +136,13 @@ namespace Opc.Ua
         /// <param name="authenticationToken">The AuthenticationToken from the RequestHeader</param>
         /// <param name="channelId">The Channel id</param>
         /// <returns>returns true if a channelId was found for the provided AuthenticationToken</returns>
-        public bool TryGetSecureChannelIdForAuthenticationToken(NodeId authenticationToken, out uint channelId)
+        public bool TryGetSecureChannelIdForAuthenticationToken(
+            NodeId authenticationToken,
+            out uint channelId)
         {
-            return m_server.TryGetSecureChannelIdForAuthenticationToken(authenticationToken, out channelId);
+            return m_server.TryGetSecureChannelIdForAuthenticationToken(
+                authenticationToken,
+                out channelId);
         }
 
         /// <inheritdoc/>
@@ -164,7 +172,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void ReportAuditCertificateEvent(X509Certificate2 clientCertificate, Exception exception)
+        public void ReportAuditCertificateEvent(
+            X509Certificate2 clientCertificate,
+            Exception exception)
         {
             // trigger the reporting of OpenSecureChannelAuditEvent
             ServerForContext?.ReportAuditCertificateEvent(clientCertificate, exception);
@@ -179,6 +189,7 @@ namespace Opc.Ua
         /// Activity Source static instance.
         /// </summary>
         public static ActivitySource ActivitySource => s_activitySource.Value;
+
         private static readonly Lazy<ActivitySource> s_activitySource = new(() =>
             new ActivitySource(ActivitySourceName, "1.0.0")
         );
@@ -208,8 +219,12 @@ namespace Opc.Ua
 
                     if (firstDash != -1 && secondDash != -1)
                     {
-                        ReadOnlySpan<char> traceIdSpan = traceparent.AsSpan(firstDash + 1, secondDash - firstDash - 1);
-                        ReadOnlySpan<char> spanIdSpan = traceparent.AsSpan(secondDash + 1, thirdDash - secondDash - 1);
+                        ReadOnlySpan<char> traceIdSpan = traceparent.AsSpan(
+                            firstDash + 1,
+                            secondDash - firstDash - 1);
+                        ReadOnlySpan<char> spanIdSpan = traceparent.AsSpan(
+                            secondDash + 1,
+                            thirdDash - secondDash - 1);
                         ReadOnlySpan<char> traceFlagsSpan = traceparent.AsSpan(thirdDash + 1);
 
                         var traceId = ActivityTraceId.CreateFromString(traceIdSpan);
@@ -234,20 +249,21 @@ namespace Opc.Ua
         /// Dispatches an incoming binary encoded request.
         /// </summary>
         /// <param name="incoming">Incoming request.</param>
+        /// <exception cref="ServiceResultException"></exception>
         public virtual IServiceResponse ProcessRequest(IServiceRequest incoming)
         {
             try
             {
                 SetRequestContext(RequestEncoding.Binary);
 
-                ServiceDefinition service = null;
-
                 // find service.
-                if (!SupportedServices.TryGetValue(incoming.TypeId, out service))
+                if (!SupportedServices.TryGetValue(incoming.TypeId, out ServiceDefinition service))
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadServiceUnsupported,
-                        Utils.Format("'{0}' is an unrecognized service identifier.", incoming.TypeId)
+                        Utils.Format(
+                            "'{0}' is an unrecognized service identifier.",
+                            incoming.TypeId)
                     );
                 }
 
@@ -318,6 +334,7 @@ namespace Opc.Ua
         /// <summary>
         /// Dispatches an incoming binary encoded request.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public virtual IAsyncResult BeginInvokeService(
             InvokeServiceMessage request,
             AsyncCallback callback,
@@ -337,7 +354,9 @@ namespace Opc.Ua
 
                 // create handler.
                 var result = new ProcessRequestAsyncResult(this, callback, asyncState, 0);
-                return result.BeginProcessRequest(SecureChannelContext.Current, request.InvokeServiceRequest);
+                return result.BeginProcessRequest(
+                    SecureChannelContext.Current,
+                    request.InvokeServiceRequest);
             }
             catch (Exception e)
             {
@@ -354,12 +373,14 @@ namespace Opc.Ua
             try
             {
                 // wait for the response.
-                IServiceResponse response = ProcessRequestAsyncResult.WaitForComplete(result, false);
+                IServiceResponse response = ProcessRequestAsyncResult.WaitForComplete(
+                    result,
+                    false);
 
                 // encode the response.
                 return new InvokeServiceResponseMessage
                 {
-                    InvokeServiceResponse = BinaryEncoder.EncodeMessage(response, MessageContext),
+                    InvokeServiceResponse = BinaryEncoder.EncodeMessage(response, MessageContext)
                 };
             }
             catch (Exception e)
@@ -370,7 +391,7 @@ namespace Opc.Ua
                 // encode the fault as a response.
                 return new InvokeServiceResponseMessage
                 {
-                    InvokeServiceResponse = BinaryEncoder.EncodeMessage(fault, MessageContext),
+                    InvokeServiceResponse = BinaryEncoder.EncodeMessage(fault, MessageContext)
                 };
             }
         }
@@ -386,6 +407,7 @@ namespace Opc.Ua
         /// Returns the host associated with the current context.
         /// </summary>
         /// <returns>The host associated with the current context.</returns>
+        /// <exception cref="ServiceResultException"></exception>
         protected static IServiceHostBase GetHostForContext()
         {
             throw new ServiceResultException(
@@ -404,6 +426,7 @@ namespace Opc.Ua
         /// Gets the server object from the operation context.
         /// </summary>
         /// <returns>The server object from the operation context.</returns>
+        /// <exception cref="ServiceResultException"></exception>
         protected IServerBase GetServerForContext()
         {
             // get the server associated with the host.
@@ -434,10 +457,10 @@ namespace Opc.Ua
         /// <summary>
         /// Finds the service identified by the request type.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         protected ServiceDefinition FindService(ExpandedNodeId requestTypeId)
         {
-            ServiceDefinition service;
-            if (!SupportedServices.TryGetValue(requestTypeId, out service))
+            if (!SupportedServices.TryGetValue(requestTypeId, out ServiceDefinition service))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadServiceUnsupported,
@@ -485,14 +508,21 @@ namespace Opc.Ua
             else
             {
                 result = new ServiceResult(exception, StatusCodes.BadUnexpectedError);
-                Utils.LogError(exception, "SERVER - Unexpected Service Fault: {0}", exception.Message);
+                Utils.LogError(
+                    exception,
+                    "SERVER - Unexpected Service Fault: {0}",
+                    exception.Message);
             }
 
             fault.ResponseHeader.ServiceResult = result.Code;
 
             var stringTable = new StringTable();
 
-            fault.ResponseHeader.ServiceDiagnostics = new DiagnosticInfo(result, diagnosticsMask, true, stringTable);
+            fault.ResponseHeader.ServiceDiagnostics = new DiagnosticInfo(
+                result,
+                diagnosticsMask,
+                true,
+                stringTable);
 
             fault.ResponseHeader.StringTable = stringTable.ToArray();
 
@@ -545,25 +575,33 @@ namespace Opc.Ua
         /// Sets the request context for the thread.
         /// </summary>
         /// <param name="encoding">The encoding.</param>
-        protected virtual void SetRequestContext(RequestEncoding encoding) { }
+        protected virtual void SetRequestContext(RequestEncoding encoding)
+        {
+        }
 
         /// <summary>
         /// Called when a new request is received by the endpoint.
         /// </summary>
         /// <param name="request">The request.</param>
-        protected virtual void OnRequestReceived(IServiceRequest request) { }
+        protected virtual void OnRequestReceived(IServiceRequest request)
+        {
+        }
 
         /// <summary>
         /// Called when a response sent via the endpoint.
         /// </summary>
         /// <param name="response">The response.</param>
-        protected virtual void OnResponseSent(IServiceResponse response) { }
+        protected virtual void OnResponseSent(IServiceResponse response)
+        {
+        }
 
         /// <summary>
         /// Called when a response fault sent via the endpoint.
         /// </summary>
         /// <param name="fault">The fault.</param>
-        protected virtual void OnResponseFaultSent(Exception fault) { }
+        protected virtual void OnResponseFaultSent(Exception fault)
+        {
+        }
 
         /// <summary>
         /// Stores the definition of a service supported by the server.
@@ -597,7 +635,6 @@ namespace Opc.Ua
             /// Processes the request.
             /// </summary>
             /// <param name="request">The request.</param>
-            /// <returns></returns>
             public IServiceResponse Invoke(IServiceRequest request)
             {
                 return m_invokeService?.Invoke(request);
@@ -669,7 +706,7 @@ namespace Opc.Ua
             /// Used to indicate that the asynchronous operation has completed.
             /// </summary>
             /// <param name="response">The response. May be null if an error is provided.</param>
-            /// <param name="error"></param>
+            /// <param name="error">Error result</param>
             public void OperationCompleted(IServiceResponse response, ServiceResult error)
             {
                 // save response and/or error.
@@ -694,7 +731,10 @@ namespace Opc.Ua
             /// <returns>
             /// The result object that is used to call the EndProcessRequest method.
             /// </returns>
-            public IAsyncResult BeginProcessRequest(SecureChannelContext context, byte[] requestData)
+            /// <exception cref="ServiceResultException"></exception>
+            public IAsyncResult BeginProcessRequest(
+                SecureChannelContext context,
+                byte[] requestData)
             {
                 SecureChannelContext = context;
 
@@ -702,7 +742,10 @@ namespace Opc.Ua
                 {
                     // decoding incoming message.
                     Request =
-                        BinaryDecoder.DecodeMessage(requestData, null, m_endpoint.MessageContext) as IServiceRequest;
+                        BinaryDecoder.DecodeMessage(
+                            requestData,
+                            null,
+                            m_endpoint.MessageContext) as IServiceRequest;
 
                     // find service.
                     m_service = m_endpoint.FindService(Request.TypeId);
@@ -737,7 +780,10 @@ namespace Opc.Ua
             /// <param name="context">The security context for the request</param>
             /// <param name="request">The request.</param>
             /// <returns>The result object that is used to call the EndProcessRequest method.</returns>
-            public IAsyncResult BeginProcessRequest(SecureChannelContext context, IServiceRequest request)
+            /// <exception cref="ServiceResultException"></exception>
+            public IAsyncResult BeginProcessRequest(
+                SecureChannelContext context,
+                IServiceRequest request)
             {
                 SecureChannelContext = context;
                 Request = request;
@@ -777,11 +823,16 @@ namespace Opc.Ua
             /// <param name="ar">The IAsyncResult object for the operation.</param>
             /// <param name="throwOnError">if set to <c>true</c> an exception is thrown if an error occurred.</param>
             /// <returns>The response.</returns>
+            /// <exception cref="ArgumentException"></exception>
+            /// <exception cref="TimeoutException"></exception>
+            /// <exception cref="ServiceResultException"></exception>
             public static IServiceResponse WaitForComplete(IAsyncResult ar, bool throwOnError)
             {
                 if (ar is not ProcessRequestAsyncResult result)
                 {
-                    throw new ArgumentException("End called with an invalid IAsyncResult object.", nameof(ar));
+                    throw new ArgumentException(
+                        "End called with an invalid IAsyncResult object.",
+                        nameof(ar));
                 }
 
                 if (result.m_response == null && !result.WaitForComplete())
@@ -842,8 +893,11 @@ namespace Opc.Ua
                     {
                         // extract trace information from the request header if available
                         if (
-                            Request.RequestHeader?.AdditionalHeader?.Body is AdditionalParametersType parameters
-                            && TryExtractActivityContextFromParameters(parameters, out ActivityContext activityContext)
+                            Request.RequestHeader?.AdditionalHeader?
+                                .Body is AdditionalParametersType parameters &&
+                            TryExtractActivityContextFromParameters(
+                                parameters,
+                                out ActivityContext activityContext)
                         )
                         {
                             using Activity activity = ActivitySource.StartActivity(

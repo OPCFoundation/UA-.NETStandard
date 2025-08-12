@@ -41,7 +41,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
-            PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration;
+            PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator
+                .PubSubConfiguration;
             configurator.Disable(pubSub);
             Assert.AreEqual((StatusCode)StatusCodes.Good, configurator.Enable(pubSub));
         }
@@ -51,7 +52,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
-            PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration;
+            PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator
+                .PubSubConfiguration;
             configurator.Enable(pubSub);
             Assert.AreEqual((StatusCode)StatusCodes.BadInvalidState, configurator.Enable(pubSub));
         }
@@ -61,7 +63,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
-            PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration;
+            PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator
+                .PubSubConfiguration;
             configurator.Enable(pubSub);
             Assert.AreEqual((StatusCode)StatusCodes.Good, configurator.Disable(pubSub));
         }
@@ -71,7 +74,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
-            PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration;
+            PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator
+                .PubSubConfiguration;
             configurator.Disable(pubSub);
             Assert.AreEqual((StatusCode)StatusCodes.BadInvalidState, configurator.Disable(pubSub));
         }

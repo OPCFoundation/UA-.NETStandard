@@ -38,7 +38,9 @@ namespace Opc.Ua
 
             if (LowState != null)
             {
-                UpdateState(LowState, (limit & LimitAlarmStates.Low) != 0 || (limit & LimitAlarmStates.LowLow) != 0);
+                UpdateState(
+                    LowState,
+                    (limit & LimitAlarmStates.Low) != 0 || (limit & LimitAlarmStates.LowLow) != 0);
             }
 
             if (LowLowState != null)
@@ -66,15 +68,24 @@ namespace Opc.Ua
             }
             else if ((limit & LimitAlarmStates.High) != 0)
             {
-                displayName = new TranslationInfo("ConditionStateHighActive", "en-US", ConditionStateNames.HighActive);
+                displayName = new TranslationInfo(
+                    "ConditionStateHighActive",
+                    "en-US",
+                    ConditionStateNames.HighActive);
             }
             else if ((limit & LimitAlarmStates.Low) != 0)
             {
-                displayName = new TranslationInfo("ConditionStateLowActive", "en-US", ConditionStateNames.LowActive);
+                displayName = new TranslationInfo(
+                    "ConditionStateLowActive",
+                    "en-US",
+                    ConditionStateNames.LowActive);
             }
             else
             {
-                displayName = new TranslationInfo("ConditionStateInactive", "en-US", ConditionStateNames.Inactive);
+                displayName = new TranslationInfo(
+                    "ConditionStateInactive",
+                    "en-US",
+                    ConditionStateNames.Inactive);
             }
 
             // update the active superstae.
@@ -92,11 +103,17 @@ namespace Opc.Ua
             TranslationInfo state;
             if (active)
             {
-                state = new TranslationInfo("ConditionStateActive", "en-US", ConditionStateNames.Active);
+                state = new TranslationInfo(
+                    "ConditionStateActive",
+                    "en-US",
+                    ConditionStateNames.Active);
             }
             else
             {
-                state = new TranslationInfo("ConditionStateInactive", "en-US", ConditionStateNames.Inactive);
+                state = new TranslationInfo(
+                    "ConditionStateInactive",
+                    "en-US",
+                    ConditionStateNames.Inactive);
             }
 
             limit.Value = new LocalizedText(state);

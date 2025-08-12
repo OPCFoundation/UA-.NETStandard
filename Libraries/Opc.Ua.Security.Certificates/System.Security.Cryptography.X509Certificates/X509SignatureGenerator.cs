@@ -6,7 +6,9 @@
 // This source code is intentionally copied from the .NET core runtime to close
 // a gap in the .NET 4.6 and the .NET Core 2.x runtime implementations.
 // original code is located here:
-// https://github.com/dotnet/runtime/blob/master/src/libraries/System.Security.Cryptography.X509Certificates/src/System/Security/Cryptography/X509Certificates/X509SignatureGenerator.cs
+// https://github.com/dotnet/runtime/blob/master/src/libraries/
+// System.Security.Cryptography.X509Certificates/src/System/Security/
+// Cryptography/X509Certificates/X509SignatureGenerator.cs
 #pragma warning disable IDE0079, CS1591 // Suppress missing XML comments to preserve original code
 
 using System;
@@ -35,7 +37,9 @@ namespace Opc.Ua.Security.Certificates
         }
 #endif
 
-        public static X509SignatureGenerator CreateForRSA(RSA key, RSASignaturePadding signaturePadding)
+        public static X509SignatureGenerator CreateForRSA(
+            RSA key,
+            RSASignaturePadding signaturePadding)
         {
             if (key == null)
             {

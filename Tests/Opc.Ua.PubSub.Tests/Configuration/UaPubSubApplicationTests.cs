@@ -38,14 +38,22 @@ namespace Opc.Ua.PubSub.Tests.Configuration
     [TestFixture(Description = "Tests for UaPubSubApplication class")]
     public class UaPubSubApplicationTests
     {
-        private readonly string m_configurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
+        private readonly string m_configurationFileName = Path.Combine(
+            "Configuration",
+            "PublisherConfiguration.xml");
+
         private PubSubConfigurationDataType m_pubSubConfiguration;
 
         [OneTimeSetUp]
         public void MyTestInitialize()
         {
-            string configurationFile = Utils.GetAbsoluteFilePath(m_configurationFileName, true, true, false);
-            m_pubSubConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(configurationFile);
+            string configurationFile = Utils.GetAbsoluteFilePath(
+                m_configurationFileName,
+                true,
+                true,
+                false);
+            m_pubSubConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(
+                configurationFile);
         }
 
         [Test(Description = "Validate Create call with null path")]
@@ -95,8 +103,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     index
                 );
                 Assert.IsTrue(
-                    publisher.WriterGroupConfiguration.WriterGroupId
-                        == m_pubSubConfiguration.Connections[0].WriterGroups[index].WriterGroupId,
+                    publisher.WriterGroupConfiguration.WriterGroupId ==
+                        m_pubSubConfiguration.Connections[0].WriterGroups[index].WriterGroupId,
                     "connection.Publishers[{0}].WriterGroupConfiguration is not set correctly",
                     index
                 );

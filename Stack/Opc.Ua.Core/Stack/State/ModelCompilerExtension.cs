@@ -71,7 +71,9 @@ namespace Opc.Ua
                 nodeSet.LastModifiedSpecified = true;
             }
 
-            nodeSet.NamespaceUris = (context.NamespaceUris?.ToArray().Where(x => x != Namespaces.OpcUa).ToArray());
+            nodeSet.NamespaceUris = (context.NamespaceUris?.ToArray()
+                .Where(x => x != Namespaces.OpcUa)
+                .ToArray());
             nodeSet.ServerUris = (context.ServerUris?.ToArray());
 
             if (nodeSet.NamespaceUris != null && nodeSet.NamespaceUris.Length == 0)

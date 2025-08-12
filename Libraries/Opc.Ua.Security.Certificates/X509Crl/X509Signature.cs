@@ -67,7 +67,6 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Initialize and decode the sequence with binary ASN.1 encoded CRL or certificate.
         /// </summary>
-        /// <param name="signedBlob"></param>
         public X509Signature(byte[] signedBlob)
         {
             Decode(signedBlob);
@@ -128,6 +127,8 @@ namespace Opc.Ua.Security.Certificates
         /// Decoder for the signature sequence.
         /// </summary>
         /// <param name="crl">The encoded CRL or certificate sequence.</param>
+        /// <exception cref="CryptographicException"></exception>
+        /// <exception cref="AsnContentException"></exception>
         private void Decode(byte[] crl)
         {
             try
@@ -145,8 +146,7 @@ namespace Opc.Ua.Security.Certificates
                     Name = Oids.GetHashAlgorithmName(SignatureAlgorithm);
 
                     // Signature
-                    int unusedBitCount;
-                    Signature = seqReader.ReadBitString(out unusedBitCount);
+                    Signature = seqReader.ReadBitString(out int unusedBitCount);
                     if (unusedBitCount != 0)
                     {
                         throw new AsnContentException("Unexpected data in signature.");
@@ -165,8 +165,8 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Verify the signature with the public key of the signer.
         /// </summary>
-        /// <param name="certificate"></param>
         /// <returns>true if the signature is valid.</returns>
+        /// <exception cref="CryptographicException"></exception>
         public bool Verify(X509Certificate2 certificate)
         {
             switch (SignatureAlgorithm)
@@ -176,15 +176,14 @@ namespace Opc.Ua.Security.Certificates
                 case Oids.RsaPkcs1Sha384:
                 case Oids.RsaPkcs1Sha512:
                     return VerifyForRSA(certificate, RSASignaturePadding.Pkcs1);
-
                 case Oids.ECDsaWithSha1:
                 case Oids.ECDsaWithSha256:
                 case Oids.ECDsaWithSha384:
                 case Oids.ECDsaWithSha512:
                     return VerifyForECDsa(certificate);
-
                 default:
-                    throw new CryptographicException("Failed to verify signature due to unknown signature algorithm.");
+                    throw new CryptographicException(
+                        "Failed to verify signature due to unknown signature algorithm.");
             }
         }
 
@@ -219,7 +218,6 @@ namespace Opc.Ua.Security.Certificates
         /// Decode the algorithm that was used for encoding.
         /// </summary>
         /// <param name="oid">The ASN.1 encoded algorithm oid.</param>
-        /// <returns></returns>
         private static string DecodeAlgorithm(byte[] oid)
         {
             var seqReader = new AsnReader(oid, AsnEncodingRules.DER);

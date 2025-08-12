@@ -53,7 +53,6 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Create exception with message.
         /// </summary>
-        /// <param name="message"></param>
         public DataTypeNotFoundException(string message)
             : base(message)
         {
@@ -63,8 +62,6 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Create exception with message and inner exception.
         /// </summary>
-        /// <param name="message"></param>
-        /// <param name="innerException"></param>
         public DataTypeNotFoundException(string message, Exception innerException)
             : base(message, innerException)
         {
@@ -97,7 +94,10 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="nodeIds">The collection of nodeId of the data types not found.</param>
         /// <param name="message">The exception message.</param>
         /// <param name="inner">The inner exception.</param>
-        public DataTypeNotFoundException(ExpandedNodeIdCollection nodeIds, string message, Exception inner)
+        public DataTypeNotFoundException(
+            ExpandedNodeIdCollection nodeIds,
+            string message,
+            Exception inner)
             : base(message, inner)
         {
             NodeIds = nodeIds;
@@ -131,7 +131,6 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Create exception with message.
         /// </summary>
-        /// <param name="message"></param>
         public DataTypeNotSupportedException(string message)
             : base(message)
         {
@@ -141,8 +140,6 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Create exception with message and inner exception.
         /// </summary>
-        /// <param name="message"></param>
-        /// <param name="innerException"></param>
         public DataTypeNotSupportedException(string message, Exception innerException)
             : base(message, innerException)
         {
@@ -193,4 +190,4 @@ namespace Opc.Ua.Client.ComplexTypes
             NodeId = nodeId;
         }
     }
-} //namespace
+}

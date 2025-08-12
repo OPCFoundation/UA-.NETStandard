@@ -39,9 +39,6 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Constructor
         /// </summary>
-        /// <param name="dataSetDecodeErrorReason"></param>
-        /// <param name="networkMessage"></param>
-        /// <param name="dataSetReader"></param>
         public DataSetDecodeErrorEventArgs(
             DataSetDecodeErrorReason dataSetDecodeErrorReason,
             UaNetworkMessage networkMessage,

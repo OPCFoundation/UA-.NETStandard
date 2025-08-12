@@ -50,7 +50,7 @@ namespace Opc.Ua.Client.Tests
         [
             new object[] { Utils.UriSchemeOpcTcp },
             new object[] { Utils.UriSchemeHttps },
-            new object[] { Utils.UriSchemeOpcHttps },
+            new object[] { Utils.UriSchemeOpcHttps }
         ];
 
         public const int MaxReferences = 100;
@@ -61,7 +61,7 @@ namespace Opc.Ua.Client.Tests
 
         public bool SingleSession { get; set; } = true;
         public int MaxChannelCount { get; set; } = 100;
-        public bool SupportsExternalServerUrl { get; set; } = false;
+        public bool SupportsExternalServerUrl { get; set; }
         public ServerFixture<ReferenceServer> ServerFixture { get; set; }
         public ClientFixture ClientFixture { get; set; }
         public ReferenceServer ReferenceServer { get; set; }
@@ -95,7 +95,7 @@ namespace Opc.Ua.Client.Tests
         [DatapointSource]
         public static readonly string[] Policies =
         [
-            .. SecurityPolicies.GetDisplayNames().Select(SecurityPolicies.GetUri),
+            .. SecurityPolicies.GetDisplayNames().Select(SecurityPolicies.GetUri)
         ];
 
         /// <summary>
@@ -167,11 +167,13 @@ namespace Opc.Ua.Client.Tests
             }
             else
             {
-                string url = UriScheme + "://localhost:" + ServerFixturePort.ToString(CultureInfo.InvariantCulture);
+                string url = UriScheme +
+                    "://localhost:" +
+                    ServerFixturePort.ToString(CultureInfo.InvariantCulture);
 
                 if (
-                    UriScheme.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal)
-                    || Utils.IsUriHttpsScheme(UriScheme)
+                    UriScheme.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) ||
+                    Utils.IsUriHttpsScheme(UriScheme)
                 )
                 {
                     url += ConfiguredEndpoint.DiscoverySuffix;
@@ -207,13 +209,15 @@ namespace Opc.Ua.Client.Tests
         )
         {
             // start Ref server
-            ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging)
+            ServerFixture = new ServerFixture<ReferenceServer>(
+                enableTracing,
+                disableActivityLogging)
             {
                 UriScheme = UriScheme,
                 SecurityNone = securityNone,
                 AutoAccept = true,
                 AllNodeManagers = true,
-                OperationLimits = true,
+                OperationLimits = true
             };
 
             if (writer != null)
@@ -227,61 +231,69 @@ namespace Opc.Ua.Client.Tests
                 .Config
                 .TransportQuotas
                 .MaxStringLength = TransportQuotaMaxStringLength;
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName));
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies
+                .Add(new UserTokenPolicy(UserTokenType.UserName));
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
                 new UserTokenPolicy(UserTokenType.Certificate)
             );
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Profiles.JwtUserToken }
+                new UserTokenPolicy(UserTokenType.IssuedToken)
+                {
+                    IssuedTokenType = Profiles.JwtUserToken
+                }
             );
 
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
                 new UserTokenPolicy(UserTokenType.UserName)
                 {
-                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1",
+                    SecurityPolicyUri
+                        = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1"
                 }
             );
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
                 new UserTokenPolicy(UserTokenType.UserName)
                 {
-                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1",
+                    SecurityPolicyUri
+                        = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1"
                 }
             );
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
                 new UserTokenPolicy(UserTokenType.UserName)
                 {
-                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256",
+                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256"
                 }
             );
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
                 new UserTokenPolicy(UserTokenType.UserName)
                 {
-                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384",
+                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384"
                 }
             );
 
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
                 new UserTokenPolicy(UserTokenType.Certificate)
                 {
-                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1",
+                    SecurityPolicyUri
+                        = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1"
                 }
             );
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
                 new UserTokenPolicy(UserTokenType.Certificate)
                 {
-                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1",
+                    SecurityPolicyUri
+                        = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1"
                 }
             );
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
                 new UserTokenPolicy(UserTokenType.Certificate)
                 {
-                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256",
+                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256"
                 }
             );
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
                 new UserTokenPolicy(UserTokenType.Certificate)
                 {
-                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384",
+                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384"
                 }
             );
 
@@ -290,7 +302,8 @@ namespace Opc.Ua.Client.Tests
                 {
                     IssuedTokenType = Profiles.JwtUserToken,
                     PolicyId = Profiles.JwtUserToken,
-                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1",
+                    SecurityPolicyUri
+                        = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1"
                 }
             );
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
@@ -298,7 +311,8 @@ namespace Opc.Ua.Client.Tests
                 {
                     IssuedTokenType = Profiles.JwtUserToken,
                     PolicyId = Profiles.JwtUserToken,
-                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1",
+                    SecurityPolicyUri
+                        = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1"
                 }
             );
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
@@ -306,7 +320,7 @@ namespace Opc.Ua.Client.Tests
                 {
                     IssuedTokenType = Profiles.JwtUserToken,
                     PolicyId = Profiles.JwtUserToken,
-                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256",
+                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256"
                 }
             );
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
@@ -314,12 +328,13 @@ namespace Opc.Ua.Client.Tests
                 {
                     IssuedTokenType = Profiles.JwtUserToken,
                     PolicyId = Profiles.JwtUserToken,
-                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384",
+                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384"
                 }
             );
 
             ServerFixture.Config.ServerConfiguration.MaxChannelCount = MaxChannelCount;
-            ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
+            ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out)
+                .ConfigureAwait(false);
             ReferenceServer.TokenValidator = TokenValidator;
             ServerFixturePort = ServerFixture.Port;
         }
@@ -350,7 +365,9 @@ namespace Opc.Ua.Client.Tests
                     Directory.Delete(PkiRoot, true);
                 }
             }
-            catch { }
+            catch
+            {
+            }
         }
 
         /// <summary>
@@ -404,7 +421,8 @@ namespace Opc.Ua.Client.Tests
         /// <returns>The list of static test nodes.</returns>
         public IList<NodeId> GetTestSetStatic(NamespaceTable namespaceUris)
         {
-            return [.. TestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null)];
+            return [.. TestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
+                .Where(n => n != null)];
         }
 
         /// <summary>
@@ -414,7 +432,8 @@ namespace Opc.Ua.Client.Tests
         /// <returns>The list of simulated test nodes.</returns>
         public IList<NodeId> GetTestSetSimulation(NamespaceTable namespaceUris)
         {
-            return [.. TestSetSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null)];
+            return [.. TestSetSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
+                .Where(n => n != null)];
         }
 
         /// <summary>
@@ -429,7 +448,8 @@ namespace Opc.Ua.Client.Tests
                 .Where(n => n != null)
                 .ToList();
             simulation.AddRange(
-                TestSetDataSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null)
+                TestSetDataSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
+                    .Where(n => n != null)
             );
             return simulation;
         }
@@ -443,7 +463,8 @@ namespace Opc.Ua.Client.Tests
         {
             return
             [
-                .. TestSetDataSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null),
+                .. TestSetDataSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
+                    .Where(n => n != null)
             ];
         }
 
@@ -454,7 +475,8 @@ namespace Opc.Ua.Client.Tests
         /// <returns>The list of test nodes.</returns>
         public IList<NodeId> GetTestSetHistory(NamespaceTable namespaceUris)
         {
-            return [.. TestSetHistory.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null)];
+            return [.. TestSetHistory.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
+                .Where(n => n != null)];
         }
 
         /// <summary>
@@ -479,7 +501,8 @@ namespace Opc.Ua.Client.Tests
             Console.WriteLine("GlobalSetup: Start Server");
             OneTimeSetUpAsync(Console.Out).GetAwaiter().GetResult();
             Console.WriteLine("GlobalSetup: Connecting");
-            Session = ClientFixture.ConnectAsync(ServerUrl, SecurityPolicy).GetAwaiter().GetResult();
+            Session = ClientFixture.ConnectAsync(ServerUrl, SecurityPolicy).GetAwaiter()
+                .GetResult();
             Console.WriteLine("GlobalSetup: Ready");
         }
 
@@ -495,7 +518,7 @@ namespace Opc.Ua.Client.Tests
 
         public void GetOperationLimits()
         {
-            OperationLimits = new OperationLimits()
+            OperationLimits = new OperationLimits
             {
                 MaxNodesPerRead = GetOperationLimitValue(
                     VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRead
@@ -504,16 +527,19 @@ namespace Opc.Ua.Client.Tests
                     VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadData
                 ),
                 MaxNodesPerHistoryReadEvents = GetOperationLimitValue(
-                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadEvents
+                    VariableIds
+                        .Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadEvents
                 ),
                 MaxNodesPerWrite = GetOperationLimitValue(
                     VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerWrite
                 ),
                 MaxNodesPerHistoryUpdateData = GetOperationLimitValue(
-                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateData
+                    VariableIds
+                        .Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateData
                 ),
                 MaxNodesPerHistoryUpdateEvents = GetOperationLimitValue(
-                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateEvents
+                    VariableIds
+                        .Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateEvents
                 ),
                 MaxNodesPerBrowse = GetOperationLimitValue(
                     VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerBrowse
@@ -532,7 +558,7 @@ namespace Opc.Ua.Client.Tests
                 ),
                 MaxNodesPerMethodCall = GetOperationLimitValue(
                     VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerMethodCall
-                ),
+                )
             };
         }
 
@@ -556,7 +582,9 @@ namespace Opc.Ua.Client.Tests
         {
             writer.WriteLine("Subscription            : {0}", subscription.DisplayName);
             writer.WriteLine("CurrentKeepAliveCount   : {0}", subscription.CurrentKeepAliveCount);
-            writer.WriteLine("CurrentPublishingEnabled: {0}", subscription.CurrentPublishingEnabled);
+            writer.WriteLine(
+                "CurrentPublishingEnabled: {0}",
+                subscription.CurrentPublishingEnabled);
             writer.WriteLine("CurrentPriority         : {0}", subscription.CurrentPriority);
             writer.WriteLine("PublishTime             : {0}", subscription.PublishTime);
             writer.WriteLine("LastNotificationTime    : {0}", subscription.LastNotificationTime);
@@ -564,7 +592,9 @@ namespace Opc.Ua.Client.Tests
             writer.WriteLine("NotificationCount       : {0}", subscription.NotificationCount);
             writer.WriteLine("LastNotification        : {0}", subscription.LastNotification);
             writer.WriteLine("Notifications           : {0}", subscription.Notifications.Count());
-            writer.WriteLine("OutstandingMessageWorker: {0}", subscription.OutstandingMessageWorkers);
+            writer.WriteLine(
+                "OutstandingMessageWorker: {0}",
+                subscription.OutstandingMessageWorkers);
         }
 
         private static ExpandedNodeId[] ReadCustomTestSet(string param)

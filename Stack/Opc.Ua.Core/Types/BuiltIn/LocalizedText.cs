@@ -80,7 +80,9 @@ namespace Opc.Ua
         /// Formats the text with the arguments using the specified locale.
         /// </summary>
         public LocalizedText(string key, string locale, string text, params object[] args)
-            : this(new TranslationInfo(key, locale, text, args)) { }
+            : this(new TranslationInfo(key, locale, text, args))
+        {
+        }
 
         /// <summary>
         /// Creates text from a TranslationInfo object.
@@ -309,7 +311,8 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if this LocalizedText uses the "mul" special locale.
         /// </summary>
-        public bool IsMultiLanguage => string.Equals(XmlEncodedLocale, kMulLocale, StringComparison.OrdinalIgnoreCase);
+        public bool IsMultiLanguage
+            => string.Equals(XmlEncodedLocale, kMulLocale, StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
         /// Returns true if the objects are equal.
@@ -328,8 +331,9 @@ namespace Opc.Ua
             }
 
             if (
-                ltext.XmlEncodedLocale != XmlEncodedLocale
-                && !(string.IsNullOrEmpty(ltext.XmlEncodedLocale) && string.IsNullOrEmpty(XmlEncodedLocale))
+                ltext.XmlEncodedLocale != XmlEncodedLocale &&
+                !(string.IsNullOrEmpty(ltext.XmlEncodedLocale) &&
+                    string.IsNullOrEmpty(XmlEncodedLocale))
             )
             {
                 return false;
@@ -474,7 +478,9 @@ namespace Opc.Ua
                 return this;
             }
 
-            bool isMultilanguageRequested = preferredLocales[0].ToLowerInvariant() is "mul" or "qst";
+            KeyValuePair<string, string> defaultKVP;
+            bool isMultilanguageRequested = preferredLocales[0]
+                .ToLowerInvariant() is "mul" or "qst";
 
             // If not a multi-language request, return the best match or fallback
             if (!isMultilanguageRequested)
@@ -494,7 +500,7 @@ namespace Opc.Ua
                     }
                 }
                 // return the first available locale
-                KeyValuePair<string, string> defaultKVP = Translations.First();
+                defaultKVP = Translations.First();
                 return new LocalizedText(defaultKVP.Key, defaultKVP.Value);
             }
 
@@ -503,36 +509,32 @@ namespace Opc.Ua
             {
                 return this;
             }
-            // 'mul' or 'qst' + specific locales: return only those translations
-            else
+            if (!IsMultiLanguage)
             {
-                if (!IsMultiLanguage)
-                {
-                    // nothing to do for single locale text
-                    return this;
-                }
-
-                var translations = new ReadOnlyDictionary<string, string>(
-                    Translations.Where(t => preferredLocales.Contains(t.Key)).ToDictionary(s => s.Key, s => s.Value)
-                );
-
-                // If matching locales are found return those
-                if (translations.Count > 0)
-                {
-                    return new LocalizedText(translations);
-                }
-                // else return the first available locale
-                else
-                {
-                    KeyValuePair<string, string> defaultKVP = Translations.First();
-                    return new LocalizedText(defaultKVP.Key, defaultKVP.Value);
-                }
+                // nothing to do for single locale text
+                return this;
             }
+
+            var translations = new ReadOnlyDictionary<string, string>(
+                Translations.Where(t => preferredLocales.Contains(t.Key))
+                    .ToDictionary(s => s.Key, s => s.Value)
+            );
+
+            // If matching locales are found return those
+            if (translations.Count > 0)
+            {
+                return new LocalizedText(translations);
+            }
+            defaultKVP = Translations.First();
+
+            return new LocalizedText(defaultKVP.Key, defaultKVP.Value);
         }
 
         /// <summary>
         /// Ecodes the translations to a JSON string according to the format specified in https://reference.opcfoundation.org/Core/Part3/v105/docs/8.5
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="translations"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         private static string EncodeMulLocale(IReadOnlyDictionary<string, string> translations)
         {
             if (translations == null)
@@ -542,7 +544,9 @@ namespace Opc.Ua
 
             if (translations.Count == 0)
             {
-                throw new ArgumentException("The translations dictionary must not be empty.", nameof(translations));
+                throw new ArgumentException(
+                    "The translations dictionary must not be empty.",
+                    nameof(translations));
             }
 
             var t = new List<object[]>();
@@ -551,7 +555,8 @@ namespace Opc.Ua
                 t.Add([kvp.Key, kvp.Value]);
             }
 
-            return JsonConvert.SerializeObject(new Dictionary<string, object> { { kMulLocaleDictionaryKey, t } });
+            return JsonConvert.SerializeObject(
+                new Dictionary<string, object> { { kMulLocaleDictionaryKey, t } });
         }
 
         /// <summary>
@@ -569,13 +574,14 @@ namespace Opc.Ua
             try
             {
                 // The expected JSON structure is defined in https://reference.opcfoundation.org/Core/Part3/v105/docs/8.5
-                Dictionary<string, object> json = JsonConvert.DeserializeObject<Dictionary<string, object>>(
-                    XmlEncodedText
-                );
+                Dictionary<string, object> json = JsonConvert
+                    .DeserializeObject<Dictionary<string, object>>(
+                        XmlEncodedText
+                        );
                 if (
-                    json != null
-                    && json.TryGetValue(kMulLocaleDictionaryKey, out object tValue)
-                    && tValue is Newtonsoft.Json.Linq.JArray tArray
+                    json != null &&
+                    json.TryGetValue(kMulLocaleDictionaryKey, out object tValue) &&
+                    tValue is Newtonsoft.Json.Linq.JArray tArray
                 )
                 {
                     foreach (Newtonsoft.Json.Linq.JToken pairToken in tArray)
@@ -609,27 +615,36 @@ namespace Opc.Ua
     /// <remarks>
     /// A strongly-typed collection of LocalizedText objects.
     /// </remarks>
-    [CollectionDataContract(Name = "ListOfLocalizedText", Namespace = Namespaces.OpcUaXsd, ItemName = "LocalizedText")]
+    [CollectionDataContract(
+        Name = "ListOfLocalizedText",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "LocalizedText")]
     public class LocalizedTextCollection : List<LocalizedText>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public LocalizedTextCollection() { }
+        public LocalizedTextCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">The collection to copy into this new instance</param>
         public LocalizedTextCollection(IEnumerable<LocalizedText> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The max capacity of this collection</param>
         public LocalizedTextCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -674,5 +689,5 @@ namespace Opc.Ua
 
             return clone;
         }
-    } //class
-} //namespace
+    }
+}

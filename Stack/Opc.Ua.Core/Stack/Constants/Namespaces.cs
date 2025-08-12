@@ -47,7 +47,8 @@ namespace Opc.Ua
         /// <summary>
         /// The URI for the UA SecuredApplication schema.
         /// </summary>
-        public const string OpcUaSecurity = "http://opcfoundation.org/UA/2011/03/SecuredApplication.xsd";
+        public const string OpcUaSecurity
+            = "http://opcfoundation.org/UA/2011/03/SecuredApplication.xsd";
 
         /// <summary>
         /// The base URI for the Global Discovery Service.

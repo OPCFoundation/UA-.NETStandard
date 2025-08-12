@@ -72,6 +72,7 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the table of namespace uris.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="strings"/> is <c>null</c>.</exception>
         public void Update(IEnumerable<string> strings)
         {
             if (strings == null)
@@ -102,6 +103,7 @@ namespace Opc.Ua
         /// <summary>
         /// Adds a string to the end of the table.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public int Append(string value)
         {
             if (string.IsNullOrEmpty(value))
@@ -112,7 +114,10 @@ namespace Opc.Ua
 #if DEBUG
             if (m_shared)
             {
-                Utils.LogWarning("WARNING: Adding '{0}' to shared StringTable #{1}.", value, InstanceId);
+                Utils.LogWarning(
+                    "WARNING: Adding '{0}' to shared StringTable #{1}.",
+                    value,
+                    InstanceId);
             }
 #endif
 
@@ -158,6 +163,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the index of the specified namespace uri, adds it if it does not exist.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public ushort GetIndexOrAppend(string value)
         {
             if (string.IsNullOrEmpty(value))
@@ -174,7 +180,10 @@ namespace Opc.Ua
 #if DEBUG
                     if (m_shared)
                     {
-                        Utils.LogWarning("WARNING: Adding '{0}' to shared StringTable #{1}.", value, InstanceId);
+                        Utils.LogWarning(
+                            "WARNING: Adding '{0}' to shared StringTable #{1}.",
+                            value,
+                            InstanceId);
                     }
 #endif
 
@@ -296,6 +305,8 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the table of namespace uris.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="namespaceUris"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         public new void Update(IEnumerable<string> namespaceUris)
         {
             if (namespaceUris == null)
@@ -310,7 +321,8 @@ namespace Opc.Ua
             {
                 if (ii == 0 && namespaceUri != Namespaces.OpcUa)
                 {
-                    throw new ArgumentException("The first namespace in the table must be the OPC-UA namespace.");
+                    throw new ArgumentException(
+                        "The first namespace in the table must be the OPC-UA namespace.");
                 }
 
                 ii++;

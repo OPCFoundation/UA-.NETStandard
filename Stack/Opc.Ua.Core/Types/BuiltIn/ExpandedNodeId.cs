@@ -22,7 +22,11 @@ namespace Opc.Ua
     /// Extends a node id by adding a complete namespace URI.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public sealed class ExpandedNodeId : ICloneable, IComparable, IEquatable<ExpandedNodeId>, IFormattable
+    public sealed class ExpandedNodeId :
+        ICloneable,
+        IComparable,
+        IEquatable<ExpandedNodeId>,
+        IFormattable
     {
         /// <summary>
         /// Initializes the object with default values.
@@ -82,7 +86,11 @@ namespace Opc.Ua
         /// <param name="namespaceIndex">The namespace index.</param>
         /// <param name="namespaceUri">The namespace URI.</param>
         /// <param name="serverIndex">The server index.</param>
-        public ExpandedNodeId(object identifier, ushort namespaceIndex, string namespaceUri, uint serverIndex)
+        public ExpandedNodeId(
+            object identifier,
+            ushort namespaceIndex,
+            string namespaceUri,
+            uint serverIndex)
         {
             InnerNodeId = new NodeId(identifier, namespaceIndex);
             NamespaceUri = namespaceUri;
@@ -547,9 +555,9 @@ namespace Opc.Ua
 
             if (!string.IsNullOrEmpty(namespaceUri))
             {
-                buffer.Append("nsu=");
-                buffer.Append(Utils.EscapeUri(namespaceUri));
-                buffer.Append(';');
+                buffer.Append("nsu=")
+                    .Append(Utils.EscapeUri(namespaceUri))
+                    .Append(';');
             }
 
             NodeId.Format(formatProvider, buffer, identifier, identifierType, namespaceIndex);
@@ -558,6 +566,7 @@ namespace Opc.Ua
         /// <summary>
         /// Parses a expanded node id string, translated any namespace indexes and returns the result.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public static ExpandedNodeId Parse(
             string text,
             NamespaceTable currentNamespaces,
@@ -642,6 +651,7 @@ namespace Opc.Ua
         /// <summary>
         /// Unescapes any reserved characters in the uri.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         internal static void UnescapeUri(string text, int start, int index, StringBuilder buffer)
         {
             for (int ii = start; ii < index; ii++)
@@ -661,7 +671,9 @@ namespace Opc.Ua
 
                         ushort value = 0;
 
-                        int digit = kHexDigits.IndexOf(char.ToUpperInvariant(text[++ii]), StringComparison.Ordinal);
+                        int digit = kHexDigits.IndexOf(
+                            char.ToUpperInvariant(text[++ii]),
+                            StringComparison.Ordinal);
 
                         if (digit == -1)
                         {
@@ -674,7 +686,9 @@ namespace Opc.Ua
                         value += (ushort)digit;
                         value <<= 4;
 
-                        digit = kHexDigits.IndexOf(char.ToUpperInvariant(text[++ii]), StringComparison.Ordinal);
+                        digit = kHexDigits.IndexOf(
+                            char.ToUpperInvariant(text[++ii]),
+                            StringComparison.Ordinal);
 
                         if (digit == -1)
                         {
@@ -690,7 +704,6 @@ namespace Opc.Ua
 
                         buffer.Append(unencodedChar);
                         break;
-
                     default:
                         buffer.Append(ch);
                         break;
@@ -763,7 +776,7 @@ namespace Opc.Ua
             }
 
             // compare node ids.
-            return (nodeId == null) ? 0 : -1;
+            return nodeId == null ? 0 : -1;
         }
 
         /// <summary>
@@ -1015,7 +1028,7 @@ namespace Opc.Ua
 
                 string serverUri = Utils.UnescapeUri(text.AsSpan()[4..index]);
                 serverIndex =
-                    (options?.UpdateTables == true)
+                    options?.UpdateTables == true
                         ? context.ServerUris.GetIndexOrAppend(serverUri)
                         : context.ServerUris.GetIndex(serverUri);
 
@@ -1072,7 +1085,7 @@ namespace Opc.Ua
 
                 namespaceUri = Utils.UnescapeUri(text[4..index]);
                 namespaceIndex =
-                    (options?.UpdateTables == true)
+                    options?.UpdateTables == true
                         ? context.NamespaceUris.GetIndexOrAppend(namespaceUri)
                         : context.NamespaceUris.GetIndex(namespaceUri);
 
@@ -1083,7 +1096,11 @@ namespace Opc.Ua
 
             if (namespaceIndex > 0)
             {
-                return new ExpandedNodeId(nodeId.Identifier, (ushort)namespaceIndex, null, (uint)serverIndex);
+                return new ExpandedNodeId(
+                    nodeId.Identifier,
+                    (ushort)namespaceIndex,
+                    null,
+                    (uint)serverIndex);
             }
 
             return new ExpandedNodeId(nodeId, namespaceUri, (uint)serverIndex);
@@ -1112,30 +1129,30 @@ namespace Opc.Ua
 
                     if (!string.IsNullOrEmpty(serverUri))
                     {
-                        buffer.Append("svu=");
-                        buffer.Append(Utils.EscapeUri(serverUri));
-                        buffer.Append(';');
+                        buffer.Append("svu=")
+                            .Append(Utils.EscapeUri(serverUri))
+                            .Append(';');
                     }
                     else
                     {
-                        buffer.Append("svr=");
-                        buffer.Append(ServerIndex);
-                        buffer.Append(';');
+                        buffer.Append("svr=")
+                            .Append(ServerIndex)
+                            .Append(';');
                     }
                 }
                 else
                 {
-                    buffer.Append("svr=");
-                    buffer.Append(ServerIndex);
-                    buffer.Append(';');
+                    buffer.Append("svr=")
+                        .Append(ServerIndex)
+                        .Append(';');
                 }
             }
 
             if (!string.IsNullOrEmpty(NamespaceUri))
             {
-                buffer.Append("nsu=");
-                buffer.Append(Utils.EscapeUri(NamespaceUri));
-                buffer.Append(';');
+                buffer.Append("nsu=")
+                    .Append(Utils.EscapeUri(NamespaceUri))
+                    .Append(';');
             }
 
             string id = InnerNodeId.Format(context, useUris);
@@ -1238,6 +1255,7 @@ namespace Opc.Ua
         /// Parses a expanded node id string and sets the properties.
         /// </summary>
         /// <param name="text">The ExpandedNodeId value as a string.</param>
+        /// <exception cref="ServiceResultException"></exception>
         private void InternalParse(string text)
         {
             uint serverIndex = 0;
@@ -1251,7 +1269,9 @@ namespace Opc.Ua
 
                     if (index == -1)
                     {
-                        throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, "Invalid server index.");
+                        throw new ServiceResultException(
+                            StatusCodes.BadNodeIdInvalid,
+                            "Invalid server index.");
                     }
 
                     serverIndex = Convert.ToUInt32(text[4..index], CultureInfo.InvariantCulture);
@@ -1266,7 +1286,9 @@ namespace Opc.Ua
 
                     if (index == -1)
                     {
-                        throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, "Invalid namespace uri.");
+                        throw new ServiceResultException(
+                            StatusCodes.BadNodeIdInvalid,
+                            "Invalid namespace uri.");
                     }
 
                     var buffer = new StringBuilder();
@@ -1288,7 +1310,9 @@ namespace Opc.Ua
             // parse the node id.
 
             // set the properties.
-            InnerNodeId = NodeId.InternalParse(text, serverIndex != 0 || !string.IsNullOrEmpty(namespaceUri));
+            InnerNodeId = NodeId.InternalParse(
+                text,
+                serverIndex != 0 || !string.IsNullOrEmpty(namespaceUri));
             NamespaceUri = namespaceUri;
             ServerIndex = serverIndex;
         }
@@ -1310,7 +1334,9 @@ namespace Opc.Ua
         /// <remarks>
         /// Creates a new [empty] collection.
         /// </remarks>
-        public ExpandedNodeIdCollection() { }
+        public ExpandedNodeIdCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -1319,7 +1345,9 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </remarks>
         public ExpandedNodeIdCollection(IEnumerable<ExpandedNodeId> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
@@ -1328,7 +1356,9 @@ namespace Opc.Ua
         /// Initializes the collection with the specified capacity.
         /// </remarks>
         public ExpandedNodeIdCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -1377,5 +1407,5 @@ namespace Opc.Ua
 
             return clone;
         }
-    } //class
-} //namespace
+    }
+}

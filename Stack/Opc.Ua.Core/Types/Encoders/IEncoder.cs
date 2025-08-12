@@ -400,6 +400,6 @@ namespace Opc.Ua
         /// <summary>
         /// JSON
         /// </summary>
-        Json,
+        Json
     }
 }

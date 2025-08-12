@@ -37,6 +37,7 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// The namespace for the nodes provided by the reference server.
         /// </summary>
-        public const string ReferenceServer = "http://opcfoundation.org/Quickstarts/ReferenceServer";
+        public const string ReferenceServer
+            = "http://opcfoundation.org/Quickstarts/ReferenceServer";
     }
 }

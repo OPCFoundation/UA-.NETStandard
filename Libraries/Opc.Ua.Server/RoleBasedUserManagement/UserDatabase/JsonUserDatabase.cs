@@ -52,6 +52,7 @@ namespace Opc.Ua.Server.UserDatabase
         /// <summary>
         /// Load the JSON application database.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="fileName"/> is <c>null</c>.</exception>
         public static JsonUserDatabase Load(string fileName)
         {
             if (fileName == null)
@@ -69,7 +70,9 @@ namespace Opc.Ua.Server.UserDatabase
                     return db;
                 }
             }
-            catch { }
+            catch
+            {
+            }
             return new JsonUserDatabase(fileName);
         }
 

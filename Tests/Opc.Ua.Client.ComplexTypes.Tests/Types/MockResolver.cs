@@ -96,7 +96,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             IList<NodeId> encodings,
             ExpandedNodeId binaryEncodingId,
             ExpandedNodeId xmlEncodingId
-        )> BrowseForEncodingsAsync(ExpandedNodeId nodeId, string[] supportedEncodings, CancellationToken ct = default)
+        )> BrowseForEncodingsAsync(
+            ExpandedNodeId nodeId,
+            string[] supportedEncodings,
+            CancellationToken ct = default)
         {
             ExpandedNodeId binaryEncodingId = ExpandedNodeId.Null;
             ExpandedNodeId xmlEncodingId = ExpandedNodeId.Null;
@@ -112,7 +115,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     )
                 )
                 {
-                    INode encodingNode = DataTypeNodes[ExpandedNodeId.ToNodeId(reference.TargetId, NamespaceUris)];
+                    INode encodingNode = DataTypeNodes[
+                        ExpandedNodeId.ToNodeId(reference.TargetId, NamespaceUris)];
                     if (encodingNode == null)
                     {
                         continue;
@@ -141,7 +145,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             ExpandedNodeId typeId,
             ExpandedNodeId encodingId,
             DataTypeNode dataTypeNode
-        )> BrowseTypeIdsForDictionaryComponentAsync(ExpandedNodeId nodeId, CancellationToken ct = default)
+        )> BrowseTypeIdsForDictionaryComponentAsync(
+            ExpandedNodeId nodeId,
+            CancellationToken ct = default)
         {
             return Task.FromResult<(ExpandedNodeId typeId, ExpandedNodeId encodingId, DataTypeNode dataTypeNode)>(
                 (null, null, null)
@@ -177,9 +183,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 {
                     IEnumerable<DataTypeNode> response = DataTypeNodes
                         .Values.Where(n =>
-                            n.NodeClass == NodeClass.DataType
-                            && ((DataTypeNode)n).DataTypeDefinition.Body is StructureDefinition structureDefinition
-                            && Utils.IsEqual(structureDefinition.BaseDataType, node)
+                            n.NodeClass == NodeClass.DataType &&
+                            ((DataTypeNode)n).DataTypeDefinition
+                                .Body is StructureDefinition structureDefinition &&
+                            Utils.IsEqual(structureDefinition.BaseDataType, node)
                         )
                         .Cast<DataTypeNode>();
                     if (nestedSubTypes)
@@ -210,7 +217,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
 
         /// <inheritdoc/>
-        public Task<object> GetEnumTypeArrayAsync(ExpandedNodeId nodeId, CancellationToken ct = default)
+        public Task<object> GetEnumTypeArrayAsync(
+            ExpandedNodeId nodeId,
+            CancellationToken ct = default)
         {
             return Task.FromResult<object>(null);
         }
@@ -225,7 +234,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 {
                     return Task.FromResult(DataTypeIds.Enumeration);
                 }
-                else if (dataTypeNode.DataTypeDefinition.Body is StructureDefinition structureDefinition)
+                else if (dataTypeNode.DataTypeDefinition
+                    .Body is StructureDefinition structureDefinition)
                 {
                     return Task.FromResult(structureDefinition.BaseDataType);
                 }
@@ -245,5 +255,5 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
 
         private EncodeableFactory m_factory;
-    } //namespace
+    }
 }

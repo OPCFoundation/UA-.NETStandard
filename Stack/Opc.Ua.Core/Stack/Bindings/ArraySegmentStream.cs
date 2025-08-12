@@ -69,7 +69,13 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="bufferManager">The buffer manager.</param>
         public ArraySegmentStream(BufferManager bufferManager)
-            : this(bufferManager, bufferManager.MaxSuggestedBufferSize, 0, bufferManager.MaxSuggestedBufferSize) { }
+            : this(
+                bufferManager,
+                bufferManager.MaxSuggestedBufferSize,
+                0,
+                bufferManager.MaxSuggestedBufferSize)
+        {
+        }
 
         /// <inheritdoc/>
         protected override void Dispose(bool disposing)
@@ -80,7 +86,9 @@ namespace Opc.Ua.Bindings
                 {
                     for (int ii = 0; ii < m_buffers.Count; ii++)
                     {
-                        m_bufferManager.ReturnBuffer(m_buffers[ii].Array, "ArraySegmentStream.Dispose");
+                        m_bufferManager.ReturnBuffer(
+                            m_buffers[ii].Array,
+                            "ArraySegmentStream.Dispose");
                     }
                     m_buffers.Clear();
                     m_buffers = null;
@@ -95,7 +103,6 @@ namespace Opc.Ua.Bindings
         /// Returns ownership of the buffers stored in the stream.
         /// </summary>
         /// <param name="owner">The owner.</param>
-        /// <returns></returns>
         public BufferCollection GetBuffers(string owner)
         {
             var buffers = new BufferCollection(m_buffers.Count);
@@ -103,7 +110,10 @@ namespace Opc.Ua.Bindings
             for (int ii = 0; ii < m_buffers.Count; ii++)
             {
                 m_bufferManager.TransferBuffer(m_buffers[ii].Array, owner);
-                buffers.Add(new ArraySegment<byte>(m_buffers[ii].Array, m_buffers[ii].Offset, GetBufferCount(ii)));
+                buffers.Add(new ArraySegment<byte>(
+                    m_buffers[ii].Array,
+                    m_buffers[ii].Offset,
+                    GetBufferCount(ii)));
             }
 
             ClearBuffers();
@@ -123,7 +133,11 @@ namespace Opc.Ua.Bindings
         {
             if (m_buffers.Count == 0)
             {
-                return new BufferSequence(m_bufferManager, owner, null, ReadOnlySequence<byte>.Empty);
+                return new BufferSequence(
+                    m_bufferManager,
+                    owner,
+                    null,
+                    ReadOnlySequence<byte>.Empty);
             }
 
             int endIndex = GetBufferCount(0);
@@ -134,7 +148,10 @@ namespace Opc.Ua.Bindings
             {
                 m_bufferManager.TransferBuffer(m_buffers[ii].Array, owner);
                 endIndex = GetBufferCount(ii);
-                nextSegment = nextSegment.Append(m_buffers[ii].Array, m_buffers[ii].Offset, endIndex);
+                nextSegment = nextSegment.Append(
+                    m_buffers[ii].Array,
+                    m_buffers[ii].Offset,
+                    endIndex);
             }
 
             var sequence = new ReadOnlySequence<byte>(firstSegment, 0, nextSegment, endIndex);
@@ -304,15 +321,12 @@ namespace Opc.Ua.Bindings
             {
                 case SeekOrigin.Begin:
                     break;
-
                 case SeekOrigin.Current:
                     offset += GetAbsolutePosition();
                     break;
-
                 case SeekOrigin.End:
                     offset += GetAbsoluteLength();
                     break;
-
                 default:
                     throw new IOException("Invalid seek origin value.");
             }
@@ -604,7 +618,9 @@ namespace Opc.Ua.Bindings
                     throw new IOException("Attempt to write past end of stream.");
                 }
 
-                byte[] newBuffer = m_bufferManager.TakeBuffer(m_bufferSize, "ArraySegmentStream.Write");
+                byte[] newBuffer = m_bufferManager.TakeBuffer(
+                    m_bufferSize,
+                    "ArraySegmentStream.Write");
                 m_buffers.Add(new ArraySegment<byte>(newBuffer, m_start, m_count));
                 m_endOfLastBuffer = 0;
 

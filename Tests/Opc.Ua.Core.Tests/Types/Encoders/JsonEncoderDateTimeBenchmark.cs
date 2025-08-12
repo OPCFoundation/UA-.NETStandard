@@ -35,21 +35,24 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
-    [TestFixture, Category("JsonEncoder")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("JsonEncoder")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [NonParallelizable]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
     public class JsonEncoderDateTimeBenchmark
     {
         [Params(0, 4, 7)]
-        public int DateTimeOmittedZeros { get; set; } = 0;
+        public int DateTimeOmittedZeros { get; set; }
 
         [Benchmark]
         [Test]
         public void DateTimeEncodeToString()
         {
-            _ = m_dateTime.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK", CultureInfo.InvariantCulture);
+            _ = m_dateTime.ToUniversalTime()
+                .ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK", CultureInfo.InvariantCulture);
         }
 
         [Benchmark]
@@ -73,7 +76,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         [OneTimeTearDown]
-        public void OneTimeTearDown() { }
+        public void OneTimeTearDown()
+        {
+        }
 
         /// <summary>
         /// Set up some variables for benchmarks.
@@ -103,7 +108,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Tear down benchmark variables.
         /// </summary>
         [GlobalCleanup]
-        public void GlobalCleanup() { }
+        public void GlobalCleanup()
+        {
+        }
 
         private DateTime m_dateTime;
     }

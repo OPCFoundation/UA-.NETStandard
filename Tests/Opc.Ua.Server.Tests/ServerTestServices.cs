@@ -362,7 +362,11 @@ namespace Opc.Ua.Server.Tests
             out NotificationMessage notificationMessage
         )
         {
-            return m_server.Republish(requestHeader, subscriptionId, retransmitSequenceNumber, out notificationMessage);
+            return m_server.Republish(
+                requestHeader,
+                subscriptionId,
+                retransmitSequenceNumber,
+                out notificationMessage);
         }
 
         public ResponseHeader DeleteSubscriptions(
@@ -372,7 +376,11 @@ namespace Opc.Ua.Server.Tests
             out DiagnosticInfoCollection diagnosticInfos
         )
         {
-            return m_server.DeleteSubscriptions(requestHeader, subscriptionIds, out results, out diagnosticInfos);
+            return m_server.DeleteSubscriptions(
+                requestHeader,
+                subscriptionIds,
+                out results,
+                out diagnosticInfos);
         }
 
         public ResponseHeader TransferSubscriptions(
@@ -399,7 +407,11 @@ namespace Opc.Ua.Server.Tests
             out DiagnosticInfoCollection diagnosticInfos
         )
         {
-            return m_server.TranslateBrowsePathsToNodeIds(requestHeader, browsePaths, out results, out diagnosticInfos);
+            return m_server.TranslateBrowsePathsToNodeIds(
+                requestHeader,
+                browsePaths,
+                out results,
+                out diagnosticInfos);
         }
     }
 }

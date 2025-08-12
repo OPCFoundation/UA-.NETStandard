@@ -106,7 +106,10 @@ namespace Opc.Ua
         /// <param name="message">The log message as string.</param>
         /// <param name="certificate">The certificate information to be logged.</param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        public static void LogCertificate(string message, X509Certificate2 certificate, params object[] args)
+        public static void LogCertificate(
+            string message,
+            X509Certificate2 certificate,
+            params object[] args)
         {
             LogCertificate(LogLevel.Information, 0, message, certificate, args);
         }
@@ -167,11 +170,11 @@ namespace Opc.Ua
                 if (certificate != null)
                 {
                     int argsLength = args.Length;
-                    builder.Append(" [{");
-                    builder.Append(argsLength);
-                    builder.Append("}] [{");
-                    builder.Append(argsLength + 1);
-                    builder.Append("}]");
+                    builder.Append(" [{")
+                        .Append(argsLength)
+                        .Append("}] [{")
+                        .Append(argsLength + 1)
+                        .Append("}]");
                     object[] allArgs = new object[argsLength + 2];
                     for (int i = 0; i < argsLength; i++)
                     {
@@ -198,7 +201,11 @@ namespace Opc.Ua
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogDebug(0, exception, "Error while processing request from {Address}", address)</example>
         [Conditional("DEBUG")]
-        public static void LogDebug(EventId eventId, Exception exception, string message, params object[] args)
+        public static void LogDebug(
+            EventId eventId,
+            Exception exception,
+            string message,
+            params object[] args)
         {
             Log(LogLevel.Debug, eventId, exception, message, args);
         }
@@ -249,7 +256,11 @@ namespace Opc.Ua
         /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogTrace(0, exception, "Error while processing request from {Address}", address)</example>
-        public static void LogTrace(EventId eventId, Exception exception, string message, params object[] args)
+        public static void LogTrace(
+            EventId eventId,
+            Exception exception,
+            string message,
+            params object[] args)
         {
             if (EventLog.IsEnabled())
             {
@@ -325,7 +336,11 @@ namespace Opc.Ua
         /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogInformation(0, exception, "Error while processing request from {Address}", address)</example>
-        public static void LogInfo(EventId eventId, Exception exception, string message, params object[] args)
+        public static void LogInfo(
+            EventId eventId,
+            Exception exception,
+            string message,
+            params object[] args)
         {
             Log(LogLevel.Information, eventId, exception, message, args);
         }
@@ -373,7 +388,11 @@ namespace Opc.Ua
         /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogWarning(0, exception, "Error while processing request from {Address}", address)</example>
-        public static void LogWarning(EventId eventId, Exception exception, string message, params object[] args)
+        public static void LogWarning(
+            EventId eventId,
+            Exception exception,
+            string message,
+            params object[] args)
         {
             Log(LogLevel.Warning, eventId, exception, message, args);
         }
@@ -421,7 +440,11 @@ namespace Opc.Ua
         /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogError(0, exception, "Error while processing request from {Address}", address)</example>
-        public static void LogError(EventId eventId, Exception exception, string message, params object[] args)
+        public static void LogError(
+            EventId eventId,
+            Exception exception,
+            string message,
+            params object[] args)
         {
             Log(LogLevel.Error, eventId, exception, message, args);
         }
@@ -469,7 +492,11 @@ namespace Opc.Ua
         /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogCritical(0, exception, "Error while processing request from {Address}", address)</example>
-        public static void LogCritical(EventId eventId, Exception exception, string message, params object[] args)
+        public static void LogCritical(
+            EventId eventId,
+            Exception exception,
+            string message,
+            params object[] args)
         {
             Log(LogLevel.Critical, eventId, exception, message, args);
         }
@@ -527,7 +554,11 @@ namespace Opc.Ua
         /// <param name="eventId">The event id associated with the log.</param>
         /// <param name="message">Format string of the log message.</param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        public static void Log(LogLevel logLevel, EventId eventId, string message, params object[] args)
+        public static void Log(
+            LogLevel logLevel,
+            EventId eventId,
+            string message,
+            params object[] args)
         {
             if (EventLog.IsEnabled())
             {
@@ -540,7 +571,8 @@ namespace Opc.Ua
                 {
                     // call the legacy logging handler (TraceEvent)
                     int traceMask = GetTraceMask(eventId, logLevel);
-                    Tracing.Instance.RaiseTraceEvent(new TraceEventArgs(traceMask, message, string.Empty, null, args));
+                    Tracing.Instance.RaiseTraceEvent(
+                        new TraceEventArgs(traceMask, message, string.Empty, null, args));
                     // done if mask not enabled, otherwise legacy write handler is
                     // called via logger interface to handle semantic logging.
                     if ((TraceMask & traceMask) == 0)
@@ -560,7 +592,11 @@ namespace Opc.Ua
         /// <param name="exception">The exception to log.</param>
         /// <param name="message">Format string of the log message.</param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        public static void Log(LogLevel logLevel, Exception exception, string message, params object[] args)
+        public static void Log(
+            LogLevel logLevel,
+            Exception exception,
+            string message,
+            params object[] args)
         {
             Log(logLevel, 0, exception, message, args);
         }

@@ -121,7 +121,7 @@ namespace Opc.Ua.Server
                     PercentDataGood = 100,
                     TreatUncertainAsBad = false,
                     UseSlopedExtrapolation = false,
-                    UseServerCapabilitiesDefaults = false,
+                    UseServerCapabilitiesDefaults = false
                 };
 
                 return m_defaultConfiguration;
@@ -149,7 +149,6 @@ namespace Opc.Ua.Server
         /// <param name="processingInterval">The processing interval.</param>
         /// <param name="stepped">Whether stepped interpolation should be used.</param>
         /// <param name="configuration">The configuration to use.</param>
-        /// <returns></returns>
         public IAggregateCalculator CreateCalculator(
             NodeId aggregateId,
             DateTime startTime,
@@ -180,7 +179,13 @@ namespace Opc.Ua.Server
                 configuration = GetDefaultConfiguration(null);
             }
 
-            return factory(aggregateId, startTime, endTime, processingInterval, stepped, configuration);
+            return factory(
+                aggregateId,
+                startTime,
+                endTime,
+                processingInterval,
+                stepped,
+                configuration);
         }
 
         /// <summary>
@@ -189,7 +194,10 @@ namespace Opc.Ua.Server
         /// <param name="aggregateId">The id of the aggregate function.</param>
         /// <param name="aggregateName">The id of the aggregate name.</param>
         /// <param name="factory">The factory used to create calculators.</param>
-        public void RegisterFactory(NodeId aggregateId, string aggregateName, AggregatorFactory factory)
+        public void RegisterFactory(
+            NodeId aggregateId,
+            string aggregateName,
+            AggregatorFactory factory)
         {
             lock (m_lock)
             {

@@ -56,13 +56,17 @@ namespace Opc.Ua.Server
             m_minPublishingInterval = configuration.ServerConfiguration.MinPublishingInterval;
             m_maxPublishingInterval = configuration.ServerConfiguration.MaxPublishingInterval;
             m_publishingResolution = configuration.ServerConfiguration.PublishingResolution;
-            m_maxSubscriptionLifetime = (uint)configuration.ServerConfiguration.MaxSubscriptionLifetime;
+            m_maxSubscriptionLifetime = (uint)configuration.ServerConfiguration
+                .MaxSubscriptionLifetime;
             m_maxDurableSubscriptionLifetimeInHours = (uint)
                 configuration.ServerConfiguration.MaxDurableSubscriptionLifetimeInHours;
-            m_durableSubscriptionsEnabled = configuration.ServerConfiguration.DurableSubscriptionsEnabled;
-            m_minSubscriptionLifetime = (uint)configuration.ServerConfiguration.MinSubscriptionLifetime;
+            m_durableSubscriptionsEnabled = configuration.ServerConfiguration
+                .DurableSubscriptionsEnabled;
+            m_minSubscriptionLifetime = (uint)configuration.ServerConfiguration
+                .MinSubscriptionLifetime;
             m_maxMessageCount = (uint)configuration.ServerConfiguration.MaxMessageQueueSize;
-            m_maxNotificationsPerPublish = (uint)configuration.ServerConfiguration.MaxNotificationsPerPublish;
+            m_maxNotificationsPerPublish = (uint)configuration.ServerConfiguration
+                .MaxNotificationsPerPublish;
             m_maxPublishRequestCount = configuration.ServerConfiguration.MaxPublishRequestCount;
             m_maxSubscriptionCount = configuration.ServerConfiguration.MaxSubscriptionCount;
 
@@ -71,7 +75,9 @@ namespace Opc.Ua.Server
             m_subscriptions = [];
             m_publishQueues = [];
             m_statusMessages = [];
-            m_lastSubscriptionId = BitConverter.ToInt64(Nonce.CreateRandomNonceData(sizeof(long)), 0);
+            m_lastSubscriptionId = BitConverter.ToInt64(
+                Nonce.CreateRandomNonceData(sizeof(long)),
+                0);
 
             // create a event to signal shutdown.
             m_shutdownEvent = new ManualResetEvent(true);
@@ -315,11 +321,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Restore durable subscriptions after a server restart
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public virtual void RestoreSubscriptions()
         {
             if (m_server.IsRunning)
             {
-                throw new InvalidOperationException("Subscription restore can only occur on startup");
+                throw new InvalidOperationException(
+                    "Subscription restore can only occur on startup");
             }
 
             // only restore subscriptions if durable subscriptions are enabeld
@@ -340,7 +348,9 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            if (!restoreResult.Success || restoreResult.Subscriptions == null || !restoreResult.Subscriptions.Any())
+            if (!restoreResult.Success ||
+                restoreResult.Subscriptions == null ||
+                !restoreResult.Subscriptions.Any())
             {
                 return;
             }
@@ -357,7 +367,10 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception ex)
                 {
-                    Utils.LogError(ex, "Failed to restore subscritption with id {0}", storedSubscription.Id);
+                    Utils.LogError(
+                        ex,
+                        "Failed to restore subscritption with id {0}",
+                        storedSubscription.Id);
                     continue;
                 }
 
@@ -373,6 +386,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Restore a subscription after a restart
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         protected virtual ISubscription RestoreSubscription(IStoredSubscription storedSubscription)
         {
             if (m_subscriptions.Count >= m_maxSubscriptionCount)
@@ -381,7 +395,8 @@ namespace Opc.Ua.Server
             }
 
             // calculate publishing interval.
-            storedSubscription.PublishingInterval = CalculatePublishingInterval(storedSubscription.PublishingInterval);
+            storedSubscription.PublishingInterval = CalculatePublishingInterval(
+                storedSubscription.PublishingInterval);
 
             // calculate the keep alive count.
             storedSubscription.MaxKeepaliveCount = CalculateKeepAliveCount(
@@ -433,7 +448,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Signals that a session is closing.
         /// </summary>
-        public virtual void SessionClosing(OperationContext context, NodeId sessionId, bool deleteSubscriptions)
+        public virtual void SessionClosing(
+            OperationContext context,
+            NodeId sessionId,
+            bool deleteSubscriptions)
         {
             IList<ISubscription> subscriptionsToDelete = null;
 
@@ -459,8 +477,7 @@ namespace Opc.Ua.Server
             // remove the expired subscription status change notifications for this session
             lock (m_statusMessagesLock)
             {
-                Queue<StatusMessage> statusQueue = null;
-                if (m_statusMessages.TryGetValue(sessionId, out statusQueue))
+                if (m_statusMessages.TryGetValue(sessionId, out Queue<StatusMessage> statusQueue))
                 {
                     m_statusMessages.Remove(sessionId);
                 }
@@ -486,7 +503,8 @@ namespace Opc.Ua.Server
                         uint publishingIntervalCount = GetPublishingIntervalCount();
                         lock (m_server.DiagnosticsWriteLock)
                         {
-                            ServerDiagnosticsSummaryDataType diagnostics = m_server.ServerDiagnostics;
+                            ServerDiagnosticsSummaryDataType diagnostics = m_server
+                                .ServerDiagnostics;
                             diagnostics.CurrentSubscriptionCount--;
                             diagnostics.PublishingIntervalCount = publishingIntervalCount;
                         }
@@ -497,7 +515,10 @@ namespace Opc.Ua.Server
                         lock (m_lock)
                         {
                             (m_abandonedSubscriptions ??= []).Add(subscription);
-                            Utils.LogWarning("Subscription {0}, Id={1}.", "ABANDONED", subscription.Id);
+                            Utils.LogWarning(
+                                "Subscription {0}, Id={1}.",
+                                "ABANDONED",
+                                subscription.Id);
                         }
                     }
                 }
@@ -507,6 +528,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Refreshes the conditions for the specified subscription.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void ConditionRefresh(OperationContext context, uint subscriptionId)
         {
             ISubscription subscription = null;
@@ -536,7 +558,8 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    serviceResultException = new ServiceResultException(StatusCodes.BadRefreshInProgress);
+                    serviceResultException = new ServiceResultException(
+                        StatusCodes.BadRefreshInProgress);
                 }
 
                 // trigger the refresh worker.
@@ -552,7 +575,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Refreshes the conditions for the specified subscription and monitored item.
         /// </summary>
-        public void ConditionRefresh2(OperationContext context, uint subscriptionId, uint monitoredItemId)
+        /// <exception cref="ServiceResultException"></exception>
+        public void ConditionRefresh2(
+            OperationContext context,
+            uint subscriptionId,
+            uint monitoredItemId)
         {
             ISubscription subscription = null;
 
@@ -627,6 +654,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Deletes the specified subscription.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public StatusCode DeleteSubscription(OperationContext context, uint subscriptionId)
         {
             ISubscription subscription = null;
@@ -641,14 +669,13 @@ namespace Opc.Ua.Server
                     if (!NodeId.IsNull(sessionId))
                     {
                         // check that the subscription is the owner.
-                        if (context != null && !ReferenceEquals(context.Session, subscription.Session))
+                        if (context != null &&
+                            !ReferenceEquals(context.Session, subscription.Session))
                         {
                             throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
                         }
 
-                        SessionPublishQueue queue = null;
-
-                        if (m_publishQueues.TryGetValue(sessionId, out queue))
+                        if (m_publishQueues.TryGetValue(sessionId, out SessionPublishQueue queue))
                         {
                             queue.Remove(subscription, true);
                         }
@@ -663,7 +690,10 @@ namespace Opc.Ua.Server
                         if (m_abandonedSubscriptions[ii].Id == subscriptionId)
                         {
                             m_abandonedSubscriptions.RemoveAt(ii);
-                            Utils.LogWarning("Subscription {0}, Id={1}.", "DELETED(ABANDONED)", subscriptionId);
+                            Utils.LogWarning(
+                                "Subscription {0}, Id={1}.",
+                                "DELETED(ABANDONED)",
+                                subscriptionId);
                             break;
                         }
                     }
@@ -712,7 +742,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Updates the current monitored item count for the session.
         /// </summary>
-        private static void UpdateCurrentMonitoredItemsCount(SessionDiagnosticsDataType diagnostics, int change)
+        private static void UpdateCurrentMonitoredItemsCount(
+            SessionDiagnosticsDataType diagnostics,
+            int change)
         {
             long monitoredItemsCount = diagnostics.CurrentMonitoredItemsCount;
             monitoredItemsCount += change;
@@ -740,8 +772,7 @@ namespace Opc.Ua.Server
                 {
                     double publishingInterval = subscription.PublishingInterval;
 
-                    uint total;
-                    if (!publishingDiagnostics.TryGetValue(publishingInterval, out total))
+                    if (!publishingDiagnostics.TryGetValue(publishingInterval, out uint total))
                     {
                         total = 0;
                     }
@@ -756,6 +787,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a new subscription.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public virtual void CreateSubscription(
             OperationContext context,
             double requestedPublishingInterval,
@@ -790,7 +822,9 @@ namespace Opc.Ua.Server
             revisedPublishingInterval = CalculatePublishingInterval(requestedPublishingInterval);
 
             // calculate the keep alive count.
-            revisedMaxKeepAliveCount = CalculateKeepAliveCount(revisedPublishingInterval, requestedMaxKeepAliveCount);
+            revisedMaxKeepAliveCount = CalculateKeepAliveCount(
+                revisedPublishingInterval,
+                requestedMaxKeepAliveCount);
 
             // calculate the lifetime count.
             revisedLifetimeCount = CalculateLifetimeCount(
@@ -800,7 +834,8 @@ namespace Opc.Ua.Server
             );
 
             // calculate the max notification count.
-            maxNotificationsPerPublish = CalculateMaxNotificationsPerPublish(maxNotificationsPerPublish);
+            maxNotificationsPerPublish = CalculateMaxNotificationsPerPublish(
+                maxNotificationsPerPublish);
 
             // create the subscription.
             ISubscription subscription = CreateSubscription(
@@ -820,9 +855,8 @@ namespace Opc.Ua.Server
                 m_subscriptions.Add(subscriptionId, subscription);
 
                 // create/update publish queue.
-                SessionPublishQueue queue = null;
 
-                if (!m_publishQueues.TryGetValue(session.Id, out queue))
+                if (!m_publishQueues.TryGetValue(session.Id, out SessionPublishQueue queue))
                 {
                     m_publishQueues[session.Id] = queue = new SessionPublishQueue(
                         m_server,
@@ -839,8 +873,9 @@ namespace Opc.Ua.Server
 
             lock (m_statusMessagesLock)
             {
-                Queue<StatusMessage> messagesQueue = null;
-                if (!m_statusMessages.TryGetValue(session.Id, out messagesQueue))
+                if (!m_statusMessages.TryGetValue(
+                    session.Id,
+                    out Queue<StatusMessage> messagesQueue))
                 {
                     m_statusMessages[session.Id] = new Queue<StatusMessage>();
                 }
@@ -895,12 +930,18 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    var result = ServiceResult.Create(e, StatusCodes.BadUnexpectedError, string.Empty);
+                    var result = ServiceResult.Create(
+                        e,
+                        StatusCodes.BadUnexpectedError,
+                        string.Empty);
                     results.Add(result.Code);
 
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
-                        DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(m_server, context, result);
+                        DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
+                            m_server,
+                            context,
+                            result);
                         diagnosticInfos.Add(diagnosticInfo);
                         diagnosticsExist = true;
                     }
@@ -916,6 +957,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Publishes a subscription.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public NotificationMessage Publish(
             OperationContext context,
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
@@ -1002,12 +1044,14 @@ namespace Opc.Ua.Server
                 var message = new StatusMessage
                 {
                     SubscriptionId = subscription.Id,
-                    Message = subscription.PublishTimeout(),
+                    Message = subscription.PublishTimeout()
                 };
 
                 if (
-                    subscription.SessionId != null
-                    && m_statusMessages.TryGetValue(subscription.SessionId, out Queue<StatusMessage> queue)
+                    subscription.SessionId != null &&
+                    m_statusMessages.TryGetValue(
+                        subscription.SessionId,
+                        out Queue<StatusMessage> queue)
                 )
                 {
                     queue.Enqueue(message);
@@ -1023,6 +1067,7 @@ namespace Opc.Ua.Server
         /// <returns>
         /// True if successful. False if the request has been requeued.
         /// </returns>
+        /// <exception cref="ServiceResultException"></exception>
         public bool CompletePublish(OperationContext context, AsyncPublishOperation operation)
         {
             // get publish queue for session.
@@ -1048,7 +1093,10 @@ namespace Opc.Ua.Server
             do
             {
                 // wait for a subscription to publish.
-                ISubscription subscription = queue.CompletePublish(requeue, operation, operation.Calldata);
+                ISubscription subscription = queue.CompletePublish(
+                    requeue,
+                    operation,
+                    operation.Calldata);
 
                 if (subscription == null)
                 {
@@ -1063,7 +1111,10 @@ namespace Opc.Ua.Server
                 {
                     requeue = false;
 
-                    message = subscription.Publish(context, out availableSequenceNumbers, out moreNotifications);
+                    message = subscription.Publish(
+                        context,
+                        out availableSequenceNumbers,
+                        out moreNotifications);
 
                     // a null message indicates a false alarm and that there were no notifications
                     // to publish and that the request needs to be requeued.
@@ -1072,7 +1123,9 @@ namespace Opc.Ua.Server
                         break;
                     }
 
-                    Utils.LogTrace("Publish False Alarm - Request #{0} Requeued.", context.ClientHandle);
+                    Utils.LogTrace(
+                        "Publish False Alarm - Request #{0} Requeued.",
+                        context.ClientHandle);
                     requeue = true;
                 }
                 finally
@@ -1162,7 +1215,10 @@ namespace Opc.Ua.Server
                     {
                         requeue = false;
 
-                        message = subscription.Publish(context, out availableSequenceNumbers, out moreNotifications);
+                        message = subscription.Publish(
+                            context,
+                            out availableSequenceNumbers,
+                            out moreNotifications);
 
                         // a null message indicates a false alarm and that there were no notifications
                         // to publish and that the request needs to be requeued.
@@ -1171,7 +1227,9 @@ namespace Opc.Ua.Server
                             break;
                         }
 
-                        Utils.LogTrace("Publish False Alarm - Request #{0} Requeued.", context.ClientHandle);
+                        Utils.LogTrace(
+                            "Publish False Alarm - Request #{0} Requeued.",
+                            context.ClientHandle);
                         requeue = true;
                     }
                     finally
@@ -1199,6 +1257,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Modifies an existing subscription.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void ModifySubscription(
             OperationContext context,
             uint subscriptionId,
@@ -1248,7 +1307,8 @@ namespace Opc.Ua.Server
             );
 
             // calculate the max notification count.
-            maxNotificationsPerPublish = CalculateMaxNotificationsPerPublish(maxNotificationsPerPublish);
+            maxNotificationsPerPublish = CalculateMaxNotificationsPerPublish(
+                maxNotificationsPerPublish);
 
             // update the subscription.
             subscription.Modify(
@@ -1277,7 +1337,7 @@ namespace Opc.Ua.Server
         /// <param name="subscriptionId">Identifier of the Subscription.</param>
         /// <param name="lifetimeInHours">The requested lifetime in hours for the durable Subscription.</param>
         /// <param name="revisedLifetimeInHours">The revised lifetime in hours the Server applied to the durable Subscription.</param>
-        /// <returns></returns>
+        /// <exception cref="ServiceResultException"></exception>
         public ServiceResult SetSubscriptionDurable(
             ISystemContext context,
             uint subscriptionId,
@@ -1308,14 +1368,16 @@ namespace Opc.Ua.Server
             }
 
             revisedLifetimeInHours = lifetimeInHours;
-            if (revisedLifetimeInHours == 0 || revisedLifetimeInHours > m_maxDurableSubscriptionLifetimeInHours)
+            if (revisedLifetimeInHours == 0 ||
+                revisedLifetimeInHours > m_maxDurableSubscriptionLifetimeInHours)
             {
                 revisedLifetimeInHours = m_maxDurableSubscriptionLifetimeInHours;
             }
 
             const uint hoursInSeconds = 3_600_000;
             long lifetimeInSeconds = revisedLifetimeInHours * hoursInSeconds;
-            uint requestedLifeTimeCount = (uint)(lifetimeInSeconds / subscription.PublishingInterval);
+            uint requestedLifeTimeCount = (uint)(lifetimeInSeconds /
+                subscription.PublishingInterval);
 
             return subscription.SetSubscriptionDurable(requestedLifeTimeCount);
         }
@@ -1323,6 +1385,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Sets the publishing mode for a set of subscriptions.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void SetPublishingMode(
             OperationContext context,
             bool publishingEnabled,
@@ -1364,12 +1427,18 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    var result = ServiceResult.Create(e, StatusCodes.BadUnexpectedError, string.Empty);
+                    var result = ServiceResult.Create(
+                        e,
+                        StatusCodes.BadUnexpectedError,
+                        string.Empty);
                     results.Add(result.Code);
 
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
-                        DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(m_server, context, result);
+                        DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
+                            m_server,
+                            context,
+                            result);
                         diagnosticInfos.Add(diagnosticInfo);
                         diagnosticsExist = true;
                     }
@@ -1434,9 +1503,9 @@ namespace Opc.Ua.Server
                         // check if new and old sessions are different
                         ownerSession = subscription.Session;
                         if (
-                            ownerSession != null
-                            && !NodeId.IsNull(ownerSession.Id)
-                            && ownerSession.Id == context.Session.Id
+                            ownerSession != null &&
+                            !NodeId.IsNull(ownerSession.Id) &&
+                            ownerSession.Id == context.Session.Id
                         )
                         {
                             result.StatusCode = StatusCodes.BadNothingToDo;
@@ -1450,7 +1519,8 @@ namespace Opc.Ua.Server
                     }
 
                     // get the identity of the current or last owner
-                    UserIdentityToken ownerIdentity = subscription.EffectiveIdentity.GetIdentityToken();
+                    UserIdentityToken ownerIdentity = subscription.EffectiveIdentity
+                        .GetIdentityToken();
 
                     // Validate the identity of the user who owns/owned the subscription
                     // is the same as the new owner.
@@ -1463,7 +1533,9 @@ namespace Opc.Ua.Server
                     // secure session using Sign or SignAndEncrypt
                     if (validIdentity && (ownerIdentity is AnonymousIdentityToken))
                     {
-                        MessageSecurityMode securityMode = context.ChannelContext.EndpointDescription.SecurityMode;
+                        MessageSecurityMode securityMode = context.ChannelContext
+                            .EndpointDescription
+                            .SecurityMode;
                         if (securityMode is not MessageSecurityMode.Sign and not MessageSecurityMode.SignAndEncrypt)
                         {
                             validIdentity = false;
@@ -1489,9 +1561,11 @@ namespace Opc.Ua.Server
 
                         // remove from queue in old session
                         if (
-                            ownerSession != null
-                            && m_publishQueues.TryGetValue(ownerSession.Id, out SessionPublishQueue ownerPublishQueue)
-                            && ownerPublishQueue != null
+                            ownerSession != null &&
+                            m_publishQueues.TryGetValue(
+                                ownerSession.Id,
+                                out SessionPublishQueue ownerPublishQueue) &&
+                            ownerPublishQueue != null
                         )
                         {
                             // keep the queued requests for the status message
@@ -1500,11 +1574,14 @@ namespace Opc.Ua.Server
 
                         // add to queue in new session, create queue if necessary
                         if (
-                            !m_publishQueues.TryGetValue(context.SessionId, out SessionPublishQueue publishQueue)
-                            || publishQueue == null
+                            !m_publishQueues.TryGetValue(
+                                context.SessionId,
+                                out SessionPublishQueue publishQueue) ||
+                            publishQueue == null
                         )
                         {
-                            m_publishQueues[context.SessionId] = publishQueue = new SessionPublishQueue(
+                            m_publishQueues[context.SessionId]
+                                = publishQueue = new SessionPublishQueue(
                                 m_server,
                                 context.Session,
                                 m_maxPublishRequestCount
@@ -1517,8 +1594,10 @@ namespace Opc.Ua.Server
                     {
                         var processedQueue = new Queue<StatusMessage>();
                         if (
-                            m_statusMessages.TryGetValue(context.SessionId, out Queue<StatusMessage> messagesQueue)
-                            && messagesQueue != null
+                            m_statusMessages.TryGetValue(
+                                context.SessionId,
+                                out Queue<StatusMessage> messagesQueue) &&
+                            messagesQueue != null
                         )
                         {
                             // There must not be any messages left from
@@ -1539,7 +1618,8 @@ namespace Opc.Ua.Server
                     {
                         lock (context.Session.DiagnosticsLock)
                         {
-                            SessionDiagnosticsDataType diagnostics = context.Session.SessionDiagnostics;
+                            SessionDiagnosticsDataType diagnostics = context.Session
+                                .SessionDiagnostics;
                             diagnostics.CurrentSubscriptionsCount++;
                         }
                     }
@@ -1553,7 +1633,8 @@ namespace Opc.Ua.Server
                     {
                         lock (ownerSession.DiagnosticsLock)
                         {
-                            SessionDiagnosticsDataType diagnostics = ownerSession.SessionDiagnostics;
+                            SessionDiagnosticsDataType diagnostics = ownerSession
+                                .SessionDiagnostics;
                             diagnostics.CurrentSubscriptionsCount--;
                         }
 
@@ -1562,14 +1643,16 @@ namespace Opc.Ua.Server
                         lock (m_statusMessagesLock)
                         {
                             if (
-                                !NodeId.IsNull(ownerSession.Id)
-                                && m_statusMessages.TryGetValue(ownerSession.Id, out Queue<StatusMessage> queue)
+                                !NodeId.IsNull(ownerSession.Id) &&
+                                m_statusMessages.TryGetValue(
+                                    ownerSession.Id,
+                                    out Queue<StatusMessage> queue)
                             )
                             {
                                 var message = new StatusMessage
                                 {
                                     SubscriptionId = subscription.Id,
-                                    Message = subscription.SubscriptionTransferred(),
+                                    Message = subscription.SubscriptionTransferred()
                                 };
                                 queue.Enqueue(message);
                                 statusQueued = true;
@@ -1580,8 +1663,10 @@ namespace Opc.Ua.Server
                         {
                             // trigger publish response to return status immediately
                             if (
-                                m_publishQueues.TryGetValue(ownerSession.Id, out SessionPublishQueue ownerPublishQueue)
-                                && ownerPublishQueue != null
+                                m_publishQueues.TryGetValue(
+                                    ownerSession.Id,
+                                    out SessionPublishQueue ownerPublishQueue) &&
+                                ownerPublishQueue != null
                             )
                             {
                                 if (statusQueued)
@@ -1607,7 +1692,8 @@ namespace Opc.Ua.Server
                     }
 
                     // Return the sequence numbers that are available for retransmission.
-                    result.AvailableSequenceNumbers = subscription.AvailableSequenceNumbersForRetransmission();
+                    result.AvailableSequenceNumbers = subscription
+                        .AvailableSequenceNumbersForRetransmission();
 
                     lock (subscription.DiagnosticsLock)
                     {
@@ -1633,7 +1719,8 @@ namespace Opc.Ua.Server
                     result.StatusCode = StatusCodes.Bad;
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
-                        diagnosticInfos.Add(new DiagnosticInfo(e, context.DiagnosticsMask, false, null));
+                        diagnosticInfos.Add(
+                            new DiagnosticInfo(e, context.DiagnosticsMask, false, null));
                     }
                 }
 
@@ -1651,6 +1738,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Republishes a previously published notification message.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public NotificationMessage Republish(
             OperationContext context,
             uint subscriptionId,
@@ -1675,6 +1763,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Updates the triggers for the monitored item.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void SetTriggering(
             OperationContext context,
             uint subscriptionId,
@@ -1714,6 +1803,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Adds monitored items to a subscription.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void CreateMonitoredItems(
             OperationContext context,
             uint subscriptionId,
@@ -1745,7 +1835,8 @@ namespace Opc.Ua.Server
                 out diagnosticInfos
             );
 
-            int monitoredItemCountIncrement = subscription.MonitoredItemCount - currentMonitoredItemCount;
+            int monitoredItemCountIncrement = subscription.MonitoredItemCount -
+                currentMonitoredItemCount;
 
             // update diagnostics.
             if (context.Session != null)
@@ -1761,6 +1852,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Modifies monitored items in a subscription.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void ModifyMonitoredItems(
             OperationContext context,
             uint subscriptionId,
@@ -1794,6 +1886,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Deletes the monitored items in a subscription.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void DeleteMonitoredItems(
             OperationContext context,
             uint subscriptionId,
@@ -1816,9 +1909,14 @@ namespace Opc.Ua.Server
             int currentMonitoredItemCount = subscription.MonitoredItemCount;
 
             // create the items.
-            subscription.DeleteMonitoredItems(context, monitoredItemIds, out results, out diagnosticInfos);
+            subscription.DeleteMonitoredItems(
+                context,
+                monitoredItemIds,
+                out results,
+                out diagnosticInfos);
 
-            int monitoredItemCountIncrement = subscription.MonitoredItemCount - currentMonitoredItemCount;
+            int monitoredItemCountIncrement = subscription.MonitoredItemCount -
+                currentMonitoredItemCount;
 
             // update diagnostics.
             if (context.Session != null)
@@ -1834,6 +1932,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Changes the monitoring mode for a set of items.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void SetMonitoringMode(
             OperationContext context,
             uint subscriptionId,
@@ -1855,7 +1954,12 @@ namespace Opc.Ua.Server
             }
 
             // create the items.
-            subscription.SetMonitoringMode(context, monitoringMode, monitoredItemIds, out results, out diagnosticInfos);
+            subscription.SetMonitoringMode(
+                context,
+                monitoringMode,
+                monitoredItemIds,
+                out results,
+                out diagnosticInfos);
         }
 
         /// <summary>
@@ -1913,7 +2017,8 @@ namespace Opc.Ua.Server
             if (publishingInterval % m_publishingResolution != 0)
             {
                 publishingInterval =
-                    ((((int)publishingInterval) / m_publishingResolution) + 1) * m_publishingResolution;
+                    ((((int)publishingInterval) / m_publishingResolution) + 1) *
+                    m_publishingResolution;
             }
 
             return publishingInterval;
@@ -1945,7 +2050,8 @@ namespace Opc.Ua.Server
             {
                 keepAliveCount = (uint)(maxSubscriptionLifetime / publishingInterval);
 
-                if (keepAliveCount < uint.MaxValue && maxSubscriptionLifetime % publishingInterval != 0)
+                if (keepAliveCount < uint.MaxValue &&
+                    maxSubscriptionLifetime % publishingInterval != 0)
                 {
                     keepAliveCount++;
                 }
@@ -1958,7 +2064,8 @@ namespace Opc.Ua.Server
             {
                 keepAliveCount = (uint)(m_maxPublishingInterval / publishingInterval);
 
-                if (keepAliveCount < uint.MaxValue && m_maxPublishingInterval % publishingInterval != 0)
+                if (keepAliveCount < uint.MaxValue &&
+                    m_maxPublishingInterval % publishingInterval != 0)
                 {
                     keepAliveCount++;
                 }
@@ -1990,7 +2097,8 @@ namespace Opc.Ua.Server
             {
                 lifetimeCount = (uint)(maxSubscriptionLifetime / publishingInterval);
 
-                if (lifetimeCount < uint.MaxValue && maxSubscriptionLifetime % publishingInterval != 0)
+                if (lifetimeCount < uint.MaxValue &&
+                    maxSubscriptionLifetime % publishingInterval != 0)
                 {
                     lifetimeCount++;
                 }
@@ -2013,11 +2121,13 @@ namespace Opc.Ua.Server
             }
 
             // apply the minimum.
-            if (m_minSubscriptionLifetime > publishingInterval && m_minSubscriptionLifetime > lifetimeInterval)
+            if (m_minSubscriptionLifetime > publishingInterval &&
+                m_minSubscriptionLifetime > lifetimeInterval)
             {
                 lifetimeCount = (uint)(m_minSubscriptionLifetime / publishingInterval);
 
-                if (lifetimeCount < uint.MaxValue && m_minSubscriptionLifetime % publishingInterval != 0)
+                if (lifetimeCount < uint.MaxValue &&
+                    m_minSubscriptionLifetime % publishingInterval != 0)
                 {
                     lifetimeCount++;
                 }
@@ -2031,7 +2141,8 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual uint CalculateMaxNotificationsPerPublish(uint maxNotificationsPerPublish)
         {
-            if (maxNotificationsPerPublish == 0 || maxNotificationsPerPublish > m_maxNotificationsPerPublish)
+            if (maxNotificationsPerPublish == 0 ||
+                maxNotificationsPerPublish > m_maxNotificationsPerPublish)
             {
                 return m_maxNotificationsPerPublish;
             }
@@ -2083,8 +2194,10 @@ namespace Opc.Ua.Server
             lock (m_statusMessagesLock)
             {
                 if (
-                    m_statusMessages.TryGetValue(context.SessionId, out Queue<StatusMessage> statusQueue)
-                    && statusQueue.Count > 0
+                    m_statusMessages.TryGetValue(
+                        context.SessionId,
+                        out Queue<StatusMessage> statusQueue) &&
+                    statusQueue.Count > 0
                 )
                 {
                     StatusMessage status = statusQueue.Dequeue();
@@ -2103,7 +2216,9 @@ namespace Opc.Ua.Server
         {
             try
             {
-                Utils.LogInfo("Subscription - Publish Thread {0:X8} Started.", Environment.CurrentManagedThreadId);
+                Utils.LogInfo(
+                    "Subscription - Publish Thread {0:X8} Started.",
+                    Environment.CurrentManagedThreadId);
 
                 int sleepCycle = Convert.ToInt32(data, CultureInfo.InvariantCulture);
                 int timeToWait = sleepCycle;
@@ -2124,7 +2239,8 @@ namespace Opc.Ua.Server
                         // collect abandoned subscriptions.
                         if (m_abandonedSubscriptions != null && m_abandonedSubscriptions.Count > 0)
                         {
-                            abandonedSubscriptions = new ISubscription[m_abandonedSubscriptions.Count];
+                            abandonedSubscriptions = new ISubscription[m_abandonedSubscriptions
+                                .Count];
 
                             for (int ii = 0; ii < abandonedSubscriptions.Length; ii++)
                             {
@@ -2237,7 +2353,9 @@ namespace Opc.Ua.Server
                     }
                     else
                     {
-                        DoConditionRefresh2(conditionRefreshTask.Subscription, conditionRefreshTask.MonitoredItemId);
+                        DoConditionRefresh2(
+                            conditionRefreshTask.Subscription,
+                            conditionRefreshTask.MonitoredItemId);
                     }
 
                     // use shutdown event to end loop
@@ -2266,13 +2384,18 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="server">The server.</param>
         /// <param name="subscriptionsToDelete">The subscriptions to delete.</param>
-        internal static void CleanupSubscriptions(IServerInternal server, IList<ISubscription> subscriptionsToDelete)
+        internal static void CleanupSubscriptions(
+            IServerInternal server,
+            IList<ISubscription> subscriptionsToDelete)
         {
             if (subscriptionsToDelete != null && subscriptionsToDelete.Count > 0)
             {
-                Utils.LogInfo("Server - {0} Subscriptions scheduled for delete.", subscriptionsToDelete.Count);
+                Utils.LogInfo(
+                    "Server - {0} Subscriptions scheduled for delete.",
+                    subscriptionsToDelete.Count);
 
-                Task.Run(() => CleanupSubscriptions(new object[] { server, subscriptionsToDelete }));
+                Task.Run(
+                    () => CleanupSubscriptions(new object[] { server, subscriptionsToDelete }));
             }
         }
 
@@ -2316,13 +2439,14 @@ namespace Opc.Ua.Server
             }
 
             public ISubscription Subscription { get; }
+
             public uint MonitoredItemId { get; }
 
             public override bool Equals(object obj)
             {
-                return obj is ConditionRefreshTask crt
-                    && Subscription?.Id == crt.Subscription?.Id
-                    && MonitoredItemId == crt.MonitoredItemId;
+                return obj is ConditionRefreshTask crt &&
+                    Subscription?.Id == crt.Subscription?.Id &&
+                    MonitoredItemId == crt.MonitoredItemId;
             }
 
             public override int GetHashCode()

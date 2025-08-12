@@ -11,12 +11,12 @@ tab_width    = 4
 
 # Code files
 [*.{cs,csx,vb,vbx}]
-indent_size              = 4
-charset                  = utf-8
-trim_trailing_whitespace = true
-end_of_line              = crlf
-insert_final_newline     = true
-max_line_length          = 120
+indent_size                 = 4
+charset                     = utf-8
+trim_trailing_whitespace    = true
+end_of_line                 = crlf
+insert_final_newline        = true
+max_line_length             = 120
 
 # Xml project files
 [*.{csproj,vbproj,vcxproj,vcxproj.filters,proj,projitems,shproj}]
@@ -105,6 +105,7 @@ csharp_style_allow_blank_line_after_token_in_arrow_expression_clause_experimenta
 #Formatting - wrapping options
 csharp_preserve_single_line_blocks                                            = true
 csharp_preserve_single_line_statements                                        = false
+dotnet_style_allow_trailing_commas                                            = false:suggestion
 
 #Pattern - matching preferences
 csharp_style_pattern_local_over_anonymous_function                            = true:suggestion
@@ -112,20 +113,20 @@ csharp_style_pattern_matching_over_is_with_cast_check                         = 
 csharp_style_pattern_matching_over_as_with_null_check                         = true:suggestion
 
 #Style - expression bodied member options
-csharp_style_expression_bodied_operators                                      = false:silent
-csharp_style_expression_bodied_indexers                                       = true:silent
+csharp_style_expression_bodied_operators                                      = false:suggestion
+csharp_style_expression_bodied_indexers                                       = true:suggestion
 csharp_style_expression_bodied_accessors                                      = true:suggestion
 csharp_style_expression_bodied_constructors                                   = false:suggestion
 csharp_style_expression_bodied_methods                                        = false:suggestion
-csharp_style_expression_bodied_properties                                     = true:silent
-csharp_style_expression_bodied_lambdas                                        = true:silent
-csharp_style_expression_bodied_local_functions                                = false:silent
+csharp_style_expression_bodied_properties                                     = true:suggestion
+csharp_style_expression_bodied_lambdas                                        = true:suggestion
+csharp_style_expression_bodied_local_functions                                = when_on_single_line:suggestion
 
 #Style - expression level options
-csharp_prefer_braces                                                          = true:silent
+csharp_prefer_braces                                                          = true:suggestion
 csharp_style_deconstructed_variable_declaration                               = true:suggestion
 csharp_prefer_simple_default_expression                                       = true:suggestion
-csharp_style_inlined_variable_declaration                                     = false:suggestion
+csharp_style_inlined_variable_declaration                                     = true:suggestion
 csharp_prefer_simple_using_statement                                          = true:suggestion
 csharp_style_prefer_tuple_swap                                                = true:suggestion
 csharp_prefer_static_local_function = true:warning
@@ -156,10 +157,10 @@ csharp_style_prefer_not_pattern												  = true:suggestion
 csharp_style_prefer_extended_property_pattern								  = true:suggestion
 
 # Never
-dotnet_style_namespace_match_folder											   = false:none
+dotnet_style_namespace_match_folder											  = false:none
 
 # Enable eventually
-dotnet_code_quality_unused_parameters										   = all:suggestion
+dotnet_code_quality_unused_parameters										  = all:suggestion
 
 # Style - language keyword and framework type options
 #prefer the language keyword for local variables, method parameters, and class members,
@@ -213,7 +214,7 @@ csharp_style_namespace_declarations                                           = 
 # Naming rules
 
 # Async methods should have "Async" suffix
-dotnet_naming_rule.async_methods_end_in_async.severity = suggestion
+dotnet_naming_rule.async_methods_end_in_async.severity = warning
 dotnet_naming_rule.async_methods_end_in_async.symbols                         = any_async_methods
 dotnet_naming_rule.async_methods_end_in_async.style = end_in_async
 
@@ -225,7 +226,7 @@ dotnet_naming_style.end_in_async.required_suffix                              = 
 dotnet_naming_style.end_in_async.capitalization                               = pascal_case
 
 # Private Constants are PascalCase and start with k
-dotnet_naming_rule.constants_private_should_start_with_k.severity = suggestion
+dotnet_naming_rule.constants_private_should_start_with_k.severity = warning
 dotnet_naming_rule.constants_private_should_start_with_k.symbols              = constants_with_k
 dotnet_naming_rule.constants_private_should_start_with_k.style = constants_with_k_style
 
@@ -237,7 +238,7 @@ dotnet_naming_style.constants_with_k_style.capitalization                     = 
 dotnet_naming_style.constants_with_k_style.required_prefix                    = k
 
 # Constants are PascalCase
-dotnet_naming_rule.constants_should_be_pascal_case.severity = suggestion
+dotnet_naming_rule.constants_should_be_pascal_case.severity = warning
 dotnet_naming_rule.constants_should_be_pascal_case.symbols                    = constants
 dotnet_naming_rule.constants_should_be_pascal_case.style = non_private_static_field_style
 
@@ -248,7 +249,7 @@ dotnet_naming_symbols.constants.required_modifiers                            = 
 dotnet_naming_style.constant_style.capitalization                             = pascal_case
 
 # Non-private readonly fields are PascalCase
-dotnet_naming_rule.non_private_readonly_fields_should_be_pascal_case.severity = suggestion
+dotnet_naming_rule.non_private_readonly_fields_should_be_pascal_case.severity = warning
 dotnet_naming_rule.non_private_readonly_fields_should_be_pascal_case.symbols  = non_private_readonly_fields
 dotnet_naming_rule.non_private_readonly_fields_should_be_pascal_case.style = non_private_static_field_style
 
@@ -259,7 +260,7 @@ dotnet_naming_symbols.non_private_readonly_fields.required_modifiers          = 
 dotnet_naming_style.non_private_readonly_field_style.capitalization           = pascal_case
 
 # Non-private static fields are PascalCase
-dotnet_naming_rule.non_private_static_fields_should_be_pascal_case.severity = suggestion
+dotnet_naming_rule.non_private_static_fields_should_be_pascal_case.severity = warning
 dotnet_naming_rule.non_private_static_fields_should_be_pascal_case.symbols    = non_private_static_fields
 dotnet_naming_rule.non_private_static_fields_should_be_pascal_case.style = non_private_static_field_style
 
@@ -270,7 +271,7 @@ dotnet_naming_symbols.non_private_static_fields.required_modifiers            = 
 dotnet_naming_style.non_private_static_field_style.capitalization             = pascal_case
 
 # Private static fields are camelCase and start with s_
-dotnet_naming_rule.static_fields_should_be_camel_case.severity = suggestion
+dotnet_naming_rule.static_fields_should_be_camel_case.severity = warning
 dotnet_naming_rule.static_fields_should_be_camel_case.symbols                 = static_fields
 dotnet_naming_rule.static_fields_should_be_camel_case.style = static_field_style
 
@@ -282,7 +283,7 @@ dotnet_naming_style.static_field_style.capitalization                         = 
 dotnet_naming_style.static_field_style.required_prefix                        = s_
 
 # Private instance fields are camelCase and start with m_
-dotnet_naming_rule.instance_fields_should_be_camel_case.severity = suggestion
+dotnet_naming_rule.instance_fields_should_be_camel_case.severity = warning
 dotnet_naming_rule.instance_fields_should_be_camel_case.symbols               = instance_fields
 dotnet_naming_rule.instance_fields_should_be_camel_case.style = instance_field_style
 
@@ -293,7 +294,7 @@ dotnet_naming_style.instance_field_style.capitalization                       = 
 dotnet_naming_style.instance_field_style.required_prefix                      = m_
 
 # Private event fields are PascalCase and start with m_
-dotnet_naming_rule.instance_events_should_be_pascal_case.severity = suggestion
+dotnet_naming_rule.instance_events_should_be_pascal_case.severity = warning
 dotnet_naming_rule.instance_events_should_be_pascal_case.symbols              = instance_events
 dotnet_naming_rule.instance_events_should_be_pascal_case.style = instance_events_style
 
@@ -313,7 +314,7 @@ dotnet_naming_symbols.locals_and_parameters.applicable_kinds                  = 
 dotnet_naming_style.camel_case_style.capitalization                           = camel_case
 
 # Local functions are PascalCase
-dotnet_naming_rule.local_functions_should_be_pascal_case.severity = suggestion
+dotnet_naming_rule.local_functions_should_be_pascal_case.severity = warning
 dotnet_naming_rule.local_functions_should_be_pascal_case.symbols              = local_functions
 dotnet_naming_rule.local_functions_should_be_pascal_case.style = non_private_static_field_style
 
@@ -322,7 +323,7 @@ dotnet_naming_symbols.local_functions.applicable_kinds                        = 
 dotnet_naming_style.local_function_style.capitalization                       = pascal_case
 
 # By default, name items with PascalCase
-dotnet_naming_rule.members_should_be_pascal_case.severity = suggestion
+dotnet_naming_rule.members_should_be_pascal_case.severity = warning
 dotnet_naming_rule.members_should_be_pascal_case.symbols                      = all_members
 dotnet_naming_rule.members_should_be_pascal_case.style = non_private_static_field_style
 
@@ -340,7 +341,7 @@ dotnet_analyzer_diagnostic.category-security.severity                         = 
 # Suggest only non breaking warnings
 
 # CA1805: Do not initialize unnecessarily.
-dotnet_diagnostic.CA1805.severity                                             = silent
+dotnet_diagnostic.CA1805.severity                                             = suggestion
 dotnet_code_quality.CA1805.api_surface                                        = private, internal
 
 # CA1822: Mark members as static.
@@ -355,13 +356,13 @@ dotnet_diagnostic.CA3077.severity                                             = 
 dotnet_diagnostic.CA2007.severity                                             = warning
 
 # IDE0049: Simplify Names
-dotnet_diagnostic.IDE0049.severity                                            = silent
+dotnet_diagnostic.IDE0049.severity                                            = suggestion
 
 # CA1507: Use nameof in place of string
 dotnet_diagnostic.CA1507.severity                                             = warning
 
 # CA1711: Identifiers should not have incorrect suffix
-dotnet_diagnostic.CA1711.severity                                             = silent
+dotnet_diagnostic.CA1711.severity                                             = none
 
 # IDE1005: Simplify delegate invocation
 dotnet_diagnostic.IDE1005.severity                                            = warning
@@ -396,11 +397,9 @@ dotnet_diagnostic.IDE0065.severity                                            = 
 csharp_prefer_system_threading_lock                                           = true:suggestion
 
 # IDE0072: Add missing cases
-dotnet_diagnostic.IDE0072.severity = none
-dotnet_diagnostic.IDE0010.severity = none
+dotnet_diagnostic.IDE0072.severity                                            = none
+dotnet_diagnostic.IDE0010.severity                                            = none
 
-# RCS1146: Use conditional access
-dotnet_diagnostic.RCS1146.severity                                            = none
 # CA1510: Use throw helpers - enable when we have a polyfill
 dotnet_diagnostic.CA1510.severity                                             = none
 dotnet_diagnostic.CA1511.severity                                             = none
@@ -408,31 +407,160 @@ dotnet_diagnostic.CA1512.severity                                             = 
 dotnet_diagnostic.CA1513.severity                                             = none
 
 # Roslynator settings
+dotnet_analyzer_diagnostic.category-roslynator.severity = suggestion
+roslynator_refactorings.enabled = true
+roslynator_compiler_diagnostic_fixes.enabled = true
+roslynator_tab_length       = 4
+roslynator_max_line_length  = 160
+
+roslynator_blank_line_between_using_directives                                = never
+roslynator_blank_line_between_single_line_accessors                           = false
+roslynator_block_braces_style                                                 = multi_line
+roslynator_binary_operator_new_line											  = after
+roslynator_null_conditional_operator_new_line                                 = after
+roslynator_trailing_comma_style                                               = omit
+roslynator_blank_line_between_switch_sections                                 = omit
+roslynator_object_creation_parentheses_style                                  = omit
+roslynator_conditional_operator_condition_parentheses_style                   = omit
+roslynator_empty_string_style                                                 = field
+roslynator_configure_await                                                    = true
+roslynator_infinite_loop_style                                                = while
+
+dotnet_diagnostic.RCS0003.severity                                            = suggestion
+dotnet_diagnostic.RCS0006.severity                                            = suggestion
+dotnet_diagnostic.RCS0009.severity                                            = suggestion
+dotnet_diagnostic.RCS0010.severity                                            = suggestion
+dotnet_diagnostic.RCS0011.severity                                            = suggestion
+dotnet_diagnostic.RCS0015.severity                                            = suggestion
+dotnet_diagnostic.RCS0021.severity                                            = suggestion
+dotnet_diagnostic.RCS0023.severity                                            = suggestion
+dotnet_diagnostic.RCS0025.severity                                            = suggestion
+dotnet_diagnostic.RCS0027.severity                                            = suggestion
+dotnet_diagnostic.RCS0029.severity                                            = suggestion
+dotnet_diagnostic.RCS0031.severity                                            = suggestion
+dotnet_diagnostic.RCS0033.severity                                            = suggestion
+dotnet_diagnostic.RCS0034.severity                                            = suggestion
+dotnet_diagnostic.RCS0041.severity                                            = suggestion
+dotnet_diagnostic.RCS0042.severity                                            = suggestion
+dotnet_diagnostic.RCS0046.severity                                            = suggestion
+dotnet_diagnostic.RCS0049.severity                                            = suggestion
+dotnet_diagnostic.RCS0050.severity                                            = suggestion
+dotnet_diagnostic.RCS0051.severity                                            = suggestion
+#dotnet_diagnostic.RCS0054.severity                                            = suggestion # Call chain formatting
+dotnet_diagnostic.RCS0055.severity                                            = suggestion
+dotnet_diagnostic.RCS0056.severity                                            = suggestion
+dotnet_diagnostic.RCS0059.severity                                            = suggestion
+dotnet_diagnostic.RCS0061.severity                                            = suggestion
 dotnet_diagnostic.RCS0063.severity                                            = suggestion
 dotnet_diagnostic.RCS1002.severity                                            = none
 dotnet_diagnostic.RCS1004.severity                                            = none
-dotnet_diagnostic.RCS1006.severity                                            = suggestion
 dotnet_diagnostic.RCS1005.severity                                            = suggestion
+dotnet_diagnostic.RCS1006.severity                                            = suggestion
 dotnet_diagnostic.RCS1007.severity                                            = warning
+dotnet_diagnostic.RCS1013.severity                                            = suggestion
+dotnet_diagnostic.RCS1015.severity                                            = suggestion
+dotnet_diagnostic.RCS1019.severity                                            = none
+dotnet_diagnostic.RCS1020.severity                                            = suggestion
 dotnet_diagnostic.RCS1031.severity                                            = suggestion
+dotnet_diagnostic.RCS1032.severity                                            = suggestion
+dotnet_diagnostic.RCS1033.severity                                            = suggestion
+dotnet_diagnostic.RCS1034.severity                                            = suggestion
 dotnet_diagnostic.RCS1037.severity                                            = suggestion
+dotnet_diagnostic.RCS1039.severity                                            = suggestion
+dotnet_diagnostic.RCS1042.severity                                            = suggestion
 dotnet_diagnostic.RCS1043.severity                                            = suggestion
+dotnet_diagnostic.RCS1044.severity                                            = suggestion
+#dotnet_diagnostic.RCS1046.severity                                            = warning # Async suffix - does not honor obsolete
+dotnet_diagnostic.RCS1047.severity                                            = warning
+dotnet_diagnostic.RCS1049.severity                                            = suggestion
+dotnet_diagnostic.RCS1050.severity                                            = suggestion
+dotnet_diagnostic.RCS1051.severity                                            = suggestion
+dotnet_diagnostic.RCS1052.severity                                            = suggestion
 dotnet_diagnostic.RCS1055.severity                                            = suggestion
+dotnet_diagnostic.RCS1058.severity                                            = suggestion
 dotnet_diagnostic.RCS1061.severity                                            = suggestion
-dotnet_diagnostic.RCS1066.severity                                            = suggestion
+dotnet_diagnostic.RCS1068.severity                                            = suggestion
+#dotnet_diagnostic.RCS1069.severity                                            = suggestion
+#dotnet_diagnostic.RCS1070.severity                                            = suggestion
+dotnet_diagnostic.RCS1071.severity                                            = suggestion
+dotnet_diagnostic.RCS1074.severity                                            = suggestion
+dotnet_diagnostic.RCS1077.severity                                            = warning
+dotnet_diagnostic.RCS1078.severity                                            = suggestion
+dotnet_diagnostic.RCS1080.severity                                            = suggestion
+dotnet_diagnostic.RCS1081.severity                                            = suggestion
+dotnet_diagnostic.RCS1084.severity                                            = suggestion
+dotnet_diagnostic.RCS1085.severity                                            = suggestion
+dotnet_diagnostic.RCS1089.severity                                            = suggestion
+dotnet_diagnostic.RCS1090.severity                                            = suggestion
+dotnet_diagnostic.RCS1091.severity                                            = suggestion
+dotnet_diagnostic.RCS1094.severity                                            = suggestion
+dotnet_diagnostic.RCS1097.severity                                            = suggestion
+dotnet_diagnostic.RCS1098.severity                                            = suggestion
+dotnet_diagnostic.RCS1099.severity                                            = suggestion
+dotnet_diagnostic.RCS1112.severity                                            = suggestion
 dotnet_diagnostic.RCS1124.severity                                            = suggestion
+dotnet_diagnostic.RCS1126.severity                                            = suggestion
 dotnet_diagnostic.RCS1129.severity                                            = suggestion
+dotnet_diagnostic.RCS1132.severity                                            = suggestion
+dotnet_diagnostic.RCS1133.severity                                            = suggestion
+dotnet_diagnostic.RCS1134.severity                                            = suggestion
+dotnet_diagnostic.RCS1136.severity                                            = suggestion
+dotnet_diagnostic.RCS1139.severity                                            = suggestion
+dotnet_diagnostic.RCS1140.severity                                            = suggestion
 dotnet_diagnostic.RCS1141.severity                                            = silent
+dotnet_diagnostic.RCS1142.severity                                            = suggestion
+dotnet_diagnostic.RCS1143.severity                                            = suggestion
+dotnet_diagnostic.RCS1145.severity                                            = suggestion
+dotnet_diagnostic.RCS1146.severity                                            = none
+dotnet_diagnostic.RCS1151.severity                                            = suggestion
+dotnet_diagnostic.RCS1154.severity                                            = suggestion
 dotnet_diagnostic.RCS1156.severity                                            = warning
 dotnet_diagnostic.RCS1160.severity                                            = warning
+dotnet_diagnostic.RCS1161.severity                                            = none
+dotnet_diagnostic.RCS1166.severity                                            = warning
+dotnet_diagnostic.RCS1169.severity                                            = suggestion
+dotnet_diagnostic.RCS1170.severity                                            = suggestion
 dotnet_diagnostic.RCS1174.severity                                            = warning
 dotnet_diagnostic.RCS1181.severity                                            = suggestion
-dotnet_diagnostic.RCS1091.severity                                            = suggestion
+dotnet_diagnostic.RCS1182.severity                                            = suggestion
+dotnet_diagnostic.RCS1187.severity                                            = suggestion
+dotnet_diagnostic.RCS1188.severity                                            = suggestion
+dotnet_diagnostic.RCS1190.severity                                            = suggestion
+#dotnet_diagnostic.RCS1198.severity                                            = suggestion # Avoid boxing
+dotnet_diagnostic.RCS1201.severity                                            = suggestion
+dotnet_diagnostic.RCS1202.severity                                            = warning
+dotnet_diagnostic.RCS1207.severity                                            = suggestion
+dotnet_diagnostic.RCS1211.severity                                            = suggestion
+dotnet_diagnostic.RCS1214.severity                                            = suggestion
+dotnet_diagnostic.RCS1225.severity                                            = suggestion
+dotnet_diagnostic.RCS1227.severity                                            = warning
+dotnet_diagnostic.RCS1228.severity                                            = none
+dotnet_diagnostic.RCS1229.severity                                            = warning
+dotnet_diagnostic.RCS1237.severity                                            = none
+dotnet_diagnostic.RCS1238.severity                                            = none
+dotnet_diagnostic.RCS1240.severity                                            = suggestion
+dotnet_diagnostic.RCS1241.severity                                            = none
+dotnet_diagnostic.RCS1244.severity                                            = suggestion
+dotnet_diagnostic.RCS1246.severity                                            = suggestion
+dotnet_diagnostic.RCS1249.severity                                            = suggestion
+dotnet_diagnostic.RCS1252.severity                                            = suggestion
+dotnet_diagnostic.RCS1257.severity                                            = suggestion
+dotnet_diagnostic.RCS1258.severity                                            = suggestion
+dotnet_diagnostic.RCS1259.severity                                            = suggestion
+dotnet_diagnostic.RCS1260.severity                                            = suggestion
+dotnet_diagnostic.RCS1262.severity                                            = suggestion
+dotnet_diagnostic.RCS1266.severity                                            = suggestion
+
+# RCS1208: Reduce 'if' nesting
+#dotnet_diagnostic.RCS1208.severity                                            = suggestion
+# RCS1261: Resource can be disposed asynchronously
 dotnet_diagnostic.RCS1261.severity                                            = none
+# RCS1168: Parameter name differs from base name
+dotnet_diagnostic.RCS1168.severity                                            = none
 
 # RCS1163: Unused parameter
-dotnet_diagnostic.RCS1163.severity = none
-dotnet_diagnostic.IDE0060.severity = none
+dotnet_diagnostic.RCS1163.severity                                            = none
+dotnet_diagnostic.IDE0060.severity                                            = none
 
 # exclude generated code
 
@@ -440,9 +568,11 @@ dotnet_diagnostic.IDE0060.severity = none
 generated_code = true
 dotnet_diagnostic.severity = none
 dotnet_analyzer.severity = none
+#dotnet_analyzer_diagnostic.category-roslynator.severity = none
 
 [*.{Classes,DataTypes,Constants}.cs]
 generated_code = true
 dotnet_diagnostic.severity = none
 dotnet_analyzer.severity = none
+#dotnet_analyzer_diagnostic.category-roslynator.severity = none
 

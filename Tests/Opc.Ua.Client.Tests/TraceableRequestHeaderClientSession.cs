@@ -48,7 +48,9 @@ namespace Opc.Ua.Client
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint
         )
-            : this(channel as ITransportChannel, configuration, endpoint, null) { }
+            : this(channel as ITransportChannel, configuration, endpoint, null)
+        {
+        }
 
         /// <summary>
         /// Constructs a new instance of the <see cref="ISession"/> class.
@@ -75,7 +77,15 @@ namespace Opc.Ua.Client
             EndpointDescriptionCollection availableEndpoints = null,
             StringCollection discoveryProfileUris = null
         )
-            : base(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris) { }
+            : base(
+                channel,
+                configuration,
+                endpoint,
+                clientCertificate,
+                availableEndpoints,
+                discoveryProfileUris)
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ISession"/> class.
@@ -83,8 +93,13 @@ namespace Opc.Ua.Client
         /// <param name="channel">The channel.</param>
         /// <param name="template">The template session.</param>
         /// <param name="copyEventHandlers">if set to <c>true</c> the event handlers are copied.</param>
-        public TraceableRequestHeaderClientSession(ITransportChannel channel, Session template, bool copyEventHandlers)
-            : base(channel, template, copyEventHandlers) { }
+        public TraceableRequestHeaderClientSession(
+            ITransportChannel channel,
+            Session template,
+            bool copyEventHandlers)
+            : base(channel, template, copyEventHandlers)
+        {
+        }
 
         /// <summary>
         /// Populates AdditionalParameters with details from the ActivityContext
@@ -97,11 +112,14 @@ namespace Opc.Ua.Client
             traceData = new AdditionalParametersType();
 
             // Determine the trace flag based on the 'Recorded' status.
-            string traceFlags = (context.TraceFlags & ActivityTraceFlags.Recorded) != 0 ? "01" : "00";
+            string traceFlags = (context.TraceFlags & ActivityTraceFlags.Recorded) != 0
+                ? "01"
+                : "00";
 
             // Construct the traceparent header, adhering to the W3C Trace Context format.
             string traceparent = $"00-{context.TraceId}-{context.SpanId}-{traceFlags}";
-            traceData.Parameters.Add(new KeyValuePair() { Key = "traceparent", Value = new Variant(traceparent) });
+            traceData.Parameters
+                .Add(new KeyValuePair { Key = "traceparent", Value = new Variant(traceparent) });
         }
 
         ///<inheritdoc/>
@@ -111,13 +129,16 @@ namespace Opc.Ua.Client
 
             if (Activity.Current != null)
             {
-                InjectTraceIntoAdditionalParameters(Activity.Current.Context, out AdditionalParametersType traceData);
+                InjectTraceIntoAdditionalParameters(
+                    Activity.Current.Context,
+                    out AdditionalParametersType traceData);
 
                 if (request.RequestHeader.AdditionalHeader == null)
                 {
                     request.RequestHeader.AdditionalHeader = new ExtensionObject(traceData);
                 }
-                else if (request.RequestHeader.AdditionalHeader.Body is AdditionalParametersType existingParameters)
+                else if (request.RequestHeader.AdditionalHeader
+                    .Body is AdditionalParametersType existingParameters)
                 {
                     // Merge the trace data into the existing parameters.
                     existingParameters.Parameters.AddRange(traceData.Parameters);

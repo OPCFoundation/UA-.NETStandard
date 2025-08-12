@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-
 #if (!NET_STANDARD)
 using System.Collections.Generic;
 using System.Xml;
@@ -95,7 +94,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginCreateSession(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginCreateSession(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -141,7 +144,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginCreateSession(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginCreateSession(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -195,13 +202,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginActivateSession service contract.
         /// </summary>
-        public IAsyncResult BeginActivateSession(ActivateSessionMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginActivateSession(
+            ActivateSessionMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             WcfChannelAsyncResult asyncResult = new WcfChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginActivateSession(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginActivateSession(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -241,13 +256,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginActivateSession service contract.
         /// </summary>
-        public IAsyncResult BeginActivateSession(ActivateSessionMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginActivateSession(
+            ActivateSessionMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginActivateSession(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginActivateSession(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -307,7 +330,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginCloseSession(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginCloseSession(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -353,7 +380,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginCloseSession(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginCloseSession(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -413,7 +444,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginCancel(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginCancel(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -459,7 +494,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginCancel(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginCancel(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -519,7 +558,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginAddNodes(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginAddNodes(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -565,7 +608,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginAddNodes(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginAddNodes(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -625,7 +672,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginAddReferences(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginAddReferences(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -671,7 +722,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginAddReferences(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginAddReferences(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -731,7 +786,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginDeleteNodes(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginDeleteNodes(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -777,7 +836,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginDeleteNodes(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginDeleteNodes(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -831,13 +894,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginDeleteReferences service contract.
         /// </summary>
-        public IAsyncResult BeginDeleteReferences(DeleteReferencesMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginDeleteReferences(
+            DeleteReferencesMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             WcfChannelAsyncResult asyncResult = new WcfChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginDeleteReferences(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginDeleteReferences(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -877,13 +948,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginDeleteReferences service contract.
         /// </summary>
-        public IAsyncResult BeginDeleteReferences(DeleteReferencesMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginDeleteReferences(
+            DeleteReferencesMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginDeleteReferences(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginDeleteReferences(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -943,7 +1022,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginBrowse(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginBrowse(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -989,7 +1072,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginBrowse(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginBrowse(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -1049,7 +1136,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginBrowseNext(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginBrowseNext(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -1095,7 +1186,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginBrowseNext(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginBrowseNext(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -1127,7 +1222,9 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the TranslateBrowsePathsToNodeIds service contract.
         /// </summary>
-        public TranslateBrowsePathsToNodeIdsResponseMessage TranslateBrowsePathsToNodeIds(TranslateBrowsePathsToNodeIdsMessage request)
+        public TranslateBrowsePathsToNodeIdsResponseMessage TranslateBrowsePathsToNodeIds(
+            TranslateBrowsePathsToNodeIdsMessage request
+        )
         {
             try
             {
@@ -1149,13 +1246,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginTranslateBrowsePathsToNodeIds service contract.
         /// </summary>
-        public IAsyncResult BeginTranslateBrowsePathsToNodeIds(TranslateBrowsePathsToNodeIdsMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginTranslateBrowsePathsToNodeIds(
+            TranslateBrowsePathsToNodeIdsMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             WcfChannelAsyncResult asyncResult = new WcfChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginTranslateBrowsePathsToNodeIds(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginTranslateBrowsePathsToNodeIds(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -1180,7 +1285,9 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the TranslateBrowsePathsToNodeIds service contract.
         /// </summary>
-        public TranslateBrowsePathsToNodeIdsResponseMessage TranslateBrowsePathsToNodeIds(TranslateBrowsePathsToNodeIdsMessage request)
+        public TranslateBrowsePathsToNodeIdsResponseMessage TranslateBrowsePathsToNodeIds(
+            TranslateBrowsePathsToNodeIdsMessage request
+        )
         {
             IAsyncResult result = null;
 
@@ -1195,13 +1302,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginTranslateBrowsePathsToNodeIds service contract.
         /// </summary>
-        public IAsyncResult BeginTranslateBrowsePathsToNodeIds(TranslateBrowsePathsToNodeIdsMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginTranslateBrowsePathsToNodeIds(
+            TranslateBrowsePathsToNodeIdsMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginTranslateBrowsePathsToNodeIds(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginTranslateBrowsePathsToNodeIds(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -1221,7 +1336,9 @@ namespace Opc.Ua
         /// <summary>
         /// The async client side implementation of the TranslateBrowsePathsToNodeIds service contract.
         /// </summary>
-        public Task<TranslateBrowsePathsToNodeIdsResponseMessage> TranslateBrowsePathsToNodeIdsAsync(TranslateBrowsePathsToNodeIdsMessage request)
+        public Task<TranslateBrowsePathsToNodeIdsResponseMessage> TranslateBrowsePathsToNodeIdsAsync(
+            TranslateBrowsePathsToNodeIdsMessage request
+        )
         {
             return this.Channel.TranslateBrowsePathsToNodeIdsAsync(request);
         }
@@ -1261,7 +1378,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginRegisterNodes(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginRegisterNodes(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -1307,7 +1428,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginRegisterNodes(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginRegisterNodes(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -1361,13 +1486,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginUnregisterNodes service contract.
         /// </summary>
-        public IAsyncResult BeginUnregisterNodes(UnregisterNodesMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginUnregisterNodes(
+            UnregisterNodesMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             WcfChannelAsyncResult asyncResult = new WcfChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginUnregisterNodes(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginUnregisterNodes(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -1407,13 +1540,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginUnregisterNodes service contract.
         /// </summary>
-        public IAsyncResult BeginUnregisterNodes(UnregisterNodesMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginUnregisterNodes(
+            UnregisterNodesMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginUnregisterNodes(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginUnregisterNodes(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -1473,7 +1614,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginQueryFirst(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginQueryFirst(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -1519,7 +1664,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginQueryFirst(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginQueryFirst(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -1579,7 +1728,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginQueryNext(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginQueryNext(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -1625,7 +1778,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginQueryNext(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginQueryNext(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -1685,7 +1842,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginRead(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginRead(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -1731,7 +1892,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginRead(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginRead(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -1791,7 +1956,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginHistoryRead(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginHistoryRead(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -1837,7 +2006,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginHistoryRead(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginHistoryRead(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -1897,7 +2070,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginWrite(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginWrite(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -1943,7 +2120,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginWrite(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginWrite(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -2003,7 +2184,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginHistoryUpdate(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginHistoryUpdate(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -2049,7 +2234,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginHistoryUpdate(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginHistoryUpdate(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -2109,7 +2298,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginCall(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginCall(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -2155,7 +2348,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginCall(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginCall(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -2209,13 +2406,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginCreateMonitoredItems service contract.
         /// </summary>
-        public IAsyncResult BeginCreateMonitoredItems(CreateMonitoredItemsMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginCreateMonitoredItems(
+            CreateMonitoredItemsMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             WcfChannelAsyncResult asyncResult = new WcfChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginCreateMonitoredItems(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginCreateMonitoredItems(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -2255,13 +2460,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginCreateMonitoredItems service contract.
         /// </summary>
-        public IAsyncResult BeginCreateMonitoredItems(CreateMonitoredItemsMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginCreateMonitoredItems(
+            CreateMonitoredItemsMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginCreateMonitoredItems(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginCreateMonitoredItems(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -2315,13 +2528,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginModifyMonitoredItems service contract.
         /// </summary>
-        public IAsyncResult BeginModifyMonitoredItems(ModifyMonitoredItemsMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginModifyMonitoredItems(
+            ModifyMonitoredItemsMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             WcfChannelAsyncResult asyncResult = new WcfChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginModifyMonitoredItems(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginModifyMonitoredItems(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -2361,13 +2582,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginModifyMonitoredItems service contract.
         /// </summary>
-        public IAsyncResult BeginModifyMonitoredItems(ModifyMonitoredItemsMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginModifyMonitoredItems(
+            ModifyMonitoredItemsMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginModifyMonitoredItems(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginModifyMonitoredItems(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -2421,13 +2650,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginSetMonitoringMode service contract.
         /// </summary>
-        public IAsyncResult BeginSetMonitoringMode(SetMonitoringModeMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginSetMonitoringMode(
+            SetMonitoringModeMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             WcfChannelAsyncResult asyncResult = new WcfChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginSetMonitoringMode(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginSetMonitoringMode(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -2467,13 +2704,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginSetMonitoringMode service contract.
         /// </summary>
-        public IAsyncResult BeginSetMonitoringMode(SetMonitoringModeMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginSetMonitoringMode(
+            SetMonitoringModeMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginSetMonitoringMode(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginSetMonitoringMode(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -2533,7 +2778,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginSetTriggering(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginSetTriggering(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -2579,7 +2828,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginSetTriggering(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginSetTriggering(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -2633,13 +2886,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginDeleteMonitoredItems service contract.
         /// </summary>
-        public IAsyncResult BeginDeleteMonitoredItems(DeleteMonitoredItemsMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginDeleteMonitoredItems(
+            DeleteMonitoredItemsMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             WcfChannelAsyncResult asyncResult = new WcfChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginDeleteMonitoredItems(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginDeleteMonitoredItems(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -2679,13 +2940,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginDeleteMonitoredItems service contract.
         /// </summary>
-        public IAsyncResult BeginDeleteMonitoredItems(DeleteMonitoredItemsMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginDeleteMonitoredItems(
+            DeleteMonitoredItemsMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginDeleteMonitoredItems(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginDeleteMonitoredItems(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -2739,13 +3008,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginCreateSubscription service contract.
         /// </summary>
-        public IAsyncResult BeginCreateSubscription(CreateSubscriptionMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginCreateSubscription(
+            CreateSubscriptionMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             WcfChannelAsyncResult asyncResult = new WcfChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginCreateSubscription(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginCreateSubscription(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -2785,13 +3062,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginCreateSubscription service contract.
         /// </summary>
-        public IAsyncResult BeginCreateSubscription(CreateSubscriptionMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginCreateSubscription(
+            CreateSubscriptionMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginCreateSubscription(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginCreateSubscription(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -2845,13 +3130,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginModifySubscription service contract.
         /// </summary>
-        public IAsyncResult BeginModifySubscription(ModifySubscriptionMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginModifySubscription(
+            ModifySubscriptionMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             WcfChannelAsyncResult asyncResult = new WcfChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginModifySubscription(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginModifySubscription(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -2891,13 +3184,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginModifySubscription service contract.
         /// </summary>
-        public IAsyncResult BeginModifySubscription(ModifySubscriptionMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginModifySubscription(
+            ModifySubscriptionMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginModifySubscription(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginModifySubscription(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -2951,13 +3252,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginSetPublishingMode service contract.
         /// </summary>
-        public IAsyncResult BeginSetPublishingMode(SetPublishingModeMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginSetPublishingMode(
+            SetPublishingModeMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             WcfChannelAsyncResult asyncResult = new WcfChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginSetPublishingMode(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginSetPublishingMode(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -2997,13 +3306,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginSetPublishingMode service contract.
         /// </summary>
-        public IAsyncResult BeginSetPublishingMode(SetPublishingModeMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginSetPublishingMode(
+            SetPublishingModeMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginSetPublishingMode(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginSetPublishingMode(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -3063,7 +3380,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginPublish(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginPublish(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -3109,7 +3430,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginPublish(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginPublish(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -3169,7 +3494,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginRepublish(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginRepublish(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -3215,7 +3544,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginRepublish(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginRepublish(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -3269,13 +3602,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginTransferSubscriptions service contract.
         /// </summary>
-        public IAsyncResult BeginTransferSubscriptions(TransferSubscriptionsMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginTransferSubscriptions(
+            TransferSubscriptionsMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             WcfChannelAsyncResult asyncResult = new WcfChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginTransferSubscriptions(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginTransferSubscriptions(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -3315,13 +3656,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginTransferSubscriptions service contract.
         /// </summary>
-        public IAsyncResult BeginTransferSubscriptions(TransferSubscriptionsMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginTransferSubscriptions(
+            TransferSubscriptionsMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginTransferSubscriptions(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginTransferSubscriptions(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -3341,7 +3690,9 @@ namespace Opc.Ua
         /// <summary>
         /// The async client side implementation of the TransferSubscriptions service contract.
         /// </summary>
-        public Task<TransferSubscriptionsResponseMessage> TransferSubscriptionsAsync(TransferSubscriptionsMessage request)
+        public Task<TransferSubscriptionsResponseMessage> TransferSubscriptionsAsync(
+            TransferSubscriptionsMessage request
+        )
         {
             return this.Channel.TransferSubscriptionsAsync(request);
         }
@@ -3375,13 +3726,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginDeleteSubscriptions service contract.
         /// </summary>
-        public IAsyncResult BeginDeleteSubscriptions(DeleteSubscriptionsMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginDeleteSubscriptions(
+            DeleteSubscriptionsMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             WcfChannelAsyncResult asyncResult = new WcfChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginDeleteSubscriptions(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginDeleteSubscriptions(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -3421,13 +3780,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginDeleteSubscriptions service contract.
         /// </summary>
-        public IAsyncResult BeginDeleteSubscriptions(DeleteSubscriptionsMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginDeleteSubscriptions(
+            DeleteSubscriptionsMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginDeleteSubscriptions(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginDeleteSubscriptions(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -3508,7 +3875,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginFindServers(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginFindServers(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -3554,7 +3925,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginFindServers(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginFindServers(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -3608,13 +3983,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginFindServersOnNetwork service contract.
         /// </summary>
-        public IAsyncResult BeginFindServersOnNetwork(FindServersOnNetworkMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginFindServersOnNetwork(
+            FindServersOnNetworkMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             WcfChannelAsyncResult asyncResult = new WcfChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginFindServersOnNetwork(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginFindServersOnNetwork(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -3654,13 +4037,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginFindServersOnNetwork service contract.
         /// </summary>
-        public IAsyncResult BeginFindServersOnNetwork(FindServersOnNetworkMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginFindServersOnNetwork(
+            FindServersOnNetworkMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginFindServersOnNetwork(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginFindServersOnNetwork(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -3720,7 +4111,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginGetEndpoints(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginGetEndpoints(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -3766,7 +4161,11 @@ namespace Opc.Ua
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginGetEndpoints(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginGetEndpoints(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -3841,13 +4240,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginRegisterServer service contract.
         /// </summary>
-        public IAsyncResult BeginRegisterServer(RegisterServerMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginRegisterServer(
+            RegisterServerMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             WcfChannelAsyncResult asyncResult = new WcfChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginRegisterServer(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginRegisterServer(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -3887,13 +4294,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginRegisterServer service contract.
         /// </summary>
-        public IAsyncResult BeginRegisterServer(RegisterServerMessage request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginRegisterServer(
+            RegisterServerMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginRegisterServer(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginRegisterServer(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -3947,13 +4362,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginRegisterServer2 service contract.
         /// </summary>
-        public IAsyncResult BeginRegisterServer2(RegisterServer2Message request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginRegisterServer2(
+            RegisterServer2Message request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             WcfChannelAsyncResult asyncResult = new WcfChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginRegisterServer2(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginRegisterServer2(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -3993,13 +4416,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginRegisterServer2 service contract.
         /// </summary>
-        public IAsyncResult BeginRegisterServer2(RegisterServer2Message request, AsyncCallback callback, object asyncState)
+        public IAsyncResult BeginRegisterServer2(
+            RegisterServer2Message request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginRegisterServer2(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginRegisterServer2(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;

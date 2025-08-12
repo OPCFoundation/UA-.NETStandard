@@ -57,12 +57,14 @@ namespace Opc.Ua.PubSub
             MessageContext = new ServiceMessageContext
             {
                 NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris,
-                ServerUris = ServiceMessageContext.GlobalContext.ServerUris,
+                ServerUris = ServiceMessageContext.GlobalContext.ServerUris
             };
 
             Application =
-                parentUaPubSubApplication ?? throw new ArgumentNullException(nameof(parentUaPubSubApplication));
-            Application.UaPubSubConfigurator.WriterGroupAdded += UaPubSubConfigurator_WriterGroupAdded;
+                parentUaPubSubApplication ??
+                throw new ArgumentNullException(nameof(parentUaPubSubApplication));
+            Application.UaPubSubConfigurator.WriterGroupAdded
+                += UaPubSubConfigurator_WriterGroupAdded;
             PubSubConnectionConfiguration = pubSubConnectionDataType;
 
             m_publishers = [];
@@ -124,7 +126,8 @@ namespace Opc.Ua.PubSub
         {
             if (disposing)
             {
-                Application.UaPubSubConfigurator.WriterGroupAdded -= UaPubSubConfigurator_WriterGroupAdded;
+                Application.UaPubSubConfigurator.WriterGroupAdded
+                    -= UaPubSubConfigurator_WriterGroupAdded;
                 Stop();
                 // free managed resources
                 foreach (UaPublisher publisher in m_publishers.OfType<UaPublisher>())
@@ -174,8 +177,6 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Determine if the connection has anything to publish -> at least one WriterDataSet is configured as enabled for current writer group
         /// </summary>
-        /// <param name="writerGroupConfiguration"></param>
-        /// <returns></returns>
         public bool CanPublish(WriterGroupDataType writerGroupConfiguration)
         {
             if (!IsRunning)
@@ -184,15 +185,17 @@ namespace Opc.Ua.PubSub
             }
             // check if connection status is operational
             if (
-                Application.UaPubSubConfigurator.FindStateForObject(PubSubConnectionConfiguration)
-                != PubSubState.Operational
+                Application.UaPubSubConfigurator
+                    .FindStateForObject(PubSubConnectionConfiguration) !=
+                PubSubState.Operational
             )
             {
                 return false;
             }
 
             if (
-                Application.UaPubSubConfigurator.FindStateForObject(writerGroupConfiguration) != PubSubState.Operational
+                Application.UaPubSubConfigurator
+                    .FindStateForObject(writerGroupConfiguration) != PubSubState.Operational
             )
             {
                 return false;
@@ -239,20 +242,23 @@ namespace Opc.Ua.PubSub
         {
             var readersList = new List<DataSetReaderDataType>();
             if (
-                Application.UaPubSubConfigurator.FindStateForObject(PubSubConnectionConfiguration)
-                != PubSubState.Operational
+                Application.UaPubSubConfigurator
+                    .FindStateForObject(PubSubConnectionConfiguration) !=
+                PubSubState.Operational
             )
             {
                 return readersList;
             }
             foreach (ReaderGroupDataType readerGroup in PubSubConnectionConfiguration.ReaderGroups)
             {
-                if (Application.UaPubSubConfigurator.FindStateForObject(readerGroup) == PubSubState.Operational)
+                if (Application.UaPubSubConfigurator
+                    .FindStateForObject(readerGroup) == PubSubState.Operational)
                 {
                     foreach (DataSetReaderDataType reader in readerGroup.DataSetReaders)
                     {
                         // check if the reader is properly configured to receive data
-                        if (Application.UaPubSubConfigurator.FindStateForObject(reader) == PubSubState.Operational)
+                        if (Application.UaPubSubConfigurator
+                            .FindStateForObject(reader) == PubSubState.Operational)
                         {
                             readersList.Add(reader);
                         }
@@ -291,11 +297,11 @@ namespace Opc.Ua.PubSub
                     {
                         // check if reader's MetaData shall be updated
                         if (
-                            reader.DataSetWriterId != 0
-                            && reader.DataSetWriterId == networkMessage.DataSetWriterId
-                            && (
-                                reader.DataSetMetaData == null
-                                || !Utils.IsEqual(
+                            reader.DataSetWriterId != 0 &&
+                            reader.DataSetWriterId == networkMessage.DataSetWriterId &&
+                            (
+                                reader.DataSetMetaData == null ||
+                                !Utils.IsEqual(
                                     reader.DataSetMetaData.ConfigurationVersion,
                                     networkMessage.DataSetMetaData.ConfigurationVersion
                                 )
@@ -309,12 +315,12 @@ namespace Opc.Ua.PubSub
                     if (raiseChangedEvent)
                     {
                         // raise event
-                        var metaDataUpdatedEventArgs = new ConfigurationUpdatingEventArgs()
+                        var metaDataUpdatedEventArgs = new ConfigurationUpdatingEventArgs
                         {
                             ChangedProperty = ConfigurationProperty.DataSetMetaData,
                             Parent = reader,
                             NewValue = networkMessage.DataSetMetaData,
-                            Cancel = false,
+                            Cancel = false
                         };
 
                         // raise the ConfigurationUpdating event and see if configuration shall be changed
@@ -338,10 +344,10 @@ namespace Opc.Ua.PubSub
                     }
                 }
 
-                var subscribedDataEventArgs = new SubscribedDataEventArgs()
+                var subscribedDataEventArgs = new SubscribedDataEventArgs
                 {
                     NetworkMessage = networkMessage,
-                    Source = source,
+                    Source = source
                 };
 
                 // trigger notification for received DataSet MetaData
@@ -353,12 +359,13 @@ namespace Opc.Ua.PubSub
                     subscribedDataEventArgs.NetworkMessage.DataSetMessages.Count
                 );
             }
-            else if (networkMessage.DataSetMessages != null && networkMessage.DataSetMessages.Count > 0)
+            else if (networkMessage.DataSetMessages != null &&
+                networkMessage.DataSetMessages.Count > 0)
             {
-                var subscribedDataEventArgs = new SubscribedDataEventArgs()
+                var subscribedDataEventArgs = new SubscribedDataEventArgs
                 {
                     NetworkMessage = networkMessage,
-                    Source = source,
+                    Source = source
                 };
 
                 //trigger notification for received subscribed DataSet
@@ -375,18 +382,20 @@ namespace Opc.Ua.PubSub
                 if (networkMessage is Encoding.UadpNetworkMessage uadpNetworkMessage)
                 {
                     if (
-                        uadpNetworkMessage.UADPDiscoveryType
-                            == UADPNetworkMessageDiscoveryType.DataSetWriterConfiguration
-                        && uadpNetworkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryResponse
+                        uadpNetworkMessage.UADPDiscoveryType ==
+                            UADPNetworkMessageDiscoveryType.DataSetWriterConfiguration &&
+                        uadpNetworkMessage
+                            .UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryResponse
                     )
                     {
-                        var eventArgs = new DataSetWriterConfigurationEventArgs()
+                        var eventArgs = new DataSetWriterConfigurationEventArgs
                         {
                             DataSetWriterIds = uadpNetworkMessage.DataSetWriterIds,
                             Source = source,
-                            DataSetWriterConfiguration = uadpNetworkMessage.DataSetWriterConfiguration,
+                            DataSetWriterConfiguration = uadpNetworkMessage
+                                .DataSetWriterConfiguration,
                             PublisherId = uadpNetworkMessage.PublisherId,
-                            StatusCodes = uadpNetworkMessage.MessageStatusCodes,
+                            StatusCodes = uadpNetworkMessage.MessageStatusCodes
                         };
 
                         //trigger notification for received configuration
@@ -399,20 +408,23 @@ namespace Opc.Ua.PubSub
                         );
                     }
                     else if (
-                        uadpNetworkMessage.UADPDiscoveryType == UADPNetworkMessageDiscoveryType.PublisherEndpoint
-                        && uadpNetworkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryResponse
+                        uadpNetworkMessage.UADPDiscoveryType ==
+                        UADPNetworkMessageDiscoveryType.PublisherEndpoint &&
+                        uadpNetworkMessage
+                            .UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryResponse
                     )
                     {
-                        var publisherEndpointsEventArgs = new PublisherEndpointsEventArgs()
+                        var publisherEndpointsEventArgs = new PublisherEndpointsEventArgs
                         {
                             PublisherEndpoints = uadpNetworkMessage.PublisherEndpoints,
                             Source = source,
                             PublisherId = uadpNetworkMessage.PublisherId,
-                            StatusCode = uadpNetworkMessage.PublisherProvideEndpoints,
+                            StatusCode = uadpNetworkMessage.PublisherProvideEndpoints
                         };
 
                         //trigger notification for received publisher endpoints
-                        Application.RaisePublisherEndpointsReceivedEvent(publisherEndpointsEventArgs);
+                        Application.RaisePublisherEndpointsReceivedEvent(
+                            publisherEndpointsEventArgs);
 
                         Utils.Trace(
                             "Connection '{0}' - RaisePublisherEndpointsReceivedEvent() from source={0}, with {1} PublisherEndpoints",
@@ -477,9 +489,11 @@ namespace Opc.Ua.PubSub
                 }
                 else
                 {
-                    response.DataSetWriterConfig = PubSubConnectionConfiguration.WriterGroups.First(group =>
-                        group.DataSetWriters.First(writer => writer.DataSetWriterId == dataSetWriterId) != null
-                    );
+                    response.DataSetWriterConfig = PubSubConnectionConfiguration.WriterGroups
+                        .First(group =>
+                            group.DataSetWriters
+                            .First(writer => writer.DataSetWriterId == dataSetWriterId) != null
+                            );
 
                     response.DataSetWriterIds = [dataSetWriterId];
 
@@ -511,15 +525,15 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Create and return the current DataSet for the provided dataSetWriter according to current WriterGroupPublishState
         /// </summary>
-        /// <returns></returns>
-        protected DataSet CreateDataSet(DataSetWriterDataType dataSetWriter, WriterGroupPublishState state)
+        protected DataSet CreateDataSet(
+            DataSetWriterDataType dataSetWriter,
+            WriterGroupPublishState state)
         {
             DataSet dataSet = null;
             //check if dataSetWriter enabled
             if (dataSetWriter.Enabled)
             {
-                uint sequenceNumber;
-                bool isDeltaFrame = state.IsDeltaFrame(dataSetWriter, out sequenceNumber);
+                bool isDeltaFrame = state.IsDeltaFrame(dataSetWriter, out uint sequenceNumber);
 
                 dataSet = Application.DataCollector.CollectData(dataSetWriter.DataSetName);
 
@@ -544,7 +558,8 @@ namespace Opc.Ua.PubSub
         private void UaPubSubConfigurator_WriterGroupAdded(object sender, WriterGroupEventArgs e)
         {
             var pubSubConnectionDataType =
-                Application.UaPubSubConfigurator.FindObjectById(e.ConnectionId) as PubSubConnectionDataType;
+                Application.UaPubSubConfigurator
+                    .FindObjectById(e.ConnectionId) as PubSubConnectionDataType;
             if (PubSubConnectionConfiguration == pubSubConnectionDataType)
             {
                 var publisher = new UaPublisher(this, e.WriterGroupDataType);

@@ -29,7 +29,9 @@ namespace Opc.Ua
                 return true;
             }
 
-            if (NodeId.IsNull(view.m_viewId) && view.m_viewVersion == 0 && view.m_timestamp == DateTime.MinValue)
+            if (NodeId.IsNull(view.m_viewId) &&
+                view.m_viewVersion == 0 &&
+                view.m_timestamp == DateTime.MinValue)
             {
                 return true;
             }

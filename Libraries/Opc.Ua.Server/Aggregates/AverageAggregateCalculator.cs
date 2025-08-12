@@ -72,16 +72,12 @@ namespace Opc.Ua.Server
                 {
                     case Objects.AggregateFunction_Average:
                         return ComputeAverage(slice);
-
                     case Objects.AggregateFunction_TimeAverage:
                         return ComputeTimeAverage(slice, false, 1);
-
                     case Objects.AggregateFunction_Total:
                         return ComputeTimeAverage(slice, false, 2);
-
                     case Objects.AggregateFunction_TimeAverage2:
                         return ComputeTimeAverage(slice, true, 1);
-
                     case Objects.AggregateFunction_Total2:
                         return ComputeTimeAverage(slice, true, 2);
                 }
@@ -139,7 +135,7 @@ namespace Opc.Ua.Server
             {
                 WrappedValue = new Variant(result, TypeInfo.Scalars.Double),
                 SourceTimestamp = GetTimestamp(slice),
-                ServerTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
             };
             value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
             value.StatusCode = GetValueBasedStatusCode(slice, values, value.StatusCode);
@@ -207,7 +203,6 @@ namespace Opc.Ua.Server
                 case 1:
                     result = total / totalDuration;
                     break;
-
                 case 2:
                     result = total;
                     break;
@@ -218,7 +213,7 @@ namespace Opc.Ua.Server
             {
                 WrappedValue = new Variant(result, TypeInfo.Scalars.Double),
                 SourceTimestamp = GetTimestamp(slice),
-                ServerTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
             };
 
             if (useSimpleBounds)

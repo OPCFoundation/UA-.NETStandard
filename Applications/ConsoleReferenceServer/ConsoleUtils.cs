@@ -113,7 +113,7 @@ namespace Quickstarts
     /// <summary>
     /// The error code why the application exit.
     /// </summary>
-    public enum ExitCode : int
+    public enum ExitCode
     {
         Ok = 0,
         ErrorNotStarted = 0x80,
@@ -121,7 +121,7 @@ namespace Quickstarts
         ErrorException = 0x82,
         ErrorStopping = 0x83,
         ErrorCertificate = 0x84,
-        ErrorInvalidCommandLine = 0x100,
+        ErrorInvalidCommandLine = 0x100
     }
 
     /// <summary>
@@ -199,8 +199,7 @@ namespace Quickstarts
                 {
                     ConsoleKeyInfo result = Console.ReadKey();
                     m_output.WriteLine();
-                    return await Task.FromResult(
-result.KeyChar is 'y' or 'Y' or '\r')
+                    return await Task.FromResult(result.KeyChar is 'y' or 'Y' or '\r')
                         .ConfigureAwait(false);
                 }
                 catch
@@ -225,6 +224,7 @@ result.KeyChar is 'y' or 'Y' or '\r')
         /// <summary>
         /// Process a command line of the console sample application.
         /// </summary>
+        /// <exception cref="ErrorExitException"></exception>
         public static string ProcessCommandLine(
             TextWriter output,
             string[] args,
@@ -252,10 +252,8 @@ result.KeyChar is 'y' or 'Y' or '\r')
                     string envKey = config[longest.ToUpperInvariant()];
                     if (envKey != null)
                     {
-                        if (
-                            string.IsNullOrWhiteSpace(envKey)
-                            || option.OptionValueType == OptionValueType.None
-                        )
+                        if (string.IsNullOrWhiteSpace(envKey) ||
+                            option.OptionValueType == OptionValueType.None)
                         {
                             argslist.Add("--" + longest);
                         }
@@ -326,7 +324,8 @@ result.KeyChar is 'y' or 'Y' or '\r')
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
             TaskScheduler.UnobservedTaskException += Unobserved_TaskException;
 
-            LoggerConfiguration loggerConfiguration = new LoggerConfiguration().Enrich.FromLogContext();
+            LoggerConfiguration loggerConfiguration = new LoggerConfiguration().Enrich
+                .FromLogContext();
 
             if (logConsole)
             {
@@ -350,13 +349,13 @@ result.KeyChar is 'y' or 'Y' or '\r')
             int traceMasks = configuration.TraceConfiguration.TraceMasks;
             if (
                 (
-                    traceMasks
-                    & ~(
-                        TraceMasks.Information
-                        | TraceMasks.Error
-                        | TraceMasks.Security
-                        | TraceMasks.StartStop
-                        | TraceMasks.StackTrace
+                    traceMasks &
+                    ~(
+                        TraceMasks.Information |
+                        TraceMasks.Error |
+                        TraceMasks.Security |
+                        TraceMasks.StartStop |
+                        TraceMasks.StackTrace
                     )
                 ) != 0
             )
@@ -369,7 +368,8 @@ result.KeyChar is 'y' or 'Y' or '\r')
             if (!string.IsNullOrWhiteSpace(outputFilePath))
             {
                 loggerConfiguration.WriteTo.File(
-                    new ExpressionTemplate("{UtcDateTime(@t):yyyy-MM-dd HH:mm:ss.fff} [{@l:u3}] {@m}\n{@x}"),
+                    new ExpressionTemplate(
+                        "{UtcDateTime(@t):yyyy-MM-dd HH:mm:ss.fff} [{@l:u3}] {@m}\n{@x}"),
                     ReplaceSpecialFolderNames(outputFilePath),
                     restrictedToMinimumLevel: (LogEventLevel)fileLevel,
                     rollOnFileSizeLimit: true
@@ -402,14 +402,29 @@ result.KeyChar is 'y' or 'Y' or '\r')
         {
             // print legacy logging output, for testing
             Trace(TraceMasks.Error, "This is an Error message: {0}", TraceMasks.Error);
-            Trace(TraceMasks.Information, "This is a Information message: {0}", TraceMasks.Information);
-            Trace(TraceMasks.StackTrace, "This is a StackTrace message: {0}", TraceMasks.StackTrace);
+            Trace(
+                TraceMasks.Information,
+                "This is a Information message: {0}",
+                TraceMasks.Information);
+            Trace(
+                TraceMasks.StackTrace,
+                "This is a StackTrace message: {0}",
+                TraceMasks.StackTrace);
             Trace(TraceMasks.Service, "This is a Service message: {0}", TraceMasks.Service);
-            Trace(TraceMasks.ServiceDetail, "This is a ServiceDetail message: {0}", TraceMasks.ServiceDetail);
+            Trace(
+                TraceMasks.ServiceDetail,
+                "This is a ServiceDetail message: {0}",
+                TraceMasks.ServiceDetail);
             Trace(TraceMasks.Operation, "This is a Operation message: {0}", TraceMasks.Operation);
-            Trace(TraceMasks.OperationDetail, "This is a OperationDetail message: {0}", TraceMasks.OperationDetail);
+            Trace(
+                TraceMasks.OperationDetail,
+                "This is a OperationDetail message: {0}",
+                TraceMasks.OperationDetail);
             Trace(TraceMasks.StartStop, "This is a StartStop message: {0}", TraceMasks.StartStop);
-            Trace(TraceMasks.ExternalSystem, "This is a ExternalSystem message: {0}", TraceMasks.ExternalSystem);
+            Trace(
+                TraceMasks.ExternalSystem,
+                "This is a ExternalSystem message: {0}",
+                TraceMasks.ExternalSystem);
             Trace(TraceMasks.Security, "This is a Security message: {0}", TraceMasks.Security);
 
             // print ILogger logging output
@@ -444,12 +459,19 @@ result.KeyChar is 'y' or 'Y' or '\r')
             return quitEvent;
         }
 
-        private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs args)
+        private static void CurrentDomain_UnhandledException(
+            object sender,
+            UnhandledExceptionEventArgs args)
         {
-            LogCritical("Unhandled Exception: {0} IsTerminating: {1}", args.ExceptionObject, args.IsTerminating);
+            LogCritical(
+                "Unhandled Exception: {0} IsTerminating: {1}",
+                args.ExceptionObject,
+                args.IsTerminating);
         }
 
-        private static void Unobserved_TaskException(object sender, UnobservedTaskExceptionEventArgs args)
+        private static void Unobserved_TaskException(
+            object sender,
+            UnobservedTaskExceptionEventArgs args)
         {
             LogCritical("Unobserved Exception: {0} Observed: {1}", args.Exception, args.Observed);
         }

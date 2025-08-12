@@ -40,7 +40,11 @@ namespace Alarms
         /// <summary>
         /// Create a mechanism to create a folder
         /// </summary>
-        public static FolderState CreateFolder(NodeState parent, ushort nameSpaceIndex, string path, string name)
+        public static FolderState CreateFolder(
+            NodeState parent,
+            ushort nameSpaceIndex,
+            string path,
+            string name)
         {
             var folder = new FolderState(parent)
             {
@@ -52,7 +56,7 @@ namespace Alarms
                 DisplayName = new LocalizedText("en", name),
                 WriteMask = AttributeWriteMask.None,
                 UserWriteMask = AttributeWriteMask.None,
-                EventNotifier = EventNotifiers.None,
+                EventNotifier = EventNotifiers.None
             };
 
             parent?.AddChild(folder);
@@ -99,7 +103,7 @@ namespace Alarms
                 BrowseName = new QualifiedName(name, nameSpaceIndex),
                 DisplayName = new LocalizedText("en", name),
                 WriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description,
-                UserWriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description,
+                UserWriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description
             };
             switch (dataTypeIdentifier)
             {
@@ -131,7 +135,11 @@ namespace Alarms
         /// <summary>
         /// Create a mechanism to create a method
         /// </summary>
-        public static MethodState CreateMethod(NodeState parent, ushort nameSpaceIndex, string path, string name)
+        public static MethodState CreateMethod(
+            NodeState parent,
+            ushort nameSpaceIndex,
+            string path,
+            string name)
         {
             var method = new MethodState(parent)
             {
@@ -143,7 +151,7 @@ namespace Alarms
                 WriteMask = AttributeWriteMask.None,
                 UserWriteMask = AttributeWriteMask.None,
                 Executable = true,
-                UserExecutable = true,
+                UserExecutable = true
             };
 
             parent?.AddChild(method);
@@ -160,7 +168,7 @@ namespace Alarms
             startMethod.InputArguments = new PropertyState<Argument[]>(startMethod)
             {
                 NodeId = new NodeId(startMethod.BrowseName.Name + "InArgs", namespaceIndex),
-                BrowseName = BrowseNames.InputArguments,
+                BrowseName = BrowseNames.InputArguments
             };
             startMethod.InputArguments.DisplayName = startMethod.InputArguments.BrowseName.Name;
             startMethod.InputArguments.TypeDefinitionId = VariableTypeIds.PropertyType;
@@ -170,13 +178,13 @@ namespace Alarms
 
             startMethod.InputArguments.Value =
             [
-                new Argument()
+                new Argument
                 {
                     Name = "UInt32 value",
                     Description = "Runtime of Alarms in seconds.",
                     DataType = DataTypeIds.UInt32,
-                    ValueRank = ValueRanks.Scalar,
-                },
+                    ValueRank = ValueRanks.Scalar
+                }
             ];
         }
     }

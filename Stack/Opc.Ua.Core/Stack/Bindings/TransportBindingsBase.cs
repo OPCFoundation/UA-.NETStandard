@@ -20,6 +20,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// The bindings for the transport listeners.
     /// </summary>
+    /// <typeparam name="T"></typeparam>
     public class TransportBindingsBase<T> : ITransportBindings<T>
         where T : class, ITransportBindingScheme
     {
@@ -52,8 +53,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public T GetBinding(string uriScheme)
         {
-            T binding;
-            if (!Bindings.TryGetValue(uriScheme, out binding))
+            if (!Bindings.TryGetValue(uriScheme, out T binding))
             {
                 TryAddDefaultTransportBindings(uriScheme);
                 if (!Bindings.TryGetValue(uriScheme, out binding))
@@ -109,7 +109,8 @@ namespace Opc.Ua.Bindings
             }
 
             System.Reflection.TypeInfo bindingTypeInfo = bindingType.GetTypeInfo();
-            if (bindingTypeInfo.IsAbstract || !typeof(T).GetTypeInfo().IsAssignableFrom(bindingTypeInfo))
+            if (bindingTypeInfo.IsAbstract ||
+                !typeof(T).GetTypeInfo().IsAssignableFrom(bindingTypeInfo))
             {
                 return false;
             }
@@ -128,8 +129,7 @@ namespace Opc.Ua.Bindings
         /// <param name="scheme">The uri scheme of the binding.</param>
         private bool TryAddDefaultTransportBindings(string scheme)
         {
-            string assemblyName;
-            if (Utils.DefaultBindings.TryGetValue(scheme, out assemblyName))
+            if (Utils.DefaultBindings.TryGetValue(scheme, out string assemblyName))
             {
                 Assembly assembly = null;
                 string fullName = Utils.DefaultOpcUaCoreAssemblyFullName.Replace(
@@ -143,7 +143,10 @@ namespace Opc.Ua.Bindings
                 }
                 catch
                 {
-                    Utils.LogError("Failed to load the assembly {0} for transport binding {1}.", fullName, scheme);
+                    Utils.LogError(
+                        "Failed to load the assembly {0} for transport binding {1}.",
+                        fullName,
+                        scheme);
                 }
 
                 if (assembly != null)

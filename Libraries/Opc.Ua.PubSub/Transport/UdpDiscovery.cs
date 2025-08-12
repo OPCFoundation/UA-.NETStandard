@@ -48,7 +48,6 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Create new instance of <see cref="UdpDiscovery"/>
         /// </summary>
-        /// <param name="udpConnection"></param>
         protected UdpDiscovery(UdpPubSubConnection udpConnection)
         {
             m_udpConnection = udpConnection;
@@ -75,7 +74,6 @@ namespace Opc.Ua.PubSub.Transport
         /// Start the UdpDiscovery process
         /// </summary>
         /// <param name="messageContext">The <see cref="IServiceMessageContext"/> object that should be used in encode/decode messages</param>
-        /// <returns></returns>
         public virtual async Task StartAsync(IServiceMessageContext messageContext)
         {
             await Task.Run(() =>
@@ -98,7 +96,6 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Start the UdpDiscovery process
         /// </summary>
-        /// <returns></returns>
         public virtual async Task StopAsync()
         {
             lock (Lock)
@@ -122,13 +119,14 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         private void Initialize()
         {
-            PubSubConnectionDataType pubSubConnectionConfiguration = m_udpConnection.PubSubConnectionConfiguration;
+            PubSubConnectionDataType pubSubConnectionConfiguration = m_udpConnection
+                .PubSubConnectionConfiguration;
 
             if (
                 ExtensionObject.ToEncodeable(pubSubConnectionConfiguration.TransportSettings)
-                    is DatagramConnectionTransportDataType transportSettings
-                && transportSettings.DiscoveryAddress != null
-                && ExtensionObject.ToEncodeable(transportSettings.DiscoveryAddress)
+                    is DatagramConnectionTransportDataType transportSettings &&
+                transportSettings.DiscoveryAddress != null &&
+                ExtensionObject.ToEncodeable(transportSettings.DiscoveryAddress)
                     is NetworkAddressUrlDataType discoveryNetworkAddressUrlState
             )
             {
@@ -139,7 +137,8 @@ namespace Opc.Ua.PubSub.Transport
                 );
 
                 DiscoveryNetworkInterfaceName = discoveryNetworkAddressUrlState.NetworkInterface;
-                DiscoveryNetworkAddressEndPoint = UdpClientCreator.GetEndPoint(discoveryNetworkAddressUrlState.Url);
+                DiscoveryNetworkAddressEndPoint = UdpClientCreator.GetEndPoint(
+                    discoveryNetworkAddressUrlState.Url);
             }
 
             if (DiscoveryNetworkAddressEndPoint == null)
@@ -151,7 +150,8 @@ namespace Opc.Ua.PubSub.Transport
                     kDefaultDiscoveryUrl
                 );
 
-                DiscoveryNetworkAddressEndPoint = UdpClientCreator.GetEndPoint(kDefaultDiscoveryUrl);
+                DiscoveryNetworkAddressEndPoint = UdpClientCreator.GetEndPoint(
+                    kDefaultDiscoveryUrl);
             }
         }
     }

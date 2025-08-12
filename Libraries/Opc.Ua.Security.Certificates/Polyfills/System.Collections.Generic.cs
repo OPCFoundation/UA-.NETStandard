@@ -38,7 +38,12 @@ namespace System.Collections.Generic
         /// <summary>
         /// Try add value
         /// </summary>
-        public static bool TryAdd<TKey, TValue>(this IDictionary<TKey, TValue> target, TKey key, TValue value)
+        /// <typeparam name="TKey"></typeparam>
+        /// <typeparam name="TValue"></typeparam>
+        public static bool TryAdd<TKey, TValue>(
+            this IDictionary<TKey, TValue> target,
+            TKey key,
+            TValue value)
         {
             if (!target.ContainsKey(key))
             {

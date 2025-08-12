@@ -66,7 +66,7 @@ namespace Opc.Ua.Client
             New = 0,
             Stopped = 1,
             Started = 2,
-            Errored = 3,
+            Errored = 3
         }
 
         /// <summary>
@@ -77,7 +77,7 @@ namespace Opc.Ua.Client
             New = 0,
             Closed = 1,
             Open = 2,
-            Errored = 3,
+            Errored = 3
         }
 
         /// <summary>
@@ -116,7 +116,7 @@ namespace Opc.Ua.Client
             /// Respond to any incoming reverse connection,
             /// always callback.
             /// </summary>
-            AnyAlways = Any | Always,
+            AnyAlways = Any | Always
         }
 
         /// <summary>
@@ -155,9 +155,6 @@ namespace Opc.Ua.Client
             /// <summary>
             /// Register with the server certificate.
             /// </summary>
-            /// <param name="serverCertificate"></param>
-            /// <param name="endpointUrl"></param>
-            /// <param name="onConnectionWaiting"></param>
             public Registration(
                 X509Certificate2 serverCertificate,
                 Uri endpointUrl,
@@ -168,7 +165,9 @@ namespace Opc.Ua.Client
                 ServerUri = X509Utils.GetApplicationUriFromCertificate(serverCertificate);
             }
 
-            private Registration(Uri endpointUrl, EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting)
+            private Registration(
+                Uri endpointUrl,
+                EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting)
             {
                 EndpointUrl = new Uri(Utils.ReplaceLocalhost(endpointUrl.ToString()));
                 OnConnectionWaiting = onConnectionWaiting;
@@ -226,7 +225,9 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="sender">The sender.</param>
         /// <param name="args">The <see cref="ConfigurationWatcherEventArgs"/> instance containing the event data.</param>
-        protected virtual async void OnConfigurationChangedAsync(object sender, ConfigurationWatcherEventArgs args)
+        protected virtual async void OnConfigurationChangedAsync(
+            object sender,
+            ConfigurationWatcherEventArgs args)
         {
             try
             {
@@ -262,7 +263,8 @@ namespace Opc.Ua.Client
         ///  An empty configuration or null stops service on all configured endpoints.
         /// </remarks>
         /// <param name="configuration">The client endpoint configuration.</param>
-        protected virtual void OnUpdateConfiguration(ReverseConnectClientConfiguration configuration)
+        protected virtual void OnUpdateConfiguration(
+            ReverseConnectClientConfiguration configuration)
         {
             bool restartService = false;
 
@@ -368,7 +370,8 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Add endpoint for reverse connection.
         /// </summary>
-        /// <param name="endpointUrl"></param>
+        /// <exception cref="ArgumentNullException"><paramref name="endpointUrl"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public void AddEndpoint(Uri endpointUrl)
         {
             if (endpointUrl == null)
@@ -391,6 +394,8 @@ namespace Opc.Ua.Client
         /// Starts the server application.
         /// </summary>
         /// <param name="configuration">The configuration.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public void StartService(ApplicationConfiguration configuration)
         {
             if (configuration == null)
@@ -435,6 +440,8 @@ namespace Opc.Ua.Client
         /// Starts the server application.
         /// </summary>
         /// <param name="configuration">The configuration.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public void StartService(ReverseConnectClientConfiguration configuration)
         {
             if (configuration == null)
@@ -485,9 +492,6 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Helper to wait for a reverse connection.
         /// </summary>
-        /// <param name="endpointUrl"></param>
-        /// <param name="serverUri"></param>
-        /// <param name="ct"></param>
         [Obsolete("Use WaitForConnectionAsync instead.")]
         public Task<ITransportWaitingConnection> WaitForConnection(
             Uri endpointUrl,
@@ -501,9 +505,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Helper to wait for a reverse connection.
         /// </summary>
-        /// <param name="endpointUrl"></param>
-        /// <param name="serverUri"></param>
-        /// <param name="ct"></param>
+        /// <exception cref="ServiceResultException"></exception>
         public async Task<ITransportWaitingConnection> WaitForConnectionAsync(
             Uri endpointUrl,
             string serverUri,
@@ -523,7 +525,9 @@ namespace Opc.Ua.Client
                 if (ct == default)
                 {
                     int waitTimeout =
-                        m_configuration.WaitTimeout > 0 ? m_configuration.WaitTimeout : DefaultWaitTimeout;
+                        m_configuration.WaitTimeout > 0
+                            ? m_configuration.WaitTimeout
+                            : DefaultWaitTimeout;
                     await Task.Delay(waitTimeout, ct).ConfigureAwait(false);
                 }
                 else
@@ -554,6 +558,7 @@ namespace Opc.Ua.Client
         /// <param name="serverUri">Optional. The server application Uri of the reverse connection.</param>
         /// <param name="onConnectionWaiting">The callback</param>
         /// <param name="reverseConnectStrategy">The reverse connect callback strategy.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="endpointUrl"/> is <c>null</c>.</exception>
         public int RegisterWaitingConnection(
             Uri endpointUrl,
             string serverUri,
@@ -568,7 +573,7 @@ namespace Opc.Ua.Client
 
             var registration = new Registration(serverUri, endpointUrl, onConnectionWaiting)
             {
-                ReverseConnectStrategy = reverseConnectStrategy,
+                ReverseConnectStrategy = reverseConnectStrategy
             };
             lock (m_registrationsLock)
             {
@@ -740,10 +745,12 @@ namespace Opc.Ua.Client
                 )
                 {
                     if (
-                        registration.EndpointUrl.Scheme.Equals(e.EndpointUrl.Scheme, StringComparison.Ordinal)
-                        && (
-                            registration.ServerUri?.Equals(e.ServerUri, StringComparison.Ordinal) == true
-                            || registration.EndpointUrl.Authority.Equals(
+                        registration.EndpointUrl.Scheme
+                            .Equals(e.EndpointUrl.Scheme, StringComparison.Ordinal) &&
+                        (
+                            registration.ServerUri?
+                                .Equals(e.ServerUri, StringComparison.Ordinal) == true ||
+                            registration.EndpointUrl.Authority.Equals(
                                 e.EndpointUrl.Authority,
                                 StringComparison.OrdinalIgnoreCase
                             )
@@ -753,7 +760,10 @@ namespace Opc.Ua.Client
                         callbackRegistration = registration;
                         e.Accepted = true;
                         found = true;
-                        Utils.LogInfo("Accepted reverse connection: {0} {1}", e.ServerUri, e.EndpointUrl);
+                        Utils.LogInfo(
+                            "Accepted reverse connection: {0} {1}",
+                            e.ServerUri,
+                            e.EndpointUrl);
                         break;
                     }
                 }
@@ -767,7 +777,8 @@ namespace Opc.Ua.Client
                         )
                     )
                     {
-                        if (registration.EndpointUrl.Scheme.Equals(e.EndpointUrl.Scheme, StringComparison.Ordinal))
+                        if (registration.EndpointUrl.Scheme
+                            .Equals(e.EndpointUrl.Scheme, StringComparison.Ordinal))
                         {
                             callbackRegistration = registration;
                             e.Accepted = true;
@@ -783,8 +794,8 @@ namespace Opc.Ua.Client
                 }
 
                 if (
-                    callbackRegistration != null
-                    && (callbackRegistration.ReverseConnectStrategy & ReverseConnectStrategy.Once) != 0
+                    callbackRegistration != null &&
+                    (callbackRegistration.ReverseConnectStrategy & ReverseConnectStrategy.Once) != 0
                 )
                 {
                     m_registrations.Remove(callbackRegistration);

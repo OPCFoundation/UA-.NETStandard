@@ -48,7 +48,8 @@ namespace Boiler
         }
 
         /// <inheritdoc/>
-        public StringCollection NamespacesUris => [Namespaces.Boiler, Namespaces.Boiler + "Instance"];
+        public StringCollection NamespacesUris
+            => [Namespaces.Boiler, Namespaces.Boiler + "Instance"];
     }
 
     /// <summary>
@@ -59,7 +60,10 @@ namespace Boiler
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
-        public BoilerNodeManager(IServerInternal server, ApplicationConfiguration configuration, string[] namespaceUris)
+        public BoilerNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            string[] namespaceUris)
             : base(server)
         {
             NamespaceUris = namespaceUris;
@@ -67,7 +71,9 @@ namespace Boiler
             Server.NamespaceUris.GetIndexOrAppend(namespaceUris[0]);
             m_namespaceIndex = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[1]);
 
-            AddEncodeableNodeManagerTypes(typeof(BoilerNodeManager).Assembly, typeof(BoilerNodeManager).Namespace);
+            AddEncodeableNodeManagerTypes(
+                typeof(BoilerNodeManager).Assembly,
+                typeof(BoilerNodeManager).Namespace);
 
             m_lastUsedId = 0;
             m_boilers = [];
@@ -93,7 +99,8 @@ namespace Boiler
         /// in other node managers. For example, the 'Objects' node is managed by the CoreNodeManager and
         /// should have a reference to the root folder node(s) exposed by this node manager.
         /// </remarks>
-        public override void CreateAddressSpace(IDictionary<NodeId, IList<IReference>> externalReferences)
+        public override void CreateAddressSpace(
+            IDictionary<NodeId, IList<IReference>> externalReferences)
         {
             lock (Lock)
             {
@@ -187,7 +194,9 @@ namespace Boiler
         /// <summary>
         /// Replaces the generic node with a node specific to the model.
         /// </summary>
-        protected override NodeState AddBehaviourToPredefinedNode(ISystemContext context, NodeState predefinedNode)
+        protected override NodeState AddBehaviourToPredefinedNode(
+            ISystemContext context,
+            NodeState predefinedNode)
         {
             if (predefinedNode is not BaseObjectState passiveNode)
             {

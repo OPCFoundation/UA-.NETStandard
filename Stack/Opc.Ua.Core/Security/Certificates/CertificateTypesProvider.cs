@@ -44,7 +44,9 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Disallow to create types provider without configuration.
         /// </summary>
-        private CertificateTypesProvider() { }
+        private CertificateTypesProvider()
+        {
+        }
 
         /// <summary>
         /// Create an instance of the certificate provider.
@@ -53,7 +55,8 @@ namespace Opc.Ua.Security.Certificates
         {
             m_securityConfiguration = config.SecurityConfiguration;
             m_certificateValidator = new CertificateValidator();
-            m_certificateChain = new ConcurrentDictionary<string, Tuple<X509Certificate2Collection, byte[]>>();
+            m_certificateChain
+                = new ConcurrentDictionary<string, Tuple<X509Certificate2Collection, byte[]>>();
         }
 
         /// <summary>
@@ -90,25 +93,31 @@ namespace Opc.Ua.Security.Certificates
                 // return the default certificate for None
                 return m_securityConfiguration.ApplicationCertificates.FirstOrDefault().Certificate;
             }
-            foreach (NodeId certType in Ua.CertificateIdentifier.MapSecurityPolicyToCertificateTypes(securityPolicyUri))
+            foreach (NodeId certType in Ua.CertificateIdentifier
+                .MapSecurityPolicyToCertificateTypes(securityPolicyUri))
             {
                 Ua.CertificateIdentifier instanceCertificate =
                     m_securityConfiguration.ApplicationCertificates.FirstOrDefault(id =>
                         id.CertificateType == certType
                     );
-                if (instanceCertificate == null && certType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
+                if (instanceCertificate == null &&
+                    certType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
                 {
-                    instanceCertificate = m_securityConfiguration.ApplicationCertificates.FirstOrDefault(id =>
-                        id.CertificateType == null
-                    );
+                    instanceCertificate = m_securityConfiguration.ApplicationCertificates
+                        .FirstOrDefault(id =>
+                            id.CertificateType == null
+                            );
                 }
-                if (instanceCertificate == null && certType == ObjectTypeIds.ApplicationCertificateType)
+                if (instanceCertificate == null &&
+                    certType == ObjectTypeIds.ApplicationCertificateType)
                 {
-                    instanceCertificate = m_securityConfiguration.ApplicationCertificates.FirstOrDefault();
+                    instanceCertificate = m_securityConfiguration.ApplicationCertificates
+                        .FirstOrDefault();
                 }
                 if (instanceCertificate == null && certType == ObjectTypeIds.HttpsCertificateType)
                 {
-                    instanceCertificate = m_securityConfiguration.ApplicationCertificates.FirstOrDefault();
+                    instanceCertificate = m_securityConfiguration.ApplicationCertificates
+                        .FirstOrDefault();
                 }
                 if (instanceCertificate != null)
                 {
@@ -133,8 +142,8 @@ namespace Opc.Ua.Security.Certificates
                 m_certificateChain.TryGetValue(
                     certificate.Thumbprint,
                     out Tuple<X509Certificate2Collection, byte[]> result
-                )
-                && result.Item2 != null
+                ) &&
+                result.Item2 != null
             )
             {
                 return result.Item2;
@@ -147,7 +156,8 @@ namespace Opc.Ua.Security.Certificates
         /// Loads the certificate chain for an application certificate.
         /// </summary>
         /// <param name="certificate">The application certificate.</param>
-        public async Task<X509Certificate2Collection> LoadCertificateChainAsync(X509Certificate2 certificate)
+        public async Task<X509Certificate2Collection> LoadCertificateChainAsync(
+            X509Certificate2 certificate)
         {
             if (certificate == null)
             {
@@ -167,7 +177,8 @@ namespace Opc.Ua.Security.Certificates
             // load certificate chain.
             var certificateChain = new X509Certificate2Collection(certificate);
             var issuers = new List<Ua.CertificateIdentifier>();
-            if (await m_certificateValidator.GetIssuersAsync(certificate, issuers).ConfigureAwait(false))
+            if (await m_certificateValidator.GetIssuersAsync(certificate, issuers)
+                .ConfigureAwait(false))
             {
                 for (int i = 0; i < issuers.Count; i++)
                 {
@@ -178,7 +189,8 @@ namespace Opc.Ua.Security.Certificates
             byte[] certificateChainRaw = Utils.CreateCertificateChainBlob(certificateChain);
 
             // update cached values
-            m_certificateChain[certificate.Thumbprint] = new Tuple<X509Certificate2Collection, byte[]>(
+            m_certificateChain[certificate.Thumbprint]
+                = new Tuple<X509Certificate2Collection, byte[]>(
                 certificateChain,
                 certificateChainRaw
             );

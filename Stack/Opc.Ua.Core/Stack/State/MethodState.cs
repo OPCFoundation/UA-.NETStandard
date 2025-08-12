@@ -248,7 +248,10 @@ namespace Opc.Ua
         /// <param name="context">The context user.</param>
         /// <param name="encoder">The encoder to write to.</param>
         /// <param name="attributesToSave">The masks indicating what attributes to write.</param>
-        public override void Save(ISystemContext context, BinaryEncoder encoder, AttributesToSave attributesToSave)
+        public override void Save(
+            ISystemContext context,
+            BinaryEncoder encoder,
+            AttributesToSave attributesToSave)
         {
             base.Save(context, encoder, attributesToSave);
 
@@ -269,7 +272,10 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         /// <param name="decoder">The decoder.</param>
         /// <param name="attributesToLoad">The attributes to load.</param>
-        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attributesToLoad)
+        public override void Update(
+            ISystemContext context,
+            BinaryDecoder decoder,
+            AttributesToSave attributesToLoad)
         {
             base.Update(context, decoder, attributesToLoad);
 
@@ -313,7 +319,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.UserExecutable:
                     bool userExecutable = m_userExecutable;
 
@@ -338,7 +343,10 @@ namespace Opc.Ua
         /// <summary>
         /// Write the value for any non-value attribute.
         /// </summary>
-        protected override ServiceResult WriteNonValueAttribute(ISystemContext context, uint attributeId, object value)
+        protected override ServiceResult WriteNonValueAttribute(
+            ISystemContext context,
+            uint attributeId,
+            object value)
         {
             ServiceResult result = null;
 
@@ -372,7 +380,6 @@ namespace Opc.Ua
                     }
 
                     return result;
-
                 case Attributes.UserExecutable:
                     bool? userExecutableRef = value as bool?;
 
@@ -498,7 +505,6 @@ namespace Opc.Ua
 
                     instance = InputArguments;
                     break;
-
                 case BrowseNames.OutputArguments:
                     if (createOrReplace && OutputArguments == null)
                     {
@@ -582,7 +588,10 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < inputArguments.Count; ii++)
             {
-                ServiceResult argumentError = ValidateInputArgument(context, inputArguments[ii], ii);
+                ServiceResult argumentError = ValidateInputArgument(
+                    context,
+                    inputArguments[ii],
+                    ii);
 
                 if (ServiceResult.IsBad(argumentError))
                 {
@@ -659,7 +668,6 @@ namespace Opc.Ua
         /// <param name="objectId">The id of the object.</param>
         /// <param name="inputArguments">The input arguments which have been already validated.</param>
         /// <param name="outputArguments">The output arguments which have initialized with thier default values.</param>
-        /// <returns></returns>
         protected virtual ServiceResult Call(
             ISystemContext context,
             NodeId objectId,
@@ -696,7 +704,10 @@ namespace Opc.Ua
         /// <param name="inputArgument">The input argument.</param>
         /// <param name="index">The index in the list of input argument.</param>
         /// <returns>Any error.</returns>
-        protected ServiceResult ValidateInputArgument(ISystemContext context, Variant inputArgument, int index)
+        protected ServiceResult ValidateInputArgument(
+            ISystemContext context,
+            Variant inputArgument,
+            int index)
         {
             PropertyState<Argument[]> inputArguments = InputArguments;
 
@@ -738,7 +749,10 @@ namespace Opc.Ua
         /// <returns>The default value.</returns>
         protected object GetArgumentDefaultValue(ISystemContext context, Argument outputArgument)
         {
-            return TypeInfo.GetDefaultValue(outputArgument.DataType, outputArgument.ValueRank, context.TypeTable);
+            return TypeInfo.GetDefaultValue(
+                outputArgument.DataType,
+                outputArgument.ValueRank,
+                context.TypeTable);
         }
 
         private bool m_executable;

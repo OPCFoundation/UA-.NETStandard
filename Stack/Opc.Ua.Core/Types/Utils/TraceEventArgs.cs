@@ -27,7 +27,12 @@ namespace Opc.Ua
         /// <param name="message">The message.</param>
         /// <param name="exception">The exception.</param>
         /// <param name="args">The arguments.</param>
-        internal TraceEventArgs(int traceMask, string format, string message, Exception exception, object[] args)
+        internal TraceEventArgs(
+            int traceMask,
+            string format,
+            string message,
+            Exception exception,
+            object[] args)
         {
             TraceMask = traceMask;
             Format = format;

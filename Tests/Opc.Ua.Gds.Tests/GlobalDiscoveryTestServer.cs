@@ -63,7 +63,8 @@ namespace Opc.Ua.Gds.Tests
             {
                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
-                    throw new PlatformNotSupportedException("X509 Store with crls is only supported on Windows");
+                    throw new PlatformNotSupportedException(
+                        "X509 Store with crls is only supported on Windows");
                 }
                 configSectionName = "Opc.Ua.GlobalDiscoveryTestServerX509Stores";
             }
@@ -71,7 +72,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 ApplicationName = "Global Discovery Server",
                 ApplicationType = ApplicationType.Server,
-                ConfigSectionName = configSectionName,
+                ConfigSectionName = configSectionName
             };
 
             BasePort = basePort;
@@ -82,22 +83,28 @@ namespace Opc.Ua.Gds.Tests
                 string thumbprint = Config.SecurityConfiguration.ApplicationCertificate.Thumbprint;
                 if (thumbprint != null)
                 {
-                    using ICertificateStore store = Config.SecurityConfiguration.ApplicationCertificate.OpenStore();
+                    using ICertificateStore store = Config.SecurityConfiguration
+                        .ApplicationCertificate
+                        .OpenStore();
                     await store.DeleteAsync(thumbprint).ConfigureAwait(false);
                 }
 
                 // always start with clean cert store
                 await TestUtils
-                    .CleanupTrustListAsync(Config.SecurityConfiguration.ApplicationCertificate.OpenStore())
+                    .CleanupTrustListAsync(
+                        Config.SecurityConfiguration.ApplicationCertificate.OpenStore())
                     .ConfigureAwait(false);
                 await TestUtils
-                    .CleanupTrustListAsync(Config.SecurityConfiguration.TrustedIssuerCertificates.OpenStore())
+                    .CleanupTrustListAsync(
+                        Config.SecurityConfiguration.TrustedIssuerCertificates.OpenStore())
                     .ConfigureAwait(false);
                 await TestUtils
-                    .CleanupTrustListAsync(Config.SecurityConfiguration.TrustedPeerCertificates.OpenStore())
+                    .CleanupTrustListAsync(
+                        Config.SecurityConfiguration.TrustedPeerCertificates.OpenStore())
                     .ConfigureAwait(false);
                 await TestUtils
-                    .CleanupTrustListAsync(Config.SecurityConfiguration.RejectedCertificateStore.OpenStore())
+                    .CleanupTrustListAsync(
+                        Config.SecurityConfiguration.RejectedCertificateStore.OpenStore())
                     .ConfigureAwait(false);
 
                 Config = await LoadAsync(Application, basePort).ConfigureAwait(false);
@@ -114,7 +121,8 @@ namespace Opc.Ua.Gds.Tests
 
             if (!Config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
             {
-                Config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(
+                Config.CertificateValidator.CertificateValidation
+                    += new CertificateValidationEventHandler(
                     CertificateValidator_CertificateValidation
                 );
             }
@@ -122,8 +130,10 @@ namespace Opc.Ua.Gds.Tests
             // get the DatabaseStorePath configuration parameter.
             GlobalDiscoveryServerConfiguration gdsConfiguration =
                 Config.ParseExtension<GlobalDiscoveryServerConfiguration>();
-            string databaseStorePath = Utils.ReplaceSpecialFolderNames(gdsConfiguration.DatabaseStorePath);
-            string usersDatabaseStorePath = Utils.ReplaceSpecialFolderNames(gdsConfiguration.UsersDatabaseStorePath);
+            string databaseStorePath = Utils.ReplaceSpecialFolderNames(
+                gdsConfiguration.DatabaseStorePath);
+            string usersDatabaseStorePath = Utils.ReplaceSpecialFolderNames(
+                gdsConfiguration.UsersDatabaseStorePath);
 
             if (clean)
             {
@@ -180,17 +190,21 @@ namespace Opc.Ua.Gds.Tests
 
         public string ReadLogFile()
         {
-            return File.ReadAllText(Utils.ReplaceSpecialFolderNames(Config.TraceConfiguration.OutputFilePath));
+            return File.ReadAllText(
+                Utils.ReplaceSpecialFolderNames(Config.TraceConfiguration.OutputFilePath));
         }
 
         public bool ResetLogFile()
         {
             try
             {
-                File.Delete(Utils.ReplaceSpecialFolderNames(Config.TraceConfiguration.OutputFilePath));
+                File.Delete(
+                    Utils.ReplaceSpecialFolderNames(Config.TraceConfiguration.OutputFilePath));
                 return true;
             }
-            catch { }
+            catch
+            {
+            }
             return false;
         }
 
@@ -218,7 +232,9 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        private static async Task<ApplicationConfiguration> LoadAsync(ApplicationInstance application, int basePort)
+        private static async Task<ApplicationConfiguration> LoadAsync(
+            ApplicationInstance application,
+            int basePort)
         {
 #if !USE_FILE_CONFIG
             // load the application configuration.
@@ -229,14 +245,14 @@ namespace Opc.Ua.Gds.Tests
             string[] baseAddresses = ["opc.tcp://localhost:58810/GlobalDiscoveryTestServer"];
             string root = Path.Combine("%LocalApplicationData%", "OPC");
             string gdsRoot = Path.Combine(root, "GDS");
-            var gdsConfig = new GlobalDiscoveryServerConfiguration()
+            var gdsConfig = new GlobalDiscoveryServerConfiguration
             {
                 AuthoritiesStorePath = Path.Combine(gdsRoot, "authorities"),
                 ApplicationCertificatesStorePath = Path.Combine(gdsRoot, "applications"),
                 DefaultSubjectNameContext = "O=OPC Foundation",
                 CertificateGroups =
                 [
-                    new CertificateGroupConfiguration()
+                    new CertificateGroupConfiguration
                     {
                         Id = "Default",
                         CertificateTypes =
@@ -245,7 +261,7 @@ namespace Opc.Ua.Gds.Tests
                             "EccNistP256ApplicationCertificateType",
                             "EccNistP384ApplicationCertificateType",
                             "EccBrainpoolP256r1ApplicationCertificateType",
-                            "EccBrainpoolP384r1ApplicationCertificateType",
+                            "EccBrainpoolP384r1ApplicationCertificateType"
                         ],
                         SubjectName = "CN=GDS Test CA, O=OPC Foundation",
                         BaseStorePath = Path.Combine(gdsRoot, "CA", "default"),
@@ -254,11 +270,11 @@ namespace Opc.Ua.Gds.Tests
                         DefaultCertificateLifetime = 12,
                         CACertificateHashSize = 512,
                         CACertificateKeySize = 4096,
-                        CACertificateLifetime = 60,
-                    },
+                        CACertificateLifetime = 60
+                    }
                 ],
                 DatabaseStorePath = Path.Combine(gdsRoot, "gdsdb.json"),
-                UsersDatabaseStorePath = Path.Combine(gdsRoot, "gdsusersdb.json"),
+                UsersDatabaseStorePath = Path.Combine(gdsRoot, "gdsusersdb.json")
             };
 
             CertificateIdentifierCollection applicationCerts =

@@ -49,14 +49,16 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     /// <summary>
     /// Tests for the CertificateValidator class.
     /// </summary>
-    [TestFixture, Category("CertificateValidator")]
+    [TestFixture]
+    [Category("CertificateValidator")]
     [Parallelizable]
     [SetCulture("en-us")]
     public class CertificateValidatorTest
     {
 #if ECC_SUPPORT
         [DatapointSource]
-        public static readonly ECCurveHashPair[] ECCurveHashPairs = CertificateTestsForECDsa.GetECCurveHashPairs();
+        public static readonly ECCurveHashPair[] ECCurveHashPairs = CertificateTestsForECDsa
+            .GetECCurveHashPairs();
 #endif
 
         public const string RootCASubject = "CN=Root CA Test Cert, O=OPC Foundation";
@@ -73,8 +75,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             // good applications test set
             var appTestDataGenerator = new ApplicationTestDataGenerator(1);
-            m_goodApplicationTestSet = appTestDataGenerator.ApplicationTestSet(kGoodApplicationsTestCount);
-            m_notYetValidCertsApplicationTestSet = appTestDataGenerator.ApplicationTestSet(kGoodApplicationsTestCount);
+            m_goodApplicationTestSet = appTestDataGenerator.ApplicationTestSet(
+                kGoodApplicationsTestCount);
+            m_notYetValidCertsApplicationTestSet = appTestDataGenerator.ApplicationTestSet(
+                kGoodApplicationsTestCount);
 
             // create all certs and CRL
             m_caChain = new X509Certificate2[kCaChainCount];
@@ -184,7 +188,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 string subject = app.Subject;
                 X509Certificate2 appCert = CertificateFactory
-                    .CreateCertificate(app.ApplicationUri, app.ApplicationName, subject, app.DomainNames)
+                    .CreateCertificate(
+                        app.ApplicationUri,
+                        app.ApplicationName,
+                        subject,
+                        app.DomainNames)
                     .CreateForRSA();
                 m_appSelfSignedCerts.Add(appCert);
             }
@@ -194,7 +202,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 string subject = app.Subject;
                 X509Certificate2 appCert = CertificateFactory
-                    .CreateCertificate(app.ApplicationUri, app.ApplicationName, subject, app.DomainNames)
+                    .CreateCertificate(
+                        app.ApplicationUri,
+                        app.ApplicationName,
+                        subject,
+                        app.DomainNames)
                     .SetIssuer(signingCert)
                     .CreateForRSA();
                 app.Certificate = appCert.RawData;
@@ -213,7 +225,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 string subject = app.Subject;
                 X509Certificate2 expiredappcert = CertificateFactory
-                    .CreateCertificate(app.ApplicationUri, app.ApplicationName, subject, app.DomainNames)
+                    .CreateCertificate(
+                        app.ApplicationUri,
+                        app.ApplicationName,
+                        subject,
+                        app.DomainNames)
                     .SetNotAfter(subCABaseTime.AddMonths(4))
                     .SetNotBefore(subCABaseTime.AddMonths(1))
                     .SetIssuer(signingCert)
@@ -227,10 +243,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Clean up the Test PKI folder.
         /// </summary>
         [OneTimeTearDown]
-        protected void OneTimeTearDown() { }
+        protected void OneTimeTearDown()
+        {
+        }
 
         [TearDown]
-        protected void TearDown() { }
+        protected void TearDown()
+        {
+        }
 
         /// <summary>
         /// Verify self signed app certs are not trusted.
@@ -243,10 +263,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             CertificateValidator certValidator = validator.Update();
             foreach (X509Certificate2 cert in m_appSelfSignedCerts)
             {
-                ServiceResultException serviceResultException = NUnit.Framework.Assert.Throws<ServiceResultException>(
-                    () =>
-                        certValidator.Validate(new X509Certificate2(cert))
-                );
+                ServiceResultException serviceResultException = NUnit.Framework.Assert
+                    .Throws<ServiceResultException>(
+                        () =>
+                            certValidator.Validate(new X509Certificate2(cert))
+                        );
                 Assert.AreEqual(
                     (StatusCode)StatusCodes.BadCertificateUntrusted,
                     (StatusCode)serviceResultException.StatusCode,
@@ -297,10 +318,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             CertificateValidator certValidator = validator.Update();
             foreach (X509Certificate2 cert in m_appSelfSignedCerts)
             {
-                ServiceResultException serviceResultException = NUnit.Framework.Assert.Throws<ServiceResultException>(
-                    () =>
-                        certValidator.Validate(new X509Certificate2(cert))
-                );
+                ServiceResultException serviceResultException = NUnit.Framework.Assert
+                    .Throws<ServiceResultException>(
+                        () =>
+                            certValidator.Validate(new X509Certificate2(cert))
+                        );
                 Assert.AreEqual(
                     (StatusCode)StatusCodes.BadCertificateUntrusted,
                     (StatusCode)serviceResultException.StatusCode,
@@ -323,7 +345,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     await validator.IssuerStore.AddAsync(cert).ConfigureAwait(false);
                 }
-                Assert.AreEqual(m_appSelfSignedCerts.Count, validator.IssuerStore.EnumerateAsync().Result.Count);
+                Assert.AreEqual(
+                    m_appSelfSignedCerts.Count,
+                    validator.IssuerStore.EnumerateAsync().Result.Count);
                 CertificateValidator certValidator = validator.Update();
                 foreach (X509Certificate2 cert in m_appSelfSignedCerts)
                 {
@@ -339,7 +363,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
 
                 await Task.Delay(1000).ConfigureAwait(false);
-                Assert.AreEqual(m_appSelfSignedCerts.Count, validator.RejectedStore.EnumerateAsync().Result.Count);
+                Assert.AreEqual(
+                    m_appSelfSignedCerts.Count,
+                    validator.RejectedStore.EnumerateAsync().Result.Count);
             }
         }
 
@@ -374,7 +400,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     var certs = new X509Certificate2Collection(cert);
                     certs.AddRange(m_caChain);
                     ServiceResultException serviceResultException =
-                        NUnit.Framework.Assert.Throws<ServiceResultException>(() => certValidator.Validate(certs));
+                        NUnit.Framework.Assert
+                            .Throws<ServiceResultException>(() => certValidator.Validate(certs));
                     Assert.AreEqual(
                         (StatusCode)StatusCodes.BadCertificateUntrusted,
                         (StatusCode)serviceResultException.StatusCode,
@@ -387,7 +414,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     var certs = new X509Certificate2Collection(cert);
                     certs.AddRange(m_caChain);
                     ServiceResultException serviceResultException =
-                        NUnit.Framework.Assert.Throws<ServiceResultException>(() => certValidator.Validate(certs));
+                        NUnit.Framework.Assert
+                            .Throws<ServiceResultException>(() => certValidator.Validate(certs));
                     Assert.AreEqual(
                         (StatusCode)StatusCodes.BadCertificateUntrusted,
                         (StatusCode)serviceResultException.StatusCode,
@@ -397,7 +425,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 await Task.Delay(1000).ConfigureAwait(false);
                 certificates = await validator.RejectedStore.EnumerateAsync().ConfigureAwait(false);
-                Assert.GreaterOrEqual(m_caChain.Length + kNumberOfRejectCertsHistory + 1, certificates.Count);
+                Assert.GreaterOrEqual(
+                    m_caChain.Length + kNumberOfRejectCertsHistory + 1,
+                    certificates.Count);
 
                 foreach (X509Certificate2 cert in m_appSelfSignedCerts)
                 {
@@ -422,7 +452,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
                             await certValidator
-                                .ValidateAsync(new X509Certificate2Collection(cert), CancellationToken.None)
+                                .ValidateAsync(
+                                    new X509Certificate2Collection(cert),
+                                    CancellationToken.None)
                                 .ConfigureAwait(false)
                         );
                     Assert.AreEqual(
@@ -460,7 +492,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
                             await certValidator
-                                .ValidateAsync(new X509Certificate2Collection(cert), CancellationToken.None)
+                                .ValidateAsync(
+                                    new X509Certificate2Collection(cert),
+                                    CancellationToken.None)
                                 .ConfigureAwait(false)
                         );
                     Assert.AreEqual(
@@ -491,7 +525,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
             }
-            Assert.AreEqual(m_appSelfSignedCerts.Count, validator.TrustedStore.EnumerateAsync().Result.Count);
+            Assert.AreEqual(
+                m_appSelfSignedCerts.Count,
+                validator.TrustedStore.EnumerateAsync().Result.Count);
             CertificateValidator certValidator = validator.Update();
             foreach (X509Certificate2 cert in m_appSelfSignedCerts)
             {
@@ -536,13 +572,16 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 TestContext.Out.WriteLine($"Cleanup: {stopWatch.ElapsedMilliseconds - start}");
                 for (int i = 0; i < kCaChainCount; i++)
                 {
-                    ICertificateStore store = i == v ? validator.TrustedStore : validator.IssuerStore;
+                    ICertificateStore store = i == v
+                        ? validator.TrustedStore
+                        : validator.IssuerStore;
                     await store.AddAsync(m_caChain[i]).ConfigureAwait(false);
                     await store.AddCRLAsync(m_crlChain[i]).ConfigureAwait(false);
                 }
                 TestContext.Out.WriteLine($"AddChains: {stopWatch.ElapsedMilliseconds - start}");
                 CertificateValidator certValidator = validator.Update();
-                TestContext.Out.WriteLine($"InitValidator: {stopWatch.ElapsedMilliseconds - start}");
+                TestContext.Out
+                    .WriteLine($"InitValidator: {stopWatch.ElapsedMilliseconds - start}");
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     certValidator.Validate(X509CertificateLoader.LoadCertificate(app.Certificate));
@@ -565,7 +604,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     ICertificateStore store =
-                        (i != v || kCaChainCount == 1) ? validator.TrustedStore : validator.IssuerStore;
+                        i != v || kCaChainCount == 1
+                            ? validator.TrustedStore
+                            : validator.IssuerStore;
                     await store.AddAsync(m_caChain[i]).ConfigureAwait(false);
                     await store.AddCRLAsync(m_crlChain[i]).ConfigureAwait(false);
                 }
@@ -592,7 +633,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     if (i != v)
                     {
                         await validator.TrustedStore.AddAsync(m_caChain[i]).ConfigureAwait(false);
-                        await validator.TrustedStore.AddCRLAsync(m_crlChain[i]).ConfigureAwait(false);
+                        await validator.TrustedStore.AddCRLAsync(m_crlChain[i])
+                            .ConfigureAwait(false);
                     }
                 }
                 CertificateValidator certValidator = validator.Update();
@@ -600,7 +642,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                            certValidator.Validate(X509CertificateLoader.LoadCertificate(app.Certificate))
+                            certValidator.Validate(
+                                X509CertificateLoader.LoadCertificate(app.Certificate))
                         );
                     Assert.AreEqual(
                         (StatusCode)StatusCodes.BadCertificateChainIncomplete,
@@ -626,12 +669,15 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     if (i != v)
                     {
                         await validator.TrustedStore.AddAsync(m_caChain[i]).ConfigureAwait(false);
-                        await validator.TrustedStore.AddCRLAsync(m_crlChain[i]).ConfigureAwait(false);
+                        await validator.TrustedStore.AddCRLAsync(m_crlChain[i])
+                            .ConfigureAwait(false);
                     }
                     else
                     {
-                        await validator.TrustedStore.AddAsync(m_caDupeChain[i]).ConfigureAwait(false);
-                        await validator.TrustedStore.AddCRLAsync(m_crlDupeChain[i]).ConfigureAwait(false);
+                        await validator.TrustedStore.AddAsync(m_caDupeChain[i])
+                            .ConfigureAwait(false);
+                        await validator.TrustedStore.AddCRLAsync(m_crlDupeChain[i])
+                            .ConfigureAwait(false);
                     }
                 }
                 CertificateValidator certValidator = validator.Update();
@@ -639,7 +685,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                            certValidator.Validate(X509CertificateLoader.LoadCertificate(app.Certificate))
+                            certValidator.Validate(
+                                X509CertificateLoader.LoadCertificate(app.Certificate))
                         );
                     Assert.AreEqual(
                         (StatusCode)StatusCodes.BadCertificateChainIncomplete,
@@ -662,7 +709,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 using var validator = TemporaryCertValidator.Create();
                 for (int i = 0; i < kCaChainCount; i++)
                 {
-                    ICertificateStore store = i == v ? validator.TrustedStore : validator.IssuerStore;
+                    ICertificateStore store = i == v
+                        ? validator.TrustedStore
+                        : validator.IssuerStore;
                     await store.AddAsync(m_caChain[i]).ConfigureAwait(false);
                     await store.AddCRLAsync(m_crlChain[i]).ConfigureAwait(false);
                     await store.AddAsync(m_caDupeChain[i]).ConfigureAwait(false);
@@ -691,12 +740,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     if (i == v)
                     {
                         await validator.TrustedStore.AddAsync(m_caChain[i]).ConfigureAwait(false);
-                        await validator.TrustedStore.AddCRLAsync(m_crlRevokedChain[i]).ConfigureAwait(false);
+                        await validator.TrustedStore.AddCRLAsync(m_crlRevokedChain[i])
+                            .ConfigureAwait(false);
                     }
                     else
                     {
                         await validator.IssuerStore.AddAsync(m_caChain[i]).ConfigureAwait(false);
-                        await validator.IssuerStore.AddCRLAsync(m_crlChain[i]).ConfigureAwait(false);
+                        await validator.IssuerStore.AddCRLAsync(m_crlChain[i])
+                            .ConfigureAwait(false);
                     }
                 }
                 CertificateValidator certValidator = validator.Update();
@@ -704,7 +755,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                            certValidator.Validate(X509CertificateLoader.LoadCertificate(app.Certificate))
+                            certValidator.Validate(
+                                X509CertificateLoader.LoadCertificate(app.Certificate))
                         );
                     Assert.AreEqual(
                         v == kCaChainCount - 1
@@ -731,12 +783,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     if (i == v)
                     {
                         await validator.IssuerStore.AddAsync(m_caChain[i]).ConfigureAwait(false);
-                        await validator.IssuerStore.AddCRLAsync(m_crlRevokedChain[i]).ConfigureAwait(false);
+                        await validator.IssuerStore.AddCRLAsync(m_crlRevokedChain[i])
+                            .ConfigureAwait(false);
                     }
                     else
                     {
                         await validator.TrustedStore.AddAsync(m_caChain[i]).ConfigureAwait(false);
-                        await validator.TrustedStore.AddCRLAsync(m_crlChain[i]).ConfigureAwait(false);
+                        await validator.TrustedStore.AddCRLAsync(m_crlChain[i])
+                            .ConfigureAwait(false);
                     }
                 }
                 CertificateValidator certValidator = validator.Update();
@@ -744,7 +798,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                            certValidator.Validate(X509CertificateLoader.LoadCertificate(app.Certificate))
+                            certValidator.Validate(
+                                X509CertificateLoader.LoadCertificate(app.Certificate))
                         );
                     Assert.AreEqual(
                         v == kCaChainCount - 1
@@ -771,18 +826,21 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     if (i == v)
                     {
                         await validator.IssuerStore.AddAsync(m_caChain[i]).ConfigureAwait(false);
-                        await validator.IssuerStore.AddCRLAsync(m_crlRevokedChain[i]).ConfigureAwait(false);
+                        await validator.IssuerStore.AddCRLAsync(m_crlRevokedChain[i])
+                            .ConfigureAwait(false);
                     }
                     else
                     {
                         await validator.IssuerStore.AddAsync(m_caChain[i]).ConfigureAwait(false);
-                        await validator.IssuerStore.AddCRLAsync(m_crlChain[i]).ConfigureAwait(false);
+                        await validator.IssuerStore.AddCRLAsync(m_crlChain[i])
+                            .ConfigureAwait(false);
                     }
                 }
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     await validator
-                        .TrustedStore.AddAsync(X509CertificateLoader.LoadCertificate(app.Certificate))
+                        .TrustedStore.AddAsync(
+                            X509CertificateLoader.LoadCertificate(app.Certificate))
                         .ConfigureAwait(false);
                 }
                 CertificateValidator certValidator = validator.Update();
@@ -790,7 +848,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                            certValidator.Validate(X509CertificateLoader.LoadCertificate(app.Certificate))
+                            certValidator.Validate(
+                                X509CertificateLoader.LoadCertificate(app.Certificate))
                         );
                     Assert.AreEqual(
                         v == kCaChainCount - 1
@@ -817,11 +876,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     await validator.TrustedStore.AddAsync(m_caChain[i]).ConfigureAwait(false);
                     if (i == v)
                     {
-                        await validator.TrustedStore.AddCRLAsync(m_crlRevokedChain[i]).ConfigureAwait(false);
+                        await validator.TrustedStore.AddCRLAsync(m_crlRevokedChain[i])
+                            .ConfigureAwait(false);
                     }
                     else
                     {
-                        await validator.TrustedStore.AddCRLAsync(m_crlChain[i]).ConfigureAwait(false);
+                        await validator.TrustedStore.AddCRLAsync(m_crlChain[i])
+                            .ConfigureAwait(false);
                     }
                 }
                 CertificateValidator certValidator = validator.Update();
@@ -829,7 +890,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                            certValidator.Validate(X509CertificateLoader.LoadCertificate(app.Certificate))
+                            certValidator.Validate(
+                                X509CertificateLoader.LoadCertificate(app.Certificate))
                         );
                     Assert.AreEqual(
                         v == kCaChainCount - 1
@@ -856,17 +918,20 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     await validator.TrustedStore.AddAsync(m_caChain[i]).ConfigureAwait(false);
                     if (i == v)
                     {
-                        await validator.TrustedStore.AddCRLAsync(m_crlRevokedChain[i]).ConfigureAwait(false);
+                        await validator.TrustedStore.AddCRLAsync(m_crlRevokedChain[i])
+                            .ConfigureAwait(false);
                     }
                     else
                     {
-                        await validator.TrustedStore.AddCRLAsync(m_crlChain[i]).ConfigureAwait(false);
+                        await validator.TrustedStore.AddCRLAsync(m_crlChain[i])
+                            .ConfigureAwait(false);
                     }
                 }
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     await validator
-                        .TrustedStore.AddAsync(X509CertificateLoader.LoadCertificate(app.Certificate))
+                        .TrustedStore.AddAsync(
+                            X509CertificateLoader.LoadCertificate(app.Certificate))
                         .ConfigureAwait(false);
                 }
                 CertificateValidator certValidator = validator.Update();
@@ -874,7 +939,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                            certValidator.Validate(X509CertificateLoader.LoadCertificate(app.Certificate))
+                            certValidator.Validate(
+                                X509CertificateLoader.LoadCertificate(app.Certificate))
                         );
                     Assert.AreEqual(
                         v == kCaChainCount - 1
@@ -932,7 +998,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     if (i != v)
                     {
                         await validator.IssuerStore.AddAsync(m_caChain[i]).ConfigureAwait(false);
-                        await validator.IssuerStore.AddCRLAsync(m_crlChain[i]).ConfigureAwait(false);
+                        await validator.IssuerStore.AddCRLAsync(m_crlChain[i])
+                            .ConfigureAwait(false);
                     }
                 }
 
@@ -940,7 +1007,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     await validator
-                        .TrustedStore.AddAsync(X509CertificateLoader.LoadCertificate(app.Certificate))
+                        .TrustedStore.AddAsync(
+                            X509CertificateLoader.LoadCertificate(app.Certificate))
                         .ConfigureAwait(false);
                 }
 
@@ -949,7 +1017,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                            certValidator.Validate(X509CertificateLoader.LoadCertificate(app.Certificate))
+                            certValidator.Validate(
+                                X509CertificateLoader.LoadCertificate(app.Certificate))
                         );
                     Assert.AreEqual(
                         (StatusCode)StatusCodes.BadCertificateChainIncomplete,
@@ -1000,7 +1069,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 TestContext.Out.WriteLine(pemString);
 #if NETCOREAPP3_1_OR_GREATER && ECC_SUPPORT
                 ArgumentException exception = NUnit.Framework.Assert.Throws<ArgumentException>(() =>
-                    CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert), pemDataBlob)
+                    CertificateFactory.CreateCertificateWithPEMPrivateKey(
+                        new X509Certificate2(appCert),
+                        pemDataBlob)
                 );
 #endif
             }
@@ -1010,7 +1081,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// <summary>
         /// Verify the PEM Writer, no password.
         /// </summary>
-        [Test, Order(530)]
+        [Test]
+        [Order(530)]
         public void VerifyPemWriterRSAPrivateKeys()
         {
             // all app certs are trusted
@@ -1053,12 +1125,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     pemDataBlob,
                     password
                 );
-                CryptographicException exception = NUnit.Framework.Assert.Throws<CryptographicException>(() =>
-                    _ = CertificateFactory.CreateCertificateWithPEMPrivateKey(
-                        new X509Certificate2(appCert),
-                        pemDataBlob
-                    )
-                );
+                CryptographicException exception = NUnit.Framework.Assert
+                    .Throws<CryptographicException>(() =>
+                        _ = CertificateFactory.CreateCertificateWithPEMPrivateKey(
+                            new X509Certificate2(appCert),
+                            pemDataBlob
+                        )
+                        );
                 X509Utils.VerifyRSAKeyPair(newCert, newCert, true);
             }
         }
@@ -1089,9 +1162,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
             }
             CertificateValidator certValidator = validator.Update();
-            ServiceResultException serviceResultException = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                certValidator.Validate(cert)
-            );
+            ServiceResultException serviceResultException = NUnit.Framework.Assert
+                .Throws<ServiceResultException>(() =>
+                    certValidator.Validate(cert)
+                    );
             if (!trusted)
             {
                 Assert.AreEqual(
@@ -1145,9 +1219,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
             }
             CertificateValidator certValidator = validator.Update();
-            ServiceResultException serviceResultException = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                certValidator.Validate(cert)
-            );
+            ServiceResultException serviceResultException = NUnit.Framework.Assert
+                .Throws<ServiceResultException>(() =>
+                    certValidator.Validate(cert)
+                    );
             if (!trusted)
             {
                 Assert.AreEqual(
@@ -1194,9 +1269,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
             }
             CertificateValidator certValidator = validator.Update();
-            ServiceResultException serviceResultException = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                certValidator.Validate(cert)
-            );
+            ServiceResultException serviceResultException = NUnit.Framework.Assert
+                .Throws<ServiceResultException>(() =>
+                    certValidator.Validate(cert)
+                    );
             Assert.AreEqual(
                 (StatusCode)StatusCodes.BadCertificateChainIncomplete,
                 (StatusCode)serviceResultException.StatusCode,
@@ -1252,7 +1328,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task TestSHA1RejectedAsync(bool trusted, bool rejectSHA1)
         {
 #if NET472_OR_GREATER || NETCOREAPP3_1_OR_GREATER
-            NUnit.Framework.Assert.Ignore("To create SHA1 certificates is unsupported on this .NET version");
+            NUnit.Framework.Assert
+                .Ignore("To create SHA1 certificates is unsupported on this .NET version");
 #endif
             X509Certificate2 cert = CertificateFactory
                 .CreateCertificate(null, null, "CN=SHA1 signed, O=OPC Foundation", null)
@@ -1267,10 +1344,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             certValidator.RejectSHA1SignedCertificates = rejectSHA1;
             if (rejectSHA1)
             {
-                ServiceResultException serviceResultException = NUnit.Framework.Assert.Throws<ServiceResultException>(
-                    () =>
-                        certValidator.Validate(cert)
-                );
+                ServiceResultException serviceResultException = NUnit.Framework.Assert
+                    .Throws<ServiceResultException>(
+                        () =>
+                            certValidator.Validate(cert)
+                        );
                 Assert.AreEqual(
                     (StatusCode)StatusCodes.BadCertificatePolicyCheckFailed,
                     (StatusCode)serviceResultException.StatusCode,
@@ -1298,10 +1376,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             else
             {
-                ServiceResultException serviceResultException = NUnit.Framework.Assert.Throws<ServiceResultException>(
-                    () =>
-                        certValidator.Validate(cert)
-                );
+                ServiceResultException serviceResultException = NUnit.Framework.Assert
+                    .Throws<ServiceResultException>(
+                        () =>
+                            certValidator.Validate(cert)
+                        );
                 Assert.AreEqual(
                     (StatusCode)StatusCodes.BadCertificateUntrusted,
                     (StatusCode)serviceResultException.StatusCode,
@@ -1331,9 +1410,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
             }
             CertificateValidator certValidator = validator.Update();
-            ServiceResultException serviceResultException = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                certValidator.Validate(cert)
-            );
+            ServiceResultException serviceResultException = NUnit.Framework.Assert
+                .Throws<ServiceResultException>(() =>
+                    certValidator.Validate(cert)
+                    );
             Assert.AreEqual(
                 (StatusCode)StatusCodes.BadCertificateUseNotAllowed,
                 (StatusCode)serviceResultException.StatusCode,
@@ -1363,14 +1443,22 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task TestInvalidSignatureAsync(bool ca, bool trusted)
         {
             const string subject = "CN=Invalid Signature Cert, O=OPC Foundation";
-            X509Certificate2 certBase = CertificateFactory.CreateCertificate(null, null, subject, null).CreateForRSA();
+            X509Certificate2 certBase = CertificateFactory.CreateCertificate(
+                null,
+                null,
+                subject,
+                null).CreateForRSA();
 
             var generator = X509SignatureGenerator.CreateForRSA(
                 m_caChain[0].GetRSAPrivateKey(),
                 RSASignaturePadding.Pkcs1
             );
             // generate a self signed cert with invalid signature
-            ICertificateBuilder builder = CertificateFactory.CreateCertificate(null, null, subject, null);
+            ICertificateBuilder builder = CertificateFactory.CreateCertificate(
+                null,
+                null,
+                subject,
+                null);
             if (ca)
             {
                 // set the CA flag changes the key usage to sign only
@@ -1391,9 +1479,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var approver = new CertValidationApprover([StatusCodes.BadCertificateUntrusted]);
             certValidator.CertificateValidation += approver.OnCertificateValidation;
             ServiceResult innerResult;
-            ServiceResultException serviceResultException = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                certValidator.Validate(cert)
-            );
+            ServiceResultException serviceResultException = NUnit.Framework.Assert
+                .Throws<ServiceResultException>(() =>
+                    certValidator.Validate(cert)
+                    );
             if (ca)
             {
                 // The CA version fails for the key usage flags
@@ -1447,9 +1536,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
             }
             CertificateValidator certValidator = validator.Update();
-            ServiceResultException serviceResultException = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                certValidator.Validate(cert)
-            );
+            ServiceResultException serviceResultException = NUnit.Framework.Assert
+                .Throws<ServiceResultException>(() =>
+                    certValidator.Validate(cert)
+                    );
             Assert.AreEqual(
                 (StatusCode)StatusCodes.BadCertificatePolicyCheckFailed,
                 (StatusCode)serviceResultException.StatusCode,
@@ -1472,7 +1562,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 
             // approve suppression of smaller key
-            var approver = new CertValidationApprover([StatusCodes.BadCertificatePolicyCheckFailed]);
+            var approver = new CertValidationApprover(
+                [StatusCodes.BadCertificatePolicyCheckFailed]);
             certValidator.CertificateValidation += approver.OnCertificateValidation;
             if (trusted)
             {
@@ -1496,8 +1587,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// <summary>
         /// Test that Hash sizes lower than public key sizes of certificates are not valid
         /// </summary>
-        /// <param name="ecCurveHashPair"></param>
-        /// <returns></returns>
         [Theory]
         public async Task ECDsaHashSizeLowerThanPublicKeySizeAsync(ECCurveHashPair ecCurveHashPair)
         {
@@ -1514,10 +1603,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
                 CertificateValidator certValidator = validator.Update();
 
-                ServiceResultException serviceResultException = NUnit.Framework.Assert.Throws<ServiceResultException>(
-                    () =>
-                        certValidator.Validate(cert)
-                );
+                ServiceResultException serviceResultException = NUnit.Framework.Assert
+                    .Throws<ServiceResultException>(
+                        () =>
+                            certValidator.Validate(cert)
+                        );
                 Assert.AreEqual(
                     (StatusCode)StatusCodes.BadCertificatePolicyCheckFailed,
                     (StatusCode)serviceResultException.StatusCode,
@@ -1537,7 +1627,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [NonParallelizable]
         public async Task TestAutoAcceptAsync(bool trusted, bool autoAccept)
         {
-            X509Certificate2 cert = CertificateFactory.CreateCertificate(null, null, "CN=Test", null).CreateForRSA();
+            X509Certificate2 cert = CertificateFactory.CreateCertificate(
+                null,
+                null,
+                "CN=Test",
+                null).CreateForRSA();
             var validator = TemporaryCertValidator.Create();
             if (trusted)
             {
@@ -1551,10 +1645,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             else
             {
-                ServiceResultException serviceResultException = NUnit.Framework.Assert.Throws<ServiceResultException>(
-                    () =>
-                        certValidator.Validate(cert)
-                );
+                ServiceResultException serviceResultException = NUnit.Framework.Assert
+                    .Throws<ServiceResultException>(
+                        () =>
+                            certValidator.Validate(cert)
+                        );
                 Assert.AreEqual(
                     (StatusCode)StatusCodes.BadCertificateUntrusted,
                     (StatusCode)serviceResultException.StatusCode,
@@ -1584,10 +1679,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             else
             {
-                ServiceResultException serviceResultException = NUnit.Framework.Assert.Throws<ServiceResultException>(
-                    () =>
-                        certValidator.Validate(cert)
-                );
+                ServiceResultException serviceResultException = NUnit.Framework.Assert
+                    .Throws<ServiceResultException>(
+                        () =>
+                            certValidator.Validate(cert)
+                        );
                 Assert.AreEqual(
                     (StatusCode)StatusCodes.BadCertificateUntrusted,
                     (StatusCode)serviceResultException.StatusCode,
@@ -1605,7 +1701,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             NUnit.Framework.Assert.DoesNotThrow(() =>
             {
-                var appConfig = new ApplicationConfiguration() { CertificateValidator = new CertificateValidator() };
+                var appConfig = new ApplicationConfiguration
+                {
+                    CertificateValidator = new CertificateValidator()
+                };
                 Assert.NotNull(appConfig);
                 Assert.NotNull(appConfig.CertificateValidator);
             });
@@ -1616,7 +1715,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// with CA CRLs missing and revocation status enforced.
         /// </summary>
         [Theory]
-        public async Task VerifySomeMissingCRLRevokedTrustedStoreAppChainsAsync(bool rejectUnknownRevocationStatus)
+        public async Task VerifySomeMissingCRLRevokedTrustedStoreAppChainsAsync(
+            bool rejectUnknownRevocationStatus)
         {
             // verify cert is revoked with CRL in trusted store
 
@@ -1633,7 +1733,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     if (i == v)
                     {
                         await validator.TrustedStore.AddAsync(m_caChain[i]).ConfigureAwait(false);
-                        await validator.TrustedStore.AddCRLAsync(m_crlRevokedChain[i]).ConfigureAwait(false);
+                        await validator.TrustedStore.AddCRLAsync(m_crlRevokedChain[i])
+                            .ConfigureAwait(false);
                     }
                     else
                     {
@@ -1649,7 +1750,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                            certValidator.Validate(X509CertificateLoader.LoadCertificate(app.Certificate))
+                            certValidator.Validate(
+                                X509CertificateLoader.LoadCertificate(app.Certificate))
                         );
 
                     Assert.AreEqual(
@@ -1698,11 +1800,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                            certValidator.Validate(X509CertificateLoader.LoadCertificate(app.Certificate))
+                            certValidator.Validate(
+                                X509CertificateLoader.LoadCertificate(app.Certificate))
                         );
 
                     Assert.IsTrue(
-                        StatusCodes.BadCertificateRevocationUnknown == serviceResultException.StatusCode,
+                        StatusCodes.BadCertificateRevocationUnknown == serviceResultException
+                            .StatusCode,
                         serviceResultException.Message
                     );
 
@@ -1727,7 +1831,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         ///  No revoked certificate.
         /// </summary>
         [Theory]
-        public async Task VerifySomeMissingCRLTrustedStoreAppChainsAsync(bool rejectUnknownRevocationStatus)
+        public async Task VerifySomeMissingCRLTrustedStoreAppChainsAsync(
+            bool rejectUnknownRevocationStatus)
         {
             //Discussion:
             // v == kCaChainCount - 1: empty CRL is placed into the issuer stores, no CRL in trust store:
@@ -1749,7 +1854,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     else
                     {
                         await validator.IssuerStore.AddAsync(m_caChain[i]).ConfigureAwait(false);
-                        await validator.IssuerStore.AddCRLAsync(m_crlChain[i]).ConfigureAwait(false);
+                        await validator.IssuerStore.AddCRLAsync(m_crlChain[i])
+                            .ConfigureAwait(false);
                     }
                 }
                 CertificateValidator certValidator = validator.Update();
@@ -1763,7 +1869,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     {
                         ServiceResultException serviceResultException =
                             NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                                certValidator.Validate(X509CertificateLoader.LoadCertificate(app.Certificate))
+                                certValidator.Validate(
+                                    X509CertificateLoader.LoadCertificate(app.Certificate))
                             );
 
                         Assert.AreEqual(
@@ -1776,7 +1883,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     }
                     else
                     {
-                        certValidator.Validate(X509CertificateLoader.LoadCertificate(app.Certificate));
+                        certValidator.Validate(
+                            X509CertificateLoader.LoadCertificate(app.Certificate));
                     }
                 }
             }
@@ -1786,7 +1894,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Verify app certs with incomplete chain throw.
         /// </summary>
         [Theory]
-        public async Task VerifyMissingCRLANDAppChainsIncompleteChainAsync(bool rejectUnknownRevocationStatus)
+        public async Task VerifyMissingCRLANDAppChainsIncompleteChainAsync(
+            bool rejectUnknownRevocationStatus)
         {
             // verify cert with issuer chain
             for (int v = 0; v < kCaChainCount; v++)
@@ -1808,7 +1917,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                            certValidator.Validate(X509CertificateLoader.LoadCertificate(app.Certificate))
+                            certValidator.Validate(
+                                X509CertificateLoader.LoadCertificate(app.Certificate))
                         );
                     Assert.AreEqual(
                         (StatusCode)StatusCodes.BadCertificateChainIncomplete,
@@ -1826,7 +1936,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// CRL.
         /// </summary>
         [Theory]
-        public async Task VerifyExistingCRLAppChainsExpiredCertificatesAsync(bool rejectUnknownRevocationStatus)
+        public async Task VerifyExistingCRLAppChainsExpiredCertificatesAsync(
+            bool rejectUnknownRevocationStatus)
         {
             for (int v = 0; v < kCaChainCount; v++)
             {
@@ -1836,16 +1947,20 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     if (i != v || kCaChainCount == 1)
                     {
                         await validator
-                            .TrustedStore.AddAsync(X509CertificateLoader.LoadCertificate(m_caChain[i].RawData))
+                            .TrustedStore.AddAsync(
+                                X509CertificateLoader.LoadCertificate(m_caChain[i].RawData))
                             .ConfigureAwait(false);
-                        await validator.TrustedStore.AddCRLAsync(m_crlChain[i]).ConfigureAwait(false);
+                        await validator.TrustedStore.AddCRLAsync(m_crlChain[i])
+                            .ConfigureAwait(false);
                     }
                     else
                     {
                         await validator
-                            .IssuerStore.AddAsync(X509CertificateLoader.LoadCertificate(m_caChain[i].RawData))
+                            .IssuerStore.AddAsync(
+                                X509CertificateLoader.LoadCertificate(m_caChain[i].RawData))
                             .ConfigureAwait(false);
-                        await validator.IssuerStore.AddCRLAsync(m_crlChain[i]).ConfigureAwait(false);
+                        await validator.IssuerStore.AddCRLAsync(m_crlChain[i])
+                            .ConfigureAwait(false);
                     }
                 }
                 CertificateValidator certValidator = validator.Update();
@@ -1857,7 +1972,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                            certValidator.Validate(X509CertificateLoader.LoadCertificate(app.Certificate))
+                            certValidator.Validate(
+                                X509CertificateLoader.LoadCertificate(app.Certificate))
                         );
                     Assert.AreEqual(
                         (StatusCode)StatusCodes.BadCertificateTimeInvalid,
@@ -1876,7 +1992,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Currently misbehaves: chain
         /// </summary>
         [Theory]
-        public async Task VerifyMissingCRLAppChainsExpiredCertificatesAsync(bool rejectUnknownRevocationStatus)
+        public async Task VerifyMissingCRLAppChainsExpiredCertificatesAsync(
+            bool rejectUnknownRevocationStatus)
         {
             for (int v = 0; v < kCaChainCount; v++)
             {
@@ -1901,7 +2018,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                            certValidator.Validate(X509CertificateLoader.LoadCertificate(app.Certificate))
+                            certValidator.Validate(
+                                X509CertificateLoader.LoadCertificate(app.Certificate))
                         );
                     Assert.AreEqual(
                         (StatusCode)StatusCodes.BadCertificateTimeInvalid,
@@ -1927,7 +2045,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     }
                     if (rejectUnknownRevocationStatus)
                     {
-                        Assert.LessOrEqual(kCaChainCount - 1, isPresentCertificateIssuerRevocationUnknown);
+                        Assert.LessOrEqual(
+                            kCaChainCount - 1,
+                            isPresentCertificateIssuerRevocationUnknown);
                         Assert.AreEqual(1, isPresentCertificateRevocationUnknown);
                     }
                     else
@@ -1954,7 +2074,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     await validator.IssuerStore.AddAsync(m_caChain[i]).ConfigureAwait(false);
                     if (i != v)
                     {
-                        await validator.IssuerStore.AddCRLAsync(m_crlChain[i]).ConfigureAwait(false);
+                        await validator.IssuerStore.AddCRLAsync(m_crlChain[i])
+                            .ConfigureAwait(false);
                     }
                 }
                 CertificateValidator certValidator = validator.Update();
@@ -1966,7 +2087,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     ServiceResultException serviceResultException =
                         NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                            certValidator.Validate(X509CertificateLoader.LoadCertificate(app.Certificate))
+                            certValidator.Validate(
+                                X509CertificateLoader.LoadCertificate(app.Certificate))
                         );
                     Assert.AreEqual(
                         (StatusCode)StatusCodes.BadCertificateUntrusted,
@@ -1977,9 +2099,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
-        private void OnCertificateUpdate(object sender, CertificateUpdateEventArgs e) { }
+        private void OnCertificateUpdate(object sender, CertificateUpdateEventArgs e)
+        {
+        }
 
-        private void OnCertificateValidation(object sender, CertificateValidationEventArgs e) { }
+        private void OnCertificateValidation(object sender, CertificateValidationEventArgs e)
+        {
+        }
 
         private const int kCaChainCount = 3;
         private const int kGoodApplicationsTestCount = 3;

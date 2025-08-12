@@ -81,10 +81,11 @@ namespace Opc.Ua.Core.Tests
         private ApplicationTestData RandomApplicationTestData()
         {
             // TODO: set to discoveryserver
-            var appType = (ApplicationType)RandomSource.NextInt32((int)ApplicationType.ClientAndServer);
+            var appType = (ApplicationType)RandomSource.NextInt32(
+                (int)ApplicationType.ClientAndServer);
             string pureAppName = DataGenerator.GetRandomString("en");
-            pureAppName = Regex1().Replace(pureAppName, "");
-            string pureAppUri = Regex2().Replace(pureAppName, "");
+            pureAppName = Regex1().Replace(pureAppName, string.Empty);
+            string pureAppUri = Regex2().Replace(pureAppName, string.Empty);
             string appName = "UA " + pureAppName;
             StringCollection domainNames = RandomDomainNames();
             string localhost = domainNames[0];
@@ -119,13 +120,15 @@ namespace Opc.Ua.Core.Tests
                 ApplicationUri = appUri,
                 DomainNames = domainNames,
                 Subject = Utils.Format("CN={0},O=OPC Foundation,DC={1}", appName, localhost),
-                PrivateKeyFormat = privateKeyFormat,
+                PrivateKeyFormat = privateKeyFormat
             };
         }
 
         private string RandomLocalHost()
         {
-            string localhost = Regex2().Replace(DataGenerator.GetRandomSymbol("en").Trim().ToLower(), "");
+            string localhost = Regex2().Replace(
+                DataGenerator.GetRandomSymbol("en").Trim().ToLower(),
+                string.Empty);
             if (localhost.Length >= 12)
             {
                 localhost = localhost[..12];
@@ -144,7 +147,10 @@ namespace Opc.Ua.Core.Tests
             return result;
         }
 
-        private StringCollection RandomDiscoveryUrl(StringCollection domainNames, int port, string appUri)
+        private StringCollection RandomDiscoveryUrl(
+            StringCollection domainNames,
+            int port,
+            string appUri)
         {
             var result = new StringCollection();
             foreach (string name in domainNames)
@@ -164,7 +170,11 @@ namespace Opc.Ua.Core.Tests
                 if ((random & 2) == 0)
                 {
                     result.Add(
-                        Utils.Format("http://{0}:{1}/{2}", name, port++.ToString(CultureInfo.InvariantCulture), appUri)
+                        Utils.Format(
+                            "http://{0}:{1}/{2}",
+                            name,
+                            port++.ToString(CultureInfo.InvariantCulture),
+                            appUri)
                     );
                 }
                 if ((random & 4) == 0)

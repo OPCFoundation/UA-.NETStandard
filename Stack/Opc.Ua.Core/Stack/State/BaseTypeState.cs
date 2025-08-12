@@ -123,15 +123,12 @@ namespace Opc.Ua
                 case NodeClass.ObjectType:
                     ((ObjectTypeNode)node).IsAbstract = IsAbstract;
                     break;
-
                 case NodeClass.VariableType:
                     ((VariableTypeNode)node).IsAbstract = IsAbstract;
                     break;
-
                 case NodeClass.DataType:
                     ((DataTypeNode)node).IsAbstract = IsAbstract;
                     break;
-
                 case NodeClass.ReferenceType:
                     ((ReferenceTypeNode)node).IsAbstract = IsAbstract;
                     break;
@@ -214,7 +211,10 @@ namespace Opc.Ua
         /// <param name="context">The context user.</param>
         /// <param name="encoder">The encoder to write to.</param>
         /// <param name="attributesToSave">The masks indicating what attributes to write.</param>
-        public override void Save(ISystemContext context, BinaryEncoder encoder, AttributesToSave attributesToSave)
+        public override void Save(
+            ISystemContext context,
+            BinaryEncoder encoder,
+            AttributesToSave attributesToSave)
         {
             base.Save(context, encoder, attributesToSave);
 
@@ -235,7 +235,10 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         /// <param name="decoder">The decoder.</param>
         /// <param name="attributesToLoad">The attributes to load.</param>
-        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attributesToLoad)
+        public override void Update(
+            ISystemContext context,
+            BinaryDecoder decoder,
+            AttributesToSave attributesToLoad)
         {
             base.Update(context, decoder, attributesToLoad);
 
@@ -287,7 +290,10 @@ namespace Opc.Ua
         /// <summary>
         /// Write the value for any non-value attribute.
         /// </summary>
-        protected override ServiceResult WriteNonValueAttribute(ISystemContext context, uint attributeId, object value)
+        protected override ServiceResult WriteNonValueAttribute(
+            ISystemContext context,
+            uint attributeId,
+            object value)
         {
             ServiceResult result = null;
 
@@ -337,7 +343,8 @@ namespace Opc.Ua
 
             NodeId superTypeId = m_superTypeId;
 
-            if (!NodeId.IsNull(superTypeId) && browser.IsRequired(ReferenceTypeIds.HasSubtype, true))
+            if (!NodeId.IsNull(superTypeId) &&
+                browser.IsRequired(ReferenceTypeIds.HasSubtype, true))
             {
                 browser.Add(ReferenceTypeIds.HasSubtype, true, superTypeId);
             }
@@ -345,7 +352,9 @@ namespace Opc.Ua
             NodeId nodeId = NodeId;
 
             // use the type table to find the subtypes.
-            if (context.TypeTable != null && nodeId != null && browser.IsRequired(ReferenceTypeIds.HasSubtype, false))
+            if (context.TypeTable != null &&
+                nodeId != null &&
+                browser.IsRequired(ReferenceTypeIds.HasSubtype, false))
             {
                 IList<NodeId> subtypeIds = context.TypeTable.FindSubTypes(nodeId);
 

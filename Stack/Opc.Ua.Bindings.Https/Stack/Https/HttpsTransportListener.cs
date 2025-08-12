@@ -99,10 +99,8 @@ namespace Opc.Ua.Bindings
                     context.Response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
                     return context.Response.WriteAsync(string.Empty);
                 }
-                else
-                {
-                    return Listener.SendAsync(context);
-                }
+
+                return Listener.SendAsync(context);
             });
         }
     }
@@ -162,7 +160,10 @@ namespace Opc.Ua.Bindings
         /// <param name="callback">The callback to use when requests arrive via the channel.</param>
         /// <exception cref="ArgumentNullException">Thrown if any parameter is null.</exception>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        public void Open(Uri baseAddress, TransportListenerSettings settings, ITransportListenerCallback callback)
+        public void Open(
+            Uri baseAddress,
+            TransportListenerSettings settings,
+            ITransportListenerCallback callback)
         {
             // assign a unique guid to the listener.
             ListenerId = Guid.NewGuid().ToString();
@@ -189,10 +190,10 @@ namespace Opc.Ua.Bindings
                     MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
                     NamespaceUris = settings.NamespaceUris,
                     ServerUris = new StringTable(),
-                    Factory = settings.Factory,
+                    Factory = settings.Factory
                 },
 
-                CertificateValidator = settings.CertificateValidator,
+                CertificateValidator = settings.CertificateValidator
             };
 
             // save the callback to the server.
@@ -259,7 +260,8 @@ namespace Opc.Ua.Bindings
             m_hostBuilder = new WebHostBuilder();
 
             // prepare the server TLS certificate
-            X509Certificate2 serverCertificate = m_serverCertProvider.GetInstanceCertificate(SecurityPolicies.Https);
+            X509Certificate2 serverCertificate = m_serverCertProvider.GetInstanceCertificate(
+                SecurityPolicies.Https);
 #if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
             try
             {
@@ -275,7 +277,7 @@ namespace Opc.Ua.Bindings
             }
 #endif
 
-            var httpsOptions = new HttpsConnectionAdapterOptions()
+            var httpsOptions = new HttpsConnectionAdapterOptions
             {
                 CheckCertificateRevocation = false,
                 ClientCertificateMode = m_mutualTlsEnabled
@@ -283,7 +285,7 @@ namespace Opc.Ua.Bindings
                     : ClientCertificateMode.NoCertificate,
                 // note: this is the TLS certificate!
                 ServerCertificate = serverCertificate,
-                ClientCertificateValidation = ValidateClientCertificate,
+                ClientCertificateValidation = ValidateClientCertificate
             };
 
 #if NET462
@@ -301,7 +303,9 @@ namespace Opc.Ua.Bindings
             {
                 // bind to any address
                 m_hostBuilder.UseKestrel(options =>
-                    options.ListenAnyIP(EndpointUrl.Port, listenOptions => listenOptions.UseHttps(httpsOptions))
+                    options.ListenAnyIP(
+                        EndpointUrl.Port,
+                        listenOptions => listenOptions.UseHttps(httpsOptions))
                 );
             }
             else
@@ -309,7 +313,10 @@ namespace Opc.Ua.Bindings
                 // bind to specific address
                 var ipAddress = IPAddress.Parse(EndpointUrl.Host);
                 m_hostBuilder.UseKestrel(options =>
-                    options.Listen(ipAddress, EndpointUrl.Port, listenOptions => listenOptions.UseHttps(httpsOptions))
+                    options.Listen(
+                        ipAddress,
+                        EndpointUrl.Port,
+                        listenOptions => listenOptions.UseHttps(httpsOptions))
                 );
             }
 
@@ -337,7 +344,10 @@ namespace Opc.Ua.Bindings
             {
                 if (m_callback == null)
                 {
-                    await WriteResponseAsync(context.Response, message, HttpStatusCode.NotImplemented)
+                    await WriteResponseAsync(
+                        context.Response,
+                        message,
+                        HttpStatusCode.NotImplemented)
                         .ConfigureAwait(false);
                     return;
                 }
@@ -361,7 +371,10 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                var input = (IServiceRequest)BinaryDecoder.DecodeMessage(buffer, null, m_quotas.MessageContext);
+                var input = (IServiceRequest)BinaryDecoder.DecodeMessage(
+                    buffer,
+                    null,
+                    m_quotas.MessageContext);
 
                 if (m_mutualTlsEnabled && input.TypeId == DataTypeIds.CreateSessionRequest)
                 {
@@ -369,12 +382,16 @@ namespace Opc.Ua.Bindings
                     byte[] tlsClientCertificate = context.Connection.ClientCertificate?.RawData;
                     byte[] opcUaClientCertificate = ((CreateSessionRequest)input).ClientCertificate;
 
-                    if (tlsClientCertificate == null || !Utils.IsEqual(tlsClientCertificate, opcUaClientCertificate))
+                    if (tlsClientCertificate == null ||
+                        !Utils.IsEqual(tlsClientCertificate, opcUaClientCertificate))
                     {
                         message =
                             "Client TLS certificate does not match with ClientCertificate provided in CreateSessionRequest";
                         Utils.LogError(message);
-                        await WriteResponseAsync(context.Response, message, HttpStatusCode.Unauthorized)
+                        await WriteResponseAsync(
+                            context.Response,
+                            message,
+                            HttpStatusCode.Unauthorized)
                             .ConfigureAwait(false);
                         return;
                     }
@@ -384,9 +401,9 @@ namespace Opc.Ua.Bindings
                 input.RequestHeader ??= new RequestHeader();
 
                 if (
-                    NodeId.IsNull(input.RequestHeader.AuthenticationToken)
-                    && input.TypeId != DataTypeIds.CreateSessionRequest
-                    && context.Request.Headers.TryGetValue(
+                    NodeId.IsNull(input.RequestHeader.AuthenticationToken) &&
+                    input.TypeId != DataTypeIds.CreateSessionRequest &&
+                    context.Request.Headers.TryGetValue(
                         kAuthorizationKey,
                         out Microsoft.Extensions.Primitives.StringValues keys
                     )
@@ -421,8 +438,8 @@ namespace Opc.Ua.Bindings
                     if (Utils.IsUriHttpsScheme(ep.EndpointUrl))
                     {
                         if (
-                            !string.IsNullOrEmpty(header)
-                            && !string.Equals(ep.SecurityPolicyUri, header, StringComparison.Ordinal)
+                            !string.IsNullOrEmpty(header) &&
+                            !string.Equals(ep.SecurityPolicyUri, header, StringComparison.Ordinal)
                         )
                         {
                             continue;
@@ -437,9 +454,9 @@ namespace Opc.Ua.Bindings
                 {
                     ServiceResultException serviceResultException = null;
                     if (
-                        input.TypeId != DataTypeIds.GetEndpointsRequest
-                        && input.TypeId != DataTypeIds.FindServersRequest
-                        && input.TypeId != DataTypeIds.FindServersOnNetworkRequest
+                        input.TypeId != DataTypeIds.GetEndpointsRequest &&
+                        input.TypeId != DataTypeIds.FindServersRequest &&
+                        input.TypeId != DataTypeIds.FindServersOnNetworkRequest
                     )
                     {
                         serviceResultException = new ServiceResultException(
@@ -457,14 +474,22 @@ namespace Opc.Ua.Bindings
 
                     if (serviceResultException != null)
                     {
-                        IServiceResponse serviceResponse = EndpointBase.CreateFault(null, serviceResultException);
-                        await WriteServiceResponseAsync(context, serviceResponse, ct).ConfigureAwait(false);
+                        IServiceResponse serviceResponse = EndpointBase.CreateFault(
+                            null,
+                            serviceResultException);
+                        await WriteServiceResponseAsync(context, serviceResponse, ct)
+                            .ConfigureAwait(false);
                         return;
                     }
                 }
 
                 // note: do not use Task.Factory.FromAsync here
-                IAsyncResult result = m_callback.BeginProcessRequest(ListenerId, endpoint, input, null, null);
+                IAsyncResult result = m_callback.BeginProcessRequest(
+                    ListenerId,
+                    endpoint,
+                    input,
+                    null,
+                    null);
 
                 IServiceResponse output = m_callback.EndProcessRequest(result);
 
@@ -488,7 +513,9 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Called when a UpdateCertificate event occured.
         /// </summary>
-        public void CertificateUpdate(ICertificateValidator validator, CertificateTypesProvider certificateTypeProvider)
+        public void CertificateUpdate(
+            ICertificateValidator validator,
+            CertificateTypesProvider certificateTypeProvider)
         {
             Stop();
 
@@ -497,7 +524,10 @@ namespace Opc.Ua.Bindings
 
             foreach (EndpointDescription description in m_descriptions)
             {
-                ServerBase.SetServerCertificateInEndpointDescription(description, certificateTypeProvider, false);
+                ServerBase.SetServerCertificateInEndpointDescription(
+                    description,
+                    certificateTypeProvider,
+                    false);
             }
 
             Start();
@@ -527,7 +557,10 @@ namespace Opc.Ua.Bindings
 #endif
         }
 
-        private static Task WriteResponseAsync(HttpResponse response, string message, HttpStatusCode status)
+        private static Task WriteResponseAsync(
+            HttpResponse response,
+            string message,
+            HttpStatusCode status)
         {
             response.ContentLength = message.Length;
             response.ContentType = kHttpsContentType;

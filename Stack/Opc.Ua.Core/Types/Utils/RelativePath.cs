@@ -27,18 +27,26 @@ namespace Opc.Ua
         /// Creates a relative path to follow any hierarchial references to find the specified browse name.
         /// </summary>
         public RelativePath(QualifiedName browseName)
-            : this(ReferenceTypeIds.HierarchicalReferences, false, true, browseName) { }
+            : this(ReferenceTypeIds.HierarchicalReferences, false, true, browseName)
+        {
+        }
 
         /// <summary>
         /// Creates a relative path to follow the forward reference type to find the specified browse name.
         /// </summary>
         public RelativePath(NodeId referenceTypeId, QualifiedName browseName)
-            : this(referenceTypeId, false, true, browseName) { }
+            : this(referenceTypeId, false, true, browseName)
+        {
+        }
 
         /// <summary>
         /// Creates a relative path to follow the forward reference type to find the specified browse name.
         /// </summary>
-        public RelativePath(NodeId referenceTypeId, bool isInverse, bool includeSubtypes, QualifiedName browseName)
+        public RelativePath(
+            NodeId referenceTypeId,
+            bool isInverse,
+            bool includeSubtypes,
+            QualifiedName browseName)
         {
             Initialize();
 
@@ -47,7 +55,7 @@ namespace Opc.Ua
                 ReferenceTypeId = referenceTypeId,
                 IsInverse = isInverse,
                 IncludeSubtypes = includeSubtypes,
-                TargetName = browseName,
+                TargetName = browseName
             };
 
             m_elements.Add(element);
@@ -78,6 +86,8 @@ namespace Opc.Ua
         /// <summary>
         /// Parses a relative path formatted as a string.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="typeTree"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static RelativePath Parse(string browsePath, ITypeTable typeTree)
         {
             if (typeTree == null)
@@ -98,7 +108,7 @@ namespace Opc.Ua
                     ReferenceTypeId = null,
                     IsInverse = false,
                     IncludeSubtypes = element.IncludeSubtypes,
-                    TargetName = element.TargetName,
+                    TargetName = element.TargetName
                 };
 
                 switch (element.ElementType)
@@ -106,17 +116,16 @@ namespace Opc.Ua
                     case RelativePathFormatter.ElementType.AnyHierarchical:
                         parsedElement.ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences;
                         break;
-
                     case RelativePathFormatter.ElementType.AnyComponent:
                         parsedElement.ReferenceTypeId = ReferenceTypeIds.Aggregates;
                         break;
-
                     case RelativePathFormatter.ElementType.ForwardReference:
-                        parsedElement.ReferenceTypeId = typeTree.FindReferenceType(element.ReferenceTypeName);
+                        parsedElement.ReferenceTypeId = typeTree.FindReferenceType(
+                            element.ReferenceTypeName);
                         break;
-
                     case RelativePathFormatter.ElementType.InverseReference:
-                        parsedElement.ReferenceTypeId = typeTree.FindReferenceType(element.ReferenceTypeName);
+                        parsedElement.ReferenceTypeId = typeTree.FindReferenceType(
+                            element.ReferenceTypeName);
                         parsedElement.IsInverse = true;
                         break;
                 }
@@ -139,6 +148,8 @@ namespace Opc.Ua
         /// <summary>
         /// Parses a relative path formatted as a string.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static RelativePath Parse(
             string browsePath,
             ITypeTable typeTree,
@@ -159,7 +170,7 @@ namespace Opc.Ua
                     ReferenceTypeId = null,
                     IsInverse = false,
                     IncludeSubtypes = element.IncludeSubtypes,
-                    TargetName = element.TargetName,
+                    TargetName = element.TargetName
                 };
 
                 switch (element.ElementType)
@@ -167,11 +178,9 @@ namespace Opc.Ua
                     case RelativePathFormatter.ElementType.AnyHierarchical:
                         parsedElement.ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences;
                         break;
-
                     case RelativePathFormatter.ElementType.AnyComponent:
                         parsedElement.ReferenceTypeId = ReferenceTypeIds.Aggregates;
                         break;
-
                     case RelativePathFormatter.ElementType.ForwardReference:
                     case RelativePathFormatter.ElementType.InverseReference:
                         if (typeTree == null)
@@ -181,9 +190,12 @@ namespace Opc.Ua
                             );
                         }
 
-                        parsedElement.ReferenceTypeId = typeTree.FindReferenceType(element.ReferenceTypeName);
+                        parsedElement.ReferenceTypeId = typeTree.FindReferenceType(
+                            element.ReferenceTypeName);
                         parsedElement.IsInverse =
-                            element.ElementType == RelativePathFormatter.ElementType.InverseReference;
+                            element.ElementType == RelativePathFormatter
+                                .ElementType
+                                .InverseReference;
                         break;
                 }
 
@@ -281,26 +293,28 @@ namespace Opc.Ua
                 QualifiedName qname = element.ReferenceTypeName;
 
                 if (
-                    qname != null
-                    && qname.NamespaceIndex > 1
-                    && qname.NamespaceIndex < mappings.Length
-                    && mappings[qname.NamespaceIndex] == -1
+                    qname != null &&
+                    qname.NamespaceIndex > 1 &&
+                    qname.NamespaceIndex < mappings.Length &&
+                    mappings[qname.NamespaceIndex] == -1
                 )
                 {
-                    mappings[qname.NamespaceIndex] = targetTable.GetIndexOrAppend(uris[qname.NamespaceIndex]);
+                    mappings[qname.NamespaceIndex] = targetTable.GetIndexOrAppend(
+                        uris[qname.NamespaceIndex]);
                 }
 
                 // check target name.
                 qname = element.TargetName;
 
                 if (
-                    qname != null
-                    && qname.NamespaceIndex > 1
-                    && qname.NamespaceIndex < mappings.Length
-                    && mappings[qname.NamespaceIndex] == -1
+                    qname != null &&
+                    qname.NamespaceIndex > 1 &&
+                    qname.NamespaceIndex < mappings.Length &&
+                    mappings[qname.NamespaceIndex] == -1
                 )
                 {
-                    mappings[qname.NamespaceIndex] = targetTable.GetIndexOrAppend(uris[qname.NamespaceIndex]);
+                    mappings[qname.NamespaceIndex] = targetTable.GetIndexOrAppend(
+                        uris[qname.NamespaceIndex]);
                 }
             }
         }
@@ -310,7 +324,10 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="currentTable">The NamespaceTable which the RelativePathString currently references</param>
         /// <param name="targetTable">The NamespaceTable which the RelativePathString should reference</param>
-        public void TranslateNamespaceIndexes(NamespaceTable currentTable, NamespaceTable targetTable)
+        /// <exception cref="ServiceResultException"></exception>
+        public void TranslateNamespaceIndexes(
+            NamespaceTable currentTable,
+            NamespaceTable targetTable)
         {
             // build mapping table.
             int[] mappings = new int[currentTable.Count];
@@ -336,7 +353,8 @@ namespace Opc.Ua
 
                 if (qname != null && qname.NamespaceIndex > 0)
                 {
-                    if (qname.NamespaceIndex < mappings.Length && mappings[qname.NamespaceIndex] > 0)
+                    if (qname.NamespaceIndex < mappings.Length &&
+                        mappings[qname.NamespaceIndex] > 0)
                     {
                         element.ReferenceTypeName = new QualifiedName(
                             qname.Name,
@@ -359,9 +377,12 @@ namespace Opc.Ua
 
                 if (qname != null && qname.NamespaceIndex > 0)
                 {
-                    if (qname.NamespaceIndex < mappings.Length && mappings[qname.NamespaceIndex] > 0)
+                    if (qname.NamespaceIndex < mappings.Length &&
+                        mappings[qname.NamespaceIndex] > 0)
                     {
-                        element.TargetName = new QualifiedName(qname.Name, (ushort)mappings[qname.NamespaceIndex]);
+                        element.TargetName = new QualifiedName(
+                            qname.Name,
+                            (ushort)mappings[qname.NamespaceIndex]);
                     }
                     else
                     {
@@ -593,14 +614,13 @@ namespace Opc.Ua
                         case ElementType.AnyHierarchical:
                             path.Append('/');
                             break;
-
                         case ElementType.AnyComponent:
                             path.Append('.');
                             break;
-
                         case ElementType.ForwardReference:
                         case ElementType.InverseReference:
-                            if (ReferenceTypeName != null && !string.IsNullOrEmpty(ReferenceTypeName.Name))
+                            if (ReferenceTypeName != null &&
+                                !string.IsNullOrEmpty(ReferenceTypeName.Name))
                             {
                                 path.Append('<');
 
@@ -616,7 +636,10 @@ namespace Opc.Ua
 
                                 if (ReferenceTypeName.NamespaceIndex != 0)
                                 {
-                                    path.AppendFormat(formatProvider, "{0}:", ReferenceTypeName.NamespaceIndex);
+                                    path.AppendFormat(
+                                        formatProvider,
+                                        "{0}:",
+                                        ReferenceTypeName.NamespaceIndex);
                                 }
 
                                 EncodeName(path, ReferenceTypeName.Name);
@@ -657,12 +680,10 @@ namespace Opc.Ua
                         element.ElementType = ElementType.AnyHierarchical;
                         reader.Read();
                         break;
-
                     case '.':
                         element.ElementType = ElementType.AnyComponent;
                         reader.Read();
                         break;
-
                     case '<':
                         element.ElementType = ElementType.ForwardReference;
                         reader.Read();
@@ -681,7 +702,6 @@ namespace Opc.Ua
 
                         element.ReferenceTypeName = ParseName(reader, true);
                         break;
-
                     default:
                         element.ElementType = ElementType.AnyHierarchical;
                         break;
@@ -695,6 +715,7 @@ namespace Opc.Ua
             /// <summary>
             /// Extracts a browse name with an optional namespace prefix from the reader.
             /// </summary>
+            /// <exception cref="ServiceResultException"></exception>
             private static QualifiedName ParseName(StringReader reader, bool referenceName)
             {
                 ushort namespaceIndex = 0;
@@ -711,7 +732,9 @@ namespace Opc.Ua
                         if (next == ':')
                         {
                             reader.Read();
-                            namespaceIndex = Convert.ToUInt16(buffer.ToString(), CultureInfo.InvariantCulture);
+                            namespaceIndex = Convert.ToUInt16(
+                                buffer.ToString(),
+                                CultureInfo.InvariantCulture);
                             buffer.Length = 0;
 
                             // fetch next character.
@@ -762,13 +785,11 @@ namespace Opc.Ua
                             buffer.Append((char)next);
                             continue;
                         }
-                        else
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadSyntaxError,
-                                Utils.Format("Invalid escape sequence '&{0}' in browse path.", next)
-                            );
-                        }
+
+                        throw new ServiceResultException(
+                            StatusCodes.BadSyntaxError,
+                            Utils.Format("Invalid escape sequence '&{0}' in browse path.", next)
+                        );
                     }
 
                     // check for invalid character.
@@ -861,7 +882,7 @@ namespace Opc.Ua
             /// <summary>
             /// The inverse reference identified by the browse name should be followed.
             /// </summary>
-            InverseReference = 0x04,
+            InverseReference = 0x04
         }
     }
 }

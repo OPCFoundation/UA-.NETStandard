@@ -73,13 +73,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     /// <summary>
     /// Tests for the IEncoder and IDecoder class.
     /// </summary>
-    [TestFixture, Category("Encoder")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("Encoder")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class EncoderTests : EncoderCommon
     {
         [DatapointSource]
         public int[] ArrayLength = [1, 5, 100];
+
         private static readonly int[] s_value = [1, 2, 3, 4, 5];
         private static readonly string[] s_valueArray = ["1", "2", "3", "4", "5"];
         private static readonly int[] s_valueArray0 = [2, 3, 10];
@@ -91,7 +94,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         [Category("BuiltInType")]
         public void ReEncodeBuiltInTypeDefaultVariantInDataValue(
-            [ValueSource(nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+            [ValueSource(
+                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
             BuiltInType builtInType
         )
         {
@@ -114,7 +118,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         [Category("BuiltInType")]
         public void ReEncodeBuiltInTypeAsVariantInDataValue(
-            [ValueSource(nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+            [ValueSource(
+                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
             BuiltInType builtInType
         )
         {
@@ -135,9 +140,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Verify encode and decode of a random built in type.
         /// </summary>
         [Theory]
-        [Category("BuiltInType"), Repeat(kRandomRepeats)]
+        [Category("BuiltInType")]
+        [Repeat(kRandomRepeats)]
         public void ReEncodeBuiltInType(
-            [ValueSource(nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+            [ValueSource(
+                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
             BuiltInType builtInType
         )
         {
@@ -156,23 +163,28 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     case BuiltInType.NodeId:
                         var nodeId = (NodeId)randomData;
-                        if (nodeId.IdType == IdType.Opaque && ((byte[])nodeId.Identifier).Length == 0)
+                        if (nodeId.IdType == IdType.Opaque &&
+                            ((byte[])nodeId.Identifier).Length == 0)
                         {
                             getRandom = true;
                         }
                         break;
                     case BuiltInType.ExpandedNodeId:
                         var expandedNodeId = (ExpandedNodeId)randomData;
-                        if (expandedNodeId.IdType == IdType.Opaque && ((byte[])expandedNodeId.Identifier).Length == 0)
+                        if (expandedNodeId.IdType == IdType.Opaque &&
+                            ((byte[])expandedNodeId.Identifier).Length == 0)
                         {
                             getRandom = true;
                         }
                         break;
-                    default:
-                        break;
                 }
             }
-            EncodeDecode(encoderType, jsonEncodingType, builtInType, MemoryStreamType.ArraySegmentStream, randomData);
+            EncodeDecode(
+                encoderType,
+                jsonEncodingType,
+                builtInType,
+                MemoryStreamType.ArraySegmentStream,
+                randomData);
         }
 
         /// <summary>
@@ -181,7 +193,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         [Category("BuiltInType")]
         public void ReEncodeBuiltInTypeDefaultValue(
-            [ValueSource(nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+            [ValueSource(
+                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
             BuiltInType builtInType
         )
         {
@@ -209,15 +222,25 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         [Category("BuiltInType")]
         public void ReEncodeBuiltInTypeBoundaryValue(
-            [ValueSource(nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+            [ValueSource(
+                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
             BuiltInType builtInType
         )
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
-            foreach (object boundaryValue in DataGenerator.GetRandomArray(builtInType, true, 10, true))
+            foreach (object boundaryValue in DataGenerator.GetRandomArray(
+                builtInType,
+                true,
+                10,
+                true))
             {
-                EncodeDecode(encoderType, jsonEncodingType, builtInType, MemoryStreamType.MemoryStream, boundaryValue);
+                EncodeDecode(
+                    encoderType,
+                    jsonEncodingType,
+                    builtInType,
+                    MemoryStreamType.MemoryStream,
+                    boundaryValue);
             }
         }
 
@@ -228,7 +251,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         [Category("BuiltInType")]
         public void ReEncodeBuiltInTypeArrayAsRandomVariantInDataValue(
-            [ValueSource(nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+            [ValueSource(
+                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
             BuiltInType builtInType,
             bool useBoundaryValues,
             int arrayLength
@@ -238,7 +262,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
             // ensure different sized arrays contain different data set
             SetRandomSeed(arrayLength);
-            object randomData = DataGenerator.GetRandomArray(builtInType, useBoundaryValues, arrayLength, true);
+            object randomData = DataGenerator.GetRandomArray(
+                builtInType,
+                useBoundaryValues,
+                arrayLength,
+                true);
             EncodeDecodeDataValue(
                 encoderType,
                 jsonEncodingType,
@@ -255,7 +283,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         [Category("BuiltInType")]
         public void ReEncodeBuiltInTypeZeroLengthArrayAsVariantInDataValue(
-            [ValueSource(nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+            [ValueSource(
+                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
             BuiltInType builtInType
         )
         {
@@ -276,7 +305,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// as Variant in a DataValue.
         /// </summary>
         [Theory]
-        [Category("BuiltInType"), Repeat(kRandomRepeats)]
+        [Category("BuiltInType")]
+        [Repeat(kRandomRepeats)]
         public void ReEncodeBuiltInTypeRandomVariantInDataValue(
             [ValueSource(nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup
         )
@@ -300,7 +330,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Theory]
         [Category("BuiltInType")]
-        public void EncodeBuiltInTypeAsVariantInDataValueToNonReversibleJson(BuiltInType builtInType)
+        public void EncodeBuiltInTypeAsVariantInDataValueToNonReversibleJson(
+            BuiltInType builtInType)
         {
             object randomData = DataGenerator.GetRandom(builtInType);
             if (builtInType == BuiltInType.DiagnosticInfo)
@@ -371,7 +402,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         )
         {
             SetRandomSeed(arrayLength);
-            object randomData = DataGenerator.GetRandomArray(builtInType, useBoundaryValues, arrayLength, true);
+            object randomData = DataGenerator.GetRandomArray(
+                builtInType,
+                useBoundaryValues,
+                arrayLength,
+                true);
             string json = EncodeDataValue(
                 EncodingType.Json,
                 builtInType,
@@ -388,7 +423,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Theory]
         [Category("BuiltInType")]
-        public void EncodeBuiltInTypeZeroLengthArrayAsVariantInDataValueToNonReversibleJson(BuiltInType builtInType)
+        public void EncodeBuiltInTypeZeroLengthArrayAsVariantInDataValueToNonReversibleJson(
+            BuiltInType builtInType)
         {
             object randomData = DataGenerator.GetRandomArray(builtInType, false, 0, true);
             string json = EncodeDataValue(
@@ -414,7 +450,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         )
         {
             SetRandomSeed(arrayLength);
-            object randomData = DataGenerator.GetRandomArray(builtInType, useBoundaryValues, arrayLength, true);
+            object randomData = DataGenerator.GetRandomArray(
+                builtInType,
+                useBoundaryValues,
+                arrayLength,
+                true);
             string json = EncodeDataValue(
                 EncodingType.Json,
                 builtInType,
@@ -431,7 +471,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Theory]
         [Category("BuiltInType")]
-        public void EncodeBuiltInTypeZeroLengthArrayAsVariantInDataValueToVerboseJson(BuiltInType builtInType)
+        public void EncodeBuiltInTypeZeroLengthArrayAsVariantInDataValueToVerboseJson(
+            BuiltInType builtInType)
         {
             object randomData = DataGenerator.GetRandomArray(builtInType, false, 0, true);
             string json = EncodeDataValue(
@@ -464,7 +505,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 new Variant(s_valueArray),
                 //TODO: works as expected, but the expected need to be tweaked for the Int32 result
                 //new Variant(new TestEnumType[] { TestEnumType.One, TestEnumType.Two, TestEnumType.Hundred }),
-                new Variant(s_valueArray0, new TypeInfo(BuiltInType.Enumeration, 1)),
+                new Variant(s_valueArray0, new TypeInfo(BuiltInType.Enumeration, 1))
             };
             EncodeDecodeDataValue(
                 encoderType,
@@ -566,7 +607,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             using var stream = new MemoryStream();
             string text;
-            using (var encoder = new JsonEncoder(new ServiceMessageContext(), true, false, stream, true))
+            using (var encoder = new JsonEncoder(
+                new ServiceMessageContext(),
+                true,
+                false,
+                stream,
+                true))
             {
                 text = WriteByteStringData(encoder);
             }
@@ -581,9 +627,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Verify encode and decode of a Matrix in a Variant.
         /// </summary>
         [Theory]
-        [Category("Array"), Repeat(kArrayRepeats)]
+        [Category("Array")]
+        [Repeat(kArrayRepeats)]
         public void ReEncodeVariantArrayInDataValue(
-            [ValueSource(nameof(EncodingTypesAllButJsonNonReversible))] EncodingTypeGroup encoderTypeGroup,
+            [ValueSource(
+                nameof(EncodingTypesAllButJsonNonReversible))] EncodingTypeGroup encoderTypeGroup,
             BuiltInType builtInType
         )
         {
@@ -592,7 +640,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             SetRepeatedRandomSeed();
             Assume.That(builtInType != BuiltInType.Null);
             int arrayDimension = RandomSource.NextInt32(99) + 1;
-            Array randomData = DataGenerator.GetRandomArray(builtInType, false, arrayDimension, true);
+            Array randomData = DataGenerator.GetRandomArray(
+                builtInType,
+                false,
+                arrayDimension,
+                true);
             var variant = new Variant(randomData, new TypeInfo(builtInType, 1));
             EncodeDecodeDataValue(
                 encoderType,
@@ -607,7 +659,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Verify encode and decode of a one dimensional Array.
         /// </summary>
         [Theory]
-        [Category("Array"), Repeat(kArrayRepeats)]
+        [Category("Array")]
+        [Repeat(kArrayRepeats)]
         public void EncodeArray(
             [ValueSource(nameof(EncodingTypesAll))] EncodingTypeGroup encoderTypeGroup,
             BuiltInType builtInType
@@ -618,7 +671,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             SetRepeatedRandomSeed();
             Assume.That(builtInType != BuiltInType.Null);
             int arrayDimension = RandomSource.NextInt32(99) + 1;
-            Array randomData = DataGenerator.GetRandomArray(builtInType, false, arrayDimension, true);
+            Array randomData = DataGenerator.GetRandomArray(
+                builtInType,
+                false,
+                arrayDimension,
+                true);
 
             string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
             Type type = TypeInfo.GetSystemType(builtInType, -1);
@@ -627,13 +684,24 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine(randomData);
 
             byte[] buffer;
-            using (MemoryStream encoderStream = CreateEncoderMemoryStream(MemoryStreamType.MemoryStream))
+            using (MemoryStream encoderStream = CreateEncoderMemoryStream(
+                MemoryStreamType.MemoryStream))
             {
                 using (
-                    IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, type, jsonEncodingType, false)
+                    IEncoder encoder = CreateEncoder(
+                        encoderType,
+                        Context,
+                        encoderStream,
+                        type,
+                        jsonEncodingType,
+                        false)
                 )
                 {
-                    encoder.WriteArray(builtInType.ToString(), randomData, ValueRanks.OneDimension, builtInType);
+                    encoder.WriteArray(
+                        builtInType.ToString(),
+                        randomData,
+                        ValueRanks.OneDimension,
+                        builtInType);
                 }
                 buffer = encoderStream.ToArray();
             }
@@ -649,7 +717,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using (var decoderStream = new MemoryStream(buffer))
             using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type))
             {
-                result = decoder.ReadArray(builtInType.ToString(), ValueRanks.OneDimension, builtInType);
+                result = decoder.ReadArray(
+                    builtInType.ToString(),
+                    ValueRanks.OneDimension,
+                    builtInType);
             }
 
             TestContext.Out.WriteLine("Result:");
@@ -657,7 +728,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             object expected = AdjustExpectedBoundaryValues(encoderType, builtInType, randomData);
 
             // strip the locale information from localized text for non reversible
-            if (builtInType == BuiltInType.LocalizedText && jsonEncodingType == JsonEncodingType.NonReversible)
+            if (builtInType == BuiltInType.LocalizedText &&
+                jsonEncodingType == JsonEncodingType.NonReversible)
             {
                 var localizedTextCollection = new LocalizedTextCollection(randomData.Length);
                 foreach (object entry in randomData)
@@ -681,9 +753,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Verify encode and decode of a Matrix in a Variant.
         /// </summary>
         [Theory]
-        [Category("Matrix"), Repeat(kArrayRepeats)]
+        [Category("Matrix")]
+        [Repeat(kArrayRepeats)]
         public void ReEncodeVariantMatrixInDataValue(
-            [ValueSource(nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+            [ValueSource(
+                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
             BuiltInType builtInType
         )
         {
@@ -717,9 +791,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Verify encode of a Matrix in a Variant to non reversible JSON.
         /// </summary>
         [Theory]
-        [Category("Matrix"), Repeat(kArrayRepeats)]
+        [Category("Matrix")]
+        [Repeat(kArrayRepeats)]
         public void EncodeBuiltInTypeMatrixAsVariantInDataValueToNonReversibleVerboseJson(
-            [ValueSource(nameof(EncodingTypesJsonNonReversibleVerbose))] EncodingTypeGroup encoderTypeGroup,
+            [ValueSource(
+                nameof(EncodingTypesJsonNonReversibleVerbose))] EncodingTypeGroup encoderTypeGroup,
             BuiltInType builtInType
         )
         {
@@ -747,7 +823,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Verify encode of a Matrix in a multi dimensional array.
         /// </summary>
         [Theory]
-        [Category("Matrix"), Repeat(kArrayRepeats)]
+        [Category("Matrix")]
+        [Repeat(kArrayRepeats)]
         public void EncodeMatrixInArray(
             [ValueSource(nameof(EncodingTypesAll))] EncodingTypeGroup encoderTypeGroup,
             BuiltInType builtInType
@@ -771,11 +848,21 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine(matrix);
 
             byte[] buffer;
-            using (MemoryStream encoderStream = CreateEncoderMemoryStream(MemoryStreamType.MemoryStream))
+            using (MemoryStream encoderStream = CreateEncoderMemoryStream(
+                MemoryStreamType.MemoryStream))
             {
-                using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, type, jsonEncodingType))
+                using (IEncoder encoder = CreateEncoder(
+                    encoderType,
+                    Context,
+                    encoderStream,
+                    type,
+                    jsonEncodingType))
                 {
-                    encoder.WriteArray(builtInType.ToString(), matrix, matrix.TypeInfo.ValueRank, builtInType);
+                    encoder.WriteArray(
+                        builtInType.ToString(),
+                        matrix,
+                        matrix.TypeInfo.ValueRank,
+                        builtInType);
                 }
                 buffer = encoderStream.ToArray();
             }
@@ -791,7 +878,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using (var decoderStream = new MemoryStream(buffer))
             using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type))
             {
-                result = decoder.ReadArray(builtInType.ToString(), matrix.TypeInfo.ValueRank, builtInType);
+                result = decoder.ReadArray(
+                    builtInType.ToString(),
+                    matrix.TypeInfo.ValueRank,
+                    builtInType);
             }
 
             TestContext.Out.WriteLine("Result:");
@@ -799,7 +889,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             object expected = AdjustExpectedBoundaryValues(encoderType, builtInType, matrix);
 
             // strip the locale information from localized text for non reversible
-            if (builtInType == BuiltInType.LocalizedText && jsonEncodingType == JsonEncodingType.NonReversible)
+            if (builtInType == BuiltInType.LocalizedText &&
+                jsonEncodingType == JsonEncodingType.NonReversible)
             {
                 var localizedTextCollection = new LocalizedTextCollection(randomData.Length);
                 foreach (object entry in matrix.Elements)
@@ -869,7 +960,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine(expected);
 
             byte[] buffer;
-            using (MemoryStream encoderStream = CreateEncoderMemoryStream(MemoryStreamType.MemoryStream))
+            using (MemoryStream encoderStream = CreateEncoderMemoryStream(
+                MemoryStreamType.MemoryStream))
             {
                 using (
                     IEncoder encoder = CreateEncoder(
@@ -881,18 +973,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     )
                 )
                 {
-                    if (encoderType == EncodingType.Json && jsonEncodingType == JsonEncodingType.NonReversible)
+                    if (encoderType == EncodingType.Json &&
+                        jsonEncodingType == JsonEncodingType.NonReversible)
                     {
-                        ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                            encoder.WriteDataValue("DataValue", expected)
-                        );
+                        ServiceResultException sre = NUnit.Framework.Assert
+                            .Throws<ServiceResultException>(() =>
+                                encoder.WriteDataValue("DataValue", expected)
+                                );
                         Assert.AreEqual(StatusCodes.BadEncodingLimitsExceeded, sre.StatusCode);
                         return;
                     }
-                    else
-                    {
-                        encoder.WriteDataValue("DataValue", expected);
-                    }
+
+                    encoder.WriteDataValue("DataValue", expected);
                 }
                 buffer = encoderStream.ToArray();
             }
@@ -906,14 +998,22 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             using (var decoderStream = new MemoryStream(buffer))
-            using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, typeof(DataValue)))
+            using (IDecoder decoder = CreateDecoder(
+                encoderType,
+                Context,
+                decoderStream,
+                typeof(DataValue)))
             {
                 // check such matrix cannot be initialized when decoding from Binary format
                 // the exception is thrown before trying to construct the Matrix
-                ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                    decoder.ReadDataValue("DataValue")
-                );
-                Assert.AreEqual((StatusCode)StatusCodes.BadDecodingError, (StatusCode)sre.StatusCode, sre.Message);
+                ServiceResultException sre = NUnit.Framework.Assert
+                    .Throws<ServiceResultException>(() =>
+                        decoder.ReadDataValue("DataValue")
+                        );
+                Assert.AreEqual(
+                    (StatusCode)StatusCodes.BadDecodingError,
+                    (StatusCode)sre.StatusCode,
+                    sre.Message);
             }
         }
 
@@ -954,7 +1054,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine(expected);
 
             byte[] buffer;
-            using (MemoryStream encoderStream = CreateEncoderMemoryStream(MemoryStreamType.ArraySegmentStream))
+            using (MemoryStream encoderStream = CreateEncoderMemoryStream(
+                MemoryStreamType.ArraySegmentStream))
             {
                 using (
                     IEncoder encoder = CreateEncoder(
@@ -966,18 +1067,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     )
                 )
                 {
-                    if (encoderType == EncodingType.Json && jsonEncodingType == JsonEncodingType.NonReversible)
+                    if (encoderType == EncodingType.Json &&
+                        jsonEncodingType == JsonEncodingType.NonReversible)
                     {
-                        ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                            encoder.WriteDataValue("DataValue", expected)
-                        );
+                        ServiceResultException sre = NUnit.Framework.Assert
+                            .Throws<ServiceResultException>(() =>
+                                encoder.WriteDataValue("DataValue", expected)
+                                );
                         Assert.AreEqual(StatusCodes.BadEncodingLimitsExceeded, sre.StatusCode);
                         return;
                     }
-                    else
-                    {
-                        encoder.WriteDataValue("DataValue", expected);
-                    }
+
+                    encoder.WriteDataValue("DataValue", expected);
                 }
                 buffer = encoderStream.ToArray();
             }
@@ -991,15 +1092,23 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             using (var decoderStream = new MemoryStream(buffer))
-            using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, typeof(DataValue)))
+            using (IDecoder decoder = CreateDecoder(
+                encoderType,
+                Context,
+                decoderStream,
+                typeof(DataValue)))
             {
                 // check such matrix cannot be initialized when decoding from Json format
                 // the exception is thrown while trying to construct the Matrix
-                ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                    decoder.ReadDataValue("DataValue")
-                );
+                ServiceResultException sre = NUnit.Framework.Assert
+                    .Throws<ServiceResultException>(() =>
+                        decoder.ReadDataValue("DataValue")
+                        );
 
-                Assert.AreEqual((StatusCode)StatusCodes.BadDecodingError, (StatusCode)sre.StatusCode, sre.Message);
+                Assert.AreEqual(
+                    (StatusCode)StatusCodes.BadDecodingError,
+                    (StatusCode)sre.StatusCode,
+                    sre.Message);
             }
         }
 
@@ -1042,9 +1151,15 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine(matrix);
 
             byte[] buffer;
-            using (MemoryStream encoderStream = CreateEncoderMemoryStream(MemoryStreamType.RecyclableMemoryStream))
+            using (MemoryStream encoderStream = CreateEncoderMemoryStream(
+                MemoryStreamType.RecyclableMemoryStream))
             {
-                using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, type, jsonEncodingType))
+                using (IEncoder encoder = CreateEncoder(
+                    encoderType,
+                    Context,
+                    encoderStream,
+                    type,
+                    jsonEncodingType))
                 {
                     switch (encoderType)
                     {
@@ -1061,7 +1176,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                             );
                             return;
                     }
-                    encoder.WriteArray(builtInType.ToString(), matrix, matrix.TypeInfo.ValueRank, builtInType);
+                    encoder.WriteArray(
+                        builtInType.ToString(),
+                        matrix,
+                        matrix.TypeInfo.ValueRank,
+                        builtInType);
                 }
                 buffer = encoderStream.ToArray();
             }
@@ -1079,7 +1198,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 decoder.ReadArray(builtInType.ToString(), matrix.TypeInfo.ValueRank, builtInType)
             );
 
-            Assert.AreEqual((StatusCode)StatusCodes.BadEncodingLimitsExceeded, (StatusCode)sre.StatusCode, sre.Message);
+            Assert.AreEqual(
+                (StatusCode)StatusCodes.BadEncodingLimitsExceeded,
+                (StatusCode)sre.StatusCode,
+                sre.Message);
         }
 
         /// <summary>
@@ -1092,14 +1214,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void EnsureNodeIdNullIsNotModified()
         {
             const string text1 =
-                "[{\"Body\":{\"KeyValuePair\":{\"@xmlns\":\"http://opcfoundation.org/UA/2008/02/Types.xsd\","
-                + "\"Key\":{\"Name\":\"o\",\"NamespaceIndex\":\"0\"},\"Value\":{\"Value\":"
-                + "{\"ListOfExtensionObject\":{\"ExtensionObject\":["
-                + "{\"Body\":{\"KeyValuePair\":{\"Key\":{\"Name\":\"stringProp\",\"NamespaceIndex\":\"0\"},\"Value\":{\"Value\":"
-                + "{\"String\":\"EinString\"}}}},\"TypeId\":{\"Identifier\":\"i=14801\"}},{\"Body\":{\"KeyValuePair\":{\"Key\":"
-                + "{\"Name\":\"intProp\",\"NamespaceIndex\":\"0\"},\"Value\":{\"Value\":{\"Int32\":\"1\"}}}},\"TypeId\":"
-                + "{\"Identifier\":\"i=14802\"}}]}}}}},\"TypeId\":"
-                + "{\"Identifier\":\"i=14803\"}}]";
+                "[{\"Body\":{\"KeyValuePair\":{\"@xmlns\":\"http://opcfoundation.org/UA/2008/02/Types.xsd\"," +
+                "\"Key\":{\"Name\":\"o\",\"NamespaceIndex\":\"0\"},\"Value\":{\"Value\":" +
+                "{\"ListOfExtensionObject\":{\"ExtensionObject\":[" +
+                "{\"Body\":{\"KeyValuePair\":{\"Key\":{\"Name\":\"stringProp\",\"NamespaceIndex\":\"0\"},\"Value\":{\"Value\":" +
+                "{\"String\":\"EinString\"}}}},\"TypeId\":{\"Identifier\":\"i=14801\"}},{\"Body\":{\"KeyValuePair\":{\"Key\":" +
+                "{\"Name\":\"intProp\",\"NamespaceIndex\":\"0\"},\"Value\":{\"Value\":{\"Int32\":\"1\"}}}},\"TypeId\":" +
+                "{\"Identifier\":\"i=14802\"}}]}}}}},\"TypeId\":" +
+                "{\"Identifier\":\"i=14803\"}}]";
 
             JsonConvert.DeserializeObject<ExtensionObject[]>(text1);
 

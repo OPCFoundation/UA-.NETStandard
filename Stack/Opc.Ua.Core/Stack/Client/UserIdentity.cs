@@ -40,7 +40,11 @@ namespace Opc.Ua
         /// <param name="password">The password.</param>
         public UserIdentity(string username, string password)
         {
-            var token = new UserNameIdentityToken { UserName = username, DecryptedPassword = password };
+            var token = new UserNameIdentityToken
+            {
+                UserName = username,
+                DecryptedPassword = password
+            };
             Initialize(token);
         }
 
@@ -57,7 +61,9 @@ namespace Opc.Ua
         /// Initializes the object with an X509 certificate identifier
         /// </summary>
         public UserIdentity(CertificateIdentifier certificateId)
-            : this(certificateId, new CertificatePasswordProvider(string.Empty)) { }
+            : this(certificateId, new CertificatePasswordProvider(string.Empty))
+        {
+        }
 
         /// <summary>
         /// Initializes the object with an X509 certificate identifier and a CertificatePasswordProvider
@@ -173,6 +179,9 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a UA identity token
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="NotSupportedException"></exception>
         private void Initialize(UserIdentityToken token)
         {
             GrantedRoleIds = [];
@@ -196,7 +205,9 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    X509Certificate2 cert = CertificateFactory.Create(x509Token.CertificateData, true);
+                    X509Certificate2 cert = CertificateFactory.Create(
+                        x509Token.CertificateData,
+                        true);
                     DisplayName = cert.Subject;
                 }
                 return;
@@ -206,20 +217,21 @@ namespace Opc.Ua
             {
                 if (issuedToken.IssuedTokenType == Ua.IssuedTokenType.JWT)
                 {
-                    if (issuedToken.DecryptedTokenData == null || issuedToken.DecryptedTokenData.Length == 0)
+                    if (issuedToken.DecryptedTokenData == null ||
+                        issuedToken.DecryptedTokenData.Length == 0)
                     {
-                        throw new ArgumentException("JSON Web Token has no data associated with it.", nameof(token));
+                        throw new ArgumentException(
+                            "JSON Web Token has no data associated with it.",
+                            nameof(token));
                     }
 
                     TokenType = UserTokenType.IssuedToken;
-                    IssuedTokenType = new XmlQualifiedName("", Profiles.JwtUserToken);
+                    IssuedTokenType = new XmlQualifiedName(string.Empty, Profiles.JwtUserToken);
                     DisplayName = "JWT";
                     return;
                 }
-                else
-                {
-                    throw new NotSupportedException("Only JWT Issued Tokens are supported!");
-                }
+
+                throw new NotSupportedException("Only JWT Issued Tokens are supported!");
             }
 
             if (token is AnonymousIdentityToken)
@@ -238,7 +250,11 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize(X509Certificate2 certificate)
         {
-            var token = new X509IdentityToken { CertificateData = certificate.RawData, Certificate = certificate };
+            var token = new X509IdentityToken
+            {
+                CertificateData = certificate.RawData,
+                Certificate = certificate
+            };
             Initialize(token);
         }
 

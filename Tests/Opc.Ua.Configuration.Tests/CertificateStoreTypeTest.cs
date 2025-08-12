@@ -41,14 +41,17 @@ namespace Opc.Ua.Configuration.Tests
     /// <summary>
     /// Tests for the custom certificate store config extensions.
     /// </summary>
-    [TestFixture, Category("CertificateStore")]
+    [TestFixture]
+    [Category("CertificateStore")]
     [SetCulture("en-us")]
     public class CertificateStoreTypeTest
     {
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
-            CertificateStoreType.RegisterCertificateStoreType(TestCertStore.StoreTypePrefix, new TestStoreType());
+            CertificateStoreType.RegisterCertificateStoreType(
+                TestCertStore.StoreTypePrefix,
+                new TestStoreType());
         }
 
         [SetUp]
@@ -67,7 +70,7 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task CertificateStoreTypeNoConfigTestAsync()
         {
-            var application = new ApplicationInstance() { ApplicationName = "Application" };
+            var application = new ApplicationInstance { ApplicationName = "Application" };
 
             string appStorePath = m_tempPath + Path.DirectorySeparatorChar + "own";
             string trustedStorePath = m_tempPath + Path.DirectorySeparatorChar + "trusted";
@@ -93,9 +96,11 @@ namespace Opc.Ua.Configuration.Tests
                 );
 
             // patch custom stores before creating the config
-            ApplicationConfiguration appConfig = await appConfigBuilder.Create().ConfigureAwait(false);
+            ApplicationConfiguration appConfig = await appConfigBuilder.Create()
+                .ConfigureAwait(false);
 
-            bool certOK = await application.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false);
+            bool certOK = await application.CheckApplicationInstanceCertificatesAsync(true)
+                .ConfigureAwait(false);
             Assert.True(certOK);
 
             int instancesCreatedWhileLoadingConfig = TestCertStore.InstancesCreated;
@@ -107,12 +112,14 @@ namespace Opc.Ua.Configuration.Tests
             OpenCertStore(appConfig.SecurityConfiguration.TrustedUserCertificates);
 
             int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
-            Assert.IsTrue(instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore);
+            Assert.IsTrue(
+                instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore);
             var certificateStoreIdentifier = new CertificateStoreIdentifier(
                 TestCertStore.StoreTypePrefix + trustedUserStorePath
             );
             using ICertificateStore store = certificateStoreIdentifier.OpenStore();
-            Assert.IsTrue(instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
+            Assert.IsTrue(
+                instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
         }
 
         private static void OpenCertStore(CertificateTrustList trustList)
@@ -135,7 +142,8 @@ namespace Opc.Ua.Configuration.Tests
 
         public bool SupportsStorePath(string storePath)
         {
-            return storePath != null && storePath.StartsWith(TestCertStore.StoreTypePrefix, StringComparison.Ordinal);
+            return storePath != null &&
+                storePath.StartsWith(TestCertStore.StoreTypePrefix, StringComparison.Ordinal);
         }
     }
 
@@ -164,7 +172,8 @@ namespace Opc.Ua.Configuration.Tests
             }
             if (!location.StartsWith(StoreTypePrefix, StringComparison.Ordinal))
             {
-                throw new ArgumentException($"Expected argument {nameof(location)} starting with {StoreTypePrefix}");
+                throw new ArgumentException(
+                    $"Expected argument {nameof(location)} starting with {StoreTypePrefix}");
             }
             m_innerStore.Open(location[StoreTypePrefix.Length..], noPrivateKeys);
         }
@@ -191,7 +200,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <inheritdoc/>
-        public Task AddAsync(X509Certificate2 certificate, string password = null, CancellationToken ct = default)
+        public Task AddAsync(
+            X509Certificate2 certificate,
+            string password = null,
+            CancellationToken ct = default)
         {
             return m_innerStore.AddAsync(certificate, password, ct);
         }
@@ -229,7 +241,9 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <inheritdoc/>
-        public Task<X509Certificate2Collection> FindByThumbprintAsync(string thumbprint, CancellationToken ct = default)
+        public Task<X509Certificate2Collection> FindByThumbprintAsync(
+            string thumbprint,
+            CancellationToken ct = default)
         {
             return m_innerStore.FindByThumbprintAsync(thumbprint, ct);
         }
@@ -277,7 +291,9 @@ namespace Opc.Ua.Configuration.Tests
 
         /// <inheritdoc/>
         [Obsolete("Use EnumerateCRLsAsync instead.")]
-        public Task<X509CRLCollection> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
+        public Task<X509CRLCollection> EnumerateCRLs(
+            X509Certificate2 issuer,
+            bool validateUpdateTime = true)
         {
             return EnumerateCRLsAsync(issuer, validateUpdateTime);
         }
@@ -322,7 +338,12 @@ namespace Opc.Ua.Configuration.Tests
             string password
         )
         {
-            return LoadPrivateKeyAsync(thumbprint, subjectName, applicationUri, certificateType, password);
+            return LoadPrivateKeyAsync(
+                thumbprint,
+                subjectName,
+                applicationUri,
+                certificateType,
+                password);
         }
 
         /// <inheritdoc/>

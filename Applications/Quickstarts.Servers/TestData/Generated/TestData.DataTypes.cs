@@ -29,9 +29,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
-using System.Runtime.Serialization;
 using Opc.Ua;
 
 namespace TestData
@@ -94,216 +94,378 @@ namespace TestData
         [DataMember(Name = "BooleanValue", IsRequired = false, Order = 1)]
         public bool BooleanValue
         {
-            get { return m_booleanValue; }
-            set { m_booleanValue = value; }
+            get
+            {
+                return m_booleanValue;
+            }
+            set
+            {
+                m_booleanValue = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SByteValue", IsRequired = false, Order = 2)]
         public sbyte SByteValue
         {
-            get { return m_sByteValue; }
-            set { m_sByteValue = value; }
+            get
+            {
+                return m_sByteValue;
+            }
+            set
+            {
+                m_sByteValue = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ByteValue", IsRequired = false, Order = 3)]
         public byte ByteValue
         {
-            get { return m_byteValue; }
-            set { m_byteValue = value; }
+            get
+            {
+                return m_byteValue;
+            }
+            set
+            {
+                m_byteValue = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Int16Value", IsRequired = false, Order = 4)]
         public short Int16Value
         {
-            get { return m_int16Value; }
-            set { m_int16Value = value; }
+            get
+            {
+                return m_int16Value;
+            }
+            set
+            {
+                m_int16Value = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "UInt16Value", IsRequired = false, Order = 5)]
         public ushort UInt16Value
         {
-            get { return m_uInt16Value; }
-            set { m_uInt16Value = value; }
+            get
+            {
+                return m_uInt16Value;
+            }
+            set
+            {
+                m_uInt16Value = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Int32Value", IsRequired = false, Order = 6)]
         public int Int32Value
         {
-            get { return m_int32Value; }
-            set { m_int32Value = value; }
+            get
+            {
+                return m_int32Value;
+            }
+            set
+            {
+                m_int32Value = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "UInt32Value", IsRequired = false, Order = 7)]
         public uint UInt32Value
         {
-            get { return m_uInt32Value; }
-            set { m_uInt32Value = value; }
+            get
+            {
+                return m_uInt32Value;
+            }
+            set
+            {
+                m_uInt32Value = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Int64Value", IsRequired = false, Order = 8)]
         public long Int64Value
         {
-            get { return m_int64Value; }
-            set { m_int64Value = value; }
+            get
+            {
+                return m_int64Value;
+            }
+            set
+            {
+                m_int64Value = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "UInt64Value", IsRequired = false, Order = 9)]
         public ulong UInt64Value
         {
-            get { return m_uInt64Value; }
-            set { m_uInt64Value = value; }
+            get
+            {
+                return m_uInt64Value;
+            }
+            set
+            {
+                m_uInt64Value = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "FloatValue", IsRequired = false, Order = 10)]
         public float FloatValue
         {
-            get { return m_floatValue; }
-            set { m_floatValue = value; }
+            get
+            {
+                return m_floatValue;
+            }
+            set
+            {
+                m_floatValue = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DoubleValue", IsRequired = false, Order = 11)]
         public double DoubleValue
         {
-            get { return m_doubleValue; }
-            set { m_doubleValue = value; }
+            get
+            {
+                return m_doubleValue;
+            }
+            set
+            {
+                m_doubleValue = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "StringValue", IsRequired = false, Order = 12)]
         public string StringValue
         {
-            get { return m_stringValue; }
-            set { m_stringValue = value; }
+            get
+            {
+                return m_stringValue;
+            }
+            set
+            {
+                m_stringValue = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DateTimeValue", IsRequired = false, Order = 13)]
         public DateTime DateTimeValue
         {
-            get { return m_dateTimeValue; }
-            set { m_dateTimeValue = value; }
+            get
+            {
+                return m_dateTimeValue;
+            }
+            set
+            {
+                m_dateTimeValue = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "GuidValue", IsRequired = false, Order = 14)]
         public Uuid GuidValue
         {
-            get { return m_guidValue; }
-            set { m_guidValue = value; }
+            get
+            {
+                return m_guidValue;
+            }
+            set
+            {
+                m_guidValue = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ByteStringValue", IsRequired = false, Order = 15)]
         public byte[] ByteStringValue
         {
-            get { return m_byteStringValue; }
-            set { m_byteStringValue = value; }
+            get
+            {
+                return m_byteStringValue;
+            }
+            set
+            {
+                m_byteStringValue = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "XmlElementValue", IsRequired = false, Order = 16)]
         public XmlElement XmlElementValue
         {
-            get { return m_xmlElementValue; }
-            set { m_xmlElementValue = value; }
+            get
+            {
+                return m_xmlElementValue;
+            }
+            set
+            {
+                m_xmlElementValue = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "NodeIdValue", IsRequired = false, Order = 17)]
         public NodeId NodeIdValue
         {
-            get { return m_nodeIdValue; }
-            set { m_nodeIdValue = value; }
+            get
+            {
+                return m_nodeIdValue;
+            }
+            set
+            {
+                m_nodeIdValue = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ExpandedNodeIdValue", IsRequired = false, Order = 18)]
         public ExpandedNodeId ExpandedNodeIdValue
         {
-            get { return m_expandedNodeIdValue; }
-            set { m_expandedNodeIdValue = value; }
+            get
+            {
+                return m_expandedNodeIdValue;
+            }
+            set
+            {
+                m_expandedNodeIdValue = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "QualifiedNameValue", IsRequired = false, Order = 19)]
         public QualifiedName QualifiedNameValue
         {
-            get { return m_qualifiedNameValue; }
-            set { m_qualifiedNameValue = value; }
+            get
+            {
+                return m_qualifiedNameValue;
+            }
+            set
+            {
+                m_qualifiedNameValue = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "LocalizedTextValue", IsRequired = false, Order = 20)]
         public LocalizedText LocalizedTextValue
         {
-            get { return m_localizedTextValue; }
-            set { m_localizedTextValue = value; }
+            get
+            {
+                return m_localizedTextValue;
+            }
+            set
+            {
+                m_localizedTextValue = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "StatusCodeValue", IsRequired = false, Order = 21)]
         public StatusCode StatusCodeValue
         {
-            get { return m_statusCodeValue; }
-            set { m_statusCodeValue = value; }
+            get
+            {
+                return m_statusCodeValue;
+            }
+            set
+            {
+                m_statusCodeValue = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "VariantValue", IsRequired = false, Order = 22)]
         public Variant VariantValue
         {
-            get { return m_variantValue; }
-            set { m_variantValue = value; }
+            get
+            {
+                return m_variantValue;
+            }
+            set
+            {
+                m_variantValue = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "EnumerationValue", IsRequired = false, Order = 23)]
         public int EnumerationValue
         {
-            get { return m_enumerationValue; }
-            set { m_enumerationValue = value; }
+            get
+            {
+                return m_enumerationValue;
+            }
+            set
+            {
+                m_enumerationValue = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "StructureValue", IsRequired = false, Order = 24)]
         public ExtensionObject StructureValue
         {
-            get { return m_structureValue; }
-            set { m_structureValue = value; }
+            get
+            {
+                return m_structureValue;
+            }
+            set
+            {
+                m_structureValue = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "NumberValue", IsRequired = false, Order = 25)]
         public Variant NumberValue
         {
-            get { return m_numberValue; }
-            set { m_numberValue = value; }
+            get
+            {
+                return m_numberValue;
+            }
+            set
+            {
+                m_numberValue = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "IntegerValue", IsRequired = false, Order = 26)]
         public Variant IntegerValue
         {
-            get { return m_integerValue; }
-            set { m_integerValue = value; }
+            get
+            {
+                return m_integerValue;
+            }
+            set
+            {
+                m_integerValue = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "UIntegerValue", IsRequired = false, Order = 27)]
         public Variant UIntegerValue
         {
-            get { return m_uIntegerValue; }
-            set { m_uIntegerValue = value; }
+            get
+            {
+                return m_uIntegerValue;
+            }
+            set
+            {
+                m_uIntegerValue = value;
+            }
         }
         #endregion
 
@@ -543,18 +705,26 @@ namespace TestData
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfScalarStructureDataType", Namespace = TestData.Namespaces.TestData, ItemName = "ScalarStructureDataType")]
+    [CollectionDataContract(
+        Name = "ListOfScalarStructureDataType",
+        Namespace = TestData.Namespaces.TestData,
+        ItemName = "ScalarStructureDataType"
+    )]
     public partial class ScalarStructureDataTypeCollection : List<ScalarStructureDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ScalarStructureDataTypeCollection() { }
+        public ScalarStructureDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public ScalarStructureDataTypeCollection(int capacity) : base(capacity) { }
+        public ScalarStructureDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ScalarStructureDataTypeCollection(IEnumerable<ScalarStructureDataType> collection) : base(collection) { }
+        public ScalarStructureDataTypeCollection(IEnumerable<ScalarStructureDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -668,7 +838,6 @@ namespace TestData
             {
                 return m_booleanValue;
             }
-
             set
             {
                 m_booleanValue = value;
@@ -688,7 +857,6 @@ namespace TestData
             {
                 return m_sByteValue;
             }
-
             set
             {
                 m_sByteValue = value;
@@ -708,7 +876,6 @@ namespace TestData
             {
                 return m_byteValue;
             }
-
             set
             {
                 m_byteValue = value;
@@ -728,7 +895,6 @@ namespace TestData
             {
                 return m_int16Value;
             }
-
             set
             {
                 m_int16Value = value;
@@ -748,7 +914,6 @@ namespace TestData
             {
                 return m_uInt16Value;
             }
-
             set
             {
                 m_uInt16Value = value;
@@ -768,7 +933,6 @@ namespace TestData
             {
                 return m_int32Value;
             }
-
             set
             {
                 m_int32Value = value;
@@ -788,7 +952,6 @@ namespace TestData
             {
                 return m_uInt32Value;
             }
-
             set
             {
                 m_uInt32Value = value;
@@ -808,7 +971,6 @@ namespace TestData
             {
                 return m_int64Value;
             }
-
             set
             {
                 m_int64Value = value;
@@ -828,7 +990,6 @@ namespace TestData
             {
                 return m_uInt64Value;
             }
-
             set
             {
                 m_uInt64Value = value;
@@ -848,7 +1009,6 @@ namespace TestData
             {
                 return m_floatValue;
             }
-
             set
             {
                 m_floatValue = value;
@@ -868,7 +1028,6 @@ namespace TestData
             {
                 return m_doubleValue;
             }
-
             set
             {
                 m_doubleValue = value;
@@ -888,7 +1047,6 @@ namespace TestData
             {
                 return m_stringValue;
             }
-
             set
             {
                 m_stringValue = value;
@@ -908,7 +1066,6 @@ namespace TestData
             {
                 return m_dateTimeValue;
             }
-
             set
             {
                 m_dateTimeValue = value;
@@ -928,7 +1085,6 @@ namespace TestData
             {
                 return m_guidValue;
             }
-
             set
             {
                 m_guidValue = value;
@@ -948,7 +1104,6 @@ namespace TestData
             {
                 return m_byteStringValue;
             }
-
             set
             {
                 m_byteStringValue = value;
@@ -968,7 +1123,6 @@ namespace TestData
             {
                 return m_xmlElementValue;
             }
-
             set
             {
                 m_xmlElementValue = value;
@@ -988,7 +1142,6 @@ namespace TestData
             {
                 return m_nodeIdValue;
             }
-
             set
             {
                 m_nodeIdValue = value;
@@ -1008,7 +1161,6 @@ namespace TestData
             {
                 return m_expandedNodeIdValue;
             }
-
             set
             {
                 m_expandedNodeIdValue = value;
@@ -1028,7 +1180,6 @@ namespace TestData
             {
                 return m_qualifiedNameValue;
             }
-
             set
             {
                 m_qualifiedNameValue = value;
@@ -1048,7 +1199,6 @@ namespace TestData
             {
                 return m_localizedTextValue;
             }
-
             set
             {
                 m_localizedTextValue = value;
@@ -1068,7 +1218,6 @@ namespace TestData
             {
                 return m_statusCodeValue;
             }
-
             set
             {
                 m_statusCodeValue = value;
@@ -1088,7 +1237,6 @@ namespace TestData
             {
                 return m_variantValue;
             }
-
             set
             {
                 m_variantValue = value;
@@ -1108,7 +1256,6 @@ namespace TestData
             {
                 return m_enumerationValue;
             }
-
             set
             {
                 m_enumerationValue = value;
@@ -1128,7 +1275,6 @@ namespace TestData
             {
                 return m_structureValue;
             }
-
             set
             {
                 m_structureValue = value;
@@ -1148,7 +1294,6 @@ namespace TestData
             {
                 return m_numberValue;
             }
-
             set
             {
                 m_numberValue = value;
@@ -1168,7 +1313,6 @@ namespace TestData
             {
                 return m_integerValue;
             }
-
             set
             {
                 m_integerValue = value;
@@ -1188,7 +1332,6 @@ namespace TestData
             {
                 return m_uIntegerValue;
             }
-
             set
             {
                 m_uIntegerValue = value;
@@ -1437,18 +1580,26 @@ namespace TestData
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfArrayValueDataType", Namespace = TestData.Namespaces.TestData, ItemName = "ArrayValueDataType")]
+    [CollectionDataContract(
+        Name = "ListOfArrayValueDataType",
+        Namespace = TestData.Namespaces.TestData,
+        ItemName = "ArrayValueDataType"
+    )]
     public partial class ArrayValueDataTypeCollection : List<ArrayValueDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ArrayValueDataTypeCollection() { }
+        public ArrayValueDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public ArrayValueDataTypeCollection(int capacity) : base(capacity) { }
+        public ArrayValueDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public ArrayValueDataTypeCollection(IEnumerable<ArrayValueDataType> collection) : base(collection) { }
+        public ArrayValueDataTypeCollection(IEnumerable<ArrayValueDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -1553,176 +1704,308 @@ namespace TestData
         [DataMember(Name = "BooleanDataType", IsRequired = false, Order = 1)]
         public bool BooleanDataType
         {
-            get { return m_booleanDataType; }
-            set { m_booleanDataType = value; }
+            get
+            {
+                return m_booleanDataType;
+            }
+            set
+            {
+                m_booleanDataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "SByteDataType", IsRequired = false, Order = 2)]
         public sbyte SByteDataType
         {
-            get { return m_sByteDataType; }
-            set { m_sByteDataType = value; }
+            get
+            {
+                return m_sByteDataType;
+            }
+            set
+            {
+                m_sByteDataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ByteDataType", IsRequired = false, Order = 3)]
         public byte ByteDataType
         {
-            get { return m_byteDataType; }
-            set { m_byteDataType = value; }
+            get
+            {
+                return m_byteDataType;
+            }
+            set
+            {
+                m_byteDataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Int16DataType", IsRequired = false, Order = 4)]
         public short Int16DataType
         {
-            get { return m_int16DataType; }
-            set { m_int16DataType = value; }
+            get
+            {
+                return m_int16DataType;
+            }
+            set
+            {
+                m_int16DataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "UInt16DataType", IsRequired = false, Order = 5)]
         public ushort UInt16DataType
         {
-            get { return m_uInt16DataType; }
-            set { m_uInt16DataType = value; }
+            get
+            {
+                return m_uInt16DataType;
+            }
+            set
+            {
+                m_uInt16DataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Int32DataType", IsRequired = false, Order = 6)]
         public int Int32DataType
         {
-            get { return m_int32DataType; }
-            set { m_int32DataType = value; }
+            get
+            {
+                return m_int32DataType;
+            }
+            set
+            {
+                m_int32DataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "UInt32DataType", IsRequired = false, Order = 7)]
         public uint UInt32DataType
         {
-            get { return m_uInt32DataType; }
-            set { m_uInt32DataType = value; }
+            get
+            {
+                return m_uInt32DataType;
+            }
+            set
+            {
+                m_uInt32DataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Int64DataType", IsRequired = false, Order = 8)]
         public long Int64DataType
         {
-            get { return m_int64DataType; }
-            set { m_int64DataType = value; }
+            get
+            {
+                return m_int64DataType;
+            }
+            set
+            {
+                m_int64DataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "UInt64DataType", IsRequired = false, Order = 9)]
         public ulong UInt64DataType
         {
-            get { return m_uInt64DataType; }
-            set { m_uInt64DataType = value; }
+            get
+            {
+                return m_uInt64DataType;
+            }
+            set
+            {
+                m_uInt64DataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "FloatDataType", IsRequired = false, Order = 10)]
         public float FloatDataType
         {
-            get { return m_floatDataType; }
-            set { m_floatDataType = value; }
+            get
+            {
+                return m_floatDataType;
+            }
+            set
+            {
+                m_floatDataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DoubleDataType", IsRequired = false, Order = 11)]
         public double DoubleDataType
         {
-            get { return m_doubleDataType; }
-            set { m_doubleDataType = value; }
+            get
+            {
+                return m_doubleDataType;
+            }
+            set
+            {
+                m_doubleDataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "StringDataType", IsRequired = false, Order = 12)]
         public string StringDataType
         {
-            get { return m_stringDataType; }
-            set { m_stringDataType = value; }
+            get
+            {
+                return m_stringDataType;
+            }
+            set
+            {
+                m_stringDataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "DateTimeDataType", IsRequired = false, Order = 13)]
         public DateTime DateTimeDataType
         {
-            get { return m_dateTimeDataType; }
-            set { m_dateTimeDataType = value; }
+            get
+            {
+                return m_dateTimeDataType;
+            }
+            set
+            {
+                m_dateTimeDataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "GuidDataType", IsRequired = false, Order = 14)]
         public Uuid GuidDataType
         {
-            get { return m_guidDataType; }
-            set { m_guidDataType = value; }
+            get
+            {
+                return m_guidDataType;
+            }
+            set
+            {
+                m_guidDataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ByteStringDataType", IsRequired = false, Order = 15)]
         public byte[] ByteStringDataType
         {
-            get { return m_byteStringDataType; }
-            set { m_byteStringDataType = value; }
+            get
+            {
+                return m_byteStringDataType;
+            }
+            set
+            {
+                m_byteStringDataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "XmlElementDataType", IsRequired = false, Order = 16)]
         public XmlElement XmlElementDataType
         {
-            get { return m_xmlElementDataType; }
-            set { m_xmlElementDataType = value; }
+            get
+            {
+                return m_xmlElementDataType;
+            }
+            set
+            {
+                m_xmlElementDataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "NodeIdDataType", IsRequired = false, Order = 17)]
         public NodeId NodeIdDataType
         {
-            get { return m_nodeIdDataType; }
-            set { m_nodeIdDataType = value; }
+            get
+            {
+                return m_nodeIdDataType;
+            }
+            set
+            {
+                m_nodeIdDataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "ExpandedNodeIdDataType", IsRequired = false, Order = 18)]
         public ExpandedNodeId ExpandedNodeIdDataType
         {
-            get { return m_expandedNodeIdDataType; }
-            set { m_expandedNodeIdDataType = value; }
+            get
+            {
+                return m_expandedNodeIdDataType;
+            }
+            set
+            {
+                m_expandedNodeIdDataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "QualifiedNameDataType", IsRequired = false, Order = 19)]
         public QualifiedName QualifiedNameDataType
         {
-            get { return m_qualifiedNameDataType; }
-            set { m_qualifiedNameDataType = value; }
+            get
+            {
+                return m_qualifiedNameDataType;
+            }
+            set
+            {
+                m_qualifiedNameDataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "LocalizedTextDataType", IsRequired = false, Order = 20)]
         public LocalizedText LocalizedTextDataType
         {
-            get { return m_localizedTextDataType; }
-            set { m_localizedTextDataType = value; }
+            get
+            {
+                return m_localizedTextDataType;
+            }
+            set
+            {
+                m_localizedTextDataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "StatusCodeDataType", IsRequired = false, Order = 21)]
         public StatusCode StatusCodeDataType
         {
-            get { return m_statusCodeDataType; }
-            set { m_statusCodeDataType = value; }
+            get
+            {
+                return m_statusCodeDataType;
+            }
+            set
+            {
+                m_statusCodeDataType = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "VariantDataType", IsRequired = false, Order = 22)]
         public Variant VariantDataType
         {
-            get { return m_variantDataType; }
-            set { m_variantDataType = value; }
+            get
+            {
+                return m_variantDataType;
+            }
+            set
+            {
+                m_variantDataType = value;
+            }
         }
         #endregion
 
@@ -1932,18 +2215,26 @@ namespace TestData
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfUserScalarValueDataType", Namespace = TestData.Namespaces.TestData, ItemName = "UserScalarValueDataType")]
+    [CollectionDataContract(
+        Name = "ListOfUserScalarValueDataType",
+        Namespace = TestData.Namespaces.TestData,
+        ItemName = "UserScalarValueDataType"
+    )]
     public partial class UserScalarValueDataTypeCollection : List<UserScalarValueDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public UserScalarValueDataTypeCollection() { }
+        public UserScalarValueDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public UserScalarValueDataTypeCollection(int capacity) : base(capacity) { }
+        public UserScalarValueDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public UserScalarValueDataTypeCollection(IEnumerable<UserScalarValueDataType> collection) : base(collection) { }
+        public UserScalarValueDataTypeCollection(IEnumerable<UserScalarValueDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -2052,7 +2343,6 @@ namespace TestData
             {
                 return m_booleanDataType;
             }
-
             set
             {
                 m_booleanDataType = value;
@@ -2072,7 +2362,6 @@ namespace TestData
             {
                 return m_sByteDataType;
             }
-
             set
             {
                 m_sByteDataType = value;
@@ -2092,7 +2381,6 @@ namespace TestData
             {
                 return m_byteDataType;
             }
-
             set
             {
                 m_byteDataType = value;
@@ -2112,7 +2400,6 @@ namespace TestData
             {
                 return m_int16DataType;
             }
-
             set
             {
                 m_int16DataType = value;
@@ -2132,7 +2419,6 @@ namespace TestData
             {
                 return m_uInt16DataType;
             }
-
             set
             {
                 m_uInt16DataType = value;
@@ -2152,7 +2438,6 @@ namespace TestData
             {
                 return m_int32DataType;
             }
-
             set
             {
                 m_int32DataType = value;
@@ -2172,7 +2457,6 @@ namespace TestData
             {
                 return m_uInt32DataType;
             }
-
             set
             {
                 m_uInt32DataType = value;
@@ -2192,7 +2476,6 @@ namespace TestData
             {
                 return m_int64DataType;
             }
-
             set
             {
                 m_int64DataType = value;
@@ -2212,7 +2495,6 @@ namespace TestData
             {
                 return m_uInt64DataType;
             }
-
             set
             {
                 m_uInt64DataType = value;
@@ -2232,7 +2514,6 @@ namespace TestData
             {
                 return m_floatDataType;
             }
-
             set
             {
                 m_floatDataType = value;
@@ -2252,7 +2533,6 @@ namespace TestData
             {
                 return m_doubleDataType;
             }
-
             set
             {
                 m_doubleDataType = value;
@@ -2272,7 +2552,6 @@ namespace TestData
             {
                 return m_stringDataType;
             }
-
             set
             {
                 m_stringDataType = value;
@@ -2292,7 +2571,6 @@ namespace TestData
             {
                 return m_dateTimeDataType;
             }
-
             set
             {
                 m_dateTimeDataType = value;
@@ -2312,7 +2590,6 @@ namespace TestData
             {
                 return m_guidDataType;
             }
-
             set
             {
                 m_guidDataType = value;
@@ -2332,7 +2609,6 @@ namespace TestData
             {
                 return m_byteStringDataType;
             }
-
             set
             {
                 m_byteStringDataType = value;
@@ -2352,7 +2628,6 @@ namespace TestData
             {
                 return m_xmlElementDataType;
             }
-
             set
             {
                 m_xmlElementDataType = value;
@@ -2372,7 +2647,6 @@ namespace TestData
             {
                 return m_nodeIdDataType;
             }
-
             set
             {
                 m_nodeIdDataType = value;
@@ -2392,7 +2666,6 @@ namespace TestData
             {
                 return m_expandedNodeIdDataType;
             }
-
             set
             {
                 m_expandedNodeIdDataType = value;
@@ -2412,7 +2685,6 @@ namespace TestData
             {
                 return m_qualifiedNameDataType;
             }
-
             set
             {
                 m_qualifiedNameDataType = value;
@@ -2432,7 +2704,6 @@ namespace TestData
             {
                 return m_localizedTextDataType;
             }
-
             set
             {
                 m_localizedTextDataType = value;
@@ -2452,7 +2723,6 @@ namespace TestData
             {
                 return m_statusCodeDataType;
             }
-
             set
             {
                 m_statusCodeDataType = value;
@@ -2472,7 +2742,6 @@ namespace TestData
             {
                 return m_variantDataType;
             }
-
             set
             {
                 m_variantDataType = value;
@@ -2691,18 +2960,26 @@ namespace TestData
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfUserArrayValueDataType", Namespace = TestData.Namespaces.TestData, ItemName = "UserArrayValueDataType")]
+    [CollectionDataContract(
+        Name = "ListOfUserArrayValueDataType",
+        Namespace = TestData.Namespaces.TestData,
+        ItemName = "UserArrayValueDataType"
+    )]
     public partial class UserArrayValueDataTypeCollection : List<UserArrayValueDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public UserArrayValueDataTypeCollection() { }
+        public UserArrayValueDataTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public UserArrayValueDataTypeCollection(int capacity) : base(capacity) { }
+        public UserArrayValueDataTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public UserArrayValueDataTypeCollection(IEnumerable<UserArrayValueDataType> collection) : base(collection) { }
+        public UserArrayValueDataTypeCollection(IEnumerable<UserArrayValueDataType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -2788,24 +3065,42 @@ namespace TestData
         [DataMember(Name = "X", IsRequired = false, Order = 1)]
         public double X
         {
-            get { return m_x; }
-            set { m_x = value; }
+            get
+            {
+                return m_x;
+            }
+            set
+            {
+                m_x = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Y", IsRequired = false, Order = 2)]
         public double Y
         {
-            get { return m_y; }
-            set { m_y = value; }
+            get
+            {
+                return m_y;
+            }
+            set
+            {
+                m_y = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Z", IsRequired = false, Order = 3)]
         public double Z
         {
-            get { return m_z; }
-            set { m_z = value; }
+            get
+            {
+                return m_z;
+            }
+            set
+            {
+                m_z = value;
+            }
         }
         #endregion
 
@@ -2906,13 +3201,17 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public VectorCollection() { }
+        public VectorCollection()
+        {
+        }
 
         /// <remarks />
-        public VectorCollection(int capacity) : base(capacity) { }
+        public VectorCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public VectorCollection(IEnumerable<Vector> collection) : base(collection) { }
+        public VectorCollection(IEnumerable<Vector> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -2972,12 +3271,15 @@ namespace TestData
     {
         /// <remarks />
         None = 0,
+
         /// <remarks />
         X = 1,
+
         /// <remarks />
         Y = 2,
+
         /// <remarks />
-        Z = 3
+        Z = 3,
     }
 
     /// <remarks />
@@ -3011,30 +3313,51 @@ namespace TestData
         #region Public Properties
         // <remarks />
         [DataMember(Name = "SwitchField", IsRequired = true, Order = 0)]
-        public VectorUnionFields SwitchField { get; set; }
+        public VectorUnionFields SwitchField
+        {
+            get; set;
+        }
 
         /// <remarks />
         [DataMember(Name = "X", IsRequired = false, Order = 1)]
         public double X
         {
-            get { return m_x; }
-            set { m_x = value; }
+            get
+            {
+                return m_x;
+            }
+            set
+            {
+                m_x = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Y", IsRequired = false, Order = 2)]
         public double Y
         {
-            get { return m_y; }
-            set { m_y = value; }
+            get
+            {
+                return m_y;
+            }
+            set
+            {
+                m_y = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Z", IsRequired = false, Order = 3)]
         public double Z
         {
-            get { return m_z; }
-            set { m_z = value; }
+            get
+            {
+                return m_z;
+            }
+            set
+            {
+                m_z = value;
+            }
         }
         #endregion
 
@@ -3060,13 +3383,24 @@ namespace TestData
             switch (SwitchField)
             {
                 default:
-                { break; }
+                {
+                    break;
+                }
                 case VectorUnionFields.X:
-                { encoder.WriteDouble("X", X); break; }
+                {
+                    encoder.WriteDouble("X", X);
+                    break;
+                }
                 case VectorUnionFields.Y:
-                { encoder.WriteDouble("Y", Y); break; }
+                {
+                    encoder.WriteDouble("Y", Y);
+                    break;
+                }
                 case VectorUnionFields.Z:
-                { encoder.WriteDouble("Z", Z); break; }
+                {
+                    encoder.WriteDouble("Z", Z);
+                    break;
+                }
             }
 
             encoder.PopNamespace();
@@ -3082,13 +3416,24 @@ namespace TestData
             switch (SwitchField)
             {
                 default:
-                { break; }
+                {
+                    break;
+                }
                 case VectorUnionFields.X:
-                { X = decoder.ReadDouble("X"); break; }
+                {
+                    X = decoder.ReadDouble("X");
+                    break;
+                }
                 case VectorUnionFields.Y:
-                { Y = decoder.ReadDouble("Y"); break; }
+                {
+                    Y = decoder.ReadDouble("Y");
+                    break;
+                }
                 case VectorUnionFields.Z:
-                { Z = decoder.ReadDouble("Z"); break; }
+                {
+                    Z = decoder.ReadDouble("Z");
+                    break;
+                }
             }
 
             decoder.PopNamespace();
@@ -3115,13 +3460,27 @@ namespace TestData
             switch (SwitchField)
             {
                 default:
-                { break; }
+                {
+                    break;
+                }
                 case VectorUnionFields.X:
-                { if (!Utils.IsEqual(m_x, value.m_x)) return false; break; }
+                {
+                    if (!Utils.IsEqual(m_x, value.m_x))
+                        return false;
+                    break;
+                }
                 case VectorUnionFields.Y:
-                { if (!Utils.IsEqual(m_y, value.m_y)) return false; break; }
+                {
+                    if (!Utils.IsEqual(m_y, value.m_y))
+                        return false;
+                    break;
+                }
                 case VectorUnionFields.Z:
-                { if (!Utils.IsEqual(m_z, value.m_z)) return false; break; }
+                {
+                    if (!Utils.IsEqual(m_z, value.m_z))
+                        return false;
+                    break;
+                }
             }
 
             return true;
@@ -3143,13 +3502,24 @@ namespace TestData
             switch (SwitchField)
             {
                 default:
-                { break; }
+                {
+                    break;
+                }
                 case VectorUnionFields.X:
-                { clone.m_x = (double)Utils.Clone(this.m_x); break; }
+                {
+                    clone.m_x = (double)Utils.Clone(this.m_x);
+                    break;
+                }
                 case VectorUnionFields.Y:
-                { clone.m_y = (double)Utils.Clone(this.m_y); break; }
+                {
+                    clone.m_y = (double)Utils.Clone(this.m_y);
+                    break;
+                }
                 case VectorUnionFields.Z:
-                { clone.m_z = (double)Utils.Clone(this.m_z); break; }
+                {
+                    clone.m_z = (double)Utils.Clone(this.m_z);
+                    break;
+                }
             }
 
             return clone;
@@ -3167,18 +3537,26 @@ namespace TestData
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfVectorUnion", Namespace = TestData.Namespaces.TestData, ItemName = "VectorUnion")]
+    [CollectionDataContract(
+        Name = "ListOfVectorUnion",
+        Namespace = TestData.Namespaces.TestData,
+        ItemName = "VectorUnion"
+    )]
     public partial class VectorUnionCollection : List<VectorUnion>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public VectorUnionCollection() { }
+        public VectorUnionCollection()
+        {
+        }
 
         /// <remarks />
-        public VectorUnionCollection(int capacity) : base(capacity) { }
+        public VectorUnionCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public VectorUnionCollection(IEnumerable<VectorUnion> collection) : base(collection) { }
+        public VectorUnionCollection(IEnumerable<VectorUnion> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -3234,16 +3612,18 @@ namespace TestData
 #if (!OPCUA_EXCLUDE_VectorWithOptionalFields)
     /// <remarks />
     /// <exclude />
-
     public enum VectorWithOptionalFieldsFields : uint
     {
         None = 0,
+
         /// <remarks />
         X = 0x1,
+
         /// <remarks />
         Y = 0x2,
+
         /// <remarks />
-        Z = 0x4
+        Z = 0x4,
     }
 
     /// <remarks />
@@ -3277,30 +3657,51 @@ namespace TestData
         #region Public Properties
         // <remarks />
         [DataMember(Name = "EncodingMask", IsRequired = true, Order = 0)]
-        public VectorWithOptionalFieldsFields EncodingMask { get; set; }
+        public VectorWithOptionalFieldsFields EncodingMask
+        {
+            get; set;
+        }
 
         /// <remarks />
         [DataMember(Name = "X", IsRequired = false, Order = 1)]
         public double X
         {
-            get { return m_x; }
-            set { m_x = value; }
+            get
+            {
+                return m_x;
+            }
+            set
+            {
+                m_x = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Y", IsRequired = false, Order = 2)]
         public double Y
         {
-            get { return m_y; }
-            set { m_y = value; }
+            get
+            {
+                return m_y;
+            }
+            set
+            {
+                m_y = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Z", IsRequired = false, Order = 3)]
         public double Z
         {
-            get { return m_z; }
-            set { m_z = value; }
+            get
+            {
+                return m_z;
+            }
+            set
+            {
+                m_z = value;
+            }
         }
         #endregion
 
@@ -3416,18 +3817,26 @@ namespace TestData
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfVectorWithOptionalFields", Namespace = TestData.Namespaces.TestData, ItemName = "VectorWithOptionalFields")]
+    [CollectionDataContract(
+        Name = "ListOfVectorWithOptionalFields",
+        Namespace = TestData.Namespaces.TestData,
+        ItemName = "VectorWithOptionalFields"
+    )]
     public partial class VectorWithOptionalFieldsCollection : List<VectorWithOptionalFields>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public VectorWithOptionalFieldsCollection() { }
+        public VectorWithOptionalFieldsCollection()
+        {
+        }
 
         /// <remarks />
-        public VectorWithOptionalFieldsCollection(int capacity) : base(capacity) { }
+        public VectorWithOptionalFieldsCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public VectorWithOptionalFieldsCollection(IEnumerable<VectorWithOptionalFields> collection) : base(collection) { }
+        public VectorWithOptionalFieldsCollection(IEnumerable<VectorWithOptionalFields> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -3520,7 +3929,6 @@ namespace TestData
             {
                 return m_vector;
             }
-
             set
             {
                 m_vector = value;
@@ -3540,7 +3948,6 @@ namespace TestData
             {
                 return m_vectorUnion;
             }
-
             set
             {
                 m_vectorUnion = value;
@@ -3560,7 +3967,6 @@ namespace TestData
             {
                 return m_vectorWithOptionalFields;
             }
-
             set
             {
                 m_vectorWithOptionalFields = value;
@@ -3580,7 +3986,6 @@ namespace TestData
             {
                 return m_vectorArray;
             }
-
             set
             {
                 m_vectorArray = value;
@@ -3600,7 +4005,6 @@ namespace TestData
             {
                 return m_vectorUnionArray;
             }
-
             set
             {
                 m_vectorUnionArray = value;
@@ -3620,7 +4024,6 @@ namespace TestData
             {
                 return m_vectorWithOptionalFieldsArray;
             }
-
             set
             {
                 m_vectorWithOptionalFieldsArray = value;
@@ -3653,10 +4056,18 @@ namespace TestData
 
             encoder.WriteEncodeable("Vector", Vector, typeof(Vector));
             encoder.WriteEncodeable("VectorUnion", VectorUnion, typeof(VectorUnion));
-            encoder.WriteEncodeable("VectorWithOptionalFields", VectorWithOptionalFields, typeof(VectorWithOptionalFields));
+            encoder.WriteEncodeable(
+                "VectorWithOptionalFields",
+                VectorWithOptionalFields,
+                typeof(VectorWithOptionalFields)
+            );
             encoder.WriteEncodeableArray("VectorArray", VectorArray.ToArray(), typeof(Vector));
             encoder.WriteEncodeableArray("VectorUnionArray", VectorUnionArray.ToArray(), typeof(VectorUnion));
-            encoder.WriteEncodeableArray("VectorWithOptionalFieldsArray", VectorWithOptionalFieldsArray.ToArray(), typeof(VectorWithOptionalFields));
+            encoder.WriteEncodeableArray(
+                "VectorWithOptionalFieldsArray",
+                VectorWithOptionalFieldsArray.ToArray(),
+                typeof(VectorWithOptionalFields)
+            );
 
             encoder.PopNamespace();
         }
@@ -3668,10 +4079,13 @@ namespace TestData
 
             Vector = (Vector)decoder.ReadEncodeable("Vector", typeof(Vector));
             VectorUnion = (VectorUnion)decoder.ReadEncodeable("VectorUnion", typeof(VectorUnion));
-            VectorWithOptionalFields = (VectorWithOptionalFields)decoder.ReadEncodeable("VectorWithOptionalFields", typeof(VectorWithOptionalFields));
+            VectorWithOptionalFields = (VectorWithOptionalFields)
+                decoder.ReadEncodeable("VectorWithOptionalFields", typeof(VectorWithOptionalFields));
             VectorArray = (VectorCollection)decoder.ReadEncodeableArray("VectorArray", typeof(Vector));
-            VectorUnionArray = (VectorUnionCollection)decoder.ReadEncodeableArray("VectorUnionArray", typeof(VectorUnion));
-            VectorWithOptionalFieldsArray = (VectorWithOptionalFieldsCollection)decoder.ReadEncodeableArray("VectorWithOptionalFieldsArray", typeof(VectorWithOptionalFields));
+            VectorUnionArray = (VectorUnionCollection)
+                decoder.ReadEncodeableArray("VectorUnionArray", typeof(VectorUnion));
+            VectorWithOptionalFieldsArray = (VectorWithOptionalFieldsCollection)
+                decoder.ReadEncodeableArray("VectorWithOptionalFieldsArray", typeof(VectorWithOptionalFields));
 
             decoder.PopNamespace();
         }
@@ -3723,7 +4137,8 @@ namespace TestData
             clone.m_vectorWithOptionalFields = (VectorWithOptionalFields)Utils.Clone(this.m_vectorWithOptionalFields);
             clone.m_vectorArray = (VectorCollection)Utils.Clone(this.m_vectorArray);
             clone.m_vectorUnionArray = (VectorUnionCollection)Utils.Clone(this.m_vectorUnionArray);
-            clone.m_vectorWithOptionalFieldsArray = (VectorWithOptionalFieldsCollection)Utils.Clone(this.m_vectorWithOptionalFieldsArray);
+            clone.m_vectorWithOptionalFieldsArray = (VectorWithOptionalFieldsCollection)
+                Utils.Clone(this.m_vectorWithOptionalFieldsArray);
 
             return clone;
         }
@@ -3743,18 +4158,26 @@ namespace TestData
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfMultipleVectors", Namespace = TestData.Namespaces.TestData, ItemName = "MultipleVectors")]
+    [CollectionDataContract(
+        Name = "ListOfMultipleVectors",
+        Namespace = TestData.Namespaces.TestData,
+        ItemName = "MultipleVectors"
+    )]
     public partial class MultipleVectorsCollection : List<MultipleVectors>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public MultipleVectorsCollection() { }
+        public MultipleVectorsCollection()
+        {
+        }
 
         /// <remarks />
-        public MultipleVectorsCollection(int capacity) : base(capacity) { }
+        public MultipleVectorsCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public MultipleVectorsCollection(IEnumerable<MultipleVectors> collection) : base(collection) { }
+        public MultipleVectorsCollection(IEnumerable<MultipleVectors> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -3840,24 +4263,42 @@ namespace TestData
         [DataMember(Name = "Actor", IsRequired = false, Order = 1)]
         public string Actor
         {
-            get { return m_actor; }
-            set { m_actor = value; }
+            get
+            {
+                return m_actor;
+            }
+            set
+            {
+                m_actor = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Timestamp", IsRequired = false, Order = 2)]
         public DateTime Timestamp
         {
-            get { return m_timestamp; }
-            set { m_timestamp = value; }
+            get
+            {
+                return m_timestamp;
+            }
+            set
+            {
+                m_timestamp = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "Comment", IsRequired = false, Order = 3)]
         public LocalizedText Comment
         {
-            get { return m_comment; }
-            set { m_comment = value; }
+            get
+            {
+                return m_comment;
+            }
+            set
+            {
+                m_comment = value;
+            }
         }
         #endregion
 
@@ -3953,18 +4394,26 @@ namespace TestData
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfWorkOrderStatusType", Namespace = TestData.Namespaces.TestData, ItemName = "WorkOrderStatusType")]
+    [CollectionDataContract(
+        Name = "ListOfWorkOrderStatusType",
+        Namespace = TestData.Namespaces.TestData,
+        ItemName = "WorkOrderStatusType"
+    )]
     public partial class WorkOrderStatusTypeCollection : List<WorkOrderStatusType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public WorkOrderStatusTypeCollection() { }
+        public WorkOrderStatusTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public WorkOrderStatusTypeCollection(int capacity) : base(capacity) { }
+        public WorkOrderStatusTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public WorkOrderStatusTypeCollection(IEnumerable<WorkOrderStatusType> collection) : base(collection) { }
+        public WorkOrderStatusTypeCollection(IEnumerable<WorkOrderStatusType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -4051,24 +4500,42 @@ namespace TestData
         [DataMember(Name = "ID", IsRequired = false, Order = 1)]
         public Uuid ID
         {
-            get { return m_iD; }
-            set { m_iD = value; }
+            get
+            {
+                return m_iD;
+            }
+            set
+            {
+                m_iD = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "AssetID", IsRequired = false, Order = 2)]
         public string AssetID
         {
-            get { return m_assetID; }
-            set { m_assetID = value; }
+            get
+            {
+                return m_assetID;
+            }
+            set
+            {
+                m_assetID = value;
+            }
         }
 
         /// <remarks />
         [DataMember(Name = "StartTime", IsRequired = false, Order = 3)]
         public DateTime StartTime
         {
-            get { return m_startTime; }
-            set { m_startTime = value; }
+            get
+            {
+                return m_startTime;
+            }
+            set
+            {
+                m_startTime = value;
+            }
         }
 
         /// <remarks />
@@ -4079,7 +4546,6 @@ namespace TestData
             {
                 return m_statusComments;
             }
-
             set
             {
                 m_statusComments = value;
@@ -4126,7 +4592,8 @@ namespace TestData
             ID = decoder.ReadGuid("ID");
             AssetID = decoder.ReadString("AssetID");
             StartTime = decoder.ReadDateTime("StartTime");
-            StatusComments = (WorkOrderStatusTypeCollection)decoder.ReadEncodeableArray("StatusComments", typeof(WorkOrderStatusType));
+            StatusComments = (WorkOrderStatusTypeCollection)
+                decoder.ReadEncodeableArray("StatusComments", typeof(WorkOrderStatusType));
 
             decoder.PopNamespace();
         }
@@ -4190,18 +4657,26 @@ namespace TestData
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfWorkOrderType", Namespace = TestData.Namespaces.TestData, ItemName = "WorkOrderType")]
+    [CollectionDataContract(
+        Name = "ListOfWorkOrderType",
+        Namespace = TestData.Namespaces.TestData,
+        ItemName = "WorkOrderType"
+    )]
     public partial class WorkOrderTypeCollection : List<WorkOrderType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public WorkOrderTypeCollection() { }
+        public WorkOrderTypeCollection()
+        {
+        }
 
         /// <remarks />
-        public WorkOrderTypeCollection(int capacity) : base(capacity) { }
+        public WorkOrderTypeCollection(int capacity)
+            : base(capacity) { }
 
         /// <remarks />
-        public WorkOrderTypeCollection(IEnumerable<WorkOrderType> collection) : base(collection) { }
+        public WorkOrderTypeCollection(IEnumerable<WorkOrderType> collection)
+            : base(collection) { }
         #endregion
 
         #region Static Operators

@@ -19,7 +19,9 @@ namespace Opc.Ua
     /// <summary>
     /// The delegate for the async connection waiting handler.
     /// </summary>
-    public delegate Task ConnectionWaitingHandlerAsync(object sender, ConnectionWaitingEventArgs args);
+    public delegate Task ConnectionWaitingHandlerAsync(
+        object sender,
+        ConnectionWaitingEventArgs args);
 
     /// <summary>
     /// This is an interface to a listener which supports UA binary encoding.
@@ -44,7 +46,10 @@ namespace Opc.Ua
         /// <param name="callback">The callback to use when requests arrive via the channel.</param>
         /// <exception cref="ArgumentNullException">Thrown if any parameter is null.</exception>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        void Open(Uri baseAddress, TransportListenerSettings settings, ITransportListenerCallback callback);
+        void Open(
+            Uri baseAddress,
+            TransportListenerSettings settings,
+            ITransportListenerCallback callback);
 
         /// <summary>
         /// Closes the listener and stops accepting connection.
@@ -55,7 +60,9 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the application certificate for a listener.
         /// </summary>
-        void CertificateUpdate(ICertificateValidator validator, CertificateTypesProvider serverCertificateTypes);
+        void CertificateUpdate(
+            ICertificateValidator validator,
+            CertificateTypesProvider serverCertificateTypes);
 
         /// <summary>
         /// Raised when a new connection is waiting for a client.

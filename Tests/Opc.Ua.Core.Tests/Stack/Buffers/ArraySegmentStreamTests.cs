@@ -217,6 +217,14 @@ namespace Opc.Ua.Buffers.Tests
                             Assert.That(writer.ReadByte(), Is.EqualTo((byte)i));
                         }
                         break;
+                    case 1:
+                        bytesRead = writer.Read(buffer, 0, chunkSize);
+                        Assert.That(chunkSize, Is.EqualTo(bytesRead));
+                        for (int v = 0; v < chunkSize; v++)
+                        {
+                            Assert.That(buffer[v], Is.EqualTo((byte)i));
+                        }
+                        break;
                     default:
 #if NET5_0_OR_GREATER && !NET_STANDARD_TESTS
                         bytesRead = writer.Read(buffer.AsSpan(0, chunkSize));
@@ -226,15 +234,9 @@ namespace Opc.Ua.Buffers.Tests
                             Assert.That(buffer[v], Is.EqualTo((byte)i));
                         }
                         break;
+#else
+                        goto case 1;
 #endif
-                    case 1:
-                        bytesRead = writer.Read(buffer, 0, chunkSize);
-                        Assert.That(chunkSize, Is.EqualTo(bytesRead));
-                        for (int v = 0; v < chunkSize; v++)
-                        {
-                            Assert.That(buffer[v], Is.EqualTo((byte)i));
-                        }
-                        break;
                 }
             }
 

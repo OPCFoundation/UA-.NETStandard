@@ -38,8 +38,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
     /// <summary>
     /// Tests for the NodeState classes.
     /// </summary>
-    [TestFixture, Category("NodeStateTypes")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("NodeStateTypes")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class StateTypesTests
     {
@@ -48,7 +50,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public IServiceMessageContext Context;
 
         [DatapointSource]
-        public Type[] TypeArray = [.. typeof(BaseObjectState).Assembly.GetExportedTypes().Where(IsNodeStateType)];
+        public Type[] TypeArray = [.. typeof(BaseObjectState).Assembly.GetExportedTypes()
+            .Where(IsNodeStateType)];
 
         [OneTimeSetUp]
         protected void OneTimeSetUp()
@@ -75,7 +78,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             var testObject = CreateDefaultNodeStateType(systemType) as NodeState;
             Assert.NotNull(testObject);
             Assert.False(testObject.Initialized);
-            var context = new SystemContext() { NamespaceUris = Context.NamespaceUris };
+            var context = new SystemContext { NamespaceUris = Context.NamespaceUris };
             Assert.AreEqual(0, context.NamespaceUris.GetIndexOrAppend(OpcUa));
             testObject.Create(context, new NodeId(1000), "Name", "DisplayName", true);
             testObject.Dispose();
@@ -92,9 +95,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
             try
             {
                 if (
-                    typeof(BaseObjectState).GetTypeInfo().IsAssignableFrom(systemTypeInfo)
-                    || typeof(BaseVariableState).GetTypeInfo().IsAssignableFrom(systemTypeInfo)
-                    || typeof(MethodState).GetTypeInfo().IsAssignableFrom(systemTypeInfo)
+                    typeof(BaseObjectState).GetTypeInfo().IsAssignableFrom(systemTypeInfo) ||
+                    typeof(BaseVariableState).GetTypeInfo().IsAssignableFrom(systemTypeInfo) ||
+                    typeof(MethodState).GetTypeInfo().IsAssignableFrom(systemTypeInfo)
                 )
                 {
                     instance = Activator.CreateInstance(systemType, (NodeState)null);
@@ -123,10 +126,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             System.Reflection.TypeInfo systemTypeInfo = systemType.GetTypeInfo();
             if (
-                systemTypeInfo.IsAbstract
-                || systemTypeInfo.IsGenericType
-                || systemTypeInfo.IsGenericTypeDefinition
-                || !typeof(NodeState).GetTypeInfo().IsAssignableFrom(systemTypeInfo)
+                systemTypeInfo.IsAbstract ||
+                systemTypeInfo.IsGenericType ||
+                systemTypeInfo.IsGenericTypeDefinition ||
+                !typeof(NodeState).GetTypeInfo().IsAssignableFrom(systemTypeInfo)
             )
             {
                 return false;

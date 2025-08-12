@@ -52,11 +52,13 @@ namespace Opc.Ua.Client.Tests
         public ReverseConnectManager ReverseConnectManager { get; private set; }
         public uint SessionTimeout { get; set; } = 10000;
         public int OperationTimeout { get; set; } = 10000;
+
         public int TraceMasks { get; set; } =
-            Utils.TraceMasks.Error
-            | Utils.TraceMasks.StackTrace
-            | Utils.TraceMasks.Security
-            | Utils.TraceMasks.Information;
+            Utils.TraceMasks.Error |
+            Utils.TraceMasks.StackTrace |
+            Utils.TraceMasks.Security |
+            Utils.TraceMasks.Information;
+
         public ISessionFactory SessionFactory { get; set; } = DefaultSessionFactory.Instance;
         public ActivityListener ActivityListener { get; private set; }
 
@@ -99,7 +101,9 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Load the default client configuration.
         /// </summary>
-        public async Task LoadClientConfigurationAsync(string pkiRoot = null, string clientName = "TestClient")
+        public async Task LoadClientConfigurationAsync(
+            string pkiRoot = null,
+            string clientName = "TestClient")
         {
             var application = new ApplicationInstance { ApplicationName = clientName };
 
@@ -114,7 +118,9 @@ namespace Opc.Ua.Client.Tests
 
             // build the application configuration.
             Config = await application
-                .Build("urn:localhost:opcfoundation.org:" + clientName, "http://opcfoundation.org/UA/" + clientName)
+                .Build(
+                    "urn:localhost:opcfoundation.org:" + clientName,
+                    "http://opcfoundation.org/UA/" + clientName)
                 .SetMaxByteStringLength(4 * 1024 * 1024)
                 .SetMaxArrayLength(1024 * 1024)
                 .AsClient()
@@ -124,7 +130,7 @@ namespace Opc.Ua.Client.Tests
                         MaxNodesPerBrowse = kDefaultOperationLimits,
                         MaxNodesPerRead = kDefaultOperationLimits,
                         MaxMonitoredItemsPerCall = kDefaultOperationLimits,
-                        MaxNodesPerWrite = kDefaultOperationLimits,
+                        MaxNodesPerWrite = kDefaultOperationLimits
                     }
                 )
                 .AddSecurityConfiguration(applicationCerts, pkiRoot)
@@ -173,7 +179,9 @@ namespace Opc.Ua.Client.Tests
                     {
                         throw;
                     }
-                    testPort = random.Next(ServerFixtureUtils.MinTestPort, ServerFixtureUtils.MaxTestPort);
+                    testPort = random.Next(
+                        ServerFixtureUtils.MinTestPort,
+                        ServerFixtureUtils.MaxTestPort);
                     retryStartServer = true;
                 }
                 await Task.Delay(random.Next(100, 1000)).ConfigureAwait(false);
@@ -184,6 +192,9 @@ namespace Opc.Ua.Client.Tests
         /// Connects the specified endpoint URL.
         /// </summary>
         /// <param name="endpointUrl">The endpoint URL.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         public async Task<ISession> ConnectAsync(string endpointUrl)
         {
             if (string.IsNullOrEmpty(endpointUrl))
@@ -193,7 +204,9 @@ namespace Opc.Ua.Client.Tests
 
             if (!Uri.IsWellFormedUriString(endpointUrl, UriKind.Absolute))
             {
-                throw new ArgumentException(endpointUrl + " is not a valid URL.", nameof(endpointUrl));
+                throw new ArgumentException(
+                    endpointUrl + " is not a valid URL.",
+                    nameof(endpointUrl));
             }
 
             bool serverHalted;
@@ -201,9 +214,15 @@ namespace Opc.Ua.Client.Tests
             {
                 try
                 {
-                    EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(Config, endpointUrl, true);
+                    EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(
+                        Config,
+                        endpointUrl,
+                        true);
                     var endpointConfiguration = EndpointConfiguration.Create(Config);
-                    var endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
+                    var endpoint = new ConfiguredEndpoint(
+                        null,
+                        endpointDescription,
+                        endpointConfiguration);
 
                     return await ConnectAsync(endpoint).ConfigureAwait(false);
                 }
@@ -229,13 +248,15 @@ namespace Opc.Ua.Client.Tests
         {
             string uri = url.AbsoluteUri;
             Uri getEndpointsUrl = url;
-            if (uri.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) || Utils.IsUriHttpsScheme(uri))
+            if (uri.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) ||
+                Utils.IsUriHttpsScheme(uri))
             {
                 getEndpointsUrl = CoreClientUtils.GetDiscoveryUrl(uri);
             }
 
             return await ConnectAsync(
-                    await GetEndpointAsync(getEndpointsUrl, securityProfile, endpoints).ConfigureAwait(false),
+                    await GetEndpointAsync(getEndpointsUrl, securityProfile, endpoints)
+                        .ConfigureAwait(false),
                     userIdentity
                 )
                 .ConfigureAwait(false);
@@ -245,7 +266,10 @@ namespace Opc.Ua.Client.Tests
         /// Connects the specified endpoint.
         /// </summary>
         /// <param name="endpoint">The configured endpoint.</param>
-        public async Task<ISession> ConnectAsync(ConfiguredEndpoint endpoint, IUserIdentity userIdentity = null)
+        /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <c>null</c>.</exception>
+        public async Task<ISession> ConnectAsync(
+            ConfiguredEndpoint endpoint,
+            IUserIdentity userIdentity = null)
         {
             if (endpoint == null)
             {
@@ -257,7 +281,15 @@ namespace Opc.Ua.Client.Tests
             }
 
             ISession session = await SessionFactory
-                .CreateAsync(Config, endpoint, false, false, Config.ApplicationName, SessionTimeout, userIdentity, null)
+                .CreateAsync(
+                    Config,
+                    endpoint,
+                    false,
+                    false,
+                    Config.ApplicationName,
+                    SessionTimeout,
+                    userIdentity,
+                    null)
                 .ConfigureAwait(false);
 
             Endpoint = session.ConfiguredEndpoint;
@@ -274,10 +306,16 @@ namespace Opc.Ua.Client.Tests
         /// Create a channel using the specified endpoint.
         /// </summary>
         /// <param name="endpoint">The configured endpoint</param>
-        /// <returns></returns>
-        public Task<ITransportChannel> CreateChannelAsync(ConfiguredEndpoint endpoint, bool updateBeforeConnect = true)
+        public Task<ITransportChannel> CreateChannelAsync(
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect = true)
         {
-            return SessionFactory.CreateChannelAsync(Config, null, endpoint, updateBeforeConnect, checkDomain: false);
+            return SessionFactory.CreateChannelAsync(
+                Config,
+                null,
+                endpoint,
+                updateBeforeConnect,
+                checkDomain: false);
         }
 
         /// <summary>
@@ -285,7 +323,6 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         /// <param name="channel">The channel to use</param>
         /// <param name="endpoint">The configured endpoint</param>
-        /// <returns></returns>
         public ISession CreateSession(ITransportChannel channel, ConfiguredEndpoint endpoint)
         {
             return SessionFactory.Create(Config, channel, endpoint, null);
@@ -294,9 +331,6 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Get configured endpoint from url with security profile.
         /// </summary>
-        /// <param name="url"></param>
-        /// <param name="securityPolicy"></param>
-        /// <param name="endpoints"></param>
         public async Task<ConfiguredEndpoint> GetEndpointAsync(
             Uri url,
             string securityPolicy,
@@ -304,7 +338,11 @@ namespace Opc.Ua.Client.Tests
         )
         {
             endpoints ??= await GetEndpointsAsync(url).ConfigureAwait(false);
-            EndpointDescription endpointDescription = SelectEndpoint(Config, endpoints, url, securityPolicy);
+            EndpointDescription endpointDescription = SelectEndpoint(
+                Config,
+                endpoints,
+                url,
+                securityPolicy);
             if (endpointDescription == null)
             {
                 Assert.Ignore("The endpoint is not supported by the server.");
@@ -344,8 +382,8 @@ namespace Opc.Ua.Client.Tests
 
                     // pick the first available endpoint by default.
                     if (
-                        selectedEndpoint == null
-                        && securityPolicy.Equals(endpoint.SecurityPolicyUri, StringComparison.Ordinal)
+                        selectedEndpoint == null &&
+                        securityPolicy.Equals(endpoint.SecurityPolicyUri, StringComparison.Ordinal)
                     )
                     {
                         selectedEndpoint = endpoint;
@@ -353,8 +391,8 @@ namespace Opc.Ua.Client.Tests
                     }
 
                     if (
-                        selectedEndpoint?.SecurityMode < endpoint.SecurityMode
-                        && securityPolicy.Equals(endpoint.SecurityPolicyUri, StringComparison.Ordinal)
+                        selectedEndpoint?.SecurityMode < endpoint.SecurityMode &&
+                        securityPolicy.Equals(endpoint.SecurityPolicyUri, StringComparison.Ordinal)
                     )
                     {
                         selectedEndpoint = endpoint;
@@ -375,7 +413,8 @@ namespace Opc.Ua.Client.Tests
             endpointConfiguration.OperationTimeout = OperationTimeout;
 
             using var client = DiscoveryClient.Create(url, endpointConfiguration);
-            EndpointDescriptionCollection result = await client.GetEndpointsAsync(null).ConfigureAwait(false);
+            EndpointDescriptionCollection result = await client.GetEndpointsAsync(null)
+                .ConfigureAwait(false);
             await client.CloseAsync().ConfigureAwait(false);
             return result;
         }
@@ -414,7 +453,7 @@ namespace Opc.Ua.Client.Tests
             if (disableActivityLogging)
             {
                 // Create an instance of ActivityListener without logging
-                ActivityListener = new ActivityListener()
+                ActivityListener = new ActivityListener
                 {
                     ShouldListenTo = (source) => source.Name == TraceableSession.ActivitySourceName,
 
@@ -423,13 +462,13 @@ namespace Opc.Ua.Client.Tests
                         ActivitySamplingResult.AllDataAndRecorded,
                     // Do not log during benchmarks
                     ActivityStarted = _ => { },
-                    ActivityStopped = _ => { },
+                    ActivityStopped = _ => { }
                 };
             }
             else
             {
                 // Create an instance of ActivityListener and configure its properties with logging
-                ActivityListener = new ActivityListener()
+                ActivityListener = new ActivityListener
                 {
                     ShouldListenTo = (source) => source.Name == TraceableSession.ActivitySourceName,
 
@@ -450,7 +489,7 @@ namespace Opc.Ua.Client.Tests
                             activity.TraceId,
                             activity.SpanId,
                             activity.Duration
-                        ),
+                        )
                 };
             }
             ActivitySource.AddActivityListener(ActivityListener);
@@ -469,7 +508,10 @@ namespace Opc.Ua.Client.Tests
         {
             if (ServiceResult.IsBad(e.Status))
             {
-                Utils.LogError("Session '{0}' keep alive error: {1}", session.SessionName, e.Status);
+                Utils.LogError(
+                    "Session '{0}' keep alive error: {1}",
+                    session.SessionName,
+                    e.Status);
             }
         }
     }

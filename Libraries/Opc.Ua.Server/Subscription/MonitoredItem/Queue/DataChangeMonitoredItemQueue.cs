@@ -106,6 +106,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="value">The value to queue.</param>
         /// <param name="error">The error to queue.</param>
+        /// <exception cref="InvalidOperationException"></exception>
         public void Enqueue(DataValue value, ServiceResult error)
         {
             if (m_values == null || m_values.Length == 0)

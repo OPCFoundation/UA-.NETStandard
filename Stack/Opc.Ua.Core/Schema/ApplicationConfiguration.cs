@@ -409,7 +409,9 @@ namespace Opc.Ua
         /// <summary>
         /// The default constructor.
         /// </summary>
-        public TransportConfiguration() { }
+        public TransportConfiguration()
+        {
+        }
 
         /// <summary>
         /// The default constructor.
@@ -461,7 +463,9 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public TransportConfigurationCollection() { }
+        public TransportConfigurationCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -471,14 +475,18 @@ namespace Opc.Ua
         /// 	<paramref name="collection"/> is null.
         /// </exception>
         public TransportConfigurationCollection(IEnumerable<TransportConfiguration> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The capacity.</param>
         public TransportConfigurationCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
     }
 
     /// <summary>
@@ -552,7 +560,9 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public ServerSecurityPolicyCollection() { }
+        public ServerSecurityPolicyCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -562,14 +572,18 @@ namespace Opc.Ua
         /// 	<paramref name="collection"/> is null.
         /// </exception>
         public ServerSecurityPolicyCollection(IEnumerable<ServerSecurityPolicy> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The capacity.</param>
         public ServerSecurityPolicyCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
     }
 
     /// <summary>
@@ -654,7 +668,8 @@ namespace Opc.Ua
                 }
                 SupportedSecurityPolicies = BuildSupportedSecurityPolicies();
 
-                m_applicationCertificates[0].CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType;
+                m_applicationCertificates[0].CertificateType = ObjectTypeIds
+                    .RsaSha256ApplicationCertificateType;
                 IsDeprecatedConfiguration = true;
             }
         }
@@ -675,7 +690,8 @@ namespace Opc.Ua
                 // Remove any unsupported certificate types.
                 for (int i = m_applicationCertificates.Count - 1; i >= 0; i--)
                 {
-                    if (!Utils.IsSupportedCertificateType(m_applicationCertificates[i].CertificateType))
+                    if (!Utils.IsSupportedCertificateType(
+                        m_applicationCertificates[i].CertificateType))
                     {
                         m_applicationCertificates.RemoveAt(i);
                     }
@@ -687,7 +703,8 @@ namespace Opc.Ua
                     for (int j = m_applicationCertificates.Count - 1; j > i; j--)
                     {
                         if (
-                            m_applicationCertificates[i].CertificateType == m_applicationCertificates[j].CertificateType
+                            m_applicationCertificates[i]
+                                .CertificateType == m_applicationCertificates[j].CertificateType
                         )
                         {
                             m_applicationCertificates.RemoveAt(j);
@@ -975,7 +992,9 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public SamplingRateGroupCollection() { }
+        public SamplingRateGroupCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -985,14 +1004,18 @@ namespace Opc.Ua
         /// 	<paramref name="collection"/> is null.
         /// </exception>
         public SamplingRateGroupCollection(IEnumerable<SamplingRateGroup> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The capacity.</param>
         public SamplingRateGroupCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
     }
 
     /// <summary>
@@ -1047,15 +1070,15 @@ namespace Opc.Ua
                     // add wild card policies
                     foreach (string policyUri in Ua.SecurityPolicies.GetDefaultUris())
                     {
-                        var newPolicy = new ServerSecurityPolicy()
+                        var newPolicy = new ServerSecurityPolicy
                         {
                             SecurityMode = securityPolicy.SecurityMode,
-                            SecurityPolicyUri = policyUri,
+                            SecurityPolicyUri = policyUri
                         };
                         if (
                             newPolicies.Find(s =>
-                                s.SecurityMode == newPolicy.SecurityMode
-                                && string.Equals(
+                                s.SecurityMode == newPolicy.SecurityMode &&
+                                string.Equals(
                                     s.SecurityPolicyUri,
                                     newPolicy.SecurityPolicyUri,
                                     StringComparison.Ordinal
@@ -1071,12 +1094,13 @@ namespace Opc.Ua
                 {
                     for (int i = 0; i < supportedPolicies.Length; i++)
                     {
-                        if (securityPolicy.SecurityPolicyUri.Contains(supportedPolicies[i], StringComparison.Ordinal))
+                        if (securityPolicy.SecurityPolicyUri
+                            .Contains(supportedPolicies[i], StringComparison.Ordinal))
                         {
                             if (
                                 newPolicies.Find(s =>
-                                    s.SecurityMode == securityPolicy.SecurityMode
-                                    && string.Equals(
+                                    s.SecurityMode == securityPolicy.SecurityMode &&
+                                    string.Equals(
                                         s.SecurityPolicyUri,
                                         securityPolicy.SecurityPolicyUri,
                                         StringComparison.Ordinal
@@ -1211,7 +1235,8 @@ namespace Opc.Ua
             MaxSubscriptionCount = 100;
             MaxEventQueueSize = 10000;
             // https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles
-            m_serverProfileArray = new string[] { "http://opcfoundation.org/UA-Profile/Server/StandardUA2017" };
+            m_serverProfileArray = new string[] {
+                "http://opcfoundation.org/UA-Profile/Server/StandardUA2017" };
             ShutdownDelay = 5;
             m_serverCapabilities = new string[] { "DA" };
             m_supportedPrivateKeyFormats = new string[] { "PFX", "PEM" };
@@ -1799,7 +1824,9 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public ReverseConnectClientCollection() { }
+        public ReverseConnectClientCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -1809,14 +1836,18 @@ namespace Opc.Ua
         /// 	<paramref name="collection"/> is null.
         /// </exception>
         public ReverseConnectClientCollection(IEnumerable<ReverseConnectClient> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The capacity.</param>
         public ReverseConnectClientCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
     }
 
     /// <summary>
@@ -1944,7 +1975,9 @@ namespace Opc.Ua
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private static void Initialize() { }
+        private static void Initialize()
+        {
+        }
 
         /// <summary>
         /// A collection of reverse connect client endpoints.
@@ -1992,7 +2025,9 @@ namespace Opc.Ua
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private static void Initialize() { }
+        private static void Initialize()
+        {
+        }
 
         /// <summary>
         /// The endpoint Url of a reverse connect client.
@@ -2014,7 +2049,9 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public ReverseConnectClientEndpointCollection() { }
+        public ReverseConnectClientEndpointCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -2023,15 +2060,20 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
-        public ReverseConnectClientEndpointCollection(IEnumerable<ReverseConnectClientEndpoint> collection)
-            : base(collection) { }
+        public ReverseConnectClientEndpointCollection(
+            IEnumerable<ReverseConnectClientEndpoint> collection)
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The capacity.</param>
         public ReverseConnectClientEndpointCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
     }
 
     /// <summary>
@@ -2175,7 +2217,9 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public ServerRegistrationCollection() { }
+        public ServerRegistrationCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -2185,14 +2229,18 @@ namespace Opc.Ua
         /// 	<paramref name="collection"/> is null.
         /// </exception>
         public ServerRegistrationCollection(IEnumerable<ServerRegistration> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The capacity.</param>
         public ServerRegistrationCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
     }
 
     /// <summary>
@@ -2236,7 +2284,11 @@ namespace Opc.Ua
         /// <summary>
         /// Options that can be used to suppress certificate validation errors.
         /// </summary>
-        [DataMember(Name = "ValidationOptions", IsRequired = false, EmitDefaultValue = false, Order = 4)]
+        [DataMember(
+            Name = "ValidationOptions",
+            IsRequired = false,
+            EmitDefaultValue = false,
+            Order = 4)]
         internal int XmlEncodedValidationOptions
         {
             get => (int)ValidationOptions;
@@ -2302,20 +2354,26 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public CertificateIdentifierCollection() { }
+        public CertificateIdentifierCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">A collection of values to add to this new collection</param>
         public CertificateIdentifierCollection(IEnumerable<CertificateIdentifier> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         public CertificateIdentifierCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
     }
 
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
@@ -2341,7 +2399,9 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the identifier with the raw data from a certificate.
         /// </summary>
-        public CertificateIdentifier(X509Certificate2 certificate, CertificateValidationOptions validationOptions)
+        public CertificateIdentifier(
+            X509Certificate2 certificate,
+            CertificateValidationOptions validationOptions)
         {
             Initialize();
             Certificate = certificate;
@@ -2360,7 +2420,9 @@ namespace Opc.Ua
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private static void Initialize() { }
+        private static void Initialize()
+        {
+        }
 
         /// <summary>
         /// Initializes the object during deserialization.
@@ -2447,6 +2509,7 @@ namespace Opc.Ua
         /// </remarks>
         /// <seealso cref="X500DistinguishedName"/>
         /// <seealso cref="System.Security.Cryptography.AsnEncodedData"/>
+        /// <exception cref="ArgumentException"></exception>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 40)]
         public string SubjectName
         {
@@ -2461,7 +2524,9 @@ namespace Opc.Ua
             }
             set
             {
-                if (m_certificate != null && !string.IsNullOrEmpty(value) && m_certificate.Subject != value)
+                if (m_certificate != null &&
+                    !string.IsNullOrEmpty(value) &&
+                    m_certificate.Subject != value)
                 {
                     throw new ArgumentException(
                         "SubjectName does not match the SubjectName of the current certificate."
@@ -2477,6 +2542,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The thumbprint of a certificate..</value>
         /// <seealso cref="X509Certificate2"/>
+        /// <exception cref="ArgumentException"></exception>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 50)]
         public string Thumbprint
         {
@@ -2491,9 +2557,12 @@ namespace Opc.Ua
             }
             set
             {
-                if (m_certificate != null && !string.IsNullOrEmpty(value) && m_certificate.Thumbprint != value)
+                if (m_certificate != null &&
+                    !string.IsNullOrEmpty(value) &&
+                    m_certificate.Thumbprint != value)
                 {
-                    throw new ArgumentException("Thumbprint does not match the thumbprint of the current certificate.");
+                    throw new ArgumentException(
+                        "Thumbprint does not match the thumbprint of the current certificate.");
                 }
 
                 m_thumbprint = value;
@@ -2535,7 +2604,11 @@ namespace Opc.Ua
         /// Gets or sets the XML encoded validation options - use to serialize the validation options.
         /// </summary>
         /// <value>The XML encoded validation options.</value>
-        [DataMember(Name = "ValidationOptions", IsRequired = false, EmitDefaultValue = false, Order = 70)]
+        [DataMember(
+            Name = "ValidationOptions",
+            IsRequired = false,
+            EmitDefaultValue = false,
+            Order = 70)]
         internal int XmlEncodedValidationOptions
         {
             get => (int)ValidationOptions;
@@ -2785,7 +2858,7 @@ namespace Opc.Ua
         /// The UA binary encoding may not be used.
         /// </summary>
         [EnumMember]
-        None,
+        None
     }
 
     /// <summary>

@@ -31,11 +31,15 @@ using System;
 
 namespace Opc.Ua.Fuzzing
 {
-    public static class Testcases
+#pragma warning disable IDE0079 // Remove unnecessary suppression
+#pragma warning disable RCS1043
+    public static partial class Testcases
+#pragma warning restore RCS1043, IDE0079
     {
         public delegate void MessageEncoder(IEncoder encoder);
 
-        public static readonly ServiceMessageContext MessageContext = ServiceMessageContext.GlobalContext;
+        public static readonly ServiceMessageContext MessageContext = ServiceMessageContext
+            .GlobalContext;
 
         public static readonly MessageEncoder[] MessageEncoders = [ReadRequest, ReadResponse];
 
@@ -48,7 +52,7 @@ namespace Opc.Ua.Fuzzing
                 {
                     Timestamp = DateTime.UtcNow,
                     RequestHandle = 42,
-                    AdditionalHeader = new ExtensionObject(),
+                    AdditionalHeader = new ExtensionObject()
                 },
                 NodesToRead =
                 [
@@ -56,8 +60,8 @@ namespace Opc.Ua.Fuzzing
                     new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value },
                     new ReadValueId { NodeId = nodeId, AttributeId = Attributes.DisplayName },
                     new ReadValueId { NodeId = nodeId, AttributeId = Attributes.AccessLevel },
-                    new ReadValueId { NodeId = nodeId, AttributeId = Attributes.RolePermissions },
-                ],
+                    new ReadValueId { NodeId = nodeId, AttributeId = Attributes.RolePermissions }
+                ]
             };
             encoder.EncodeMessage(readRequest);
         }
@@ -66,7 +70,6 @@ namespace Opc.Ua.Fuzzing
         {
             DateTime now = DateTime.UtcNow;
 
-            _ = new NodeId(1000);
             var readRequest = new ReadResponse
             {
                 Results =
@@ -78,23 +81,23 @@ namespace Opc.Ua.Fuzzing
                         SourceTimestamp = now.AddMinutes(1),
                         ServerPicoseconds = 100,
                         SourcePicoseconds = 10,
-                        StatusCode = StatusCodes.Good,
+                        StatusCode = StatusCodes.Good
                     },
                     new DataValue
                     {
                         Value = new Variant((uint)12345678),
                         ServerTimestamp = now,
                         SourceTimestamp = now.AddMinutes(1),
-                        StatusCode = StatusCodes.BadDataLost,
+                        StatusCode = StatusCodes.BadDataLost
                     },
                     new DataValue
                     {
                         Value = new Variant(new byte[] { 0, 1, 2, 3, 4, 5, 6 }),
                         ServerTimestamp = now,
                         SourceTimestamp = now.AddMinutes(1),
-                        StatusCode = StatusCodes.Good,
+                        StatusCode = StatusCodes.Good
                     },
-                    new DataValue { Value = new Variant((byte)42), SourceTimestamp = now },
+                    new DataValue { Value = new Variant((byte)42), SourceTimestamp = now }
                 ],
                 DiagnosticInfos =
                 [
@@ -105,9 +108,9 @@ namespace Opc.Ua.Fuzzing
                         InnerDiagnosticInfo = new DiagnosticInfo
                         {
                             AdditionalInfo = "Hello World",
-                            InnerStatusCode = StatusCodes.BadNodeIdUnknown,
-                        },
-                    },
+                            InnerStatusCode = StatusCodes.BadNodeIdUnknown
+                        }
+                    }
                 ],
                 ResponseHeader = new ResponseHeader
                 {
@@ -129,12 +132,12 @@ namespace Opc.Ua.Fuzzing
                                 InnerDiagnosticInfo = new DiagnosticInfo
                                 {
                                     AdditionalInfo = "Hello World",
-                                    InnerStatusCode = StatusCodes.BadNodeIdUnknown,
-                                },
-                            },
-                        },
-                    },
-                },
+                                    InnerStatusCode = StatusCodes.BadNodeIdUnknown
+                                }
+                            }
+                        }
+                    }
+                }
             };
             encoder.EncodeMessage(readRequest);
         }

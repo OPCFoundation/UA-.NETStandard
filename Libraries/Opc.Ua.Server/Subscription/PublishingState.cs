@@ -52,6 +52,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The subscription has expired.
         /// </summary>
-        Expired,
+        Expired
     }
 }

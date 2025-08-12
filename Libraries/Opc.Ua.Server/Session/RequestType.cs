@@ -207,6 +207,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// <see cref="ISessionServer.UnregisterNodes" />
         /// </summary>
-        UnregisterNodes,
+        UnregisterNodes
     }
 }

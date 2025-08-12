@@ -167,9 +167,10 @@ namespace Opc.Ua.Sample
 
             if (storedMonitoredItem.QueueSize > 1)
             {
-                IDataChangeMonitoredItemQueue queue = subscriptionStore.RestoreDataChangeMonitoredItemQueue(
-                    storedMonitoredItem.Id
-                );
+                IDataChangeMonitoredItemQueue queue = subscriptionStore
+                    .RestoreDataChangeMonitoredItemQueue(
+                        storedMonitoredItem.Id
+                        );
 
                 if (queue != null)
                 {
@@ -181,7 +182,10 @@ namespace Opc.Ua.Sample
                 }
                 else
                 {
-                    m_queue = new DataChangeQueueHandler(storedMonitoredItem.Id, false, m_monitoredItemQueueFactory);
+                    m_queue = new DataChangeQueueHandler(
+                        storedMonitoredItem.Id,
+                        false,
+                        m_monitoredItemQueueFactory);
                     m_queue.SetQueueSize(
                         storedMonitoredItem.QueueSize,
                         storedMonitoredItem.DiscardOldest,
@@ -267,7 +271,15 @@ namespace Opc.Ua.Sample
             double samplingInterval
         )
         {
-            return Modify(diagnosticsMasks, timestampsToReturn, clientHandle, samplingInterval, 0, false, null, null);
+            return Modify(
+                diagnosticsMasks,
+                timestampsToReturn,
+                clientHandle,
+                samplingInterval,
+                0,
+                false,
+                null,
+                null);
         }
 
         /// <summary>
@@ -292,7 +304,8 @@ namespace Opc.Ua.Sample
                 m_queueSize = queueSize;
 
                 // subtract the previous sampling interval.
-                long oldSamplingInterval = (long)(m_samplingInterval * TimeSpan.TicksPerMillisecond);
+                long oldSamplingInterval = (long)(m_samplingInterval *
+                    TimeSpan.TicksPerMillisecond);
 
                 if (oldSamplingInterval < m_nextSampleTime)
                 {
@@ -302,7 +315,8 @@ namespace Opc.Ua.Sample
                 m_samplingInterval = samplingInterval;
 
                 // calculate the next sampling interval.
-                long newSamplingInterval = (long)(m_samplingInterval * TimeSpan.TicksPerMillisecond);
+                long newSamplingInterval = (long)(m_samplingInterval *
+                    TimeSpan.TicksPerMillisecond);
 
                 if (m_samplingInterval > 0)
                 {
@@ -325,11 +339,12 @@ namespace Opc.Ua.Sample
                 // update the queue size.
                 if (queueSize > 1)
                 {
-                    (m_queue ??= new DataChangeQueueHandler(Id, false, m_monitoredItemQueueFactory)).SetQueueSize(
-                        queueSize,
-                        discardOldest,
-                        diagnosticsMasks
-                    );
+                    (m_queue ??= new DataChangeQueueHandler(Id, false, m_monitoredItemQueueFactory))
+                        .SetQueueSize(
+                            queueSize,
+                            discardOldest,
+                            diagnosticsMasks
+                            );
                     m_queue.SetSamplingInterval(samplingInterval);
                 }
                 else
@@ -348,7 +363,8 @@ namespace Opc.Ua.Sample
         {
             var value = new DataValue();
 
-            ServiceResult error = m_source.Node.ReadAttribute(context, AttributeId, NumericRange.Empty, null, value);
+            ServiceResult error = m_source.Node
+                .ReadAttribute(context, AttributeId, NumericRange.Empty, null, value);
 
             if (ServiceResult.IsBad(error))
             {
@@ -519,7 +535,7 @@ namespace Opc.Ua.Sample
                     StatusCode = StatusCodes.Good,
                     RevisedSamplingInterval = m_samplingInterval,
                     RevisedQueueSize = 0,
-                    FilterResult = null,
+                    FilterResult = null
                 };
 
                 if (m_queue != null)
@@ -543,7 +559,7 @@ namespace Opc.Ua.Sample
                     StatusCode = StatusCodes.Good,
                     RevisedSamplingInterval = m_samplingInterval,
                     RevisedQueueSize = 0,
-                    FilterResult = null,
+                    FilterResult = null
                 };
 
                 if (m_queue != null)
@@ -590,7 +606,7 @@ namespace Opc.Ua.Sample
                 OriginalFilter = DataChangeFilter,
                 Range = m_range,
                 TimestampsToReturn = m_timestampsToReturn,
-                ParsedIndexRange = m_indexRange,
+                ParsedIndexRange = m_indexRange
             };
         }
 
@@ -607,9 +623,15 @@ namespace Opc.Ua.Sample
             {
                 // check if value has changed.
                 if (
-                    !AlwaysReportUpdates
-                    && !ignoreFilters
-                    && !MonitoredItem.ValueChanged(value, error, m_lastValue, m_lastError, DataChangeFilter, m_range)
+                    !AlwaysReportUpdates &&
+                    !ignoreFilters &&
+                    !MonitoredItem.ValueChanged(
+                        value,
+                        error,
+                        m_lastValue,
+                        m_lastError,
+                        DataChangeFilter,
+                        m_range)
                 )
                 {
                     return;
@@ -625,7 +647,7 @@ namespace Opc.Ua.Sample
                         SourceTimestamp = value.SourceTimestamp,
                         SourcePicoseconds = value.SourcePicoseconds,
                         ServerTimestamp = value.ServerTimestamp,
-                        ServerPicoseconds = value.ServerPicoseconds,
+                        ServerPicoseconds = value.ServerPicoseconds
                     };
 
                     // ensure the data value matches the error status code.
@@ -773,8 +795,8 @@ namespace Opc.Ua.Sample
                 {
                     uint notificationCount = 0;
                     while (
-                        notificationCount < maxNotificationsPerPublish
-                        && m_queue.PublishSingleValue(out DataValue value, out ServiceResult error)
+                        notificationCount < maxNotificationsPerPublish &&
+                        m_queue.PublishSingleValue(out DataValue value, out ServiceResult error)
                     )
                     {
                         Publish(context, value, error, notifications, diagnostics);
@@ -880,7 +902,10 @@ namespace Opc.Ua.Sample
 
             if (m_lastError != null && (m_diagnosticsMasks & DiagnosticsMasks.OperationAll) != 0)
             {
-                diagnosticInfo = ServerUtils.CreateDiagnosticInfo(m_source.Server, context, m_lastError);
+                diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
+                    m_source.Server,
+                    context,
+                    m_lastError);
             }
 
             diagnostics.Enqueue(diagnosticInfo);

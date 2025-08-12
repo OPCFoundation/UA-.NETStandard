@@ -37,7 +37,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     /// </summary>
     public class JsonValidationData : IFormattable
     {
-        public JsonValidationData() { }
+        public JsonValidationData()
+        {
+        }
 
         public JsonValidationData(BuiltInType builtInType)
         {
@@ -54,7 +56,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     return ExpectedNonReversible ?? ExpectedReversible;
                 case JsonEncodingType.Reversible:
                     return ExpectedReversible;
-                case JsonEncodingType.Compact:
                 default:
                     return ExpectedCompact;
             }
@@ -75,24 +76,34 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 BuiltInType? builtInType = variant.TypeInfo?.BuiltInType;
                 if (builtInType != null)
                 {
-                    return $"Variant:{builtInType}:{Instance}" + (IncludeDefaultValue ? ":Default" : "");
+                    return $"Variant:{builtInType}:{Instance}" +
+                        (IncludeDefaultValue
+                            ? ":Default"
+                            : string.Empty);
                 }
             }
-            return $"{BuiltInType}:{Instance}" + (IncludeDefaultValue ? ":Default" : "");
+            return $"{BuiltInType}:{Instance}" + (IncludeDefaultValue ? ":Default" : string.Empty);
         }
     }
 
     public class JsonValidationDataCollection : List<JsonValidationData>
     {
-        public JsonValidationDataCollection() { }
+        public JsonValidationDataCollection()
+        {
+        }
 
         public JsonValidationDataCollection(IEnumerable<JsonValidationData> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         public JsonValidationDataCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
-        public static JsonValidationDataCollection ToJsonValidationDataCollection(JsonValidationData[] values)
+        public static JsonValidationDataCollection ToJsonValidationDataCollection(
+            JsonValidationData[] values)
         {
             return values != null ? [.. values] : [];
         }
@@ -105,14 +116,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         )
         {
             Add(
-                new JsonValidationData()
+                new JsonValidationData
                 {
                     BuiltInType = builtInType,
                     Instance = instance,
                     ExpectedReversible = expectedReversible,
                     ExpectedNonReversible = expectedNonReversible,
                     ExpectedCompact = expectedReversible,
-                    ExpectedVerbose = expectedNonReversible,
+                    ExpectedVerbose = expectedNonReversible
                 }
             );
         }
@@ -127,14 +138,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         )
         {
             Add(
-                new JsonValidationData()
+                new JsonValidationData
                 {
                     BuiltInType = builtInType,
                     Instance = instance,
                     ExpectedReversible = expectedReversible,
                     ExpectedNonReversible = expectedNonReversible,
                     ExpectedCompact = expectedCompact,
-                    ExpectedVerbose = expectedVerbose,
+                    ExpectedVerbose = expectedVerbose
                 }
             );
         }
@@ -148,7 +159,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         )
         {
             Add(
-                new JsonValidationData()
+                new JsonValidationData
                 {
                     BuiltInType = builtInType,
                     Instance = instance,
@@ -156,7 +167,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     ExpectedNonReversible = expectedNonReversible,
                     ExpectedCompact = expectedReversible,
                     ExpectedVerbose = expectedNonReversible,
-                    IncludeDefaultValue = includeDefaultValue,
+                    IncludeDefaultValue = includeDefaultValue
                 }
             );
         }
@@ -172,7 +183,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         )
         {
             Add(
-                new JsonValidationData()
+                new JsonValidationData
                 {
                     BuiltInType = builtInType,
                     Instance = instance,
@@ -180,7 +191,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     ExpectedNonReversible = expectedNonReversible,
                     ExpectedCompact = expectedCompact,
                     ExpectedVerbose = expectedVerbose,
-                    IncludeDefaultValue = includeDefaultValue,
+                    IncludeDefaultValue = includeDefaultValue
                 }
             );
         }

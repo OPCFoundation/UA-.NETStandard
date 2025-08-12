@@ -62,7 +62,9 @@ namespace Alarms
                 BaseEventState alarm = GetAlarm();
 
                 alarm.EventId.Value = Guid.NewGuid().ToByteArray();
-                alarm.EventType.Value = new NodeId(alarmTypeIdentifier, GetNameSpaceIndex(alarmTypeIdentifier));
+                alarm.EventType.Value = new NodeId(
+                    alarmTypeIdentifier,
+                    GetNameSpaceIndex(alarmTypeIdentifier));
                 alarm.SourceNode.Value = m_trigger.NodeId;
                 alarm.SourceName.Value = m_trigger.SymbolicName;
                 alarm.Time.Value = DateTime.UtcNow;
@@ -75,7 +77,9 @@ namespace Alarms
             }
         }
 
-        public override void SetValue(string message = "") { }
+        public override void SetValue(string message = "")
+        {
+        }
 
         private BaseEventState GetAlarm(BaseEventState alarm = null)
         {

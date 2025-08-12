@@ -101,7 +101,10 @@ namespace Opc.Ua.Security
                 return;
             }
 
-            Utils.LogInfo("SECURE CHANNEL RENEWED [{0}] [ID={1}]", implementationInfo, secureChannelId);
+            Utils.LogInfo(
+                "SECURE CHANNEL RENEWED [{0}] [ID={1}]",
+                implementationInfo,
+                secureChannelId);
         }
     }
 }

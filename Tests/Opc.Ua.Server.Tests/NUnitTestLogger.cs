@@ -91,8 +91,11 @@ namespace Opc.Ua.Server.Tests
             try
             {
                 var sb = new StringBuilder();
-                sb.AppendFormat(CultureInfo.InvariantCulture, "{0:yy-MM-dd HH:mm:ss.fff}: ", DateTime.UtcNow);
-                sb.Append(formatter(state, exception));
+                sb.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    "{0:yy-MM-dd HH:mm:ss.fff}: ",
+                    DateTime.UtcNow)
+                    .Append(formatter(state, exception));
 
                 string logEntry = sb.ToString();
 

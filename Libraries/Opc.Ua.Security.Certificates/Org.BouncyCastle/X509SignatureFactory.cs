@@ -51,7 +51,9 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// </summary>
         /// <param name="hashAlgorithm">The name of the signature algorithm to use.</param>
         /// <param name="generator">The signature generator.</param>
-        public X509SignatureFactory(HashAlgorithmName hashAlgorithm, X509SignatureGenerator generator)
+        public X509SignatureFactory(
+            HashAlgorithmName hashAlgorithm,
+            X509SignatureGenerator generator)
         {
             Org.BouncyCastle.Asn1.DerObjectIdentifier sigOid;
             if (hashAlgorithm == HashAlgorithmName.SHA1)
@@ -101,7 +103,9 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             /// </summary>
             /// <param name="generator">The X509SignatureGenerator to sign the digest.</param>
             /// <param name="hashAlgorithm">The hash algorithm to use for the signature.</param>
-            public X509StreamCalculator(X509SignatureGenerator generator, HashAlgorithmName hashAlgorithm)
+            public X509StreamCalculator(
+                X509SignatureGenerator generator,
+                HashAlgorithmName hashAlgorithm)
             {
                 Stream = new MemoryStream();
                 m_generator = generator;
@@ -116,6 +120,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             /// <summary>
             /// Callback signs the digest with X509SignatureGenerator.
             /// </summary>
+            /// <exception cref="ArgumentNullException"></exception>
             public IBlockResult GetResult()
             {
                 if (Stream is not MemoryStream memStream)

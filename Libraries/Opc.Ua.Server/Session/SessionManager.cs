@@ -57,8 +57,10 @@ namespace Opc.Ua.Server
             m_maxSessionTimeout = configuration.ServerConfiguration.MaxSessionTimeout;
             m_maxSessionCount = configuration.ServerConfiguration.MaxSessionCount;
             m_maxRequestAge = configuration.ServerConfiguration.MaxRequestAge;
-            m_maxBrowseContinuationPoints = configuration.ServerConfiguration.MaxBrowseContinuationPoints;
-            m_maxHistoryContinuationPoints = configuration.ServerConfiguration.MaxHistoryContinuationPoints;
+            m_maxBrowseContinuationPoints = configuration.ServerConfiguration
+                .MaxBrowseContinuationPoints;
+            m_maxHistoryContinuationPoints = configuration.ServerConfiguration
+                .MaxHistoryContinuationPoints;
 
             m_sessions = new NodeIdDictionary<ISession>(m_maxSessionCount);
             m_lastSessionId = BitConverter.ToInt64(Nonce.CreateRandomNonceData(sizeof(long)), 0);
@@ -134,6 +136,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a new session.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public virtual ISession CreateSession(
             OperationContext context,
             X509Certificate2 serverCertificate,
@@ -182,11 +185,13 @@ namespace Opc.Ua.Server
                 // can assign a simple identifier if secured.
                 authenticationToken = null;
                 if (
-                    !string.IsNullOrEmpty(context.ChannelContext.SecureChannelId)
-                    && context.ChannelContext.EndpointDescription.SecurityMode != MessageSecurityMode.None
+                    !string.IsNullOrEmpty(context.ChannelContext.SecureChannelId) &&
+                    context.ChannelContext.EndpointDescription
+                        .SecurityMode != MessageSecurityMode.None
                 )
                 {
-                    authenticationToken = new NodeId(Utils.IncrementIdentifier(ref m_lastSessionId));
+                    authenticationToken = new NodeId(
+                        Utils.IncrementIdentifier(ref m_lastSessionId));
                 }
 
                 // must assign a hard-to-guess id if not secured.
@@ -208,7 +213,8 @@ namespace Opc.Ua.Server
                 }
 
                 // create server nonce.
-                var serverNonceObject = Nonce.CreateNonce(context.ChannelContext.EndpointDescription.SecurityPolicyUri);
+                var serverNonceObject = Nonce.CreateNonce(
+                    context.ChannelContext.EndpointDescription.SecurityPolicyUri);
 
                 // assign client name.
                 if (string.IsNullOrEmpty(sessionName))
@@ -256,6 +262,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Activates an existing session
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public virtual bool ActivateSession(
             OperationContext context,
             NodeId authenticationToken,
@@ -301,7 +308,8 @@ namespace Opc.Ua.Server
                 }
 
                 // create new server nonce.
-                serverNonceObject = Nonce.CreateNonce(context.ChannelContext.EndpointDescription.SecurityPolicyUri);
+                serverNonceObject = Nonce.CreateNonce(
+                    context.ChannelContext.EndpointDescription.SecurityPolicyUri);
 
                 // validate before activation.
                 session.ValidateBeforeActivate(
@@ -347,7 +355,9 @@ namespace Opc.Ua.Server
                 }
 
                 // parse the token manually if the identity is not provided.
-                identity ??= newIdentity != null ? new UserIdentity(newIdentity) : new UserIdentity();
+                identity ??= newIdentity != null
+                    ? new UserIdentity(newIdentity)
+                    : new UserIdentity();
 
                 // use the identity as the effectiveIdentity if not provided.
                 effectiveIdentity ??= identity;
@@ -439,7 +449,11 @@ namespace Opc.Ua.Server
         /// associated with current thread. It also verifies that the timestamp is not too
         /// and that the sequence number is not out of order (update requests only).
         /// </remarks>
-        public virtual OperationContext ValidateRequest(RequestHeader requestHeader, RequestType requestType)
+        /// <exception cref="ArgumentNullException"><paramref name="requestHeader"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public virtual OperationContext ValidateRequest(
+            RequestHeader requestHeader,
+            RequestType requestType)
         {
             if (requestHeader == null)
             {
@@ -459,7 +473,8 @@ namespace Opc.Ua.Server
                 // find session.
                 if (!m_sessions.TryGetValue(requestHeader.AuthenticationToken, out session))
                 {
-                    EventHandler<ValidateSessionLessRequestEventArgs> handler = m_ValidateSessionLessRequest;
+                    EventHandler<ValidateSessionLessRequestEventArgs> handler
+                        = m_ValidateSessionLessRequest;
 
                     if (handler != null)
                     {
@@ -492,9 +507,9 @@ namespace Opc.Ua.Server
             catch (Exception e)
             {
                 if (
-                    e is ServiceResultException sre
-                    && sre.StatusCode == StatusCodes.BadSessionNotActivated
-                    && session != null
+                    e is ServiceResultException sre &&
+                    sre.StatusCode == StatusCodes.BadSessionNotActivated &&
+                    session != null
                 )
                 {
                     CloseSession(session.Id);
@@ -557,15 +572,12 @@ namespace Opc.Ua.Server
                     case SessionEventReason.Created:
                         handler = m_SessionCreated;
                         break;
-
                     case SessionEventReason.Activated:
                         handler = m_SessionActivated;
                         break;
-
                     case SessionEventReason.Closing:
                         handler = m_SessionClosing;
                         break;
-
                     case SessionEventReason.ChannelKeepAlive:
                         handler = m_SessionChannelKeepAlive;
                         break;
@@ -616,7 +628,8 @@ namespace Opc.Ua.Server
                             m_server.CloseSession(null, session.Id, false);
                         }
                         // if a session had no activity for the last m_minSessionTimeout milliseconds, send a keep alive event.
-                        else if (session.ClientLastContactTime.AddMilliseconds(m_minSessionTimeout) < DateTime.UtcNow)
+                        else if (session.ClientLastContactTime
+                            .AddMilliseconds(m_minSessionTimeout) < DateTime.UtcNow)
                         {
                             // signal the channel that the session is still active.
                             RaiseSessionEvent(session, SessionEventReason.ChannelKeepAlive);

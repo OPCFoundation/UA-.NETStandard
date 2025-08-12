@@ -142,6 +142,7 @@ namespace Opc.Ua
         /// <param name="format">The format.</param>
         /// <param name="formatProvider">The provider.</param>
         /// <returns>String representation of the object.</returns>
+        /// <exception cref="FormatException"></exception>
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
@@ -156,7 +157,9 @@ namespace Opc.Ua
                     return m_browseName.Name;
                 }
 
-                return Utils.Format("(unknown {0})", m_nodeClass.ToString().ToLower(CultureInfo.InvariantCulture));
+                return Utils.Format(
+                    "(unknown {0})",
+                    m_nodeClass.ToString().ToLower(CultureInfo.InvariantCulture));
             }
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
@@ -189,7 +192,12 @@ namespace Opc.Ua
             {
                 if (m_referenceTable != null)
                 {
-                    return m_referenceTable.FindTarget(ReferenceTypeIds.HasTypeDefinition, false, false, null, 0);
+                    return m_referenceTable.FindTarget(
+                        ReferenceTypeIds.HasTypeDefinition,
+                        false,
+                        false,
+                        null,
+                        0);
                 }
 
                 return null;
@@ -227,7 +235,12 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The modelling rule.</value>
         public NodeId ModellingRule =>
-            (NodeId)ReferenceTable.FindTarget(ReferenceTypeIds.HasModellingRule, false, false, null, 0);
+            (NodeId)ReferenceTable.FindTarget(
+                ReferenceTypeIds.HasModellingRule,
+                false,
+                false,
+                null,
+                0);
 
         /// <summary>
         /// The collection of references for the node.
@@ -320,8 +333,8 @@ namespace Opc.Ua
 
             // check data type.
             if (
-                attributeId != Attributes.Value
-                && Attributes.GetDataTypeId(attributeId) != TypeInfo.GetDataTypeId(value)
+                attributeId != Attributes.Value &&
+                Attributes.GetDataTypeId(attributeId) != TypeInfo.GetDataTypeId(value)
             )
             {
                 return StatusCodes.BadTypeMismatch;
@@ -383,7 +396,12 @@ namespace Opc.Ua
         {
             if (m_referenceTable != null)
             {
-                return m_referenceTable.FindTarget(ReferenceTypeIds.HasSubtype, true, typeTree != null, typeTree, 0);
+                return m_referenceTable.FindTarget(
+                    ReferenceTypeIds.HasSubtype,
+                    true,
+                    typeTree != null,
+                    typeTree,
+                    0);
             }
 
             return null;
@@ -446,35 +464,27 @@ namespace Opc.Ua
                 case Attributes.BrowseName:
                     m_browseName = (QualifiedName)value;
                     break;
-
                 case Attributes.DisplayName:
                     m_displayName = (LocalizedText)value;
                     break;
-
                 case Attributes.Description:
                     m_description = (LocalizedText)value;
                     break;
-
                 case Attributes.WriteMask:
                     m_writeMask = (uint)value;
                     break;
-
                 case Attributes.UserWriteMask:
                     m_userWriteMask = (uint)value;
                     break;
-
                 case Attributes.RolePermissions:
                     m_rolePermissions = (RolePermissionTypeCollection)value;
                     break;
-
                 case Attributes.UserRolePermissions:
                     m_userRolePermissions = (RolePermissionTypeCollection)value;
                     break;
-
                 case Attributes.AccessRestrictions:
                     m_accessRestrictions = (ushort)value;
                     break;
-
                 default:
                     return StatusCodes.BadAttributeIdInvalid;
             }
@@ -520,6 +530,7 @@ namespace Opc.Ua
         /// <param name="format">The format.</param>
         /// <param name="formatProvider">The provider.</param>
         /// <returns>A string representation of the HierarchyBrowsePath.</returns>
+        /// <exception cref="FormatException"></exception>
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format != null)
@@ -530,9 +541,9 @@ namespace Opc.Ua
             string referenceType = null;
 
             if (
-                m_referenceTypeId != null
-                && m_referenceTypeId.IdType == IdType.Numeric
-                && m_referenceTypeId.NamespaceIndex == 0
+                m_referenceTypeId != null &&
+                m_referenceTypeId.IdType == IdType.Numeric &&
+                m_referenceTypeId.NamespaceIndex == 0
             )
             {
                 referenceType = ReferenceTypes.GetBrowseName((uint)m_referenceTypeId.Identifier);
@@ -544,10 +555,8 @@ namespace Opc.Ua
             {
                 return Utils.Format("<!{0}>{1}", referenceType, m_targetId);
             }
-            else
-            {
-                return Utils.Format("<{0}>{1}", referenceType, m_targetId);
-            }
+
+            return Utils.Format("<{0}>{1}", referenceType, m_targetId);
         }
 
         /// <summary>
@@ -683,7 +692,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="source">The source.</param>
         public InstanceNode(ILocalNode source)
-            : base(source) { }
+            : base(source)
+        {
+        }
     }
 
     /// <summary>
@@ -696,7 +707,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="source">The source.</param>
         public TypeNode(ILocalNode source)
-            : base(source) { }
+            : base(source)
+        {
+        }
     }
 
     /// <summary>
@@ -722,7 +735,8 @@ namespace Opc.Ua
                 MinimumSamplingInterval = variable.MinimumSamplingInterval;
                 Historizing = variable.Historizing;
 
-                object value = variable.Value ?? TypeInfo.GetDefaultValue(variable.DataType, variable.ValueRank);
+                object value = variable.Value ??
+                    TypeInfo.GetDefaultValue(variable.DataType, variable.ValueRank);
 
                 Value = new Variant(value);
 
@@ -781,7 +795,6 @@ namespace Opc.Ua
                 case Attributes.MinimumSamplingInterval:
                 case Attributes.Historizing:
                     return true;
-
                 case Attributes.ArrayDimensions:
                     return m_arrayDimensions != null && m_arrayDimensions.Count != 0;
             }
@@ -812,11 +825,9 @@ namespace Opc.Ua
                     return m_historizing;
                 case Attributes.AccessLevelEx:
                     return m_accessLevelEx;
-
                 // values are copied when the are written so then can be safely returned.
                 case Attributes.Value:
                     return m_value.Value;
-
                 // array dimensions attribute is not support if it is empty.
                 case Attributes.ArrayDimensions:
                     if (m_arrayDimensions == null || m_arrayDimensions.Count == 0)
@@ -843,28 +854,22 @@ namespace Opc.Ua
                 case Attributes.AccessLevel:
                     m_accessLevel = (byte)value;
                     return ServiceResult.Good;
-
                 case Attributes.UserAccessLevel:
                     m_userAccessLevel = (byte)value;
                     return ServiceResult.Good;
-
                 case Attributes.AccessLevelEx:
                     m_accessLevelEx = (uint)value;
                     return ServiceResult.Good;
-
                 case Attributes.MinimumSamplingInterval:
                     m_minimumSamplingInterval = (int)value;
                     return ServiceResult.Good;
-
                 case Attributes.Historizing:
                     m_historizing = (bool)value;
                     return ServiceResult.Good;
-
                 // values are copied when the are written so then can be safely returned on read.
                 case Attributes.Value:
                     m_value = new Variant(Utils.Clone(value));
                     return ServiceResult.Good;
-
                 case Attributes.DataType:
                     var dataType = (NodeId)value;
 
@@ -876,7 +881,6 @@ namespace Opc.Ua
 
                     m_dataType = dataType;
                     return ServiceResult.Good;
-
                 case Attributes.ValueRank:
                     int valueRank = (int)value;
 
@@ -888,7 +892,6 @@ namespace Opc.Ua
                     m_valueRank = valueRank;
 
                     return ServiceResult.Good;
-
                 case Attributes.ArrayDimensions:
                     m_arrayDimensions = [.. (uint[])value];
 
@@ -1117,12 +1120,10 @@ namespace Opc.Ua
             {
                 case Attributes.Value:
                     return m_value.Value != null;
-
                 case Attributes.ValueRank:
                 case Attributes.DataType:
                 case Attributes.IsAbstract:
                     return true;
-
                 case Attributes.ArrayDimensions:
                     return m_arrayDimensions != null && m_arrayDimensions.Count != 0;
             }
@@ -1143,11 +1144,9 @@ namespace Opc.Ua
                     return m_dataType;
                 case Attributes.ValueRank:
                     return m_valueRank;
-
                 // values are copied when the are written so then can be safely returned.
                 case Attributes.Value:
                     return m_value.Value;
-
                 case Attributes.ArrayDimensions:
                     if (m_arrayDimensions == null || m_arrayDimensions.Count == 0)
                     {
@@ -1174,7 +1173,6 @@ namespace Opc.Ua
                 case Attributes.Value:
                     m_value = new Variant(Utils.Clone(value));
                     return ServiceResult.Good;
-
                 case Attributes.DataType:
                     var dataType = (NodeId)value;
 
@@ -1186,7 +1184,6 @@ namespace Opc.Ua
 
                     m_dataType = dataType;
                     return ServiceResult.Good;
-
                 case Attributes.ValueRank:
                     int valueRank = (int)value;
 
@@ -1198,7 +1195,6 @@ namespace Opc.Ua
                     m_valueRank = valueRank;
 
                     return ServiceResult.Good;
-
                 case Attributes.ArrayDimensions:
                     m_arrayDimensions = [.. (uint[])value];
 
@@ -1289,11 +1285,9 @@ namespace Opc.Ua
                 case Attributes.IsAbstract:
                     m_isAbstract = (bool)value;
                     return ServiceResult.Good;
-
                 case Attributes.InverseName:
                     m_inverseName = (LocalizedText)value;
                     return ServiceResult.Good;
-
                 case Attributes.Symmetric:
                     m_symmetric = (bool)value;
                     return ServiceResult.Good;
@@ -1372,7 +1366,6 @@ namespace Opc.Ua
                 case Attributes.Executable:
                     m_executable = (bool)value;
                     return ServiceResult.Good;
-
                 case Attributes.UserExecutable:
                     m_userExecutable = (bool)value;
                     return ServiceResult.Good;
@@ -1451,7 +1444,6 @@ namespace Opc.Ua
                 case Attributes.EventNotifier:
                     m_eventNotifier = (byte)value;
                     return ServiceResult.Good;
-
                 case Attributes.ContainsNoLoops:
                     m_containsNoLoops = (bool)value;
                     return ServiceResult.Good;
@@ -1529,7 +1521,6 @@ namespace Opc.Ua
                 case Attributes.IsAbstract:
                     m_isAbstract = (bool)value;
                     return ServiceResult.Good;
-
                 case Attributes.DataTypeDefinition:
                     m_dataTypeDefinition = (ExtensionObject)value;
                     return ServiceResult.Good;

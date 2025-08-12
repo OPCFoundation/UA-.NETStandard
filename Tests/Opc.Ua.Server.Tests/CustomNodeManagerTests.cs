@@ -8,8 +8,10 @@ namespace Opc.Ua.Server.Tests
     /// <summary>
     /// Test <see cref="CustomNodeManager2"/>
     /// </summary>
-    [TestFixture, Category("CustomNodeManager")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("CustomNodeManager")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class CustomNodeManagerTests
     {
@@ -25,7 +27,8 @@ namespace Opc.Ua.Server.Tests
             {
                 // Arrange
                 const string ns = "http://test.org/UA/Data/";
-                StandardServer server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
+                StandardServer server = await fixture.StartAsync(TestContext.Out)
+                    .ConfigureAwait(false);
 
                 var nodeManager = new TestableCustomNodeManger2(server.CurrentInstance, ns);
 
@@ -36,7 +39,9 @@ namespace Opc.Ua.Server.Tests
                 );
 
                 //Act
-                await RunTaskInParallelAsync(() => UseComponentCacheAsync(nodeManager, baseObject, nodeHandle), 100)
+                await RunTaskInParallelAsync(
+                    () => UseComponentCacheAsync(nodeManager, baseObject, nodeHandle),
+                    100)
                     .ConfigureAwait(false);
 
                 //Assert, that entry was deleted from cache after parallel operations on the same node
@@ -65,13 +70,16 @@ namespace Opc.Ua.Server.Tests
             {
                 // Arrange
                 const string ns = "http://test.org/UA/Data/";
-                StandardServer server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
+                StandardServer server = await fixture.StartAsync(TestContext.Out)
+                    .ConfigureAwait(false);
 
                 var nodeManager = new TestableCustomNodeManger2(server.CurrentInstance, ns);
                 int index = server.CurrentInstance.NamespaceUris.GetIndex(ns);
 
                 var baseObject = new DataItemState(null);
-                var nodeId = new NodeId((string)CommonTestWorkers.NodeIdTestSetStatic[0].Identifier, (ushort)index);
+                var nodeId = new NodeId(
+                    (string)CommonTestWorkers.NodeIdTestSetStatic[0].Identifier,
+                    (ushort)index);
 
                 baseObject.NodeId = nodeId;
 
@@ -103,7 +111,9 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(nodeManager.PredefinedNodes, Is.Empty);
 
                 //Act
-                await RunTaskInParallelAsync(() => UsePredefinedNodesAsync(nodeManager, baseObject, nodeId), 100)
+                await RunTaskInParallelAsync(
+                    () => UsePredefinedNodesAsync(nodeManager, baseObject, nodeId),
+                    100)
                     .ConfigureAwait(false);
 
                 //last operation added the Node back into the dictionary
@@ -142,7 +152,6 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Test Methods  AddNodeToComponentCache,  RemoveNodeFromComponentCache & LookupNodeInComponentCache & verify the node is added to the cache
         /// </summary>
-        /// <returns></returns>
         private static async Task UseComponentCacheAsync(
             TestableCustomNodeManger2 nodeManager,
             BaseObjectState baseObject,
@@ -153,7 +162,9 @@ namespace Opc.Ua.Server.Tests
             nodeManager.AddNodeToComponentCache(nodeManager.SystemContext, nodeHandle, baseObject);
             nodeManager.AddNodeToComponentCache(nodeManager.SystemContext, nodeHandle, baseObject);
 
-            NodeState handleFromCache = nodeManager.LookupNodeInComponentCache(nodeManager.SystemContext, nodeHandle);
+            NodeState handleFromCache = nodeManager.LookupNodeInComponentCache(
+                nodeManager.SystemContext,
+                nodeHandle);
 
             //-- Assert
 
@@ -161,7 +172,9 @@ namespace Opc.Ua.Server.Tests
 
             nodeManager.RemoveNodeFromComponentCache(nodeManager.SystemContext, nodeHandle);
 
-            handleFromCache = nodeManager.LookupNodeInComponentCache(nodeManager.SystemContext, nodeHandle);
+            handleFromCache = nodeManager.LookupNodeInComponentCache(
+                nodeManager.SystemContext,
+                nodeHandle);
 
             Assert.That(handleFromCache, Is.Not.Null);
 
@@ -202,7 +215,9 @@ namespace Opc.Ua.Server.Tests
 
             int spinWaitCount = 0;
             const int maxSpinWaitCount = 100;
-            while (iterations > tasksCompletedCount && error is null && spinWaitCount < maxSpinWaitCount)
+            while (iterations > tasksCompletedCount &&
+                error is null &&
+                spinWaitCount < maxSpinWaitCount)
             {
                 await Task.Delay(TimeSpan.FromMilliseconds(100)).ConfigureAwait(false);
                 spinWaitCount++;
@@ -215,9 +230,14 @@ namespace Opc.Ua.Server.Tests
     public class TestableCustomNodeManger2 : CustomNodeManager2
     {
         public TestableCustomNodeManger2(IServerInternal server, params string[] namespaceUris)
-            : base(server, namespaceUris) { }
+            : base(server, namespaceUris)
+        {
+        }
 
-        public new NodeState AddNodeToComponentCache(ISystemContext context, NodeHandle handle, NodeState node)
+        public new NodeState AddNodeToComponentCache(
+            ISystemContext context,
+            NodeHandle handle,
+            NodeState node)
         {
             return base.AddNodeToComponentCache(context, handle, node);
         }

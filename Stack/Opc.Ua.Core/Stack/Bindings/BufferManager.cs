@@ -28,14 +28,18 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Creates an empty collection.
         /// </summary>
-        public BufferCollection() { }
+        public BufferCollection()
+        {
+        }
 
         /// <summary>
         /// Creates an empty collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The capacity.</param>
         public BufferCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Creates a collection with a single element.
@@ -125,6 +129,7 @@ namespace Opc.Ua.Bindings
         /// <param name="size">The size.</param>
         /// <param name="owner">The owner.</param>
         /// <returns>The buffer content</returns>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public byte[] TakeBuffer(int size, string owner)
         {
             if (size > m_maxBufferSize)
@@ -219,6 +224,7 @@ namespace Opc.Ua.Bindings
         /// Locks the buffer (used for debugging only).
         /// </summary>
         /// <param name="buffer">The buffer.</param>
+        /// <exception cref="InvalidOperationException"></exception>
         public static void LockBuffer(byte[] buffer)
         {
             if (buffer[^1] != kCookieUnlocked)
@@ -235,6 +241,7 @@ namespace Opc.Ua.Bindings
         /// Unlocks the buffer (used for debugging only).
         /// </summary>
         /// <param name="buffer">The buffer.</param>
+        /// <exception cref="InvalidOperationException"></exception>
         public static void UnlockBuffer(byte[] buffer)
         {
             if (buffer[^1] != kCookieLocked)
@@ -252,6 +259,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="buffer">The buffer.</param>
         /// <param name="owner">The owner.</param>
+        /// <exception cref="InvalidOperationException"></exception>
         public void ReturnBuffer(byte[] buffer, string owner)
         {
             if (buffer == null)

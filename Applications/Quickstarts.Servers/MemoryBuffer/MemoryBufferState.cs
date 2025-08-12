@@ -155,7 +155,6 @@ namespace MemoryBuffer
                     case BuiltInType.UInt32:
                         m_elementSize = 4;
                         break;
-
                     case BuiltInType.Double:
                         m_elementSize = 8;
                         break;
@@ -320,7 +319,6 @@ namespace MemoryBuffer
                         bytes = BitConverter.GetBytes(valueToWrite.Value);
                         break;
                     }
-
                     case BuiltInType.Double:
                     {
                         double? valueToWrite = value as double?;
@@ -333,7 +331,6 @@ namespace MemoryBuffer
                         bytes = BitConverter.GetBytes(valueToWrite.Value);
                         break;
                     }
-
                     default:
                         return StatusCodes.BadNodeIdUnknown;
                 }
@@ -378,7 +375,6 @@ namespace MemoryBuffer
                 {
                     case BuiltInType.UInt32:
                         return new Variant(BitConverter.ToUInt32(m_buffer, offset));
-
                     case BuiltInType.Double:
                         return new Variant(BitConverter.ToDouble(m_buffer, offset));
                 }
@@ -495,7 +491,9 @@ namespace MemoryBuffer
             }
         }
 
-        private void AddMonitoredItemInternal(MemoryBufferMonitoredItem monitoredItem, MemoryTagState tag)
+        private void AddMonitoredItemInternal(
+            MemoryBufferMonitoredItem monitoredItem,
+            MemoryTagState tag)
         {
             if (monitoredItem.AttributeId != Attributes.Value)
             {
@@ -603,9 +601,16 @@ namespace MemoryBuffer
                             }
                             else
                             {
-                                monitoredItems = new MemoryBufferMonitoredItem[monitoredItems.Length - 1];
+                                monitoredItems = new MemoryBufferMonitoredItem[monitoredItems
+                                    .Length -
+                                    1];
 
-                                Array.Copy(m_monitoringTable[elementOffet], 0, monitoredItems, 0, index);
+                                Array.Copy(
+                                    m_monitoringTable[elementOffet],
+                                    0,
+                                    monitoredItems,
+                                    0,
+                                    index);
                                 Array.Copy(
                                     m_monitoringTable[elementOffet],
                                     index + 1,
@@ -642,7 +647,7 @@ namespace MemoryBuffer
                             WrappedValue = GetValueAtOffset(offset),
                             StatusCode = StatusCodes.Good,
                             ServerTimestamp = DateTime.UtcNow,
-                            SourceTimestamp = m_lastScanTime,
+                            SourceTimestamp = m_lastScanTime
                         };
 
                         for (int ii = 0; ii < monitoredItems.Length; ii++)
@@ -685,7 +690,10 @@ namespace MemoryBuffer
 
             if (delta1 > 100)
             {
-                Utils.LogInfo("{0} ****** PUBLISH DELAY ({1}ms) ******", nameof(MemoryBufferState), delta1);
+                Utils.LogInfo(
+                    "{0} ****** PUBLISH DELAY ({1}ms) ******",
+                    nameof(MemoryBufferState),
+                    delta1);
             }
         }
 

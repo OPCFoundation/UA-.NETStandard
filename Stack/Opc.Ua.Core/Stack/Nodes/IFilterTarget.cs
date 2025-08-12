@@ -126,7 +126,10 @@ namespace Opc.Ua
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="typeTree">The type tree.</param>
         /// <param name="context">The context.</param>
-        public FilterContext(NamespaceTable namespaceUris, ITypeTable typeTree, IOperationContext context)
+        public FilterContext(
+            NamespaceTable namespaceUris,
+            ITypeTable typeTree,
+            IOperationContext context)
         {
             NamespaceUris = namespaceUris ?? throw new ArgumentNullException(nameof(namespaceUris));
             TypeTree = typeTree ?? throw new ArgumentNullException(nameof(typeTree));
@@ -139,7 +142,9 @@ namespace Opc.Ua
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="typeTree">The type tree.</param>
         public FilterContext(NamespaceTable namespaceUris, ITypeTable typeTree)
-            : this(namespaceUris, typeTree, (IList<string>)null) { }
+            : this(namespaceUris, typeTree, (IList<string>)null)
+        {
+        }
 
         /// <summary>
         /// Initializes the context.
@@ -147,7 +152,10 @@ namespace Opc.Ua
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="typeTree">The type tree.</param>
         /// <param name="preferredLocales">The preferred locales.</param>
-        public FilterContext(NamespaceTable namespaceUris, ITypeTable typeTree, IList<string> preferredLocales)
+        public FilterContext(
+            NamespaceTable namespaceUris,
+            ITypeTable typeTree,
+            IList<string> preferredLocales)
         {
             NamespaceUris = namespaceUris ?? throw new ArgumentNullException(nameof(namespaceUris));
             TypeTree = typeTree ?? throw new ArgumentNullException(nameof(typeTree));

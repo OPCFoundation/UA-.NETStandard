@@ -37,6 +37,7 @@ namespace Opc.Ua.Buffers
     /// Helper to build a <see cref="ReadOnlySequence{T}"/> from a set of buffers.
     /// Implements <see cref="IBufferWriter{T}"/> interface.
     /// </summary>
+    /// <typeparam name="T"></typeparam>
     public sealed class ArrayPoolBufferWriter<T> : IBufferWriter<T>, IDisposable
     {
         private const int kDefaultChunkSize = 256;
@@ -54,13 +55,17 @@ namespace Opc.Ua.Buffers
         /// Initializes a new instance of the <see cref="ArrayPoolBufferWriter{T}"/> class.
         /// </summary>
         public ArrayPoolBufferWriter()
-            : this(false, kDefaultChunkSize, kMaxChunkSize) { }
+            : this(false, kDefaultChunkSize, kMaxChunkSize)
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ArrayPoolBufferWriter{T}"/> class.
         /// </summary>
         public ArrayPoolBufferWriter(int defaultChunksize, int maxChunkSize)
-            : this(false, defaultChunksize, maxChunkSize) { }
+            : this(false, defaultChunksize, maxChunkSize)
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ArrayPoolBufferWriter{T}"/> class.
@@ -103,7 +108,9 @@ namespace Opc.Ua.Buffers
 
             if (count < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(count), $"{nameof(count)} must be non-negative.");
+                throw new ArgumentOutOfRangeException(
+                    nameof(count),
+                    $"{nameof(count)} must be non-negative.");
             }
 
             if (m_offset + count > m_currentBuffer.Length)
@@ -121,7 +128,9 @@ namespace Opc.Ua.Buffers
         {
             if (sizeHint < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(sizeHint), $"{nameof(sizeHint)} must be non-negative.");
+                throw new ArgumentOutOfRangeException(
+                    nameof(sizeHint),
+                    $"{nameof(sizeHint)} must be non-negative.");
             }
 
             int remainingSpace = CheckAndAllocateBuffer(sizeHint);
@@ -133,7 +142,9 @@ namespace Opc.Ua.Buffers
         {
             if (sizeHint < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(sizeHint), $"{nameof(sizeHint)} must be non-negative.");
+                throw new ArgumentOutOfRangeException(
+                    nameof(sizeHint),
+                    $"{nameof(sizeHint)} must be non-negative.");
             }
 
             int remainingSpace = CheckAndAllocateBuffer(sizeHint);
@@ -145,6 +156,7 @@ namespace Opc.Ua.Buffers
         /// The sequence is only valid until the next write operation or
         /// until the writer is disposed.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         public ReadOnlySequence<T> GetReadOnlySequence()
         {
             if (m_disposed)
@@ -159,7 +171,11 @@ namespace Opc.Ua.Buffers
                 return ReadOnlySequence<T>.Empty;
             }
 
-            return new ReadOnlySequence<T>(m_firstSegment, 0, m_nextSegment, m_nextSegment.Memory.Length);
+            return new ReadOnlySequence<T>(
+                m_firstSegment,
+                0,
+                m_nextSegment,
+                m_nextSegment.Memory.Length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -169,7 +185,10 @@ namespace Opc.Ua.Buffers
             {
                 if (m_firstSegment == null)
                 {
-                    m_firstSegment = m_nextSegment = new ArrayPoolBufferSegment<T>(m_currentBuffer, 0, m_offset);
+                    m_firstSegment = m_nextSegment = new ArrayPoolBufferSegment<T>(
+                        m_currentBuffer,
+                        0,
+                        m_offset);
                 }
                 else
                 {

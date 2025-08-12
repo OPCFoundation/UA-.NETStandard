@@ -79,7 +79,8 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Sets the callback used to raise channel audit events.
         /// </summary>
-        public void SetReportOpenSecureChannelAuditCallback(ReportAuditOpenSecureChannelEventHandler callback)
+        public void SetReportOpenSecureChannelAuditCallback(
+            ReportAuditOpenSecureChannelEventHandler callback)
         {
             lock (DataLock)
             {
@@ -90,7 +91,8 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Sets the callback used to raise channel audit events.
         /// </summary>
-        public void SetReportCloseSecureChannelAuditCallback(ReportAuditCloseSecureChannelEventHandler callback)
+        public void SetReportCloseSecureChannelAuditCallback(
+            ReportAuditCloseSecureChannelEventHandler callback)
         {
             lock (DataLock)
             {
@@ -112,6 +114,8 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Attaches the channel to an existing socket.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="socket"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public void Attach(uint channelId, Socket socket)
         {
             if (socket == null)
@@ -132,7 +136,11 @@ namespace Opc.Ua.Bindings
 
                 Socket = new TcpMessageSocket(this, socket, BufferManager, Quotas.MaxBufferSize);
 
-                Utils.LogTrace("{0} SOCKET ATTACHED: {1:X8}, ChannelId={2}", ChannelName, Socket.Handle, ChannelId);
+                Utils.LogTrace(
+                    "{0} SOCKET ATTACHED: {1:X8}, ChannelId={2}",
+                    ChannelName,
+                    Socket.Handle,
+                    ChannelId);
 
                 Socket.ReadNextMessage();
             }
@@ -156,7 +164,9 @@ namespace Opc.Ua.Bindings
 
             if (state is TcpChannelState.Closing or TcpChannelState.Opening or TcpChannelState.Faulted)
             {
-                OnCleanup(new ServiceResult(StatusCodes.BadNoCommunication, "Channel closed due to inactivity."));
+                OnCleanup(new ServiceResult(
+                    StatusCodes.BadNoCommunication,
+                    "Channel closed due to inactivity."));
             }
         }
 
@@ -201,7 +211,11 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Forces the channel into a faulted state as a result of a fatal error.
         /// </summary>
-        protected void ForceChannelFault(Exception exception, uint defaultCode, string format, params object[] args)
+        protected void ForceChannelFault(
+            Exception exception,
+            uint defaultCode,
+            string format,
+            params object[] args)
         {
             ForceChannelFault(ServiceResult.Create(exception, defaultCode, format, args));
         }
@@ -231,8 +245,8 @@ namespace Opc.Ua.Bindings
                             "{0} ForceChannelFault Socket={1:X8}, ChannelId={2}, TokenId={3}, Reason={4}",
                             ChannelName,
                             socketHandle,
-                            (CurrentToken != null) ? CurrentToken.ChannelId : 0,
-                            (CurrentToken != null) ? CurrentToken.TokenId : 0,
+                            CurrentToken != null ? CurrentToken.ChannelId : 0,
+                            CurrentToken != null ? CurrentToken.TokenId : 0,
                             reason
                         );
                     }
@@ -256,15 +270,16 @@ namespace Opc.Ua.Bindings
                 {
                     // mark the RemoteAddress as potential problematic if Basic128Rsa15
                     if (
-                        (SecurityPolicyUri == SecurityPolicies.Basic128Rsa15)
-                        && (
-                            reason.StatusCode == StatusCodes.BadSecurityChecksFailed
-                            || reason.StatusCode == StatusCodes.BadTcpMessageTypeInvalid
+                        (SecurityPolicyUri == SecurityPolicies.Basic128Rsa15) &&
+                        (
+                            reason.StatusCode == StatusCodes.BadSecurityChecksFailed ||
+                            reason.StatusCode == StatusCodes.BadTcpMessageTypeInvalid
                         )
                     )
                     {
                         var tcpTransportListener = Listener as TcpTransportListener;
-                        tcpTransportListener?.MarkAsPotentialProblematic(((IPEndPoint)Socket.RemoteEndpoint).Address);
+                        tcpTransportListener?.MarkAsPotentialProblematic(
+                            ((IPEndPoint)Socket.RemoteEndpoint).Address);
                     }
 
                     // close channel immediately.
@@ -299,8 +314,8 @@ namespace Opc.Ua.Bindings
                     "{0} Cleanup Socket={1:X8}, ChannelId={2}, TokenId={3}, Reason={4}",
                     ChannelName,
                     (Socket?.Handle) ?? 0,
-                    (CurrentToken != null) ? CurrentToken.ChannelId : 0,
-                    (CurrentToken != null) ? CurrentToken.TokenId : 0,
+                    CurrentToken != null ? CurrentToken.ChannelId : 0,
+                    CurrentToken != null ? CurrentToken.TokenId : 0,
                     reason.ToString()
                 );
 
@@ -357,7 +372,11 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                using var encoder = new BinaryEncoder(buffer, 0, SendBufferSize, Quotas.MessageContext);
+                using var encoder = new BinaryEncoder(
+                    buffer,
+                    0,
+                    SendBufferSize,
+                    Quotas.MessageContext);
                 encoder.WriteUInt32(null, TcpMessageType.Error);
                 encoder.WriteUInt32(null, 0);
 
@@ -383,7 +402,11 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SendServiceFault(ChannelToken token, uint requestId, ServiceResult fault)
         {
-            Utils.LogTrace("ChannelId {0}: Request {1}: SendServiceFault={2}", ChannelId, requestId, fault.StatusCode);
+            Utils.LogTrace(
+                "ChannelId {0}: Request {1}: SendServiceFault={2}",
+                ChannelId,
+                requestId,
+                fault.StatusCode);
 
             BufferCollection buffers = null;
 
@@ -406,7 +429,6 @@ namespace Opc.Ua.Bindings
                 response.ResponseHeader.StringTable = stringTable.ToArray();
 
                 // the limits should never be exceeded when sending a fault.
-                bool limitsExceeded = false;
 
                 // secure message.
                 buffers = WriteSymmetricMessage(
@@ -415,7 +437,7 @@ namespace Opc.Ua.Bindings
                     token,
                     response,
                     false,
-                    out limitsExceeded
+                    out bool limitsExceeded
                 );
 
                 // send message.
@@ -463,7 +485,11 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SendServiceFault(uint requestId, ServiceResult fault)
         {
-            Utils.LogTrace("ChannelId {0}: Request {1}: SendServiceFault={2}", ChannelId, requestId, fault.StatusCode);
+            Utils.LogTrace(
+                "ChannelId {0}: Request {1}: SendServiceFault={2}",
+                ChannelId,
+                requestId,
+                fault.StatusCode);
 
             BufferCollection chunksToSend = null;
 
@@ -518,6 +544,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Handles a reconnect request.
         /// </summary>
+        /// <exception cref="NotImplementedException"></exception>
         public virtual void Reconnect(
             IMessageSocket socket,
             uint requestId,
@@ -582,7 +609,10 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Used to report the status of the channel.
     /// </summary>
-    public delegate void TcpChannelStatusEventHandler(TcpServerChannel channel, ServiceResult status, bool closed);
+    public delegate void TcpChannelStatusEventHandler(
+        TcpServerChannel channel,
+        ServiceResult status,
+        bool closed);
 
     /// <summary>
     /// Used to report an open secure channel audit event.
@@ -597,10 +627,14 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Used to report a close secure channel audit event
     /// </summary>
-    public delegate void ReportAuditCloseSecureChannelEventHandler(TcpServerChannel channel, Exception exception);
+    public delegate void ReportAuditCloseSecureChannelEventHandler(
+        TcpServerChannel channel,
+        Exception exception);
 
     /// <summary>
     /// Used to report an open secure channel audit event.
     /// </summary>
-    public delegate void ReportAuditCertificateEventHandler(X509Certificate2 clientCertificate, Exception exception);
+    public delegate void ReportAuditCertificateEventHandler(
+        X509Certificate2 clientCertificate,
+        Exception exception);
 }

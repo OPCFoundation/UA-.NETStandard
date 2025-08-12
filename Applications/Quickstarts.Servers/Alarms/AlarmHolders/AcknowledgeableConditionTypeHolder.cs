@@ -48,7 +48,15 @@ namespace Alarms
             bool optional = true,
             bool create = true
         )
-            : base(alarmNodeManager, parent, trigger, name, alarmConditionType, controllerType, interval, optional)
+            : base(
+                alarmNodeManager,
+                parent,
+                trigger,
+                name,
+                alarmConditionType,
+                controllerType,
+                interval,
+                optional)
         {
             if (create)
             {
@@ -205,7 +213,9 @@ namespace Alarms
         {
             string eventIdString = Utils.ToHexString(eventId);
 
-            Log("OnConfirm", "Called with eventId " + eventIdString + " Comment " + comment?.Text ?? "(empty)");
+            Log(
+                "OnConfirm",
+                "Called with eventId " + eventIdString + " Comment " + comment?.Text ?? "(empty)");
 
             if (m_confirmed.Contains(eventIdString))
             {

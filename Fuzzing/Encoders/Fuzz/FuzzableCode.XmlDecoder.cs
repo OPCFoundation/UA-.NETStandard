@@ -125,7 +125,8 @@ namespace Opc.Ua.Fuzzing
                         string namespaceUri = reader.NamespaceURI;
                         systemType = s_messageContext
                             .Factory.EncodeableTypes.Where(entry =>
-                                entry.Value.Name == typeName /* && entry.Key.NamespaceUri == namespaceUri*/
+                                entry.Value
+                                    .Name == typeName /* && entry.Key.NamespaceUri == namespaceUri*/
                             )
                             .Select(entry => entry.Value)
                             .FirstOrDefault();
@@ -136,7 +137,9 @@ namespace Opc.Ua.Fuzzing
                         {
                             return null;
                         }
-                        throw ServiceResultException.Create(StatusCodes.BadDecodingError, ex.Message);
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            ex.Message);
                     }
 
                     if (systemType == null)

@@ -42,8 +42,10 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
     /// <summary>
     /// Tests for the BuiltIn Types.
     /// </summary>
-    [TestFixture, Category("Utils")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("Utils")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class UtilsTests
     {
@@ -99,9 +101,12 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void Trace()
         {
-            Utils.TraceDebug("");
+            Utils.TraceDebug(string.Empty);
             Utils.TraceDebug(null);
-            Utils.Trace(new ServiceResultException(StatusCodes.BadAggregateConfigurationRejected), "Exception {0}", 1);
+            Utils.Trace(
+                new ServiceResultException(StatusCodes.BadAggregateConfigurationRejected),
+                "Exception {0}",
+                1);
             Utils.TraceExceptionMessage(
                 new ServiceResultException(StatusCodes.BadEdited_OutOfRange),
                 "Exception {0} {1}",
@@ -115,7 +120,12 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 2,
                 3
             );
-            Utils.Trace(new ServiceResultException(StatusCodes.BadEdited_OutOfRange), "Exception {0} {1}", false, 2, 3);
+            Utils.Trace(
+                new ServiceResultException(StatusCodes.BadEdited_OutOfRange),
+                "Exception {0} {1}",
+                false,
+                2,
+                3);
             Utils.Trace(Utils.TraceMasks.Information, "Exception {0} {1}", 2, 3);
         }
 
@@ -219,20 +229,20 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.False(Utils.IsEqualUserIdentity(anonymousIdentity1, null));
             Assert.False(Utils.IsEqualUserIdentity(null, anonymousIdentity2));
 
-            var user1 = new UserNameIdentityToken()
+            var user1 = new UserNameIdentityToken
             {
                 UserName = "user1",
-                Password = Encoding.ASCII.GetBytes("pass1".ToCharArray()),
+                Password = Encoding.ASCII.GetBytes("pass1".ToCharArray())
             };
-            var user1_dupe = new UserNameIdentityToken()
+            var user1_dupe = new UserNameIdentityToken
             {
                 UserName = "user1",
-                Password = Encoding.ASCII.GetBytes("pass1".ToCharArray()),
+                Password = Encoding.ASCII.GetBytes("pass1".ToCharArray())
             };
-            var user2 = new UserNameIdentityToken()
+            var user2 = new UserNameIdentityToken
             {
                 UserName = "user2",
-                Password = Encoding.ASCII.GetBytes("pass2".ToCharArray()),
+                Password = Encoding.ASCII.GetBytes("pass2".ToCharArray())
             };
             Assert.True(Utils.IsEqualUserIdentity(user1, user1_dupe));
             Assert.True(Utils.IsEqualUserIdentity(user1, user1));
@@ -315,14 +325,21 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [TestCase("<!2:HasChild>", "<!3:HasChild>")]
         [TestCase(".2:NodeVersion", ".3:NodeVersion")]
         [TestCase("/1:abc/2:def", "/1:abc/3:def")]
-        public void RelativePathParseTranslateNamespaceIndexReferenceType(string input, string output)
+        public void RelativePathParseTranslateNamespaceIndexReferenceType(
+            string input,
+            string output)
         {
             var currentTable = new NamespaceTable([Namespaces.OpcUa, "1", Namespaces.OpcUaGds]);
             var targetTable = new NamespaceTable([Namespaces.OpcUa, "1", "2", Namespaces.OpcUaGds]);
 
             var typeTable = new TypeTable(new NamespaceTable());
-            typeTable.AddReferenceSubtype(ReferenceTypeIds.HasChild, NodeId.Null, new QualifiedName("HasChild", 3));
-            Assert.AreEqual(output, RelativePath.Parse(input, typeTable, currentTable, targetTable).Format(typeTable));
+            typeTable.AddReferenceSubtype(
+                ReferenceTypeIds.HasChild,
+                NodeId.Null,
+                new QualifiedName("HasChild", 3));
+            Assert.AreEqual(
+                output,
+                RelativePath.Parse(input, typeTable, currentTable, targetTable).Format(typeTable));
         }
 
         /// <summary>
@@ -357,7 +374,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                 RelativePath.Parse(path, typeTable, currentTable, targetTable).Format(typeTable)
             );
-            Assert.AreEqual((StatusCode)StatusCodes.BadIndexRangeInvalid, (StatusCode)sre.StatusCode);
+            Assert.AreEqual(
+                (StatusCode)StatusCodes.BadIndexRangeInvalid,
+                (StatusCode)sre.StatusCode);
         }
 
         /// <summary>
@@ -368,18 +387,19 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void ExponentialEntityExpansionProcessing()
         {
             var xmlEEXX = new StringBuilder();
-            xmlEEXX.AppendLine("<?xml version=\"1.0\" encoding=\"utf-8\" ?>");
-            xmlEEXX.AppendLine("<!DOCTYPE lolz [<!ENTITY lol \"lol\">");
-            xmlEEXX.AppendLine("<!ENTITY lol1 \"&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;\" >");
-            xmlEEXX.AppendLine("<!ENTITY lol2 \"&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;\" >");
-            xmlEEXX.AppendLine("<!ENTITY lol3 \"&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;\" >");
-            xmlEEXX.AppendLine("<!ENTITY lol4 \"&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;\" >");
-            xmlEEXX.AppendLine("<!ENTITY lol5 \"&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;\" >");
-            xmlEEXX.AppendLine("<!ENTITY lol6 \"&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;\" >");
-            xmlEEXX.AppendLine("<!ENTITY lol7 \"&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;\" >");
-            xmlEEXX.AppendLine("<!ENTITY lol8 \"&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;\" >");
-            xmlEEXX.AppendLine("<!ENTITY lol9 \"&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;\" >]>");
-            xmlEEXX.AppendLine("<lolz>&lol9;</lolz>");
+            xmlEEXX.AppendLine("<?xml version=\"1.0\" encoding=\"utf-8\" ?>")
+                .AppendLine("<!DOCTYPE lolz [<!ENTITY lol \"lol\">")
+                .AppendLine(
+                    "<!ENTITY lol1 \"&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;\" >")
+                .AppendLine("<!ENTITY lol2 \"&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;\" >")
+                .AppendLine("<!ENTITY lol3 \"&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;\" >")
+                .AppendLine("<!ENTITY lol4 \"&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;\" >")
+                .AppendLine("<!ENTITY lol5 \"&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;\" >")
+                .AppendLine("<!ENTITY lol6 \"&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;\" >")
+                .AppendLine("<!ENTITY lol7 \"&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;\" >")
+                .AppendLine("<!ENTITY lol8 \"&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;\" >")
+                .AppendLine("<!ENTITY lol9 \"&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;\" >]>")
+                .AppendLine("<lolz>&lol9;</lolz>");
 
             // Validate the default reader (expansion limited at 10000000 bytes)
             TestContext.Out.WriteLine("Testing XmlDocument.LoadXml.");
@@ -450,7 +470,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 BrowseNames.ImageBMP,
                 BrowseNames.ImageGIF,
                 BrowseNames.ImageJPG,
-                BrowseNames.ImagePNG,
+                BrowseNames.ImagePNG
             };
             foreach (string name in bnList)
             {
@@ -458,13 +478,18 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                     .GetFields(BindingFlags.Public | BindingFlags.Static)
                     .First(f => f.Name == name)
                     .GetValue(null);
-                Assert.AreEqual(BuiltInType.ByteString, TypeInfo.GetBuiltInType((NodeId)staticValue));
+                Assert.AreEqual(
+                    BuiltInType.ByteString,
+                    TypeInfo.GetBuiltInType((NodeId)staticValue));
             }
 
-            Assert.AreEqual(BuiltInType.NodeId, TypeInfo.GetBuiltInType(DataTypeIds.SessionAuthenticationToken));
+            Assert.AreEqual(
+                BuiltInType.NodeId,
+                TypeInfo.GetBuiltInType(DataTypeIds.SessionAuthenticationToken));
             Assert.AreEqual(BuiltInType.Double, TypeInfo.GetBuiltInType(DataTypeIds.Duration));
 
-            bnList = [BrowseNames.IntegerId, BrowseNames.Index, BrowseNames.VersionTime, BrowseNames.Counter];
+            bnList = [BrowseNames.IntegerId, BrowseNames.Index, BrowseNames.VersionTime, BrowseNames
+                .Counter];
             foreach (string name in bnList)
             {
                 object staticValue = typeof(DataTypeIds)
@@ -474,7 +499,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 Assert.AreEqual(BuiltInType.UInt32, TypeInfo.GetBuiltInType((NodeId)staticValue));
             }
 
-            Assert.AreEqual(BuiltInType.UInt64, TypeInfo.GetBuiltInType(DataTypeIds.BitFieldMaskDataType));
+            Assert.AreEqual(
+                BuiltInType.UInt64,
+                TypeInfo.GetBuiltInType(DataTypeIds.BitFieldMaskDataType));
 
             bnList =
             [
@@ -484,7 +511,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 BrowseNames.LocaleId,
                 BrowseNames.NormalizedString,
                 BrowseNames.NumericRange,
-                BrowseNames.TimeString,
+                BrowseNames.TimeString
             ];
             foreach (string name in bnList)
             {

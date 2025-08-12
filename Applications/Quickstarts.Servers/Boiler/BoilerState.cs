@@ -89,9 +89,12 @@ namespace Boiler
                     }
 
                     m_simulationContext = context;
-                    m_simulationTimer = new Timer(DoSimulation, null, (int)updateRate, (int)updateRate);
+                    m_simulationTimer = new Timer(
+                        DoSimulation,
+                        null,
+                        (int)updateRate,
+                        (int)updateRate);
                     break;
-
                 case Opc.Ua.Methods.ProgramStateMachineType_Halt:
                 case Opc.Ua.Methods.ProgramStateMachineType_Suspend:
                     if (m_simulationTimer != null)
@@ -102,7 +105,6 @@ namespace Boiler
 
                     m_simulationContext = context;
                     break;
-
                 case Opc.Ua.Methods.ProgramStateMachineType_Reset:
                     if (m_simulationTimer != null)
                     {
@@ -234,17 +236,21 @@ namespace Boiler
                 );
 
                 // calculate inputs for custom controller.
-                m_customController.Input1.Value = m_levelController.UpdateMeasurement(m_drum.LevelIndicator.Output);
-                m_customController.Input2.Value = GetPercentage(m_inputPipe.FlowTransmitter1.Output);
-                m_customController.Input3.Value = GetPercentage(m_outputPipe.FlowTransmitter2.Output);
+                m_customController.Input1.Value = m_levelController.UpdateMeasurement(
+                    m_drum.LevelIndicator.Output);
+                m_customController.Input2.Value
+                    = GetPercentage(m_inputPipe.FlowTransmitter1.Output);
+                m_customController.Input3.Value
+                    = GetPercentage(m_outputPipe.FlowTransmitter2.Output);
 
                 // calculate output for custom controller.
                 m_customController.ControlOut.Value =
                     (
-                        m_customController.Input1.Value
-                        + m_customController.Input3.Value
-                        - m_customController.Input2.Value
-                    ) / 2;
+                        m_customController.Input1.Value +
+                        m_customController.Input3.Value -
+                        m_customController.Input2.Value
+                    ) /
+                    2;
 
                 // update flow controller set point.
                 m_flowController.SetPoint.Value = GetValue(
@@ -252,10 +258,12 @@ namespace Boiler
                     m_inputPipe.FlowTransmitter1.Output.EURange.Value
                 );
 
-                double error = m_flowController.UpdateMeasurement(m_inputPipe.FlowTransmitter1.Output);
+                double error = m_flowController.UpdateMeasurement(
+                    m_inputPipe.FlowTransmitter1.Output);
 
                 // adjust the input valve.
-                m_inputPipe.Valve.Input.Value = Adjust(m_inputPipe.Valve.Input.Value, (error > 0) ? 100 : 0, 10, null);
+                m_inputPipe.Valve.Input.Value
+                    = Adjust(m_inputPipe.Valve.Input.Value, error > 0 ? 100 : 0, 10, null);
 
                 // adjust the input flow.
                 m_inputPipe.FlowTransmitter1.Output.Value = Adjust(
@@ -266,7 +274,8 @@ namespace Boiler
                 );
 
                 // add pertubations.
-                m_drum.LevelIndicator.Output.Value = RoundAndPerturb(m_drum.LevelIndicator.Output.Value, 3);
+                m_drum.LevelIndicator.Output.Value
+                    = RoundAndPerturb(m_drum.LevelIndicator.Output.Value, 3);
                 m_inputPipe.FlowTransmitter1.Output.Value = RoundAndPerturb(
                     m_inputPipe.FlowTransmitter1.Output.Value,
                     3

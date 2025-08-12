@@ -84,10 +84,10 @@ namespace Opc.Ua
                         // when using sub ranges.
                         bool isArrayWithValidDataType =
                             (
-                                value.Value.Value is Array
-                                && value.Value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.String
-                            )
-                            || value.Value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.ByteString;
+                                value.Value.Value is Array &&
+                                value.Value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.String
+                            ) ||
+                            value.Value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.ByteString;
 
                         if (!isArrayWithValidDataType)
                         {

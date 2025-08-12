@@ -48,7 +48,9 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Force use of the default instance.
         /// </summary>
-        protected DefaultSessionFactory() { }
+        protected DefaultSessionFactory()
+        {
+        }
 
         /// <inheritdoc/>
         public virtual Task<ISession> CreateAsync(
@@ -170,7 +172,10 @@ namespace Opc.Ua.Client
             do
             {
                 connection = await reverseConnectManager
-                    .WaitForConnectionAsync(endpoint.EndpointUrl, endpoint.ReverseConnect?.ServerUri, ct)
+                    .WaitForConnectionAsync(
+                        endpoint.EndpointUrl,
+                        endpoint.ReverseConnect?.ServerUri,
+                        ct)
                     .ConfigureAwait(false);
 
                 if (updateBeforeConnect)
@@ -246,7 +251,9 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public virtual async Task<ISession> RecreateAsync(ISession sessionTemplate, CancellationToken ct = default)
+        public virtual async Task<ISession> RecreateAsync(
+            ISession sessionTemplate,
+            CancellationToken ct = default)
         {
             if (sessionTemplate is not Session template)
             {
@@ -291,7 +298,8 @@ namespace Opc.Ua.Client
                     "The ISession provided is not of a supported type"
                 );
             }
-            return await Session.RecreateAsync(template, transportChannel, ct).ConfigureAwait(false);
+            return await Session.RecreateAsync(template, transportChannel, ct)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>

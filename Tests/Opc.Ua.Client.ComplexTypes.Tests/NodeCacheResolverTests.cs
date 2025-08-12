@@ -39,23 +39,29 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
     /// <summary>
     /// Node cache resolver tests.
     /// </summary>
-    [TestFixture, Category("Client")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("Client")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [TestFixtureSource(nameof(FixtureArgs))]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
     public class NodeCacheResolverTests : ClientTestFramework
     {
         public NodeCacheResolverTests()
-            : base(Utils.UriSchemeOpcTcp) { }
+            : base(Utils.UriSchemeOpcTcp)
+        {
+        }
 
         public NodeCacheResolverTests(string uriScheme = Utils.UriSchemeOpcTcp)
-            : base(uriScheme) { }
+            : base(uriScheme)
+        {
+        }
 
         public static readonly NodeId[] TypeSystems =
         [
             ObjectIds.OPCBinarySchema_TypeSystem,
-            ObjectIds.XmlSchema_TypeSystem,
+            ObjectIds.XmlSchema_TypeSystem
         ];
 
         /// <summary>
@@ -95,18 +101,22 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             return base.TearDownAsync();
         }
 
-        [Test, Order(100)]
+        [Test]
+        [Order(100)]
         public async Task LoadStandardDataTypeSystemAsync()
         {
             var nodeResolver = new NodeCacheResolver(Session);
-            ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
-            {
-                System.Collections.Generic.IReadOnlyDictionary<NodeId, DataDictionary> t = await nodeResolver
-                    .LoadDataTypeSystem(ObjectIds.ObjectAttributes_Encoding_DefaultJson)
-                    .ConfigureAwait(false);
-            });
+            ServiceResultException sre = NUnit.Framework.Assert
+                .ThrowsAsync<ServiceResultException>(async () =>
+                    {
+                        System.Collections.Generic.IReadOnlyDictionary<NodeId, DataDictionary> t
+                    = await nodeResolver
+                            .LoadDataTypeSystem(ObjectIds.ObjectAttributes_Encoding_DefaultJson)
+                            .ConfigureAwait(false);
+                    });
             Assert.AreEqual((StatusCode)StatusCodes.BadNodeIdInvalid, (StatusCode)sre.StatusCode);
-            System.Collections.Generic.IReadOnlyDictionary<NodeId, DataDictionary> typeSystem = await nodeResolver
+            System.Collections.Generic.IReadOnlyDictionary<NodeId, DataDictionary> typeSystem
+                = await nodeResolver
                 .LoadDataTypeSystem()
                 .ConfigureAwait(false);
             Assert.NotNull(typeSystem);
@@ -114,11 +124,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 .LoadDataTypeSystem(ObjectIds.OPCBinarySchema_TypeSystem)
                 .ConfigureAwait(false);
             Assert.NotNull(typeSystem);
-            typeSystem = await nodeResolver.LoadDataTypeSystem(ObjectIds.XmlSchema_TypeSystem).ConfigureAwait(false);
+            typeSystem = await nodeResolver.LoadDataTypeSystem(ObjectIds.XmlSchema_TypeSystem)
+                .ConfigureAwait(false);
             Assert.NotNull(typeSystem);
         }
 
-        [Test, Order(110)]
+        [Test]
+        [Order(110)]
         [TestCaseSource(nameof(TypeSystems))]
         public async Task LoadAllServerDataTypeSystemsAsync(NodeId dataTypeSystem)
         {
@@ -128,7 +140,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 BrowseDirection = BrowseDirection.Forward,
                 ReferenceTypeId = ReferenceTypeIds.HasComponent,
                 IncludeSubtypes = false,
-                NodeClassMask = 0,
+                NodeClassMask = 0
             };
 
             ReferenceDescriptionCollection references = browser.Browse(dataTypeSystem);
@@ -141,13 +153,15 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             foreach (ReferenceDescription r in references)
             {
                 var dictionaryId = ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris);
-                TestContext.Out.WriteLine("  ReadDictionary {0} {1}", r.BrowseName.Name, dictionaryId);
+                TestContext.Out
+                    .WriteLine("  ReadDictionary {0} {1}", r.BrowseName.Name, dictionaryId);
                 DataDictionary dictionaryToLoad = await nodeResolver
                     .LoadDictionaryAsync(dictionaryId, r.BrowseName.Name)
                     .ConfigureAwait(false);
 
                 // internal API for testing only
-                byte[] dictionary = await nodeResolver.ReadDictionaryAsync(dictionaryId).ConfigureAwait(false);
+                byte[] dictionary = await nodeResolver.ReadDictionaryAsync(dictionaryId)
+                    .ConfigureAwait(false);
                 // TODO: workaround known issues in the Xml type system.
                 // https://mantis.opcfoundation.org/view.php?id=7393
                 if (dataTypeSystem.Equals(ObjectIds.XmlSchema_TypeSystem))

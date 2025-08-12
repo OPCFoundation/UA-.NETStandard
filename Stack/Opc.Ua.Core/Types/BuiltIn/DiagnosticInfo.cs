@@ -55,7 +55,9 @@ namespace Opc.Ua
         /// <param name="value">The value to copy</param>
         /// <exception cref="ArgumentNullException">Thrown when the value is null</exception>
         public DiagnosticInfo(DiagnosticInfo value)
-            : this(value, 0) { }
+            : this(value, 0)
+        {
+        }
 
         /// <summary>
         /// Creates a deep copy of the value, but limits the recursion depth.
@@ -88,7 +90,12 @@ namespace Opc.Ua
         /// <param name="locale">The locale for the localized text value</param>
         /// <param name="localizedText">The localized text value</param>
         /// <param name="additionalInfo">Additional, textual information</param>
-        public DiagnosticInfo(int symbolicId, int namespaceUri, int locale, int localizedText, string additionalInfo)
+        public DiagnosticInfo(
+            int symbolicId,
+            int namespaceUri,
+            int locale,
+            int localizedText,
+            string additionalInfo)
         {
             SymbolicId = symbolicId;
             NamespaceUri = namespaceUri;
@@ -110,7 +117,9 @@ namespace Opc.Ua
             bool serviceLevel,
             StringTable stringTable
         )
-            : this(result, diagnosticsMask, serviceLevel, stringTable, 0) { }
+            : this(result, diagnosticsMask, serviceLevel, stringTable, 0)
+        {
+        }
 
         /// <summary>
         /// Initializes the object with a ServiceResult.
@@ -201,6 +210,7 @@ namespace Opc.Ua
         /// <param name="diagnosticsMask">The bitmask describing the type of diagnostic data</param>
         /// <param name="stringTable">An array of strings that may be used to provide additional diagnostic details</param>
         /// <param name="depth">The depth of the inner diagnostics property</param>
+        /// <exception cref="ArgumentNullException"><paramref name="stringTable"/> is <c>null</c>.</exception>
         private void Initialize(
             ServiceResult result,
             DiagnosticsMasks diagnosticsMask,
@@ -244,8 +254,8 @@ namespace Opc.Ua
             }
 
             if (
-                (DiagnosticsMasks.ServiceLocalizedText & diagnosticsMask) != 0
-                && !Ua.LocalizedText.IsNullOrEmpty(result.LocalizedText)
+                (DiagnosticsMasks.ServiceLocalizedText & diagnosticsMask) != 0 &&
+                !Ua.LocalizedText.IsNullOrEmpty(result.LocalizedText)
             )
             {
                 if (!string.IsNullOrEmpty(result.LocalizedText.Locale))
@@ -269,8 +279,8 @@ namespace Opc.Ua
             }
 
             if (
-                (DiagnosticsMasks.ServiceAdditionalInfo & diagnosticsMask) != 0
-                && (DiagnosticsMasks.UserPermissionAdditionalInfo & diagnosticsMask) != 0
+                (DiagnosticsMasks.ServiceAdditionalInfo & diagnosticsMask) != 0 &&
+                (DiagnosticsMasks.UserPermissionAdditionalInfo & diagnosticsMask) != 0
             )
             {
                 AdditionalInfo = result.AdditionalInfo;
@@ -298,7 +308,9 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        Utils.LogWarning("Inner diagnostics truncated. Max depth of {0} exceeded.", MaxInnerDepth);
+                        Utils.LogWarning(
+                            "Inner diagnostics truncated. Max depth of {0} exceeded.",
+                            MaxInnerDepth);
                     }
                 }
             }
@@ -350,13 +362,13 @@ namespace Opc.Ua
         /// Whether the object represents a Null DiagnosticInfo.
         /// </summary>
         public bool IsNullDiagnosticInfo =>
-            SymbolicId == -1
-            && Locale == -1
-            && LocalizedText == -1
-            && NamespaceUri == -1
-            && AdditionalInfo == null
-            && InnerDiagnosticInfo == null
-            && InnerStatusCode == StatusCodes.Good;
+            SymbolicId == -1 &&
+            Locale == -1 &&
+            LocalizedText == -1 &&
+            NamespaceUri == -1 &&
+            AdditionalInfo == null &&
+            InnerDiagnosticInfo == null &&
+            InnerStatusCode == StatusCodes.Good;
 
         /// <summary>
         /// Determines if the specified object is equal to the object.
@@ -400,7 +412,12 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                return Utils.Format("{0}:{1}:{2}:{3}", SymbolicId, NamespaceUri, Locale, LocalizedText);
+                return Utils.Format(
+                    "{0}:{1}:{2}:{3}",
+                    SymbolicId,
+                    NamespaceUri,
+                    Locale,
+                    LocalizedText);
             }
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
@@ -498,11 +515,8 @@ namespace Opc.Ua
                     {
                         return InnerDiagnosticInfo.Equals(value.InnerDiagnosticInfo, depth + 1);
                     }
-                    else
-                    {
-                        // ignore the remaining inner diagnostic info and consider it equal.
-                        return true;
-                    }
+                    // ignore the remaining inner diagnostic info and consider it equal.
+                    return true;
                 }
 
                 return value.InnerDiagnosticInfo == null;
@@ -531,7 +545,9 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes an empty collection.
         /// </remarks>
-        public DiagnosticInfoCollection() { }
+        public DiagnosticInfoCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -541,7 +557,9 @@ namespace Opc.Ua
         /// </remarks>
         /// <param name="collection">The collection to copy the contents from</param>
         public DiagnosticInfoCollection(IEnumerable<DiagnosticInfo> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
@@ -551,7 +569,9 @@ namespace Opc.Ua
         /// </remarks>
         /// <param name="capacity">The max capacity of the collection</param>
         public DiagnosticInfoCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -605,5 +625,5 @@ namespace Opc.Ua
 
             return clone;
         }
-    } //class
-} //namespace
+    }
+}

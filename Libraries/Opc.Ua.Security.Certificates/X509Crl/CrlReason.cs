@@ -78,6 +78,6 @@ namespace Opc.Ua.Security.Certificates
         PrivilegeWithdrawn = 9,
 
         /// <summary> AACompromise </summary>
-        AACompromise = 10,
+        AACompromise = 10
     }
 }

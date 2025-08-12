@@ -1,5 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<uax:ListOfNodeState xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+<uax:ListOfNodeState
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+>
   <uax:NamespaceUris>
     <uax:NamespaceUri>http://test.org/UA/Data/</uax:NamespaceUri>
   </uax:NamespaceUris>

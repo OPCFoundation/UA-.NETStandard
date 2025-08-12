@@ -314,7 +314,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="body">The body of the object: IEncodeable, XmlElement or Byte-array</param>
         public ExtensionObject(object body)
-            : this(ExpandedNodeId.Null, body) { }
+            : this(ExpandedNodeId.Null, body)
+        {
+        }
 
         /// <summary>
         /// Initializes the object with an encodeable object.
@@ -505,7 +507,10 @@ namespace Opc.Ua
 
                 if (m_body is IFormattable formattable)
                 {
-                    return string.Format(formatProvider, "{0}", formattable.ToString(null, formatProvider));
+                    return string.Format(
+                        formatProvider,
+                        "{0}",
+                        formattable.ToString(null, formatProvider));
                 }
 
                 if (m_body is IEncodeable)
@@ -515,10 +520,14 @@ namespace Opc.Ua
                     foreach (
                         PropertyInfo property in m_body
                             .GetType()
-                            .GetProperties(BindingFlags.Public | BindingFlags.FlattenHierarchy | BindingFlags.Instance)
+                            .GetProperties(BindingFlags.Public |
+                                BindingFlags.FlattenHierarchy |
+                                BindingFlags.Instance)
                     )
                     {
-                        object[] attributes = [.. property.GetCustomAttributes(typeof(DataMemberAttribute), true)];
+                        object[] attributes = [.. property.GetCustomAttributes(
+                            typeof(DataMemberAttribute),
+                            true)];
 
                         for (int ii = 0; ii < attributes.Length; ii++)
                         {
@@ -533,7 +542,10 @@ namespace Opc.Ua
                                     body.Append(" | ");
                                 }
 
-                                body.AppendFormat(formatProvider, "{0}", property.GetGetMethod().Invoke(m_body, null));
+                                body.AppendFormat(
+                                    formatProvider,
+                                    "{0}",
+                                    property.GetGetMethod().Invoke(m_body, null));
                             }
                         }
                     }
@@ -636,6 +648,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an array of extension objects to a List of the specified type.
         /// </summary>
+        /// <typeparam name="T"></typeparam>
         /// <param name="source">The array to convert.</param>
         /// <returns>The new typed List</returns>
         /// <remarks>
@@ -681,7 +694,9 @@ namespace Opc.Ua
                 // must use the XML encoding id if encoding in an XML stream.
                 if (m_body is IEncodeable encodeable)
                 {
-                    return ExpandedNodeId.ToNodeId(encodeable.XmlEncodingId, m_context.NamespaceUris);
+                    return ExpandedNodeId.ToNodeId(
+                        encodeable.XmlEncodingId,
+                        m_context.NamespaceUris);
                 }
 
                 // check for null Id.
@@ -787,7 +802,7 @@ namespace Opc.Ua
         /// <summary>
         /// The extension object has a JSON encoded body.
         /// </summary>
-        Json = 4,
+        Json = 4
     }
 
     /// <summary>
@@ -806,21 +821,27 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public ExtensionObjectCollection() { }
+        public ExtensionObjectCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">The collection containing the objects to copy into this new instance</param>
         public ExtensionObjectCollection(IEnumerable<ExtensionObject> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">Max capacity of the collection</param>
         public ExtensionObjectCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Converts an array of ExtensionObjects to a collection.
@@ -840,7 +861,8 @@ namespace Opc.Ua
         /// Converts an encodeable object to an extension object.
         /// </summary>
         /// <param name="encodeables">An enumerable array of ExtensionObjects to convert to a collection</param>
-        public static ExtensionObjectCollection ToExtensionObjects(IEnumerable<IEncodeable> encodeables)
+        public static ExtensionObjectCollection ToExtensionObjects(
+            IEnumerable<IEncodeable> encodeables)
         {
             // return null if the input list is null.
             if (encodeables == null)
@@ -892,5 +914,5 @@ namespace Opc.Ua
 
             return clone;
         }
-    } //class
-} //namespace
+    }
+}

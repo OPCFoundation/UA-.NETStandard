@@ -60,19 +60,15 @@ namespace Opc.Ua
                 case LimitAlarmStates.HighHigh:
                     LimitState.SetState(context, Objects.ExclusiveLimitStateMachineType_HighHigh);
                     break;
-
                 case LimitAlarmStates.High:
                     LimitState.SetState(context, Objects.ExclusiveLimitStateMachineType_High);
                     break;
-
                 case LimitAlarmStates.Low:
                     LimitState.SetState(context, Objects.ExclusiveLimitStateMachineType_Low);
                     break;
-
                 case LimitAlarmStates.LowLow:
                     LimitState.SetState(context, Objects.ExclusiveLimitStateMachineType_LowLow);
                     break;
-
                 default:
                     LimitState.SetState(context, 0);
                     break;

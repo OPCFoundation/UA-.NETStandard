@@ -46,6 +46,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             "Configuration",
             "PublisherConfiguration.xml"
         );
+
         private readonly string m_subscriberConfigurationFileName = Path.Combine(
             "Configuration",
             "SubscriberConfiguration.xml"
@@ -79,8 +80,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(m_publisherApplication, "m_publisherApplication shall not be null");
 
             // Get the publisher configuration
-            m_publisherConfiguration = m_publisherApplication.UaPubSubConfigurator.PubSubConfiguration;
-            Assert.IsNotNull(m_publisherConfiguration, "m_publisherConfiguration should not be null");
+            m_publisherConfiguration = m_publisherApplication.UaPubSubConfigurator
+                .PubSubConfiguration;
+            Assert.IsNotNull(
+                m_publisherConfiguration,
+                "m_publisherConfiguration should not be null");
 
             //Get first connection
             Assert.IsNotNull(
@@ -92,7 +96,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 "m_publisherConfiguration.Connections should not be empty"
             );
             m_firstPublisherConnection = m_publisherApplication.PubSubConnections[0];
-            Assert.IsNotNull(m_firstPublisherConnection, "m_firstPublisherConnection should not be null");
+            Assert.IsNotNull(
+                m_firstPublisherConnection,
+                "m_firstPublisherConnection should not be null");
 
             // Read the first writer group
             Assert.IsNotEmpty(
@@ -113,8 +119,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(m_subscriberApplication, "m_subscriberApplication should not be null");
 
             // Get the subscriber configuration
-            m_subscriberConfiguration = m_subscriberApplication.UaPubSubConfigurator.PubSubConfiguration;
-            Assert.IsNotNull(m_subscriberConfiguration, "m_subscriberConfiguration should not be null");
+            m_subscriberConfiguration = m_subscriberApplication.UaPubSubConfigurator
+                .PubSubConfiguration;
+            Assert.IsNotNull(
+                m_subscriberConfiguration,
+                "m_subscriberConfiguration should not be null");
 
             // Get first reader group
             m_firstReaderGroup = m_subscriberConfiguration.Connections[0].ReaderGroups[0];
@@ -134,34 +143,42 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.SourceTimestamp,
                 DataSetFieldContentMask.StatusCode,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.ServerTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.SourcePicoSeconds,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourceTimestamp,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourceTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.SourceTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.SourceTimestamp
-                    | DataSetFieldContentMask.StatusCode
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.SourceTimestamp |
+                DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)10, (ushort)10, (uint)10, (ulong)10, "abc", "Test$!#$%^&*87", "Begrüßung")] object publisherId
+            [Values(
+                (byte)10,
+                (ushort)10,
+                (uint)10,
+                (ulong)10,
+                "abc",
+                "Test$!#$%^&*87",
+                "Begrüßung")] object publisherId
         )
         {
             // Arrange
@@ -169,7 +186,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             // Act
             // Check PublisherId as byte type
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId);
+            uaNetworkMessage.SetNetworkMessageContentMask(
+                UadpNetworkMessageContentMask.PublisherId);
             uaNetworkMessage.PublisherId = publisherId;
 
             // Assert
@@ -187,31 +205,32 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.SourceTimestamp,
                 DataSetFieldContentMask.StatusCode,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.ServerTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.SourcePicoSeconds,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourceTimestamp,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourceTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.SourceTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.SourceTimestamp
-                    | DataSetFieldContentMask.StatusCode
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.SourceTimestamp |
+                DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
             [Values((float)10, (double)10)] object publisherId
@@ -222,7 +241,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             // Act
             // Check PublisherId as byte type
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId);
+            uaNetworkMessage.SetNetworkMessageContentMask(
+                UadpNetworkMessageContentMask.PublisherId);
             uaNetworkMessage.PublisherId = publisherId;
 
             // Assert
@@ -240,31 +260,32 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.SourceTimestamp,
                 DataSetFieldContentMask.StatusCode,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.ServerTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.SourcePicoSeconds,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourceTimestamp,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourceTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.SourceTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.SourceTimestamp
-                    | DataSetFieldContentMask.StatusCode
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.SourceTimestamp |
+                DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask
         )
@@ -275,7 +296,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act
             // GroupFlags are changed internally by the group header options (WriterGroupId, GroupVersion, NetworkMessageNumber, SequenceNumber)
             uaNetworkMessage.SetNetworkMessageContentMask(
-                UadpNetworkMessageContentMask.GroupHeader | UadpNetworkMessageContentMask.PublisherId
+                UadpNetworkMessageContentMask.GroupHeader |
+                UadpNetworkMessageContentMask.PublisherId
             );
             uaNetworkMessage.PublisherId = (ushort)10;
 
@@ -294,31 +316,32 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.SourceTimestamp,
                 DataSetFieldContentMask.StatusCode,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.ServerTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.SourcePicoSeconds,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourceTimestamp,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourceTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.SourceTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.SourceTimestamp
-                    | DataSetFieldContentMask.StatusCode
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.SourceTimestamp |
+                DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask
         )
@@ -328,9 +351,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             // Act
             uaNetworkMessage.SetNetworkMessageContentMask(
-                UadpNetworkMessageContentMask.WriterGroupId
-                    | UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.PayloadHeader
+                UadpNetworkMessageContentMask.WriterGroupId |
+                UadpNetworkMessageContentMask.PublisherId |
+                UadpNetworkMessageContentMask.PayloadHeader
             );
             uaNetworkMessage.PublisherId = (ushort)10;
             uaNetworkMessage.WriterGroupId = 1;
@@ -350,31 +373,32 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.SourceTimestamp,
                 DataSetFieldContentMask.StatusCode,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.ServerTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.SourcePicoSeconds,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourceTimestamp,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourceTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.SourceTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.SourceTimestamp
-                    | DataSetFieldContentMask.StatusCode
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.SourceTimestamp |
+                DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask
         )
@@ -384,9 +408,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             // Act
             uaNetworkMessage.SetNetworkMessageContentMask(
-                UadpNetworkMessageContentMask.GroupVersion
-                    | UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.PayloadHeader
+                UadpNetworkMessageContentMask.GroupVersion |
+                UadpNetworkMessageContentMask.PublisherId |
+                UadpNetworkMessageContentMask.PayloadHeader
             );
             uaNetworkMessage.PublisherId = (ushort)10;
             uaNetworkMessage.GroupVersion = 1;
@@ -406,31 +430,32 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.SourceTimestamp,
                 DataSetFieldContentMask.StatusCode,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.ServerTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.SourcePicoSeconds,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourceTimestamp,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourceTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.SourceTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.SourceTimestamp
-                    | DataSetFieldContentMask.StatusCode
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.SourceTimestamp |
+                DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask
         )
@@ -440,9 +465,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             // Act
             uaNetworkMessage.SetNetworkMessageContentMask(
-                UadpNetworkMessageContentMask.NetworkMessageNumber
-                    | UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.PayloadHeader
+                UadpNetworkMessageContentMask.NetworkMessageNumber |
+                UadpNetworkMessageContentMask.PublisherId |
+                UadpNetworkMessageContentMask.PayloadHeader
             );
             uaNetworkMessage.PublisherId = (ushort)10;
             uaNetworkMessage.NetworkMessageNumber = 1;
@@ -462,31 +487,32 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.SourceTimestamp,
                 DataSetFieldContentMask.StatusCode,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.ServerTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.SourcePicoSeconds,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourceTimestamp,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourceTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.SourceTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.SourceTimestamp
-                    | DataSetFieldContentMask.StatusCode
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.SourceTimestamp |
+                DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask
         )
@@ -496,9 +522,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             // Act
             uaNetworkMessage.SetNetworkMessageContentMask(
-                UadpNetworkMessageContentMask.SequenceNumber
-                    | UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.PayloadHeader
+                UadpNetworkMessageContentMask.SequenceNumber |
+                UadpNetworkMessageContentMask.PublisherId |
+                UadpNetworkMessageContentMask.PayloadHeader
             );
             uaNetworkMessage.PublisherId = (ushort)10;
             uaNetworkMessage.SequenceNumber = 1;
@@ -518,31 +544,32 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.SourceTimestamp,
                 DataSetFieldContentMask.StatusCode,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.ServerTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.SourcePicoSeconds,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourceTimestamp,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourceTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.SourceTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.SourceTimestamp
-                    | DataSetFieldContentMask.StatusCode
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.SourceTimestamp |
+                DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask
         )
@@ -552,7 +579,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             // Act
             uaNetworkMessage.SetNetworkMessageContentMask(
-                UadpNetworkMessageContentMask.PayloadHeader | UadpNetworkMessageContentMask.PublisherId
+                UadpNetworkMessageContentMask.PayloadHeader |
+                UadpNetworkMessageContentMask.PublisherId
             );
             uaNetworkMessage.PublisherId = (ushort)10;
 
@@ -571,31 +599,32 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.SourceTimestamp,
                 DataSetFieldContentMask.StatusCode,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.ServerTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.SourcePicoSeconds,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourceTimestamp,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourceTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.SourceTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.SourceTimestamp
-                    | DataSetFieldContentMask.StatusCode
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.SourceTimestamp |
+                DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask
         )
@@ -605,9 +634,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             // Act
             uaNetworkMessage.SetNetworkMessageContentMask(
-                UadpNetworkMessageContentMask.Timestamp
-                    | UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.PayloadHeader
+                UadpNetworkMessageContentMask.Timestamp |
+                UadpNetworkMessageContentMask.PublisherId |
+                UadpNetworkMessageContentMask.PayloadHeader
             );
             uaNetworkMessage.PublisherId = (ushort)10;
             uaNetworkMessage.Timestamp = DateTime.UtcNow;
@@ -627,31 +656,32 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.SourceTimestamp,
                 DataSetFieldContentMask.StatusCode,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.ServerTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.SourcePicoSeconds,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourceTimestamp,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourceTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.SourceTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.SourceTimestamp
-                    | DataSetFieldContentMask.StatusCode
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.SourceTimestamp |
+                DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask
         )
@@ -661,9 +691,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             // Act
             uaNetworkMessage.SetNetworkMessageContentMask(
-                UadpNetworkMessageContentMask.PicoSeconds
-                    | UadpNetworkMessageContentMask.PublisherId
-                    | UadpNetworkMessageContentMask.PayloadHeader
+                UadpNetworkMessageContentMask.PicoSeconds |
+                UadpNetworkMessageContentMask.PublisherId |
+                UadpNetworkMessageContentMask.PayloadHeader
             );
             uaNetworkMessage.PublisherId = (ushort)10;
             uaNetworkMessage.PicoSeconds = 10;
@@ -683,31 +713,32 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.SourceTimestamp,
                 DataSetFieldContentMask.StatusCode,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.ServerTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.SourcePicoSeconds,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourceTimestamp,
                 DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourceTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.SourceTimestamp,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.StatusCode,
-                DataSetFieldContentMask.ServerPicoSeconds
-                    | DataSetFieldContentMask.ServerTimestamp
-                    | DataSetFieldContentMask.SourcePicoSeconds
-                    | DataSetFieldContentMask.SourceTimestamp
-                    | DataSetFieldContentMask.StatusCode
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds |
+                DataSetFieldContentMask.ServerTimestamp |
+                DataSetFieldContentMask.SourcePicoSeconds |
+                DataSetFieldContentMask.SourceTimestamp |
+                DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask
         )
@@ -716,7 +747,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
 
             // Act
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.DataSetClassId);
+            uaNetworkMessage.SetNetworkMessageContentMask(
+                UadpNetworkMessageContentMask.DataSetClassId);
             uaNetworkMessage.DataSetClassId = Guid.NewGuid();
 
             // Assert
@@ -827,7 +859,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <summary>
         /// Get first DataSetReaders from configuration
         /// </summary>
-        /// <returns></returns>
         private List<DataSetReaderDataType> GetFirstDataSetReaders()
         {
             // Read the first configured ReaderGroup
@@ -843,9 +874,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <summary>
         /// Creates a network message (based on a configuration)
         /// </summary>
-        /// <param name="dataSetFieldContentMask"></param>
-        /// <returns></returns>
-        private UadpNetworkMessage CreateNetworkMessage(DataSetFieldContentMask dataSetFieldContentMask)
+        private UadpNetworkMessage CreateNetworkMessage(
+            DataSetFieldContentMask dataSetFieldContentMask)
         {
             LoadData();
 
@@ -858,13 +888,16 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 dataSetWriter.DataSetFieldContentMask = (uint)dataSetFieldContentMask;
             }
 
-            IList<UaNetworkMessage> networkMessages = m_firstPublisherConnection.CreateNetworkMessages(
-                m_firstWriterGroup,
-                new WriterGroupPublishState()
-            );
+            IList<UaNetworkMessage> networkMessages = m_firstPublisherConnection
+                .CreateNetworkMessages(
+                    m_firstWriterGroup,
+                    new WriterGroupPublishState()
+                    );
             // filter out the metadata message
             networkMessages = [.. from m in networkMessages where !m.IsMetaDataMessage select m];
-            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+            Assert.IsNotNull(
+                networkMessages,
+                "connection.CreateNetworkMessages shall not return null");
             Assert.AreEqual(
                 1,
                 networkMessages.Count,
@@ -886,7 +919,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
 
             var uaNetworkMessageDecoded = new UadpNetworkMessage();
-            uaNetworkMessageDecoded.Decode(new ServiceMessageContext(), bytes, m_firstDataSetReadersType);
+            uaNetworkMessageDecoded.Decode(
+                new ServiceMessageContext(),
+                bytes,
+                m_firstDataSetReadersType);
 
             // compare uaNetworkMessage with uaNetworkMessageDecoded
             Compare(uadpNetworkMessage, uaNetworkMessageDecoded);
@@ -900,7 +936,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
 
             var uaNetworkMessageDecoded = new UadpNetworkMessage();
-            uaNetworkMessageDecoded.Decode(new ServiceMessageContext(), bytes, m_firstDataSetReadersType);
+            uaNetworkMessageDecoded.Decode(
+                new ServiceMessageContext(),
+                bytes,
+                m_firstDataSetReadersType);
 
             // compare uaNetworkMessage with uaNetworkMessageDecoded
             // TODO Fix: this might be broken after refactor
@@ -910,8 +949,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <summary>
         /// Invalid compare network messages options (special case for PublisherId
         /// </summary>
-        /// <param name="uadpNetworkMessageEncode"></param>
-        /// <param name="uadpNetworkMessageDecoded"></param>
         private static void InvalidCompare(
             UadpNetworkMessage uadpNetworkMessageEncode,
             UadpNetworkMessage uadpNetworkMessageDecoded
@@ -920,15 +957,16 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             UadpNetworkMessageContentMask networkMessageContentMask =
                 uadpNetworkMessageEncode.NetworkMessageContentMask;
 
-            if ((networkMessageContentMask | UadpNetworkMessageContentMask.None) == UadpNetworkMessageContentMask.None)
+            if ((networkMessageContentMask |
+                UadpNetworkMessageContentMask.None) == UadpNetworkMessageContentMask.None)
             {
                 //nothing to check
                 return;
             }
 
             if (
-                (networkMessageContentMask & UadpNetworkMessageContentMask.PublisherId)
-                == UadpNetworkMessageContentMask.PublisherId
+                (networkMessageContentMask & UadpNetworkMessageContentMask.PublisherId) ==
+                UadpNetworkMessageContentMask.PublisherId
             )
             {
                 // special case for valid PublisherId type only
@@ -943,9 +981,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <summary>
         /// Compare network messages options
         /// </summary>
-        /// <param name="uadpNetworkMessageEncode"></param>
-        /// <param name="uadpNetworkMessageDecoded"></param>
-        /// <returns></returns>
         private static void Compare(
             UadpNetworkMessage uadpNetworkMessageEncode,
             UadpNetworkMessage uadpNetworkMessageDecoded
@@ -954,7 +989,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             UadpNetworkMessageContentMask networkMessageContentMask =
                 uadpNetworkMessageEncode.NetworkMessageContentMask;
 
-            if ((networkMessageContentMask | UadpNetworkMessageContentMask.None) == UadpNetworkMessageContentMask.None)
+            if ((networkMessageContentMask |
+                UadpNetworkMessageContentMask.None) == UadpNetworkMessageContentMask.None)
             {
                 //nothing to check
                 return;
@@ -987,13 +1023,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             if (
                 (
-                    networkMessageContentMask
-                    & (
-                        UadpNetworkMessageContentMask.GroupHeader
-                        | UadpNetworkMessageContentMask.WriterGroupId
-                        | UadpNetworkMessageContentMask.GroupVersion
-                        | UadpNetworkMessageContentMask.NetworkMessageNumber
-                        | UadpNetworkMessageContentMask.SequenceNumber
+                    networkMessageContentMask &
+                    (
+                        UadpNetworkMessageContentMask.GroupHeader |
+                        UadpNetworkMessageContentMask.WriterGroupId |
+                        UadpNetworkMessageContentMask.GroupVersion |
+                        UadpNetworkMessageContentMask.NetworkMessageNumber |
+                        UadpNetworkMessageContentMask.SequenceNumber
                     )
                 ) != 0
             )
@@ -1023,7 +1059,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 );
             }
 
-            if ((networkMessageContentMask & UadpNetworkMessageContentMask.NetworkMessageNumber) != 0)
+            if ((networkMessageContentMask &
+                UadpNetworkMessageContentMask.NetworkMessageNumber) != 0)
             {
                 Assert.AreEqual(
                     uadpNetworkMessageEncode.NetworkMessageNumber,
@@ -1053,12 +1090,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 // check if the encoded match the decoded DataSetWriterId's
 
                 foreach (
-                    UadpDataSetMessage uadpDataSetMessage in uadpNetworkMessageEncode.DataSetMessages.OfType<UadpDataSetMessage>()
+                    UadpDataSetMessage uadpDataSetMessage in uadpNetworkMessageEncode
+                        .DataSetMessages
+                        .OfType<UadpDataSetMessage>()
                 )
                 {
                     var uadpDataSetMessageDecoded =
                         uadpNetworkMessageDecoded.DataSetMessages.FirstOrDefault(decoded =>
-                            ((UadpDataSetMessage)decoded).DataSetWriterId == uadpDataSetMessage.DataSetWriterId
+                            decoded.DataSetWriterId == uadpDataSetMessage.DataSetWriterId
                         ) as UadpDataSetMessage;
 
                     Assert.IsNotNull(
@@ -1149,8 +1188,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
                         // Checks just for DataValue type only
                         if (
-                            (uadpDataSetMessage.FieldContentMask & DataSetFieldContentMask.StatusCode)
-                            == DataSetFieldContentMask.StatusCode
+                            (uadpDataSetMessage.FieldContentMask &
+                                DataSetFieldContentMask.StatusCode) ==
+                            DataSetFieldContentMask.StatusCode
                         )
                         {
                             // check dataValues StatusCode
@@ -1165,8 +1205,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
                         // check dataValues SourceTimestamp
                         if (
-                            (uadpDataSetMessage.FieldContentMask & DataSetFieldContentMask.SourceTimestamp)
-                            == DataSetFieldContentMask.SourceTimestamp
+                            (uadpDataSetMessage.FieldContentMask &
+                                DataSetFieldContentMask.SourceTimestamp) ==
+                            DataSetFieldContentMask.SourceTimestamp
                         )
                         {
                             Assert.AreEqual(
@@ -1180,8 +1221,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
                         // check dataValues ServerTimestamp
                         if (
-                            (uadpDataSetMessage.FieldContentMask & DataSetFieldContentMask.ServerTimestamp)
-                            == DataSetFieldContentMask.ServerTimestamp
+                            (uadpDataSetMessage.FieldContentMask &
+                                DataSetFieldContentMask.ServerTimestamp) ==
+                            DataSetFieldContentMask.ServerTimestamp
                         )
                         {
                             // check dataValues ServerTimestamp
@@ -1196,8 +1238,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
                         // check dataValues SourcePicoseconds
                         if (
-                            (uadpDataSetMessage.FieldContentMask & DataSetFieldContentMask.SourcePicoSeconds)
-                            == DataSetFieldContentMask.SourcePicoSeconds
+                            (uadpDataSetMessage.FieldContentMask &
+                                DataSetFieldContentMask.SourcePicoSeconds) ==
+                            DataSetFieldContentMask.SourcePicoSeconds
                         )
                         {
                             Assert.AreEqual(
@@ -1211,8 +1254,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
                         // check dataValues ServerPicoSeconds
                         if (
-                            (uadpDataSetMessage.FieldContentMask & DataSetFieldContentMask.ServerPicoSeconds)
-                            == DataSetFieldContentMask.ServerPicoSeconds
+                            (uadpDataSetMessage.FieldContentMask &
+                                DataSetFieldContentMask.ServerPicoSeconds) ==
+                            DataSetFieldContentMask.ServerPicoSeconds
                         )
                         {
                             // check dataValues ServerPicoseconds

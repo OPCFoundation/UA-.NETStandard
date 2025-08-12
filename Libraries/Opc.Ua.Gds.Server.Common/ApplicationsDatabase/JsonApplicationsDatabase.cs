@@ -52,6 +52,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         /// <summary>
         /// Load the JSON application database.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="fileName"/> is <c>null</c>.</exception>
         public static JsonApplicationsDatabase Load(string fileName)
         {
             if (fileName == null)
@@ -64,12 +65,15 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 if (File.Exists(fileName))
                 {
                     string json = File.ReadAllText(fileName);
-                    JsonApplicationsDatabase db = JsonConvert.DeserializeObject<JsonApplicationsDatabase>(json);
+                    JsonApplicationsDatabase db = JsonConvert
+                        .DeserializeObject<JsonApplicationsDatabase>(json);
                     db.FileName = fileName;
                     return db;
                 }
             }
-            catch { }
+            catch
+            {
+            }
             return new JsonApplicationsDatabase(fileName);
         }
 

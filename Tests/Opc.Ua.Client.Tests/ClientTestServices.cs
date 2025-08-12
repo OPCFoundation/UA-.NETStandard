@@ -254,7 +254,11 @@ namespace Opc.Ua.Client.Tests
             out DiagnosticInfoCollection diagnosticInfos
         )
         {
-            return m_session.DeleteSubscriptions(requestHeader, subscriptionIds, out results, out diagnosticInfos);
+            return m_session.DeleteSubscriptions(
+                requestHeader,
+                subscriptionIds,
+                out results,
+                out diagnosticInfos);
         }
 
         public ResponseHeader TransferSubscriptions(

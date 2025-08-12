@@ -37,7 +37,10 @@ namespace Opc.Ua
         /// <param name="context">The system context.</param>
         public void Activate(ISystemContext context)
         {
-            var state = new TranslationInfo("ConditionStateDialogActive", "en-US", ConditionStateNames.Active);
+            var state = new TranslationInfo(
+                "ConditionStateDialogActive",
+                "en-US",
+                ConditionStateNames.Active);
 
             DialogState.Value = new LocalizedText(state);
             DialogState.Id.Value = true;
@@ -59,7 +62,10 @@ namespace Opc.Ua
         {
             LastResponse.Value = response;
 
-            var state = new TranslationInfo("ConditionStateDialogInactive", "en-US", ConditionStateNames.Inactive);
+            var state = new TranslationInfo(
+                "ConditionStateDialogInactive",
+                "en-US",
+                ConditionStateNames.Inactive);
 
             DialogState.Value = new LocalizedText(state);
             DialogState.Id.Value = false;
@@ -179,7 +185,11 @@ namespace Opc.Ua
                     e.SetChildValue(context, BrowseNames.SourceName, "Method/Respond", false);
 
                     e.SetChildValue(context, BrowseNames.MethodId, method.NodeId, false);
-                    e.SetChildValue(context, BrowseNames.InputArguments, new object[] { selectedResponse }, false);
+                    e.SetChildValue(
+                        context,
+                        BrowseNames.InputArguments,
+                        new object[] { selectedResponse },
+                        false);
 
                     e.SetChildValue(
                         context,

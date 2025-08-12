@@ -42,8 +42,10 @@ using System.Runtime.CompilerServices;
 
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {
-    [TestFixture, Category("Utils")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("Utils")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
@@ -153,12 +155,11 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             {
                 // Validate buffers are the same length.
                 // This also ensures that the count does not exceed the length of either buffer.
-                return m_bufferA.Length == m_bufferB.Length && memcmp(m_bufferA, m_bufferB, m_bufferA.Length) == 0;
+                return m_bufferA.Length == m_bufferB.Length &&
+                    memcmp(m_bufferA, m_bufferB, m_bufferA.Length) == 0;
             }
-            else
-            {
-                return ForLoopBinaryCompare();
-            }
+
+            return ForLoopBinaryCompare();
         }
 
         /// <summary>
@@ -188,12 +189,16 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             // byte arrays and null
 
-            Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)m_bufferB), Utils.IsEqual(m_bufferA, m_bufferB));
+            Assert.AreEqual(
+                Utils.IsEqual(m_bufferA, (object)m_bufferB),
+                Utils.IsEqual(m_bufferA, m_bufferB));
             Assert.AreEqual(Utils.IsEqual(null, (object)m_bufferB), Utils.IsEqual(null, m_bufferB));
             Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)null), Utils.IsEqual(m_bufferA, null));
             Assert.AreEqual(Utils.IsEqual(null, null), Utils.IsEqual(null, null));
 
-            Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)m_bufferB), Utils.IsEqual(m_bufferA, m_bufferB));
+            Assert.AreEqual(
+                Utils.IsEqual(m_bufferA, (object)m_bufferB),
+                Utils.IsEqual(m_bufferA, m_bufferB));
             Assert.AreEqual(Utils.IsEqual(null, (object)m_bufferB), Utils.IsEqual(null, m_bufferB));
             Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)null), Utils.IsEqual(m_bufferA, null));
             Assert.AreEqual(Utils.IsEqual(null, null), Utils.IsEqual(null, null));
@@ -202,12 +207,22 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 Utils.IsEqual(m_bufferA, (object)m_bufferB),
                 Utils.IsEqual(m_bufferA, (IEnumerable)m_bufferB)
             );
-            Assert.AreEqual(Utils.IsEqual(null, (object)m_bufferB), Utils.IsEqual(null, (IEnumerable)m_bufferB));
-            Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)null), Utils.IsEqual(m_bufferA, (IEnumerable)null));
+            Assert.AreEqual(
+                Utils.IsEqual(null, (object)m_bufferB),
+                Utils.IsEqual(null, (IEnumerable)m_bufferB));
+            Assert.AreEqual(
+                Utils.IsEqual(m_bufferA, (object)null),
+                Utils.IsEqual(m_bufferA, (IEnumerable)null));
 
-            Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)m_bufferB), Utils.IsEqual(m_bufferA, (Array)m_bufferB));
-            Assert.AreEqual(Utils.IsEqual(null, (object)m_bufferB), Utils.IsEqual(null, (Array)m_bufferB));
-            Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)null), Utils.IsEqual(m_bufferA, (Array)null));
+            Assert.AreEqual(
+                Utils.IsEqual(m_bufferA, (object)m_bufferB),
+                Utils.IsEqual(m_bufferA, (Array)m_bufferB));
+            Assert.AreEqual(
+                Utils.IsEqual(null, (object)m_bufferB),
+                Utils.IsEqual(null, (Array)m_bufferB));
+            Assert.AreEqual(
+                Utils.IsEqual(m_bufferA, (object)null),
+                Utils.IsEqual(m_bufferA, (Array)null));
 
             const int i = 1;
             Assert.AreEqual(Utils.IsEqual(i, m_bufferB), Utils.IsEqual(i, m_bufferB));
@@ -225,7 +240,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         }
 
         [OneTimeTearDown]
-        public void OneTimeTearDown() { }
+        public void OneTimeTearDown()
+        {
+        }
 
         /// <summary>
         /// Set up some variables for benchmarks.
@@ -245,7 +262,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// Tear down benchmark variables.
         /// </summary>
         [GlobalCleanup]
-        public void GlobalCleanup() { }
+        public void GlobalCleanup()
+        {
+        }
 
         /// <summary>
         /// Checks if two byte[] values are equal.
@@ -363,8 +382,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 for (int ii = 0; ii < array1.Rank; ii++)
                 {
                     if (
-                        array1.GetLowerBound(ii) != array2.GetLowerBound(ii)
-                        || array1.GetUpperBound(ii) != array2.GetUpperBound(ii)
+                        array1.GetLowerBound(ii) != array2.GetLowerBound(ii) ||
+                        array1.GetUpperBound(ii) != array2.GetUpperBound(ii)
                     )
                     {
                         return false;

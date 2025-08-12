@@ -61,6 +61,7 @@ namespace Opc.Ua
         /// Call an IEncoder action where the reversible encoding is applied
         /// before the call to the Action and restored before return.
         /// </summary>
+        /// <typeparam name="T"></typeparam>
         [Obsolete(
             "Non/Reversible encoding is deprecated. Use UsingAlternateEncoding instead to support new encoding types."
         )]
@@ -75,6 +76,7 @@ namespace Opc.Ua
         /// Call an IEncoder action where the alternate encoding type is applied
         /// before the call to the Action and restored before return.
         /// </summary>
+        /// <typeparam name="T"></typeparam>
         void UsingAlternateEncoding<T>(
             Action<string, T> action,
             string fieldName,
@@ -106,6 +108,6 @@ namespace Opc.Ua
         /// <summary>
         /// The non reversible encoding supported for backward compatibitility.
         /// </summary>
-        NonReversible,
+        NonReversible
     }
 }

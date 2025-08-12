@@ -63,8 +63,6 @@ namespace Opc.Ua
         /// <summary>
         /// Set the context for a specific using scope
         /// </summary>
-        /// <param name="messageContext"></param>
-        /// <returns></returns>
         public static IDisposable SetScopedContext(IServiceMessageContext messageContext)
         {
             MessageContextExtension previousContext = Current;

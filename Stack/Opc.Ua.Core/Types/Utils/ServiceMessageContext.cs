@@ -47,7 +47,8 @@ namespace Opc.Ua
         /// <summary>
         /// The default context for the process (used only during XML serialization).
         /// </summary>
-        public static ServiceMessageContext GlobalContext { get; } = new ServiceMessageContext(true);
+        public static ServiceMessageContext GlobalContext { get; }
+            = new ServiceMessageContext(true);
 
         /// <summary>
         /// The default context for the thread (used only during XML serialization).
@@ -55,7 +56,9 @@ namespace Opc.Ua
         public static ServiceMessageContext ThreadContext
         {
             get => GlobalContext;
-            set { }
+            set
+            {
+            }
         }
 
         /// <inheritdoc/>

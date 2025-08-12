@@ -43,10 +43,14 @@ namespace Opc.Ua.Client.Tests
         internal const int MaxByteStringLengthForTest = 4096;
 
         public ClientTestServerQuotas()
-            : base(Utils.UriSchemeOpcTcp) { }
+            : base(Utils.UriSchemeOpcTcp)
+        {
+        }
 
         public ClientTestServerQuotas(string uriScheme = Utils.UriSchemeOpcTcp)
-            : base(uriScheme) { }
+            : base(uriScheme)
+        {
+        }
 
         /// <summary>
         /// Set up a Server and a Client instance.
@@ -84,13 +88,15 @@ namespace Opc.Ua.Client.Tests
         )
         {
             // start Ref server
-            ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging)
+            ServerFixture = new ServerFixture<ReferenceServer>(
+                enableTracing,
+                disableActivityLogging)
             {
                 UriScheme = UriScheme,
                 SecurityNone = securityNone,
                 AutoAccept = true,
                 AllNodeManagers = true,
-                OperationLimits = true,
+                OperationLimits = true
             };
             if (writer != null)
             {
@@ -101,15 +107,20 @@ namespace Opc.Ua.Client.Tests
             ServerFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
             ServerFixture.Config.TransportQuotas.MaxByteStringLength = MaxByteStringLengthForTest;
             ServerFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName));
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies
+                .Add(new UserTokenPolicy(UserTokenType.UserName));
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
                 new UserTokenPolicy(UserTokenType.Certificate)
             );
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Profiles.JwtUserToken }
+                new UserTokenPolicy(UserTokenType.IssuedToken)
+                {
+                    IssuedTokenType = Profiles.JwtUserToken
+                }
             );
 
-            ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
+            ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out)
+                .ConfigureAwait(false);
             ReferenceServer.TokenValidator = TokenValidator;
             ServerFixturePort = ServerFixture.Port;
         }
@@ -141,7 +152,8 @@ namespace Opc.Ua.Client.Tests
             base.GlobalCleanup();
         }
 
-        [Test, Order(200)]
+        [Test]
+        [Order(200)]
         public void TestBoundaryCaseForReadingChunks()
         {
             var theSession = (Session)((TraceableSession)Session).Session;
@@ -160,8 +172,8 @@ namespace Opc.Ua.Client.Tests
             {
                 NodeId = nodeId,
                 AttributeId = Attributes.Value,
-                Value = new DataValue() { WrappedValue = new Variant(chunk) },
-                IndexRange = null,
+                Value = new DataValue { WrappedValue = new Variant(chunk) },
+                IndexRange = null
             };
             var writeValues = new WriteValueCollection { writeValue };
 
@@ -177,7 +189,8 @@ namespace Opc.Ua.Client.Tests
             Assert.IsTrue(Utils.IsEqual(chunk, readData));
         }
 
-        [Test, Order(210)]
+        [Test]
+        [Order(210)]
         public async Task TestBoundaryCaseForReadingChunksAsync()
         {
             var theSession = (Session)((TraceableSession)Session).Session;
@@ -196,12 +209,13 @@ namespace Opc.Ua.Client.Tests
             {
                 NodeId = nodeId,
                 AttributeId = Attributes.Value,
-                Value = new DataValue() { WrappedValue = new Variant(chunk) },
-                IndexRange = null,
+                Value = new DataValue { WrappedValue = new Variant(chunk) },
+                IndexRange = null
             };
             var writeValues = new WriteValueCollection { writeValue };
 
-            WriteResponse result = await theSession.WriteAsync(null, writeValues, default).ConfigureAwait(false);
+            WriteResponse result = await theSession.WriteAsync(null, writeValues, default)
+                .ConfigureAwait(false);
             StatusCodeCollection results = result.Results;
 
             _ = result.DiagnosticInfos;
@@ -210,7 +224,8 @@ namespace Opc.Ua.Client.Tests
                 NUnit.Framework.Assert.Fail($"Write failed with status code {results[0]}");
             }
 
-            byte[] readData = await theSession.ReadByteStringInChunksAsync(nodeId, default).ConfigureAwait(false);
+            byte[] readData = await theSession.ReadByteStringInChunksAsync(nodeId, default)
+                .ConfigureAwait(false);
             Assert.IsTrue(Utils.IsEqual(chunk, readData));
         }
     }

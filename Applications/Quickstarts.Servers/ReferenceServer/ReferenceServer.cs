@@ -73,12 +73,17 @@ namespace Quickstarts.ReferenceServer
             ApplicationConfiguration configuration
         )
         {
-            Utils.LogInfo(Utils.TraceMasks.StartStop, "Creating the Reference Server Node Manager.");
+            Utils.LogInfo(
+                Utils.TraceMasks.StartStop,
+                "Creating the Reference Server Node Manager.");
 
             IList<INodeManager> nodeManagers =
             [
                 // create the custom node manager.
-                new ReferenceNodeManager(server, configuration, UseSamplingGroupsInReferenceNodeManager),
+                new ReferenceNodeManager(
+                    server,
+                    configuration,
+                    UseSamplingGroupsInReferenceNodeManager)
             ];
 
             foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)
@@ -135,7 +140,7 @@ namespace Quickstarts.ReferenceServer
                 ProductUri = "http://opcfoundation.org/Quickstart/ReferenceServer/v1.04",
                 SoftwareVersion = Utils.GetAssemblySoftwareVersion(),
                 BuildNumber = Utils.GetAssemblyBuildNumber(),
-                BuildDate = Utils.GetAssemblyTimestamp(),
+                BuildDate = Utils.GetAssemblyTimestamp()
             };
         }
 
@@ -192,19 +197,19 @@ namespace Quickstarts.ReferenceServer
             base.OnServerStarted(server);
 
             // request notifications when the user identity is changed. all valid users are accepted by default.
-            server.SessionManager.ImpersonateUser += new ImpersonateEventHandler(SessionManager_ImpersonateUser);
+            server.SessionManager.ImpersonateUser
+                += new ImpersonateEventHandler(SessionManager_ImpersonateUser);
 
             try
             {
                 ServerInternal.UpdateServerStatus(
-                    (status) =>
-                    {
+                    status =>
                         // allow a faster sampling interval for CurrentTime node.
-                        status.Variable.CurrentTime.MinimumSamplingInterval = 250;
-                    }
-                );
+                        status.Variable.CurrentTime.MinimumSamplingInterval = 250);
             }
-            catch { }
+            catch
+            {
+            }
         }
 
         /// <summary>
@@ -218,26 +223,28 @@ namespace Quickstarts.ReferenceServer
             EndpointDescription description
         )
         {
-            UserTokenPolicyCollection policies = base.GetUserTokenPolicies(configuration, description);
+            UserTokenPolicyCollection policies = base.GetUserTokenPolicies(
+                configuration,
+                description);
 
             // sample how to modify default user token policies
             if (
-                description.SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss
-                && description.SecurityMode == MessageSecurityMode.SignAndEncrypt
+                description.SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss &&
+                description.SecurityMode == MessageSecurityMode.SignAndEncrypt
             )
             {
                 return [.. policies.Where(u => u.TokenType != UserTokenType.Certificate)];
             }
             else if (
-                description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep
-                && description.SecurityMode == MessageSecurityMode.Sign
+                description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep &&
+                description.SecurityMode == MessageSecurityMode.Sign
             )
             {
                 return [.. policies.Where(u => u.TokenType != UserTokenType.Anonymous)];
             }
             else if (
-                description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep
-                && description.SecurityMode == MessageSecurityMode.SignAndEncrypt
+                description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep &&
+                description.SecurityMode == MessageSecurityMode.SignAndEncrypt
             )
             {
                 return [.. policies.Where(u => u.TokenType != UserTokenType.UserName)];
@@ -259,12 +266,13 @@ namespace Quickstarts.ReferenceServer
                 {
                     // check if user certificate trust lists are specified in configuration.
                     if (
-                        configuration.SecurityConfiguration.TrustedUserCertificates != null
-                        && configuration.SecurityConfiguration.UserIssuerCertificates != null
+                        configuration.SecurityConfiguration.TrustedUserCertificates != null &&
+                        configuration.SecurityConfiguration.UserIssuerCertificates != null
                     )
                     {
                         var certificateValidator = new CertificateValidator();
-                        certificateValidator.UpdateAsync(configuration.SecurityConfiguration).Wait();
+                        certificateValidator.UpdateAsync(configuration.SecurityConfiguration)
+                            .Wait();
                         certificateValidator.Update(
                             configuration.SecurityConfiguration.UserIssuerCertificates,
                             configuration.SecurityConfiguration.TrustedUserCertificates,
@@ -281,6 +289,7 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Called when a client tries to change its user identity.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void SessionManager_ImpersonateUser(ISession session, ImpersonateEventArgs args)
         {
             // check for a user name token.
@@ -289,7 +298,10 @@ namespace Quickstarts.ReferenceServer
             {
                 args.Identity = VerifyPassword(userNameToken);
 
-                Utils.LogInfo(Utils.TraceMasks.Security, "Username Token Accepted: {0}", args.Identity?.DisplayName);
+                Utils.LogInfo(
+                    Utils.TraceMasks.Security,
+                    "Username Token Accepted: {0}",
+                    args.Identity?.DisplayName);
 
                 return;
             }
@@ -300,8 +312,13 @@ namespace Quickstarts.ReferenceServer
             {
                 VerifyUserTokenCertificate(x509Token.Certificate);
                 // set AuthenticatedUser role for accepted certificate authentication
-                args.Identity = new RoleBasedIdentity(new UserIdentity(x509Token), [Role.AuthenticatedUser]);
-                Utils.LogInfo(Utils.TraceMasks.Security, "X509 Token Accepted: {0}", args.Identity?.DisplayName);
+                args.Identity = new RoleBasedIdentity(
+                    new UserIdentity(x509Token),
+                    [Role.AuthenticatedUser]);
+                Utils.LogInfo(
+                    Utils.TraceMasks.Security,
+                    "X509 Token Accepted: {0}",
+                    args.Identity?.DisplayName);
 
                 return;
             }
@@ -336,6 +353,7 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Validates the password for a username token.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private IUserIdentity VerifyPassword(UserNameIdentityToken userNameToken)
         {
             string userName = userNameToken.UserName;
@@ -365,10 +383,15 @@ namespace Quickstarts.ReferenceServer
             }
 
             // standard users for CTT verification
-            if (!((userName == "user1" && password == "password") || (userName == "user2" && password == "password1")))
+            if (!((userName == "user1" && password == "password") ||
+                (userName == "user2" && password == "password1")))
             {
                 // construct translation object with default text.
-                var info = new TranslationInfo("InvalidPassword", "en-US", "Invalid username or password.", userName);
+                var info = new TranslationInfo(
+                    "InvalidPassword",
+                    "en-US",
+                    "Invalid username or password.",
+                    userName);
 
                 // create an exception with a vendor defined sub-code.
                 throw new ServiceResultException(
@@ -386,6 +409,7 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Verifies that a certificate user token is trusted.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void VerifyUserTokenCertificate(X509Certificate2 certificate)
         {
             try
@@ -403,7 +427,8 @@ namespace Quickstarts.ReferenceServer
             {
                 TranslationInfo info;
                 StatusCode result = StatusCodes.BadIdentityTokenRejected;
-                if (e is ServiceResultException se && se.StatusCode == StatusCodes.BadCertificateUseNotAllowed)
+                if (e is ServiceResultException se &&
+                    se.StatusCode == StatusCodes.BadCertificateUseNotAllowed)
                 {
                     info = new TranslationInfo(
                         "InvalidCertificate",
@@ -427,7 +452,11 @@ namespace Quickstarts.ReferenceServer
 
                 // create an exception with a vendor defined sub-code.
                 throw new ServiceResultException(
-                    new ServiceResult(result, info.Key, LoadServerProperties().ProductUri, new LocalizedText(info))
+                    new ServiceResult(
+                        result,
+                        info.Key,
+                        LoadServerProperties().ProductUri,
+                        new LocalizedText(info))
                 );
             }
         }
@@ -446,24 +475,29 @@ namespace Quickstarts.ReferenceServer
                     Utils.LogDebug(Utils.TraceMasks.Security, "VerifyIssuedToken: ValidateToken");
                     return TokenValidator.ValidateToken(issuedToken);
                 }
-                else
-                {
-                    return null;
-                }
+
+                return null;
             }
             catch (Exception e)
             {
                 TranslationInfo info;
                 StatusCode result = StatusCodes.BadIdentityTokenRejected;
-                if (e is ServiceResultException se && se.StatusCode == StatusCodes.BadIdentityTokenInvalid)
+                if (e is ServiceResultException se &&
+                    se.StatusCode == StatusCodes.BadIdentityTokenInvalid)
                 {
-                    info = new TranslationInfo("IssuedTokenInvalid", "en-US", "token is an invalid issued token.");
+                    info = new TranslationInfo(
+                        "IssuedTokenInvalid",
+                        "en-US",
+                        "token is an invalid issued token.");
                     result = StatusCodes.BadIdentityTokenInvalid;
                 }
                 else // Rejected
                 {
                     // construct translation object with default text.
-                    info = new TranslationInfo("IssuedTokenRejected", "en-US", "token is rejected.");
+                    info = new TranslationInfo(
+                        "IssuedTokenRejected",
+                        "en-US",
+                        "token is rejected.");
                 }
 
                 Utils.LogWarning(
@@ -471,7 +505,11 @@ namespace Quickstarts.ReferenceServer
                     "VerifyIssuedToken: Throw ServiceResultException 0x{result:x}"
                 );
                 throw new ServiceResultException(
-                    new ServiceResult(result, info.Key, LoadServerProperties().ProductUri, new LocalizedText(info))
+                    new ServiceResult(
+                        result,
+                        info.Key,
+                        LoadServerProperties().ProductUri,
+                        new LocalizedText(info))
                 );
             }
         }

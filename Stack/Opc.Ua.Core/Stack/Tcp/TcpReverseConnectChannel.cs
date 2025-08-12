@@ -30,7 +30,9 @@ namespace Opc.Ua.Bindings
             ChannelQuotas quotas,
             EndpointDescriptionCollection endpoints
         )
-            : base(contextId, listener, bufferManager, quotas, null, endpoints) { }
+            : base(contextId, listener, bufferManager, quotas, null, endpoints)
+        {
+        }
 
         /// <summary>
         /// The channel name used in trace output.
@@ -41,7 +43,9 @@ namespace Opc.Ua.Bindings
         /// Processes an incoming message.
         /// </summary>
         /// <returns>True if the implementor takes ownership of the buffer.</returns>
-        protected override bool HandleIncomingMessage(uint messageType, ArraySegment<byte> messageChunk)
+        protected override bool HandleIncomingMessage(
+            uint messageType,
+            ArraySegment<byte> messageChunk)
         {
             lock (DataLock)
             {
@@ -90,7 +94,10 @@ namespace Opc.Ua.Bindings
             try
             {
                 using var decoder = new BinaryDecoder(messageChunk, Quotas.MessageContext);
-                ReadAndVerifyMessageTypeAndSize(decoder, TcpMessageType.ReverseHello, messageChunk.Count);
+                ReadAndVerifyMessageTypeAndSize(
+                    decoder,
+                    TcpMessageType.ReverseHello,
+                    messageChunk.Count);
 
                 // read peer information.
                 string serverUri = decoder.ReadString(null);

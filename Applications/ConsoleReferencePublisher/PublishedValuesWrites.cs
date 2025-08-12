@@ -60,6 +60,7 @@ namespace Quickstarts.ConsoleReferencePublisher
         private readonly PublishedDataSetDataTypeCollection m_publishedDataSets;
         private readonly IUaPubSubDataStore m_dataStore;
         private Timer m_updateValuesTimer;
+
         private readonly string[] m_aviationAlphabet =
         [
             "Alfa",
@@ -87,8 +88,9 @@ namespace Quickstarts.ConsoleReferencePublisher
             "Whiskey",
             "X-Ray",
             "Yankee",
-            "Zulu",
+            "Zulu"
         ];
+
         private int m_aviationAlphabetIndex;
         private readonly Lock m_lock = new();
 
@@ -101,7 +103,8 @@ namespace Quickstarts.ConsoleReferencePublisher
         /// <param name="uaPubSubApplication"></param>
         public PublishedValuesWrites(UaPubSubApplication uaPubSubApplication)
         {
-            m_publishedDataSets = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration.PublishedDataSets;
+            m_publishedDataSets = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration
+                .PublishedDataSets;
             m_dataStore = uaPubSubApplication.DataStore;
         }
         #endregion
@@ -245,7 +248,10 @@ namespace Quickstarts.ConsoleReferencePublisher
             WriteFieldData(
                 "ByteString",
                 NamespaceIndexAllTypes,
-                new DataValue(new Variant(new byte[] { 1, 2, 3 }), StatusCodes.Good, DateTime.UtcNow)
+                new DataValue(
+                    new Variant(new byte[] { 1, 2, 3 }),
+                    StatusCodes.Good,
+                    DateTime.UtcNow)
             );
             WriteFieldData(
                 "Guid",
@@ -260,7 +266,10 @@ namespace Quickstarts.ConsoleReferencePublisher
             WriteFieldData(
                 "UInt32Array",
                 NamespaceIndexAllTypes,
-                new DataValue(new Variant(new uint[] { 1, 2, 3 }), StatusCodes.Good, DateTime.UtcNow)
+                new DataValue(
+                    new Variant(new uint[] { 1, 2, 3 }),
+                    StatusCodes.Good,
+                    DateTime.UtcNow)
             );
 
             #endregion
@@ -271,7 +280,10 @@ namespace Quickstarts.ConsoleReferencePublisher
         /// </summary>
         /// <param name="metaDatafieldName"></param>
         /// <param name="dataValue"></param>
-        private void WriteFieldData(string metaDatafieldName, ushort namespaceIndex, DataValue dataValue)
+        private void WriteFieldData(
+            string metaDatafieldName,
+            ushort namespaceIndex,
+            DataValue dataValue)
         {
             m_dataStore.WritePublishedDataItem(
                 new NodeId(metaDatafieldName, namespaceIndex),
@@ -306,7 +318,11 @@ namespace Quickstarts.ConsoleReferencePublisher
                                 IncrementValue(variable, NamespaceIndexSimple, kSimpleInt32Limit);
                                 break;
                             case "Int32Fast":
-                                IncrementValue(variable, NamespaceIndexSimple, kSimpleInt32Limit, 100);
+                                IncrementValue(
+                                    variable,
+                                    NamespaceIndexSimple,
+                                    kSimpleInt32Limit,
+                                    100);
                                 break;
                             case "DateTime":
                                 IncrementValue(variable, NamespaceIndexSimple);
@@ -359,7 +375,9 @@ namespace Quickstarts.ConsoleReferencePublisher
                 case BuiltInType.Boolean:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        bool boolValue = Convert.ToBoolean(dataValue.Value, CultureInfo.InvariantCulture);
+                        bool boolValue = Convert.ToBoolean(
+                            dataValue.Value,
+                            CultureInfo.InvariantCulture);
                         dataValue.Value = !boolValue;
                         valueUpdated = true;
                     }
@@ -367,7 +385,9 @@ namespace Quickstarts.ConsoleReferencePublisher
                 case BuiltInType.Byte:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        byte byteValue = Convert.ToByte(dataValue.Value, CultureInfo.InvariantCulture);
+                        byte byteValue = Convert.ToByte(
+                            dataValue.Value,
+                            CultureInfo.InvariantCulture);
                         dataValue.Value = (byte)(byteValue + 1);
                         valueUpdated = true;
                     }
@@ -375,7 +395,9 @@ namespace Quickstarts.ConsoleReferencePublisher
                 case BuiltInType.Int16:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        int intIdentifier = Convert.ToInt16(dataValue.Value, CultureInfo.InvariantCulture);
+                        int intIdentifier = Convert.ToInt16(
+                            dataValue.Value,
+                            CultureInfo.InvariantCulture);
                         Interlocked.CompareExchange(ref intIdentifier, 0, short.MaxValue);
                         dataValue.Value = (short)Interlocked.Increment(ref intIdentifier);
                         valueUpdated = true;
@@ -384,7 +406,9 @@ namespace Quickstarts.ConsoleReferencePublisher
                 case BuiltInType.Int32:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        int int32Value = Convert.ToInt32(dataValue.Value, CultureInfo.InvariantCulture);
+                        int int32Value = Convert.ToInt32(
+                            dataValue.Value,
+                            CultureInfo.InvariantCulture);
                         if (step > 0)
                         {
                             int32Value += step - 1;
@@ -400,7 +424,9 @@ namespace Quickstarts.ConsoleReferencePublisher
                 case BuiltInType.SByte:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        int intIdentifier = Convert.ToSByte(dataValue.Value, CultureInfo.InvariantCulture);
+                        int intIdentifier = Convert.ToSByte(
+                            dataValue.Value,
+                            CultureInfo.InvariantCulture);
                         Interlocked.CompareExchange(ref intIdentifier, 0, sbyte.MaxValue);
                         dataValue.Value = (sbyte)Interlocked.Increment(ref intIdentifier);
                         valueUpdated = true;
@@ -409,7 +435,9 @@ namespace Quickstarts.ConsoleReferencePublisher
                 case BuiltInType.UInt16:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        int intIdentifier = Convert.ToUInt16(dataValue.Value, CultureInfo.InvariantCulture);
+                        int intIdentifier = Convert.ToUInt16(
+                            dataValue.Value,
+                            CultureInfo.InvariantCulture);
                         Interlocked.CompareExchange(ref intIdentifier, 0, ushort.MaxValue);
                         dataValue.Value = (ushort)Interlocked.Increment(ref intIdentifier);
                         valueUpdated = true;
@@ -418,7 +446,9 @@ namespace Quickstarts.ConsoleReferencePublisher
                 case BuiltInType.UInt32:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        long longIdentifier = Convert.ToUInt32(dataValue.Value, CultureInfo.InvariantCulture);
+                        long longIdentifier = Convert.ToUInt32(
+                            dataValue.Value,
+                            CultureInfo.InvariantCulture);
                         Interlocked.CompareExchange(ref longIdentifier, 0, uint.MaxValue);
                         dataValue.Value = (uint)Interlocked.Increment(ref longIdentifier);
                         valueUpdated = true;
@@ -440,7 +470,9 @@ namespace Quickstarts.ConsoleReferencePublisher
                 case BuiltInType.UInt64:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        ulong uint64Value = Convert.ToUInt64(dataValue.Value, CultureInfo.InvariantCulture);
+                        ulong uint64Value = Convert.ToUInt64(
+                            dataValue.Value,
+                            CultureInfo.InvariantCulture);
                         float longIdentifier = uint64Value + 1;
                         Interlocked.CompareExchange(ref longIdentifier, 0, ulong.MaxValue);
                         dataValue.Value = (ulong)longIdentifier;
@@ -450,7 +482,9 @@ namespace Quickstarts.ConsoleReferencePublisher
                 case BuiltInType.Float:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        float floatValue = Convert.ToSingle(dataValue.Value, CultureInfo.InvariantCulture);
+                        float floatValue = Convert.ToSingle(
+                            dataValue.Value,
+                            CultureInfo.InvariantCulture);
                         Interlocked.CompareExchange(ref floatValue, 0, float.MaxValue);
                         dataValue.Value = floatValue + 1;
                         valueUpdated = true;
@@ -459,7 +493,9 @@ namespace Quickstarts.ConsoleReferencePublisher
                 case BuiltInType.Double:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        double doubleValue = Convert.ToDouble(dataValue.Value, CultureInfo.InvariantCulture);
+                        double doubleValue = Convert.ToDouble(
+                            dataValue.Value,
+                            CultureInfo.InvariantCulture);
                         Interlocked.CompareExchange(ref doubleValue, 0, double.MaxValue);
                         dataValue.Value = doubleValue + 1;
                         valueUpdated = true;
@@ -482,7 +518,8 @@ namespace Quickstarts.ConsoleReferencePublisher
                 case BuiltInType.String:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        m_aviationAlphabetIndex = (m_aviationAlphabetIndex + 1) % m_aviationAlphabet.Length;
+                        m_aviationAlphabetIndex = (m_aviationAlphabetIndex + 1) %
+                            m_aviationAlphabet.Length;
                         dataValue.Value = m_aviationAlphabet[m_aviationAlphabetIndex];
                         valueUpdated = true;
                     }

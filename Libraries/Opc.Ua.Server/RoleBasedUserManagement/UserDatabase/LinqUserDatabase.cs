@@ -42,8 +42,11 @@ namespace Opc.Ua.Server.UserDatabase
     {
         [JsonRequired]
         public Guid ID { get; set; }
+
         public string UserName { get; set; }
+
         public string Hash { get; set; }
+
         public IEnumerable<Role> Roles { get; set; }
     }
 
@@ -56,7 +59,9 @@ namespace Opc.Ua.Server.UserDatabase
         /// <summary>
         /// initializes the collection the users database is working with
         /// </summary>
-        public virtual void Initialize() { }
+        public virtual void Initialize()
+        {
+        }
 
         /// <inheritdoc/>
         public bool CreateUser(string userName, string password, IEnumerable<Role> roles)
@@ -82,7 +87,7 @@ namespace Opc.Ua.Server.UserDatabase
             {
                 UserName = userName,
                 Hash = hash,
-                Roles = roles,
+                Roles = roles
             };
 
             Users.Add(user);
@@ -155,7 +160,9 @@ namespace Opc.Ua.Server.UserDatabase
             }
             if (string.IsNullOrEmpty(oldPassword))
             {
-                throw new ArgumentException("Current Password cannot be empty.", nameof(oldPassword));
+                throw new ArgumentException(
+                    "Current Password cannot be empty.",
+                    nameof(oldPassword));
             }
             if (string.IsNullOrEmpty(newPassword))
             {
@@ -180,7 +187,9 @@ namespace Opc.Ua.Server.UserDatabase
         /// <summary>
         /// Persists the changes to the users database
         /// </summary>
-        public virtual void Save() { }
+        public virtual void Save()
+        {
+        }
 
         private void SaveChanges()
         {
@@ -205,7 +214,11 @@ namespace Opc.Ua.Server.UserDatabase
 #if NETSTANDARD2_0 || NET462
             using var algorithm = new Rfc2898DeriveBytes(password, kSaltSize, kIterations);
 #else
-            using var algorithm = new Rfc2898DeriveBytes(password, kSaltSize, kIterations, HashAlgorithmName.SHA512);
+            using var algorithm = new Rfc2898DeriveBytes(
+                password,
+                kSaltSize,
+                kIterations,
+                HashAlgorithmName.SHA512);
 #endif
             string key = Convert.ToBase64String(algorithm.GetBytes(kKeySize));
             string salt = Convert.ToBase64String(algorithm.Salt);
@@ -232,7 +245,11 @@ namespace Opc.Ua.Server.UserDatabase
 #if NETSTANDARD2_0 || NET462
             using var algorithm = new Rfc2898DeriveBytes(password, salt, iterations);
 #else
-            using var algorithm = new Rfc2898DeriveBytes(password, salt, iterations, HashAlgorithmName.SHA512);
+            using var algorithm = new Rfc2898DeriveBytes(
+                password,
+                salt,
+                iterations,
+                HashAlgorithmName.SHA512);
 #endif
             byte[] keyToCheck = algorithm.GetBytes(kKeySize);
 

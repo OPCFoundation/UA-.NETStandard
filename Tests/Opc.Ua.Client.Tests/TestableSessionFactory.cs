@@ -47,7 +47,9 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Force use of the default instance.
         /// </summary>
-        protected TestableSessionFactory() { }
+        protected TestableSessionFactory()
+        {
+        }
 
         /// <inheritdoc/>
         public override Task<ISession> CreateAsync(
@@ -169,7 +171,10 @@ namespace Opc.Ua.Client.Tests
             do
             {
                 connection = await reverseConnectManager
-                    .WaitForConnectionAsync(endpoint.EndpointUrl, endpoint.ReverseConnect?.ServerUri, ct)
+                    .WaitForConnectionAsync(
+                        endpoint.EndpointUrl,
+                        endpoint.ReverseConnect?.ServerUri,
+                        ct)
                     .ConfigureAwait(false);
 
                 if (updateBeforeConnect)

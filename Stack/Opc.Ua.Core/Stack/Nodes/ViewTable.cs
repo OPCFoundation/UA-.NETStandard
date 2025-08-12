@@ -58,6 +58,7 @@ namespace Opc.Ua
         /// <returns>
         /// 	<c>true</c> whether a node is in a view; otherwise, <c>false</c>.
         /// </returns>
+        /// <exception cref="ServiceResultException"></exception>
         public bool IsNodeInView(ViewDescription description, NodeId nodeId)
         {
             // everything is in the default view.
@@ -68,9 +69,7 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                ViewNode view = null;
-
-                if (m_views.TryGetValue(description.ViewId, out view))
+                if (m_views.TryGetValue(description.ViewId, out ViewNode view))
                 {
                     throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
                 }
@@ -87,6 +86,7 @@ namespace Opc.Ua
         /// <returns>
         /// 	<c>true</c> whether a reference is in a view; otherwise, <c>false</c>.
         /// </returns>
+        /// <exception cref="ServiceResultException"></exception>
         public bool IsReferenceInView(ViewDescription description, ReferenceDescription reference)
         {
             // everything is in the default view.
@@ -97,9 +97,7 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                ViewNode view = null;
-
-                if (m_views.TryGetValue(description.ViewId, out view))
+                if (m_views.TryGetValue(description.ViewId, out ViewNode view))
                 {
                     throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
                 }
@@ -112,6 +110,8 @@ namespace Opc.Ua
         /// Adds a view to the table.
         /// </summary>
         /// <param name="view">The view.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="view"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public void Add(ViewNode view)
         {
             if (view == null)
@@ -147,6 +147,8 @@ namespace Opc.Ua
         /// Removes a view from the table.
         /// </summary>
         /// <param name="viewId">The view identifier.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         public void Remove(NodeId viewId)
         {
             if (NodeId.IsNull(viewId))
@@ -157,13 +159,14 @@ namespace Opc.Ua
             lock (m_lock)
             {
                 // find view.
-                ViewNode view = null;
 
-                if (!m_views.TryGetValue(viewId, out view))
+                if (!m_views.TryGetValue(viewId, out ViewNode view))
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadViewIdUnknown,
-                        Utils.Format("A reference type with the node id '{0}' does not exist.", viewId)
+                        Utils.Format(
+                            "A reference type with the node id '{0}' does not exist.",
+                            viewId)
                     );
                 }
 

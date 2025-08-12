@@ -118,7 +118,11 @@ namespace Opc.Ua
         /// </summary>
         public void AddSelectClause(NodeId eventTypeId, QualifiedName propertyName)
         {
-            var clause = new SimpleAttributeOperand { TypeDefinitionId = eventTypeId, AttributeId = Attributes.Value };
+            var clause = new SimpleAttributeOperand
+            {
+                TypeDefinitionId = eventTypeId,
+                AttributeId = Attributes.Value
+            };
 
             clause.BrowsePath.Add(propertyName);
 
@@ -130,7 +134,11 @@ namespace Opc.Ua
         /// </summary>
         public void AddSelectClause(NodeId eventTypeId, string browsePath, uint attributeId)
         {
-            var clause = new SimpleAttributeOperand { TypeDefinitionId = eventTypeId, AttributeId = attributeId };
+            var clause = new SimpleAttributeOperand
+            {
+                TypeDefinitionId = eventTypeId,
+                AttributeId = attributeId
+            };
 
             if (!string.IsNullOrEmpty(browsePath))
             {
@@ -148,7 +156,9 @@ namespace Opc.Ua
             /// <summary>
             /// Initializes the object.
             /// </summary>
-            public Result() { }
+            public Result()
+            {
+            }
 
             /// <summary>
             /// Casts ServiceResult to an ElementResult.
@@ -178,8 +188,8 @@ namespace Opc.Ua
                             CultureInfo.InvariantCulture,
                             "Select Clause Error: {0}",
                             selectResult.ToString()
-                        );
-                        buffer.AppendLine();
+                        )
+                            .AppendLine();
                     }
                 }
 
@@ -189,10 +199,11 @@ namespace Opc.Ua
                         CultureInfo.InvariantCulture,
                         "Where Clause Error: {0}",
                         WhereClauseResult.Status.ToString()
-                    );
-                    buffer.AppendLine();
+                    )
+                        .AppendLine();
 
-                    foreach (ContentFilter.ElementResult elementResult in WhereClauseResult.ElementResults)
+                    foreach (ContentFilter.ElementResult elementResult in WhereClauseResult
+                        .ElementResults)
                     {
                         if (elementResult != null && ServiceResult.IsBad(elementResult.Status))
                         {
@@ -200,8 +211,8 @@ namespace Opc.Ua
                                 CultureInfo.InvariantCulture,
                                 "Element Error: {0}",
                                 elementResult.Status.ToString()
-                            );
-                            buffer.AppendLine();
+                            )
+                                .AppendLine();
 
                             foreach (ServiceResult operandResult in elementResult.OperandResults)
                             {
@@ -211,8 +222,8 @@ namespace Opc.Ua
                                         CultureInfo.InvariantCulture,
                                         "Operand Error: {0}",
                                         operandResult.ToString()
-                                    );
-                                    buffer.AppendLine();
+                                    )
+                                        .AppendLine();
                                 }
                             }
                         }
@@ -235,7 +246,9 @@ namespace Opc.Ua
             /// <summary>
             /// Converts the object to an EventFilterResult.
             /// </summary>
-            public EventFilterResult ToEventFilterResult(DiagnosticsMasks diagnosticsMasks, StringTable stringTable)
+            public EventFilterResult ToEventFilterResult(
+                DiagnosticsMasks diagnosticsMasks,
+                StringTable stringTable)
             {
                 var result = new EventFilterResult();
 
@@ -247,7 +260,11 @@ namespace Opc.Ua
                         {
                             result.SelectClauseResults.Add(clauseResult.StatusCode);
                             result.SelectClauseDiagnosticInfos.Add(
-                                new DiagnosticInfo(clauseResult, diagnosticsMasks, false, stringTable)
+                                new DiagnosticInfo(
+                                    clauseResult,
+                                    diagnosticsMasks,
+                                    false,
+                                    stringTable)
                             );
                         }
                         else
@@ -260,7 +277,9 @@ namespace Opc.Ua
 
                 if (WhereClauseResult != null)
                 {
-                    result.WhereClauseResult = WhereClauseResult.ToContextFilterResult(diagnosticsMasks, stringTable);
+                    result.WhereClauseResult = WhereClauseResult.ToContextFilterResult(
+                        diagnosticsMasks,
+                        stringTable);
                 }
 
                 return result;
@@ -386,7 +405,10 @@ namespace Opc.Ua
         /// <summary>
         /// Creates an operand that references a component/property of a type.
         /// </summary>
-        public SimpleAttributeOperand(FilterContext context, ExpandedNodeId typeId, IList<QualifiedName> browsePath)
+        public SimpleAttributeOperand(
+            FilterContext context,
+            ExpandedNodeId typeId,
+            IList<QualifiedName> browsePath)
         {
             m_typeDefinitionId = ExpandedNodeId.ToNodeId(typeId, context.NamespaceUris);
             m_browsePath = [.. browsePath];
@@ -423,6 +445,7 @@ namespace Opc.Ua
         /// <returns>
         /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
+        /// <exception cref="FormatException"></exception>
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
@@ -545,7 +568,10 @@ namespace Opc.Ua
 
             if (!string.IsNullOrEmpty(IndexRange))
             {
-                buffer.AppendFormat(CultureInfo.InvariantCulture, "[{0}]", NumericRange.Parse(IndexRange));
+                buffer.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    "[{0}]",
+                    NumericRange.Parse(IndexRange));
             }
 
             return buffer.ToString();
@@ -554,6 +580,7 @@ namespace Opc.Ua
         /// <summary>
         /// Formats a browse path.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public static string Format(IList<QualifiedName> browsePath)
         {
             if (browsePath == null || browsePath.Count == 0)
@@ -569,14 +596,19 @@ namespace Opc.Ua
 
                 if (QualifiedName.IsNull(browseName))
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadBrowseNameInvalid, "BrowseName cannot be null");
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadBrowseNameInvalid,
+                        "BrowseName cannot be null");
                 }
 
                 buffer.Append('/');
 
                 if (browseName.NamespaceIndex != 0)
                 {
-                    buffer.AppendFormat(CultureInfo.InvariantCulture, "{0}:", browseName.NamespaceIndex);
+                    buffer.AppendFormat(
+                        CultureInfo.InvariantCulture,
+                        "{0}:",
+                        browseName.NamespaceIndex);
                 }
 
                 for (int jj = 0; jj < browseName.Name.Length; jj++)

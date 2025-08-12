@@ -39,7 +39,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
     [TestFixture(Description = "Tests for DataCollector class")]
     public class DataCollectorTests
     {
-        private readonly string m_configurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
+        private readonly string m_configurationFileName = Path.Combine(
+            "Configuration",
+            "PublisherConfiguration.xml");
 
         public const int NamespaceIndex = 2;
 
@@ -50,22 +52,29 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             var dataCollector = new DataCollector(new UaPubSubDataStore());
 
             //Assert
-            NUnit.Framework.Assert.Throws<ArgumentException>(() => dataCollector.AddPublishedDataSet(null));
+            NUnit.Framework.Assert
+                .Throws<ArgumentException>(() => dataCollector.AddPublishedDataSet(null));
         }
 
         [Test(Description = "Validate AddPublishedDataSet.")]
         public void ValidateAddPublishedDataSet()
         {
             //Arrange
-            string configurationFile = Utils.GetAbsoluteFilePath(m_configurationFileName, true, true, false);
-            PubSubConfigurationDataType pubSubConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(
-                configurationFile
-            );
+            string configurationFile = Utils.GetAbsoluteFilePath(
+                m_configurationFileName,
+                true,
+                true,
+                false);
+            PubSubConfigurationDataType pubSubConfiguration = UaPubSubConfigurationHelper
+                .LoadConfiguration(
+                    configurationFile
+                    );
 
             var dataCollector = new DataCollector(new UaPubSubDataStore());
             //Act
             dataCollector.AddPublishedDataSet(pubSubConfiguration.PublishedDataSets[0]);
-            DataSet collectedDataSet = dataCollector.CollectData(pubSubConfiguration.PublishedDataSets[0].Name);
+            DataSet collectedDataSet = dataCollector.CollectData(
+                pubSubConfiguration.PublishedDataSets[0].Name);
             //Assert
             Assert.IsNotNull(
                 collectedDataSet,
@@ -98,7 +107,8 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             //Arrange
             var dataCollector = new DataCollector(new UaPubSubDataStore());
             //Assert
-            NUnit.Framework.Assert.Throws<ArgumentException>(() => dataCollector.RemovePublishedDataSet(null));
+            NUnit.Framework.Assert
+                .Throws<ArgumentException>(() => dataCollector.RemovePublishedDataSet(null));
         }
 
         [Test(Description = "Validate CollectData from DataStore.")]
@@ -111,8 +121,14 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 0,
                 new DataValue(new Variant(false))
             );
-            dataStore.WritePublishedDataItem(new NodeId("Int32", NamespaceIndex), 0, new DataValue(new Variant(1)));
-            dataStore.WritePublishedDataItem(new NodeId("Int32Fast", NamespaceIndex), 0, new DataValue(new Variant(2)));
+            dataStore.WritePublishedDataItem(
+                new NodeId("Int32", NamespaceIndex),
+                0,
+                new DataValue(new Variant(1)));
+            dataStore.WritePublishedDataItem(
+                new NodeId("Int32Fast", NamespaceIndex),
+                0,
+                new DataValue(new Variant(2)));
             dataStore.WritePublishedDataItem(
                 new NodeId("DateTime", NamespaceIndex),
                 0,
@@ -129,35 +145,35 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 Name = publishedDataSetSimple.Name,
                 Fields =
                 [
-                    new FieldMetaData()
+                    new FieldMetaData
                     {
                         Name = "BoolToggle",
                         DataSetFieldId = new Uuid(Guid.NewGuid()),
                         DataType = DataTypeIds.Boolean,
-                        ValueRank = ValueRanks.Scalar,
+                        ValueRank = ValueRanks.Scalar
                     },
-                    new FieldMetaData()
+                    new FieldMetaData
                     {
                         Name = "Int32",
                         DataSetFieldId = new Uuid(Guid.NewGuid()),
                         DataType = DataTypeIds.Int32,
-                        ValueRank = ValueRanks.Scalar,
+                        ValueRank = ValueRanks.Scalar
                     },
-                    new FieldMetaData()
+                    new FieldMetaData
                     {
                         Name = "Int32Fast",
                         DataSetFieldId = new Uuid(Guid.NewGuid()),
                         DataType = DataTypeIds.Int32,
-                        ValueRank = ValueRanks.Scalar,
+                        ValueRank = ValueRanks.Scalar
                     },
-                    new FieldMetaData()
+                    new FieldMetaData
                     {
                         Name = "DateTime",
                         DataSetFieldId = new Uuid(Guid.NewGuid()),
                         DataType = DataTypeIds.DateTime,
-                        ValueRank = ValueRanks.Scalar,
-                    },
-                ],
+                        ValueRank = ValueRanks.Scalar
+                    }
+                ]
             };
 
             var publishedDataItems = new PublishedDataItemsDataType { PublishedData = [] };
@@ -165,10 +181,10 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             foreach (FieldMetaData field in publishedDataSetSimple.DataSetMetaData.Fields)
             {
                 publishedDataItems.PublishedData.Add(
-                    new PublishedVariableDataType()
+                    new PublishedVariableDataType
                     {
                         PublishedVariable = new NodeId(field.Name, NamespaceIndex),
-                        AttributeId = Attributes.Value,
+                        AttributeId = Attributes.Value
                     }
                 );
             }
@@ -230,44 +246,44 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 Name = publishedDataSetSimple.Name,
                 Fields =
                 [
-                    new FieldMetaData()
+                    new FieldMetaData
                     {
                         Name = "BoolToggle",
                         DataSetFieldId = new Uuid(Guid.NewGuid()),
                         DataType = DataTypeIds.Boolean,
-                        ValueRank = ValueRanks.Scalar,
+                        ValueRank = ValueRanks.Scalar
                     },
-                    new FieldMetaData()
+                    new FieldMetaData
                     {
                         Name = "Int32",
                         DataSetFieldId = new Uuid(Guid.NewGuid()),
                         DataType = DataTypeIds.Int32,
-                        ValueRank = ValueRanks.Scalar,
+                        ValueRank = ValueRanks.Scalar
                     },
-                    new FieldMetaData()
+                    new FieldMetaData
                     {
                         Name = "Int32Fast",
                         DataSetFieldId = new Uuid(Guid.NewGuid()),
                         DataType = DataTypeIds.Int32,
-                        ValueRank = ValueRanks.Scalar,
+                        ValueRank = ValueRanks.Scalar
                     },
-                    new FieldMetaData()
+                    new FieldMetaData
                     {
                         Name = "DateTime",
                         DataSetFieldId = new Uuid(Guid.NewGuid()),
                         DataType = DataTypeIds.DateTime,
-                        ValueRank = ValueRanks.Scalar,
-                    },
-                ],
+                        ValueRank = ValueRanks.Scalar
+                    }
+                ]
             };
 
             //initialize Extension fields collection
             publishedDataSetSimple.ExtensionFields =
             [
-                new KeyValuePair() { Key = new QualifiedName("BoolToggle"), Value = true },
-                new KeyValuePair() { Key = new QualifiedName("Int32"), Value = 100 },
-                new KeyValuePair() { Key = new QualifiedName("Int32Fast"), Value = 50 },
-                new KeyValuePair() { Key = new QualifiedName("DateTime"), Value = DateTime.Today },
+                new KeyValuePair { Key = new QualifiedName("BoolToggle"), Value = true },
+                new KeyValuePair { Key = new QualifiedName("Int32"), Value = 100 },
+                new KeyValuePair { Key = new QualifiedName("Int32Fast"), Value = 50 },
+                new KeyValuePair { Key = new QualifiedName("DateTime"), Value = DateTime.Today }
             ];
 
             var publishedDataItems = new PublishedDataItemsDataType { PublishedData = [] };
@@ -275,7 +291,10 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             foreach (FieldMetaData field in publishedDataSetSimple.DataSetMetaData.Fields)
             {
                 publishedDataItems.PublishedData.Add(
-                    new PublishedVariableDataType() { SubstituteValue = new QualifiedName(field.Name) }
+                    new PublishedVariableDataType
+                    {
+                        SubstituteValue = new QualifiedName(field.Name)
+                    }
                 );
             }
             publishedDataSetSimple.DataSetSource = new ExtensionObject(publishedDataItems);
@@ -325,9 +344,11 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             //Arrange
             var dataCollector = new DataCollector(new UaPubSubDataStore());
             //Act
-            DataSet collectedDataSet = dataCollector.CollectData("");
+            DataSet collectedDataSet = dataCollector.CollectData(string.Empty);
             //Assert
-            Assert.IsNull(collectedDataSet, "The data collect returns data for unknown DataSetName.");
+            Assert.IsNull(
+                collectedDataSet,
+                "The data collect returns data for unknown DataSetName.");
         }
 
         [Test(Description = "Validate CollectData null dataset name.")]

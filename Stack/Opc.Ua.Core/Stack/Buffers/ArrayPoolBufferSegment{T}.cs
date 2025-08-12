@@ -36,6 +36,7 @@ namespace Opc.Ua.Buffers
     /// <summary>
     /// Helper to build a ReadOnlySequence from a set of <see cref="ArrayPool{T}"/> allocated buffers.
     /// </summary>
+    /// <typeparam name="T"></typeparam>
     public sealed class ArrayPoolBufferSegment<T> : ReadOnlySequenceSegment<T>
     {
         private T[] m_array;
@@ -69,7 +70,7 @@ namespace Opc.Ua.Buffers
         {
             var segment = new ArrayPoolBufferSegment<T>(array, offset, length)
             {
-                RunningIndex = RunningIndex + Memory.Length,
+                RunningIndex = RunningIndex + Memory.Length
             };
             Next = segment;
             return segment;

@@ -154,7 +154,6 @@ namespace Opc.Ua
             {
                 case Any:
                     return true;
-
                 case OneOrMoreDimensions:
                     if (actualValueRank < 0)
                     {
@@ -162,7 +161,6 @@ namespace Opc.Ua
                     }
 
                     break;
-
                 case ScalarOrOneDimension:
                     if (actualValueRank is not Scalar and not OneDimension)
                     {
@@ -170,7 +168,6 @@ namespace Opc.Ua
                     }
 
                     break;
-
                 default:
                     return false;
             }
@@ -200,7 +197,8 @@ namespace Opc.Ua
             }
 
             // check if one dimension required.
-            if (valueRank is OneDimension or ScalarOrOneDimension && actualArrayDimensions.Count != 1)
+            if (valueRank is OneDimension or ScalarOrOneDimension &&
+                actualArrayDimensions.Count != 1)
             {
                 return false;
             }
@@ -226,7 +224,8 @@ namespace Opc.Ua
             // check length of each dimension.
             for (int ii = 0; ii < expectedArrayDimensions.Count; ii++)
             {
-                if (expectedArrayDimensions[ii] != actualArrayDimensions[ii] && expectedArrayDimensions[ii] != 0)
+                if (expectedArrayDimensions[ii] != actualArrayDimensions[ii] &&
+                    expectedArrayDimensions[ii] != 0)
                 {
                     return false;
                 }
@@ -255,4 +254,4 @@ namespace Opc.Ua
         /// </summary>
         public const double Continuous = 0;
     }
-} //namespace
+}

@@ -27,7 +27,7 @@ namespace Opc.Ua
         /// <summary>
         /// The service host is in open state.
         /// </summary>
-        Opened,
+        Opened
     }
 
     /// <summary>
@@ -82,7 +82,9 @@ namespace Opc.Ua
         /// <summary>
         /// Called when the service host is open to abort operation.
         /// </summary>
-        public virtual void Abort() { }
+        public virtual void Abort()
+        {
+        }
 
         /// <summary>
         /// Called when the service host is closed.

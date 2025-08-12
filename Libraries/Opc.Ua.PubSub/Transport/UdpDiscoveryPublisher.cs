@@ -54,7 +54,6 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Create new instance of <see cref="UdpDiscoveryPublisher"/>
         /// </summary>
-        /// <param name="udpConnection"></param>
         public UdpDiscoveryPublisher(UdpPubSubConnection udpConnection)
             : base(udpConnection)
         {
@@ -65,7 +64,6 @@ namespace Opc.Ua.PubSub.Transport
         /// Implementation of StartAsync for the Publisher Discovery
         /// </summary>
         /// <param name="messageContext">The <see cref="IServiceMessageContext"/> object that should be used in encode/decode messages</param>
-        /// <returns></returns>
         public override async Task StartAsync(IServiceMessageContext messageContext)
         {
             await base.StartAsync(messageContext).ConfigureAwait(false);
@@ -95,7 +93,6 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Handle Receive event for an UADP channel on Discovery channel
         /// </summary>
-        /// <param name="result"></param>
         private void OnUadpDiscoveryReceive(IAsyncResult result)
         {
             // this is what had been passed into BeginReceive as the second parameter:
@@ -168,9 +165,10 @@ namespace Opc.Ua.PubSub.Transport
             networkMessage.Decode(MessageContext, messageBytes, null);
 
             if (
-                networkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest
-                && networkMessage.UADPDiscoveryType == UADPNetworkMessageDiscoveryType.DataSetMetaData
-                && networkMessage.DataSetWriterIds != null
+                networkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest &&
+                networkMessage
+                    .UADPDiscoveryType == UADPNetworkMessageDiscoveryType.DataSetMetaData &&
+                networkMessage.DataSetWriterIds != null
             )
             {
                 Utils.Trace(
@@ -195,16 +193,18 @@ namespace Opc.Ua.PubSub.Transport
                 Task.Run(SendResponseDataSetMetaDataAsync).ConfigureAwait(false);
             }
             else if (
-                networkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest
-                && networkMessage.UADPDiscoveryType == UADPNetworkMessageDiscoveryType.PublisherEndpoint
+                networkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest &&
+                networkMessage
+                    .UADPDiscoveryType == UADPNetworkMessageDiscoveryType.PublisherEndpoint
             )
             {
                 Task.Run(SendResponsePublisherEndpointsAsync).ConfigureAwait(false);
             }
             else if (
-                networkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest
-                && networkMessage.UADPDiscoveryType == UADPNetworkMessageDiscoveryType.DataSetWriterConfiguration
-                && networkMessage.DataSetWriterIds != null
+                networkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest &&
+                networkMessage.UADPDiscoveryType ==
+                UADPNetworkMessageDiscoveryType.DataSetWriterConfiguration &&
+                networkMessage.DataSetWriterIds != null
             )
             {
                 Task.Run(SendResponseDataSetWriterConfigurationAsync).ConfigureAwait(false);
@@ -222,9 +222,10 @@ namespace Opc.Ua.PubSub.Transport
                 if (m_metadataWriterIdsToSend.Count > 0)
                 {
                     foreach (
-                        UaNetworkMessage message in m_udpConnection.CreateDataSetMetaDataNetworkMessages(
-                            [.. m_metadataWriterIdsToSend]
-                        )
+                        UaNetworkMessage message in m_udpConnection
+                            .CreateDataSetMetaDataNetworkMessages(
+                                [.. m_metadataWriterIdsToSend]
+                                )
                     )
                     {
                         Utils.Trace(
@@ -250,14 +251,16 @@ namespace Opc.Ua.PubSub.Transport
                 IList<ushort> dataSetWriterIdsToSend = [];
                 if (GetDataSetWriterIds != null)
                 {
-                    dataSetWriterIdsToSend = GetDataSetWriterIds.Invoke(m_udpConnection.Application);
+                    dataSetWriterIdsToSend = GetDataSetWriterIds.Invoke(
+                        m_udpConnection.Application);
                 }
 
                 if (dataSetWriterIdsToSend.Count > 0)
                 {
-                    IList<UaNetworkMessage> responsesMessages = m_udpConnection.CreateDataSetWriterCofigurationMessage(
-                        [.. dataSetWriterIdsToSend]
-                    );
+                    IList<UaNetworkMessage> responsesMessages = m_udpConnection
+                        .CreateDataSetWriterCofigurationMessage(
+                            [.. dataSetWriterIdsToSend]
+                            );
 
                     foreach (UaNetworkMessage responsesMessage in responsesMessages)
                     {
@@ -311,11 +314,17 @@ namespace Opc.Ua.PubSub.Transport
 
             if (socket is UdpClientMulticast mcastSocket)
             {
-                newsocket = new UdpClientMulticast(mcastSocket.Address, mcastSocket.MulticastAddress, mcastSocket.Port);
+                newsocket = new UdpClientMulticast(
+                    mcastSocket.Address,
+                    mcastSocket.MulticastAddress,
+                    mcastSocket.Port);
             }
             else if (socket is UdpClientBroadcast bcastSocket)
             {
-                newsocket = new UdpClientBroadcast(bcastSocket.Address, bcastSocket.Port, bcastSocket.PubSubContext);
+                newsocket = new UdpClientBroadcast(
+                    bcastSocket.Address,
+                    bcastSocket.Port,
+                    bcastSocket.PubSubContext);
             }
             else if (socket is UdpClientUnicast ucastSocket)
             {

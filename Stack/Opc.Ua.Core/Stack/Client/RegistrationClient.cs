@@ -27,7 +27,7 @@ namespace Opc.Ua
         /// <param name="description">The description.</param>
         /// <param name="endpointConfiguration">The endpoint configuration.</param>
         /// <param name="instanceCertificate">The instance certificate.</param>
-        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
         public static RegistrationClient Create(
             ApplicationConfiguration configuration,
             EndpointDescription description,
@@ -70,7 +70,6 @@ namespace Opc.Ua
         /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
-        /// <returns></returns>
         public static ITransportChannel Create(
             ApplicationConfiguration configuration,
             EndpointDescription description,
@@ -98,7 +97,7 @@ namespace Opc.Ua
                 {
                     Configuration = endpointConfiguration,
                     Description = description,
-                    ClientCertificate = clientCertificate,
+                    ClientCertificate = clientCertificate
                 };
                 channel.Initialize(endpointUrl, settings);
             }

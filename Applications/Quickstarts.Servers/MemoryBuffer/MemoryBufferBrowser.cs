@@ -70,7 +70,6 @@ namespace MemoryBuffer
         /// <summary>
         /// Returns the next reference.
         /// </summary>
-        /// <returns></returns>
         public override IReference Next()
         {
             lock (DataLock)
@@ -190,7 +189,7 @@ namespace MemoryBuffer
             Begin,
             Components,
             ModelParents,
-            Done,
+            Done
         }
 
         private Stage m_stage;

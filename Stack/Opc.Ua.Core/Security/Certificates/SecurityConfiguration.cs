@@ -44,6 +44,7 @@ namespace Opc.Ua
         /// <summary>
         /// Validates the security configuration.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void Validate()
         {
             if (m_applicationCertificates == null || m_applicationCertificates.Count == 0)
@@ -76,8 +77,8 @@ namespace Opc.Ua
             }
 
             if (
-                (TrustedHttpsCertificates != null && HttpsIssuerCertificates == null)
-                || (HttpsIssuerCertificates != null && TrustedHttpsCertificates == null)
+                (TrustedHttpsCertificates != null && HttpsIssuerCertificates == null) ||
+                (HttpsIssuerCertificates != null && TrustedHttpsCertificates == null)
             )
             {
                 throw ServiceResultException.Create(
@@ -87,8 +88,8 @@ namespace Opc.Ua
             }
 
             if (
-                (TrustedUserCertificates != null && UserIssuerCertificates == null)
-                || (UserIssuerCertificates != null && TrustedUserCertificates == null)
+                (TrustedUserCertificates != null && UserIssuerCertificates == null) ||
+                (UserIssuerCertificates != null && TrustedUserCertificates == null)
             )
             {
                 throw ServiceResultException.Create(
@@ -100,7 +101,8 @@ namespace Opc.Ua
             // replace subjectName DC=localhost with DC=hostname
             foreach (CertificateIdentifier applicationCertificate in m_applicationCertificates)
             {
-                applicationCertificate.SubjectName = Utils.ReplaceDCLocalhost(applicationCertificate.SubjectName);
+                applicationCertificate.SubjectName = Utils.ReplaceDCLocalhost(
+                    applicationCertificate.SubjectName);
             }
         }
 
@@ -108,6 +110,7 @@ namespace Opc.Ua
         /// Validate if the specified store can be opened
         /// throws ServiceResultException
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private static void ValidateStore(CertificateTrustList storeIdentifier, string storeName)
         {
             if (string.IsNullOrEmpty(storeIdentifier?.StorePath))
@@ -140,11 +143,12 @@ namespace Opc.Ua
         /// <summary>
         /// Find application certificate for a security policy.
         /// </summary>
-        /// <param name="securityPolicy"></param>
-        /// <param name="privateKey"></param>
-        public async Task<X509Certificate2> FindApplicationCertificateAsync(string securityPolicy, bool privateKey)
+        public async Task<X509Certificate2> FindApplicationCertificateAsync(
+            string securityPolicy,
+            bool privateKey)
         {
-            foreach (NodeId certType in CertificateIdentifier.MapSecurityPolicyToCertificateTypes(securityPolicy))
+            foreach (NodeId certType in CertificateIdentifier.MapSecurityPolicyToCertificateTypes(
+                securityPolicy))
             {
                 CertificateIdentifier id = ApplicationCertificates.FirstOrDefault(certId =>
                     certId.CertificateType == certType
@@ -154,7 +158,8 @@ namespace Opc.Ua
                     if (certType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
                     {
                         // undefined certificate type as RsaSha256
-                        id = ApplicationCertificates.FirstOrDefault(certId => certId.CertificateType == null);
+                        id = ApplicationCertificates.FirstOrDefault(
+                            certId => certId.CertificateType == null);
                     }
                     else if (certType == ObjectTypeIds.ApplicationCertificateType)
                     {

@@ -91,7 +91,7 @@ namespace Quickstarts.ReferenceServer
                     "use the sampling group mechanism in the Reference Node Manager",
                     sg => samplingGroups = sg != null
                 },
-                { "ctt", "CTT mode, use to preset alarms for CTT testing.", c => cttMode = c != null },
+                { "ctt", "CTT mode, use to preset alarms for CTT testing.", c => cttMode = c != null }
             };
 
             try

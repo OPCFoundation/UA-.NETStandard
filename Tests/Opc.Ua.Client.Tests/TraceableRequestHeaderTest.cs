@@ -67,7 +67,8 @@ namespace Opc.Ua.Client.Tests
                 .GetAwaiter()
                 .GetResult();
             Console.WriteLine("GlobalSetup: Connecting");
-            InitializeSession(ClientFixture.ConnectAsync(ServerUrl, SecurityPolicy).GetAwaiter().GetResult());
+            InitializeSession(
+                ClientFixture.ConnectAsync(ServerUrl, SecurityPolicy).GetAwaiter().GetResult());
             Console.WriteLine("GlobalSetup: Ready");
         }
 
@@ -87,7 +88,10 @@ namespace Opc.Ua.Client.Tests
             NamespaceTable namespaceUris = Session.NamespaceUris;
             var testSet = new NodeIdCollection(GetTestSetStatic(namespaceUris));
             testSet.AddRange(GetTestSetFullSimulation(namespaceUris));
-            Session.ReadValues(testSet, out DataValueCollection values, out IList<ServiceResult> errors);
+            Session.ReadValues(
+                testSet,
+                out DataValueCollection values,
+                out IList<ServiceResult> errors);
             Assert.AreEqual(testSet.Count, values.Count);
             Assert.AreEqual(testSet.Count, errors.Count);
         }

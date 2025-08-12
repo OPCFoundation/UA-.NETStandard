@@ -26,7 +26,7 @@ namespace Opc.Ua
         {
             Pkcs1,
             OaepSHA1,
-            OaepSHA256,
+            OaepSHA256
         }
 
         internal static RSAEncryptionPadding GetRSAEncryptionPadding(Padding padding)
@@ -46,7 +46,9 @@ namespace Opc.Ua
         /// <summary>
         /// Return the plaintext block size for RSA OAEP encryption.
         /// </summary>
-        internal static int GetPlainTextBlockSize(X509Certificate2 encryptingCertificate, Padding padding)
+        internal static int GetPlainTextBlockSize(
+            X509Certificate2 encryptingCertificate,
+            Padding padding)
         {
             using RSA rsa = encryptingCertificate.GetRSAPublicKey();
             return GetPlainTextBlockSize(rsa, padding);
@@ -96,6 +98,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the length of a RSA PKCS#1 v1.5 signature of a digest.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         internal static int GetSignatureLength(X509Certificate2 signingCertificate)
         {
             using RSA rsa =
@@ -110,6 +113,7 @@ namespace Opc.Ua
         /// <summary>
         /// Computes a RSA signature.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         internal static byte[] Rsa_Sign(
             ArraySegment<byte> dataToSign,
             X509Certificate2 signingCertificate,
@@ -138,6 +142,7 @@ namespace Opc.Ua
         /// <summary>
         /// Verifies a RSA signature.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         internal static bool Rsa_Verify(
             ArraySegment<byte> dataToVerify,
             byte[] signature,
@@ -168,7 +173,11 @@ namespace Opc.Ua
         /// <summary>
         /// Encrypts the data using RSA encryption.
         /// </summary>
-        internal static byte[] Encrypt(byte[] dataToEncrypt, X509Certificate2 encryptingCertificate, Padding padding)
+        /// <exception cref="ServiceResultException"></exception>
+        internal static byte[] Encrypt(
+            byte[] dataToEncrypt,
+            X509Certificate2 encryptingCertificate,
+            Padding padding)
         {
             using RSA rsa =
                 encryptingCertificate.GetRSAPublicKey()
@@ -231,7 +240,10 @@ namespace Opc.Ua
             byte[] encryptedBuffer = outputBuffer.Array;
             RSAEncryptionPadding rsaPadding = GetRSAEncryptionPadding(padding);
 
-            using (var ostrm = new MemoryStream(encryptedBuffer, outputBuffer.Offset, outputBuffer.Count))
+            using (var ostrm = new MemoryStream(
+                encryptedBuffer,
+                outputBuffer.Offset,
+                outputBuffer.Count))
             {
                 // encrypt body.
                 byte[] input = new byte[inputBlockSize];
@@ -259,6 +271,7 @@ namespace Opc.Ua
         /// <summary>
         /// Decrypts the data using RSA encryption.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         internal static byte[] Decrypt(
             ArraySegment<byte> dataToDecrypt,
             X509Certificate2 encryptingCertificate,
@@ -276,7 +289,11 @@ namespace Opc.Ua
             plainTextSize *= GetPlainTextBlockSize(encryptingCertificate, padding);
 
             byte[] buffer = new byte[plainTextSize];
-            ArraySegment<byte> plainText = Decrypt(dataToDecrypt, rsa, padding, new ArraySegment<byte>(buffer));
+            ArraySegment<byte> plainText = Decrypt(
+                dataToDecrypt,
+                rsa,
+                padding,
+                new ArraySegment<byte>(buffer));
             System.Diagnostics.Debug.Assert(plainText.Count == buffer.Length);
 
             // decode length.
@@ -327,7 +344,10 @@ namespace Opc.Ua
             byte[] decryptedBuffer = outputBuffer.Array;
             RSAEncryptionPadding rsaPadding = GetRSAEncryptionPadding(padding);
 
-            using (var ostrm = new MemoryStream(decryptedBuffer, outputBuffer.Offset, outputBuffer.Count))
+            using (var ostrm = new MemoryStream(
+                decryptedBuffer,
+                outputBuffer.Offset,
+                outputBuffer.Count))
             {
                 // decrypt body.
                 byte[] input = new byte[inputBlockSize];
@@ -362,8 +382,15 @@ namespace Opc.Ua
                 const int blockSize = 0x10;
                 byte[] testBlock = new byte[blockSize];
                 randomSource.NextBytes(testBlock, 0, blockSize);
-                byte[] signature = privateKey.SignData(testBlock, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
-                return publicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
+                byte[] signature = privateKey.SignData(
+                    testBlock,
+                    HashAlgorithmName.SHA256,
+                    RSASignaturePadding.Pss);
+                return publicKey.VerifyData(
+                    testBlock,
+                    signature,
+                    HashAlgorithmName.SHA256,
+                    RSASignaturePadding.Pss);
             }
             catch
             {

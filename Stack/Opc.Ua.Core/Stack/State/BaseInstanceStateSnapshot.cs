@@ -58,7 +58,8 @@ namespace Opc.Ua
         /// </returns>
         public bool IsTypeOf(FilterContext context, NodeId typeDefinitionId)
         {
-            return NodeId.IsNull(typeDefinitionId) || context.TypeTree.IsTypeOf(m_typeDefinitionId, typeDefinitionId);
+            return NodeId.IsNull(typeDefinitionId) ||
+                context.TypeTree.IsTypeOf(m_typeDefinitionId, typeDefinitionId);
         }
 
         /// <summary>
@@ -80,7 +81,8 @@ namespace Opc.Ua
             NumericRange indexRange
         )
         {
-            if (!NodeId.IsNull(typeDefinitionId) && !context.TypeTree.IsTypeOf(m_typeDefinitionId, typeDefinitionId))
+            if (!NodeId.IsNull(typeDefinitionId) &&
+                !context.TypeTree.IsTypeOf(m_typeDefinitionId, typeDefinitionId))
             {
                 return null;
             }
@@ -118,7 +120,11 @@ namespace Opc.Ua
         /// <param name="browseName">The BrowseName.</param>
         /// <param name="nodeClass">The node class.</param>
         /// <param name="value">The value.</param>
-        private static void SetChildValue(ChildNode node, QualifiedName browseName, NodeClass nodeClass, object value)
+        private static void SetChildValue(
+            ChildNode node,
+            QualifiedName browseName,
+            NodeClass nodeClass,
+            object value)
         {
             ChildNode child = null;
 
@@ -194,7 +200,8 @@ namespace Opc.Ua
             {
                 BaseInstanceState child = children[ii];
 
-                if (child == null || (child.NodeClass != NodeClass.Object && child.NodeClass != NodeClass.Variable))
+                if (child == null ||
+                    (child.NodeClass != NodeClass.Object && child.NodeClass != NodeClass.Variable))
                 {
                     continue;
                 }
@@ -250,7 +257,11 @@ namespace Opc.Ua
             {
                 if (node.Children[ii].BrowseName == relativePath[index])
                 {
-                    return GetAttributeValue(node.Children[ii], relativePath, index + 1, attributeId);
+                    return GetAttributeValue(
+                        node.Children[ii],
+                        relativePath,
+                        index + 1,
+                        attributeId);
                 }
             }
 

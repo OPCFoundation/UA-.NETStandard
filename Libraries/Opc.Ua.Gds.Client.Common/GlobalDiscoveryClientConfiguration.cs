@@ -57,7 +57,9 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private static void Initialize() { }
+        private static void Initialize()
+        {
+        }
 
         [DataMember(Order = 1)]
         public string GlobalDiscoveryServerUrl { get; set; }

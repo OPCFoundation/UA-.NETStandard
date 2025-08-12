@@ -62,8 +62,12 @@ namespace Opc.Ua.Client
         /// </summary>
         internal const string SubscriptionStateMessage =
             "Subscription {0}, Id={1}, LastNotificationTime={2:HH:mm:ss}, GoodPublishRequestCount={3}, PublishingInterval={4}, KeepAliveCount={5}, PublishingEnabled={6}, MonitoredItemCount={7}";
+
         internal const string NotificationMessage = "Notification: ClientHandle={0}, Value={1}";
-        internal const string NotificationReceivedMessage = "NOTIFICATION RECEIVED: SubId={0}, SeqNo={1}";
+
+        internal const string NotificationReceivedMessage
+            = "NOTIFICATION RECEIVED: SubId={0}, SeqNo={1}";
+
         internal const string PublishStartMessage = "PUBLISH #{0} SENT";
         internal const string PublishStopMessage = "PUBLISH #{0} RECEIVED";
 
@@ -74,10 +78,22 @@ namespace Opc.Ua.Client
             TraceMasks.Operation,
             nameof(SubscriptionState)
         );
-        internal readonly EventId NotificationEventId = new(TraceMasks.Operation, nameof(Notification));
-        internal readonly EventId NotificationReceivedEventId = new(TraceMasks.Operation, nameof(NotificationReceived));
-        internal readonly EventId PublishStartEventId = new(TraceMasks.ServiceDetail, nameof(PublishStart));
-        internal readonly EventId PublishStopEventId = new(TraceMasks.ServiceDetail, nameof(PublishStop));
+
+        internal readonly EventId NotificationEventId = new(
+            TraceMasks.Operation,
+            nameof(Notification));
+
+        internal readonly EventId NotificationReceivedEventId = new(
+            TraceMasks.Operation,
+            nameof(NotificationReceived));
+
+        internal readonly EventId PublishStartEventId = new(
+            TraceMasks.ServiceDetail,
+            nameof(PublishStart));
+
+        internal readonly EventId PublishStopEventId = new(
+            TraceMasks.ServiceDetail,
+            nameof(PublishStop));
 
         /// <summary>
         /// The state of the client subscription.
@@ -137,7 +153,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// A notification received in Publish complete.
         /// </summary>
-        [Event(NotificationReceivedId, Message = NotificationReceivedMessage, Level = EventLevel.Verbose)]
+        [Event(
+            NotificationReceivedId,
+            Message = NotificationReceivedMessage,
+            Level = EventLevel.Verbose)]
         public void NotificationReceived(int subscriptionId, int sequenceNumber)
         {
             if (IsEnabled())
@@ -146,7 +165,11 @@ namespace Opc.Ua.Client
             }
             else if (Logger.IsEnabled(LogLevel.Trace))
             {
-                LogTrace(NotificationReceivedEventId, NotificationReceivedMessage, subscriptionId, sequenceNumber);
+                LogTrace(
+                    NotificationReceivedEventId,
+                    NotificationReceivedMessage,
+                    subscriptionId,
+                    sequenceNumber);
             }
         }
 

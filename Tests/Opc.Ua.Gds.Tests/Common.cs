@@ -92,7 +92,9 @@ namespace Opc.Ua.Gds.Tests
                             appRecord.ApplicationUri = DataGenerator.GetRandomString();
                             break;
                         case 1:
-                            appRecord.ApplicationType = (ApplicationType)RandomSource.NextInt32(100) + 8;
+                            appRecord.ApplicationType = (ApplicationType)RandomSource.NextInt32(
+                                100) +
+                                8;
                             break;
                         case 2:
                             appRecord.ProductUri = DataGenerator.GetRandomString();
@@ -100,12 +102,17 @@ namespace Opc.Ua.Gds.Tests
                         case 3:
                             appRecord.DiscoveryUrls =
                                 appRecord.ApplicationType == ApplicationType.Client
-                                    ? RandomDiscoveryUrl(["xxxyyyzzz"], RandomSource.NextInt32(0x7fff), "TestClient")
+                                    ? RandomDiscoveryUrl(
+                                        ["xxxyyyzzz"],
+                                        RandomSource.NextInt32(0x7fff),
+                                        "TestClient")
                                     : null;
                             break;
                         case 4:
                             appRecord.ServerCapabilities =
-                                appRecord.ApplicationType == ApplicationType.Client ? RandomServerCapabilities() : null;
+                                appRecord.ApplicationType == ApplicationType.Client
+                                    ? RandomServerCapabilities()
+                                    : null;
                             break;
                         case 5:
                             appRecord.ApplicationId = new NodeId(100);
@@ -120,10 +127,11 @@ namespace Opc.Ua.Gds.Tests
         private ApplicationTestData RandomApplicationTestData()
         {
             // TODO: set to discoveryserver
-            var appType = (ApplicationType)RandomSource.NextInt32((int)ApplicationType.ClientAndServer);
+            var appType = (ApplicationType)RandomSource.NextInt32(
+                (int)ApplicationType.ClientAndServer);
             string pureAppName = DataGenerator.GetRandomString("en");
-            pureAppName = Regex1().Replace(pureAppName, "");
-            string pureAppUri = Regex2().Replace(pureAppName, "");
+            pureAppName = Regex1().Replace(pureAppName, string.Empty);
+            string pureAppUri = Regex2().Replace(pureAppName, string.Empty);
             string appName = "UA " + pureAppName;
             StringCollection domainNames = RandomDomainNames();
             string localhost = domainNames[0];
@@ -166,11 +174,11 @@ namespace Opc.Ua.Gds.Tests
                     ApplicationType = appType,
                     ProductUri = prodUri,
                     DiscoveryUrls = discoveryUrls,
-                    ServerCapabilities = serverCapabilities,
+                    ServerCapabilities = serverCapabilities
                 },
                 DomainNames = domainNames,
                 Subject = Utils.Format("CN={0},DC={1},O=OPC Foundation", appName, localhost),
-                PrivateKeyFormat = privateKeyFormat,
+                PrivateKeyFormat = privateKeyFormat
             };
         }
 
@@ -194,7 +202,9 @@ namespace Opc.Ua.Gds.Tests
 
         private string RandomLocalHost()
         {
-            string localhost = Regex2().Replace(DataGenerator.GetRandomSymbol("en").Trim().ToLower(), "");
+            string localhost = Regex2().Replace(
+                DataGenerator.GetRandomSymbol("en").Trim().ToLower(),
+                string.Empty);
             if (localhost.Length >= 12)
             {
                 localhost = localhost[..12];
@@ -213,7 +223,10 @@ namespace Opc.Ua.Gds.Tests
             return result;
         }
 
-        private StringCollection RandomDiscoveryUrl(StringCollection domainNames, int port, string appUri)
+        private StringCollection RandomDiscoveryUrl(
+            StringCollection domainNames,
+            int port,
+            string appUri)
         {
             var result = new StringCollection();
             foreach (string name in domainNames)
@@ -233,7 +246,11 @@ namespace Opc.Ua.Gds.Tests
                 if ((random & 2) == 0)
                 {
                     result.Add(
-                        Utils.Format("http://{0}:{1}/{2}", name, port++.ToString(CultureInfo.InvariantCulture), appUri)
+                        Utils.Format(
+                            "http://{0}:{1}/{2}",
+                            name,
+                            port++.ToString(CultureInfo.InvariantCulture),
+                            appUri)
                     );
                 }
                 if ((random & 4) == 0)
@@ -268,7 +285,7 @@ namespace Opc.Ua.Gds.Tests
             DomainNames = [];
             Subject = null;
             PrivateKeyFormat = "PFX";
-            PrivateKeyPassword = "";
+            PrivateKeyPassword = string.Empty;
             Certificate = null;
             PrivateKey = null;
             IssuerCertificates = null;
@@ -315,7 +332,8 @@ namespace Opc.Ua.Gds.Tests
                 {
                     ConsoleKeyInfo result = Console.ReadKey();
                     Console.WriteLine();
-                    return await Task.FromResult(result.KeyChar is 'y' or 'Y' or '\r').ConfigureAwait(false);
+                    return await Task.FromResult(result.KeyChar is 'y' or 'Y' or '\r')
+                        .ConfigureAwait(false);
                 }
                 catch
                 {
@@ -332,7 +350,8 @@ namespace Opc.Ua.Gds.Tests
 
         public static async Task CleanupTrustListAsync(ICertificateStore store, bool dispose = true)
         {
-            System.Security.Cryptography.X509Certificates.X509Certificate2Collection certs = await store
+            System.Security.Cryptography.X509Certificates.X509Certificate2Collection certs
+                = await store
                 .EnumerateAsync()
                 .ConfigureAwait(false);
             foreach (System.Security.Cryptography.X509Certificates.X509Certificate2 cert in certs)
@@ -341,7 +360,8 @@ namespace Opc.Ua.Gds.Tests
             }
             if (store.SupportsCRLs)
             {
-                Security.Certificates.X509CRLCollection crls = await store.EnumerateCRLsAsync().ConfigureAwait(false);
+                Security.Certificates.X509CRLCollection crls = await store.EnumerateCRLsAsync()
+                    .ConfigureAwait(false);
                 foreach (Security.Certificates.X509CRL crl in crls)
                 {
                     await store.DeleteCRLAsync(crl).ConfigureAwait(false);
@@ -411,7 +431,9 @@ namespace Opc.Ua.Gds.Tests
                 catch (ServiceResultException sre)
                 {
                     serverStartRetries--;
-                    testPort = s_random.Next(ServerFixtureUtils.MinTestPort, ServerFixtureUtils.MaxTestPort);
+                    testPort = s_random.Next(
+                        ServerFixtureUtils.MinTestPort,
+                        ServerFixtureUtils.MaxTestPort);
                     if (serverStartRetries == 0 || sre.StatusCode != StatusCodes.BadNoCommunication)
                     {
                         throw;

@@ -26,7 +26,9 @@ namespace Opc.Ua
         /// <summary>
         /// Private constructor.
         /// </summary>
-        private Tracing() { }
+        private Tracing()
+        {
+        }
 
         /// <summary>
         /// Whether the Trace Event Handler is active.

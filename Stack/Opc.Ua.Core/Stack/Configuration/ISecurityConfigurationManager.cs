@@ -44,6 +44,7 @@ namespace Opc.Ua.Security
         /// </summary>
         /// <param name="typeName">Name of the type.</param>
         /// <returns>The new instance.</returns>
+        /// <exception cref="ServiceResultException"></exception>
         public static ISecurityConfigurationManager CreateInstance(string typeName)
         {
             if (string.IsNullOrEmpty(typeName))
@@ -53,7 +54,10 @@ namespace Opc.Ua.Security
 
             Type type =
                 Type.GetType(typeName)
-                ?? throw ServiceResultException.Create(StatusCodes.BadNotSupported, "Cannot load type: {0}", typeName);
+                ?? throw ServiceResultException.Create(
+                    StatusCodes.BadNotSupported,
+                    "Cannot load type: {0}",
+                    typeName);
 
             if (Activator.CreateInstance(type) is not ISecurityConfigurationManager configuration)
             {

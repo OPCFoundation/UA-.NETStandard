@@ -132,7 +132,10 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="dictionary">The encoded dictionary to validate.</param>
         /// <param name="imports">A table of imported namespace schemas.</param>
         /// <param name="throwOnError">Throw if an error occurred.</param>
-        internal void Validate(byte[] dictionary, IDictionary<string, byte[]> imports = null, bool throwOnError = false)
+        internal void Validate(
+            byte[] dictionary,
+            IDictionary<string, byte[]> imports = null,
+            bool throwOnError = false)
         {
             var istrm = new MemoryStream(dictionary);
 

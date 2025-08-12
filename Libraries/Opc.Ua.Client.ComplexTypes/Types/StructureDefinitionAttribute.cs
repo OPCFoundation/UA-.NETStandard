@@ -49,7 +49,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// The type is a Union.
         /// </summary>
-        Union = 2,
+        Union = 2
     }
 
     /// <summary>
@@ -98,4 +98,4 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public StructureType StructureType { get; set; }
     }
-} //namespace
+}

@@ -70,4 +70,4 @@ namespace Opc.Ua.Client.ComplexTypes
         private readonly ModuleBuilder m_moduleBuilder;
         private const string kOpcTypesModuleName = "Opc.Ua.ComplexTypes.Module";
     }
-} //namespace
+}

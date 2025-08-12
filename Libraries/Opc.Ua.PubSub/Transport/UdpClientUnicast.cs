@@ -45,7 +45,6 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="port">The port.</param>
         /// <exception cref="SocketException">An error occurred when accessing the socket.</exception>
         public UdpClientUnicast(IPAddress localAddress, int port)
-            : base()
         {
             Address = localAddress;
             Port = port;
@@ -53,7 +52,10 @@ namespace Opc.Ua.PubSub.Transport
             try
             {
                 // this might throw exception on some platforms
-                Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                Client.SetSocketOption(
+                    SocketOptionLevel.Socket,
+                    SocketOptionName.ReuseAddress,
+                    true);
             }
             catch (Exception ex)
             {
@@ -71,7 +73,10 @@ namespace Opc.Ua.PubSub.Transport
 
             Client.Bind(new IPEndPoint(localAddress, port));
 
-            Utils.Trace("UdpClientUnicast was created for local Address: {0}:{1}.", localAddress, port);
+            Utils.Trace(
+                "UdpClientUnicast was created for local Address: {0}:{1}.",
+                localAddress,
+                port);
         }
 
         /// <summary>

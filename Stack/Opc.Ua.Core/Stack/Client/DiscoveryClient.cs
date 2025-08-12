@@ -81,7 +81,6 @@ namespace Opc.Ua
         /// Creates a binding for to use for discovering servers.
         /// </summary>
         /// <param name="discoveryUrl">The discovery URL.</param>
-        /// <returns></returns>
         public static DiscoveryClient Create(Uri discoveryUrl)
         {
             return Create(discoveryUrl, null, null);
@@ -92,7 +91,6 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="discoveryUrl">The discovery URL.</param>
         /// <param name="configuration">The configuration.</param>
-        /// <returns></returns>
         public static DiscoveryClient Create(Uri discoveryUrl, EndpointConfiguration configuration)
         {
             return Create(discoveryUrl, configuration, null);
@@ -123,7 +121,6 @@ namespace Opc.Ua
         /// <param name="discoveryUrl">The discovery URL.</param>
         /// <param name="endpointConfiguration">The endpoint configuration.</param>
         /// /// <param name="applicationConfiguration">The application configuration.</param>
-        /// <returns></returns>
         public static DiscoveryClient Create(
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
@@ -138,8 +135,10 @@ namespace Opc.Ua
             try
             {
                 // Will always use the first certificate
-                clientCertificate = applicationConfiguration
-                    ?.SecurityConfiguration?.ApplicationCertificate?.FindAsync(true)
+                clientCertificate = applicationConfiguration?
+                    .SecurityConfiguration?
+                    .ApplicationCertificate?
+                    .FindAsync(true)
                     .GetAwaiter()
                     .GetResult();
             }
@@ -162,11 +161,14 @@ namespace Opc.Ua
         /// Invokes the GetEndpoints service.
         /// </summary>
         /// <param name="profileUris">The collection of profile URIs.</param>
-        /// <returns></returns>
         public virtual EndpointDescriptionCollection GetEndpoints(StringCollection profileUris)
         {
-            EndpointDescriptionCollection endpoints;
-            GetEndpoints(null, Endpoint.EndpointUrl, null, profileUris, out endpoints);
+            GetEndpoints(
+                null,
+                Endpoint.EndpointUrl,
+                null,
+                profileUris,
+                out EndpointDescriptionCollection endpoints);
 
             return PatchEndpointUrls(endpoints);
         }
@@ -182,7 +184,12 @@ namespace Opc.Ua
             CancellationToken ct = default
         )
         {
-            GetEndpointsResponse response = await GetEndpointsAsync(null, Endpoint.EndpointUrl, null, profileUris, ct)
+            GetEndpointsResponse response = await GetEndpointsAsync(
+                null,
+                Endpoint.EndpointUrl,
+                null,
+                profileUris,
+                ct)
                 .ConfigureAwait(false);
             return PatchEndpointUrls(response.Endpoints);
         }
@@ -192,11 +199,14 @@ namespace Opc.Ua
         /// Invokes the FindServers service.
         /// </summary>
         /// <param name="serverUris">The collection of server URIs.</param>
-        /// <returns></returns>
         public virtual ApplicationDescriptionCollection FindServers(StringCollection serverUris)
         {
-            ApplicationDescriptionCollection servers;
-            FindServers(null, Endpoint.EndpointUrl, null, serverUris, out servers);
+            FindServers(
+                null,
+                Endpoint.EndpointUrl,
+                null,
+                serverUris,
+                out ApplicationDescriptionCollection servers);
 
             return servers;
         }
@@ -207,13 +217,17 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="serverUris">The collection of server URIs.</param>
         /// <param name="ct">The cancellation token.</param>
-        /// <returns></returns>
         public virtual async Task<ApplicationDescriptionCollection> FindServersAsync(
             StringCollection serverUris,
             CancellationToken ct = default
         )
         {
-            FindServersResponse response = await FindServersAsync(null, Endpoint.EndpointUrl, null, serverUris, ct)
+            FindServersResponse response = await FindServersAsync(
+                null,
+                Endpoint.EndpointUrl,
+                null,
+                serverUris,
+                ct)
                 .ConfigureAwait(false);
             return response.Servers;
         }
@@ -222,11 +236,6 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the FindServersOnNetwork service.
         /// </summary>
-        /// <param name="startingRecordId"></param>
-        /// <param name="maxRecordsToReturn"></param>
-        /// <param name="serverCapabilityFilter"></param>
-        /// <param name="lastCounterResetTime"></param>
-        /// <returns></returns>
         public virtual ServerOnNetworkCollection FindServersOnNetwork(
             uint startingRecordId,
             uint maxRecordsToReturn,
@@ -234,14 +243,13 @@ namespace Opc.Ua
             out DateTime lastCounterResetTime
         )
         {
-            ServerOnNetworkCollection servers;
             FindServersOnNetwork(
                 null,
                 startingRecordId,
                 maxRecordsToReturn,
                 serverCapabilityFilter,
                 out lastCounterResetTime,
-                out servers
+                out ServerOnNetworkCollection servers
             );
 
             return servers;
@@ -250,7 +258,8 @@ namespace Opc.Ua
         /// <summary>
         /// Patch returned endpoints urls with url used to reached the endpoint.
         /// </summary>
-        private EndpointDescriptionCollection PatchEndpointUrls(EndpointDescriptionCollection endpoints)
+        private EndpointDescriptionCollection PatchEndpointUrls(
+            EndpointDescriptionCollection endpoints)
         {
             // if a server is behind a firewall, can only be accessed with a FQDN or IP address
             // it may return URLs that are not accessible to the client. This problem can be avoided
@@ -265,20 +274,26 @@ namespace Opc.Ua
                     Uri discoveryEndPointUri = Utils.ParseUri(discoveryEndPoint.EndpointUrl);
                     if (discoveryEndPointUri == null)
                     {
-                        Utils.LogWarning("Discovery endpoint contains invalid Url: {0}", discoveryEndPoint.EndpointUrl);
+                        Utils.LogWarning(
+                            "Discovery endpoint contains invalid Url: {0}",
+                            discoveryEndPoint.EndpointUrl);
                         continue;
                     }
 
                     if (
-                        (endpointUrl.Scheme == discoveryEndPointUri.Scheme)
-                        && (endpointUrl.Port == discoveryEndPointUri.Port)
+                        (endpointUrl.Scheme == discoveryEndPointUri.Scheme) &&
+                        (endpointUrl.Port == discoveryEndPointUri.Port)
                     )
                     {
-                        var builder = new UriBuilder(discoveryEndPointUri) { Host = endpointUrl.DnsSafeHost };
+                        var builder = new UriBuilder(discoveryEndPointUri)
+                        {
+                            Host = endpointUrl.DnsSafeHost
+                        };
                         discoveryEndPoint.EndpointUrl = builder.Uri.OriginalString;
                     }
 
-                    if (discoveryEndPoint.Server != null && discoveryEndPoint.Server.DiscoveryUrls != null)
+                    if (discoveryEndPoint.Server != null &&
+                        discoveryEndPoint.Server.DiscoveryUrls != null)
                     {
                         discoveryEndPoint.Server.DiscoveryUrls.Clear();
                         discoveryEndPoint.Server.DiscoveryUrls.Add(Endpoint.EndpointUrl);
@@ -301,7 +316,6 @@ namespace Opc.Ua
         /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
         /// <param name="clientCertificate">The client certificate to use.</param>
-        /// <returns></returns>
         public static ITransportChannel Create(
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
@@ -314,12 +328,17 @@ namespace Opc.Ua
             {
                 EndpointUrl = discoveryUrl.OriginalString,
                 SecurityMode = MessageSecurityMode.None,
-                SecurityPolicyUri = SecurityPolicies.None,
+                SecurityPolicyUri = SecurityPolicies.None
             };
             endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
             endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
 
-            return CreateUaBinaryChannel(null, endpoint, endpointConfiguration, clientCertificate, messageContext);
+            return CreateUaBinaryChannel(
+                null,
+                endpoint,
+                endpointConfiguration,
+                clientCertificate,
+                messageContext);
         }
 
         /// <summary>
@@ -338,7 +357,7 @@ namespace Opc.Ua
             {
                 EndpointUrl = connection.EndpointUrl.OriginalString,
                 SecurityMode = MessageSecurityMode.None,
-                SecurityPolicyUri = SecurityPolicies.None,
+                SecurityPolicyUri = SecurityPolicies.None
             };
             endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
             endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
@@ -370,7 +389,7 @@ namespace Opc.Ua
             {
                 EndpointUrl = discoveryUrl.OriginalString,
                 SecurityMode = MessageSecurityMode.None,
-                SecurityPolicyUri = SecurityPolicies.None,
+                SecurityPolicyUri = SecurityPolicies.None
             };
             endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
             endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;

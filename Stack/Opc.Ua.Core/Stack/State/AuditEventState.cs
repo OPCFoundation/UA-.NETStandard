@@ -45,17 +45,26 @@ namespace Opc.Ua
 
             if (context.NamespaceUris != null)
             {
-                m_serverId = new PropertyState<string>(this) { Value = context.NamespaceUris.GetString(1) };
+                m_serverId = new PropertyState<string>(this)
+                {
+                    Value = context.NamespaceUris.GetString(1)
+                };
             }
 
             if (context.AuditEntryId != null)
             {
-                m_clientAuditEntryId = new PropertyState<string>(this) { Value = context.AuditEntryId };
+                m_clientAuditEntryId = new PropertyState<string>(this)
+                {
+                    Value = context.AuditEntryId
+                };
             }
 
             if (context.UserIdentity != null)
             {
-                m_clientUserId = new PropertyState<string>(this) { Value = context.UserIdentity.DisplayName };
+                m_clientUserId = new PropertyState<string>(this)
+                {
+                    Value = context.UserIdentity.DisplayName
+                };
             }
         }
     }

@@ -40,7 +40,8 @@ namespace Opc.Ua.Gds.Client
             MessageContext = configuration.CreateMessageContext();
 
             // set some defaults for the preferred locales.
-            System.Globalization.CultureInfo culture = System.Globalization.CultureInfo.CurrentUICulture;
+            System.Globalization.CultureInfo culture = System.Globalization.CultureInfo
+                .CurrentUICulture;
 
             var locales = new List<string> { culture.Name };
 
@@ -73,7 +74,9 @@ namespace Opc.Ua.Gds.Client
             return EndFindServers(result);
         }
 
-        public List<ApplicationDescription> FindServers(string endpointUrl, string endpointTransportProfileUri)
+        public List<ApplicationDescription> FindServers(
+            string endpointUrl,
+            string endpointTransportProfileUri)
         {
             IAsyncResult result = BeginFindServers(
                 endpointUrl,
@@ -106,14 +109,14 @@ namespace Opc.Ua.Gds.Client
 
             var data = new FindServersData(callback, callbackData, client.OperationTimeout)
             {
-                DiscoveryClient = client,
+                DiscoveryClient = client
             };
 
             data.InnerResult = client.BeginFindServers(
                 null,
                 (actualEndpointUrl) ?? endpointUrl,
                 [.. (preferredLocales) ?? PreferredLocales],
-                (serverUris != null) ? [.. serverUris] : null,
+                serverUris != null ? [.. serverUris] : null,
                 OnFindServersComplete,
                 data
             );
@@ -125,7 +128,9 @@ namespace Opc.Ua.Gds.Client
         {
             if (result is not FindServersData data)
             {
-                throw new ArgumentException("Did not pass the correct IAsyncResult to end method.", nameof(result));
+                throw new ArgumentException(
+                    "Did not pass the correct IAsyncResult to end method.",
+                    nameof(result));
             }
 
             try
@@ -146,7 +151,9 @@ namespace Opc.Ua.Gds.Client
         private class FindServersData : AsyncResultBase
         {
             public FindServersData(AsyncCallback callback, object callbackData, int timeout)
-                : base(callback, callbackData, timeout) { }
+                : base(callback, callbackData, timeout)
+            {
+            }
 
             public DiscoveryClient DiscoveryClient;
             public List<ApplicationDescription> Servers;
@@ -158,8 +165,8 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                ApplicationDescriptionCollection servers = null;
-                data.DiscoveryClient.EndFindServers(result, out servers);
+                data.DiscoveryClient
+                    .EndFindServers(result, out ApplicationDescriptionCollection servers);
 
                 data.Servers = servers;
                 data.OperationCompleted();
@@ -177,9 +184,15 @@ namespace Opc.Ua.Gds.Client
             return EndGetEndpoints(result);
         }
 
-        public List<EndpointDescription> GetEndpoints(string endpointUrl, string endpointTransportProfileUri)
+        public List<EndpointDescription> GetEndpoints(
+            string endpointUrl,
+            string endpointTransportProfileUri)
         {
-            IAsyncResult result = BeginGetEndpoints(endpointUrl, endpointTransportProfileUri, null, null);
+            IAsyncResult result = BeginGetEndpoints(
+                endpointUrl,
+                endpointTransportProfileUri,
+                null,
+                null);
             return EndGetEndpoints(result);
         }
 
@@ -194,7 +207,7 @@ namespace Opc.Ua.Gds.Client
 
             var data = new GetEndpointsData(callback, callbackData, client.OperationTimeout)
             {
-                DiscoveryClient = client,
+                DiscoveryClient = client
             };
 
             data.InnerResult = client.BeginGetEndpoints(
@@ -213,7 +226,9 @@ namespace Opc.Ua.Gds.Client
         {
             if (result is not GetEndpointsData data)
             {
-                throw new ArgumentException("Did not pass the correct IAsyncResult to end method.", nameof(result));
+                throw new ArgumentException(
+                    "Did not pass the correct IAsyncResult to end method.",
+                    nameof(result));
             }
 
             try
@@ -234,7 +249,9 @@ namespace Opc.Ua.Gds.Client
         private class GetEndpointsData : AsyncResultBase
         {
             public GetEndpointsData(AsyncCallback callback, object callbackData, int timeout)
-                : base(callback, callbackData, timeout) { }
+                : base(callback, callbackData, timeout)
+            {
+            }
 
             public DiscoveryClient DiscoveryClient;
             public List<EndpointDescription> Endpoints;
@@ -246,8 +263,8 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                EndpointDescriptionCollection endpoints = null;
-                data.DiscoveryClient.EndGetEndpoints(result, out endpoints);
+                data.DiscoveryClient
+                    .EndGetEndpoints(result, out EndpointDescriptionCollection endpoints);
 
                 data.Endpoints = endpoints;
                 data.OperationCompleted();
@@ -330,14 +347,14 @@ namespace Opc.Ua.Gds.Client
 
             var data = new FindServersOnNetworkData(callback, callbackData, client.OperationTimeout)
             {
-                DiscoveryClient = client,
+                DiscoveryClient = client
             };
 
             data.InnerResult = client.BeginFindServersOnNetwork(
                 null,
                 startingRecordId,
                 maxRecordsToReturn,
-                (serverCapabilityFilters != null) ? [.. serverCapabilityFilters] : [],
+                serverCapabilityFilters != null ? [.. serverCapabilityFilters] : [],
                 OnFindServersOnNetworkComplete,
                 data
             );
@@ -345,11 +362,15 @@ namespace Opc.Ua.Gds.Client
             return data;
         }
 
-        public List<ServerOnNetwork> EndFindServersOnNetwork(IAsyncResult result, out DateTime lastCounterResetTime)
+        public List<ServerOnNetwork> EndFindServersOnNetwork(
+            IAsyncResult result,
+            out DateTime lastCounterResetTime)
         {
             if (result is not FindServersOnNetworkData data)
             {
-                throw new ArgumentException("Did not pass the correct IAsyncResult to end method.", nameof(result));
+                throw new ArgumentException(
+                    "Did not pass the correct IAsyncResult to end method.",
+                    nameof(result));
             }
 
             try
@@ -370,8 +391,13 @@ namespace Opc.Ua.Gds.Client
 
         private class FindServersOnNetworkData : AsyncResultBase
         {
-            public FindServersOnNetworkData(AsyncCallback callback, object callbackData, int timeout)
-                : base(callback, callbackData, timeout) { }
+            public FindServersOnNetworkData(
+                AsyncCallback callback,
+                object callbackData,
+                int timeout)
+                : base(callback, callbackData, timeout)
+            {
+            }
 
             public DiscoveryClient DiscoveryClient;
             public DateTime LastCounterResetTime;
@@ -384,9 +410,10 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                DateTime lastCounterResetTime;
-                ServerOnNetworkCollection servers = null;
-                data.DiscoveryClient.EndFindServersOnNetwork(result, out lastCounterResetTime, out servers);
+                data.DiscoveryClient.EndFindServersOnNetwork(
+                    result,
+                    out DateTime lastCounterResetTime,
+                    out ServerOnNetworkCollection servers);
 
                 data.LastCounterResetTime = lastCounterResetTime;
                 data.Servers = servers;
@@ -399,7 +426,9 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
-        protected virtual DiscoveryClient CreateClient(string endpointUrl, string endpointTransportProfileUri)
+        protected virtual DiscoveryClient CreateClient(
+            string endpointUrl,
+            string endpointTransportProfileUri)
         {
             if (string.IsNullOrEmpty(endpointUrl))
             {
@@ -420,7 +449,10 @@ namespace Opc.Ua.Gds.Client
                 configuration.OperationTimeout = DefaultOperationTimeout;
             }
 
-            ITransportChannel channel = DiscoveryChannel.Create(new Uri(endpointUrl), configuration, context);
+            ITransportChannel channel = DiscoveryChannel.Create(
+                new Uri(endpointUrl),
+                configuration,
+                context);
 
             return new DiscoveryClient(channel);
         }

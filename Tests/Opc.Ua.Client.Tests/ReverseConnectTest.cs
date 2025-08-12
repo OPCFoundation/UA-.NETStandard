@@ -43,8 +43,10 @@ namespace Opc.Ua.Client.Tests
     /// <summary>
     /// Test Client Reverse Connect Services.
     /// </summary>
-    [TestFixture, Category("Client")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("Client")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [NonParallelizable]
     public class ReverseConnectTest : ClientTestFramework
     {
@@ -55,7 +57,7 @@ namespace Opc.Ua.Client.Tests
         [
             TraceableSessionFactory.Instance,
             TestableSessionFactory.Instance,
-            DefaultSessionFactory.Instance,
+            DefaultSessionFactory.Instance
         ];
 
         /// <summary>
@@ -79,9 +81,10 @@ namespace Opc.Ua.Client.Tests
                 AutoAccept = true,
                 SecurityNone = true,
                 ReverseConnectTimeout = MaxTimeout,
-                TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security,
+                TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security
             };
-            ReferenceServer = await ServerFixture.StartAsync(TestContext.Out, PkiRoot).ConfigureAwait(false);
+            ReferenceServer = await ServerFixture.StartAsync(TestContext.Out, PkiRoot)
+                .ConfigureAwait(false);
 
             // create client
             ClientFixture = new ClientFixture();
@@ -90,11 +93,14 @@ namespace Opc.Ua.Client.Tests
             await ClientFixture.StartReverseConnectHostAsync().ConfigureAwait(false);
             m_endpointUrl = new Uri(
                 Utils.ReplaceLocalhost(
-                    "opc.tcp://localhost:" + ServerFixture.Port.ToString(CultureInfo.InvariantCulture)
+                    "opc.tcp://localhost:" +
+                    ServerFixture.Port.ToString(CultureInfo.InvariantCulture)
                 )
             );
             // start reverse connection
-            ReferenceServer.AddReverseConnection(new Uri(ClientFixture.ReverseConnectUri), MaxTimeout);
+            ReferenceServer.AddReverseConnection(
+                new Uri(ClientFixture.ReverseConnectUri),
+                MaxTimeout);
         }
 
         /// <summary>
@@ -128,7 +134,8 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Get endpoints using a reverse connection.
         /// </summary>
-        [Test, Order(100)]
+        [Test]
+        [Order(100)]
         public async Task GetEndpointsAsync()
         {
             await RequireEndpointsAsync().ConfigureAwait(false);
@@ -144,7 +151,10 @@ namespace Opc.Ua.Client.Tests
             using (var cancellationTokenSource = new CancellationTokenSource(MaxTimeout))
             {
                 connection = await ClientFixture
-                    .ReverseConnectManager.WaitForConnectionAsync(m_endpointUrl, null, cancellationTokenSource.Token)
+                    .ReverseConnectManager.WaitForConnectionAsync(
+                        m_endpointUrl,
+                        null,
+                        cancellationTokenSource.Token)
                     .ConfigureAwait(false);
                 Assert.NotNull(connection, "Failed to get connection.");
             }
@@ -153,13 +163,18 @@ namespace Opc.Ua.Client.Tests
             {
                 var endpointConfiguration = EndpointConfiguration.Create();
                 endpointConfiguration.OperationTimeout = MaxTimeout;
-                using var client = DiscoveryClient.Create(config, connection, endpointConfiguration);
-                Endpoints = await client.GetEndpointsAsync(null, cancellationTokenSource.Token).ConfigureAwait(false);
+                using var client = DiscoveryClient.Create(
+                    config,
+                    connection,
+                    endpointConfiguration);
+                Endpoints = await client.GetEndpointsAsync(null, cancellationTokenSource.Token)
+                    .ConfigureAwait(false);
                 await client.CloseAsync(cancellationTokenSource.Token).ConfigureAwait(false);
             }
         }
 
-        [Test, Order(200)]
+        [Test]
+        [Order(200)]
         public async Task SelectEndpointAsync()
         {
             ApplicationConfiguration config = ClientFixture.Config;
@@ -167,15 +182,23 @@ namespace Opc.Ua.Client.Tests
             using (var cancellationTokenSource = new CancellationTokenSource(MaxTimeout))
             {
                 connection = await ClientFixture
-                    .ReverseConnectManager.WaitForConnectionAsync(m_endpointUrl, null, cancellationTokenSource.Token)
+                    .ReverseConnectManager.WaitForConnectionAsync(
+                        m_endpointUrl,
+                        null,
+                        cancellationTokenSource.Token)
                     .ConfigureAwait(false);
                 Assert.NotNull(connection, "Failed to get connection.");
             }
-            EndpointDescription selectedEndpoint = CoreClientUtils.SelectEndpoint(config, connection, true, MaxTimeout);
+            EndpointDescription selectedEndpoint = CoreClientUtils.SelectEndpoint(
+                config,
+                connection,
+                true,
+                MaxTimeout);
             Assert.NotNull(selectedEndpoint);
         }
 
-        [Theory, Order(300)]
+        [Theory]
+        [Order(300)]
         public async Task ReverseConnectAsync(string securityPolicy, ISessionFactory sessionFactory)
         {
             // ensure endpoints are available
@@ -187,7 +210,10 @@ namespace Opc.Ua.Client.Tests
             using (var cancellationTokenSource = new CancellationTokenSource(MaxTimeout))
             {
                 connection = await ClientFixture
-                    .ReverseConnectManager.WaitForConnectionAsync(m_endpointUrl, null, cancellationTokenSource.Token)
+                    .ReverseConnectManager.WaitForConnectionAsync(
+                        m_endpointUrl,
+                        null,
+                        cancellationTokenSource.Token)
                     .ConfigureAwait(false);
                 Assert.NotNull(connection, "Failed to get connection.");
             }
@@ -221,14 +247,19 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(session);
 
             // default request header
-            var requestHeader = new RequestHeader { Timestamp = DateTime.UtcNow, TimeoutHint = MaxTimeout };
+            var requestHeader = new RequestHeader
+            {
+                Timestamp = DateTime.UtcNow,
+                TimeoutHint = MaxTimeout
+            };
 
             // Browse
             var clientTestServices = new ClientTestServices(session);
-            ReferenceDescriptionCollection referenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(
-                clientTestServices,
-                requestHeader
-            );
+            ReferenceDescriptionCollection referenceDescriptions = CommonTestWorkers
+                .BrowseFullAddressSpaceWorker(
+                    clientTestServices,
+                    requestHeader
+                    );
             Assert.NotNull(referenceDescriptions);
 
             // close session
@@ -237,7 +268,8 @@ namespace Opc.Ua.Client.Tests
             session.Dispose();
         }
 
-        [Theory, Order(301)]
+        [Theory]
+        [Order(301)]
         public async Task ReverseConnect2Async(
             bool updateBeforeConnect,
             bool checkDomain,
@@ -282,14 +314,19 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(session);
 
             // header
-            var requestHeader = new RequestHeader { Timestamp = DateTime.UtcNow, TimeoutHint = MaxTimeout };
+            var requestHeader = new RequestHeader
+            {
+                Timestamp = DateTime.UtcNow,
+                TimeoutHint = MaxTimeout
+            };
 
             // Browse
             var clientTestServices = new ClientTestServices(session);
-            ReferenceDescriptionCollection referenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(
-                clientTestServices,
-                requestHeader
-            );
+            ReferenceDescriptionCollection referenceDescriptions = CommonTestWorkers
+                .BrowseFullAddressSpaceWorker(
+                    clientTestServices,
+                    requestHeader
+                    );
             Assert.NotNull(referenceDescriptions);
 
             // close session

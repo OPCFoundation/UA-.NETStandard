@@ -44,7 +44,8 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a monotonic increasing tick count in milliseconds.
         /// </summary>
-        public static long TickCount64 => (long)(s_default.m_ticksDelegate() / s_default.m_ticksPerMillisecond);
+        public static long TickCount64
+            => (long)(s_default.m_ticksDelegate() / s_default.m_ticksPerMillisecond);
 
         /// <summary>
         /// Returns a monotonic increasing tick count based on the frequency of the underlying timer.

@@ -49,7 +49,8 @@ namespace MemoryBuffer
         }
 
         /// <inheritdoc/>
-        public StringCollection NamespacesUris => [Namespaces.MemoryBuffer, Namespaces.MemoryBuffer + "/Instance"];
+        public StringCollection NamespacesUris
+            => [Namespaces.MemoryBuffer, Namespaces.MemoryBuffer + "/Instance"];
     }
 
     /// <summary>
@@ -76,7 +77,8 @@ namespace MemoryBuffer
 
             // get the configuration for the node manager.
             m_configuration =
-                configuration.ParseExtension<MemoryBufferConfiguration>() ?? new MemoryBufferConfiguration();
+                configuration.ParseExtension<MemoryBufferConfiguration>() ??
+                new MemoryBufferConfiguration();
 
             // use suitable defaults if no configuration exists.
 
@@ -91,14 +93,16 @@ namespace MemoryBuffer
         /// in other node managers. For example, the 'Objects' node is managed by the CoreNodeManager and
         /// should have a reference to the root folder node(s) exposed by this node manager.
         /// </remarks>
-        public override void CreateAddressSpace(IDictionary<NodeId, IList<IReference>> externalReferences)
+        public override void CreateAddressSpace(
+            IDictionary<NodeId, IList<IReference>> externalReferences)
         {
             lock (Lock)
             {
                 base.CreateAddressSpace(externalReferences);
 
                 // create the nodes from configuration.
-                ushort namespaceIndex = Server.NamespaceUris.GetIndexOrAppend(Namespaces.MemoryBuffer);
+                ushort namespaceIndex = Server.NamespaceUris
+                    .GetIndexOrAppend(Namespaces.MemoryBuffer);
 
                 var root = (BaseInstanceState)FindPredefinedNode(
                     new NodeId(Objects.MemoryBuffers, namespaceIndex),
@@ -106,7 +110,8 @@ namespace MemoryBuffer
                 );
 
                 // create the nodes from configuration.
-                namespaceIndex = Server.NamespaceUris.GetIndexOrAppend(Namespaces.MemoryBuffer + "/Instance");
+                namespaceIndex = Server.NamespaceUris
+                    .GetIndexOrAppend(Namespaces.MemoryBuffer + "/Instance");
 
                 if (m_configuration != null && m_configuration.Buffers != null)
                 {
@@ -189,9 +194,8 @@ namespace MemoryBuffer
                 if (nodeId.Identifier is string id)
                 {
                     // check for a reference to the buffer.
-                    MemoryBufferState buffer = null;
 
-                    if (m_buffers.TryGetValue(id, out buffer))
+                    if (m_buffers.TryGetValue(id, out MemoryBufferState buffer))
                     {
                         return buffer;
                     }
@@ -319,7 +323,7 @@ namespace MemoryBuffer
                 Value = null,
                 ServerTimestamp = DateTime.UtcNow,
                 SourceTimestamp = DateTime.MinValue,
-                StatusCode = StatusCodes.Good,
+                StatusCode = StatusCodes.Good
             };
 
             ServiceResult error = source.ReadAttribute(
@@ -392,7 +396,11 @@ namespace MemoryBuffer
             // use default behavior for non-tag sources.
             if (source is not MemoryTagState tag)
             {
-                return base.RestoreMonitoredItem(context, source, storedMonitoredItem, out monitoredItem);
+                return base.RestoreMonitoredItem(
+                    context,
+                    source,
+                    storedMonitoredItem,
+                    out monitoredItem);
             }
 
             // get the monitored node for the containing buffer.
@@ -510,7 +518,11 @@ namespace MemoryBuffer
             // check for valid handle.
             if (monitoredItem.ManagerHandle is not MemoryBufferState buffer)
             {
-                return base.SetMonitoringMode(context, monitoredItem, monitoringMode, out processed);
+                return base.SetMonitoringMode(
+                    context,
+                    monitoredItem,
+                    monitoringMode,
+                    out processed);
             }
 
             // owned by this node manager.
@@ -526,14 +538,15 @@ namespace MemoryBuffer
             MonitoringMode previousMode = datachangeItem.SetMonitoringMode(monitoringMode);
 
             // need to provide an immediate update after enabling.
-            if (previousMode == MonitoringMode.Disabled && monitoringMode != MonitoringMode.Disabled)
+            if (previousMode == MonitoringMode.Disabled &&
+                monitoringMode != MonitoringMode.Disabled)
             {
                 var initialValue = new DataValue
                 {
                     Value = null,
                     ServerTimestamp = DateTime.UtcNow,
                     SourceTimestamp = DateTime.MinValue,
-                    StatusCode = StatusCodes.Good,
+                    StatusCode = StatusCodes.Good
                 };
 
                 var tag = new MemoryTagState(buffer, datachangeItem.Offset);

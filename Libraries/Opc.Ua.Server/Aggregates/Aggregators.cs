@@ -54,7 +54,9 @@ namespace Opc.Ua.Server
         private class FactoryMapping
         {
             public NodeId AggregateId { get; set; }
+
             public QualifiedName AggregateName { get; set; }
+
             public Type Calculator { get; set; }
         }
 
@@ -63,228 +65,228 @@ namespace Opc.Ua.Server
         /// </summary>
         private static readonly FactoryMapping[] s_mappings =
         [
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_Interpolative,
                 AggregateName = BrowseNames.AggregateFunction_Interpolative,
-                Calculator = typeof(AggregateCalculator),
+                Calculator = typeof(AggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_Average,
                 AggregateName = BrowseNames.AggregateFunction_Average,
-                Calculator = typeof(AverageAggregateCalculator),
+                Calculator = typeof(AverageAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_TimeAverage,
                 AggregateName = BrowseNames.AggregateFunction_TimeAverage,
-                Calculator = typeof(AverageAggregateCalculator),
+                Calculator = typeof(AverageAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_TimeAverage2,
                 AggregateName = BrowseNames.AggregateFunction_TimeAverage2,
-                Calculator = typeof(AverageAggregateCalculator),
+                Calculator = typeof(AverageAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_Total,
                 AggregateName = BrowseNames.AggregateFunction_Total,
-                Calculator = typeof(AverageAggregateCalculator),
+                Calculator = typeof(AverageAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_Total2,
                 AggregateName = BrowseNames.AggregateFunction_Total2,
-                Calculator = typeof(AverageAggregateCalculator),
+                Calculator = typeof(AverageAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_Minimum,
                 AggregateName = BrowseNames.AggregateFunction_Minimum,
-                Calculator = typeof(MinMaxAggregateCalculator),
+                Calculator = typeof(MinMaxAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_Maximum,
                 AggregateName = BrowseNames.AggregateFunction_Maximum,
-                Calculator = typeof(MinMaxAggregateCalculator),
+                Calculator = typeof(MinMaxAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_MinimumActualTime,
                 AggregateName = BrowseNames.AggregateFunction_MinimumActualTime,
-                Calculator = typeof(MinMaxAggregateCalculator),
+                Calculator = typeof(MinMaxAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_MaximumActualTime,
                 AggregateName = BrowseNames.AggregateFunction_MaximumActualTime,
-                Calculator = typeof(MinMaxAggregateCalculator),
+                Calculator = typeof(MinMaxAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_Range,
                 AggregateName = BrowseNames.AggregateFunction_Range,
-                Calculator = typeof(MinMaxAggregateCalculator),
+                Calculator = typeof(MinMaxAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_Minimum2,
                 AggregateName = BrowseNames.AggregateFunction_Minimum2,
-                Calculator = typeof(MinMaxAggregateCalculator),
+                Calculator = typeof(MinMaxAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_Maximum2,
                 AggregateName = BrowseNames.AggregateFunction_Maximum2,
-                Calculator = typeof(MinMaxAggregateCalculator),
+                Calculator = typeof(MinMaxAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_MinimumActualTime2,
                 AggregateName = BrowseNames.AggregateFunction_MinimumActualTime2,
-                Calculator = typeof(MinMaxAggregateCalculator),
+                Calculator = typeof(MinMaxAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_MaximumActualTime2,
                 AggregateName = BrowseNames.AggregateFunction_MaximumActualTime2,
-                Calculator = typeof(MinMaxAggregateCalculator),
+                Calculator = typeof(MinMaxAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_Range2,
                 AggregateName = BrowseNames.AggregateFunction_Range2,
-                Calculator = typeof(MinMaxAggregateCalculator),
+                Calculator = typeof(MinMaxAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_Count,
                 AggregateName = BrowseNames.AggregateFunction_Count,
-                Calculator = typeof(CountAggregateCalculator),
+                Calculator = typeof(CountAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_AnnotationCount,
                 AggregateName = BrowseNames.AggregateFunction_AnnotationCount,
-                Calculator = typeof(CountAggregateCalculator),
+                Calculator = typeof(CountAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_DurationInStateZero,
                 AggregateName = BrowseNames.AggregateFunction_DurationInStateZero,
-                Calculator = typeof(CountAggregateCalculator),
+                Calculator = typeof(CountAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_DurationInStateNonZero,
                 AggregateName = BrowseNames.AggregateFunction_DurationInStateNonZero,
-                Calculator = typeof(CountAggregateCalculator),
+                Calculator = typeof(CountAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_NumberOfTransitions,
                 AggregateName = BrowseNames.AggregateFunction_NumberOfTransitions,
-                Calculator = typeof(CountAggregateCalculator),
+                Calculator = typeof(CountAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_Start,
                 AggregateName = BrowseNames.AggregateFunction_Start,
-                Calculator = typeof(StartEndAggregateCalculator),
+                Calculator = typeof(StartEndAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_End,
                 AggregateName = BrowseNames.AggregateFunction_End,
-                Calculator = typeof(StartEndAggregateCalculator),
+                Calculator = typeof(StartEndAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_Delta,
                 AggregateName = BrowseNames.AggregateFunction_Delta,
-                Calculator = typeof(StartEndAggregateCalculator),
+                Calculator = typeof(StartEndAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_StartBound,
                 AggregateName = BrowseNames.AggregateFunction_StartBound,
-                Calculator = typeof(StartEndAggregateCalculator),
+                Calculator = typeof(StartEndAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_EndBound,
                 AggregateName = BrowseNames.AggregateFunction_EndBound,
-                Calculator = typeof(StartEndAggregateCalculator),
+                Calculator = typeof(StartEndAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_DeltaBounds,
                 AggregateName = BrowseNames.AggregateFunction_DeltaBounds,
-                Calculator = typeof(StartEndAggregateCalculator),
+                Calculator = typeof(StartEndAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_DurationGood,
                 AggregateName = BrowseNames.AggregateFunction_DurationGood,
-                Calculator = typeof(StatusAggregateCalculator),
+                Calculator = typeof(StatusAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_DurationBad,
                 AggregateName = BrowseNames.AggregateFunction_DurationBad,
-                Calculator = typeof(StatusAggregateCalculator),
+                Calculator = typeof(StatusAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_PercentGood,
                 AggregateName = BrowseNames.AggregateFunction_PercentGood,
-                Calculator = typeof(StatusAggregateCalculator),
+                Calculator = typeof(StatusAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_PercentBad,
                 AggregateName = BrowseNames.AggregateFunction_PercentBad,
-                Calculator = typeof(StatusAggregateCalculator),
+                Calculator = typeof(StatusAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_WorstQuality,
                 AggregateName = BrowseNames.AggregateFunction_WorstQuality,
-                Calculator = typeof(StatusAggregateCalculator),
+                Calculator = typeof(StatusAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_WorstQuality2,
                 AggregateName = BrowseNames.AggregateFunction_WorstQuality2,
-                Calculator = typeof(StatusAggregateCalculator),
+                Calculator = typeof(StatusAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_StandardDeviationPopulation,
                 AggregateName = BrowseNames.AggregateFunction_StandardDeviationPopulation,
-                Calculator = typeof(StdDevAggregateCalculator),
+                Calculator = typeof(StdDevAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_VariancePopulation,
                 AggregateName = BrowseNames.AggregateFunction_VariancePopulation,
-                Calculator = typeof(StdDevAggregateCalculator),
+                Calculator = typeof(StdDevAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_StandardDeviationSample,
                 AggregateName = BrowseNames.AggregateFunction_StandardDeviationSample,
-                Calculator = typeof(StdDevAggregateCalculator),
+                Calculator = typeof(StdDevAggregateCalculator)
             },
-            new FactoryMapping()
+            new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_VarianceSample,
                 AggregateName = BrowseNames.AggregateFunction_VarianceSample,
-                Calculator = typeof(StdDevAggregateCalculator),
-            },
+                Calculator = typeof(StdDevAggregateCalculator)
+            }
         ];
 
         /// <summary>

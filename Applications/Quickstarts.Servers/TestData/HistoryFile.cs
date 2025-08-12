@@ -55,7 +55,11 @@ namespace TestData
         /// <param name="isReadModified">Whether to return modified data.</param>
         /// <param name="position">A index that must be passed to the NextRaw call. </param>
         /// <returns>The DataValue.</returns>
-        public DataValue FirstRaw(DateTime startTime, bool isForward, bool isReadModified, out int position)
+        public DataValue FirstRaw(
+            DateTime startTime,
+            bool isForward,
+            bool isReadModified,
+            out int position)
         {
             position = -1;
 
@@ -96,7 +100,7 @@ namespace TestData
                     Value = entry.Value.Value,
                     ServerTimestamp = entry.Value.ServerTimestamp,
                     SourceTimestamp = entry.Value.SourceTimestamp,
-                    StatusCode = entry.Value.StatusCode,
+                    StatusCode = entry.Value.StatusCode
                 };
             }
         }
@@ -109,7 +113,11 @@ namespace TestData
         /// <param name="isReadModified">Whether to return modified data.</param>
         /// <param name="position">An index previously returned by the reader.</param>
         /// <returns>The DataValue.</returns>
-        public DataValue NextRaw(DateTime lastTime, bool isForward, bool isReadModified, ref int position)
+        public DataValue NextRaw(
+            DateTime lastTime,
+            bool isForward,
+            bool isReadModified,
+            ref int position)
         {
             position++;
 
@@ -127,7 +135,7 @@ namespace TestData
                     Value = entry.Value.Value,
                     ServerTimestamp = entry.Value.ServerTimestamp,
                     SourceTimestamp = entry.Value.SourceTimestamp,
-                    StatusCode = entry.Value.StatusCode,
+                    StatusCode = entry.Value.StatusCode
                 };
             }
         }

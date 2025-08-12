@@ -35,7 +35,8 @@ namespace Opc.Ua.Configuration.Tests
     /// <summary>
     /// Tests for the security configuration class.
     /// </summary>
-    [TestFixture, Category("SecurityConfiguration")]
+    [TestFixture]
+    [Category("SecurityConfiguration")]
     [SetCulture("en-us")]
     public class SecurityConfigurationTests
     {
@@ -46,7 +47,7 @@ namespace Opc.Ua.Configuration.Tests
             {
                 ApplicationCertificate = new CertificateIdentifier { RawData = [] },
                 TrustedPeerCertificates = new CertificateTrustList { StorePath = "Test" },
-                TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" },
+                TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" }
             };
 
             configuration.Validate();
@@ -61,15 +62,18 @@ namespace Opc.Ua.Configuration.Tests
         private static IEnumerable<TestCaseData> GetInvalidConfigurations()
         {
             yield return new TestCaseData(
-                new SecurityConfiguration { ApplicationCertificate = new CertificateIdentifier { RawData = [] } }
+                new SecurityConfiguration
+                {
+                    ApplicationCertificate = new CertificateIdentifier { RawData = [] }
+                }
             ).SetName("NoStores");
 
             yield return new TestCaseData(
                 new SecurityConfiguration
                 {
                     ApplicationCertificate = new CertificateIdentifier { RawData = [] },
-                    TrustedPeerCertificates = new CertificateTrustList { StorePath = "" },
-                    TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" },
+                    TrustedPeerCertificates = new CertificateTrustList { StorePath = string.Empty },
+                    TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" }
                 }
             ).SetName("InvalidTrustedStore");
 
@@ -78,7 +82,10 @@ namespace Opc.Ua.Configuration.Tests
                 {
                     ApplicationCertificate = new CertificateIdentifier { RawData = [] },
                     TrustedPeerCertificates = new CertificateTrustList { StorePath = "Test" },
-                    TrustedIssuerCertificates = new CertificateTrustList { StorePath = "" },
+                    TrustedIssuerCertificates = new CertificateTrustList
+                    {
+                        StorePath = string.Empty
+                    }
                 }
             ).SetName("InvalidIssuerStore");
 
@@ -88,7 +95,7 @@ namespace Opc.Ua.Configuration.Tests
                     ApplicationCertificate = new CertificateIdentifier { RawData = [] },
                     TrustedPeerCertificates = new CertificateTrustList { StorePath = "Test" },
                     TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" },
-                    TrustedHttpsCertificates = new CertificateTrustList { StorePath = "Test" },
+                    TrustedHttpsCertificates = new CertificateTrustList { StorePath = "Test" }
                 }
             ).SetName("OnlyTrustedHttps");
 
@@ -98,7 +105,7 @@ namespace Opc.Ua.Configuration.Tests
                     ApplicationCertificate = new CertificateIdentifier { RawData = [] },
                     TrustedPeerCertificates = new CertificateTrustList { StorePath = "Test" },
                     TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" },
-                    HttpsIssuerCertificates = new CertificateTrustList { StorePath = "Test" },
+                    HttpsIssuerCertificates = new CertificateTrustList { StorePath = "Test" }
                 }
             ).SetName("OnlyIssuerHttps");
 
@@ -108,8 +115,8 @@ namespace Opc.Ua.Configuration.Tests
                     ApplicationCertificate = new CertificateIdentifier { RawData = [] },
                     TrustedPeerCertificates = new CertificateTrustList { StorePath = "Test" },
                     TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" },
-                    HttpsIssuerCertificates = new CertificateTrustList { StorePath = "" },
-                    TrustedHttpsCertificates = new CertificateTrustList { StorePath = "Test" },
+                    HttpsIssuerCertificates = new CertificateTrustList { StorePath = string.Empty },
+                    TrustedHttpsCertificates = new CertificateTrustList { StorePath = "Test" }
                 }
             ).SetName("InvalidHttpsIssuer");
 
@@ -120,7 +127,7 @@ namespace Opc.Ua.Configuration.Tests
                     TrustedPeerCertificates = new CertificateTrustList { StorePath = "Test" },
                     TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" },
                     HttpsIssuerCertificates = new CertificateTrustList { StorePath = "Test" },
-                    TrustedHttpsCertificates = new CertificateTrustList { StorePath = "" },
+                    TrustedHttpsCertificates = new CertificateTrustList { StorePath = string.Empty }
                 }
             ).SetName("InvalidHttpsTrusted");
 
@@ -130,7 +137,7 @@ namespace Opc.Ua.Configuration.Tests
                     ApplicationCertificate = new CertificateIdentifier { RawData = [] },
                     TrustedPeerCertificates = new CertificateTrustList { StorePath = "Test" },
                     TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" },
-                    TrustedUserCertificates = new CertificateTrustList { StorePath = "Test" },
+                    TrustedUserCertificates = new CertificateTrustList { StorePath = "Test" }
                 }
             ).SetName("OnlyTrustedUser");
 
@@ -140,7 +147,7 @@ namespace Opc.Ua.Configuration.Tests
                     ApplicationCertificate = new CertificateIdentifier { RawData = [] },
                     TrustedPeerCertificates = new CertificateTrustList { StorePath = "Test" },
                     TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" },
-                    UserIssuerCertificates = new CertificateTrustList { StorePath = "Test" },
+                    UserIssuerCertificates = new CertificateTrustList { StorePath = "Test" }
                 }
             ).SetName("OnlyIssuerUser");
 
@@ -150,8 +157,8 @@ namespace Opc.Ua.Configuration.Tests
                     ApplicationCertificate = new CertificateIdentifier { RawData = [] },
                     TrustedPeerCertificates = new CertificateTrustList { StorePath = "Test" },
                     TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" },
-                    UserIssuerCertificates = new CertificateTrustList { StorePath = "" },
-                    TrustedUserCertificates = new CertificateTrustList { StorePath = "Test" },
+                    UserIssuerCertificates = new CertificateTrustList { StorePath = string.Empty },
+                    TrustedUserCertificates = new CertificateTrustList { StorePath = "Test" }
                 }
             ).SetName("InvalidUserIssuer");
 
@@ -162,7 +169,7 @@ namespace Opc.Ua.Configuration.Tests
                     TrustedPeerCertificates = new CertificateTrustList { StorePath = "Test" },
                     TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" },
                     UserIssuerCertificates = new CertificateTrustList { StorePath = "Test" },
-                    TrustedUserCertificates = new CertificateTrustList { StorePath = "" },
+                    TrustedUserCertificates = new CertificateTrustList { StorePath = string.Empty }
                 }
             ).SetName("InvalidUserTrusted");
         }

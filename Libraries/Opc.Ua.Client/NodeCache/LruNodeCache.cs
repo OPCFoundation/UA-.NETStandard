@@ -56,10 +56,6 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Create cache
         /// </summary>
-        /// <param name="session"></param>
-        /// <param name="cacheExpiry"></param>
-        /// <param name="capacity"></param>
-        /// <param name="withMetrics"></param>
         public LruNodeCache(
             ISession session,
             TimeSpan? cacheExpiry = null,
@@ -125,20 +121,25 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ValueTask<INode> GetNodeAsync(NodeId nodeId, CancellationToken ct)
         {
-            return m_nodes.TryGet(nodeId, out INode? node) ? ValueTask.FromResult(node) : FindAsyncCore(nodeId, ct);
+            return m_nodes.TryGet(nodeId, out INode? node)
+                ? ValueTask.FromResult(node)
+                : FindAsyncCore(nodeId, ct);
             ValueTask<INode> FindAsyncCore(NodeId nodeId, CancellationToken ct)
             {
                 return m_nodes.GetOrAddAsync(
                     nodeId,
                     async (nodeId, context) =>
-                        await context.session.ReadNodeAsync(nodeId, context.ct).ConfigureAwait(false),
+                        await context.session.ReadNodeAsync(nodeId, context.ct)
+                            .ConfigureAwait(false),
                     (session: Session, ct)
                 );
             }
         }
 
         /// <inheritdoc/>
-        public ValueTask<IReadOnlyList<INode>> GetNodesAsync(IReadOnlyList<NodeId> nodeIds, CancellationToken ct)
+        public ValueTask<IReadOnlyList<INode>> GetNodesAsync(
+            IReadOnlyList<NodeId> nodeIds,
+            CancellationToken ct)
         {
             int count = nodeIds.Count;
             var result = new List<INode?>(nodeIds.Count);
@@ -181,7 +182,9 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public ValueTask<IReadOnlyList<DataValue>> GetValuesAsync(IReadOnlyList<NodeId> nodeIds, CancellationToken ct)
+        public ValueTask<IReadOnlyList<DataValue>> GetValuesAsync(
+            IReadOnlyList<NodeId> nodeIds,
+            CancellationToken ct)
         {
             int count = nodeIds.Count;
             var result = new List<DataValue?>(nodeIds.Count);
@@ -217,9 +220,11 @@ namespace Opc.Ua.Client
         )
         {
             return
-                (!includeSubtypes || IsTypeHierarchyLoaded([referenceTypeId]))
-                && m_refs.TryGet(nodeId, out List<ReferenceDescription>? references)
-                ? GetNodesAsync(FilterNodes(references, isInverse, referenceTypeId, includeSubtypes), ct)
+                (!includeSubtypes || IsTypeHierarchyLoaded([referenceTypeId])) &&
+                m_refs.TryGet(nodeId, out List<ReferenceDescription>? references)
+                ? GetNodesAsync(
+                    FilterNodes(references, isInverse, referenceTypeId, includeSubtypes),
+                    ct)
                 : FindReferencesAsyncCore(nodeId, referenceTypeId, isInverse, includeSubtypes, ct);
 
             async ValueTask<IReadOnlyList<INode>> FindReferencesAsyncCore(
@@ -234,8 +239,11 @@ namespace Opc.Ua.Client
                 {
                     await LoadTypeHierarchyAsync([referenceTypeId], ct).ConfigureAwait(false);
                 }
-                List<ReferenceDescription> references = await GetOrAddReferencesAsync(nodeId, ct).ConfigureAwait(false);
-                return await GetNodesAsync(FilterNodes(references, isInverse, referenceTypeId, includeSubtypes), ct)
+                List<ReferenceDescription> references = await GetOrAddReferencesAsync(nodeId, ct)
+                    .ConfigureAwait(false);
+                return await GetNodesAsync(
+                    FilterNodes(references, isInverse, referenceTypeId, includeSubtypes),
+                    ct)
                     .ConfigureAwait(false);
             }
 
@@ -250,14 +258,14 @@ namespace Opc.Ua.Client
                 [
                     .. references
                         .Where(r =>
-                            r.IsForward == !isInverse
-                            && (
-                                r.ReferenceTypeId == refTypeId
-                                || (includeSubtypes && IsTypeOf(r.ReferenceTypeId, refTypeId))
+                            r.IsForward == !isInverse &&
+                            (
+                                r.ReferenceTypeId == refTypeId ||
+                                (includeSubtypes && IsTypeOf(r.ReferenceTypeId, refTypeId))
                             )
                         )
                         .Select(r => ToNodeId(r.NodeId))
-                        .Where(n => !NodeId.IsNull(n)),
+                        .Where(n => !NodeId.IsNull(n))
                 ];
             }
         }
@@ -275,7 +283,13 @@ namespace Opc.Ua.Client
             var notFound = new List<NodeId>();
             if (includeSubtypes && !IsTypeHierarchyLoaded(referenceTypeIds))
             {
-                return FindReferencesAsyncCore(notFound, referenceTypeIds, isInverse, includeSubtypes, targetIds, ct);
+                return FindReferencesAsyncCore(
+                    notFound,
+                    referenceTypeIds,
+                    isInverse,
+                    includeSubtypes,
+                    targetIds,
+                    ct);
             }
             foreach (NodeId nodeId in nodeIds)
             {
@@ -285,7 +299,8 @@ namespace Opc.Ua.Client
                 }
                 if (m_refs.TryGet(nodeId, out List<ReferenceDescription>? references))
                 {
-                    targetIds.AddRange(FilterNodes(references, isInverse, referenceTypeIds, includeSubtypes));
+                    targetIds.AddRange(
+                        FilterNodes(references, isInverse, referenceTypeIds, includeSubtypes));
                 }
                 else
                 {
@@ -293,7 +308,13 @@ namespace Opc.Ua.Client
                 }
             }
             return notFound.Count != 0
-                ? FindReferencesAsyncCore(notFound, referenceTypeIds, isInverse, includeSubtypes, targetIds, ct)
+                ? FindReferencesAsyncCore(
+                    notFound,
+                    referenceTypeIds,
+                    isInverse,
+                    includeSubtypes,
+                    targetIds,
+                    ct)
                 : GetNodesAsync(targetIds, ct);
 
             async ValueTask<IReadOnlyList<INode>> FindReferencesAsyncCore(
@@ -311,9 +332,12 @@ namespace Opc.Ua.Client
                 }
                 foreach (NodeId nodeId in nodeIds)
                 {
-                    List<ReferenceDescription> references = await GetOrAddReferencesAsync(nodeId, ct)
+                    List<ReferenceDescription> references = await GetOrAddReferencesAsync(
+                        nodeId,
+                        ct)
                         .ConfigureAwait(false);
-                    targetIds.AddRange(FilterNodes(references, isInverse, referenceTypeIds, includeSubtypes));
+                    targetIds.AddRange(
+                        FilterNodes(references, isInverse, referenceTypeIds, includeSubtypes));
                 }
                 return await GetNodesAsync(targetIds, ct).ConfigureAwait(false);
             }
@@ -328,20 +352,22 @@ namespace Opc.Ua.Client
                 [
                     .. references
                         .Where(r =>
-                            r.IsForward == !isInverse
-                            && referenceTypeIds.Any(refTypeId =>
-                                r.ReferenceTypeId == refTypeId
-                                || (includeSubtypes && IsTypeOf(r.ReferenceTypeId, refTypeId))
+                            r.IsForward == !isInverse &&
+                            referenceTypeIds.Any(refTypeId =>
+                                r.ReferenceTypeId == refTypeId ||
+                                (includeSubtypes && IsTypeOf(r.ReferenceTypeId, refTypeId))
                             )
                         )
                         .Select(r => ToNodeId(r.NodeId))
-                        .Where(n => !NodeId.IsNull(n)),
+                        .Where(n => !NodeId.IsNull(n))
                 ];
             }
         }
 
         /// <inheritdoc/>
-        public async ValueTask LoadTypeHierarchyAsync(IReadOnlyList<NodeId> typeIds, CancellationToken ct)
+        public async ValueTask LoadTypeHierarchyAsync(
+            IReadOnlyList<NodeId> typeIds,
+            CancellationToken ct)
         {
             IReadOnlyList<INode> nodes = await GetReferencesAsync(
                     typeIds,
@@ -357,7 +383,8 @@ namespace Opc.Ua.Client
                 {
                     subTypes = [.. nodes];
                 }
-                await LoadTypeHierarchyAsync(subTypes.ConvertAll(n => ToNodeId(n.NodeId)), ct).ConfigureAwait(false);
+                await LoadTypeHierarchyAsync(subTypes.ConvertAll(n => ToNodeId(n.NodeId)), ct)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -371,7 +398,8 @@ namespace Opc.Ua.Client
             if (!m_refs.TryGet(subTypeId, out List<ReferenceDescription>? references))
             {
                 // block - we can throw here but user should load
-                references = GetOrAddReferencesAsync(subTypeId, default).AsTask().GetAwaiter().GetResult();
+                references = GetOrAddReferencesAsync(subTypeId, default).AsTask().GetAwaiter()
+                    .GetResult();
             }
             subTypeId = GetSuperTypeFromReferences(references);
             return !NodeId.IsNull(subTypeId) && IsTypeOf(subTypeId, superTypeId);
@@ -386,13 +414,16 @@ namespace Opc.Ua.Client
 
             async ValueTask<NodeId> FindSuperTypeAsyncCore(NodeId typeId, CancellationToken ct)
             {
-                List<ReferenceDescription> references = await GetOrAddReferencesAsync(typeId, ct).ConfigureAwait(false);
+                List<ReferenceDescription> references = await GetOrAddReferencesAsync(typeId, ct)
+                    .ConfigureAwait(false);
                 return GetSuperTypeFromReferences(references);
             }
         }
 
         /// <inheritdoc/>
-        public async ValueTask<BuiltInType> GetBuiltInTypeAsync(NodeId datatypeId, CancellationToken ct)
+        public async ValueTask<BuiltInType> GetBuiltInTypeAsync(
+            NodeId datatypeId,
+            CancellationToken ct)
         {
             NodeId typeId = datatypeId;
             while (!NodeId.IsNull(typeId))
@@ -477,10 +508,9 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Get or add references to cache
         /// </summary>
-        /// <param name="nodeId"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
-        private ValueTask<List<ReferenceDescription>> GetOrAddReferencesAsync(NodeId nodeId, CancellationToken ct)
+        private ValueTask<List<ReferenceDescription>> GetOrAddReferencesAsync(
+            NodeId nodeId,
+            CancellationToken ct)
         {
             Debug.Assert(!NodeId.IsNull(nodeId));
             return m_refs.GetOrAddAsync(
@@ -495,7 +525,9 @@ namespace Opc.Ua.Client
                         // transform absolute identifiers.
                         if (reference.NodeId?.IsAbsolute == true)
                         {
-                            reference.NodeId = ExpandedNodeId.ToNodeId(reference.NodeId, context.session.NamespaceUris);
+                            reference.NodeId = ExpandedNodeId.ToNodeId(
+                                reference.NodeId,
+                                context.session.NamespaceUris);
                         }
                     }
                     return references;
@@ -507,10 +539,6 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Fetch remaining nodes not yet in the result list
         /// </summary>
-        /// <param name="remainingIds"></param>
-        /// <param name="result"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
         private async ValueTask<IReadOnlyList<INode>> FetchRemainingAsync(
             List<NodeId> remainingIds,
             List<INode?> result,
@@ -548,10 +576,6 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Fetch remaining nodes not yet in the result list
         /// </summary>
-        /// <param name="remainingIds"></param>
-        /// <param name="result"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
         private async ValueTask<IReadOnlyList<DataValue>> FetchRemainingAsync(
             List<NodeId> remainingIds,
             List<DataValue?> result,
@@ -594,8 +618,6 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Check whether type hierarchy is loaded
         /// </summary>
-        /// <param name="typeIds"></param>
-        /// <returns></returns>
         private bool IsTypeHierarchyLoaded(IEnumerable<NodeId> typeIds)
         {
             var types = new Queue<NodeId>(typeIds.Where(nodeId => !NodeId.IsNull(nodeId)));
@@ -608,9 +630,9 @@ namespace Opc.Ua.Client
                 foreach (ReferenceDescription reference in references)
                 {
                     if (
-                        reference.ReferenceTypeId == ReferenceTypeIds.HasSubtype
-                        && reference.IsForward
-                        && !reference.NodeId.IsAbsolute
+                        reference.ReferenceTypeId == ReferenceTypeIds.HasSubtype &&
+                        reference.IsForward &&
+                        !reference.NodeId.IsAbsolute
                     )
                     {
                         types.Enqueue(ToNodeId(reference.NodeId));
@@ -623,8 +645,6 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Get supertype from references
         /// </summary>
-        /// <param name="references"></param>
-        /// <returns></returns>
         private NodeId GetSuperTypeFromReferences(List<ReferenceDescription> references)
         {
             return references
@@ -638,8 +658,6 @@ namespace Opc.Ua.Client
         /// Convert to node id from expanded node id if the expanded node id
         /// is not absolute. Otherwise return a null node id
         /// </summary>
-        /// <param name="expandedNodeId"></param>
-        /// <returns></returns>
         private NodeId ToNodeId(ExpandedNodeId expandedNodeId)
         {
             return expandedNodeId.IsAbsolute

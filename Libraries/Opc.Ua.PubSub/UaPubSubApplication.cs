@@ -87,7 +87,9 @@ namespace Opc.Ua.PubSub
         /// </summary>
         /// <param name="dataStore"> The current implementation of <see cref="IUaPubSubDataStore"/> used by this instance of pub sub application</param>
         /// <param name="applicationId"> The application id for instance.</param>
-        private UaPubSubApplication(IUaPubSubDataStore dataStore = null, string applicationId = null)
+        private UaPubSubApplication(
+            IUaPubSubDataStore dataStore = null,
+            string applicationId = null)
         {
             m_uaPubSubConnections = [];
 
@@ -106,8 +108,10 @@ namespace Opc.Ua.PubSub
             UaPubSubConfigurator = new UaPubSubConfigurator();
             UaPubSubConfigurator.ConnectionAdded += UaPubSubConfigurator_ConnectionAdded;
             UaPubSubConfigurator.ConnectionRemoved += UaPubSubConfigurator_ConnectionRemoved;
-            UaPubSubConfigurator.PublishedDataSetAdded += UaPubSubConfigurator_PublishedDataSetAdded;
-            UaPubSubConfigurator.PublishedDataSetRemoved += UaPubSubConfigurator_PublishedDataSetRemoved;
+            UaPubSubConfigurator.PublishedDataSetAdded
+                += UaPubSubConfigurator_PublishedDataSetAdded;
+            UaPubSubConfigurator.PublishedDataSetRemoved
+                += UaPubSubConfigurator_PublishedDataSetRemoved;
 
             Utils.Trace("An instance of UaPubSubApplication was created.");
         }
@@ -121,7 +125,8 @@ namespace Opc.Ua.PubSub
         /// Get the list of SupportedTransportProfiles
         /// </summary>
         public static string[] SupportedTransportProfiles =>
-            [Profiles.PubSubUdpUadpTransport, Profiles.PubSubMqttJsonTransport, Profiles.PubSubMqttUadpTransport];
+            [Profiles.PubSubUdpUadpTransport, Profiles.PubSubMqttJsonTransport, Profiles
+                .PubSubMqttUadpTransport];
 
         /// <summary>
         /// Get reference to the associated <see cref="UaPubSubConfigurator"/> instance.
@@ -159,7 +164,11 @@ namespace Opc.Ua.PubSub
         /// <param name="configFilePath">The path of the configuration path.</param>
         /// <param name="dataStore"> The current implementation of <see cref="IUaPubSubDataStore"/> used by this instance of pub sub application</param>
         /// <returns>New instance of <see cref="UaPubSubApplication"/></returns>
-        public static UaPubSubApplication Create(string configFilePath, IUaPubSubDataStore dataStore = null)
+        /// <exception cref="ArgumentNullException"><paramref name="configFilePath"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
+        public static UaPubSubApplication Create(
+            string configFilePath,
+            IUaPubSubDataStore dataStore = null)
         {
             // validate input argument
             if (configFilePath == null)
@@ -168,11 +177,14 @@ namespace Opc.Ua.PubSub
             }
             if (!File.Exists(configFilePath))
             {
-                throw new ArgumentException("The specified file {0} does not exist", configFilePath);
+                throw new ArgumentException(
+                    "The specified file {0} does not exist",
+                    configFilePath);
             }
-            PubSubConfigurationDataType pubSubConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(
-                configFilePath
-            );
+            PubSubConfigurationDataType pubSubConfiguration = UaPubSubConfigurationHelper
+                .LoadConfiguration(
+                    configFilePath
+                    );
 
             return Create(pubSubConfiguration, dataStore);
         }
@@ -226,7 +238,6 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Raise <see cref="RawDataReceived"/> event
         /// </summary>
-        /// <param name="e"></param>
         internal void RaiseRawDataReceivedEvent(RawDataReceivedEventArgs e)
         {
             try
@@ -242,7 +253,6 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Raise DataReceived event
         /// </summary>
-        /// <param name="e"></param>
         internal void RaiseDataReceivedEvent(SubscribedDataEventArgs e)
         {
             try
@@ -258,7 +268,6 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Raise MetaDataReceived event
         /// </summary>
-        /// <param name="e"></param>
         internal void RaiseMetaDataReceivedEvent(SubscribedDataEventArgs e)
         {
             try
@@ -274,8 +283,8 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Raise DatasetWriterConfigurationReceived event
         /// </summary>
-        /// <param name="e"></param>
-        internal void RaiseDatasetWriterConfigurationReceivedEvent(DataSetWriterConfigurationEventArgs e)
+        internal void RaiseDatasetWriterConfigurationReceivedEvent(
+            DataSetWriterConfigurationEventArgs e)
         {
             try
             {
@@ -290,7 +299,6 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Raise PublisherEndpointsReceived event
         /// </summary>
-        /// <param name="e"></param>
         internal void RaisePublisherEndpointsReceivedEvent(PublisherEndpointsEventArgs e)
         {
             try
@@ -306,7 +314,6 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Raise <see cref="ConfigurationUpdating"/> event
         /// </summary>
-        /// <param name="e"></param>
         internal void RaiseConfigurationUpdatingEvent(ConfigurationUpdatingEventArgs e)
         {
             try
@@ -322,7 +329,9 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Handler for PublishedDataSetAdded event
         /// </summary>
-        private void UaPubSubConfigurator_PublishedDataSetAdded(object sender, PublishedDataSetEventArgs e)
+        private void UaPubSubConfigurator_PublishedDataSetAdded(
+            object sender,
+            PublishedDataSetEventArgs e)
         {
             DataCollector.AddPublishedDataSet(e.PublishedDataSetDataType);
         }
@@ -330,9 +339,9 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Handler for PublishedDataSetRemoved event
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void UaPubSubConfigurator_PublishedDataSetRemoved(object sender, PublishedDataSetEventArgs e)
+        private void UaPubSubConfigurator_PublishedDataSetRemoved(
+            object sender,
+            PublishedDataSetEventArgs e)
         {
             DataCollector.RemovePublishedDataSet(e.PublishedDataSetDataType);
         }
@@ -340,8 +349,6 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Handler for ConnectionRemoved event
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
         private void UaPubSubConfigurator_ConnectionRemoved(object sender, ConnectionEventArgs e)
         {
             IUaPubSubConnection removedUaPubSubConnection = null;
@@ -363,11 +370,11 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Handler for ConnectionAdded event
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
         private void UaPubSubConfigurator_ConnectionAdded(object sender, ConnectionEventArgs e)
         {
-            UaPubSubConnection newUaPubSubConnection = ObjectFactory.CreateConnection(this, e.PubSubConnectionDataType);
+            UaPubSubConnection newUaPubSubConnection = ObjectFactory.CreateConnection(
+                this,
+                e.PubSubConnectionDataType);
             if (newUaPubSubConnection != null)
             {
                 m_uaPubSubConnections.Add(newUaPubSubConnection);
@@ -394,8 +401,10 @@ namespace Opc.Ua.PubSub
             {
                 UaPubSubConfigurator.ConnectionAdded -= UaPubSubConfigurator_ConnectionAdded;
                 UaPubSubConfigurator.ConnectionRemoved -= UaPubSubConfigurator_ConnectionRemoved;
-                UaPubSubConfigurator.PublishedDataSetAdded -= UaPubSubConfigurator_PublishedDataSetAdded;
-                UaPubSubConfigurator.PublishedDataSetRemoved -= UaPubSubConfigurator_PublishedDataSetRemoved;
+                UaPubSubConfigurator.PublishedDataSetAdded
+                    -= UaPubSubConfigurator_PublishedDataSetAdded;
+                UaPubSubConfigurator.PublishedDataSetRemoved
+                    -= UaPubSubConfigurator_PublishedDataSetRemoved;
 
                 Stop();
                 // free managed resources

@@ -74,8 +74,8 @@ namespace Opc.Ua.Sample
                     DataChangeMonitoredItem monitoredItem = m_monitoredItems[ii];
 
                     if (
-                        monitoredItem.AttributeId == attributeId
-                        && monitoredItem.MonitoringMode != MonitoringMode.Disabled
+                        monitoredItem.AttributeId == attributeId &&
+                        monitoredItem.MonitoringMode != MonitoringMode.Disabled
                     )
                     {
                         return true;
@@ -205,7 +205,8 @@ namespace Opc.Ua.Sample
         /// Restore a data change item after a server restart
         /// </summary>
         /// <returns>The new monitored item.</returns>
-        public DataChangeMonitoredItem RestoreDataChangeItem(IStoredMonitoredItem storedMonitoredItem)
+        public DataChangeMonitoredItem RestoreDataChangeItem(
+            IStoredMonitoredItem storedMonitoredItem)
         {
             var monitoredItem = new DataChangeMonitoredItem(
                 Server.SubscriptionStore,
@@ -249,7 +250,10 @@ namespace Opc.Ua.Sample
         /// <param name="context">The system context.</param>
         /// <param name="state">The node that raised the event.</param>
         /// <param name="masks">What caused the event to be raised</param>
-        public void OnNodeChange(ISystemContext context, NodeState state, NodeStateChangeMasks masks)
+        public void OnNodeChange(
+            ISystemContext context,
+            NodeState state,
+            NodeStateChangeMasks masks)
         {
             if (m_monitoredItems != null)
             {
@@ -306,7 +310,9 @@ namespace Opc.Ua.Sample
         /// <summary>
         /// Unsubscribes to events produced by the node.
         /// </summary>
-        public void UnsubscribeToEvents(ISystemContext context, IEventMonitoredItem eventSubscription)
+        public void UnsubscribeToEvents(
+            ISystemContext context,
+            IEventMonitoredItem eventSubscription)
         {
             if (m_eventSubscriptions != null)
             {

@@ -32,7 +32,8 @@ using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {
-    [TestFixture, Category("Utils")]
+    [TestFixture]
+    [Category("Utils")]
     public class RedactionTests
     {
         [Test]

@@ -53,19 +53,25 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Creates an empty extension.
         /// </summary>
-        protected X509AuthorityKeyIdentifierExtension() { }
+        protected X509AuthorityKeyIdentifierExtension()
+        {
+        }
 
         /// <summary>
         /// Creates an extension from ASN.1 encoded data.
         /// </summary>
         public X509AuthorityKeyIdentifierExtension(AsnEncodedData encodedExtension, bool critical)
-            : this(encodedExtension.Oid, encodedExtension.RawData, critical) { }
+            : this(encodedExtension.Oid, encodedExtension.RawData, critical)
+        {
+        }
 
         /// <summary>
         /// Creates an extension from ASN.1 encoded data.
         /// </summary>
         public X509AuthorityKeyIdentifierExtension(string oid, byte[] rawData, bool critical)
-            : this(new Oid(oid, kFriendlyName), rawData, critical) { }
+            : this(new Oid(oid, kFriendlyName), rawData, critical)
+        {
+        }
 
         /// <summary>
         /// Build the X509 Authority Key extension.
@@ -73,7 +79,8 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="subjectKeyIdentifier">The subject key identifier</param>
         public X509AuthorityKeyIdentifierExtension(byte[] subjectKeyIdentifier)
         {
-            m_keyIdentifier = subjectKeyIdentifier ?? throw new ArgumentNullException(nameof(subjectKeyIdentifier));
+            m_keyIdentifier = subjectKeyIdentifier ??
+                throw new ArgumentNullException(nameof(subjectKeyIdentifier));
             Oid = new Oid(AuthorityKeyIdentifier2Oid, kFriendlyName);
             Critical = false;
             RawData = Encode();
@@ -133,9 +140,9 @@ namespace Opc.Ua.Security.Certificates
                     }
                 }
 
-                buffer.Append(kKeyIdentifier);
-                buffer.Append('=');
-                buffer.Append(m_keyIdentifier.ToHexString());
+                buffer.Append(kKeyIdentifier)
+                    .Append('=')
+                    .Append(m_keyIdentifier.ToHexString());
             }
 
             if (Issuer != null)
@@ -149,9 +156,9 @@ namespace Opc.Ua.Security.Certificates
                     buffer.Append(", ");
                 }
 
-                buffer.Append(kIssuer);
-                buffer.Append('=');
-                buffer.Append(Issuer.Format(true));
+                buffer.Append(kIssuer)
+                    .Append('=')
+                    .Append(Issuer.Format(true));
             }
 
             if (m_serialNumber != null && m_serialNumber.Length > 0)
@@ -161,9 +168,9 @@ namespace Opc.Ua.Security.Certificates
                     buffer.Append(", ");
                 }
 
-                buffer.Append(kSerialNumber);
-                buffer.Append('=');
-                buffer.Append(m_serialNumber.ToHexString(true));
+                buffer.Append(kSerialNumber)
+                    .Append('=')
+                    .Append(m_serialNumber.ToHexString(true));
             }
             return buffer.ToString();
         }
@@ -171,6 +178,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Initializes the extension from ASN.1 encoded data.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="asnEncodedData"/> is <c>null</c>.</exception>
         public override void CopyFrom(AsnEncodedData asnEncodedData)
         {
             if (asnEncodedData == null)
@@ -293,9 +301,14 @@ namespace Opc.Ua.Security.Certificates
                                 );
                                 if (issuerReader != null)
                                 {
-                                    var directoryNameTag = new Asn1Tag(TagClass.ContextSpecific, 4, true);
+                                    var directoryNameTag = new Asn1Tag(
+                                        TagClass.ContextSpecific,
+                                        4,
+                                        true);
                                     Issuer = new X500DistinguishedName(
-                                        issuerReader.ReadSequence(directoryNameTag).ReadEncodedValue().ToArray()
+                                        issuerReader.ReadSequence(directoryNameTag)
+                                            .ReadEncodedValue()
+                                            .ToArray()
                                     );
                                     issuerReader.ThrowIfNotEmpty();
                                 }
@@ -304,7 +317,8 @@ namespace Opc.Ua.Security.Certificates
 
                             if (peekTag == serialNumberTag)
                             {
-                                m_serialNumber = akiReader.ReadInteger(serialNumberTag).ToByteArray();
+                                m_serialNumber = akiReader.ReadInteger(serialNumberTag)
+                                    .ToByteArray();
                                 continue;
                             }
                             throw new AsnContentException("Unknown tag in sequence.");
@@ -316,7 +330,9 @@ namespace Opc.Ua.Security.Certificates
                 }
                 catch (AsnContentException ace)
                 {
-                    throw new CryptographicException("Failed to decode the AuthorityKeyIdentifier extension.", ace);
+                    throw new CryptographicException(
+                        "Failed to decode the AuthorityKeyIdentifier extension.",
+                        ace);
                 }
             }
             throw new CryptographicException("Invalid AuthorityKeyIdentifierOid.");

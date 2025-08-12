@@ -39,13 +39,18 @@ namespace Opc.Ua.Gds.Server
     {
         internal static List<Role> AuthenticatedUser { get; } = [Role.AuthenticatedUser];
         internal static List<Role> DiscoveryAdmin { get; } = [GdsRole.DiscoveryAdmin];
+
         internal static List<Role> DiscoveryAdminOrSelfAdmin { get; } =
         [GdsRole.DiscoveryAdmin, GdsRole.ApplicationSelfAdmin];
+
         internal static List<Role> AuthenticatedUserOrSelfAdmin { get; } =
         [Role.AuthenticatedUser, GdsRole.ApplicationSelfAdmin];
+
         internal static List<Role> CertificateAuthorityAdminOrSelfAdmin { get; } =
         [GdsRole.CertificateAuthorityAdmin, GdsRole.ApplicationSelfAdmin];
-        internal static List<Role> CertificateAuthorityAdmin { get; } = [GdsRole.CertificateAuthorityAdmin];
+
+        internal static List<Role> CertificateAuthorityAdmin { get; }
+            = [GdsRole.CertificateAuthorityAdmin];
 
         /// <summary>
         /// Checks if the current session (context) has one of the requested roles. If <see cref="GdsRole.ApplicationSelfAdmin"/> is allowed the applicationId needs to be specified
@@ -53,6 +58,7 @@ namespace Opc.Ua.Gds.Server
         /// <param name="context">the current <see cref="ISystemContext"/></param>
         /// <param name="roles">all allowed roles, if wanted include <see cref="GdsRole.ApplicationSelfAdmin"/></param>
         /// <param name="applicationId">If <see cref="GdsRole.ApplicationSelfAdmin"/> is allowed specifies the id of the Application-Entry to access</param>
+        /// <exception cref="ServiceResultException"></exception>
         public static void HasAuthorization(
             ISystemContext context,
             IEnumerable<Role> roles,
@@ -107,10 +113,14 @@ namespace Opc.Ua.Gds.Server
             }
 
             if (
-                trustedStore != null
-                && certTypeMap != null
-                && applicationsDatabase != null
-                && CheckSelfAdminPrivilege(context.UserIdentity, trustedStore, certTypeMap, applicationsDatabase)
+                trustedStore != null &&
+                certTypeMap != null &&
+                applicationsDatabase != null &&
+                CheckSelfAdminPrivilege(
+                    context.UserIdentity,
+                    trustedStore,
+                    certTypeMap,
+                    applicationsDatabase)
             )
             {
                 return;
@@ -130,9 +140,9 @@ namespace Opc.Ua.Gds.Server
         public static void HasAuthenticatedSecureChannel(ISystemContext context)
         {
             if (
-                context is SystemContext { OperationContext: OperationContext operationContext }
-                && operationContext.ChannelContext?.EndpointDescription?.SecurityMode
-                    != MessageSecurityMode.SignAndEncrypt
+                context is SystemContext { OperationContext: OperationContext operationContext } &&
+                operationContext.ChannelContext?.EndpointDescription?.SecurityMode !=
+                    MessageSecurityMode.SignAndEncrypt
             )
             {
                 throw new ServiceResultException(
@@ -148,7 +158,8 @@ namespace Opc.Ua.Gds.Server
             {
                 foreach (Role role in roles)
                 {
-                    if (!NodeId.IsNull(role.RoleId) && userIdentity.GrantedRoleIds.Contains(role.RoleId))
+                    if (!NodeId.IsNull(role.RoleId) &&
+                        userIdentity.GrantedRoleIds.Contains(role.RoleId))
                     {
                         return true;
                     }
@@ -157,7 +168,9 @@ namespace Opc.Ua.Gds.Server
             return false;
         }
 
-        private static bool CheckSelfAdminPrivilege(IUserIdentity userIdentity, NodeId applicationId)
+        private static bool CheckSelfAdminPrivilege(
+            IUserIdentity userIdentity,
+            NodeId applicationId)
         {
             if (applicationId is null || applicationId.IsNullNodeId)
             {

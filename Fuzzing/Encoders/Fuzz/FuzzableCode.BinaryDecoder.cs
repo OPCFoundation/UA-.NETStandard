@@ -161,7 +161,9 @@ namespace Opc.Ua.Fuzzing
         /// The fuzz target for the BinaryDecoder.
         /// </summary>
         /// <param name="stream">A memory stream with fuzz content.</param>
-        internal static IEncodeable FuzzBinaryDecoderCore(MemoryStream stream, bool throwAll = false)
+        internal static IEncodeable FuzzBinaryDecoderCore(
+            MemoryStream stream,
+            bool throwAll = false)
         {
             try
             {
@@ -179,9 +181,6 @@ namespace Opc.Ua.Fuzzing
                             return null;
                         }
                         break;
-
-                    default:
-                        break;
                 }
 
                 throw;
@@ -193,7 +192,9 @@ namespace Opc.Ua.Fuzzing
         /// </summary>
         /// <param name="serialized">The idempotent UA binary encoded data.</param>
         /// <exception cref="Exception"></exception>
-        internal static void FuzzBinaryEncoderIndempotentCore(byte[] serialized, IEncodeable encodeable)
+        internal static void FuzzBinaryEncoderIndempotentCore(
+            byte[] serialized,
+            IEncodeable encodeable)
         {
             if (serialized == null || encodeable == null)
             {
@@ -210,12 +211,15 @@ namespace Opc.Ua.Fuzzing
             string encodeableTypeName = encodeable2?.GetType().Name ?? "unknown type";
             if (serialized2 == null || !serialized.SequenceEqual(serialized2))
             {
-                throw new Exception(Utils.Format("Idempotent encoding failed. Type={0}.", encodeableTypeName));
+                throw new Exception(
+                    Utils.Format("Idempotent encoding failed. Type={0}.", encodeableTypeName));
             }
 
             if (!Utils.IsEqual(encodeable2, encodeable3))
             {
-                throw new Exception(Utils.Format("Idempotent 3rd gen decoding failed. Type={0}.", encodeableTypeName));
+                throw new Exception(Utils.Format(
+                    "Idempotent 3rd gen decoding failed. Type={0}.",
+                    encodeableTypeName));
             }
         }
     }

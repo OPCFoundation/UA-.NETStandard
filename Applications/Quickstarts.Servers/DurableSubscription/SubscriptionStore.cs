@@ -43,18 +43,21 @@ namespace Quickstarts.Servers
         private static readonly JsonSerializerSettings s_settings = new()
         {
             TypeNameHandling = TypeNameHandling.All,
-            Converters = { new ExtensionObjectConverter(), new NumericRangeConverter() },
+            Converters = { new ExtensionObjectConverter(), new NumericRangeConverter() }
         };
+
         private static readonly string s_storage_path = Path.Combine(
             Environment.CurrentDirectory,
             "Durable Subscriptions"
         );
+
         private const string kFilename = "subscriptionsStore.txt";
         private readonly DurableMonitoredItemQueueFactory m_durableMonitoredItemQueueFactory;
 
         public SubscriptionStore(IServerInternal server)
         {
-            m_durableMonitoredItemQueueFactory = server.MonitoredItemQueueFactory as DurableMonitoredItemQueueFactory;
+            m_durableMonitoredItemQueueFactory = server
+                .MonitoredItemQueueFactory as DurableMonitoredItemQueueFactory;
         }
 
         public bool StoreSubscriptions(IEnumerable<IStoredSubscription> subscriptions)
@@ -72,7 +75,8 @@ namespace Quickstarts.Servers
 
                 if (m_durableMonitoredItemQueueFactory != null)
                 {
-                    IEnumerable<uint> ids = subscriptions.SelectMany(s => s.MonitoredItems.Select(m => m.Id));
+                    IEnumerable<uint> ids = subscriptions.SelectMany(
+                        s => s.MonitoredItems.Select(m => m.Id));
                     m_durableMonitoredItemQueueFactory.PersistQueues(ids, s_storage_path);
                 }
                 return true;
@@ -92,10 +96,11 @@ namespace Quickstarts.Servers
                 if (File.Exists(filePath))
                 {
                     string json = File.ReadAllText(filePath);
-                    List<IStoredSubscription> result = JsonConvert.DeserializeObject<List<IStoredSubscription>>(
-                        json,
-                        s_settings
-                    );
+                    List<IStoredSubscription> result = JsonConvert
+                        .DeserializeObject<List<IStoredSubscription>>(
+                            json,
+                            s_settings
+                            );
 
                     File.Delete(filePath);
 
@@ -130,13 +135,16 @@ namespace Quickstarts.Servers
                 return new ExtensionObject { Body = body, TypeId = typeId };
             }
 
-            public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+            public override void WriteJson(
+                JsonWriter writer,
+                object value,
+                JsonSerializer serializer)
             {
                 var extensionObject = (ExtensionObject)value;
                 var jo = new JObject
                 {
                     ["Body"] = JToken.FromObject(extensionObject.Body, serializer),
-                    ["TypeId"] = JToken.FromObject(extensionObject.TypeId, serializer),
+                    ["TypeId"] = JToken.FromObject(extensionObject.TypeId, serializer)
                 };
                 jo.WriteTo(writer);
             }
@@ -162,26 +170,34 @@ namespace Quickstarts.Servers
                 return new NumericRange(begin, end);
             }
 
-            public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+            public override void WriteJson(
+                JsonWriter writer,
+                object value,
+                JsonSerializer serializer)
             {
                 var extensionObject = (NumericRange)value;
                 var jo = new JObject
                 {
                     ["Begin"] = JToken.FromObject(extensionObject.Begin, serializer),
-                    ["End"] = JToken.FromObject(extensionObject.End, serializer),
+                    ["End"] = JToken.FromObject(extensionObject.End, serializer)
                 };
                 jo.WriteTo(writer);
             }
         }
 
-        public IDataChangeMonitoredItemQueue RestoreDataChangeMonitoredItemQueue(uint monitoredItemId)
+        public IDataChangeMonitoredItemQueue RestoreDataChangeMonitoredItemQueue(
+            uint monitoredItemId)
         {
-            return m_durableMonitoredItemQueueFactory?.RestoreDataChangeQueue(monitoredItemId, s_storage_path);
+            return m_durableMonitoredItemQueueFactory?.RestoreDataChangeQueue(
+                monitoredItemId,
+                s_storage_path);
         }
 
         public IEventMonitoredItemQueue RestoreEventMonitoredItemQueue(uint monitoredItemId)
         {
-            return m_durableMonitoredItemQueueFactory?.RestoreEventQueue(monitoredItemId, s_storage_path);
+            return m_durableMonitoredItemQueueFactory?.RestoreEventQueue(
+                monitoredItemId,
+                s_storage_path);
         }
 
         public void OnSubscriptionRestoreComplete(Dictionary<uint, uint[]> createdSubscriptions)

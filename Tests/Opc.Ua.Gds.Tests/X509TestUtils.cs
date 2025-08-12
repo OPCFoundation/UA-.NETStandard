@@ -52,7 +52,9 @@ namespace Opc.Ua.Gds.Tests
             X509Certificate2 newPrivateKeyCert = null;
             if (privateKeyFormat == "PFX")
             {
-                newPrivateKeyCert = X509Utils.CreateCertificateFromPKCS12(privateKey, privateKeyPassword);
+                newPrivateKeyCert = X509Utils.CreateCertificateFromPKCS12(
+                    privateKey,
+                    privateKeyPassword);
             }
             else if (privateKeyFormat == "PEM")
             {
@@ -81,7 +83,10 @@ namespace Opc.Ua.Gds.Tests
             // verify cert with issuer chain
             var certValidator = new CertificateValidator();
             var issuerStore = new CertificateTrustList();
-            var trustedStore = new CertificateTrustList { TrustedCertificates = issuerCertIdCollection };
+            var trustedStore = new CertificateTrustList
+            {
+                TrustedCertificates = issuerCertIdCollection
+            };
             certValidator.Update(trustedStore, issuerStore, null);
             NUnit.Framework.Assert.That(() => certValidator.Validate(newCert), Throws.Exception);
             issuerStore.TrustedCertificates = issuerCertIdCollection;
@@ -105,14 +110,17 @@ namespace Opc.Ua.Gds.Tests
             Assert.False(signedCert.HasPrivateKey);
             Assert.True(X509Utils.CompareDistinguishedName(testApp.Subject, signedCert.Subject));
             Assert.False(X509Utils.CompareDistinguishedName(signedCert.Issuer, signedCert.Subject));
-            Assert.False(X509Utils.CompareDistinguishedName(signedCert.IssuerName, signedCert.SubjectName));
+            Assert.False(
+                X509Utils.CompareDistinguishedName(signedCert.IssuerName, signedCert.SubjectName));
             Assert.True(X509Utils.CompareDistinguishedName(signedCert.Issuer, issuerCert.Subject));
-            Assert.True(X509Utils.CompareDistinguishedName(signedCert.IssuerName, issuerCert.SubjectName));
+            Assert.True(
+                X509Utils.CompareDistinguishedName(signedCert.IssuerName, issuerCert.SubjectName));
             TestContext.Out.WriteLine($"Signed Subject: {signedCert.Subject}");
             TestContext.Out.WriteLine($"Issuer Subject: {issuerCert.Subject}");
 
             // test basic constraints
-            X509BasicConstraintsExtension constraints = signedCert.FindExtension<X509BasicConstraintsExtension>();
+            X509BasicConstraintsExtension constraints = signedCert
+                .FindExtension<X509BasicConstraintsExtension>();
             Assert.NotNull(constraints);
             TestContext.Out.WriteLine($"Constraints: {constraints.Format(true)}");
             Assert.True(constraints.Critical);
@@ -127,27 +135,32 @@ namespace Opc.Ua.Gds.Tests
             Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.CrlSign) == 0);
             Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.DecipherOnly) == 0);
             Assert.True(
-                (keyUsage.KeyUsages & X509KeyUsageFlags.DigitalSignature) == X509KeyUsageFlags.DigitalSignature
+                (keyUsage.KeyUsages &
+                    X509KeyUsageFlags.DigitalSignature) == X509KeyUsageFlags.DigitalSignature
             );
             Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.EncipherOnly) == 0);
             Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.KeyCertSign) == 0);
-            Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.NonRepudiation) == X509KeyUsageFlags.NonRepudiation);
+            Assert.True((keyUsage.KeyUsages &
+                X509KeyUsageFlags.NonRepudiation) == X509KeyUsageFlags.NonRepudiation);
 
             //ECC
             if (X509PfxUtils.IsECDsaSignature(signedCert))
             {
                 Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.DataEncipherment) == 0);
                 Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.KeyEncipherment) == 0);
-                Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.KeyAgreement) == X509KeyUsageFlags.KeyAgreement);
+                Assert.True((keyUsage.KeyUsages &
+                    X509KeyUsageFlags.KeyAgreement) == X509KeyUsageFlags.KeyAgreement);
             }
             //RSA
             else
             {
                 Assert.True(
-                    (keyUsage.KeyUsages & X509KeyUsageFlags.DataEncipherment) == X509KeyUsageFlags.DataEncipherment
+                    (keyUsage.KeyUsages &
+                        X509KeyUsageFlags.DataEncipherment) == X509KeyUsageFlags.DataEncipherment
                 );
                 Assert.True(
-                    (keyUsage.KeyUsages & X509KeyUsageFlags.KeyEncipherment) == X509KeyUsageFlags.KeyEncipherment
+                    (keyUsage.KeyUsages &
+                        X509KeyUsageFlags.KeyEncipherment) == X509KeyUsageFlags.KeyEncipherment
                 );
                 Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.KeyAgreement) == 0);
 
@@ -178,11 +191,13 @@ namespace Opc.Ua.Gds.Tests
             Assert.AreEqual(subjectKeyId.SubjectKeyIdentifier, authority.KeyIdentifier);
             Assert.AreEqual(issuerCert.SerialNumber, authority.SerialNumber);
 
-            X509SubjectAltNameExtension subjectAlternateName = signedCert.FindExtension<X509SubjectAltNameExtension>();
+            X509SubjectAltNameExtension subjectAlternateName = signedCert
+                .FindExtension<X509SubjectAltNameExtension>();
             Assert.NotNull(subjectAlternateName);
             TestContext.Out.WriteLine($"Issuer Subject Alternate Name: {subjectAlternateName}");
             Assert.False(subjectAlternateName.Critical);
-            System.Collections.Generic.IList<string> domainNames = X509Utils.GetDomainsFromCertificate(signedCert);
+            System.Collections.Generic.IList<string> domainNames = X509Utils
+                .GetDomainsFromCertificate(signedCert);
             foreach (string domainName in testApp.DomainNames)
             {
                 Assert.True(domainNames.Contains(domainName, StringComparer.OrdinalIgnoreCase));

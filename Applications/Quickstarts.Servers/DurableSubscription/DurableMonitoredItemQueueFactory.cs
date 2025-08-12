@@ -42,30 +42,41 @@ namespace Quickstarts.Servers
     public class DurableMonitoredItemQueueFactory : IMonitoredItemQueueFactory
     {
         private readonly BatchPersistor m_batchPersistor = new();
-        private static readonly JsonSerializerSettings s_settings = new() { TypeNameHandling = TypeNameHandling.All };
+
+        private static readonly JsonSerializerSettings s_settings = new()
+        {
+            TypeNameHandling = TypeNameHandling.All
+        };
+
         private const string kQueueDirectory = "Queues";
         private const string kBase_filename = "_queue.txt";
-        private ConcurrentDictionary<uint, DurableDataChangeMonitoredItemQueue> m_dataChangeQueues = new();
+
+        private ConcurrentDictionary<uint, DurableDataChangeMonitoredItemQueue> m_dataChangeQueues
+            = new();
+
         private ConcurrentDictionary<uint, DurableEventMonitoredItemQueue> m_eventQueues = new();
 
         /// <inheritdoc/>
         public bool SupportsDurableQueues => true;
 
         /// <inheritdoc/>
-        public IDataChangeMonitoredItemQueue CreateDataChangeQueue(bool createDurable, uint monitoredItemId)
+        public IDataChangeMonitoredItemQueue CreateDataChangeQueue(
+            bool createDurable,
+            uint monitoredItemId)
         {
             //use durable queue only if MI is durable
             if (createDurable)
             {
-                var queue = new DurableDataChangeMonitoredItemQueue(createDurable, monitoredItemId, m_batchPersistor);
+                var queue = new DurableDataChangeMonitoredItemQueue(
+                    createDurable,
+                    monitoredItemId,
+                    m_batchPersistor);
                 queue.Disposed += DataChangeQueueDisposed;
                 m_dataChangeQueues.AddOrUpdate(monitoredItemId, queue, (_, _) => queue);
                 return queue;
             }
-            else
-            {
-                return new DataChangeMonitoredItemQueue(createDurable, monitoredItemId);
-            }
+
+            return new DataChangeMonitoredItemQueue(createDurable, monitoredItemId);
         }
 
         /// <inheritdoc/>
@@ -74,15 +85,16 @@ namespace Quickstarts.Servers
             //use durable queue only if MI is durable
             if (createDurable)
             {
-                var queue = new DurableEventMonitoredItemQueue(createDurable, monitoredItemId, m_batchPersistor);
+                var queue = new DurableEventMonitoredItemQueue(
+                    createDurable,
+                    monitoredItemId,
+                    m_batchPersistor);
                 queue.Disposed += EventQueueDisposed;
                 m_eventQueues.AddOrUpdate(monitoredItemId, queue, (_, _) => queue);
                 return queue;
             }
-            else
-            {
-                return new EventMonitoredItemQueue(createDurable, monitoredItemId);
-            }
+
+            return new EventMonitoredItemQueue(createDurable, monitoredItemId);
         }
 
         private void DataChangeQueueDisposed(object sender, EventArgs eventArgs)
@@ -117,18 +129,26 @@ namespace Quickstarts.Servers
             {
                 try
                 {
-                    if (m_dataChangeQueues.TryGetValue(id, out DurableDataChangeMonitoredItemQueue queue))
+                    if (m_dataChangeQueues.TryGetValue(
+                        id,
+                        out DurableDataChangeMonitoredItemQueue queue))
                     {
                         //store
-                        string result = JsonConvert.SerializeObject(queue.ToStorableQueue(), s_settings);
+                        string result = JsonConvert.SerializeObject(
+                            queue.ToStorableQueue(),
+                            s_settings);
                         File.WriteAllText(Path.Combine(targetPath, id + kBase_filename), result);
                         continue;
                     }
 
-                    if (m_eventQueues.TryGetValue(id, out DurableEventMonitoredItemQueue eventQueue))
+                    if (m_eventQueues.TryGetValue(
+                        id,
+                        out DurableEventMonitoredItemQueue eventQueue))
                     {
                         //store
-                        string result = JsonConvert.SerializeObject(eventQueue.ToStorableQueue(), s_settings);
+                        string result = JsonConvert.SerializeObject(
+                            eventQueue.ToStorableQueue(),
+                            s_settings);
                         File.WriteAllText(Path.Combine(targetPath, id + kBase_filename), result);
                         continue;
                     }
@@ -139,7 +159,10 @@ namespace Quickstarts.Servers
                 }
                 catch (Exception ex)
                 {
-                    Opc.Ua.Utils.LogWarning(ex, "Failed to persist queue for monitored item with id {0}", id);
+                    Opc.Ua.Utils.LogWarning(
+                        ex,
+                        "Failed to persist queue for monitored item with id {0}",
+                        id);
                 }
             }
             // Delete batches of all queues that are not in the list
@@ -153,14 +176,19 @@ namespace Quickstarts.Servers
         {
             try
             {
-                string targetFile = Path.Combine(baseDirectory, kQueueDirectory, id + kBase_filename);
+                string targetFile = Path.Combine(
+                    baseDirectory,
+                    kQueueDirectory,
+                    id + kBase_filename);
                 if (!File.Exists(targetFile))
                 {
                     return null;
                 }
                 string result = File.ReadAllText(targetFile);
                 File.Delete(targetFile);
-                StorableEventQueue template = JsonConvert.DeserializeObject<StorableEventQueue>(result, s_settings);
+                StorableEventQueue template = JsonConvert.DeserializeObject<StorableEventQueue>(
+                    result,
+                    s_settings);
 
                 var queue = new DurableEventMonitoredItemQueue(template, m_batchPersistor);
                 m_eventQueues.AddOrUpdate(id, queue, (_, _) => queue);
@@ -181,17 +209,21 @@ namespace Quickstarts.Servers
         {
             try
             {
-                string targetFile = Path.Combine(baseDirectory, kQueueDirectory, id + kBase_filename);
+                string targetFile = Path.Combine(
+                    baseDirectory,
+                    kQueueDirectory,
+                    id + kBase_filename);
                 if (!File.Exists(targetFile))
                 {
                     return null;
                 }
                 string result = File.ReadAllText(targetFile);
                 File.Delete(targetFile);
-                StorableDataChangeQueue template = JsonConvert.DeserializeObject<StorableDataChangeQueue>(
-                    result,
-                    s_settings
-                );
+                StorableDataChangeQueue template = JsonConvert
+                    .DeserializeObject<StorableDataChangeQueue>(
+                        result,
+                        s_settings
+                        );
 
                 var queue = new DurableDataChangeMonitoredItemQueue(template, m_batchPersistor);
                 m_dataChangeQueues.AddOrUpdate(id, queue, (_, _) => queue);
@@ -208,8 +240,6 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Remove all stored queues and batches that are not in the list
         /// </summary>
-        /// <param name="baseDirectory"></param>
-        /// <param name="batchesToKeep"></param>
         public void CleanStoredQueues(string baseDirectory, IEnumerable<uint> batchesToKeep)
         {
             try

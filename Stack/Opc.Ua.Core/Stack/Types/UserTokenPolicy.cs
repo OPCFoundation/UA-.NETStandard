@@ -39,6 +39,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
+        /// <exception cref="FormatException"></exception>
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)

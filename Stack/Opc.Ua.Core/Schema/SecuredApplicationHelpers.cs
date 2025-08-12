@@ -43,7 +43,9 @@ namespace Opc.Ua.Security
         /// </summary>
         public static CertificateIdentifier ToCertificateIdentifier(Ua.CertificateIdentifier input)
         {
-            if (input != null && !string.IsNullOrEmpty(input.StoreType) && !string.IsNullOrEmpty(input.StorePath))
+            if (input != null &&
+                !string.IsNullOrEmpty(input.StoreType) &&
+                !string.IsNullOrEmpty(input.StorePath))
             {
                 return new CertificateIdentifier
                 {
@@ -53,7 +55,7 @@ namespace Opc.Ua.Security
                     Thumbprint = input.Thumbprint,
                     ValidationOptions = (int)input.ValidationOptions,
                     OfflineRevocationList = null,
-                    OnlineRevocationList = null,
+                    OnlineRevocationList = null
                 };
             }
 
@@ -63,7 +65,8 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Creates a CertificateIdentifier object.
         /// </summary>
-        public static Ua.CertificateIdentifier FromCertificateIdentifier(CertificateIdentifier input)
+        public static Ua.CertificateIdentifier FromCertificateIdentifier(
+            CertificateIdentifier input)
         {
             var output = new Ua.CertificateIdentifier();
 
@@ -82,15 +85,18 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Creates a CertificateStoreIdentifier object.
         /// </summary>
-        public static CertificateStoreIdentifier ToCertificateStoreIdentifier(Ua.CertificateStoreIdentifier input)
+        public static CertificateStoreIdentifier ToCertificateStoreIdentifier(
+            Ua.CertificateStoreIdentifier input)
         {
-            if (input != null && !string.IsNullOrEmpty(input.StoreType) && !string.IsNullOrEmpty(input.StorePath))
+            if (input != null &&
+                !string.IsNullOrEmpty(input.StoreType) &&
+                !string.IsNullOrEmpty(input.StorePath))
             {
                 return new CertificateStoreIdentifier
                 {
                     StoreType = input.StoreType,
                     StorePath = input.StorePath,
-                    ValidationOptions = (int)input.ValidationOptions,
+                    ValidationOptions = (int)input.ValidationOptions
                 };
             }
 
@@ -100,7 +106,8 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Creates a CertificateTrustList object.
         /// </summary>
-        public static CertificateTrustList FromCertificateStoreIdentifierToTrustList(CertificateStoreIdentifier input)
+        public static CertificateTrustList FromCertificateStoreIdentifierToTrustList(
+            CertificateStoreIdentifier input)
         {
             var output = new CertificateTrustList();
 
@@ -117,7 +124,8 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Creates a CertificateStoreIdentifier object.
         /// </summary>
-        public static Ua.CertificateStoreIdentifier FromCertificateStoreIdentifier(CertificateStoreIdentifier input)
+        public static Ua.CertificateStoreIdentifier FromCertificateStoreIdentifier(
+            CertificateStoreIdentifier input)
         {
             var output = new Ua.CertificateStoreIdentifier();
 
@@ -190,7 +198,8 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Creates a ListOfBaseAddresses object.
         /// </summary>
-        public static ListOfBaseAddresses ToListOfBaseAddresses(ServerBaseConfiguration configuration)
+        public static ListOfBaseAddresses ToListOfBaseAddresses(
+            ServerBaseConfiguration configuration)
         {
             var addresses = new ListOfBaseAddresses();
 
@@ -219,7 +228,9 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Creates a ListOfBaseAddresses object.
         /// </summary>
-        public static void FromListOfBaseAddresses(ServerBaseConfiguration configuration, ListOfBaseAddresses addresses)
+        public static void FromListOfBaseAddresses(
+            ServerBaseConfiguration configuration,
+            ListOfBaseAddresses addresses)
         {
             var map = new Dictionary<string, string>();
 
@@ -250,7 +261,8 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Creates a ListOfSecurityProfiles object.
         /// </summary>
-        public static ListOfSecurityProfiles ToListOfSecurityProfiles(ServerSecurityPolicyCollection policies)
+        public static ListOfSecurityProfiles ToListOfSecurityProfiles(
+            ServerSecurityPolicyCollection policies)
         {
             var profiles = new ListOfSecurityProfiles
             {
@@ -259,7 +271,7 @@ namespace Opc.Ua.Security
                 CreateProfile(SecurityPolicies.Basic256),
                 CreateProfile(SecurityPolicies.Basic256Sha256),
                 CreateProfile(SecurityPolicies.Aes128_Sha256_RsaOaep),
-                CreateProfile(SecurityPolicies.Aes256_Sha256_RsaPss),
+                CreateProfile(SecurityPolicies.Aes256_Sha256_RsaPss)
             };
 
             if (policies != null)
@@ -282,7 +294,8 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Creates a ServerSecurityPolicyCollection object.
         /// </summary>
-        public static ServerSecurityPolicyCollection FromListOfSecurityProfiles(ListOfSecurityProfiles profiles)
+        public static ServerSecurityPolicyCollection FromListOfSecurityProfiles(
+            ListOfSecurityProfiles profiles)
         {
             var policies = new ServerSecurityPolicyCollection();
 
@@ -312,7 +325,8 @@ namespace Opc.Ua.Security
         /// </summary>
         public static byte CalculateSecurityLevel(MessageSecurityMode mode, string policyUri)
         {
-            if ((mode != MessageSecurityMode.Sign && mode != MessageSecurityMode.SignAndEncrypt) || policyUri == null)
+            if ((mode != MessageSecurityMode.Sign && mode != MessageSecurityMode.SignAndEncrypt) ||
+                policyUri == null)
             {
                 return 0;
             }
@@ -321,15 +335,15 @@ namespace Opc.Ua.Security
             switch (policyUri)
             {
                 case SecurityPolicies.Basic128Rsa15:
-                    Utils.LogWarning("Deprecated Security Policy Basic128Rsa15 requested - Not recommended.");
+                    Utils.LogWarning(
+                        "Deprecated Security Policy Basic128Rsa15 requested - Not recommended.");
                     result = 2;
                     break;
-
                 case SecurityPolicies.Basic256:
-                    Utils.LogWarning("Deprecated Security Policy Basic256 requested - Not rcommended.");
+                    Utils.LogWarning(
+                        "Deprecated Security Policy Basic256 requested - Not rcommended.");
                     result = 4;
                     break;
-
                 case SecurityPolicies.Basic256Sha256:
                     result = 6;
                     break;
@@ -384,7 +398,6 @@ namespace Opc.Ua.Security
                     case SecurityPolicies.None:
                         policy.SecurityMode = MessageSecurityMode.None;
                         break;
-
                     case SecurityPolicies.Basic128Rsa15:
                     case SecurityPolicies.Basic256:
                     case SecurityPolicies.Basic256Sha256:
@@ -397,9 +410,6 @@ namespace Opc.Ua.Security
                     case SecurityPolicies.ECC_curve25519:
                     case SecurityPolicies.ECC_curve448:
                         policy.SecurityMode = MessageSecurityMode.SignAndEncrypt;
-                        break;
-
-                    default:
                         break;
                 }
             }
@@ -483,7 +493,8 @@ namespace Opc.Ua.Security
         /// </summary>
         public ICertificateStore OpenStore()
         {
-            Ua.CertificateStoreIdentifier output = SecuredApplication.FromCertificateStoreIdentifier(this);
+            Ua.CertificateStoreIdentifier output = SecuredApplication
+                .FromCertificateStoreIdentifier(this);
             return output.OpenStore();
         }
     }

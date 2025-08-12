@@ -37,7 +37,8 @@ using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
 {
-    [TestFixture(Description = "Tests for UAPublisher class"), SingleThreaded]
+    [TestFixture(Description = "Tests for UAPublisher class")]
+    [SingleThreaded]
     public class UaPublisherTests
     {
         private static List<long> s_publishTicks = [];
@@ -61,7 +62,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             mockConnection
                 .Setup(x =>
-                    x.CreateNetworkMessages(It.IsAny<WriterGroupDataType>(), It.IsAny<WriterGroupPublishState>())
+                    x.CreateNetworkMessages(
+                        It.IsAny<WriterGroupDataType>(),
+                        It.IsAny<WriterGroupPublishState>())
                 )
                 .Callback(() =>
                 {
@@ -71,7 +74,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     }
                 });
 
-            var writerGroupDataType = new WriterGroupDataType { PublishingInterval = publishingInterval };
+            var writerGroupDataType = new WriterGroupDataType
+            {
+                PublishingInterval = publishingInterval
+            };
 
             //Act
             var publisher = new UaPublisher(mockConnection.Object, writerGroupDataType);
@@ -89,7 +95,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             //Assert
             for (int i = 1; i < s_publishTicks.Count; i++)
             {
-                double interval = (s_publishTicks[i] - s_publishTicks[i - 1]) / HiResClock.TicksPerMillisecond;
+                double interval = (s_publishTicks[i] - s_publishTicks[i - 1]) /
+                    HiResClock.TicksPerMillisecond;
                 if (interval != 0)
                 {
                     double deviation = -1;

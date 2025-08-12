@@ -179,10 +179,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     public class ArraySegmentStreamNoSpan : ArraySegmentStream
     {
         public ArraySegmentStreamNoSpan(BufferManager bufferManager)
-            : base(bufferManager) { }
+            : base(bufferManager)
+        {
+        }
 
         public ArraySegmentStreamNoSpan(BufferCollection buffers)
-            : base(buffers) { }
+            : base(buffers)
+        {
+        }
 
         public override int Read(Span<byte> buffer)
         {

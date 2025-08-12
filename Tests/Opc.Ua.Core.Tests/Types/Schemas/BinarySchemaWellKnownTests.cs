@@ -37,8 +37,10 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
     /// <summary>
     /// Tests for the Binary Schema Validator class.
     /// </summary>
-    [TestFixture, Category("BinarySchema")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("BinarySchema")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class BinarySchemaWellKnownTests : BinarySchemaValidator
     {

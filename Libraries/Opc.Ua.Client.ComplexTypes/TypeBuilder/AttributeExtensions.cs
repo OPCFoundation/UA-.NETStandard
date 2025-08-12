@@ -90,9 +90,10 @@ namespace Opc.Ua.Client.ComplexTypes
         )
         {
             Type attributeType = typeof(StructureDefinitionAttribute);
-            StructureBaseDataType baseDataType = ComplexTypes.StructureDefinitionAttribute.FromBaseType(
-                structureDefinition.BaseDataType
-            );
+            StructureBaseDataType baseDataType = ComplexTypes.StructureDefinitionAttribute
+                .FromBaseType(
+                    structureDefinition.BaseDataType
+                    );
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
             var builder = new CustomAttributeBuilder(
                 ctorInfo,
@@ -101,10 +102,11 @@ namespace Opc.Ua.Client.ComplexTypes
                 [
                     attributeType.GetProperty("DefaultEncodingId"),
                     attributeType.GetProperty("BaseDataType"),
-                    attributeType.GetProperty("StructureType"),
+                    attributeType.GetProperty("StructureType")
                 ],
                 // values to assign
-                [structureDefinition.DefaultEncodingId?.ToString(), baseDataType, structureDefinition.StructureType]
+                [structureDefinition.DefaultEncodingId?
+                    .ToString(), baseDataType, structureDefinition.StructureType]
             );
             typeBuilder.SetCustomAttribute(builder);
         }
@@ -128,7 +130,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 [
                     attributeType.GetProperty("ComplexTypeId"),
                     attributeType.GetProperty("BinaryEncodingId"),
-                    attributeType.GetProperty("XmlEncodingId"),
+                    attributeType.GetProperty("XmlEncodingId")
                 ],
                 // values to assign
                 [complexTypeId?.ToString(), binaryEncodingId?.ToString(), xmlEncodingId?.ToString()]
@@ -139,22 +141,24 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Build the StructureField attribute for a complex type.
         /// </summary>
-        public static void StructureFieldAttribute(this PropertyBuilder typeBuilder, StructureField structureField)
+        public static void StructureFieldAttribute(
+            this PropertyBuilder typeBuilder,
+            StructureField structureField)
         {
             Type attributeType = typeof(StructureFieldAttribute);
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
-            var pi = new List<PropertyInfo>()
+            var pi = new List<PropertyInfo>
             {
                 attributeType.GetProperty("ValueRank"),
                 attributeType.GetProperty("MaxStringLength"),
-                attributeType.GetProperty("IsOptional"),
+                attributeType.GetProperty("IsOptional")
             };
 
-            var pv = new List<object>()
+            var pv = new List<object>
             {
                 structureField.ValueRank,
                 structureField.MaxStringLength,
-                structureField.IsOptional,
+                structureField.IsOptional
             };
 
             // only unambiguous built in types get the info,
@@ -178,7 +182,10 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Build the EnumMember attribute for an enumeration type.
         /// </summary>
-        public static void EnumMemberAttribute(this FieldBuilder typeBuilder, string name, int value)
+        public static void EnumMemberAttribute(
+            this FieldBuilder typeBuilder,
+            string name,
+            int value)
         {
             Type attributeType = typeof(EnumMemberAttribute);
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
@@ -196,7 +203,10 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Build the DataMember attribute.
         /// </summary>
-        private static CustomAttributeBuilder DataMemberAttributeBuilder(string name, bool isRequired, int order)
+        private static CustomAttributeBuilder DataMemberAttributeBuilder(
+            string name,
+            bool isRequired,
+            int order)
         {
             Type attributeType = typeof(DataMemberAttribute);
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
@@ -207,7 +217,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 [
                     attributeType.GetProperty("Name"),
                     attributeType.GetProperty("IsRequired"),
-                    attributeType.GetProperty("Order"),
+                    attributeType.GetProperty("Order")
                 ],
                 // values to assign
                 [name, isRequired, order]
@@ -244,12 +254,16 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <returns>An <see cref="BuiltInType"/> for  <paramref name="datatypeId"/></returns>
         private static BuiltInType GetBuiltInType(NodeId datatypeId)
         {
-            if (datatypeId.IsNullNodeId || datatypeId.NamespaceIndex != 0 || datatypeId.IdType != IdType.Numeric)
+            if (datatypeId.IsNullNodeId ||
+                datatypeId.NamespaceIndex != 0 ||
+                datatypeId.IdType != IdType.Numeric)
             {
                 return BuiltInType.Null;
             }
 
-            var builtInType = (BuiltInType)Enum.ToObject(typeof(BuiltInType), datatypeId.Identifier);
+            var builtInType = (BuiltInType)Enum.ToObject(
+                typeof(BuiltInType),
+                datatypeId.Identifier);
 
             if (builtInType is <= BuiltInType.DiagnosticInfo or BuiltInType.Enumeration)
             {
@@ -266,9 +280,10 @@ namespace Opc.Ua.Client.ComplexTypes
             return (uint)builtInType switch
             {
                 // supertypes of numbers
-                DataTypes.Integer or DataTypes.UInteger or DataTypes.Number or DataTypes.Decimal => BuiltInType.Variant,
-                _ => TypeInfo.GetBuiltInType(datatypeId),
+                DataTypes.Integer or DataTypes.UInteger or DataTypes.Number or DataTypes
+                    .Decimal => BuiltInType.Variant,
+                _ => TypeInfo.GetBuiltInType(datatypeId)
             };
         }
     }
-} //namespace
+}

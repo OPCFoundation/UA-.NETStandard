@@ -175,7 +175,7 @@ namespace Opc.Ua.Server
         /// A keep alive to signal a channel that the session is still active.
         /// Triggered by the session manager based on <see cref="ServerConfiguration.MinSessionTimeout"/>.
         /// </summary>
-        ChannelKeepAlive,
+        ChannelKeepAlive
     }
 
     /// <summary>
@@ -246,7 +246,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        public ValidateSessionLessRequestEventArgs(NodeId authenticationToken, RequestType requestType)
+        public ValidateSessionLessRequestEventArgs(
+            NodeId authenticationToken,
+            RequestType requestType)
         {
             AuthenticationToken = authenticationToken;
             RequestType = requestType;

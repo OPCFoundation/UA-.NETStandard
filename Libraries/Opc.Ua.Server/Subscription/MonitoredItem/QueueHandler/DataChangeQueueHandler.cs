@@ -67,7 +67,10 @@ namespace Opc.Ua.Server
         /// Dequeues the last item
         /// </summary>
         /// <returns>true if an item was dequeued</returns>
-        bool PublishSingleValue(out DataValue value, out ServiceResult error, bool noEventLog = false);
+        bool PublishSingleValue(
+            out DataValue value,
+            out ServiceResult error,
+            bool noEventLog = false);
     }
 
     /// <summary>
@@ -81,7 +84,7 @@ namespace Opc.Ua.Server
         /// <param name="monitoredItemId">the id of the monitored item</param>
         /// <param name="createDurable">true if a durable queue shall be created</param>
         /// <param name="queueFactory">the factory for <see cref="IDataChangeMonitoredItemQueue"/></param>
-        /// <param name="discardedValueHandler"></param>
+        /// <param name="discardedValueHandler">Handler for discarded values</param>
         public DataChangeQueueHandler(
             uint monitoredItemId,
             bool createDurable,
@@ -125,7 +128,10 @@ namespace Opc.Ua.Server
         /// <param name="queueSize">The new queue size.</param>
         /// <param name="discardOldest">Whether to discard the oldest values if the queue overflows.</param>
         /// <param name="diagnosticsMasks">Specifies which diagnostics which should be kept in the queue.</param>
-        public void SetQueueSize(uint queueSize, bool discardOldest, DiagnosticsMasks diagnosticsMasks)
+        public void SetQueueSize(
+            uint queueSize,
+            bool discardOldest,
+            DiagnosticsMasks diagnosticsMasks)
         {
             bool queueErrors = (diagnosticsMasks & DiagnosticsMasks.OperationAll) != 0;
 
@@ -235,7 +241,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Deques the last item
         /// </summary>
-        public bool PublishSingleValue(out DataValue value, out ServiceResult error, bool noEventLog = false)
+        public bool PublishSingleValue(
+            out DataValue value,
+            out ServiceResult error,
+            bool noEventLog = false)
         {
             if (m_dataValueQueue.Dequeue(out value, out error))
             {
@@ -268,7 +277,8 @@ namespace Opc.Ua.Server
             }
 
             // check if the latest value has initial dummy data
-            if (m_dataValueQueue.PeekLastValue()?.StatusCode == StatusCodes.BadWaitingForInitialData)
+            if (m_dataValueQueue.PeekLastValue()?.StatusCode == StatusCodes
+                .BadWaitingForInitialData)
             {
                 // overwrite the last value
                 m_dataValueQueue.OverwriteLastValue(value, error);
@@ -283,7 +293,10 @@ namespace Opc.Ua.Server
 
                 if (!m_discardOldest)
                 {
-                    ServerUtils.ReportDiscardedValue(null, m_monitoredItemId, m_dataValueQueue.PeekLastValue());
+                    ServerUtils.ReportDiscardedValue(
+                        null,
+                        m_monitoredItemId,
+                        m_dataValueQueue.PeekLastValue());
 
                     //set overflow bit in newest value
                     m_overflow = value;

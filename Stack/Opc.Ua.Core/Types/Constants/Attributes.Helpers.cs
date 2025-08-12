@@ -37,7 +37,8 @@ namespace Opc.Ua
         /// </summary>
         public static string GetBrowseName(uint identifier)
         {
-            foreach (FieldInfo field in typeof(Attributes).GetFields(BindingFlags.Public | BindingFlags.Static))
+            foreach (FieldInfo field in typeof(Attributes).GetFields(
+                BindingFlags.Public | BindingFlags.Static))
             {
                 if (identifier == (uint)field.GetValue(typeof(Attributes)))
                 {
@@ -53,7 +54,8 @@ namespace Opc.Ua
         /// </summary>
         public static string[] GetBrowseNames()
         {
-            FieldInfo[] fields = typeof(Attributes).GetFields(BindingFlags.Public | BindingFlags.Static);
+            FieldInfo[] fields = typeof(Attributes).GetFields(
+                BindingFlags.Public | BindingFlags.Static);
 
             int ii = 0;
 
@@ -72,7 +74,8 @@ namespace Opc.Ua
         /// </summary>
         public static uint GetIdentifier(string browseName)
         {
-            foreach (FieldInfo field in typeof(Attributes).GetFields(BindingFlags.Public | BindingFlags.Static))
+            foreach (FieldInfo field in typeof(Attributes).GetFields(
+                BindingFlags.Public | BindingFlags.Static))
             {
                 if (field.Name == browseName)
                 {
@@ -88,7 +91,8 @@ namespace Opc.Ua
         /// </summary>
         public static uint[] GetIdentifiers()
         {
-            FieldInfo[] fields = typeof(Attributes).GetFields(BindingFlags.Public | BindingFlags.Static);
+            FieldInfo[] fields = typeof(Attributes).GetFields(
+                BindingFlags.Public | BindingFlags.Static);
 
             int ii = 0;
             uint[] ids = new uint[fields.Length];
@@ -106,7 +110,8 @@ namespace Opc.Ua
         /// </summary>
         public static UInt32Collection GetIdentifiers(NodeClass nodeClass)
         {
-            FieldInfo[] fields = typeof(Attributes).GetFields(BindingFlags.Public | BindingFlags.Static);
+            FieldInfo[] fields = typeof(Attributes).GetFields(
+                BindingFlags.Public | BindingFlags.Static);
 
             var ids = new UInt32Collection(fields.Length);
 
@@ -136,7 +141,6 @@ namespace Opc.Ua
                 case Description:
                     return BuiltInType.LocalizedText;
                 case WriteMask:
-                    return BuiltInType.UInt32;
                 case UserWriteMask:
                     return BuiltInType.UInt32;
                 case NodeId:
@@ -146,7 +150,6 @@ namespace Opc.Ua
                 case BrowseName:
                     return BuiltInType.QualifiedName;
                 case IsAbstract:
-                    return BuiltInType.Boolean;
                 case Symmetric:
                     return BuiltInType.Boolean;
                 case InverseName:
@@ -160,15 +163,12 @@ namespace Opc.Ua
                 case ValueRank:
                     return BuiltInType.Int32;
                 case AccessLevel:
-                    return BuiltInType.Byte;
                 case UserAccessLevel:
                     return BuiltInType.Byte;
                 case MinimumSamplingInterval:
                     return BuiltInType.Double;
                 case Historizing:
-                    return BuiltInType.Boolean;
                 case Executable:
-                    return BuiltInType.Boolean;
                 case UserExecutable:
                     return BuiltInType.Boolean;
                 case ArrayDimensions:
@@ -176,7 +176,6 @@ namespace Opc.Ua
                 case DataTypeDefinition:
                     return BuiltInType.ExtensionObject;
                 case RolePermissions:
-                    return BuiltInType.Variant;
                 case UserRolePermissions:
                     return BuiltInType.Variant;
                 case AccessRestrictions:
@@ -201,7 +200,6 @@ namespace Opc.Ua
                 case Description:
                     return DataTypeIds.LocalizedText;
                 case WriteMask:
-                    return DataTypeIds.UInt32;
                 case UserWriteMask:
                     return DataTypeIds.UInt32;
                 case NodeId:
@@ -211,7 +209,6 @@ namespace Opc.Ua
                 case BrowseName:
                     return DataTypeIds.QualifiedName;
                 case IsAbstract:
-                    return DataTypeIds.Boolean;
                 case Symmetric:
                     return DataTypeIds.Boolean;
                 case InverseName:
@@ -225,15 +222,12 @@ namespace Opc.Ua
                 case ValueRank:
                     return DataTypeIds.Int32;
                 case AccessLevel:
-                    return DataTypeIds.Byte;
                 case UserAccessLevel:
                     return DataTypeIds.Byte;
                 case MinimumSamplingInterval:
                     return DataTypeIds.Duration;
                 case Historizing:
-                    return DataTypeIds.Boolean;
                 case Executable:
-                    return DataTypeIds.Boolean;
                 case UserExecutable:
                     return DataTypeIds.Boolean;
                 case ArrayDimensions:
@@ -241,7 +235,6 @@ namespace Opc.Ua
                 case DataTypeDefinition:
                     return DataTypeIds.Structure;
                 case RolePermissions:
-                    return DataTypeIds.RolePermissionType;
                 case UserRolePermissions:
                     return DataTypeIds.RolePermissionType;
                 case AccessRestrictions:
@@ -418,48 +411,40 @@ namespace Opc.Ua
                 case UserRolePermissions:
                 case AccessRestrictions:
                     return true;
-
                 case Value:
                 case DataType:
                 case ValueRank:
                 case ArrayDimensions:
-                    return (nodeClass & ((int)Ua.NodeClass.VariableType | (int)Ua.NodeClass.Variable)) != 0;
-
+                    return (nodeClass &
+                        ((int)Ua.NodeClass.VariableType | (int)Ua.NodeClass.Variable)) != 0;
                 case IsAbstract:
                     return (
-                            nodeClass
-                            & (
-                                (int)Ua.NodeClass.VariableType
-                                | (int)Ua.NodeClass.ObjectType
-                                | (int)Ua.NodeClass.ReferenceType
-                                | (int)Ua.NodeClass.DataType
+                            nodeClass &
+                            (
+                                (int)Ua.NodeClass.VariableType |
+                                (int)Ua.NodeClass.ObjectType |
+                                (int)Ua.NodeClass.ReferenceType |
+                                (int)Ua.NodeClass.DataType
                             )
                         ) != 0;
-
                 case Symmetric:
                 case InverseName:
                     return (nodeClass & (int)Ua.NodeClass.ReferenceType) != 0;
-
                 case ContainsNoLoops:
                     return (nodeClass & (int)Ua.NodeClass.View) != 0;
-
                 case EventNotifier:
                     return (nodeClass & ((int)Ua.NodeClass.Object | (int)Ua.NodeClass.View)) != 0;
-
                 case AccessLevel:
                 case UserAccessLevel:
                 case MinimumSamplingInterval:
                 case Historizing:
                 case AccessLevelEx:
                     return (nodeClass & (int)Ua.NodeClass.Variable) != 0;
-
                 case Executable:
                 case UserExecutable:
                     return (nodeClass & (int)Ua.NodeClass.Method) != 0;
-
                 case DataTypeDefinition:
                     return (nodeClass & (int)Ua.NodeClass.DataType) != 0;
-
                 default:
                     return false;
             }

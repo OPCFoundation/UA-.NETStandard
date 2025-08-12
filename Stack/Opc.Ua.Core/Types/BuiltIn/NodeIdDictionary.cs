@@ -28,6 +28,7 @@ namespace Opc.Ua
     /// <summary>
     /// A dictionary designed to provide efficient lookups for objects identified by a NodeId
     /// </summary>
+    /// <typeparam name="T"></typeparam>
     public sealed class NodeIdDictionary<T> : ConcurrentDictionary<NodeId, T>
     {
         private static readonly NodeIdComparer s_comparer = new();
@@ -36,13 +37,17 @@ namespace Opc.Ua
         /// Creates an empty dictionary.
         /// </summary>
         public NodeIdDictionary()
-            : base(s_comparer) { }
+            : base(s_comparer)
+        {
+        }
 
         /// <summary>
         /// Creates an empty dictionary with capacity.
         /// </summary>
         public NodeIdDictionary(int capacity)
-            : base(Environment.ProcessorCount, capacity, s_comparer) { }
+            : base(Environment.ProcessorCount, capacity, s_comparer)
+        {
+        }
 
         // helpers for the legacy implementation
 
@@ -70,7 +75,8 @@ namespace Opc.Ua
         /// <returns>true if removed, false if not removed</returns>
         public bool TryRemove(NodeId key, T value)
         {
-            return ((ICollection<KeyValuePair<NodeId, T>>)this).Remove(new KeyValuePair<NodeId, T>(key, value));
+            return ((ICollection<KeyValuePair<NodeId, T>>)this).Remove(
+                new KeyValuePair<NodeId, T>(key, value));
         }
     }
 

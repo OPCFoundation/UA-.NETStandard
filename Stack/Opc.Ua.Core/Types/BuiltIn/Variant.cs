@@ -71,17 +71,18 @@ namespace Opc.Ua
 
             // except special case byte array vs. bytestring
             if (
-                sanityCheck.BuiltInType == BuiltInType.ByteString
-                && sanityCheck.ValueRank == ValueRanks.Scalar
-                && typeInfo.BuiltInType == BuiltInType.Byte
-                && typeInfo.ValueRank == ValueRanks.OneDimension
+                sanityCheck.BuiltInType == BuiltInType.ByteString &&
+                sanityCheck.ValueRank == ValueRanks.Scalar &&
+                typeInfo.BuiltInType == BuiltInType.Byte &&
+                typeInfo.ValueRank == ValueRanks.OneDimension
             )
             {
                 return;
             }
 
             // An enumeration can contain Int32
-            if (sanityCheck.BuiltInType == BuiltInType.Int32 && typeInfo.BuiltInType == BuiltInType.Enumeration)
+            if (sanityCheck.BuiltInType == BuiltInType.Int32 &&
+                typeInfo.BuiltInType == BuiltInType.Enumeration)
             {
                 return;
             }
@@ -767,6 +768,7 @@ namespace Opc.Ua
         /// <remarks>
         /// The value stored within the Variant object.
         /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
         [DataMember(Name = "Value", Order = 1)]
         internal XmlElement XmlEncodedValue
         {
@@ -803,9 +805,8 @@ namespace Opc.Ua
                 using var decoder = new XmlDecoder(value, MessageContextExtension.CurrentContext);
                 try
                 {
-                    TypeInfo typeInfo;
                     // read value.
-                    object body = decoder.ReadVariantContents(out typeInfo);
+                    object body = decoder.ReadVariantContents(out TypeInfo typeInfo);
                     Set(body, typeInfo);
                 }
                 catch (Exception e)
@@ -865,7 +866,10 @@ namespace Opc.Ua
         /// <summary>
         /// Append a ByteString as a hex string.
         /// </summary>
-        private static void AppendByteString(StringBuilder buffer, byte[] bytes, IFormatProvider formatProvider)
+        private static void AppendByteString(
+            StringBuilder buffer,
+            byte[] bytes,
+            IFormatProvider formatProvider)
         {
             if (bytes != null)
             {
@@ -883,7 +887,10 @@ namespace Opc.Ua
         /// <summary>
         /// Formats a value as a string.
         /// </summary>
-        private readonly void AppendFormat(StringBuilder buffer, object value, IFormatProvider formatProvider)
+        private readonly void AppendFormat(
+            StringBuilder buffer,
+            object value,
+            IFormatProvider formatProvider)
         {
             // check for null.
             if (value == null || TypeInfo == null)
@@ -1543,7 +1550,7 @@ namespace Opc.Ua
         /// <remarks>
         /// An constant containing a null Variant structure.
         /// </remarks>
-        public static readonly Variant Null = new();
+        public static readonly Variant Null;
 
         /// <summary>
         /// Returns if the Variant is a Null value.
@@ -2255,6 +2262,7 @@ namespace Opc.Ua
         /// <summary>
         /// Stores a scalar value in the variant.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void SetScalar(object value, TypeInfo typeInfo)
         {
             TypeInfo = typeInfo;
@@ -2281,9 +2289,10 @@ namespace Opc.Ua
                     // not supported.
                     throw new ServiceResultException(
                         StatusCodes.BadNotSupported,
-                        Utils.Format("The type '{0}' cannot be stored in a Variant object.", value.GetType().FullName)
+                        Utils.Format(
+                            "The type '{0}' cannot be stored in a Variant object.",
+                            value.GetType().FullName)
                     );
-
                 // convert Guids to Uuids.
                 case BuiltInType.Guid:
                     var guid = value as Guid?;
@@ -2296,7 +2305,6 @@ namespace Opc.Ua
 
                     m_value = value;
                     return;
-
                 // convert encodeables to extension objects.
                 case BuiltInType.ExtensionObject:
                     if (value is IEncodeable encodeable)
@@ -2307,13 +2315,11 @@ namespace Opc.Ua
 
                     m_value = value;
                     return;
-
                 // convert encodeables to extension objects.
                 case BuiltInType.Variant:
                     m_value = ((Variant)value).Value;
                     TypeInfo = TypeInfo.Construct(m_value);
                     return;
-
                 // just save the value.
                 default:
                     m_value = value;
@@ -2324,6 +2330,7 @@ namespace Opc.Ua
         /// <summary>
         /// Stores a on dimensional array value in the variant.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void SetArray(Array array, TypeInfo typeInfo)
         {
             TypeInfo = typeInfo;
@@ -2340,7 +2347,9 @@ namespace Opc.Ua
 
                         for (int ii = 0; ii < array.Length; ii++)
                         {
-                            values[ii] = Convert.ToInt32(array.GetValue(ii), CultureInfo.InvariantCulture);
+                            values[ii] = Convert.ToInt32(
+                                array.GetValue(ii),
+                                CultureInfo.InvariantCulture);
                         }
 
                         m_value = values;
@@ -2350,10 +2359,11 @@ namespace Opc.Ua
                     // not supported.
                     throw new ServiceResultException(
                         StatusCodes.BadNotSupported,
-                        Utils.Format("The type '{0}' cannot be stored in a Variant object.", array.GetType().FullName)
+                        Utils.Format(
+                            "The type '{0}' cannot be stored in a Variant object.",
+                            array.GetType().FullName)
                     );
                 }
-
                 // convert Guids to Uuids.
                 case BuiltInType.Guid:
                     if (array is Guid[] guids)
@@ -2364,7 +2374,6 @@ namespace Opc.Ua
 
                     m_value = array;
                     return;
-
                 // convert encodeables to extension objects.
                 case BuiltInType.ExtensionObject:
                 {
@@ -2384,7 +2393,6 @@ namespace Opc.Ua
                     m_value = array;
                     return;
                 }
-
                 // convert objects to variants objects.
                 case BuiltInType.Variant:
                 {
@@ -2404,7 +2412,6 @@ namespace Opc.Ua
                     m_value = array;
                     return;
                 }
-
                 // just save the value.
                 default:
                     m_value = array;
@@ -2423,7 +2430,8 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < value.Count; ii++)
             {
-                if (typeInfo.BuiltInType == BuiltInType.ExtensionObject && value[ii] is IEncodeable encodeable)
+                if (typeInfo.BuiltInType == BuiltInType.ExtensionObject &&
+                    value[ii] is IEncodeable encodeable)
                 {
                     array.SetValue(new ExtensionObject(encodeable), ii);
                     continue;
@@ -2438,6 +2446,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with an object.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void Set(object value, TypeInfo typeInfo)
         {
             // check for null values.
@@ -2496,7 +2505,9 @@ namespace Opc.Ua
             // not supported.
             throw new ServiceResultException(
                 StatusCodes.BadNotSupported,
-                Utils.Format("Arrays of the type '{0}' cannot be stored in a Variant object.", value.GetType().FullName)
+                Utils.Format(
+                    "Arrays of the type '{0}' cannot be stored in a Variant object.",
+                    value.GetType().FullName)
             );
         }
 
@@ -2506,13 +2517,18 @@ namespace Opc.Ua
     /// <summary>
     /// A collection of Variant objects.
     /// </summary>
-    [CollectionDataContract(Name = "ListOfVariant", Namespace = Namespaces.OpcUaXsd, ItemName = "Variant")]
+    [CollectionDataContract(
+        Name = "ListOfVariant",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "Variant")]
     public class VariantCollection : List<Variant>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public VariantCollection() { }
+        public VariantCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -2521,7 +2537,9 @@ namespace Opc.Ua
         /// Provides a strongly-typed collection of <see cref="Variant"/> objects.
         /// </remarks>
         public VariantCollection(IEnumerable<Variant> collection)
-            : base(collection) { }
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
@@ -2531,7 +2549,9 @@ namespace Opc.Ua
         /// </remarks>
         /// <param name="capacity">The capacity to constrain the collection to</param>
         public VariantCollection(int capacity)
-            : base(capacity) { }
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -2582,5 +2602,5 @@ namespace Opc.Ua
 
             return clone;
         }
-    } //class
-} //namespace
+    }
+}

@@ -38,7 +38,8 @@ namespace Opc.Ua.Security.Certificates.Tests
     /// <summary>
     /// Tests for the CertificateFactory class.
     /// </summary>
-    [TestFixture, Category("X509Extensions")]
+    [TestFixture]
+    [Category("X509Extensions")]
     [Parallelizable]
     [SetCulture("en-us")]
     public class ExtensionTests
@@ -46,7 +47,8 @@ namespace Opc.Ua.Security.Certificates.Tests
         [DatapointSource]
         public CertificateAsset[] CertificateTestCases =
         [
-            .. AssetCollection<CertificateAsset>.CreateFromFiles(TestUtils.EnumerateTestAssets("*.?er")),
+            .. AssetCollection<CertificateAsset>.CreateFromFiles(
+                TestUtils.EnumerateTestAssets("*.?er"))
         ];
 
         [Theory]
@@ -56,7 +58,8 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.NotNull(x509Cert);
             TestContext.Out.WriteLine("CertificateAsset:");
             TestContext.Out.WriteLine(x509Cert);
-            X509SubjectAltNameExtension altName = x509Cert.FindExtension<X509SubjectAltNameExtension>();
+            X509SubjectAltNameExtension altName = x509Cert
+                .FindExtension<X509SubjectAltNameExtension>();
             if (altName != null)
             {
                 TestContext.Out.WriteLine("X509SubjectAltNameExtension:");
@@ -89,7 +92,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             var authorityName = new X500DistinguishedName("CN=Test,O=OPC Foundation,DC=localhost");
             byte[] serialNumber = [9, 1, 2, 3, 4, 5, 6, 7, 8, 9];
             byte[] subjectKeyIdentifier = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-            var aki = new X509AuthorityKeyIdentifierExtension(subjectKeyIdentifier, authorityName, serialNumber);
+            var aki = new X509AuthorityKeyIdentifierExtension(
+                subjectKeyIdentifier,
+                authorityName,
+                serialNumber);
             Assert.NotNull(aki);
             TestContext.Out.WriteLine("Encoded:");
             TestContext.Out.WriteLine(aki.Format(true));
@@ -97,7 +103,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.AreEqual(serialNumber, aki.GetSerialNumber());
             Assert.AreEqual(serialNumber.ToHexString(true), aki.SerialNumber);
             Assert.AreEqual(subjectKeyIdentifier, aki.GetKeyIdentifier());
-            var akidecoded = new X509AuthorityKeyIdentifierExtension(aki.Oid, aki.RawData, aki.Critical);
+            var akidecoded = new X509AuthorityKeyIdentifierExtension(
+                aki.Oid,
+                aki.RawData,
+                aki.Critical);
             TestContext.Out.WriteLine("Decoded:");
             TestContext.Out.WriteLine(akidecoded.Format(true));
             Assert.AreEqual(aki.RawData, akidecoded.RawData);
@@ -105,7 +114,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.AreEqual(serialNumber, akidecoded.GetSerialNumber());
             Assert.AreEqual(serialNumber.ToHexString(true), akidecoded.SerialNumber);
             Assert.AreEqual(subjectKeyIdentifier, akidecoded.GetKeyIdentifier());
-            akidecoded = new X509AuthorityKeyIdentifierExtension(aki.Oid.Value, aki.RawData, aki.Critical);
+            akidecoded = new X509AuthorityKeyIdentifierExtension(
+                aki.Oid.Value,
+                aki.RawData,
+                aki.Critical);
             TestContext.Out.WriteLine("Decoded2:");
             TestContext.Out.WriteLine(akidecoded.Format(true));
             Assert.AreEqual(aki.RawData, akidecoded.RawData);
@@ -130,7 +142,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.Null(aki.GetSerialNumber());
             Assert.AreEqual(string.Empty, aki.SerialNumber);
             Assert.AreEqual(subjectKeyIdentifier, aki.GetKeyIdentifier());
-            var akidecoded = new X509AuthorityKeyIdentifierExtension(aki.Oid, aki.RawData, aki.Critical);
+            var akidecoded = new X509AuthorityKeyIdentifierExtension(
+                aki.Oid,
+                aki.RawData,
+                aki.Critical);
             TestContext.Out.WriteLine("Decoded:");
             TestContext.Out.WriteLine(akidecoded.Format(true));
             Assert.AreEqual(aki.RawData, akidecoded.RawData);
@@ -138,7 +153,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.Null(aki.GetSerialNumber());
             Assert.AreEqual(string.Empty, aki.SerialNumber);
             Assert.AreEqual(subjectKeyIdentifier, akidecoded.GetKeyIdentifier());
-            akidecoded = new X509AuthorityKeyIdentifierExtension(aki.Oid.Value, aki.RawData, aki.Critical);
+            akidecoded = new X509AuthorityKeyIdentifierExtension(
+                aki.Oid.Value,
+                aki.RawData,
+                aki.Critical);
             TestContext.Out.WriteLine("Decoded2:");
             TestContext.Out.WriteLine(akidecoded.Format(true));
             Assert.AreEqual(aki.RawData, akidecoded.RawData);
@@ -159,7 +177,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             TestContext.Out.WriteLine("Encoded:");
             var san = new X509SubjectAltNameExtension(applicationUri, domainNames);
             TestContext.Out.WriteLine(san.Format(true));
-            var decodedsan = new X509SubjectAltNameExtension(san.Oid.Value, san.RawData, san.Critical);
+            var decodedsan = new X509SubjectAltNameExtension(
+                san.Oid.Value,
+                san.RawData,
+                san.Critical);
             Assert.NotNull(decodedsan);
             TestContext.Out.WriteLine("Decoded:");
             TestContext.Out.WriteLine(decodedsan.Format(true));
@@ -187,7 +208,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             TestContext.Out.WriteLine("Encoded:");
             var number = new X509CrlNumberExtension(crlNumber);
             TestContext.Out.WriteLine(number.Format(true));
-            var decodednumber = new X509CrlNumberExtension(number.Oid.Value, number.RawData, number.Critical);
+            var decodednumber = new X509CrlNumberExtension(
+                number.Oid.Value,
+                number.RawData,
+                number.Critical);
             Assert.NotNull(decodednumber);
             TestContext.Out.WriteLine("Decoded:");
             TestContext.Out.WriteLine(decodednumber.Format(true));

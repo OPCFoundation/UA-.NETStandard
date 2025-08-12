@@ -49,11 +49,15 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Initializes a new instance of the <see cref="UaPublisher"/> class.
         /// </summary>
-        internal UaPublisher(IUaPubSubConnection pubSubConnection, WriterGroupDataType writerGroupConfiguration)
+        internal UaPublisher(
+            IUaPubSubConnection pubSubConnection,
+            WriterGroupDataType writerGroupConfiguration)
         {
-            PubSubConnection = pubSubConnection ?? throw new ArgumentNullException(nameof(pubSubConnection));
+            PubSubConnection = pubSubConnection ??
+                throw new ArgumentNullException(nameof(pubSubConnection));
             WriterGroupConfiguration =
-                writerGroupConfiguration ?? throw new ArgumentNullException(nameof(writerGroupConfiguration));
+                writerGroupConfiguration ??
+                throw new ArgumentNullException(nameof(writerGroupConfiguration));
             m_writerGroupPublishState = new WriterGroupPublishState();
 
             m_intervalRunner = new IntervalRunner(
@@ -104,7 +108,9 @@ namespace Opc.Ua.PubSub
         public void Start()
         {
             m_intervalRunner.Start();
-            Utils.Trace("The UaPublisher for WriterGroup '{0}' was started.", WriterGroupConfiguration.Name);
+            Utils.Trace(
+                "The UaPublisher for WriterGroup '{0}' was started.",
+                WriterGroupConfiguration.Name);
         }
 
         /// <summary>
@@ -114,13 +120,14 @@ namespace Opc.Ua.PubSub
         {
             m_intervalRunner.Stop();
 
-            Utils.Trace("The UaPublisher for WriterGroup '{0}' was stopped.", WriterGroupConfiguration.Name);
+            Utils.Trace(
+                "The UaPublisher for WriterGroup '{0}' was stopped.",
+                WriterGroupConfiguration.Name);
         }
 
         /// <summary>
         /// Decide if the connection can publish
         /// </summary>
-        /// <returns></returns>
         private bool CanPublish()
         {
             lock (m_lock)

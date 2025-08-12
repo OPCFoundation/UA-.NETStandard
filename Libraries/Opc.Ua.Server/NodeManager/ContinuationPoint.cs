@@ -40,7 +40,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        public ContinuationPoint() { }
+        public ContinuationPoint()
+        {
+        }
 
         /// <summary>
         /// Frees any unmanaged resources.
@@ -131,7 +133,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Whether the ReferenceTypeId should be returned in the result.
         /// </summary>
-        public bool ReferenceTypeIdRequired => ((int)ResultMask & (int)BrowseResultMask.ReferenceTypeId) != 0;
+        public bool ReferenceTypeIdRequired
+            => ((int)ResultMask & (int)BrowseResultMask.ReferenceTypeId) != 0;
 
         /// <summary>
         /// Whether the IsForward flag should be returned in the result.
@@ -151,12 +154,14 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Whether the DisplayName should be returned in the result.
         /// </summary>
-        public bool DisplayNameRequired => ((int)ResultMask & (int)BrowseResultMask.DisplayName) != 0;
+        public bool DisplayNameRequired
+            => ((int)ResultMask & (int)BrowseResultMask.DisplayName) != 0;
 
         /// <summary>
         /// Whether the TypeDefinition should be returned in the result.
         /// </summary>
-        public bool TypeDefinitionRequired => ((int)ResultMask & (int)BrowseResultMask.TypeDefinition) != 0;
+        public bool TypeDefinitionRequired
+            => ((int)ResultMask & (int)BrowseResultMask.TypeDefinition) != 0;
 
         /// <summary>
         /// False if it is not necessary to read the attributes a target node.
@@ -174,12 +179,12 @@ namespace Opc.Ua.Server
                 }
 
                 return (
-                        (int)ResultMask
-                        & (
-                            (int)BrowseResultMask.NodeClass
-                            | (int)BrowseResultMask.BrowseName
-                            | (int)BrowseResultMask.DisplayName
-                            | (int)BrowseResultMask.TypeDefinition
+                        (int)ResultMask &
+                        (
+                            (int)BrowseResultMask.NodeClass |
+                            (int)BrowseResultMask.BrowseName |
+                            (int)BrowseResultMask.DisplayName |
+                            (int)BrowseResultMask.TypeDefinition
                         )
                     ) != 0;
             }

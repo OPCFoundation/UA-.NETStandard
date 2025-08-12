@@ -41,23 +41,41 @@ namespace Opc.Ua.Schema.Binary
         [System.Xml.Serialization.XmlAnyElementAttribute()]
         public XmlElement[] Items
         {
-            get { return this.itemsField; }
-            set { this.itemsField = value; }
+            get
+            {
+                return this.itemsField;
+            }
+            set
+            {
+                this.itemsField = value;
+            }
         }
 
         /// <inheritdoc/>
         [System.Xml.Serialization.XmlTextAttribute()]
         public string[] Text
         {
-            get { return this.textField; }
-            set { this.textField = value; }
+            get
+            {
+                return this.textField;
+            }
+            set
+            {
+                this.textField = value;
+            }
         }
 
         /// <inheritdoc/>
         public string[] AnyAttr
         {
-            get { return this.anyAttrField; }
-            set { this.anyAttrField = value; }
+            get
+            {
+                return this.anyAttrField;
+            }
+            set
+            {
+                this.anyAttrField = value;
+            }
         }
     }
 
@@ -105,48 +123,84 @@ namespace Opc.Ua.Schema.Binary
         /// <inheritdoc/>
         public Documentation Documentation
         {
-            get { return this.documentationField; }
-            set { this.documentationField = value; }
+            get
+            {
+                return this.documentationField;
+            }
+            set
+            {
+                this.documentationField = value;
+            }
         }
 
         /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public string Name
         {
-            get { return this.nameField; }
-            set { this.nameField = value; }
+            get
+            {
+                return this.nameField;
+            }
+            set
+            {
+                this.nameField = value;
+            }
         }
 
         /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public System.Xml.XmlQualifiedName TypeName
         {
-            get { return this.typeNameField; }
-            set { this.typeNameField = value; }
+            get
+            {
+                return this.typeNameField;
+            }
+            set
+            {
+                this.typeNameField = value;
+            }
         }
 
         /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public uint Length
         {
-            get { return this.lengthField; }
-            set { this.lengthField = value; }
+            get
+            {
+                return this.lengthField;
+            }
+            set
+            {
+                this.lengthField = value;
+            }
         }
 
         /// <inheritdoc/>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         public bool LengthSpecified
         {
-            get { return this.lengthFieldSpecified; }
-            set { this.lengthFieldSpecified = value; }
+            get
+            {
+                return this.lengthFieldSpecified;
+            }
+            set
+            {
+                this.lengthFieldSpecified = value;
+            }
         }
 
         /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public string LengthField
         {
-            get { return this.lengthFieldField; }
-            set { this.lengthFieldField = value; }
+            get
+            {
+                return this.lengthFieldField;
+            }
+            set
+            {
+                this.lengthFieldField = value;
+            }
         }
 
         /// <inheritdoc/>
@@ -154,63 +208,111 @@ namespace Opc.Ua.Schema.Binary
         [System.ComponentModel.DefaultValueAttribute(false)]
         public bool IsLengthInBytes
         {
-            get { return this.isLengthInBytesField; }
-            set { this.isLengthInBytesField = value; }
+            get
+            {
+                return this.isLengthInBytesField;
+            }
+            set
+            {
+                this.isLengthInBytesField = value;
+            }
         }
 
         /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public string SwitchField
         {
-            get { return this.switchFieldField; }
-            set { this.switchFieldField = value; }
+            get
+            {
+                return this.switchFieldField;
+            }
+            set
+            {
+                this.switchFieldField = value;
+            }
         }
 
         /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public uint SwitchValue
         {
-            get { return this.switchValueField; }
-            set { this.switchValueField = value; }
+            get
+            {
+                return this.switchValueField;
+            }
+            set
+            {
+                this.switchValueField = value;
+            }
         }
 
         /// <inheritdoc/>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         public bool SwitchValueSpecified
         {
-            get { return this.switchValueFieldSpecified; }
-            set { this.switchValueFieldSpecified = value; }
+            get
+            {
+                return this.switchValueFieldSpecified;
+            }
+            set
+            {
+                this.switchValueFieldSpecified = value;
+            }
         }
 
         /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public SwitchOperand SwitchOperand
         {
-            get { return this.switchOperandField; }
-            set { this.switchOperandField = value; }
+            get
+            {
+                return this.switchOperandField;
+            }
+            set
+            {
+                this.switchOperandField = value;
+            }
         }
 
         /// <inheritdoc/>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         public bool SwitchOperandSpecified
         {
-            get { return this.switchOperandFieldSpecified; }
-            set { this.switchOperandFieldSpecified = value; }
+            get
+            {
+                return this.switchOperandFieldSpecified;
+            }
+            set
+            {
+                this.switchOperandFieldSpecified = value;
+            }
         }
 
         /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute(DataType = "hexBinary")]
         public byte[] Terminator
         {
-            get { return this.terminatorField; }
-            set { this.terminatorField = value; }
+            get
+            {
+                return this.terminatorField;
+            }
+            set
+            {
+                this.terminatorField = value;
+            }
         }
 
         /// <inheritdoc/>
         public string[] AnyAttr
         {
-            get { return this.anyAttrField; }
-            set { this.anyAttrField = value; }
+            get
+            {
+                return this.anyAttrField;
+            }
+            set
+            {
+                this.anyAttrField = value;
+            }
         }
     }
 
@@ -257,32 +359,56 @@ namespace Opc.Ua.Schema.Binary
         /// <inheritdoc/>
         public Documentation Documentation
         {
-            get { return this.documentationField; }
-            set { this.documentationField = value; }
+            get
+            {
+                return this.documentationField;
+            }
+            set
+            {
+                this.documentationField = value;
+            }
         }
 
         /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public string Name
         {
-            get { return this.nameField; }
-            set { this.nameField = value; }
+            get
+            {
+                return this.nameField;
+            }
+            set
+            {
+                this.nameField = value;
+            }
         }
 
         /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public int Value
         {
-            get { return this.valueField; }
-            set { this.valueField = value; }
+            get
+            {
+                return this.valueField;
+            }
+            set
+            {
+                this.valueField = value;
+            }
         }
 
         /// <inheritdoc/>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         public bool ValueSpecified
         {
-            get { return this.valueFieldSpecified; }
-            set { this.valueFieldSpecified = value; }
+            get
+            {
+                return this.valueFieldSpecified;
+            }
+            set
+            {
+                this.valueFieldSpecified = value;
+            }
         }
     }
 
@@ -340,15 +466,27 @@ namespace Opc.Ua.Schema.Binary
         [System.Xml.Serialization.XmlElementAttribute("Field")]
         public FieldType[] Field
         {
-            get { return this.fieldField; }
-            set { this.fieldField = value; }
+            get
+            {
+                return this.fieldField;
+            }
+            set
+            {
+                this.fieldField = value;
+            }
         }
 
         /// <inheritdoc/>
         public string[] AnyAttr
         {
-            get { return this.anyAttrField; }
-            set { this.anyAttrField = value; }
+            get
+            {
+                return this.anyAttrField;
+            }
+            set
+            {
+                this.anyAttrField = value;
+            }
         }
     }
 
@@ -376,16 +514,28 @@ namespace Opc.Ua.Schema.Binary
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public int LengthInBits
         {
-            get { return this.lengthInBitsField; }
-            set { this.lengthInBitsField = value; }
+            get
+            {
+                return this.lengthInBitsField;
+            }
+            set
+            {
+                this.lengthInBitsField = value;
+            }
         }
 
         /// <inheritdoc/>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         public bool LengthInBitsSpecified
         {
-            get { return this.lengthInBitsFieldSpecified; }
-            set { this.lengthInBitsFieldSpecified = value; }
+            get
+            {
+                return this.lengthInBitsFieldSpecified;
+            }
+            set
+            {
+                this.lengthInBitsFieldSpecified = value;
+            }
         }
 
         /// <inheritdoc/>
@@ -393,8 +543,14 @@ namespace Opc.Ua.Schema.Binary
         [System.ComponentModel.DefaultValueAttribute(false)]
         public bool ByteOrderSignificant
         {
-            get { return this.byteOrderSignificantField; }
-            set { this.byteOrderSignificantField = value; }
+            get
+            {
+                return this.byteOrderSignificantField;
+            }
+            set
+            {
+                this.byteOrderSignificantField = value;
+            }
         }
     }
 
@@ -411,8 +567,14 @@ namespace Opc.Ua.Schema.Binary
         [System.Xml.Serialization.XmlElementAttribute("EnumeratedValue")]
         public EnumeratedValue[] EnumeratedValue
         {
-            get { return this.enumeratedValueField; }
-            set { this.enumeratedValueField = value; }
+            get
+            {
+                return this.enumeratedValueField;
+            }
+            set
+            {
+                this.enumeratedValueField = value;
+            }
         }
     }
 
@@ -431,16 +593,28 @@ namespace Opc.Ua.Schema.Binary
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public string Namespace
         {
-            get { return this.namespaceField; }
-            set { this.namespaceField = value; }
+            get
+            {
+                return this.namespaceField;
+            }
+            set
+            {
+                this.namespaceField = value;
+            }
         }
 
         /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public string Location
         {
-            get { return this.locationField; }
-            set { this.locationField = value; }
+            get
+            {
+                return this.locationField;
+            }
+            set
+            {
+                this.locationField = value;
+            }
         }
     }
 
@@ -473,16 +647,28 @@ namespace Opc.Ua.Schema.Binary
         /// <inheritdoc/>
         public Documentation Documentation
         {
-            get { return this.documentationField; }
-            set { this.documentationField = value; }
+            get
+            {
+                return this.documentationField;
+            }
+            set
+            {
+                this.documentationField = value;
+            }
         }
 
         /// <inheritdoc/>
         [System.Xml.Serialization.XmlElementAttribute("Import")]
         public ImportDirective[] Import
         {
-            get { return this.importField; }
-            set { this.importField = value; }
+            get
+            {
+                return this.importField;
+            }
+            set
+            {
+                this.importField = value;
+            }
         }
 
         /// <inheritdoc/>
@@ -491,32 +677,56 @@ namespace Opc.Ua.Schema.Binary
         [System.Xml.Serialization.XmlElementAttribute("StructuredType", typeof(StructuredType))]
         public TypeDescription[] Items
         {
-            get { return this.itemsField; }
-            set { this.itemsField = value; }
+            get
+            {
+                return this.itemsField;
+            }
+            set
+            {
+                this.itemsField = value;
+            }
         }
 
         /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public string TargetNamespace
         {
-            get { return this.targetNamespaceField; }
-            set { this.targetNamespaceField = value; }
+            get
+            {
+                return this.targetNamespaceField;
+            }
+            set
+            {
+                this.targetNamespaceField = value;
+            }
         }
 
         /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public ByteOrder DefaultByteOrder
         {
-            get { return this.defaultByteOrderField; }
-            set { this.defaultByteOrderField = value; }
+            get
+            {
+                return this.defaultByteOrderField;
+            }
+            set
+            {
+                this.defaultByteOrderField = value;
+            }
         }
 
         /// <inheritdoc/>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         public bool DefaultByteOrderSpecified
         {
-            get { return this.defaultByteOrderFieldSpecified; }
-            set { this.defaultByteOrderFieldSpecified = value; }
+            get
+            {
+                return this.defaultByteOrderFieldSpecified;
+            }
+            set
+            {
+                this.defaultByteOrderFieldSpecified = value;
+            }
         }
     }
 }

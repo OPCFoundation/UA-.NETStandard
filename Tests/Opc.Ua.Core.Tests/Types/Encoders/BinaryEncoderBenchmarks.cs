@@ -37,8 +37,10 @@ using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
-    [TestFixture, Category("BinaryEncoder")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("BinaryEncoder")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [NonParallelizable]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
@@ -189,7 +191,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
         }
 
-        private int BinaryEncoder_StreamLeaveOpen(MemoryStream memoryStream, bool testResult = false)
+        private int BinaryEncoder_StreamLeaveOpen(
+            MemoryStream memoryStream,
+            bool testResult = false)
         {
             int length1;
             int length2;

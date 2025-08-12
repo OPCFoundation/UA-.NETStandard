@@ -48,7 +48,10 @@ namespace Opc.Ua
         /// <param name="storePath">The store path of the store.</param>
         /// <param name="storeType">The type of the store.</param>
         /// <param name="noPrivateKeys">If the store supports no private keys.</param>
-        public CertificateStoreIdentifier(string storePath, string storeType, bool noPrivateKeys = true)
+        public CertificateStoreIdentifier(
+            string storePath,
+            string storeType,
+            bool noPrivateKeys = true)
         {
             StorePath = storePath;
             StoreType = storeType;
@@ -81,6 +84,7 @@ namespace Opc.Ua
         /// <returns>
         /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
+        /// <exception cref="FormatException"></exception>
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format != null)
@@ -111,9 +115,15 @@ namespace Opc.Ua
         /// The path to the default PKI Root.
         /// </summary>
 #if NETFRAMEWORK
-        public static readonly string DefaultPKIRoot = Path.Combine("%CommonApplicationData%", "OPC Foundation", "pki");
+        public static readonly string DefaultPKIRoot = Path.Combine(
+            "%CommonApplicationData%",
+            "OPC Foundation",
+            "pki");
 #else
-        public static readonly string DefaultPKIRoot = Path.Combine("%LocalApplicationData%", "OPC Foundation", "pki");
+        public static readonly string DefaultPKIRoot = Path.Combine(
+            "%LocalApplicationData%",
+            "OPC Foundation",
+            "pki");
 #endif
 
         /// <summary>
@@ -153,7 +163,8 @@ namespace Opc.Ua
 
             foreach (string storeTypeName in CertificateStoreType.RegisteredStoreTypeNames)
             {
-                ICertificateStoreType storeType = CertificateStoreType.GetCertificateStoreTypeByName(storeTypeName);
+                ICertificateStoreType storeType = CertificateStoreType
+                    .GetCertificateStoreTypeByName(storeTypeName);
                 if (storeType.SupportsStorePath(storePath))
                 {
                     return storeTypeName;
@@ -166,6 +177,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns an object that can be used to access the store.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         public static ICertificateStore CreateStore(string storeTypeName)
         {
             if (string.IsNullOrEmpty(storeTypeName))
@@ -179,13 +191,12 @@ namespace Opc.Ua
                 case CertificateStoreType.X509Store:
                     store = new X509CertificateStore();
                     break;
-
                 case CertificateStoreType.Directory:
                     store = new DirectoryCertificateStore();
                     break;
-
                 default:
-                    ICertificateStoreType storeType = CertificateStoreType.GetCertificateStoreTypeByName(storeTypeName);
+                    ICertificateStoreType storeType = CertificateStoreType
+                        .GetCertificateStoreTypeByName(storeTypeName);
                     if (storeType != null)
                     {
                         store = storeType.CreateStore();
@@ -212,24 +223,32 @@ namespace Opc.Ua
 
             // determine if the store configuration changed
             if (
-                store != null
-                && (
-                    store.StoreType != StoreType
-                    || store.StorePath != StorePath
-                    || store.NoPrivateKeys != m_noPrivateKeys
+                store != null &&
+                (
+                    store.StoreType != StoreType ||
+                    store.StorePath != StorePath ||
+                    store.NoPrivateKeys != m_noPrivateKeys
                 )
             )
             {
-                ICertificateStore previousStore = Interlocked.CompareExchange(ref m_store, null, store);
+                ICertificateStore previousStore = Interlocked.CompareExchange(
+                    ref m_store,
+                    null,
+                    store);
                 previousStore?.Dispose();
                 store = null;
             }
 
             // create and open the store
-            if (store == null && !string.IsNullOrEmpty(StoreType) && !string.IsNullOrEmpty(StorePath))
+            if (store == null &&
+                !string.IsNullOrEmpty(StoreType) &&
+                !string.IsNullOrEmpty(StorePath))
             {
                 store = CreateStore(StoreType);
-                ICertificateStore currentStore = Interlocked.CompareExchange(ref m_store, store, null);
+                ICertificateStore currentStore = Interlocked.CompareExchange(
+                    ref m_store,
+                    store,
+                    null);
                 if (currentStore != null)
                 {
                     Utils.SilentDispose(store);
@@ -260,8 +279,10 @@ namespace Opc.Ua
         /// Registers a new certificate store type that con be specified in config files.
         /// </summary>
         /// <param name="storeTypeName">The name of the store type.</param>
-        /// <param name="storeType"></param>
-        public static void RegisterCertificateStoreType(string storeTypeName, ICertificateStoreType storeType)
+        /// <param name="storeType">Store type</param>
+        public static void RegisterCertificateStoreType(
+            string storeTypeName,
+            ICertificateStoreType storeType)
         {
             s_registeredStoreTypes.Add(storeTypeName, storeType);
         }
@@ -269,19 +290,17 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the registered type for a custom certificate store.
         /// </summary>
-        /// <param name="storeTypeName"></param>
-        /// <returns></returns>
         public static ICertificateStoreType GetCertificateStoreTypeByName(string storeTypeName)
         {
-            ICertificateStoreType result;
-            s_registeredStoreTypes.TryGetValue(storeTypeName, out result);
+            s_registeredStoreTypes.TryGetValue(storeTypeName, out ICertificateStoreType result);
             return result;
         }
 
         /// <summary>
         /// Returns the collection of registered certificate store keys.
         /// </summary>
-        public static IReadOnlyCollection<string> RegisteredStoreTypeNames => s_registeredStoreTypes.Keys;
+        public static IReadOnlyCollection<string> RegisteredStoreTypeNames
+            => s_registeredStoreTypes.Keys;
 
         /// <summary>
         /// A windows certificate store.

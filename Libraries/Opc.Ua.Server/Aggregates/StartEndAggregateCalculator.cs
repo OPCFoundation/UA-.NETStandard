@@ -72,19 +72,14 @@ namespace Opc.Ua.Server
                 {
                     case Objects.AggregateFunction_Start:
                         return ComputeStartEnd(slice, false);
-
                     case Objects.AggregateFunction_End:
                         return ComputeStartEnd(slice, true);
-
                     case Objects.AggregateFunction_Delta:
                         return ComputeDelta(slice);
-
                     case Objects.AggregateFunction_StartBound:
                         return ComputeStartEnd2(slice, false);
-
                     case Objects.AggregateFunction_EndBound:
                         return ComputeStartEnd2(slice, true);
-
                     case Objects.AggregateFunction_DeltaBounds:
                         return ComputeDelta2(slice);
                 }
@@ -112,11 +107,8 @@ namespace Opc.Ua.Server
             {
                 return values[0];
             }
-            // return end value.
-            else
-            {
-                return values[^1];
-            }
+
+            return values[^1];
         }
 
         /// <summary>
@@ -190,7 +182,11 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            var value = new DataValue { SourceTimestamp = GetTimestamp(slice), ServerTimestamp = GetTimestamp(slice) };
+            var value = new DataValue
+            {
+                SourceTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
+            };
 
             // set status code.
             if (badDataSkipped)
@@ -205,7 +201,10 @@ namespace Opc.Ua.Server
 
             if (originalType != null && originalType.BuiltInType != BuiltInType.Double)
             {
-                object delta2 = TypeInfo.Cast(delta, TypeInfo.Scalars.Double, originalType.BuiltInType);
+                object delta2 = TypeInfo.Cast(
+                    delta,
+                    TypeInfo.Scalars.Double,
+                    originalType.BuiltInType);
                 value.WrappedValue = new Variant(delta2, originalType);
             }
             else
@@ -316,7 +315,11 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            var value = new DataValue { SourceTimestamp = GetTimestamp(slice), ServerTimestamp = GetTimestamp(slice) };
+            var value = new DataValue
+            {
+                SourceTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
+            };
 
             if (!IsGood(start) || !IsGood(end))
             {
@@ -330,7 +333,10 @@ namespace Opc.Ua.Server
 
             if (originalType != null && originalType.BuiltInType != BuiltInType.Double)
             {
-                object delta2 = TypeInfo.Cast(delta, TypeInfo.Scalars.Double, originalType.BuiltInType);
+                object delta2 = TypeInfo.Cast(
+                    delta,
+                    TypeInfo.Scalars.Double,
+                    originalType.BuiltInType);
                 value.WrappedValue = new Variant(delta2, originalType);
             }
             else

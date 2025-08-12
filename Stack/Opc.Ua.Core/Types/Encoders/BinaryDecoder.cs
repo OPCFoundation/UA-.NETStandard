@@ -32,13 +32,17 @@ namespace Opc.Ua
         /// Creates a decoder that reads from a memory buffer.
         /// </summary>
         public BinaryDecoder(byte[] buffer, IServiceMessageContext context)
-            : this(buffer, 0, buffer.Length, context) { }
+            : this(buffer, 0, buffer.Length, context)
+        {
+        }
 
         /// <summary>
         /// Creates a decoder that reads from an ArraySegment.
         /// </summary>
         public BinaryDecoder(ArraySegment<byte> buffer, IServiceMessageContext context)
-            : this(buffer.Array, buffer.Offset, buffer.Count, context) { }
+            : this(buffer.Array, buffer.Offset, buffer.Count, context)
+        {
+        }
 
         /// <summary>
         /// Creates a decoder that reads from a memory buffer.
@@ -124,6 +128,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the current position in the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public int Position
         {
             get
@@ -131,7 +136,9 @@ namespace Opc.Ua
                 Stream stream = BaseStream;
                 if (stream?.CanSeek != true)
                 {
-                    throw new ServiceResultException(StatusCodes.BadDecodingError, "Stream does not support seeking.");
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError,
+                        "Stream does not support seeking.");
                 }
                 long position = stream?.Position ?? 0;
                 if (position is > int.MaxValue or < int.MinValue)
@@ -153,7 +160,11 @@ namespace Opc.Ua
         /// <summary>
         /// Decodes a message from a stream.
         /// </summary>
-        public static IEncodeable DecodeMessage(Stream stream, Type expectedType, IServiceMessageContext context)
+        /// <exception cref="ArgumentNullException"><paramref name="stream"/> is <c>null</c>.</exception>
+        public static IEncodeable DecodeMessage(
+            Stream stream,
+            Type expectedType,
+            IServiceMessageContext context)
         {
             if (stream == null)
             {
@@ -172,7 +183,11 @@ namespace Opc.Ua
         /// <summary>
         /// Decodes a session-less message from a buffer.
         /// </summary>
-        public static IEncodeable DecodeSessionLessMessage(byte[] buffer, IServiceMessageContext context)
+        /// <exception cref="ArgumentNullException"><paramref name="buffer"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public static IEncodeable DecodeSessionLessMessage(
+            byte[] buffer,
+            IServiceMessageContext context)
         {
             if (buffer == null)
             {
@@ -216,7 +231,11 @@ namespace Opc.Ua
         /// <summary>
         /// Decodes a message from a buffer.
         /// </summary>
-        public static IEncodeable DecodeMessage(byte[] buffer, Type expectedType, IServiceMessageContext context)
+        /// <exception cref="ArgumentNullException"><paramref name="buffer"/> is <c>null</c>.</exception>
+        public static IEncodeable DecodeMessage(
+            byte[] buffer,
+            Type expectedType,
+            IServiceMessageContext context)
         {
             if (buffer == null)
             {
@@ -235,6 +254,7 @@ namespace Opc.Ua
         /// <summary>
         /// Decodes an object from a buffer.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public IEncodeable DecodeMessage(Type expectedType)
         {
             int start = Position;
@@ -419,6 +439,7 @@ namespace Opc.Ua
         /// Reads a string from the stream (throws an exception if
         /// its length is invalid or exceeds the limit specified).
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public string ReadString(string fieldName, int maxStringLength)
         {
             int length = SafeReadInt32();
@@ -450,7 +471,7 @@ namespace Opc.Ua
             try
             {
                 Span<byte> bytes =
-                    (length <= maxStackAlloc)
+                    length <= maxStackAlloc
                         ? stackalloc byte[length]
                         : (buffer = ArrayPool<byte>.Shared.Rent(length)).AsSpan(0, length);
 
@@ -532,6 +553,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads a byte string from the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public byte[] ReadByteString(string fieldName, int maxByteStringLength)
         {
             int length = SafeReadInt32();
@@ -744,7 +766,8 @@ namespace Opc.Ua
             }
 
             ushort sourcePicoseconds = 0;
-            bool hasPicoseconds = (encodingByte & (byte)DataValueEncodingBits.SourcePicoseconds) != 0;
+            bool hasPicoseconds = (encodingByte &
+                (byte)DataValueEncodingBits.SourcePicoseconds) != 0;
             if ((encodingByte & (byte)DataValueEncodingBits.SourceTimestamp) != 0)
             {
                 value.SourceTimestamp = ReadDateTime(null);
@@ -793,7 +816,12 @@ namespace Opc.Ua
         /// <param name="systemType">The system type of the encodeable object to be read</param>
         /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instance that will be read.</param>
         /// <returns>An <see cref="IEncodeable"/> object that was read from the stream.</returns>
-        public IEncodeable ReadEncodeable(string fieldName, Type systemType, ExpandedNodeId encodeableTypeId = null)
+        /// <exception cref="ArgumentNullException"><paramref name="systemType"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public IEncodeable ReadEncodeable(
+            string fieldName,
+            Type systemType,
+            ExpandedNodeId encodeableTypeId = null)
         {
             if (systemType == null)
             {
@@ -1398,7 +1426,10 @@ namespace Opc.Ua
         /// <param name="systemType">The system type of the encodeable objects to be read object</param>
         /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instances that will be read.</param>
         /// <returns>An <see cref="IEncodeable"/> array that was read from the stream.</returns>
-        public Array ReadEncodeableArray(string fieldName, Type systemType, ExpandedNodeId encodeableTypeId = null)
+        public Array ReadEncodeableArray(
+            string fieldName,
+            Type systemType,
+            ExpandedNodeId encodeableTypeId = null)
         {
             int length = ReadArrayLength();
 
@@ -1470,7 +1501,6 @@ namespace Opc.Ua
                         }
                         // if system type is not known or not an enum, fall back to Int32
                         goto case BuiltInType.Int32;
-
                     case BuiltInType.Int32:
                         return ReadInt32Array(fieldName)?.ToArray();
                     case BuiltInType.UInt32:
@@ -1511,7 +1541,6 @@ namespace Opc.Ua
                             return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
                         }
                         return ReadVariantArray(fieldName)?.ToArray();
-
                     case BuiltInType.ExtensionObject:
                         return ReadExtensionObjectArray(fieldName)?.ToArray();
                     case BuiltInType.DiagnosticInfo:
@@ -1537,7 +1566,10 @@ namespace Opc.Ua
                 if (dimensions != null && dimensions.Count > 0)
                 {
                     //int length;
-                    (_, int length) = Matrix.ValidateDimensions(false, dimensions, Context.MaxArrayLength);
+                    (_, int length) = Matrix.ValidateDimensions(
+                        false,
+                        dimensions,
+                        Context.MaxArrayLength);
 
                     // read the elements
                     Array elements = null;
@@ -1546,8 +1578,14 @@ namespace Opc.Ua
                         elements = Array.CreateInstance(systemType, length);
                         for (int i = 0; i < length; i++)
                         {
-                            IEncodeable element = ReadEncodeable(null, systemType, encodeableTypeId);
-                            elements.SetValue(Convert.ChangeType(element, systemType, CultureInfo.InvariantCulture), i);
+                            IEncodeable element = ReadEncodeable(
+                                null,
+                                systemType,
+                                encodeableTypeId);
+                            elements.SetValue(Convert.ChangeType(
+                                element,
+                                systemType,
+                                CultureInfo.InvariantCulture), i);
                         }
                     }
 
@@ -1600,6 +1638,7 @@ namespace Opc.Ua
         /// Reads a DiagnosticInfo from the stream.
         /// Limits the InnerDiagnosticInfo nesting level.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private DiagnosticInfo ReadDiagnosticInfo(string fieldName, int depth)
         {
             if (depth >= DiagnosticInfo.MaxInnerDepth)
@@ -1658,7 +1697,8 @@ namespace Opc.Ua
 
                 if ((encodingByte & (byte)DiagnosticInfoEncodingBits.InnerDiagnosticInfo) != 0)
                 {
-                    value.InnerDiagnosticInfo = ReadDiagnosticInfo(null, depth + 1) ?? new DiagnosticInfo();
+                    value.InnerDiagnosticInfo = ReadDiagnosticInfo(null, depth + 1) ??
+                        new DiagnosticInfo();
                 }
 
                 return value;
@@ -1675,7 +1715,9 @@ namespace Opc.Ua
         /// <param name="systemType">The reference to the system type, or null</param>
         /// <param name="encodeableTypeId">The encodeable type id of the system type.</param>
         /// <returns>If the system type is assignable to <see cref="IEncodeable"/> </returns>
-        private bool DetermineIEncodeableSystemType(ref Type systemType, ExpandedNodeId encodeableTypeId)
+        private bool DetermineIEncodeableSystemType(
+            ref Type systemType,
+            ExpandedNodeId encodeableTypeId)
         {
             if (encodeableTypeId != null && systemType == null)
             {
@@ -1687,6 +1729,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads and returns an array of elements of the specified length and builtInType
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private Array ReadArrayElements(int length, BuiltInType builtInType)
         {
             Array array;
@@ -1704,7 +1747,6 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
-
                 case BuiltInType.SByte:
                 {
                     sbyte[] values = new sbyte[length];
@@ -1717,7 +1759,6 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
-
                 case BuiltInType.Byte:
                 {
                     byte[] values = new byte[length];
@@ -1730,7 +1771,6 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
-
                 case BuiltInType.Int16:
                 {
                     short[] values = new short[length];
@@ -1743,7 +1783,6 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
-
                 case BuiltInType.UInt16:
                 {
                     ushort[] values = new ushort[length];
@@ -1756,7 +1795,6 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
-
                 case BuiltInType.Int32:
                 case BuiltInType.Enumeration:
                 {
@@ -1769,7 +1807,6 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
-
                 case BuiltInType.UInt32:
                 {
                     uint[] values = new uint[length];
@@ -1782,7 +1819,6 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
-
                 case BuiltInType.Int64:
                 {
                     long[] values = new long[length];
@@ -1795,7 +1831,6 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
-
                 case BuiltInType.UInt64:
                 {
                     ulong[] values = new ulong[length];
@@ -1808,7 +1843,6 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
-
                 case BuiltInType.Float:
                 {
                     float[] values = new float[length];
@@ -1821,7 +1855,6 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
-
                 case BuiltInType.Double:
                 {
                     double[] values = new double[length];
@@ -1834,7 +1867,6 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
-
                 case BuiltInType.String:
                 {
                     string[] values = new string[length];
@@ -1847,7 +1879,6 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
-
                 case BuiltInType.DateTime:
                 {
                     var values = new DateTime[length];
@@ -1860,7 +1891,6 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
-
                 case BuiltInType.Guid:
                 {
                     var values = new Uuid[length];
@@ -1873,7 +1903,6 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
-
                 case BuiltInType.ByteString:
                 {
                     byte[][] values = new byte[length][];
@@ -1886,7 +1915,6 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
-
                 case BuiltInType.XmlElement:
                 {
                     var values = new XmlElement[length];
@@ -1912,7 +1940,6 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
-
                 case BuiltInType.NodeId:
                 {
                     var values = new NodeId[length];
@@ -1925,7 +1952,6 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
-
                 case BuiltInType.ExpandedNodeId:
                 {
                     var values = new ExpandedNodeId[length];
@@ -1938,7 +1964,6 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
-
                 case BuiltInType.StatusCode:
                 {
                     var values = new StatusCode[length];
@@ -1951,7 +1976,6 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
-
                 case BuiltInType.QualifiedName:
                 {
                     var values = new QualifiedName[length];
@@ -1964,7 +1988,6 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
-
                 case BuiltInType.LocalizedText:
                 {
                     var values = new LocalizedText[length];
@@ -1977,7 +2000,6 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
-
                 case BuiltInType.ExtensionObject:
                 {
                     var values = new ExtensionObject[length];
@@ -1990,7 +2012,6 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
-
                 case BuiltInType.DataValue:
                 {
                     var values = new DataValue[length];
@@ -2003,7 +2024,6 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
-
                 case BuiltInType.Variant:
                 {
                     var values = new Variant[length];
@@ -2016,7 +2036,6 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
-
                 case BuiltInType.DiagnosticInfo:
                 {
                     var values = new DiagnosticInfo[length];
@@ -2029,7 +2048,6 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
-
                 default:
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
@@ -2044,6 +2062,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads the length of an array.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private int ReadArrayLength([CallerMemberName] string callerMemberName = "")
         {
             int length = SafeReadInt32();
@@ -2070,6 +2089,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads the body of a node id.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void ReadNodeIdBody(byte encodingByte, NodeId value)
         {
             switch ((NodeIdEncodingBits)(encodingByte & 0x3F))
@@ -2078,32 +2098,26 @@ namespace Opc.Ua
                     value.SetNamespaceIndex(0);
                     value.SetIdentifier(IdType.Numeric, (uint)SafeReadByte());
                     break;
-
                 case NodeIdEncodingBits.FourByte:
                     value.SetNamespaceIndex(SafeReadByte());
                     value.SetIdentifier(IdType.Numeric, (uint)SafeReadUInt16());
                     break;
-
                 case NodeIdEncodingBits.Numeric:
                     value.SetNamespaceIndex(SafeReadUInt16());
                     value.SetIdentifier(IdType.Numeric, SafeReadUInt32());
                     break;
-
                 case NodeIdEncodingBits.String:
                     value.SetNamespaceIndex(SafeReadUInt16());
                     value.SetIdentifier(IdType.String, ReadString(null));
                     break;
-
                 case NodeIdEncodingBits.Guid:
                     value.SetNamespaceIndex(SafeReadUInt16());
                     value.SetIdentifier(IdType.Guid, (Guid)ReadGuid(null));
                     break;
-
                 case NodeIdEncodingBits.ByteString:
                     value.SetNamespaceIndex(SafeReadUInt16());
                     value.SetIdentifier(IdType.Opaque, ReadByteString(null));
                     break;
-
                 default:
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
@@ -2116,6 +2130,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an extension object from the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private ExtensionObject ReadExtensionObject()
         {
             var extension = new ExtensionObject();
@@ -2168,7 +2183,10 @@ namespace Opc.Ua
                     try
                     {
                         xmlDecoder.PushNamespace(element.NamespaceURI);
-                        IEncodeable body = xmlDecoder.ReadEncodeable(element.LocalName, systemType, extension.TypeId);
+                        IEncodeable body = xmlDecoder.ReadEncodeable(
+                            element.LocalName,
+                            systemType,
+                            extension.TypeId);
                         xmlDecoder.PopNamespace();
 
                         // update body.
@@ -2244,7 +2262,8 @@ namespace Opc.Ua
                     exception = eofStream;
                 }
                 catch (ServiceResultException sre)
-                    when (sre.StatusCode is StatusCodes.BadEncodingLimitsExceeded or StatusCodes.BadDecodingError)
+                    when (sre.StatusCode is StatusCodes.BadEncodingLimitsExceeded or StatusCodes
+                        .BadDecodingError)
                 {
                     errorMessage = sre.Message;
                     exception = sre;
@@ -2259,7 +2278,8 @@ namespace Opc.Ua
                     // type was known but decoding failed,
                     // reset stream to return ExtensionObject if configured to do so!
                     // decoding failure of a known type in ns=0 is always a decoding error.
-                    if (typeId.NamespaceIndex == 0 || m_encodeablesRecovered >= Context.MaxDecoderRecoveries)
+                    if (typeId.NamespaceIndex == 0 ||
+                        m_encodeablesRecovered >= Context.MaxDecoderRecoveries)
                     {
                         throw exception
                             ?? ServiceResultException.Create(
@@ -2349,6 +2369,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an Variant from the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private Variant ReadVariantValue(string fieldName)
         {
             // read the encoding byte.
@@ -2366,7 +2387,8 @@ namespace Opc.Ua
                     return value;
                 }
 
-                var builtInType = (BuiltInType)(encodingByte & (byte)VariantArrayEncodingBits.TypeMask);
+                var builtInType = (BuiltInType)(encodingByte &
+                    (byte)VariantArrayEncodingBits.TypeMask);
 
                 Array array = ReadArrayElements(length, builtInType);
 
@@ -2427,68 +2449,52 @@ namespace Opc.Ua
                     case BuiltInType.Null:
                         value = new Variant((object)null);
                         break;
-
                     case BuiltInType.Boolean:
                         value = new Variant(SafeReadBoolean());
                         break;
-
                     case BuiltInType.SByte:
                         value = new Variant(SafeReadSByte());
                         break;
-
                     case BuiltInType.Byte:
                         value = new Variant(SafeReadByte());
                         break;
-
                     case BuiltInType.Int16:
                         value = new Variant(SafeReadInt16());
                         break;
-
                     case BuiltInType.UInt16:
                         value = new Variant(SafeReadUInt16());
                         break;
-
                     case BuiltInType.Int32:
                     case BuiltInType.Enumeration:
                         value = new Variant(SafeReadInt32());
                         break;
-
                     case BuiltInType.UInt32:
                         value = new Variant(SafeReadUInt32());
                         break;
-
                     case BuiltInType.Int64:
                         value = new Variant(SafeReadInt64());
                         break;
-
                     case BuiltInType.UInt64:
                         value = new Variant(SafeReadUInt64());
                         break;
-
                     case BuiltInType.Float:
                         value = new Variant(SafeReadFloat());
                         break;
-
                     case BuiltInType.Double:
                         value = new Variant(SafeReadDouble());
                         break;
-
                     case BuiltInType.String:
                         value = new Variant(ReadString(null));
                         break;
-
                     case BuiltInType.DateTime:
                         value = new Variant(ReadDateTime(null));
                         break;
-
                     case BuiltInType.Guid:
                         value = new Variant(ReadGuid(null));
                         break;
-
                     case BuiltInType.ByteString:
                         value = new Variant(ReadByteString(null));
                         break;
-
                     case BuiltInType.XmlElement:
                         try
                         {
@@ -2505,35 +2511,27 @@ namespace Opc.Ua
                             value = new Variant(StatusCodes.BadDecodingError);
                         }
                         break;
-
                     case BuiltInType.NodeId:
                         value = new Variant(ReadNodeId(null));
                         break;
-
                     case BuiltInType.ExpandedNodeId:
                         value = new Variant(ReadExpandedNodeId(null));
                         break;
-
                     case BuiltInType.StatusCode:
                         value = new Variant(ReadStatusCode(null));
                         break;
-
                     case BuiltInType.QualifiedName:
                         value = new Variant(ReadQualifiedName(null));
                         break;
-
                     case BuiltInType.LocalizedText:
                         value = new Variant(ReadLocalizedText(null));
                         break;
-
                     case BuiltInType.ExtensionObject:
                         value = new Variant(ReadExtensionObject());
                         break;
-
                     case BuiltInType.DataValue:
                         value = new Variant(ReadDataValue(null));
                         break;
-
                     default:
                         throw ServiceResultException.Create(
                             StatusCodes.BadDecodingError,
@@ -2584,7 +2582,9 @@ namespace Opc.Ua
         /// <param name="functionName">The name of the calling function.</param>
         /// <exception cref="ServiceResultException"> with <see cref="StatusCodes.BadDecodingError"/></exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int SafeReadCharBytes(Span<byte> bytes, [CallerMemberName] string functionName = null)
+        private int SafeReadCharBytes(
+            Span<byte> bytes,
+            [CallerMemberName] string functionName = null)
         {
             int length = m_reader.Read(bytes);
 
@@ -2796,7 +2796,9 @@ namespace Opc.Ua
         /// <param name="dataTypeName">The datatype which reached the end of the stream.</param>
         /// <param name="functionName">The property which tried to read the datatype.</param>
         /// <exception cref="ServiceResultException"> with <see cref="StatusCodes.BadDecodingError"/></exception>
-        private static ServiceResultException CreateDecodingError(string dataTypeName, string functionName)
+        private static ServiceResultException CreateDecodingError(
+            string dataTypeName,
+            string functionName)
         {
             return ServiceResultException.Create(
                 StatusCodes.BadDecodingError,
@@ -2809,6 +2811,7 @@ namespace Opc.Ua
         /// <summary>
         /// Test and increment the nesting level.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void CheckAndIncrementNestingLevel()
         {
             if (m_nestingLevel > Context.MaxEncodingNestingLevels)
@@ -2826,6 +2829,8 @@ namespace Opc.Ua
         /// Validate the stream requirements.
         /// </summary>
         /// <param name="stream">The stream used for decoding.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="stream"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         private static void ValidateStreamRequirements(Stream stream)
         {
             if (stream == null)

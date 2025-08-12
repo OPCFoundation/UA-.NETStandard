@@ -23,6 +23,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
+        /// <exception cref="FormatException"></exception>
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
@@ -37,7 +38,9 @@ namespace Opc.Ua
                     return m_browseName.Name;
                 }
 
-                return Utils.Format("(unknown {0})", m_nodeClass.ToString().ToLower(CultureInfo.InvariantCulture));
+                return Utils.Format(
+                    "(unknown {0})",
+                    m_nodeClass.ToString().ToLower(CultureInfo.InvariantCulture));
             }
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
@@ -54,7 +57,10 @@ namespace Opc.Ua
         /// <summary>
         /// Sets the reference type for the reference.
         /// </summary>
-        public void SetReferenceType(BrowseResultMask resultMask, NodeId referenceTypeId, bool isForward)
+        public void SetReferenceType(
+            BrowseResultMask resultMask,
+            NodeId referenceTypeId,
+            bool isForward)
         {
             if (((int)resultMask & (int)BrowseResultMask.ReferenceTypeId) != 0)
             {

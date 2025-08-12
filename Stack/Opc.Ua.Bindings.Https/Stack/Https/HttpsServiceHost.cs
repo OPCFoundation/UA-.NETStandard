@@ -98,10 +98,10 @@ namespace Opc.Ua.Bindings
                     // Only use security None without mutual TLS authentication!
                     // When the mutual TLS authentication is not used, anonymous access is disabled
                     // Then the only protection against unauthorized access is user authorization
-                    bestPolicy = new ServerSecurityPolicy()
+                    bestPolicy = new ServerSecurityPolicy
                     {
                         SecurityMode = MessageSecurityMode.None,
-                        SecurityPolicyUri = SecurityPolicies.None,
+                        SecurityPolicyUri = SecurityPolicies.None
                     };
                 }
                 else
@@ -123,21 +123,27 @@ namespace Opc.Ua.Bindings
                     bestPolicy ??= securityPolicies[0];
                 }
 
-                var description = new EndpointDescription { EndpointUrl = uri.ToString(), Server = serverDescription };
+                var description = new EndpointDescription
+                {
+                    EndpointUrl = uri.ToString(),
+                    Server = serverDescription
+                };
 
                 if (certificateTypesProvider != null)
                 {
-                    X509Certificate2 instanceCertificate = certificateTypesProvider.GetInstanceCertificate(
-                        bestPolicy.SecurityPolicyUri
-                    );
+                    X509Certificate2 instanceCertificate = certificateTypesProvider
+                        .GetInstanceCertificate(
+                            bestPolicy.SecurityPolicyUri
+                            );
                     description.ServerCertificate = instanceCertificate.RawData;
 
                     // check if complete chain should be sent.
                     if (certificateTypesProvider.SendCertificateChain)
                     {
-                        description.ServerCertificate = certificateTypesProvider.LoadCertificateChainRaw(
-                            instanceCertificate
-                        );
+                        description.ServerCertificate = certificateTypesProvider
+                            .LoadCertificateChainRaw(
+                                instanceCertificate
+                                );
                     }
                 }
 
@@ -147,7 +153,9 @@ namespace Opc.Ua.Bindings
                     bestPolicy.SecurityMode,
                     bestPolicy.SecurityPolicyUri
                 );
-                description.UserIdentityTokens = serverBase.GetUserTokenPolicies(configuration, description);
+                description.UserIdentityTokens = serverBase.GetUserTokenPolicies(
+                    configuration,
+                    description);
                 description.TransportProfileUri = Profiles.HttpsBinaryTransport;
 
                 // if no mutual TLS authentication is used, anonymous user tokens are not allowed
@@ -155,7 +163,8 @@ namespace Opc.Ua.Bindings
                 {
                     description.UserIdentityTokens =
                     [
-                        .. description.UserIdentityTokens.Where(token => token.TokenType != UserTokenType.Anonymous),
+                        .. description.UserIdentityTokens
+                            .Where(token => token.TokenType != UserTokenType.Anonymous)
                     ];
                 }
 

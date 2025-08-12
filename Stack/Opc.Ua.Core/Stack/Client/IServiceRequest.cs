@@ -44,14 +44,12 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the request contained in the message.
         /// </summary>
-        /// <returns></returns>
         IServiceRequest GetRequest();
 
         /// <summary>
         /// Creates an instance of a response message.
         /// </summary>
         /// <param name="response">The response.</param>
-        /// <returns></returns>
         object CreateResponse(IServiceResponse response);
     }
 }
