@@ -797,10 +797,7 @@ namespace Opc.Ua.Client.Tests
                 await subscription.CreateAsync().ConfigureAwait(false);
                 var publishInterval = (int)subscription.CurrentPublishingInterval;
 
-                Session.DeleteSubscriptionsOnClose = true;
-
                 TestContext.Out.WriteLine($"Id: {subscription.Id} CurrentPublishingInterval: {publishInterval}");
-
             }
 
             var stopwatch = Stopwatch.StartNew();
@@ -820,6 +817,8 @@ namespace Opc.Ua.Client.Tests
                 var result = await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false);
                 Assert.True(result);
             }
+
+            Session.DeleteSubscriptionsOnClose = true;
         }
 
         public enum TransferType
