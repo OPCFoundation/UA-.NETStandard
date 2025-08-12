@@ -546,13 +546,13 @@ namespace Opc.Ua.Server.Tests
                         //If sampling groups are used, samplingInterval needs to be waited before values are queued
                         if (m_fixture.UseSamplingGroupsInReferenceNodeManager)
                         {
-                            Thread.Sleep((int)(100.0 * 1.1));
+                            Thread.Sleep((int)(100.0 * 1.3));
                         }
                         UpdateValues(testSet);
                     }
 
                     // Wait a bit to ensure that the server has time to queue the values
-                    Thread.Sleep(1000);
+                    Thread.Sleep(500);
                 }
 
                 // call ResendData method from the same session context
