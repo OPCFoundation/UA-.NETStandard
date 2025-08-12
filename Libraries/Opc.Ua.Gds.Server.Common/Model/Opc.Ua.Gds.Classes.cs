@@ -104,11 +104,6 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
-            if (OnCallAsync != null)
-            {
-                throw new System.InvalidOperationException();
-            }
-            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -275,11 +270,6 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
-            if (OnCallAsync != null)
-            {
-                throw new System.InvalidOperationException();
-            }
-            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -444,11 +434,6 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
-            if (OnCallAsync != null)
-            {
-                throw new System.InvalidOperationException();
-            }
-            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -603,11 +588,6 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
-            if (OnCallAsync != null)
-            {
-                throw new System.InvalidOperationException();
-            }
-            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -764,11 +744,6 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
-            if (OnCallAsync != null)
-            {
-                throw new System.InvalidOperationException();
-            }
-            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -940,11 +915,6 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
-            if (OnCallAsync != null)
-            {
-                throw new System.InvalidOperationException();
-            }
-            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -1165,11 +1135,6 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
-            if (OnCallAsync != null)
-            {
-                throw new System.InvalidOperationException();
-            }
-            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -1950,11 +1915,6 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
-            if (OnCallAsync != null)
-            {
-                throw new System.InvalidOperationException();
-            }
-            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -2143,11 +2103,6 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
-            if (OnCallAsync != null)
-            {
-                throw new System.InvalidOperationException();
-            }
-            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -2352,11 +2307,6 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
-            if (OnCallAsync != null)
-            {
-                throw new System.InvalidOperationException();
-            }
-            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -2543,11 +2493,6 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
-            if (OnCallAsync != null)
-            {
-                throw new System.InvalidOperationException();
-            }
-            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -2715,11 +2660,6 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
-            if (OnCallAsync != null)
-            {
-                throw new System.InvalidOperationException();
-            }
-            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -2891,11 +2831,6 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
-            if (OnCallAsync != null)
-            {
-                throw new System.InvalidOperationException();
-            }
-            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -3059,11 +2994,6 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
-            if (OnCallAsync != null)
-            {
-                throw new System.InvalidOperationException();
-            }
-            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -3243,11 +3173,6 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
-            if (OnCallAsync != null)
-            {
-                throw new System.InvalidOperationException();
-            }
-            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -3428,11 +3353,6 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
-            if (OnCallAsync != null)
-            {
-                throw new System.InvalidOperationException();
-            }
-            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -5280,11 +5200,6 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
-            if (OnCallAsync != null)
-            {
-                throw new System.InvalidOperationException();
-            }
-            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -5472,11 +5387,6 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
-            if (OnCallAsync != null)
-            {
-                throw new System.InvalidOperationException();
-            }
-            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -5675,11 +5585,6 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
-            if (OnCallAsync != null)
-            {
-                throw new System.InvalidOperationException();
-            }
-            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -6482,11 +6387,6 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
-            if (OnCallAsync != null)
-            {
-                throw new System.InvalidOperationException();
-            }
-            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -6660,11 +6560,6 @@ namespace Opc.Ua.Gds
             IList<object> _inputArguments,
             IList<object> _outputArguments)
         {
-            if (OnCallAsync != null)
-            {
-                throw new System.InvalidOperationException();
-            }
-            
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
