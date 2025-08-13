@@ -499,11 +499,7 @@ namespace Opc.Ua
                 maxQueuedRequestCount = 100;
             }
 
-            if (m_requestQueue != null)
-            {
-                Utils.SilentDispose(m_requestQueue);
-            }
-
+            Utils.SilentDispose(m_requestQueue);
             m_requestQueue = new RequestQueue(
                 this,
                 minRequestThreadCount,
