@@ -79,7 +79,7 @@ namespace Opc.Ua
             set => s_dataslot.Value = value;
         }
 
-        private static readonly ThreadLocal<SecureChannelContext> s_dataslot = new();
+        private static readonly AsyncLocal<SecureChannelContext> s_dataslot = new AsyncLocal<SecureChannelContext>();
     }
 
     /// <summary>

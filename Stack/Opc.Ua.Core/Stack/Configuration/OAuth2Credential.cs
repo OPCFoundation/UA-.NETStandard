@@ -30,30 +30,6 @@ namespace Opc.Ua
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public class OAuth2Credential
     {
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
-        public OAuth2Credential()
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Initializes the object during deserialization.
-        /// </summary>
-        [OnDeserializing]
-        private static void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private static void Initialize()
-        {
-        }
-
         [DataMember(Order = 1)]
         public string AuthorityUrl { get; set; }
 

@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
@@ -2224,13 +2225,36 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Calls a method defined on an object.
         /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        public virtual ValueTask<(CallMethodResultCollection results, DiagnosticInfoCollection diagnosticInfos)> CallAsync(
+            OperationContext context,
+            CallMethodRequestCollection methodsToCall,
+            CancellationToken cancellationToken = default)
+        {
+            return CallInternalAsync(context, methodsToCall, sync: false, cancellationToken);
+        }
+
+        /// <summary>
+        /// Calls a method defined on an object.
+        /// </summary>
         public virtual void Call(
             OperationContext context,
             CallMethodRequestCollection methodsToCall,
             out CallMethodResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos
         )
+        {
+            (results, diagnosticInfos) = CallInternalAsync(context, methodsToCall, sync: true).Result;
+        }
+
+        /// <summary>
+        /// Calls a method defined on an object.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        public virtual async ValueTask<(CallMethodResultCollection results, DiagnosticInfoCollection diagnosticInfos)> CallInternalAsync(
+            OperationContext context,
+            CallMethodRequestCollection methodsToCall,
+            bool sync,
+            CancellationToken cancellationToken = default)
         {
             if (context == null)
             {
@@ -2243,9 +2267,9 @@ namespace Opc.Ua.Server
             }
 
             bool diagnosticsExist = false;
-            results = new CallMethodResultCollection(methodsToCall.Count);
-            diagnosticInfos = new DiagnosticInfoCollection(methodsToCall.Count);
-            var errors = new List<ServiceResult>(methodsToCall.Count);
+            var results = new CallMethodResultCollection(methodsToCall.Count);
+            var diagnosticInfos = new DiagnosticInfoCollection(methodsToCall.Count);
+            List<ServiceResult> errors = new List<ServiceResult>(methodsToCall.Count);
 
             // add placeholder for each result.
             bool validItems = false;
@@ -2290,7 +2314,33 @@ namespace Opc.Ua.Server
             {
                 foreach (INodeManager nodeManager in m_nodeManagers)
                 {
-                    nodeManager.Call(context, methodsToCall, results, errors);
+                    if (nodeManager is IAsyncNodeManager asyncNodeManager)
+                    {
+                        // call async node manager
+                        if (sync)
+                        {
+                            Utils.LogWarning("Async Method called sychronously. Prefer using CallAsync for best performance. NodeManager={0}", nodeManager);
+                            asyncNodeManager.CallAsync(
+                                context,
+                                methodsToCall,
+                                results,
+                                errors,
+                                cancellationToken).AsTask().GetAwaiter().GetResult();
+                        }
+                        else
+                        {
+                            await asyncNodeManager.CallAsync(
+                                context,
+                                methodsToCall,
+                                results,
+                                errors,
+                                cancellationToken).ConfigureAwait(false);
+                        }
+                    }
+                    else
+                    {
+                        nodeManager.Call(context, methodsToCall, results, errors);
+                    }
                 }
             }
 
@@ -2327,6 +2377,8 @@ namespace Opc.Ua.Server
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
+
+            return (results, diagnosticInfos);
         }
 
         /// <summary>

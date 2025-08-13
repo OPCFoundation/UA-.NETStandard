@@ -11,6 +11,8 @@
 */
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
@@ -112,6 +114,16 @@ namespace Opc.Ua
         /// This method always traps any exceptions and reports them to the client as a fault.
         /// </remarks>
         void CallSynchronously();
+
+        /// <summary>
+        /// Used to call the default asynchronous handler.
+        /// </summary>
+        /// <remarks>
+        /// This method may block the current thread so the caller must not call in the
+        /// thread that calls IServerBase.ScheduleIncomingRequest().
+        /// This method always traps any exceptions and reports them to the client as a fault.
+        /// </remarks>
+        Task CallAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Used to indicate that the asynchronous operation has completed.

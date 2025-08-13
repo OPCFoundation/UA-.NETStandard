@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 #if ECC_SUPPORT
@@ -58,7 +59,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The Server Configuration Node Manager.
     /// </summary>
-    public class ConfigurationNodeManager : DiagnosticsNodeManager
+    public class ConfigurationNodeManager : DiagnosticsNodeManager, IAsyncNodeManager
     {
         /// <summary>
         /// Initializes the configuration and diagnostics manager.
@@ -295,14 +296,14 @@ namespace Opc.Ua.Server
             m_serverConfigurationNode.MulticastDnsEnabled.Value = configuration.ServerConfiguration
                 .MultiCastDnsEnabled;
 
-            m_serverConfigurationNode.UpdateCertificate.OnCall
-                = new UpdateCertificateMethodStateMethodCallHandler(
-                UpdateCertificate
+            m_serverConfigurationNode.UpdateCertificate.OnCallAsync
+                = new UpdateCertificateMethodStateMethodAsyncCallHandler(
+                UpdateCertificateAsync
             );
             m_serverConfigurationNode.CreateSigningRequest.OnCall =
                 new CreateSigningRequestMethodStateMethodCallHandler(CreateSigningRequest);
-            m_serverConfigurationNode.ApplyChanges.OnCallMethod
-                = new GenericMethodCalledEventHandler(ApplyChanges);
+            m_serverConfigurationNode.ApplyChanges.OnCallMethod2
+                = new GenericMethodCalledEventHandler2(ApplyChanges);
             m_serverConfigurationNode.GetRejectedList.OnCall
                 = new GetRejectedListMethodStateMethodCallHandler(
                 GetRejectedList
@@ -460,19 +461,20 @@ namespace Opc.Ua.Server
             }
         }
 
-        private ServiceResult UpdateCertificate(
-            ISystemContext context,
-            MethodState method,
-            NodeId objectId,
-            NodeId certificateGroupId,
-            NodeId certificateTypeId,
-            byte[] certificate,
-            byte[][] issuerCertificates,
-            string privateKeyFormat,
-            byte[] privateKey,
-            ref bool applyChangesRequired
+        private async ValueTask<UpdateCertificateMethodStateResult> UpdateCertificateAsync(
+           ISystemContext context,
+           MethodState method,
+           NodeId objectId,
+           NodeId certificateGroupId,
+           NodeId certificateTypeId,
+           byte[] certificate,
+           byte[][] issuerCertificates,
+           string privateKeyFormat,
+           byte[] privateKey,
+           CancellationToken cancellation
         )
         {
+            bool applyChangesRequired = false;
             HasApplicationSecureAdminAccess(context);
 
             object[] inputArguments =
@@ -737,9 +739,8 @@ namespace Opc.Ua.Server
                             updateCertificate.CertificateWithPrivateKey.Dispose();
                             updateCertificate.CertificateWithPrivateKey = certOnly;
                             //update certificate identifier with new certificate
-                            existingCertIdentifier.FindAsync(m_configuration.ApplicationUri)
-                                .GetAwaiter()
-                                .GetResult();
+                            await existingCertIdentifier.FindAsync(m_configuration.ApplicationUri)
+                                .ConfigureAwait(false);
                         }
 
                         ICertificateStore issuerStore = certificateGroup.IssuerStore.OpenStore();
@@ -814,7 +815,7 @@ namespace Opc.Ua.Server
                 throw;
             }
 
-            return ServiceResult.Good;
+            return new UpdateCertificateMethodStateResult { ServiceResult = ServiceResult.Good, ApplyChangesRequired = applyChangesRequired };
         }
 
         private ServiceResult CreateSigningRequest(
@@ -931,6 +932,7 @@ namespace Opc.Ua.Server
         private ServiceResult ApplyChanges(
             ISystemContext context,
             MethodState method,
+            NodeId objectId,
             IList<object> inputArguments,
             IList<object> outputArguments
         )
