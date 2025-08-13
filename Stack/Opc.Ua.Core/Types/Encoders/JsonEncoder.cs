@@ -603,6 +603,8 @@ namespace Opc.Ua
                 case JsonEncodingType.Reversible:
                     fieldName = "Value";
                     break;
+                default:
+                    return;
             }
 
             WriteUInt32("SwitchField", switchField);
@@ -611,10 +613,8 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteEncodingMask(uint encodingMask)
         {
-            if (
-                (!SuppressArtifacts && EncodingToUse == JsonEncodingType.Compact) ||
-                EncodingToUse == JsonEncodingType.Reversible
-            )
+            if ((!SuppressArtifacts && EncodingToUse == JsonEncodingType.Compact) ||
+                EncodingToUse == JsonEncodingType.Reversible)
             {
                 WriteUInt32("EncodingMask", encodingMask);
             }
@@ -1992,8 +1992,7 @@ namespace Opc.Ua
                 return;
             }
 
-            if (
-                m_nestingLevel == 0 &&
+            if (m_nestingLevel == 0 &&
                 (m_commaRequired || m_topLevelIsArray) &&
                 (string.IsNullOrWhiteSpace(fieldName) ^ m_topLevelIsArray)
             )
@@ -3144,10 +3143,8 @@ namespace Opc.Ua
                         WriteStatusCode(nameof(dv.StatusCode), dv.StatusCode);
                     }
 
-                    if (
-                        (mask & DataSetFieldContentMask.SourceTimestamp) != 0 &&
-                        dv.SourceTimestamp != DateTime.MinValue
-                    )
+                    if ((mask & DataSetFieldContentMask.SourceTimestamp) != 0 &&
+                        dv.SourceTimestamp != DateTime.MinValue)
                     {
                         WriteDateTime(nameof(dv.SourceTimestamp), dv.SourceTimestamp);
 
@@ -3157,10 +3154,8 @@ namespace Opc.Ua
                         }
                     }
 
-                    if (
-                        (mask & DataSetFieldContentMask.ServerTimestamp) != 0 &&
-                        dv.ServerTimestamp != DateTime.MinValue
-                    )
+                    if ((mask & DataSetFieldContentMask.ServerTimestamp) != 0 &&
+                        dv.ServerTimestamp != DateTime.MinValue)
                     {
                         WriteDateTime(nameof(dv.ServerTimestamp), dv.ServerTimestamp);
 

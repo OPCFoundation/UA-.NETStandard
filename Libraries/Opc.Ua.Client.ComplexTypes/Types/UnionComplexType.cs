@@ -154,11 +154,9 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         string fieldName = property.Name;
 
-                        if (
-                            isJsonDecoder &&
+                        if (isJsonDecoder &&
                             decoder is IJsonDecoder jsonDecoder &&
-                            jsonDecoder.ReadField("Value", out _)
-                        )
+                            jsonDecoder.ReadField("Value", out _))
                         {
                             DecodeProperty(jsonDecoder, "Value", property);
                         }
