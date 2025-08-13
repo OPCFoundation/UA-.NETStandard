@@ -38,30 +38,6 @@ namespace Quickstarts.ReferenceServer
     public class ReferenceServerConfiguration
     {
         /// <summary>
-        /// The default constructor.
-        /// </summary>
-        public ReferenceServerConfiguration()
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Initializes the object during deserialization.
-        /// </summary>
-        [OnDeserializing]
-        private static void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private static void Initialize()
-        {
-        }
-
-        /// <summary>
         /// Whether the user dialog for accepting invalid certificates should be displayed.
         /// </summary>
         [DataMember(Order = 1)]

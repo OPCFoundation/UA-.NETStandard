@@ -341,30 +341,6 @@ namespace Opc.Ua.Gds.Tests
     [DataContract(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
     public class GlobalDiscoveryTestClientConfiguration
     {
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
-        public GlobalDiscoveryTestClientConfiguration()
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Initializes the object during deserialization.
-        /// </summary>
-        [OnDeserializing]
-        private static void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private static void Initialize()
-        {
-        }
-
         [DataMember(Order = 1)]
         public string GlobalDiscoveryServerUrl { get; set; }
 

@@ -167,7 +167,6 @@ namespace Opc.Ua.Client.Tests
         public TestableSubscription(Subscription template, bool copyEventHandlers)
             : base(template, copyEventHandlers)
         {
-            Initialize();
         }
 
         /// <summary>
@@ -177,14 +176,6 @@ namespace Opc.Ua.Client.Tests
         protected new void Initialize(StreamingContext context)
         {
             base.Initialize(context);
-            Initialize();
-        }
-
-        /// <summary>
-        /// Sets the private members to default values.
-        /// </summary>
-        private static void Initialize()
-        {
         }
 
         /// <inheritdoc/>

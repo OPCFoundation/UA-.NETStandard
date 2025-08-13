@@ -1956,30 +1956,6 @@ namespace Opc.Ua
     public class ReverseConnectClientConfiguration
     {
         /// <summary>
-        /// The default constructor.
-        /// </summary>
-        public ReverseConnectClientConfiguration()
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Initializes the object during deserialization.
-        /// </summary>
-        [OnDeserializing]
-        private static void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private static void Initialize()
-        {
-        }
-
-        /// <summary>
         /// A collection of reverse connect client endpoints.
         /// </summary>
         [DataMember(Order = 10, IsRequired = false)]
@@ -2005,30 +1981,6 @@ namespace Opc.Ua
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public class ReverseConnectClientEndpoint
     {
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
-        public ReverseConnectClientEndpoint()
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Initializes the object during deserialization.
-        /// </summary>
-        [OnDeserializing]
-        private static void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private static void Initialize()
-        {
-        }
-
         /// <summary>
         /// The endpoint Url of a reverse connect client.
         /// </summary>
@@ -2384,7 +2336,6 @@ namespace Opc.Ua
         /// </summary>
         public CertificateIdentifier()
         {
-            Initialize();
         }
 
         /// <summary>
@@ -2392,7 +2343,6 @@ namespace Opc.Ua
         /// </summary>
         public CertificateIdentifier(X509Certificate2 certificate)
         {
-            Initialize();
             Certificate = certificate;
         }
 
@@ -2403,7 +2353,6 @@ namespace Opc.Ua
             X509Certificate2 certificate,
             CertificateValidationOptions validationOptions)
         {
-            Initialize();
             Certificate = certificate;
             ValidationOptions = validationOptions;
         }
@@ -2413,24 +2362,7 @@ namespace Opc.Ua
         /// </summary>
         public CertificateIdentifier(byte[] rawData)
         {
-            Initialize();
             Certificate = CertificateFactory.Create(rawData, true);
-        }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private static void Initialize()
-        {
-        }
-
-        /// <summary>
-        /// Initializes the object during deserialization.
-        /// </summary>
-        [OnDeserializing]
-        public void Initialize(StreamingContext context)
-        {
-            Initialize();
         }
 
         /// <summary>

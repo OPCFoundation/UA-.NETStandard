@@ -198,30 +198,6 @@ namespace Opc.Ua.Gds.Tests
     [DataContract(Namespace = Ua.Namespaces.OpcUaConfig)]
     public class ServerConfigurationPushTestClientConfiguration
     {
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
-        public ServerConfigurationPushTestClientConfiguration()
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Initializes the object during deserialization.
-        /// </summary>
-        [OnDeserializing]
-        private static void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private static void Initialize()
-        {
-        }
-
         [DataMember(Order = 1, IsRequired = true)]
         public string ServerUrl { get; set; }
 
