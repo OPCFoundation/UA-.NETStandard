@@ -62,8 +62,7 @@ namespace Opc.Ua.Client
     /// </summary>
     public delegate void PublishSequenceNumbersToAcknowledgeEventHandler(
         ISession session,
-        PublishSequenceNumbersToAcknowledgeEventArgs e
-    );
+        PublishSequenceNumbersToAcknowledgeEventArgs e);
 
     /// <summary>
     /// Manages a session with a server.
@@ -379,8 +378,7 @@ namespace Opc.Ua.Client
         IEnumerable<Subscription> Load(
             Stream stream,
             bool transferSubscriptions = false,
-            IEnumerable<Type> knownTypes = null
-        );
+            IEnumerable<Type> knownTypes = null);
 
         /// <summary>
         /// Load the list of subscriptions saved in a file.
@@ -392,8 +390,7 @@ namespace Opc.Ua.Client
         IEnumerable<Subscription> Load(
             string filePath,
             bool transferSubscriptions = false,
-            IEnumerable<Type> knownTypes = null
-        );
+            IEnumerable<Type> knownTypes = null);
 
         /// <summary>
         /// Returns the active session configuration and writes it to a stream.
@@ -493,8 +490,7 @@ namespace Opc.Ua.Client
             IList<NodeId> nodeIds,
             out IList<Node> nodeCollection,
             out IList<ServiceResult> errors,
-            bool optionalAttributes = false
-        );
+            bool optionalAttributes = false);
 
         /// <summary>
         /// Reads the values for the node attributes and returns a node object collection.
@@ -514,8 +510,7 @@ namespace Opc.Ua.Client
             NodeClass nodeClass,
             out IList<Node> nodeCollection,
             out IList<ServiceResult> errors,
-            bool optionalAttributes = false
-        );
+            bool optionalAttributes = false);
 
         /// <summary>
         /// Reads the value for a node.
@@ -563,8 +558,7 @@ namespace Opc.Ua.Client
         void FetchReferences(
             IList<NodeId> nodeIds,
             out IList<ReferenceDescriptionCollection> referenceDescriptions,
-            out IList<ServiceResult> errors
-        );
+            out IList<ServiceResult> errors);
 
 #if CLIENT_ASYNC
 
@@ -592,8 +586,7 @@ namespace Opc.Ua.Client
         /// <returns>A list of reference collections and the errors reported by the server.</returns>
         Task<(IList<ReferenceDescriptionCollection>, IList<ServiceResult>)> FetchReferencesAsync(
             IList<NodeId> nodeIds,
-            CancellationToken ct
-        );
+            CancellationToken ct);
 #endif
 
         /// <summary>
@@ -629,8 +622,7 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            bool checkDomain
-        );
+            bool checkDomain);
 
         /// <summary>
         /// Establishes a session with the server.
@@ -647,8 +639,7 @@ namespace Opc.Ua.Client
             IUserIdentity identity,
             IList<string> preferredLocales,
             bool checkDomain,
-            bool closeChannel
-        );
+            bool closeChannel);
 
         /// <summary>
         /// Updates the preferred locales used for the session.
@@ -670,8 +661,7 @@ namespace Opc.Ua.Client
             NodeId instanceId,
             IList<string> componentPaths,
             out NodeIdCollection componentIds,
-            out IList<ServiceResult> errors
-        );
+            out IList<ServiceResult> errors);
 
         /// <summary>
         /// Reads the values for a set of variables.
@@ -684,8 +674,7 @@ namespace Opc.Ua.Client
             IList<NodeId> variableIds,
             IList<Type> expectedTypes,
             out IList<object> values,
-            out IList<ServiceResult> errors
-        );
+            out IList<ServiceResult> errors);
 
         /// <summary>
         /// Reads the display name for a set of Nodes.
@@ -717,8 +706,7 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            CancellationToken ct
-        );
+            CancellationToken ct);
 
         /// <summary>
         /// Establishes a session with the server.
@@ -735,8 +723,7 @@ namespace Opc.Ua.Client
             IUserIdentity identity,
             IList<string> preferredLocales,
             bool checkDomain,
-            CancellationToken ct
-        );
+            CancellationToken ct);
 
         /// <summary>
         /// Establishes a session with the server.
@@ -755,8 +742,7 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             bool checkDomain,
             bool closeChannel,
-            CancellationToken ct
-        );
+            CancellationToken ct);
 
         /// <summary>
         /// Reads the values for the node attributes and returns a node object collection.
@@ -775,8 +761,7 @@ namespace Opc.Ua.Client
             IList<NodeId> nodeIds,
             NodeClass nodeClass,
             bool optionalAttributes = false,
-            CancellationToken ct = default
-        );
+            CancellationToken ct = default);
 
         /// <summary>
         /// Reads the value for a node.
@@ -806,8 +791,7 @@ namespace Opc.Ua.Client
             NodeId nodeId,
             NodeClass nodeClass,
             bool optionalAttributes = true,
-            CancellationToken ct = default
-        );
+            CancellationToken ct = default);
 
         /// <summary>
         /// Reads the values for the node attributes and returns a node object collection.
@@ -820,8 +804,7 @@ namespace Opc.Ua.Client
         Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(
             IList<NodeId> nodeIds,
             bool optionalAttributes = false,
-            CancellationToken ct = default
-        );
+            CancellationToken ct = default);
 
         /// <summary>
         /// Reads the values for a node collection. Returns diagnostic errors.
@@ -830,8 +813,7 @@ namespace Opc.Ua.Client
         /// <param name="ct">The cancellation token for the request.</param>
         Task<(DataValueCollection, IList<ServiceResult>)> ReadValuesAsync(
             IList<NodeId> nodeIds,
-            CancellationToken ct = default
-        );
+            CancellationToken ct = default);
 #endif
 
         /// <summary>
@@ -934,8 +916,7 @@ namespace Opc.Ua.Client
         Task<bool> ReactivateSubscriptionsAsync(
             SubscriptionCollection subscriptions,
             bool sendInitialValues,
-            CancellationToken ct = default
-        );
+            CancellationToken ct = default);
 
         /// <summary>
         /// Transfers a list of subscriptions from another session.
@@ -946,8 +927,7 @@ namespace Opc.Ua.Client
         Task<bool> TransferSubscriptionsAsync(
             SubscriptionCollection subscriptions,
             bool sendInitialValues,
-            CancellationToken ct = default
-        );
+            CancellationToken ct = default);
 #endif
 
         /// <summary>
@@ -973,8 +953,7 @@ namespace Opc.Ua.Client
             bool includeSubtypes,
             uint nodeClassMask,
             out byte[] continuationPoint,
-            out ReferenceDescriptionCollection references
-        );
+            out ReferenceDescriptionCollection references);
 
         /// <summary>
         /// Begins an asynchronous invocation of the Browse service.
@@ -999,8 +978,7 @@ namespace Opc.Ua.Client
             bool includeSubtypes,
             uint nodeClassMask,
             AsyncCallback callback,
-            object asyncState
-        );
+            object asyncState);
 
         /// <summary>
         /// Finishes an asynchronous invocation of the Browse service.
@@ -1011,8 +989,7 @@ namespace Opc.Ua.Client
         ResponseHeader EndBrowse(
             IAsyncResult result,
             out byte[] continuationPoint,
-            out ReferenceDescriptionCollection references
-        );
+            out ReferenceDescriptionCollection references);
 
         /// <summary>
         /// Invokes the BrowseNext service.
@@ -1022,8 +999,7 @@ namespace Opc.Ua.Client
             bool releaseContinuationPoint,
             byte[] continuationPoint,
             out byte[] revisedContinuationPoint,
-            out ReferenceDescriptionCollection references
-        );
+            out ReferenceDescriptionCollection references);
 
         /// <summary>
         /// Begins an asynchronous invocation of the BrowseNext service.
@@ -1033,8 +1009,7 @@ namespace Opc.Ua.Client
             bool releaseContinuationPoint,
             byte[] continuationPoint,
             AsyncCallback callback,
-            object asyncState
-        );
+            object asyncState);
 
         /// <summary>
         /// Finishes an asynchronous invocation of the BrowseNext service.
@@ -1042,8 +1017,7 @@ namespace Opc.Ua.Client
         ResponseHeader EndBrowseNext(
             IAsyncResult result,
             out byte[] revisedContinuationPoint,
-            out ReferenceDescriptionCollection references
-        );
+            out ReferenceDescriptionCollection references);
 
         /// <summary>
         /// Execute browse and, if necessary, browse next in one service call.
@@ -1059,8 +1033,7 @@ namespace Opc.Ua.Client
             bool includeSubtypes,
             uint nodeClassMask,
             out IList<ReferenceDescriptionCollection> result,
-            out IList<ServiceResult> errors
-        );
+            out IList<ServiceResult> errors);
 
 #if CLIENT_ASYNC
 
@@ -1077,8 +1050,7 @@ namespace Opc.Ua.Client
             NodeId referenceTypeId,
             bool includeSubtypes,
             uint nodeClassMask,
-            CancellationToken ct = default
-        );
+            CancellationToken ct = default);
 #endif
 
         /// <summary>
@@ -1103,8 +1075,7 @@ namespace Opc.Ua.Client
             NodeId objectId,
             NodeId methodId,
             CancellationToken ct = default,
-            params object[] args
-        );
+            params object[] args);
 #endif
 
         /// <summary>
@@ -1134,16 +1105,14 @@ namespace Opc.Ua.Client
         Task<(bool, ServiceResult)> RepublishAsync(
             uint subscriptionId,
             uint sequenceNumber,
-            CancellationToken ct = default
-        );
+            CancellationToken ct = default);
 
         /// <summary>
         /// Call the ResendData method on the server for all subscriptions.
         /// </summary>
         Task<(bool, IList<ServiceResult>)> ResendDataAsync(
             IEnumerable<Subscription> subscriptions,
-            CancellationToken ct = default
-        );
+            CancellationToken ct = default);
 #endif
     }
 

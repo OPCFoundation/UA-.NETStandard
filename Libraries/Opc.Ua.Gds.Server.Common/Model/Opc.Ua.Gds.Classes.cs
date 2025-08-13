@@ -90,8 +90,7 @@ namespace Opc.Ua.Gds
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments
-        )
+            IList<object> _outputArguments)
         {
             if (OnCallAsync != null)
             {
@@ -126,8 +125,7 @@ namespace Opc.Ua.Gds
             NodeId _objectId,
             IList<object> _inputArguments,
             IList<object> _outputArguments,
-            CancellationToken cancellationToken = default
-        )
+            CancellationToken cancellationToken = default)
         {
             if (OnCall == null && OnCallAsync == null)
             {
@@ -163,8 +161,7 @@ namespace Opc.Ua.Gds
         MethodState _method,
         NodeId _objectId,
         string applicationUri,
-        ref ApplicationRecordDataType[] applications
-    );
+        ref ApplicationRecordDataType[] applications);
 
     /// <remarks />
     /// <exclude />
@@ -184,8 +181,7 @@ namespace Opc.Ua.Gds
         MethodState _method,
         NodeId _objectId,
         string applicationUri,
-        CancellationToken cancellationToken
-    );
+        CancellationToken cancellationToken);
 #endif
 
 #if (!OPCUA_EXCLUDE_RegisterApplicationMethodState)
@@ -239,8 +235,7 @@ namespace Opc.Ua.Gds
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments
-        )
+            IList<object> _outputArguments)
         {
             if (OnCallAsync != null)
             {
@@ -276,8 +271,7 @@ namespace Opc.Ua.Gds
             NodeId _objectId,
             IList<object> _inputArguments,
             IList<object> _outputArguments,
-            CancellationToken cancellationToken = default
-        )
+            CancellationToken cancellationToken = default)
         {
             if (OnCall == null && OnCallAsync == null)
             {
@@ -314,8 +308,7 @@ namespace Opc.Ua.Gds
         MethodState _method,
         NodeId _objectId,
         ApplicationRecordDataType application,
-        ref NodeId applicationId
-    );
+        ref NodeId applicationId);
 
     /// <remarks />
     /// <exclude />
@@ -335,8 +328,7 @@ namespace Opc.Ua.Gds
         MethodState _method,
         NodeId _objectId,
         ApplicationRecordDataType application,
-        CancellationToken cancellationToken
-    );
+        CancellationToken cancellationToken);
 #endif
 
 #if (!OPCUA_EXCLUDE_UpdateApplicationMethodState)
@@ -388,8 +380,7 @@ namespace Opc.Ua.Gds
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments
-        )
+            IList<object> _outputArguments)
         {
             if (OnCallAsync != null)
             {
@@ -421,8 +412,7 @@ namespace Opc.Ua.Gds
             NodeId _objectId,
             IList<object> _inputArguments,
             IList<object> _outputArguments,
-            CancellationToken cancellationToken = default
-        )
+            CancellationToken cancellationToken = default)
         {
             if (OnCall == null && OnCallAsync == null)
             {
@@ -456,8 +446,7 @@ namespace Opc.Ua.Gds
         ISystemContext _context,
         MethodState _method,
         NodeId _objectId,
-        ApplicationRecordDataType application
-    );
+        ApplicationRecordDataType application);
 
     /// <remarks />
     /// <exclude />
@@ -474,8 +463,7 @@ namespace Opc.Ua.Gds
         MethodState _method,
         NodeId _objectId,
         ApplicationRecordDataType application,
-        CancellationToken cancellationToken
-    );
+        CancellationToken cancellationToken);
 #endif
 
 #if (!OPCUA_EXCLUDE_UnregisterApplicationMethodState)
@@ -527,8 +515,7 @@ namespace Opc.Ua.Gds
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments
-        )
+            IList<object> _outputArguments)
         {
             if (OnCallAsync != null)
             {
@@ -559,8 +546,7 @@ namespace Opc.Ua.Gds
             NodeId _objectId,
             IList<object> _inputArguments,
             IList<object> _outputArguments,
-            CancellationToken cancellationToken = default
-        )
+            CancellationToken cancellationToken = default)
         {
             if (OnCall == null && OnCallAsync == null)
             {
@@ -593,8 +579,7 @@ namespace Opc.Ua.Gds
         ISystemContext _context,
         MethodState _method,
         NodeId _objectId,
-        NodeId applicationId
-    );
+        NodeId applicationId);
 
     /// <remarks />
     /// <exclude />
@@ -611,8 +596,7 @@ namespace Opc.Ua.Gds
         MethodState _method,
         NodeId _objectId,
         NodeId applicationId,
-        CancellationToken cancellationToken
-    );
+        CancellationToken cancellationToken);
 #endif
 
 #if (!OPCUA_EXCLUDE_GetApplicationMethodState)
@@ -666,8 +650,7 @@ namespace Opc.Ua.Gds
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments
-        )
+            IList<object> _outputArguments)
         {
             if (OnCallAsync != null)
             {
@@ -702,8 +685,7 @@ namespace Opc.Ua.Gds
             NodeId _objectId,
             IList<object> _inputArguments,
             IList<object> _outputArguments,
-            CancellationToken cancellationToken = default
-        )
+            CancellationToken cancellationToken = default)
         {
             if (OnCall == null && OnCallAsync == null)
             {
@@ -739,8 +721,7 @@ namespace Opc.Ua.Gds
         MethodState _method,
         NodeId _objectId,
         NodeId applicationId,
-        ref ApplicationRecordDataType application
-    );
+        ref ApplicationRecordDataType application);
 
     /// <remarks />
     /// <exclude />
@@ -760,8 +741,7 @@ namespace Opc.Ua.Gds
         MethodState _method,
         NodeId _objectId,
         NodeId applicationId,
-        CancellationToken cancellationToken
-    );
+        CancellationToken cancellationToken);
 #endif
 
 #if (!OPCUA_EXCLUDE_QueryApplicationsMethodState)
@@ -820,8 +800,7 @@ namespace Opc.Ua.Gds
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments
-        )
+            IList<object> _outputArguments)
         {
             if (OnCallAsync != null)
             {
@@ -862,8 +841,7 @@ namespace Opc.Ua.Gds
                     capabilities,
                     ref lastCounterResetTime,
                     ref nextRecordId,
-                    ref applications
-                );
+                    ref applications);
             }
 
             _outputArguments[0] = lastCounterResetTime;
@@ -880,8 +858,7 @@ namespace Opc.Ua.Gds
             NodeId _objectId,
             IList<object> _inputArguments,
             IList<object> _outputArguments,
-            CancellationToken cancellationToken = default
-        )
+            CancellationToken cancellationToken = default)
         {
             if (OnCall == null && OnCallAsync == null)
             {
@@ -912,8 +889,7 @@ namespace Opc.Ua.Gds
                         applicationType,
                         productUri,
                         capabilities,
-                        cancellationToken
-                    )
+                        cancellationToken)
                     .ConfigureAwait(false);
             }
             else if (OnCall != null)
@@ -945,8 +921,7 @@ namespace Opc.Ua.Gds
         string[] capabilities,
         ref DateTime lastCounterResetTime,
         ref uint nextRecordId,
-        ref Opc.Ua.ApplicationDescription[] applications
-    );
+        ref Opc.Ua.ApplicationDescription[] applications);
 
     /// <remarks />
     /// <exclude />
@@ -978,8 +953,7 @@ namespace Opc.Ua.Gds
         uint applicationType,
         string productUri,
         string[] capabilities,
-        CancellationToken cancellationToken
-    );
+        CancellationToken cancellationToken);
 #endif
 
 #if (!OPCUA_EXCLUDE_QueryServersMethodState)
@@ -1037,8 +1011,7 @@ namespace Opc.Ua.Gds
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments
-        )
+            IList<object> _outputArguments)
         {
             if (OnCallAsync != null)
             {
@@ -1075,8 +1048,7 @@ namespace Opc.Ua.Gds
                     productUri,
                     serverCapabilities,
                     ref lastCounterResetTime,
-                    ref servers
-                );
+                    ref servers);
             }
 
             _outputArguments[0] = lastCounterResetTime;
@@ -1092,8 +1064,7 @@ namespace Opc.Ua.Gds
             NodeId _objectId,
             IList<object> _inputArguments,
             IList<object> _outputArguments,
-            CancellationToken cancellationToken = default
-        )
+            CancellationToken cancellationToken = default)
         {
             if (OnCall == null && OnCallAsync == null)
             {
@@ -1122,8 +1093,7 @@ namespace Opc.Ua.Gds
                         applicationUri,
                         productUri,
                         serverCapabilities,
-                        cancellationToken
-                    )
+                        cancellationToken)
                     .ConfigureAwait(false);
             }
             else if (OnCall != null)
@@ -1152,8 +1122,7 @@ namespace Opc.Ua.Gds
         string productUri,
         string[] serverCapabilities,
         ref DateTime lastCounterResetTime,
-        ref Opc.Ua.ServerOnNetwork[] servers
-    );
+        ref Opc.Ua.ServerOnNetwork[] servers);
 
     /// <remarks />
     /// <exclude />
@@ -1181,8 +1150,7 @@ namespace Opc.Ua.Gds
         string applicationUri,
         string productUri,
         string[] serverCapabilities,
-        CancellationToken cancellationToken
-    );
+        CancellationToken cancellationToken);
 #endif
 
 #if (!OPCUA_EXCLUDE_DirectoryState)
@@ -1201,8 +1169,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(
                 Opc.Ua.Gds.ObjectTypes.DirectoryType,
                 Opc.Ua.Gds.Namespaces.OpcUaGds,
-                namespaceUris
-            );
+                namespaceUris);
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -1442,8 +1409,7 @@ namespace Opc.Ua.Gds
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement
-        )
+            BaseInstanceState replacement)
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -1658,8 +1624,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(
                 Opc.Ua.Gds.ObjectTypes.ApplicationRegistrationChangedAuditEventType,
                 Opc.Ua.Gds.Namespaces.OpcUaGds,
-                namespaceUris
-            );
+                namespaceUris);
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -1760,8 +1725,7 @@ namespace Opc.Ua.Gds
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments
-        )
+            IList<object> _outputArguments)
         {
             if (OnCallAsync != null)
             {
@@ -1792,8 +1756,7 @@ namespace Opc.Ua.Gds
                     certificateGroupId,
                     certificateTypeId,
                     certificateRequest,
-                    ref requestId
-                );
+                    ref requestId);
             }
 
             _outputArguments[0] = requestId;
@@ -1808,8 +1771,7 @@ namespace Opc.Ua.Gds
             NodeId _objectId,
             IList<object> _inputArguments,
             IList<object> _outputArguments,
-            CancellationToken cancellationToken = default
-        )
+            CancellationToken cancellationToken = default)
         {
             if (OnCall == null && OnCallAsync == null)
             {
@@ -1834,8 +1796,7 @@ namespace Opc.Ua.Gds
                         certificateGroupId,
                         certificateTypeId,
                         certificateRequest,
-                        cancellationToken
-                    )
+                        cancellationToken)
                     .ConfigureAwait(false);
             }
             else if (OnCall != null)
@@ -1860,8 +1821,7 @@ namespace Opc.Ua.Gds
         NodeId certificateGroupId,
         NodeId certificateTypeId,
         byte[] certificateRequest,
-        ref NodeId requestId
-    );
+        ref NodeId requestId);
 
     /// <remarks />
     /// <exclude />
@@ -1884,8 +1844,7 @@ namespace Opc.Ua.Gds
         NodeId certificateGroupId,
         NodeId certificateTypeId,
         byte[] certificateRequest,
-        CancellationToken cancellationToken
-    );
+        CancellationToken cancellationToken);
 #endif
 
 #if (!OPCUA_EXCLUDE_StartNewKeyPairRequestMethodState)
@@ -1943,8 +1902,7 @@ namespace Opc.Ua.Gds
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments
-        )
+            IList<object> _outputArguments)
         {
             if (OnCallAsync != null)
             {
@@ -1981,8 +1939,7 @@ namespace Opc.Ua.Gds
                     domainNames,
                     privateKeyFormat,
                     privateKeyPassword,
-                    ref requestId
-                );
+                    ref requestId);
             }
 
             _outputArguments[0] = requestId;
@@ -1997,8 +1954,7 @@ namespace Opc.Ua.Gds
             NodeId _objectId,
             IList<object> _inputArguments,
             IList<object> _outputArguments,
-            CancellationToken cancellationToken = default
-        )
+            CancellationToken cancellationToken = default)
         {
             if (OnCall == null && OnCallAsync == null)
             {
@@ -2029,8 +1985,7 @@ namespace Opc.Ua.Gds
                         domainNames,
                         privateKeyFormat,
                         privateKeyPassword,
-                        cancellationToken
-                    )
+                        cancellationToken)
                     .ConfigureAwait(false);
             }
             else if (OnCall != null)
@@ -2058,8 +2013,7 @@ namespace Opc.Ua.Gds
         string[] domainNames,
         string privateKeyFormat,
         string privateKeyPassword,
-        ref NodeId requestId
-    );
+        ref NodeId requestId);
 
     /// <remarks />
     /// <exclude />
@@ -2085,8 +2039,7 @@ namespace Opc.Ua.Gds
         string[] domainNames,
         string privateKeyFormat,
         string privateKeyPassword,
-        CancellationToken cancellationToken
-    );
+        CancellationToken cancellationToken);
 #endif
 
 #if (!OPCUA_EXCLUDE_FinishRequestMethodState)
@@ -2142,8 +2095,7 @@ namespace Opc.Ua.Gds
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments
-        )
+            IList<object> _outputArguments)
         {
             if (OnCallAsync != null)
             {
@@ -2174,8 +2126,7 @@ namespace Opc.Ua.Gds
                     requestId,
                     ref certificate,
                     ref privateKey,
-                    ref issuerCertificates
-                );
+                    ref issuerCertificates);
             }
 
             _outputArguments[0] = certificate;
@@ -2192,8 +2143,7 @@ namespace Opc.Ua.Gds
             NodeId _objectId,
             IList<object> _inputArguments,
             IList<object> _outputArguments,
-            CancellationToken cancellationToken = default
-        )
+            CancellationToken cancellationToken = default)
         {
             if (OnCall == null && OnCallAsync == null)
             {
@@ -2235,8 +2185,7 @@ namespace Opc.Ua.Gds
         NodeId requestId,
         ref byte[] certificate,
         ref byte[] privateKey,
-        ref byte[][] issuerCertificates
-    );
+        ref byte[][] issuerCertificates);
 
     /// <remarks />
     /// <exclude />
@@ -2263,8 +2212,7 @@ namespace Opc.Ua.Gds
         NodeId _objectId,
         NodeId applicationId,
         NodeId requestId,
-        CancellationToken cancellationToken
-    );
+        CancellationToken cancellationToken);
 #endif
 
 #if (!OPCUA_EXCLUDE_GetCertificateGroupsMethodState)
@@ -2318,8 +2266,7 @@ namespace Opc.Ua.Gds
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments
-        )
+            IList<object> _outputArguments)
         {
             if (OnCallAsync != null)
             {
@@ -2354,8 +2301,7 @@ namespace Opc.Ua.Gds
             NodeId _objectId,
             IList<object> _inputArguments,
             IList<object> _outputArguments,
-            CancellationToken cancellationToken = default
-        )
+            CancellationToken cancellationToken = default)
         {
             if (OnCall == null && OnCallAsync == null)
             {
@@ -2391,8 +2337,7 @@ namespace Opc.Ua.Gds
         MethodState _method,
         NodeId _objectId,
         NodeId applicationId,
-        ref NodeId[] certificateGroupIds
-    );
+        ref NodeId[] certificateGroupIds);
 
     /// <remarks />
     /// <exclude />
@@ -2412,8 +2357,7 @@ namespace Opc.Ua.Gds
         MethodState _method,
         NodeId _objectId,
         NodeId applicationId,
-        CancellationToken cancellationToken
-    );
+        CancellationToken cancellationToken);
 #endif
 
 #if (!OPCUA_EXCLUDE_GetTrustListMethodState)
@@ -2468,8 +2412,7 @@ namespace Opc.Ua.Gds
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments
-        )
+            IList<object> _outputArguments)
         {
             if (OnCallAsync != null)
             {
@@ -2505,8 +2448,7 @@ namespace Opc.Ua.Gds
             NodeId _objectId,
             IList<object> _inputArguments,
             IList<object> _outputArguments,
-            CancellationToken cancellationToken = default
-        )
+            CancellationToken cancellationToken = default)
         {
             if (OnCall == null && OnCallAsync == null)
             {
@@ -2527,8 +2469,7 @@ namespace Opc.Ua.Gds
                         _objectId,
                         applicationId,
                         certificateGroupId,
-                        cancellationToken
-                    )
+                        cancellationToken)
                     .ConfigureAwait(false);
             }
             else if (OnCall != null)
@@ -2551,8 +2492,7 @@ namespace Opc.Ua.Gds
         NodeId _objectId,
         NodeId applicationId,
         NodeId certificateGroupId,
-        ref NodeId trustListId
-    );
+        ref NodeId trustListId);
 
     /// <remarks />
     /// <exclude />
@@ -2573,8 +2513,7 @@ namespace Opc.Ua.Gds
         NodeId _objectId,
         NodeId applicationId,
         NodeId certificateGroupId,
-        CancellationToken cancellationToken
-    );
+        CancellationToken cancellationToken);
 #endif
 
 #if (!OPCUA_EXCLUDE_RevokeCertificateMethodState)
@@ -2627,8 +2566,7 @@ namespace Opc.Ua.Gds
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments
-        )
+            IList<object> _outputArguments)
         {
             if (OnCallAsync != null)
             {
@@ -2660,8 +2598,7 @@ namespace Opc.Ua.Gds
             NodeId _objectId,
             IList<object> _inputArguments,
             IList<object> _outputArguments,
-            CancellationToken cancellationToken = default
-        )
+            CancellationToken cancellationToken = default)
         {
             if (OnCall == null && OnCallAsync == null)
             {
@@ -2696,8 +2633,7 @@ namespace Opc.Ua.Gds
         MethodState _method,
         NodeId _objectId,
         NodeId applicationId,
-        byte[] certificate
-    );
+        byte[] certificate);
 
     /// <remarks />
     /// <exclude />
@@ -2715,8 +2651,7 @@ namespace Opc.Ua.Gds
         NodeId _objectId,
         NodeId applicationId,
         byte[] certificate,
-        CancellationToken cancellationToken
-    );
+        CancellationToken cancellationToken);
 #endif
 
 #if (!OPCUA_EXCLUDE_GetCertificateStatusMethodState)
@@ -2771,8 +2706,7 @@ namespace Opc.Ua.Gds
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments
-        )
+            IList<object> _outputArguments)
         {
             if (OnCallAsync != null)
             {
@@ -2801,8 +2735,7 @@ namespace Opc.Ua.Gds
                     applicationId,
                     certificateGroupId,
                     certificateTypeId,
-                    ref updateRequired
-                );
+                    ref updateRequired);
             }
 
             _outputArguments[0] = updateRequired;
@@ -2817,8 +2750,7 @@ namespace Opc.Ua.Gds
             NodeId _objectId,
             IList<object> _inputArguments,
             IList<object> _outputArguments,
-            CancellationToken cancellationToken = default
-        )
+            CancellationToken cancellationToken = default)
         {
             if (OnCall == null && OnCallAsync == null)
             {
@@ -2841,8 +2773,7 @@ namespace Opc.Ua.Gds
                         applicationId,
                         certificateGroupId,
                         certificateTypeId,
-                        cancellationToken
-                    )
+                        cancellationToken)
                     .ConfigureAwait(false);
             }
             else if (OnCall != null)
@@ -2866,8 +2797,7 @@ namespace Opc.Ua.Gds
         NodeId applicationId,
         NodeId certificateGroupId,
         NodeId certificateTypeId,
-        ref bool updateRequired
-    );
+        ref bool updateRequired);
 
     /// <remarks />
     /// <exclude />
@@ -2889,8 +2819,7 @@ namespace Opc.Ua.Gds
         NodeId applicationId,
         NodeId certificateGroupId,
         NodeId certificateTypeId,
-        CancellationToken cancellationToken
-    );
+        CancellationToken cancellationToken);
 #endif
 
 #if (!OPCUA_EXCLUDE_GetCertificatesMethodState)
@@ -2945,8 +2874,7 @@ namespace Opc.Ua.Gds
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments
-        )
+            IList<object> _outputArguments)
         {
             if (OnCallAsync != null)
             {
@@ -2975,8 +2903,7 @@ namespace Opc.Ua.Gds
                     applicationId,
                     certificateGroupId,
                     ref certificateTypeIds,
-                    ref certificates
-                );
+                    ref certificates);
             }
 
             _outputArguments[0] = certificateTypeIds;
@@ -2992,8 +2919,7 @@ namespace Opc.Ua.Gds
             NodeId _objectId,
             IList<object> _inputArguments,
             IList<object> _outputArguments,
-            CancellationToken cancellationToken = default
-        )
+            CancellationToken cancellationToken = default)
         {
             if (OnCall == null && OnCallAsync == null)
             {
@@ -3014,8 +2940,7 @@ namespace Opc.Ua.Gds
                         _objectId,
                         applicationId,
                         certificateGroupId,
-                        cancellationToken
-                    )
+                        cancellationToken)
                     .ConfigureAwait(false);
             }
             else if (OnCall != null)
@@ -3040,8 +2965,7 @@ namespace Opc.Ua.Gds
         NodeId applicationId,
         NodeId certificateGroupId,
         ref NodeId[] certificateTypeIds,
-        ref byte[][] certificates
-    );
+        ref byte[][] certificates);
 
     /// <remarks />
     /// <exclude />
@@ -3065,8 +2989,7 @@ namespace Opc.Ua.Gds
         NodeId _objectId,
         NodeId applicationId,
         NodeId certificateGroupId,
-        CancellationToken cancellationToken
-    );
+        CancellationToken cancellationToken);
 #endif
 
 #if (!OPCUA_EXCLUDE_CheckRevocationStatusMethodState)
@@ -3121,8 +3044,7 @@ namespace Opc.Ua.Gds
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments
-        )
+            IList<object> _outputArguments)
         {
             if (OnCallAsync != null)
             {
@@ -3159,8 +3081,7 @@ namespace Opc.Ua.Gds
             NodeId _objectId,
             IList<object> _inputArguments,
             IList<object> _outputArguments,
-            CancellationToken cancellationToken = default
-        )
+            CancellationToken cancellationToken = default)
         {
             if (OnCall == null && OnCallAsync == null)
             {
@@ -3198,8 +3119,7 @@ namespace Opc.Ua.Gds
         NodeId _objectId,
         byte[] certificate,
         ref StatusCode certificateStatus,
-        ref DateTime validityTime
-    );
+        ref DateTime validityTime);
 
     /// <remarks />
     /// <exclude />
@@ -3222,8 +3142,7 @@ namespace Opc.Ua.Gds
         MethodState _method,
         NodeId _objectId,
         byte[] certificate,
-        CancellationToken cancellationToken
-    );
+        CancellationToken cancellationToken);
 #endif
 
 #if (!OPCUA_EXCLUDE_CertificateDirectoryState)
@@ -3242,8 +3161,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(
                 Opc.Ua.Gds.ObjectTypes.CertificateDirectoryType,
                 Opc.Ua.Gds.Namespaces.OpcUaGds,
-                namespaceUris
-            );
+                namespaceUris);
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -3660,8 +3578,7 @@ namespace Opc.Ua.Gds
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement
-        )
+            BaseInstanceState replacement)
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -3920,8 +3837,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(
                 Opc.Ua.Gds.ObjectTypes.CertificateRequestedAuditEventType,
                 Opc.Ua.Gds.Namespaces.OpcUaGds,
-                namespaceUris
-            );
+                namespaceUris);
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -4018,8 +3934,7 @@ namespace Opc.Ua.Gds
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement
-        )
+            BaseInstanceState replacement)
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -4102,8 +4017,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(
                 Opc.Ua.Gds.ObjectTypes.CertificateDeliveredAuditEventType,
                 Opc.Ua.Gds.Namespaces.OpcUaGds,
-                namespaceUris
-            );
+                namespaceUris);
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -4200,8 +4114,7 @@ namespace Opc.Ua.Gds
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement
-        )
+            BaseInstanceState replacement)
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -4284,8 +4197,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(
                 Opc.Ua.Gds.ObjectTypes.CertificateRevokedAuditEventType,
                 Opc.Ua.Gds.Namespaces.OpcUaGds,
-                namespaceUris
-            );
+                namespaceUris);
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -4348,8 +4260,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(
                 Opc.Ua.Gds.ObjectTypes.KeyCredentialManagementFolderType,
                 Opc.Ua.Gds.Namespaces.OpcUaGds,
-                namespaceUris
-            );
+                namespaceUris);
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -4398,8 +4309,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(
                 Opc.Ua.Gds.ObjectTypes.KeyCredentialServiceType,
                 Opc.Ua.Gds.Namespaces.OpcUaGds,
-                namespaceUris
-            );
+                namespaceUris);
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -4600,8 +4510,7 @@ namespace Opc.Ua.Gds
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement
-        )
+            BaseInstanceState replacement)
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -4809,8 +4718,7 @@ namespace Opc.Ua.Gds
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments
-        )
+            IList<object> _outputArguments)
         {
             if (OnCallAsync != null)
             {
@@ -4841,8 +4749,7 @@ namespace Opc.Ua.Gds
                     publicKey,
                     securityPolicyUri,
                     requestedRoles,
-                    ref requestId
-                );
+                    ref requestId);
             }
 
             _outputArguments[0] = requestId;
@@ -4857,8 +4764,7 @@ namespace Opc.Ua.Gds
             NodeId _objectId,
             IList<object> _inputArguments,
             IList<object> _outputArguments,
-            CancellationToken cancellationToken = default
-        )
+            CancellationToken cancellationToken = default)
         {
             if (OnCall == null && OnCallAsync == null)
             {
@@ -4883,8 +4789,7 @@ namespace Opc.Ua.Gds
                         publicKey,
                         securityPolicyUri,
                         requestedRoles,
-                        cancellationToken
-                    )
+                        cancellationToken)
                     .ConfigureAwait(false);
             }
             else if (OnCall != null)
@@ -4909,8 +4814,7 @@ namespace Opc.Ua.Gds
         byte[] publicKey,
         string securityPolicyUri,
         NodeId[] requestedRoles,
-        ref NodeId requestId
-    );
+        ref NodeId requestId);
 
     /// <remarks />
     /// <exclude />
@@ -4933,8 +4837,7 @@ namespace Opc.Ua.Gds
         byte[] publicKey,
         string securityPolicyUri,
         NodeId[] requestedRoles,
-        CancellationToken cancellationToken
-    );
+        CancellationToken cancellationToken);
 #endif
 
 #if (!OPCUA_EXCLUDE_KeyCredentialFinishRequestMethodState)
@@ -4991,8 +4894,7 @@ namespace Opc.Ua.Gds
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments
-        )
+            IList<object> _outputArguments)
         {
             if (OnCallAsync != null)
             {
@@ -5027,8 +4929,7 @@ namespace Opc.Ua.Gds
                     ref credentialSecret,
                     ref certificateThumbprint,
                     ref securityPolicyUri,
-                    ref grantedRoles
-                );
+                    ref grantedRoles);
             }
 
             _outputArguments[0] = credentialId;
@@ -5047,8 +4948,7 @@ namespace Opc.Ua.Gds
             NodeId _objectId,
             IList<object> _inputArguments,
             IList<object> _outputArguments,
-            CancellationToken cancellationToken = default
-        )
+            CancellationToken cancellationToken = default)
         {
             if (OnCall == null && OnCallAsync == null)
             {
@@ -5094,8 +4994,7 @@ namespace Opc.Ua.Gds
         ref byte[] credentialSecret,
         ref string certificateThumbprint,
         ref string securityPolicyUri,
-        ref NodeId[] grantedRoles
-    );
+        ref NodeId[] grantedRoles);
 
     /// <remarks />
     /// <exclude />
@@ -5128,8 +5027,7 @@ namespace Opc.Ua.Gds
         NodeId _objectId,
         NodeId requestId,
         bool cancelRequest,
-        CancellationToken cancellationToken
-    );
+        CancellationToken cancellationToken);
 #endif
 
 #if (!OPCUA_EXCLUDE_KeyCredentialRevokeMethodState)
@@ -5181,8 +5079,7 @@ namespace Opc.Ua.Gds
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments
-        )
+            IList<object> _outputArguments)
         {
             if (OnCallAsync != null)
             {
@@ -5213,8 +5110,7 @@ namespace Opc.Ua.Gds
             NodeId _objectId,
             IList<object> _inputArguments,
             IList<object> _outputArguments,
-            CancellationToken cancellationToken = default
-        )
+            CancellationToken cancellationToken = default)
         {
             if (OnCall == null && OnCallAsync == null)
             {
@@ -5247,8 +5143,7 @@ namespace Opc.Ua.Gds
         ISystemContext _context,
         MethodState _method,
         NodeId _objectId,
-        string credentialId
-    );
+        string credentialId);
 
     /// <remarks />
     /// <exclude />
@@ -5265,8 +5160,7 @@ namespace Opc.Ua.Gds
         MethodState _method,
         NodeId _objectId,
         string credentialId,
-        CancellationToken cancellationToken
-    );
+        CancellationToken cancellationToken);
 #endif
 
 #if (!OPCUA_EXCLUDE_KeyCredentialRequestedAuditEventState)
@@ -5285,8 +5179,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(
                 Opc.Ua.Gds.ObjectTypes.KeyCredentialRequestedAuditEventType,
                 Opc.Ua.Gds.Namespaces.OpcUaGds,
-                namespaceUris
-            );
+                namespaceUris);
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -5350,8 +5243,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(
                 Opc.Ua.Gds.ObjectTypes.KeyCredentialDeliveredAuditEventType,
                 Opc.Ua.Gds.Namespaces.OpcUaGds,
-                namespaceUris
-            );
+                namespaceUris);
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -5415,8 +5307,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(
                 Opc.Ua.Gds.ObjectTypes.KeyCredentialRevokedAuditEventType,
                 Opc.Ua.Gds.Namespaces.OpcUaGds,
-                namespaceUris
-            );
+                namespaceUris);
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -5480,8 +5371,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(
                 Opc.Ua.Gds.ObjectTypes.AuthorizationServicesFolderType,
                 Opc.Ua.Gds.Namespaces.OpcUaGds,
-                namespaceUris
-            );
+                namespaceUris);
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -5530,8 +5420,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(
                 Opc.Ua.Gds.ObjectTypes.AuthorizationServiceType,
                 Opc.Ua.Gds.Namespaces.OpcUaGds,
-                namespaceUris
-            );
+                namespaceUris);
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -5707,8 +5596,7 @@ namespace Opc.Ua.Gds
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement
-        )
+            BaseInstanceState replacement)
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -5892,8 +5780,7 @@ namespace Opc.Ua.Gds
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments
-        )
+            IList<object> _outputArguments)
         {
             if (OnCallAsync != null)
             {
@@ -5919,8 +5806,7 @@ namespace Opc.Ua.Gds
                     _objectId,
                     ref serviceUri,
                     ref serviceCertificate,
-                    ref userTokenPolicies
-                );
+                    ref userTokenPolicies);
             }
 
             _outputArguments[0] = serviceUri;
@@ -5937,8 +5823,7 @@ namespace Opc.Ua.Gds
             NodeId _objectId,
             IList<object> _inputArguments,
             IList<object> _outputArguments,
-            CancellationToken cancellationToken = default
-        )
+            CancellationToken cancellationToken = default)
         {
             if (OnCall == null && OnCallAsync == null)
             {
@@ -5974,8 +5859,7 @@ namespace Opc.Ua.Gds
         NodeId _objectId,
         ref string serviceUri,
         ref byte[] serviceCertificate,
-        ref Opc.Ua.UserTokenPolicy[] userTokenPolicies
-    );
+        ref Opc.Ua.UserTokenPolicy[] userTokenPolicies);
 
     /// <remarks />
     /// <exclude />
@@ -6000,8 +5884,7 @@ namespace Opc.Ua.Gds
         ISystemContext _context,
         MethodState _method,
         NodeId _objectId,
-        CancellationToken cancellationToken
-    );
+        CancellationToken cancellationToken);
 #endif
 
 #if (!OPCUA_EXCLUDE_RequestAccessTokenMethodState)
@@ -6056,8 +5939,7 @@ namespace Opc.Ua.Gds
             ISystemContext _context,
             NodeId _objectId,
             IList<object> _inputArguments,
-            IList<object> _outputArguments
-        )
+            IList<object> _outputArguments)
         {
             if (OnCallAsync != null)
             {
@@ -6094,8 +5976,7 @@ namespace Opc.Ua.Gds
             NodeId _objectId,
             IList<object> _inputArguments,
             IList<object> _outputArguments,
-            CancellationToken cancellationToken = default
-        )
+            CancellationToken cancellationToken = default)
         {
             if (OnCall == null && OnCallAsync == null)
             {
@@ -6134,8 +6015,7 @@ namespace Opc.Ua.Gds
         NodeId _objectId,
         Opc.Ua.UserIdentityToken identityToken,
         string resourceId,
-        ref string accessToken
-    );
+        ref string accessToken);
 
     /// <remarks />
     /// <exclude />
@@ -6156,8 +6036,7 @@ namespace Opc.Ua.Gds
         NodeId _objectId,
         Opc.Ua.UserIdentityToken identityToken,
         string resourceId,
-        CancellationToken cancellationToken
-    );
+        CancellationToken cancellationToken);
 #endif
 
 #if (!OPCUA_EXCLUDE_AccessTokenIssuedAuditEventState)
@@ -6176,8 +6055,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(
                 Opc.Ua.Gds.ObjectTypes.AccessTokenIssuedAuditEventType,
                 Opc.Ua.Gds.Namespaces.OpcUaGds,
-                namespaceUris
-            );
+                namespaceUris);
         }
 
 #if (!OPCUA_EXCLUDE_InitializationStrings)

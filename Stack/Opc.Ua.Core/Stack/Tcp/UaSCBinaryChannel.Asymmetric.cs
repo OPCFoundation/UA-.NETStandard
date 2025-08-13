@@ -160,8 +160,7 @@ namespace Opc.Ua.Bindings
                     expected != null ? expected.Subject : "(null)",
                     expected != null ? expected.Thumbprint : "(null)",
                     actual != null ? actual.Subject : "(null)",
-                    actual != null ? actual.Thumbprint : "(null)"
-                );
+                    actual != null ? actual.Thumbprint : "(null)");
             }
         }
 
@@ -322,20 +321,17 @@ namespace Opc.Ua.Bindings
                 headerSize += TcpMessageLimits.CertificateThumbprintSize;
             }
 
-            if (
-                headerSize >=
+            if (headerSize >=
                 SendBufferSize -
                 TcpMessageLimits.SequenceHeaderSize -
                 GetAsymmetricSignatureSize(senderCertificate) -
-                1
-            )
+                1)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadInternalError,
                     "AsymmetricSecurityHeader is {0} bytes which is too large for the send buffer size of {1} bytes.",
                     headerSize,
-                    SendBufferSize
-                );
+                    SendBufferSize);
             }
 
             return headerSize;
@@ -348,8 +344,7 @@ namespace Opc.Ua.Bindings
         protected int GetAsymmetricHeaderSize(
             string securityPolicyUri,
             X509Certificate2 senderCertificate,
-            int senderCertificateSize
-        )
+            int senderCertificateSize)
         {
             int headerSize = 0;
 
@@ -370,20 +365,17 @@ namespace Opc.Ua.Bindings
                 headerSize += TcpMessageLimits.CertificateThumbprintSize;
             }
 
-            if (
-                headerSize >=
+            if (headerSize >=
                 SendBufferSize -
                 TcpMessageLimits.SequenceHeaderSize -
                 GetAsymmetricSignatureSize(senderCertificate) -
-                1
-            )
+                1)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadInternalError,
                     "AsymmetricSecurityHeader is {0} bytes which is too large for the send buffer size of {1} bytes.",
                     headerSize,
-                    SendBufferSize
-                );
+                    SendBufferSize);
             }
 
             return headerSize;
@@ -425,8 +417,7 @@ namespace Opc.Ua.Bindings
             uint secureChannelId,
             string securityPolicyUri,
             X509Certificate2 senderCertificate,
-            X509Certificate2 receiverCertificate
-        )
+            X509Certificate2 receiverCertificate)
         {
             WriteAsymmetricMessageHeader(
                 encoder,
@@ -436,8 +427,7 @@ namespace Opc.Ua.Bindings
                 senderCertificate,
                 null,
                 receiverCertificate,
-                out _
-            );
+                out _);
         }
 
         /// <summary>
@@ -452,8 +442,7 @@ namespace Opc.Ua.Bindings
             X509Certificate2 senderCertificate,
             X509Certificate2Collection senderCertificateChain,
             X509Certificate2 receiverCertificate,
-            out int senderCertificateSize
-        )
+            out int senderCertificateSize)
         {
             int start = encoder.Position;
             senderCertificateSize = 0;
@@ -511,8 +500,7 @@ namespace Opc.Ua.Bindings
                     StatusCodes.BadInternalError,
                     "AsymmetricSecurityHeader is {0} bytes which is too large for the send buffer size of {1} bytes.",
                     encoder.Position - start,
-                    SendBufferSize
-                );
+                    SendBufferSize);
             }
         }
 
@@ -550,8 +538,7 @@ namespace Opc.Ua.Bindings
             uint requestId,
             X509Certificate2 senderCertificate,
             X509Certificate2 receiverCertificate,
-            ArraySegment<byte> messageBody
-        )
+            ArraySegment<byte> messageBody)
         {
             return WriteAsymmetricMessage(
                 messageType,
@@ -559,8 +546,7 @@ namespace Opc.Ua.Bindings
                 senderCertificate,
                 null,
                 receiverCertificate,
-                messageBody
-            );
+                messageBody);
         }
 
         /// <summary>
@@ -574,8 +560,7 @@ namespace Opc.Ua.Bindings
             X509Certificate2 senderCertificate,
             X509Certificate2Collection senderCertificateChain,
             X509Certificate2 receiverCertificate,
-            ArraySegment<byte> messageBody
-        )
+            ArraySegment<byte> messageBody)
         {
             bool success = false;
             var chunksToSend = new BufferCollection();
@@ -598,8 +583,7 @@ namespace Opc.Ua.Bindings
                         senderCertificate,
                         senderCertificateChain,
                         receiverCertificate,
-                        out int senderCertificateSize
-                    );
+                        out int senderCertificateSize);
 
                     headerSize = GetAsymmetricHeaderSize(
                         SecurityPolicyUri,
@@ -614,8 +598,7 @@ namespace Opc.Ua.Bindings
                         ChannelId,
                         SecurityPolicyUri,
                         senderCertificate,
-                        receiverCertificate
-                    );
+                        receiverCertificate);
 
                     headerSize = GetAsymmetricHeaderSize(SecurityPolicyUri, senderCertificate);
                 }
@@ -671,10 +654,8 @@ namespace Opc.Ua.Bindings
                     {
                         if (receiverCertificate.GetRSAPublicKey() != null)
                         {
-                            if (
-                                X509Utils.GetRSAPublicKeySize(receiverCertificate) <=
-                                TcpMessageLimits.KeySizeExtraPadding
-                            )
+                            if (X509Utils.GetRSAPublicKeySize(receiverCertificate) <=
+                                TcpMessageLimits.KeySizeExtraPadding)
                             {
                                 // need to reserve one byte for the padding.
                                 plainTextSize++;
@@ -745,15 +726,13 @@ namespace Opc.Ua.Bindings
                     ArraySegment<byte> encryptedBuffer = Encrypt(
                         new ArraySegment<byte>(buffer, headerSize, messageSize - headerSize),
                         header,
-                        receiverCertificate
-                    );
+                        receiverCertificate);
 
                     // check for math errors due to code bugs.
                     if (encryptedBuffer.Count != cipherTextSize + headerSize)
                     {
                         throw new InvalidDataException(
-                            "Actual message size is not the same as the predicted message size."
-                        );
+                            "Actual message size is not the same as the predicted message size.");
                     }
 
                     // save chunk.
@@ -803,8 +782,7 @@ namespace Opc.Ua.Bindings
             ref X509Certificate2 receiverCertificate,
             out uint secureChannelId,
             out X509Certificate2Collection senderCertificateChain,
-            out string securityPolicyUri
-        )
+            out string securityPolicyUri)
         {
             senderCertificateChain = null;
 
@@ -832,8 +810,7 @@ namespace Opc.Ua.Bindings
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
                     e,
-                    "The asymmetric security header could not be parsed."
-                );
+                    "The asymmetric security header could not be parsed.");
             }
 
             // verify sender certificate chain.
@@ -847,24 +824,21 @@ namespace Opc.Ua.Bindings
                         senderCertificateChain[0].Thumbprint
                         ?? throw ServiceResultException.Create(
                             StatusCodes.BadCertificateInvalid,
-                            "Invalid certificate thumbprint."
-                        );
+                            "Invalid certificate thumbprint.");
                 }
                 catch (Exception e)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadCertificateInvalid,
                         e,
-                        "The sender's certificate could not be parsed."
-                    );
+                        "The sender's certificate could not be parsed.");
                 }
             }
             else if (securityPolicyUri != SecurityPolicies.None)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadCertificateInvalid,
-                    "The sender's certificate was not specified."
-                );
+                    "The sender's certificate was not specified.");
             }
 
             // verify receiver thumbprint.
@@ -884,36 +858,29 @@ namespace Opc.Ua.Bindings
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadCertificateInvalid,
-                        "The receiver has no matching certificate for the selected profile."
-                    );
+                        "The receiver has no matching certificate for the selected profile.");
                 }
 
-                if (
-                    !receiverCertificate.Thumbprint.Equals(
+                if (!receiverCertificate.Thumbprint.Equals(
                         GetThumbprintString(thumbprintData),
-                        StringComparison.OrdinalIgnoreCase
-                    )
-                )
+                        StringComparison.OrdinalIgnoreCase))
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadCertificateInvalid,
-                        "The receiver's certificate thumbprint is not valid."
-                    );
+                        "The receiver's certificate thumbprint is not valid.");
                 }
 
                 if (loadChain)
                 {
                     ServerCertificateChain = m_serverCertificateTypesProvider?.LoadCertificateChain(
-                        receiverCertificate
-                    );
+                        receiverCertificate);
                 }
             }
             else if (securityPolicyUri != SecurityPolicies.None)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadCertificateInvalid,
-                    "The receiver's certificate thumbprint was not specified."
-                );
+                    "The receiver's certificate thumbprint was not specified.");
             }
         }
 
@@ -932,21 +899,17 @@ namespace Opc.Ua.Bindings
                 {
                     if (endpoint.SecurityMode == requestedMode)
                     {
-                        if (
-                            requestedMode == MessageSecurityMode.None ||
-                            endpoint.SecurityPolicyUri == SecurityPolicyUri
-                        )
+                        if (requestedMode == MessageSecurityMode.None ||
+                            endpoint.SecurityPolicyUri == SecurityPolicyUri)
                         {
                             SecurityMode = endpoint.SecurityMode;
                             m_selectedEndpoint = endpoint;
                             ServerCertificate = m_serverCertificateTypesProvider
                                 .GetInstanceCertificate(
-                                    SecurityPolicyUri
-                                    );
+                                    SecurityPolicyUri);
                             ServerCertificateChain = m_serverCertificateTypesProvider
                                 .LoadCertificateChain(
-                                    ServerCertificate
-                                    );
+                                    ServerCertificate);
                             supported = true;
                             break;
                         }
@@ -958,8 +921,7 @@ namespace Opc.Ua.Bindings
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityModeRejected,
-                    "Security mode is not acceptable to the server."
-                );
+                    "Security mode is not acceptable to the server.");
             }
         }
 
@@ -1014,8 +976,7 @@ namespace Opc.Ua.Bindings
             out uint channelId,
             out X509Certificate2 senderCertificate,
             out uint requestId,
-            out uint sequenceNumber
-        )
+            out uint sequenceNumber)
         {
             int headerSize;
             using (var decoder = new BinaryDecoder(buffer, Quotas.MessageContext))
@@ -1026,8 +987,7 @@ namespace Opc.Ua.Bindings
                     ref receiverCertificate,
                     out channelId,
                     out X509Certificate2Collection senderCertificateChain,
-                    out string securityPolicyUri
-                );
+                    out string securityPolicyUri);
 
                 if (senderCertificateChain != null && senderCertificateChain.Count > 0)
                 {
@@ -1039,11 +999,9 @@ namespace Opc.Ua.Bindings
                 }
 
                 // validate the sender certificate.
-                if (
-                    senderCertificate != null &&
+                if (senderCertificate != null &&
                     Quotas.CertificateValidator != null &&
-                    securityPolicyUri != SecurityPolicies.None
-                )
+                    securityPolicyUri != SecurityPolicies.None)
                 {
                     if (Quotas.CertificateValidator is CertificateValidator certificateValidator)
                     {
@@ -1062,8 +1020,7 @@ namespace Opc.Ua.Bindings
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadSecurityPolicyRejected,
-                            "Cannot change the security policy after creating the channnel."
-                        );
+                            "Cannot change the security policy after creating the channnel.");
                     }
                 }
                 else
@@ -1076,13 +1033,10 @@ namespace Opc.Ua.Bindings
                             // There may be multiple endpoints with the same securityPolicyUri.
                             // Just choose the first one that matches. This choice will be re-examined
                             // When the OpenSecureChannel request body is processed.
-                            if (
-                                endpoint.SecurityPolicyUri == securityPolicyUri ||
+                            if (endpoint.SecurityPolicyUri == securityPolicyUri ||
                                 (
                                     securityPolicyUri == SecurityPolicies.None &&
-                                    endpoint.SecurityMode == MessageSecurityMode.None
-                                )
-                            )
+                                    endpoint.SecurityMode == MessageSecurityMode.None))
                             {
                                 SecurityMode = endpoint.SecurityMode;
                                 SecurityPolicyUri = securityPolicyUri;
@@ -1104,8 +1058,7 @@ namespace Opc.Ua.Bindings
                         {
                             throw ServiceResultException.Create(
                                 StatusCodes.BadSecurityPolicyRejected,
-                                "The security policy is not supported."
-                            );
+                                "The security policy is not supported.");
                         }
 
                         SecurityMode = MessageSecurityMode.None;
@@ -1126,8 +1079,7 @@ namespace Opc.Ua.Bindings
                     buffer.Offset + headerSize,
                     buffer.Count - headerSize),
                 new ArraySegment<byte>(buffer.Array, buffer.Offset, headerSize),
-                receiverCertificate
-            );
+                receiverCertificate);
 
             // extract signature.
             int signatureSize = GetAsymmetricSignatureSize(senderCertificate);
@@ -1144,16 +1096,14 @@ namespace Opc.Ua.Bindings
             var dataToVerify = new ArraySegment<byte>(
                 plainText.Array,
                 plainText.Offset,
-                plainText.Count - signatureSize
-            );
+                plainText.Count - signatureSize);
 
             if (!Verify(dataToVerify, signature, senderCertificate))
             {
                 Utils.LogWarning("Could not verify signature on message.");
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    "Could not verify the signature on the message."
-                );
+                    "Could not verify the signature on the message.");
             }
 
             // verify padding.
@@ -1177,8 +1127,7 @@ namespace Opc.Ua.Bindings
                         {
                             throw ServiceResultException.Create(
                                 StatusCodes.BadSecurityChecksFailed,
-                                "Could not verify the padding in the message."
-                            );
+                                "Could not verify the padding in the message.");
                         }
                     }
                 }
@@ -1193,8 +1142,7 @@ namespace Opc.Ua.Bindings
                         {
                             throw ServiceResultException.Create(
                                 StatusCodes.BadSecurityChecksFailed,
-                                "Could not verify the padding in the message."
-                            );
+                                "Could not verify the padding in the message.");
                         }
                     }
                 }
@@ -1208,9 +1156,7 @@ namespace Opc.Ua.Bindings
                     plainText.Array,
                     plainText.Offset + headerSize,
                     plainText.Count - headerSize,
-                    Quotas.MessageContext
-                )
-            )
+                    Quotas.MessageContext))
             {
                 sequenceNumber = decoder.ReadUInt32(null);
                 requestId = decoder.ReadUInt32(null);
@@ -1224,8 +1170,7 @@ namespace Opc.Ua.Bindings
             return new ArraySegment<byte>(
                 plainText.Array,
                 plainText.Offset + headerSize,
-                plainText.Count - headerSize - signatureSize - paddingCount
-            );
+                plainText.Count - headerSize - signatureSize - paddingCount);
         }
 
         /// <summary>
@@ -1299,8 +1244,7 @@ namespace Opc.Ua.Bindings
                         signature,
                         senderCertificate,
                         HashAlgorithmName.SHA1,
-                        RSASignaturePadding.Pkcs1
-                    );
+                        RSASignaturePadding.Pkcs1);
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Basic256Sha256:
                     return Rsa_Verify(
@@ -1308,16 +1252,14 @@ namespace Opc.Ua.Bindings
                         signature,
                         senderCertificate,
                         HashAlgorithmName.SHA256,
-                        RSASignaturePadding.Pkcs1
-                    );
+                        RSASignaturePadding.Pkcs1);
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
                     return Rsa_Verify(
                         dataToVerify,
                         signature,
                         senderCertificate,
                         HashAlgorithmName.SHA256,
-                        RSASignaturePadding.Pss
-                    );
+                        RSASignaturePadding.Pss);
 
 #if ECC_SUPPORT
                 case SecurityPolicies.ECC_nistP256:
@@ -1354,8 +1296,7 @@ namespace Opc.Ua.Bindings
         protected ArraySegment<byte> Encrypt(
             ArraySegment<byte> dataToEncrypt,
             ArraySegment<byte> headerToCopy,
-            X509Certificate2 receiverCertificate
-        )
+            X509Certificate2 receiverCertificate)
         {
             switch (SecurityPolicyUri)
             {
@@ -1393,8 +1334,7 @@ namespace Opc.Ua.Bindings
                         dataToEncrypt.Offset,
                         encryptedBuffer,
                         headerToCopy.Count,
-                        dataToEncrypt.Count
-                    );
+                        dataToEncrypt.Count);
 
                     return new ArraySegment<byte>(
                         encryptedBuffer,
@@ -1413,8 +1353,7 @@ namespace Opc.Ua.Bindings
         protected ArraySegment<byte> Decrypt(
             ArraySegment<byte> dataToDecrypt,
             ArraySegment<byte> headerToCopy,
-            X509Certificate2 receiverCertificate
-        )
+            X509Certificate2 receiverCertificate)
         {
             switch (SecurityPolicyUri)
             {
@@ -1452,8 +1391,7 @@ namespace Opc.Ua.Bindings
                         dataToDecrypt.Offset,
                         decryptedBuffer,
                         headerToCopy.Count,
-                        dataToDecrypt.Count
-                    );
+                        dataToDecrypt.Count);
 
                     return new ArraySegment<byte>(
                         decryptedBuffer,

@@ -48,8 +48,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         public static X509Extension BuildSubjectAltNameExtension(
             this IList<string> uris,
             IList<string> domainNames,
-            IList<string> ipAddresses
-        )
+            IList<string> ipAddresses)
         {
             // subject alternate name
             var generalNames = new List<GeneralName>();
@@ -64,8 +63,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             return new X509Extension(
                 Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectAlternativeName.Id,
                 rawData,
-                false
-            );
+                false);
         }
 
         /// <summary>

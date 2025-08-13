@@ -140,8 +140,7 @@ namespace Opc.Ua.Gds.Tests
             string appUri = ("urn:localhost:opcfoundation.org:" + pureAppUri.ToLower()).Replace(
                 "localhost",
                 localhost,
-                StringComparison.Ordinal
-            );
+                StringComparison.Ordinal);
             string prodUri = "http://opcfoundation.org/UA/" + pureAppUri;
             var discoveryUrls = new StringCollection();
             var serverCapabilities = new StringCollection();
@@ -239,9 +238,7 @@ namespace Opc.Ua.Gds.Tests
                             "opc.tcp://{0}:{1}/{2}",
                             name,
                             port++.ToString(CultureInfo.InvariantCulture),
-                            appUri
-                        )
-                    );
+                            appUri));
                 }
                 if ((random & 2) == 0)
                 {
@@ -250,8 +247,7 @@ namespace Opc.Ua.Gds.Tests
                             "http://{0}:{1}/{2}",
                             name,
                             port++.ToString(CultureInfo.InvariantCulture),
-                            appUri)
-                    );
+                            appUri));
                 }
                 if ((random & 4) == 0)
                 {
@@ -260,9 +256,7 @@ namespace Opc.Ua.Gds.Tests
                             "opc.https://{0}:{1}/{2}",
                             name,
                             port++.ToString(CultureInfo.InvariantCulture),
-                            appUri
-                        )
-                    );
+                            appUri));
                 }
             }
             return result;
@@ -414,8 +408,7 @@ namespace Opc.Ua.Gds.Tests
 
         public static async Task<GlobalDiscoveryTestServer> StartGDSAsync(
             bool clean,
-            string storeType = CertificateStoreType.Directory
-        )
+            string storeType = CertificateStoreType.Directory)
         {
             GlobalDiscoveryTestServer server = null;
             int testPort = ServerFixtureUtils.GetNextFreeIPPort();

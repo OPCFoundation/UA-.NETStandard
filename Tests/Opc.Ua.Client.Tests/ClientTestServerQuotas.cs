@@ -84,8 +84,7 @@ namespace Opc.Ua.Client.Tests
             bool enableTracing,
             bool disableActivityLogging,
             bool securityNone,
-            TextWriter writer
-        )
+            TextWriter writer)
         {
             // start Ref server
             ServerFixture = new ServerFixture<ReferenceServer>(
@@ -110,14 +109,12 @@ namespace Opc.Ua.Client.Tests
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies
                 .Add(new UserTokenPolicy(UserTokenType.UserName));
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.Certificate)
-            );
+                new UserTokenPolicy(UserTokenType.Certificate));
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
                 new UserTokenPolicy(UserTokenType.IssuedToken)
                 {
                     IssuedTokenType = Profiles.JwtUserToken
-                }
-            );
+                });
 
             ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out)
                 .ConfigureAwait(false);
@@ -159,8 +156,7 @@ namespace Opc.Ua.Client.Tests
             var theSession = (Session)((TraceableSession)Session).Session;
 
             int namespaceIndex = theSession.NamespaceUris.GetIndex(
-                "http://opcfoundation.org/Quickstarts/ReferenceServer"
-            );
+                "http://opcfoundation.org/Quickstarts/ReferenceServer");
             var nodeId = new NodeId($"ns={namespaceIndex};s=Scalar_Static_ByteString");
 
             var random = new Random();
@@ -196,8 +192,7 @@ namespace Opc.Ua.Client.Tests
             var theSession = (Session)((TraceableSession)Session).Session;
 
             int namespaceIndex = theSession.NamespaceUris.GetIndex(
-                "http://opcfoundation.org/Quickstarts/ReferenceServer"
-            );
+                "http://opcfoundation.org/Quickstarts/ReferenceServer");
             var nodeId = new NodeId($"ns={namespaceIndex};s=Scalar_Static_ByteString");
 
             var random = new Random();

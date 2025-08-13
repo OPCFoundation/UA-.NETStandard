@@ -124,11 +124,9 @@ namespace Opc.Ua.Client.Tests
                             item.DisplayName,
                             value.Value,
                             value.SourceTimestamp,
-                            value.StatusCode
-                        );
+                            value.StatusCode);
                     }
-                }
-            );
+                });
 
             subscription = new TestableSubscription(Session.DefaultSubscription);
             TestContext.Out.WriteLine("MaxMessageCount: {0}", subscription.MaxMessageCount);
@@ -141,8 +139,7 @@ namespace Opc.Ua.Client.Tests
                 TestContext.Out.WriteLine(
                     "SubscriptionStateChangedEventArgs: Id: {0} Status: {1}",
                     subscription.Id,
-                    e.Status
-                );
+                    e.Status);
 
             subscription.AddItem(list[0]);
             Assert.AreEqual(1, subscription.MonitoredItemCount);
@@ -174,11 +171,9 @@ namespace Opc.Ua.Client.Tests
                             item.DisplayName,
                             value.Value,
                             value.SourceTimestamp,
-                            value.StatusCode
-                        );
+                            value.StatusCode);
                     }
-                }
-            );
+                });
             subscription.AddItems(list2);
             subscription.ApplyChanges();
             subscription.SetPublishingMode(false);
@@ -198,8 +193,7 @@ namespace Opc.Ua.Client.Tests
 
             subscription.ConditionRefresh();
             ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                subscription.Republish(subscription.SequenceNumber + 100)
-            );
+                subscription.Republish(subscription.SequenceNumber + 100));
             Assert.AreEqual(
                 (StatusCode)StatusCodes.BadMessageNotAvailable,
                 (StatusCode)sre.StatusCode);
@@ -255,11 +249,9 @@ namespace Opc.Ua.Client.Tests
                             item.DisplayName,
                             value.Value,
                             value.SourceTimestamp,
-                            value.StatusCode
-                        );
+                            value.StatusCode);
                     }
-                }
-            );
+                });
 
             subscription = new TestableSubscription(Session.DefaultSubscription);
 
@@ -273,15 +265,13 @@ namespace Opc.Ua.Client.Tests
                 TestContext.Out.WriteLine(
                     "SubscriptionStateChangedEventArgs: Id: {0} Status: {1}",
                     subscription.Id,
-                    e.Status
-                );
+                    e.Status);
 
             subscription.AddItem(list[0]);
             Assert.AreEqual(1, subscription.MonitoredItemCount);
             Assert.True(subscription.ChangesPending);
             NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await subscription.CreateAsync().ConfigureAwait(false)
-            );
+                await subscription.CreateAsync().ConfigureAwait(false));
             bool result = await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false);
             Assert.False(result);
             result = await Session.RemoveSubscriptionsAsync([subscription]).ConfigureAwait(false);
@@ -320,11 +310,9 @@ namespace Opc.Ua.Client.Tests
                             item.DisplayName,
                             value.Value,
                             value.SourceTimestamp,
-                            value.StatusCode
-                        );
+                            value.StatusCode);
                     }
-                }
-            );
+                });
             subscription.AddItems(list2);
             await subscription.ApplyChangesAsync().ConfigureAwait(false);
             await subscription.SetPublishingModeAsync(false).ConfigureAwait(false);
@@ -346,13 +334,11 @@ namespace Opc.Ua.Client.Tests
             ServiceResultException sre = NUnit.Framework.Assert
                 .ThrowsAsync<ServiceResultException>(async () =>
                     await subscription.RepublishAsync(subscription.SequenceNumber + 100)
-                    .ConfigureAwait(false)
-                    );
+                    .ConfigureAwait(false));
             Assert.AreEqual(
                 (StatusCode)StatusCodes.BadMessageNotAvailable,
                 (StatusCode)sre.StatusCode,
-                $"Expected BadMessageNotAvailable, but received {sre.Message}"
-            );
+                $"Expected BadMessageNotAvailable, but received {sre.Message}");
 
             // verify that reconnect created subclassed version of subscription and monitored item
             foreach (Subscription s in Session.Subscriptions)
@@ -387,8 +373,7 @@ namespace Opc.Ua.Client.Tests
             IEnumerable<Subscription> subscriptions = Session.Load(
                 m_subscriptionTestXml,
                 false,
-                [typeof(TestableSubscription)]
-            );
+                [typeof(TestableSubscription)]);
             Assert.NotNull(subscriptions);
             Assert.IsNotEmpty(subscriptions);
 
@@ -408,11 +393,9 @@ namespace Opc.Ua.Client.Tests
                                 item.DisplayName,
                                 value.Value,
                                 value.SourceTimestamp,
-                                value.StatusCode
-                            );
+                                value.StatusCode);
                         }
-                    }
-                );
+                    });
 
                 Session.AddSubscription(subscription);
                 await subscription.CreateAsync().ConfigureAwait(false);
@@ -480,8 +463,7 @@ namespace Opc.Ua.Client.Tests
                 testSet.AddRange(GetTestSetFullSimulation(Session.NamespaceUris));
             }
             List<MonitoredItem> monitoredItemsList = testSet.ConvertAll(nodeId => new MonitoredItem(
-                subscription.DefaultItem
-            )
+                subscription.DefaultItem)
             {
                 StartNodeId = nodeId,
                 SamplingInterval = 0
@@ -516,8 +498,7 @@ namespace Opc.Ua.Client.Tests
                         "Out of order encountered Id: {0}, {1} > {2}",
                         s.Id,
                         dictionary[s.Id],
-                        notification.SequenceNumber
-                    );
+                        notification.SequenceNumber);
                     sequenceBroken.Set();
                     return;
                 }
@@ -532,8 +513,7 @@ namespace Opc.Ua.Client.Tests
                 true,
                 subscriptionIds,
                 out StatusCodeCollection results,
-                out DiagnosticInfoCollection diagnosticInfos
-            );
+                out DiagnosticInfoCollection diagnosticInfos);
 
             // Wait for out-of-order to occur
             bool failed = sequenceBroken.WaitOne(testWaitTime);
@@ -607,16 +587,14 @@ namespace Opc.Ua.Client.Tests
                 string securityPolicy,
             [Values(true, false)] bool anonymous,
             [Values(true, false)] bool sequentialPublishing,
-            [Values(true, false)] bool sendInitialValues
-        )
+            [Values(true, false)] bool sendInitialValues)
         {
             return ReconnectWithSavedSessionSecretsAsync(
                 securityPolicy,
                 anonymous,
                 sequentialPublishing,
                 sendInitialValues,
-                false
-            );
+                false);
         }
 
 #if ECC_SUPPORT
@@ -639,16 +617,14 @@ namespace Opc.Ua.Client.Tests
                 string securityPolicy,
             [Values(true, false)] bool anonymous,
             [Values(true, false)] bool sequentialPublishing,
-            [Values(true, false)] bool sendInitialValues
-        )
+            [Values(true, false)] bool sendInitialValues)
         {
             return ReconnectWithSavedSessionSecretsAsync(
                 securityPolicy,
                 anonymous,
                 sequentialPublishing,
                 sendInitialValues,
-                true
-            );
+                true);
         }
 #endif
 
@@ -669,16 +645,14 @@ namespace Opc.Ua.Client.Tests
                 string securityPolicy,
             [Values(true, false)] bool anonymous,
             [Values(true, false)] bool sequentialPublishing,
-            [Values(true, false)] bool sendInitialValues
-        )
+            [Values(true, false)] bool sendInitialValues)
         {
             return ReconnectWithSavedSessionSecretsAsync(
                 securityPolicy,
                 anonymous,
                 sequentialPublishing,
                 sendInitialValues,
-                true
-            );
+                true);
         }
 
         public async Task ReconnectWithSavedSessionSecretsAsync(
@@ -686,8 +660,7 @@ namespace Opc.Ua.Client.Tests
             bool anonymous,
             bool sequentialPublishing,
             bool sendInitialValues,
-            bool asyncTest
-        )
+            bool asyncTest)
         {
             const int kTestSubscriptions = 5;
             const int kDelay = 2_000;
@@ -708,13 +681,11 @@ namespace Opc.Ua.Client.Tests
             UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
                 userIdentity.TokenType,
                 userIdentity.IssuedTokenType,
-                endpoint.Description.SecurityPolicyUri
-            );
+                endpoint.Description.SecurityPolicyUri);
             if (identityPolicy == null)
             {
                 NUnit.Framework.Assert.Ignore(
-                    $"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}"
-                );
+                    $"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");
             }
 
             // the active channel
@@ -751,8 +722,7 @@ namespace Opc.Ua.Client.Tests
                 originSubscriptionCounters,
                 originSubscriptionFastDataCounters,
                 kTestSubscriptions,
-                kQueueSize
-            );
+                kQueueSize);
 
             // wait
             await Task.Delay(kDelay).ConfigureAwait(false);
@@ -799,8 +769,7 @@ namespace Opc.Ua.Client.Tests
             // restore the subscriptions
             var loadSubscriptionStream = new MemoryStream(subscriptionStreamArray);
             var restoredSubscriptions = new SubscriptionCollection(
-                session2.Load(loadSubscriptionStream, true, [typeof(TestableSubscription)])
-            );
+                session2.Load(loadSubscriptionStream, true, [typeof(TestableSubscription)]));
 
             // hook notifications for log output
             int ii = 0;
@@ -810,8 +779,7 @@ namespace Opc.Ua.Client.Tests
                 subscription.FastDataChangeCallback = (s, n, _) =>
                 {
                     TestContext.Out.WriteLine(
-                        $"FastDataChangeHandlerTarget: {s.Id}-{n.SequenceNumber}-{n.MonitoredItems.Count}"
-                    );
+                        $"FastDataChangeHandlerTarget: {s.Id}-{n.SequenceNumber}-{n.MonitoredItems.Count}");
                     targetSubscriptionFastDataCounters[(int)subscription.Handle]++;
                 };
                 subscription
@@ -828,11 +796,9 @@ namespace Opc.Ua.Client.Tests
                                     item.DisplayName,
                                     value.Value,
                                     value.SourceTimestamp,
-                                    value.StatusCode
-                                );
+                                    value.StatusCode);
                             }
-                        }
-                    );
+                        });
                 ii++;
             }
 
@@ -935,13 +901,11 @@ namespace Opc.Ua.Client.Tests
                     sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                         session1.ReadValue(
                             VariableIds.Server_ServerStatus,
-                            typeof(ServerStatusDataType))
-                    );
+                            typeof(ServerStatusDataType)));
                     Assert.AreEqual(
                         (StatusCode)StatusCodes.BadSecureChannelIdInvalid,
                         (StatusCode)sre.StatusCode,
-                        sre.Message
-                    );
+                        sre.Message);
                 }
                 else
                 {
@@ -1010,8 +974,7 @@ namespace Opc.Ua.Client.Tests
                         {
                             StartNodeId = nextNode,
                             SamplingInterval = 0
-                        }
-                    );
+                        });
                 }
                 var dict = list.ToDictionary(item => item.ClientHandle, _ => DateTime.MinValue);
 
@@ -1036,8 +999,7 @@ namespace Opc.Ua.Client.Tests
                 // use the sample server default for max publish request count
                 Assert.GreaterOrEqual(
                     Math.Max(maxServerPublishRequest, subscriptions),
-                    Session.GoodPublishRequestCount
-                );
+                    Session.GoodPublishRequestCount);
                 await Task.Delay(100).ConfigureAwait(false);
             }
 
@@ -1093,8 +1055,7 @@ namespace Opc.Ua.Client.Tests
         public Task TransferSubscriptionSync(
             TransferType transferType,
             bool sendInitialValues,
-            bool sequentialPublishing
-        )
+            bool sequentialPublishing)
         {
             return InternalTransferSubscriptionAsync(
                 transferType,
@@ -1108,8 +1069,7 @@ namespace Opc.Ua.Client.Tests
         public Task TransferSubscriptionOnlyAsync(
             TransferType transferType,
             bool sendInitialValues,
-            bool sequentialPublishing
-        )
+            bool sequentialPublishing)
         {
             return InternalTransferSubscriptionAsync(
                 transferType,
@@ -1122,8 +1082,7 @@ namespace Opc.Ua.Client.Tests
             TransferType transferType,
             bool sendInitialValues,
             bool sequentialPublishing,
-            bool asyncTransfer
-        )
+            bool asyncTransfer)
         {
             const int kTestSubscriptions = 5;
             const int kDelay = 2_000;
@@ -1164,8 +1123,7 @@ namespace Opc.Ua.Client.Tests
                 originSubscriptionCounters,
                 originSubscriptionFastDataCounters,
                 kTestSubscriptions,
-                kQueueSize
-            );
+                kQueueSize);
 
             if (TransferType.KeepOpen == transferType)
             {
@@ -1253,8 +1211,7 @@ namespace Opc.Ua.Client.Tests
                     subscription.FastDataChangeCallback = (s, n, _) =>
                     {
                         TestContext.Out.WriteLine(
-                            $"FastDataChangeHandlerTarget: {s.Id}-{n.SequenceNumber}-{n.MonitoredItems.Count}"
-                        );
+                            $"FastDataChangeHandlerTarget: {s.Id}-{n.SequenceNumber}-{n.MonitoredItems.Count}");
                         targetSubscriptionFastDataCounters[(int)subscription.Handle]++;
                     };
                     subscription
@@ -1271,11 +1228,9 @@ namespace Opc.Ua.Client.Tests
                                         item.DisplayName,
                                         value.Value,
                                         value.SourceTimestamp,
-                                        value.StatusCode
-                                    );
+                                        value.StatusCode);
                                 }
-                            }
-                        );
+                            });
                     ii++;
                 }
 
@@ -1296,8 +1251,7 @@ namespace Opc.Ua.Client.Tests
                     s.FastDataChangeCallback = (sub, n, _) =>
                     {
                         TestContext.Out.WriteLine(
-                            $"FastDataChangeHandlerTarget: {sub.Id}-{n.SequenceNumber}-{n.MonitoredItems.Count}"
-                        );
+                            $"FastDataChangeHandlerTarget: {sub.Id}-{n.SequenceNumber}-{n.MonitoredItems.Count}");
                         targetSubscriptionFastDataCounters[(int)s.Handle]++;
                     };
                     s.MonitoredItems.ToList()
@@ -1313,11 +1267,9 @@ namespace Opc.Ua.Client.Tests
                                         item.DisplayName,
                                         value.Value,
                                         value.SourceTimestamp,
-                                        value.StatusCode
-                                    );
+                                        value.StatusCode);
                                 }
-                            }
-                        );
+                            });
                     s.StateChanged += (su, e) =>
                         TestContext.Out
                             .WriteLine($"StateChanged: {su.Session.SessionId}-{su.Id}-{e.Status}");
@@ -1370,8 +1322,7 @@ namespace Opc.Ua.Client.Tests
                 TestContext.Out.WriteLine(
                     "SetPublishingMode(false) for SessionId={0}, SubscriptionId={1}",
                     subscription.Session.SessionId,
-                    subscription.Id
-                );
+                    subscription.Id);
                 subscription.SetPublishingMode(false);
             }
 
@@ -1382,14 +1333,12 @@ namespace Opc.Ua.Client.Tests
                     "-- Subscription {0}: OriginCounts {1}, TargetCounts {2} ",
                     jj,
                     originSubscriptionCounters[jj],
-                    targetSubscriptionCounters[jj]
-                );
+                    targetSubscriptionCounters[jj]);
                 TestContext.Out.WriteLine(
                     "-- Subscription {0}: OriginFastDataCounts {1}, TargetFastDataCounts {2} ",
                     jj,
                     originSubscriptionFastDataCounters[jj],
-                    targetSubscriptionFastDataCounters[jj]
-                );
+                    targetSubscriptionFastDataCounters[jj]);
                 uint monitoredItemCount = transferSubscriptions[jj].MonitoredItemCount;
                 uint originExpectedCount = monitoredItemCount;
                 uint targetExpectedCount = sendInitialValues ? monitoredItemCount : 0;
@@ -1425,8 +1374,7 @@ namespace Opc.Ua.Client.Tests
                 TestContext.Out.WriteLine(
                     "SetPublishingMode(true) for SessionId={0}, SubscriptionId={1}",
                     subscription.Session.SessionId,
-                    subscription.Id
-                );
+                    subscription.Id);
                 subscription.SetPublishingMode(true);
             }
 
@@ -1440,14 +1388,12 @@ namespace Opc.Ua.Client.Tests
                     "-- Subscription {0}: OriginCounts {1}, TargetCounts {2} ",
                     jj,
                     originSubscriptionCounters[jj],
-                    targetSubscriptionCounters[jj]
-                );
+                    targetSubscriptionCounters[jj]);
                 TestContext.Out.WriteLine(
                     "-- Subscription {0}: OriginFastDataCounts {1}, TargetFastDataCounts {2} ",
                     jj,
                     originSubscriptionFastDataCounters[jj],
-                    targetSubscriptionFastDataCounters[jj]
-                );
+                    targetSubscriptionFastDataCounters[jj]);
 
                 int[] testCounter = targetSubscriptionCounters;
                 int[] testFastDataCounter = targetSubscriptionFastDataCounters;
@@ -1535,11 +1481,9 @@ namespace Opc.Ua.Client.Tests
                             item.DisplayName,
                             value.Value,
                             value.SourceTimestamp,
-                            value.StatusCode
-                        );
+                            value.StatusCode);
                     }
-                }
-            );
+                });
             subscription.AddItems(list);
 
             int numOfKeepAliveNotifications = 0;
@@ -1550,8 +1494,7 @@ namespace Opc.Ua.Client.Tests
                     "KeepAliveCallback {0} next sequenceNumber {1} PublishTime {2}",
                     n,
                     notification.SequenceNumber,
-                    notification.PublishTime
-                );
+                    notification.PublishTime);
             };
 
             int numOfDataChangeNotifications = 0;
@@ -1563,8 +1506,7 @@ namespace Opc.Ua.Client.Tests
                     n,
                     notification.SequenceNumber,
                     notification.PublishTime,
-                    notification.MonitoredItems.Count
-                );
+                    notification.MonitoredItems.Count);
             };
 
             bool result = Session.AddSubscription(subscription);
@@ -1607,8 +1549,7 @@ namespace Opc.Ua.Client.Tests
             Assert.True(conditionRefresh);
 
             ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                subscription.Republish(subscription.SequenceNumber + 100)
-            );
+                subscription.Republish(subscription.SequenceNumber + 100));
             Assert.AreEqual(
                 (StatusCode)StatusCodes.BadMessageNotAvailable,
                 (StatusCode)sre.StatusCode);
@@ -1627,8 +1568,7 @@ namespace Opc.Ua.Client.Tests
             int[] notificationCounters,
             int[] fastDataCounters,
             int subscriptionCount,
-            uint queueSize
-        )
+            uint queueSize)
         {
             for (int ii = 0; ii < subscriptionCount; ii++)
             {
@@ -1640,8 +1580,7 @@ namespace Opc.Ua.Client.Tests
                     FastDataChangeCallback = (s, n, _) =>
                     {
                         TestContext.Out.WriteLine(
-                            $"FastDataChangeHandlerOrigin: {s.Id}-{n.SequenceNumber}-{n.MonitoredItems.Count}"
-                        );
+                            $"FastDataChangeHandlerOrigin: {s.Id}-{n.SequenceNumber}-{n.MonitoredItems.Count}");
                         fastDataCounters[(int)s.Handle]++;
                     }
                 };
@@ -1688,11 +1627,9 @@ namespace Opc.Ua.Client.Tests
                                 item.DisplayName,
                                 value.Value,
                                 value.SourceTimestamp,
-                                value.StatusCode
-                            );
+                                value.StatusCode);
                         }
-                    }
-                );
+                    });
                 subscription.AddItems(list);
                 subscription.ApplyChanges();
             }

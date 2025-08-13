@@ -116,8 +116,7 @@ namespace TestData
             ISystemContext context,
             MethodState method,
             NodeId objectId,
-            uint count
-        )
+            uint count)
         {
             if (context.SystemHandle is not TestDataSystem system)
             {

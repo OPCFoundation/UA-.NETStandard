@@ -49,8 +49,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// <exception cref="ArgumentNullException"><paramref name="newMetaData"/> is <c>null</c>.</exception>
         public static ConfigurationVersionDataType CalculateConfigurationVersion(
             DataSetMetaDataType oldMetaData,
-            DataSetMetaDataType newMetaData
-        )
+            DataSetMetaDataType newMetaData)
         {
             if (newMetaData == null)
             {

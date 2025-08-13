@@ -189,8 +189,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                             {
                                 ApplicationId = record.ApplicationId,
                                 DiscoveryUrl = discoveryUrl
-                            }
-                        );
+                            });
                     }
                 }
 
@@ -204,8 +203,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                                 ApplicationId = record.ApplicationId,
                                 Locale = applicationName.Locale,
                                 Text = applicationName.Text
-                            }
-                        );
+                            });
                     }
                 }
 
@@ -228,8 +226,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                         .SingleOrDefault()
                     ?? throw new ArgumentException(
                         "A record with the specified application id does not exist.",
-                        nameof(applicationId)
-                    );
+                        nameof(applicationId));
 
                 IEnumerable<CertificateRequest> certificateRequests =
                     from ii in CertificateRequests
@@ -386,8 +383,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                             ProductUri = result.ProductUri,
                             DiscoveryUrls = discoveryUrls,
                             ServerCapabilities = capabilities
-                        }
-                    );
+                        });
                 }
 
                 return [.. records];
@@ -403,8 +399,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             string productUri,
             string[] serverCapabilities,
             out DateTime lastCounterResetTime,
-            out uint nextRecordId
-        )
+            out uint nextRecordId)
         {
             lastCounterResetTime = DateTime.MinValue;
             nextRecordId = 0;
@@ -473,11 +468,9 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                         continue;
                     }
                     else // filter for clients
-                    if (
-                        applicationType == 2 &&
+                    if (applicationType == 2 &&
                         result.ApplicationType != (int)ApplicationType.Client &&
-                        result.ApplicationType != (int)ApplicationType.ClientAndServer
-                    )
+                        result.ApplicationType != (int)ApplicationType.ClientAndServer)
                     {
                         continue;
                     }
@@ -520,8 +513,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                             GatewayServerUri = null,
                             DiscoveryProfileUri = null,
                             DiscoveryUrls = discoveryUrls
-                        }
-                    );
+                        });
                     nextRecordId = lastID + 1;
                 }
                 return [.. records];
@@ -535,8 +527,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             string applicationUri,
             string productUri,
             string[] serverCapabilities,
-            out DateTime lastCounterResetTime
-        )
+            out DateTime lastCounterResetTime)
         {
             lock (Lock)
             {
@@ -605,12 +596,10 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                         }
                     }
 
-                    if (
-                        lastID != 0 &&
+                    if (lastID != 0 &&
                         maxRecordsToReturn != 0 &&
                         lastID != result.ID &&
-                        records.Count >= maxRecordsToReturn
-                    )
+                        records.Count >= maxRecordsToReturn)
                     {
                         break;
                     }
@@ -623,8 +612,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                             ServerName = result.ApplicationName,
                             DiscoveryUrl = result.DiscoveryUrl,
                             ServerCapabilities = capabilities
-                        }
-                    );
+                        });
                 }
 
                 return [.. records];
@@ -663,8 +651,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         public override bool GetApplicationCertificate(
             NodeId applicationId,
             string certificateTypeId,
-            out byte[] certificate
-        )
+            out byte[] certificate)
         {
             certificate = null;
 
@@ -677,8 +664,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                         .SingleOrDefault()
                     ?? throw new ArgumentException(
                         "A record with the specified application id does not exist.",
-                        nameof(applicationId)
-                    );
+                        nameof(applicationId));
 
                 if (!application.Certificate.TryGetValue(certificateTypeId, out certificate))
                 {
@@ -691,8 +677,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         public override bool SetApplicationTrustLists(
             NodeId applicationId,
             string certificateTypeId,
-            string trustListId
-        )
+            string trustListId)
         {
             Guid id = GetNodeIdGuid(applicationId);
 
@@ -718,8 +703,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         public override bool GetApplicationTrustLists(
             NodeId applicationId,
             string certificateTypeId,
-            out string trustListId
-        )
+            out string trustListId)
         {
             trustListId = null;
             Guid id = GetNodeIdGuid(applicationId);
@@ -742,8 +726,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             string certificateGroupId,
             string certificateTypeId,
             byte[] certificateRequest,
-            string authorityId
-        )
+            string authorityId)
         {
             Guid id = GetNodeIdGuid(applicationId);
 
@@ -800,8 +783,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             string[] domainNames,
             string privateKeyFormat,
             string privateKeyPassword,
-            string authorityId
-        )
+            string authorityId)
         {
             Guid id = GetNodeIdGuid(applicationId);
 
@@ -907,8 +889,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             out string certificateGroupId,
             out string certificateTypeId,
             out byte[] signedCertificate,
-            out byte[] privateKey
-        )
+            out byte[] privateKey)
         {
             certificateGroupId = null;
             certificateTypeId = null;
@@ -954,8 +935,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             out string subjectName,
             out string[] domainNames,
             out string privateKeyFormat,
-            out string privateKeyPassword
-        )
+            out string privateKeyPassword)
         {
             certificateGroupId = null;
             certificateTypeId = null;

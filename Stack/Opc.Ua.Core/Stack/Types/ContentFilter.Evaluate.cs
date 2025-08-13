@@ -141,8 +141,7 @@ namespace Opc.Ua
             {
                 throw new ServiceResultException(
                     StatusCodes.BadUnexpectedError,
-                    "ContentFilterElement does not have the correct number of operands."
-                );
+                    "ContentFilterElement does not have the correct number of operands.");
             }
 
             return operands;
@@ -154,8 +153,7 @@ namespace Opc.Ua
         private Tuple<object, object> GetBitwiseOperands(
             FilterContext context,
             IFilterTarget target,
-            ContentFilterElement element
-        )
+            ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 2);
 
@@ -199,8 +197,7 @@ namespace Opc.Ua
                     simpleAttribute.TypeDefinitionId,
                     simpleAttribute.BrowsePath,
                     simpleAttribute.AttributeId,
-                    simpleAttribute.ParsedIndexRange
-                );
+                    simpleAttribute.ParsedIndexRange);
             }
 
             // must query the filter target for attribute operands.
@@ -219,8 +216,7 @@ namespace Opc.Ua
                     attribute.NodeId,
                     attribute.BrowsePath,
                     attribute.AttributeId,
-                    attribute.ParsedIndexRange
-                );
+                    attribute.ParsedIndexRange);
             }
 
             // recursively evaluate element operands.
@@ -2035,8 +2031,7 @@ namespace Opc.Ua
             FilterContext context,
             IFilterTarget target,
             ContentFilterElement element,
-            NodeId intermediateNodeId
-        )
+            NodeId intermediateNodeId)
         {
             // RelatedTo only supported in advanced filter targets.
 
@@ -2098,8 +2093,7 @@ namespace Opc.Ua
             if (operands[1] is ElementOperand chainedOperand)
             {
                 if ( /*chainedOperand.Index < 0 ||*/
-                    chainedOperand.Index >= Elements.Count
-                )
+                    chainedOperand.Index >= Elements.Count)
                 {
                     return false;
                 }
@@ -2128,8 +2122,7 @@ namespace Opc.Ua
                         referenceTypeId,
                         hops.Value,
                         includeTypeDefinitionSubtypes.Value,
-                        includeReferenceTypeSubtypes.Value
-                    );
+                        includeReferenceTypeSubtypes.Value);
 
                     if (nodeIds == null || nodeIds.Count == 0)
                     {
@@ -2173,8 +2166,7 @@ namespace Opc.Ua
                     referenceTypeId,
                     hops.Value,
                     includeTypeDefinitionSubtypes.Value,
-                    includeReferenceTypeSubtypes.Value
-                );
+                    includeReferenceTypeSubtypes.Value);
             }
             catch
             {

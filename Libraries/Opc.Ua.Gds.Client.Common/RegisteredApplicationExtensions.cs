@@ -66,10 +66,8 @@ namespace Opc.Ua.Gds.Client
 
             if (RegistrationType != RegistrationType.ServerPush)
             {
-                if (
-                    !string.IsNullOrEmpty(CertificatePrivateKeyPath) &&
-                    CertificatePrivateKeyPath.EndsWith("PEM", StringComparison.OrdinalIgnoreCase)
-                )
+                if (!string.IsNullOrEmpty(CertificatePrivateKeyPath) &&
+                    CertificatePrivateKeyPath.EndsWith("PEM", StringComparison.OrdinalIgnoreCase))
                 {
                     privateKeyFormat = "PEM";
                 }

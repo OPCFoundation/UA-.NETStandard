@@ -100,8 +100,7 @@ namespace Opc.Ua.Bindings
             IList<string> baseAddresses,
             ApplicationDescription serverDescription,
             List<ServerSecurityPolicy> securityPolicies,
-            CertificateTypesProvider instanceCertificateTypesProvider
-        );
+            CertificateTypesProvider instanceCertificateTypesProvider);
     }
 
     /// <summary>

@@ -224,8 +224,7 @@ namespace Opc.Ua.Server.Tests
         private static MonitoredItem CreateMonitoredItem(
             bool events = false,
             uint queueSize = 10,
-            bool discardOldest = false
-        )
+            bool discardOldest = false)
         {
             MonitoringFilter filter = events ? new EventFilter() : new MonitoringFilter();
 
@@ -254,8 +253,7 @@ namespace Opc.Ua.Server.Tests
                 1000.0,
                 queueSize,
                 discardOldest,
-                1000
-            );
+                1000);
         }
     }
 }

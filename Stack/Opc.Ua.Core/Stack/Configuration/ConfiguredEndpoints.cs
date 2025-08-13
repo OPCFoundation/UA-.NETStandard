@@ -66,8 +66,7 @@ namespace Opc.Ua
         public static ConfiguredEndpointCollection Load(
             ApplicationConfiguration configuration,
             string filePath,
-            bool overrideConfiguration
-        )
+            bool overrideConfiguration)
         {
             ConfiguredEndpointCollection endpoints = Load(filePath);
 
@@ -146,8 +145,7 @@ namespace Opc.Ua
                 if (endpoint.Description.TransportProfileUri != null)
                 {
                     endpoint.Description.TransportProfileUri = Profiles.NormalizeUri(
-                        endpoint.Description.TransportProfileUri
-                    );
+                        endpoint.Description.TransportProfileUri);
                 }
 
                 if (!servers.TryGetValue(
@@ -195,8 +193,7 @@ namespace Opc.Ua
                         if (endpoint.Description != null)
                         {
                             endpoint.Description.TransportProfileUri = Profiles.NormalizeUri(
-                                endpoint.Description.TransportProfileUri
-                            );
+                                endpoint.Description.TransportProfileUri);
                         }
                     }
                 }
@@ -547,13 +544,11 @@ namespace Opc.Ua
                     }
                 }
 
-                if (
-                    endpointUrl != null &&
+                if (endpointUrl != null &&
                     Utils.IsUriHttpRelatedScheme(endpointUrl) &&
                     endpointUrl.EndsWith(
                         ConfiguredEndpoint.DiscoverySuffix,
-                        StringComparison.OrdinalIgnoreCase)
-                )
+                        StringComparison.OrdinalIgnoreCase))
                 {
                     endpointUrl = endpointUrl[..^ConfiguredEndpoint.DiscoverySuffix.Length];
                 }
@@ -807,11 +802,9 @@ namespace Opc.Ua
             {
                 string baseUrl = discoveryUrl;
 
-                if (
-                    baseUrl != null &&
+                if (baseUrl != null &&
                     Utils.IsUriHttpRelatedScheme(baseUrl) &&
-                    baseUrl.EndsWith(DiscoverySuffix, StringComparison.Ordinal)
-                )
+                    baseUrl.EndsWith(DiscoverySuffix, StringComparison.Ordinal))
                 {
                     baseUrl = baseUrl[..^DiscoverySuffix.Length];
                 }
@@ -865,8 +858,7 @@ namespace Opc.Ua
         public ConfiguredEndpoint(
             ConfiguredEndpointCollection collection,
             EndpointDescription description,
-            EndpointConfiguration configuration
-        )
+            EndpointConfiguration configuration)
         {
             m_collection = collection;
             m_description = description ?? throw new ArgumentNullException(nameof(description));
@@ -927,8 +919,7 @@ namespace Opc.Ua
                     m_description.EndpointUrl,
                     m_description.SecurityMode,
                     SecurityPolicies.GetDisplayName(m_description.SecurityPolicyUri),
-                    m_configuration != null && m_configuration.UseBinaryEncoding ? "Binary" : "XML"
-                );
+                    m_configuration != null && m_configuration.UseBinaryEncoding ? "Binary" : "XML");
             }
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
@@ -1001,12 +992,10 @@ namespace Opc.Ua
             }
 
             // set the proxy url.
-            if (
-                m_collection != null &&
+            if (m_collection != null &&
                 m_description.EndpointUrl != null &&
                 m_description.EndpointUrl
-                    .StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal)
-            )
+                    .StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
             {
                 m_description.ProxyUrl = m_collection.TcpProxyUrl;
             }
@@ -1073,8 +1062,7 @@ namespace Opc.Ua
             Uri endpointUrl,
             ITransportWaitingConnection connection,
             MessageSecurityMode securityMode,
-            string securityPolicyUri
-        )
+            string securityPolicyUri)
         {
             // get the a discovery url.
             Uri discoveryUrl = GetDiscoveryUrl(endpointUrl);
@@ -1100,8 +1088,7 @@ namespace Opc.Ua
                     collection,
                     endpointUrl,
                     securityMode,
-                    securityPolicyUri
-                );
+                    securityPolicyUri);
 
                 // select best match
                 EndpointDescription match = SelectBestMatch(matches, discoveryUrl);
@@ -1135,8 +1122,7 @@ namespace Opc.Ua
             Uri endpointUrl,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             return UpdateFromServerAsync(endpointUrl, null, securityMode, securityPolicyUri, ct);
         }
@@ -1149,8 +1135,7 @@ namespace Opc.Ua
             ITransportWaitingConnection connection,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             // get the a discovery url.
             Uri discoveryUrl = GetDiscoveryUrl(endpointUrl);
@@ -1178,8 +1163,7 @@ namespace Opc.Ua
                     collection,
                     endpointUrl,
                     securityMode,
-                    securityPolicyUri
-                );
+                    securityPolicyUri);
 
                 // select best match
                 EndpointDescription match = SelectBestMatch(matches, discoveryUrl);
@@ -1342,15 +1326,13 @@ namespace Opc.Ua
             EndpointDescriptionCollection collection,
             Uri endpointUrl,
             MessageSecurityMode securityMode,
-            string securityPolicyUri
-        )
+            string securityPolicyUri)
         {
             if (collection == null || collection.Count == 0)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadUnknownResponse,
-                    "Server does not have any endpoints defined."
-                );
+                    "Server does not have any endpoints defined.");
             }
 
             // find list of matching endpoints.
@@ -1461,14 +1443,11 @@ namespace Opc.Ua
             if (discoveryUrl != null)
             {
                 Uri matchUrl = Utils.ParseUri(match.EndpointUrl);
-                if (
-                    matchUrl == null ||
+                if (matchUrl == null ||
                     !string.Equals(
                         discoveryUrl.DnsSafeHost,
                         matchUrl.DnsSafeHost,
-                        StringComparison.OrdinalIgnoreCase
-                    )
-                )
+                        StringComparison.OrdinalIgnoreCase))
                 {
                     var uri = new UriBuilder(matchUrl)
                     {

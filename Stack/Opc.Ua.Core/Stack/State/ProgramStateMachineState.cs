@@ -197,8 +197,7 @@ namespace Opc.Ua
         protected override AuditUpdateStateEventState CreateAuditEvent(
             ISystemContext context,
             MethodState causeMethod,
-            uint causeId
-        )
+            uint causeId)
         {
             return new ProgramTransitionAuditEventState(null);
         }
@@ -212,8 +211,7 @@ namespace Opc.Ua
             IList<object> inputArguments,
             uint causeId,
             AuditUpdateStateEventState e,
-            ServiceResult result
-        )
+            ServiceResult result)
         {
             base.UpdateAuditEvent(context, causeMethod, inputArguments, causeId, e, result);
 
@@ -230,8 +228,7 @@ namespace Opc.Ua
         protected override TransitionEventState CreateTransitionEvent(
             ISystemContext context,
             uint transitionId,
-            uint causeId
-        )
+            uint causeId)
         {
             if (TransitionHasEffect(context, transitionId))
             {
@@ -272,8 +269,7 @@ namespace Opc.Ua
             ISystemContext context,
             MethodState method,
             IList<object> inputArguments,
-            IList<object> outputArguments
-        )
+            IList<object> outputArguments)
         {
             return DoCause(
                 context,
@@ -314,8 +310,7 @@ namespace Opc.Ua
             ISystemContext context,
             MethodState method,
             IList<object> inputArguments,
-            IList<object> outputArguments
-        )
+            IList<object> outputArguments)
         {
             return DoCause(
                 context,
@@ -356,8 +351,7 @@ namespace Opc.Ua
             ISystemContext context,
             MethodState method,
             IList<object> inputArguments,
-            IList<object> outputArguments
-        )
+            IList<object> outputArguments)
         {
             return DoCause(
                 context,
@@ -398,8 +392,7 @@ namespace Opc.Ua
             ISystemContext context,
             MethodState method,
             IList<object> inputArguments,
-            IList<object> outputArguments
-        )
+            IList<object> outputArguments)
         {
             return DoCause(
                 context,
@@ -440,8 +433,7 @@ namespace Opc.Ua
             ISystemContext context,
             MethodState method,
             IList<object> inputArguments,
-            IList<object> outputArguments
-        )
+            IList<object> outputArguments)
         {
             return DoCause(
                 context,

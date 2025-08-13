@@ -135,8 +135,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             TestContext.Out.WriteLine(
                 "HiResClock counts: {0} resolution: {1}µs",
                 counts,
-                stopWatch.ElapsedMilliseconds * 1000 / counts
-            );
+                stopWatch.ElapsedMilliseconds * 1000 / counts);
             // test accuracy of counter vs. stop watch
             try
             {
@@ -184,8 +183,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             TestContext.Out.WriteLine(
                 "HiResClock counts: {0} resolution: {1}µs",
                 counts,
-                stopWatch.ElapsedMilliseconds * 1000 / counts
-            );
+                stopWatch.ElapsedMilliseconds * 1000 / counts);
             // test accuracy of counter vs. stop watch
             try
             {

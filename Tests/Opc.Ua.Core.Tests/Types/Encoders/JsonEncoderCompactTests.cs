@@ -82,8 +82,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             "138DAA907373409AB6A4A36322063745");
 
         internal static readonly byte[] OpaqueId2 = Utils.FromHexString(
-            "E41047609A9248318EB907991A66B7BEE6B60CB5114828"
-        );
+            "E41047609A9248318EB907991A66B7BEE6B60CB5114828");
 
         internal static readonly byte[] OpaqueId3 = Utils.FromHexString("FBD8F0DE652A479B");
         internal static readonly byte[][] OpaqueIds = [OpaqueId1, OpaqueId2, OpaqueId3];
@@ -399,26 +398,22 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "D1",
                 new NodeId(
                     Get(NumericIds, index),
-                    (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index)))
-            );
+                    (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index))));
             encoder.WriteNodeId(
                 "D2",
                 new NodeId(
                     Get(StringIds, index),
-                    (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1)))
-            );
+                    (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))));
             encoder.WriteNodeId(
                 "D3",
                 new NodeId(
                     Get(GuidIds, index),
-                    (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)))
-            );
+                    (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))));
             encoder.WriteNodeId(
                 "D4",
                 new NodeId(
                     Get(OpaqueIds, index),
-                    (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)))
-            );
+                    (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
@@ -512,66 +507,50 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "D1",
                 new ExpandedNodeId(
                     Get(NumericIds, index),
-                    (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index))
-                )
-            );
+                    (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index))));
             encoder.WriteExpandedNodeId(
                 "D2",
                 new ExpandedNodeId(
                     Get(StringIds, index),
-                    (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))
-                )
-            );
+                    (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))));
             encoder.WriteExpandedNodeId(
                 "D3",
                 new ExpandedNodeId(
                     Get(GuidIds, index),
-                    (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))
-                )
-            );
+                    (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))));
             encoder.WriteExpandedNodeId(
                 "D4",
                 new ExpandedNodeId(
                     Get(OpaqueIds, index),
-                    (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))
-                )
-            );
+                    (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
             encoder.WriteExpandedNodeId(
                 "D5",
                 new ExpandedNodeId(
                     Get(NumericIds, index),
                     (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index)),
                     null,
-                    (uint)context.ServerUris.GetIndex(Get(ServerUris, index))
-                )
-            );
+                    (uint)context.ServerUris.GetIndex(Get(ServerUris, index))));
             encoder.WriteExpandedNodeId(
                 "D6",
                 new ExpandedNodeId(
                     Get(StringIds, index),
                     (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1)),
                     null,
-                    (uint)context.ServerUris.GetIndex(Get(ServerUris, index + 1))
-                )
-            );
+                    (uint)context.ServerUris.GetIndex(Get(ServerUris, index + 1))));
             encoder.WriteExpandedNodeId(
                 "D7",
                 new ExpandedNodeId(
                     Get(GuidIds, index),
                     (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)),
                     null,
-                    (uint)context.ServerUris.GetIndex(Get(ServerUris, index + 2))
-                )
-            );
+                    (uint)context.ServerUris.GetIndex(Get(ServerUris, index + 2))));
             encoder.WriteExpandedNodeId(
                 "D8",
                 new ExpandedNodeId(
                     Get(OpaqueIds, index),
                     (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)),
                     null,
-                    (uint)context.ServerUris.GetIndex(Get(ServerUris, index + 3))
-                )
-            );
+                    (uint)context.ServerUris.GetIndex(Get(ServerUris, index + 3))));
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
@@ -664,28 +643,22 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "D1",
                 new NodeId(
                     Get(NumericIds, index),
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index)))
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index))));
             encoder.WriteNodeId(
                 "D2",
                 new NodeId(
                     Get(StringIds, index),
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))
-                )
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))));
             encoder.WriteNodeId(
                 "D3",
                 new NodeId(
                     Get(GuidIds, index),
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)))
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))));
             encoder.WriteNodeId(
                 "D4",
                 new NodeId(
                     Get(OpaqueIds, index),
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))
-                )
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
@@ -812,66 +785,50 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "D1",
                 new ExpandedNodeId(
                     Get(NumericIds, index),
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index))
-                )
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index))));
             encoder.WriteExpandedNodeId(
                 "D2",
                 new ExpandedNodeId(
                     Get(StringIds, index),
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))
-                )
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))));
             encoder.WriteExpandedNodeId(
                 "D3",
                 new ExpandedNodeId(
                     Get(GuidIds, index),
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))
-                )
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))));
             encoder.WriteExpandedNodeId(
                 "D4",
                 new ExpandedNodeId(
                     Get(OpaqueIds, index),
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))
-                )
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
             encoder.WriteExpandedNodeId(
                 "D5",
                 new ExpandedNodeId(
                     Get(NumericIds, index),
                     (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index)),
                     null,
-                    (uint)context2.ServerUris.GetIndex(Get(ServerUris, index))
-                )
-            );
+                    (uint)context2.ServerUris.GetIndex(Get(ServerUris, index))));
             encoder.WriteExpandedNodeId(
                 "D6",
                 new ExpandedNodeId(
                     Get(StringIds, index),
                     (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1)),
                     null,
-                    (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 1))
-                )
-            );
+                    (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 1))));
             encoder.WriteExpandedNodeId(
                 "D7",
                 new ExpandedNodeId(
                     Get(GuidIds, index),
                     (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)),
                     null,
-                    (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 2))
-                )
-            );
+                    (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 2))));
             encoder.WriteExpandedNodeId(
                 "D8",
                 new ExpandedNodeId(
                     Get(OpaqueIds, index),
                     (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)),
                     null,
-                    (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 3))
-                )
-            );
+                    (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 3))));
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
@@ -963,28 +920,22 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "D1",
                 new NodeId(
                     Get(NumericIds, index),
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index)))
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index))));
             encoder.WriteNodeId(
                 "D2",
                 new NodeId(
                     Get(StringIds, index),
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))
-                )
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))));
             encoder.WriteNodeId(
                 "D3",
                 new NodeId(
                     Get(GuidIds, index),
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)))
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))));
             encoder.WriteNodeId(
                 "D4",
                 new NodeId(
                     Get(OpaqueIds, index),
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))
-                )
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
@@ -1116,66 +1067,50 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "D1",
                 new ExpandedNodeId(
                     Get(NumericIds, index),
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index))
-                )
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index))));
             encoder.WriteExpandedNodeId(
                 "D2",
                 new ExpandedNodeId(
                     Get(StringIds, index),
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))
-                )
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))));
             encoder.WriteExpandedNodeId(
                 "D3",
                 new ExpandedNodeId(
                     Get(GuidIds, index),
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))
-                )
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))));
             encoder.WriteExpandedNodeId(
                 "D4",
                 new ExpandedNodeId(
                     Get(OpaqueIds, index),
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))
-                )
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
             encoder.WriteExpandedNodeId(
                 "D5",
                 new ExpandedNodeId(
                     Get(NumericIds, index),
                     (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index)),
                     null,
-                    (uint)context2.ServerUris.GetIndex(Get(ServerUris, index))
-                )
-            );
+                    (uint)context2.ServerUris.GetIndex(Get(ServerUris, index))));
             encoder.WriteExpandedNodeId(
                 "D6",
                 new ExpandedNodeId(
                     Get(StringIds, index),
                     (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1)),
                     null,
-                    (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 1))
-                )
-            );
+                    (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 1))));
             encoder.WriteExpandedNodeId(
                 "D7",
                 new ExpandedNodeId(
                     Get(GuidIds, index),
                     (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)),
                     null,
-                    (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 2))
-                )
-            );
+                    (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 2))));
             encoder.WriteExpandedNodeId(
                 "D8",
                 new ExpandedNodeId(
                     Get(OpaqueIds, index),
                     (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)),
                     null,
-                    (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 3))
-                )
-            );
+                    (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 3))));
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
@@ -1243,26 +1178,22 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "D1",
                 new QualifiedName(
                     "N1",
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 0)))
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 0))));
             encoder.WriteQualifiedName(
                 "D2",
                 new QualifiedName(
                     "N2",
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 1)))
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 1))));
             encoder.WriteQualifiedName(
                 "D3",
                 new QualifiedName(
                     "N3",
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 2)))
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 2))));
             encoder.WriteQualifiedName(
                 "D4",
                 new QualifiedName(
                     "N4",
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 3)))
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 3))));
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
@@ -1337,26 +1268,22 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "D1",
                 new QualifiedName(
                     "N1",
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 0)))
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 0))));
             encoder.WriteQualifiedName(
                 "D2",
                 new QualifiedName(
                     "N2",
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 1)))
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 1))));
             encoder.WriteQualifiedName(
                 "D3",
                 new QualifiedName(
                     "N3",
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 2)))
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 2))));
             encoder.WriteQualifiedName(
                 "D4",
                 new QualifiedName(
                     "N4",
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 3)))
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 3))));
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
@@ -1434,26 +1361,22 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "D1",
                 new QualifiedName(
                     "N1",
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 0)))
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 0))));
             encoder.WriteQualifiedName(
                 "D2",
                 new QualifiedName(
                     "N2",
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 1)))
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 1))));
             encoder.WriteQualifiedName(
                 "D3",
                 new QualifiedName(
                     "N3",
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 2)))
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 2))));
             encoder.WriteQualifiedName(
                 "D4",
                 new QualifiedName(
                     "N4",
-                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 3)))
-            );
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 3))));
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
@@ -1520,8 +1443,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     { 4, 5, 6 }
                 },
                 2,
-                BuiltInType.Int32
-            );
+                BuiltInType.Int32);
             encoder.WriteArray(
                 "D1",
                 new int[,,]
@@ -1532,8 +1454,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     }
                 },
                 3,
-                BuiltInType.Int32
-            );
+                BuiltInType.Int32);
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
@@ -1600,8 +1521,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     { 4, 5, 6 }
                 },
                 2,
-                BuiltInType.Int32
-            );
+                BuiltInType.Int32);
             encoder.WriteArray(
                 "D1",
                 new int[,,]
@@ -1612,8 +1532,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     }
                 },
                 3,
-                BuiltInType.Int32
-            );
+                BuiltInType.Int32);
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
@@ -1713,8 +1632,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.WriteExtensionObject(
                 "D0",
-                new ExtensionObject(DataTypeIds.Range, new Range { High = 9876.5432 })
-            );
+                new ExtensionObject(DataTypeIds.Range, new Range { High = 9876.5432 }));
 
             encoder.WriteVariant(
                 "D1",
@@ -1728,10 +1646,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                             ApplicationNames = new LocalizedText[] { new("en", "Test Client") },
                             ProductUri = "http://test.org/client",
                             DiscoveryUrls = Body
-                        }
-                    )
-                )
-            );
+                        })));
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
@@ -1835,8 +1750,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             encoder.WriteExtensionObject(
                 "D0",
-                new ExtensionObject(DataTypeIds.Range, new Range { Low = 0, High = 9876.5432 })
-            );
+                new ExtensionObject(DataTypeIds.Range, new Range { Low = 0, High = 9876.5432 }));
 
             encoder.WriteVariant(
                 "D1",
@@ -1851,10 +1765,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                             ApplicationNames = new LocalizedText[] { new("en", "Test Client") },
                             ProductUri = "http://test.org/client",
                             DiscoveryUrls = Body
-                        }
-                    )
-                )
-            );
+                        })));
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
@@ -1958,8 +1869,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var encoder = new JsonEncoder(context, JsonEncodingType.Reversible);
             encoder.WriteExtensionObject(
                 "D0",
-                new ExtensionObject(DataTypeIds.Range, new Range { High = 9876.5432 })
-            );
+                new ExtensionObject(DataTypeIds.Range, new Range { High = 9876.5432 }));
 
             encoder.WriteVariant(
                 "D1",
@@ -1974,10 +1884,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                             ApplicationNames = new LocalizedText[] { new("en", "Test Client") },
                             ProductUri = "http://test.org/client",
                             DiscoveryUrls = BodyArray
-                        }
-                    )
-                )
-            );
+                        })));
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
@@ -2055,8 +1962,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var encoder = new JsonEncoder(context, JsonEncodingType.NonReversible);
             encoder.WriteExtensionObject(
                 "D0",
-                new ExtensionObject(DataTypeIds.Range, new Range { Low = 0, High = 9876.5432 })
-            );
+                new ExtensionObject(DataTypeIds.Range, new Range { Low = 0, High = 9876.5432 }));
 
             encoder.WriteVariant(
                 "D1",
@@ -2071,10 +1977,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                             ApplicationNames = new LocalizedText[] { new("en", "Test Client") },
                             ProductUri = "http://test.org/client",
                             DiscoveryUrls = BodyArray
-                        }
-                    )
-                )
-            );
+                        })));
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);

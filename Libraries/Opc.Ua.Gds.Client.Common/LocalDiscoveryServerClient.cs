@@ -85,8 +85,7 @@ namespace Opc.Ua.Gds.Client
                 null,
                 null,
                 null,
-                null
-            );
+                null);
             return EndFindServers(result);
         }
 
@@ -102,8 +101,7 @@ namespace Opc.Ua.Gds.Client
             IList<string> preferredLocales,
             IList<string> serverUris,
             AsyncCallback callback,
-            object callbackData
-        )
+            object callbackData)
         {
             DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
 
@@ -118,8 +116,7 @@ namespace Opc.Ua.Gds.Client
                 [.. (preferredLocales) ?? PreferredLocales],
                 serverUris != null ? [.. serverUris] : null,
                 OnFindServersComplete,
-                data
-            );
+                data);
 
             return data;
         }
@@ -200,8 +197,7 @@ namespace Opc.Ua.Gds.Client
             string endpointUrl,
             string endpointTransportProfileUri,
             AsyncCallback callback,
-            object callbackData
-        )
+            object callbackData)
         {
             DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
 
@@ -216,8 +212,7 @@ namespace Opc.Ua.Gds.Client
                 [.. PreferredLocales],
                 null,
                 OnGetEndpointsComplete,
-                data
-            );
+                data);
 
             return data;
         }
@@ -279,8 +274,7 @@ namespace Opc.Ua.Gds.Client
         public List<ServerOnNetwork> FindServersOnNetwork(
             uint startingRecordId,
             uint maxRecordsToReturn,
-            out DateTime lastCounterResetTime
-        )
+            out DateTime lastCounterResetTime)
         {
             IAsyncResult result = BeginFindServersOnNetwork(
                 null,
@@ -289,8 +283,7 @@ namespace Opc.Ua.Gds.Client
                 maxRecordsToReturn,
                 null,
                 null,
-                null
-            );
+                null);
             return EndFindServersOnNetwork(result, out lastCounterResetTime);
         }
 
@@ -300,8 +293,7 @@ namespace Opc.Ua.Gds.Client
             uint startingRecordId,
             uint maxRecordsToReturn,
             IList<string> serverCapabilityFilters,
-            out DateTime lastCounterResetTime
-        )
+            out DateTime lastCounterResetTime)
         {
             IAsyncResult result = BeginFindServersOnNetwork(
                 endpointUrl,
@@ -310,8 +302,7 @@ namespace Opc.Ua.Gds.Client
                 maxRecordsToReturn,
                 serverCapabilityFilters,
                 null,
-                null
-            );
+                null);
             return EndFindServersOnNetwork(result, out lastCounterResetTime);
         }
 
@@ -319,8 +310,7 @@ namespace Opc.Ua.Gds.Client
             uint startingRecordId,
             uint maxRecordsToReturn,
             AsyncCallback callback,
-            object callbackData
-        )
+            object callbackData)
         {
             return BeginFindServersOnNetwork(
                 null,
@@ -329,8 +319,7 @@ namespace Opc.Ua.Gds.Client
                 maxRecordsToReturn,
                 null,
                 callback,
-                callbackData
-            );
+                callbackData);
         }
 
         public IAsyncResult BeginFindServersOnNetwork(
@@ -340,8 +329,7 @@ namespace Opc.Ua.Gds.Client
             uint maxRecordsToReturn,
             IList<string> serverCapabilityFilters,
             AsyncCallback callback,
-            object callbackData
-        )
+            object callbackData)
         {
             DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
 
@@ -356,8 +344,7 @@ namespace Opc.Ua.Gds.Client
                 maxRecordsToReturn,
                 serverCapabilityFilters != null ? [.. serverCapabilityFilters] : [],
                 OnFindServersOnNetworkComplete,
-                data
-            );
+                data);
 
             return data;
         }

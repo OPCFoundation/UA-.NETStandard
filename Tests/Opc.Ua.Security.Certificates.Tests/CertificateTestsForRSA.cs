@@ -105,8 +105,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 Assert.NotNull(cert);
                 WriteCertificate(
                     cert,
-                    $"Default cert with RSA {keyHash.KeySize} {keyHash.HashAlgorithmName} signature."
-                );
+                    $"Default cert with RSA {keyHash.KeySize} {keyHash.HashAlgorithmName} signature.");
                 Assert.AreEqual(
                     keyHash.HashAlgorithmName,
                     Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
@@ -226,8 +225,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.NotNull(cert);
             WriteCertificate(
                 cert,
-                $"Default cert RSA {keyHashPair.KeySize} with modified lifetime and alt name extension"
-            );
+                $"Default cert RSA {keyHashPair.KeySize} with modified lifetime and alt name extension");
             Assert.AreEqual(Subject, cert.Subject);
             using (RSA privateKey = cert.GetRSAPrivateKey())
             {
@@ -265,8 +263,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.NotNull(cert);
             WriteCertificate(
                 cert,
-                "Default cert with RSA {keyHashPair.KeySize} {keyHashPair.HashAlgorithmName} and CRL distribution points"
-            );
+                "Default cert with RSA {keyHashPair.KeySize} {keyHashPair.HashAlgorithmName} and CRL distribution points");
             Assert.AreEqual(keyHashPair.KeySize, cert.GetRSAPublicKey().KeySize);
             Assert.AreEqual(
                 keyHashPair.HashAlgorithmName,
@@ -286,8 +283,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             // default cert
             NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() =>
-                CertificateBuilder.Create(Subject).SetSerialNumberLength(0).CreateForRSA()
-            );
+                CertificateBuilder.Create(Subject).SetSerialNumberLength(0).CreateForRSA());
             NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() => CertificateBuilder
                 .Create(Subject)
                 .SetSerialNumberLength(X509Defaults.SerialNumberLengthMax + 1)
@@ -315,8 +311,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             // default cert
             NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() =>
-                CertificateBuilder.Create(Subject).SetSerialNumber([]).CreateForRSA()
-            );
+                CertificateBuilder.Create(Subject).SetSerialNumber([]).CreateForRSA());
             NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() => CertificateBuilder
                 .Create(Subject)
                 .SetSerialNumber(new byte[X509Defaults.SerialNumberLengthMax + 1])
@@ -364,8 +359,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .Create("CN=Root Cert")
                     .SetCAConstraint(-1)
                     .SetRSAPublicKey(rsaKeyPair)
-                    .CreateForRSA(generator)
-            )
+                    .CreateForRSA(generator))
             {
                 Assert.NotNull(cert);
                 issuer = X509CertificateLoader.LoadCertificate(cert.RawData);
@@ -415,8 +409,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .Create("CN=Root Cert")
                     .SetCAConstraint(-1)
                     .SetRSAPublicKey(rsaKeyPair)
-                    .CreateForRSA(generator)
-            )
+                    .CreateForRSA(generator))
             {
                 Assert.NotNull(cert);
                 issuer = X509CertificateLoader.LoadCertificate(cert.RawData);

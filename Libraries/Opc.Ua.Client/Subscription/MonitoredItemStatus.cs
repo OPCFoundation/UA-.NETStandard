@@ -153,8 +153,7 @@ namespace Opc.Ua.Client
         internal void SetCreateResult(
             MonitoredItemCreateRequest request,
             MonitoredItemCreateResult result,
-            ServiceResult error
-        )
+            ServiceResult error)
         {
             if (request == null)
             {
@@ -233,8 +232,7 @@ namespace Opc.Ua.Client
         internal void SetModifyResult(
             MonitoredItemModifyRequest request,
             MonitoredItemModifyResult result,
-            ServiceResult error
-        )
+            ServiceResult error)
         {
             if (request == null)
             {

@@ -115,8 +115,7 @@ namespace Opc.Ua
             ServiceResult result,
             DiagnosticsMasks diagnosticsMask,
             bool serviceLevel,
-            StringTable stringTable
-        )
+            StringTable stringTable)
             : this(result, diagnosticsMask, serviceLevel, stringTable, 0)
         {
         }
@@ -135,8 +134,7 @@ namespace Opc.Ua
             DiagnosticsMasks diagnosticsMask,
             bool serviceLevel,
             StringTable stringTable,
-            int depth
-        )
+            int depth)
         {
             uint mask = (uint)diagnosticsMask;
 
@@ -161,8 +159,7 @@ namespace Opc.Ua
             Exception exception,
             DiagnosticsMasks diagnosticsMask,
             bool serviceLevel,
-            StringTable stringTable
-        )
+            StringTable stringTable)
         {
             uint mask = (uint)diagnosticsMask;
 
@@ -215,8 +212,7 @@ namespace Opc.Ua
             ServiceResult result,
             DiagnosticsMasks diagnosticsMask,
             StringTable stringTable,
-            int depth
-        )
+            int depth)
         {
             if (stringTable == null)
             {
@@ -253,10 +249,8 @@ namespace Opc.Ua
                 }
             }
 
-            if (
-                (DiagnosticsMasks.ServiceLocalizedText & diagnosticsMask) != 0 &&
-                !Ua.LocalizedText.IsNullOrEmpty(result.LocalizedText)
-            )
+            if ((DiagnosticsMasks.ServiceLocalizedText & diagnosticsMask) != 0 &&
+                !Ua.LocalizedText.IsNullOrEmpty(result.LocalizedText))
             {
                 if (!string.IsNullOrEmpty(result.LocalizedText.Locale))
                 {
@@ -278,10 +272,8 @@ namespace Opc.Ua
                 }
             }
 
-            if (
-                (DiagnosticsMasks.ServiceAdditionalInfo & diagnosticsMask) != 0 &&
-                (DiagnosticsMasks.UserPermissionAdditionalInfo & diagnosticsMask) != 0
-            )
+            if ((DiagnosticsMasks.ServiceAdditionalInfo & diagnosticsMask) != 0 &&
+                (DiagnosticsMasks.UserPermissionAdditionalInfo & diagnosticsMask) != 0)
             {
                 AdditionalInfo = result.AdditionalInfo;
             }
@@ -303,8 +295,7 @@ namespace Opc.Ua
                             diagnosticsMask,
                             true,
                             stringTable,
-                            depth + 1
-                        );
+                            depth + 1);
                     }
                     else
                     {

@@ -51,12 +51,10 @@ namespace Opc.Ua.Gds.Tests
                         "This is not the ValidSubjectName for my CertificateGroup",
                         certificateGroup.CertificateTypes[0]
                     ),
-                Throws.TypeOf<ArgumentException>()
-            );
+                Throws.TypeOf<ArgumentException>());
             NUnit.Framework.Assert.That(
                 () => certificateGroup.CreateCACertificateAsync(configuration.SubjectName, null),
-                Throws.TypeOf<ArgumentNullException>()
-            );
+                Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
@@ -106,8 +104,7 @@ namespace Opc.Ua.Gds.Tests
             ICertificateGroup certificateGroup = new CertificateGroup().Create(
                 m_path + Path.DirectorySeparatorChar + "authorities",
                 cgConfiguration,
-                applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath
-            );
+                applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath);
             X509Certificate2 certificate = await certificateGroup
                 .CreateCACertificateAsync(
                     cgConfiguration.SubjectName,
@@ -117,8 +114,7 @@ namespace Opc.Ua.Gds.Tests
             using (
                 ICertificateStore trustedStore =
                     applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates
-                        .OpenStore()
-            )
+                        .OpenStore())
             {
                 X509Certificate2Collection certs = await trustedStore
                     .FindByThumbprintAsync(certificate.Thumbprint)
@@ -138,8 +134,7 @@ namespace Opc.Ua.Gds.Tests
             using (
                 ICertificateStore trustedStore =
                     applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates
-                        .OpenStore()
-            )
+                        .OpenStore())
             {
                 X509Certificate2Collection certs = await trustedStore
                     .FindByThumbprintAsync(certificate.Thumbprint)

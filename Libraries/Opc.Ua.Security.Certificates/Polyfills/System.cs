@@ -94,8 +94,7 @@ namespace System
             this string target,
             string oldValue,
             string newValue,
-            StringComparison comparisonType
-        )
+            StringComparison comparisonType)
         {
             return target.Replace(oldValue, newValue);
         }

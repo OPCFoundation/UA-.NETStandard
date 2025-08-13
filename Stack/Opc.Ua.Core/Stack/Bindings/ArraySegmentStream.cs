@@ -287,8 +287,7 @@ namespace Opc.Ua.Bindings
                         m_currentPosition + m_currentBuffer.Offset,
                         buffer,
                         offset,
-                        count
-                    );
+                        count);
                     bytesRead += count;
                     m_currentPosition += count;
                     return bytesRead;
@@ -300,8 +299,7 @@ namespace Opc.Ua.Bindings
                     m_currentPosition + m_currentBuffer.Offset,
                     buffer,
                     offset,
-                    bytesLeft
-                );
+                    bytesLeft);
                 bytesRead += bytesLeft;
 
                 offset += bytesLeft;
@@ -462,8 +460,7 @@ namespace Opc.Ua.Bindings
                         offset,
                         m_currentBuffer.Array,
                         m_currentPosition + m_currentBuffer.Offset,
-                        count
-                    );
+                        count);
 
                     UpdateCurrentPosition(count);
 
@@ -476,8 +473,7 @@ namespace Opc.Ua.Bindings
                     offset,
                     m_currentBuffer.Array,
                     m_currentPosition + m_currentBuffer.Offset,
-                    bytesLeft
-                );
+                    bytesLeft);
 
                 offset += bytesLeft;
                 count -= bytesLeft;

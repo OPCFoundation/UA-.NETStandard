@@ -424,8 +424,7 @@ namespace Opc.Ua
                                 (int)Ua.NodeClass.VariableType |
                                 (int)Ua.NodeClass.ObjectType |
                                 (int)Ua.NodeClass.ReferenceType |
-                                (int)Ua.NodeClass.DataType
-                            )
+                                (int)Ua.NodeClass.DataType)
                         ) != 0;
                 case Symmetric:
                 case InverseName:

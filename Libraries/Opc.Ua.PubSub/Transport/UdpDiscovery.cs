@@ -86,8 +86,7 @@ namespace Opc.Ua.PubSub.Transport
                         m_discoveryUdpClients = UdpClientCreator.GetUdpClients(
                             UsedInContext.Discovery,
                             DiscoveryNetworkInterfaceName,
-                            DiscoveryNetworkAddressEndPoint
-                        );
+                            DiscoveryNetworkAddressEndPoint);
                     }
                 })
                 .ConfigureAwait(false);
@@ -122,19 +121,16 @@ namespace Opc.Ua.PubSub.Transport
             PubSubConnectionDataType pubSubConnectionConfiguration = m_udpConnection
                 .PubSubConnectionConfiguration;
 
-            if (
-                ExtensionObject.ToEncodeable(pubSubConnectionConfiguration.TransportSettings)
+            if (ExtensionObject.ToEncodeable(pubSubConnectionConfiguration.TransportSettings)
                     is DatagramConnectionTransportDataType transportSettings &&
                 transportSettings.DiscoveryAddress != null &&
                 ExtensionObject.ToEncodeable(transportSettings.DiscoveryAddress)
-                    is NetworkAddressUrlDataType discoveryNetworkAddressUrlState
-            )
+                    is NetworkAddressUrlDataType discoveryNetworkAddressUrlState)
             {
                 Utils.Trace(
                     Utils.TraceMasks.Information,
                     "The configuration for connection {0} has custom DiscoveryAddress configuration.",
-                    pubSubConnectionConfiguration.Name
-                );
+                    pubSubConnectionConfiguration.Name);
 
                 DiscoveryNetworkInterfaceName = discoveryNetworkAddressUrlState.NetworkInterface;
                 DiscoveryNetworkAddressEndPoint = UdpClientCreator.GetEndPoint(
@@ -147,8 +143,7 @@ namespace Opc.Ua.PubSub.Transport
                     Utils.TraceMasks.Information,
                     "The configuration for connection {0} will use the default DiscoveryAddress: {1}.",
                     pubSubConnectionConfiguration.Name,
-                    kDefaultDiscoveryUrl
-                );
+                    kDefaultDiscoveryUrl);
 
                 DiscoveryNetworkAddressEndPoint = UdpClientCreator.GetEndPoint(
                     kDefaultDiscoveryUrl);

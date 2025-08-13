@@ -70,8 +70,7 @@ namespace Opc.Ua
         /// </summary>
         public UserIdentity(
             CertificateIdentifier certificateId,
-            CertificatePasswordProvider certificatePasswordProvider
-        )
+            CertificatePasswordProvider certificatePasswordProvider)
         {
             if (certificateId == null)
             {
@@ -86,8 +85,7 @@ namespace Opc.Ua
             if (certificate == null || !certificate.HasPrivateKey)
             {
                 throw new ServiceResultException(
-                    "Cannot create User Identity with CertificateIdentifier that does not contain a private key"
-                );
+                    "Cannot create User Identity with CertificateIdentifier that does not contain a private key");
             }
 
             Initialize(certificate);
@@ -106,8 +104,7 @@ namespace Opc.Ua
             if (!certificate.HasPrivateKey)
             {
                 throw new ServiceResultException(
-                    "Cannot create User Identity with Certificate that does not have a private key"
-                );
+                    "Cannot create User Identity with Certificate that does not have a private key");
             }
 
             Initialize(certificate);

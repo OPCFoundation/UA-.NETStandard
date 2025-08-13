@@ -28,8 +28,7 @@ namespace Opc.Ua
         public void CreateListener(
             Uri url,
             ConnectionWaitingHandlerAsync onConnectionWaiting,
-            EventHandler<ConnectionStatusEventArgs> onConnectionStatusChanged
-        )
+            EventHandler<ConnectionStatusEventArgs> onConnectionStatusChanged)
         {
             if (url == null)
             {
@@ -43,8 +42,7 @@ namespace Opc.Ua
                 ?? throw ServiceResultException.Create(
                     StatusCodes.BadProtocolVersionUnsupported,
                     "Unsupported transport profile for scheme {0}.",
-                    url.Scheme
-                );
+                    url.Scheme);
             Url = url;
             m_onConnectionWaiting = onConnectionWaiting;
             m_onConnectionStatusChanged = onConnectionStatusChanged;

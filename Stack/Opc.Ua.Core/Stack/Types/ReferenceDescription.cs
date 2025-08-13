@@ -89,8 +89,7 @@ namespace Opc.Ua
             NodeClass nodeClass,
             QualifiedName browseName,
             LocalizedText displayName,
-            ExpandedNodeId typeDefinition
-        )
+            ExpandedNodeId typeDefinition)
         {
             if (((int)resultMask & (int)BrowseResultMask.NodeClass) != 0)
             {

@@ -27,8 +27,7 @@ namespace Opc.Ua
             {
                 UpdateState(
                     HighState,
-                    (limit & LimitAlarmStates.High) != 0 || (limit & LimitAlarmStates.HighHigh) != 0
-                );
+                    (limit & LimitAlarmStates.High) != 0 || (limit & LimitAlarmStates.HighHigh) != 0);
             }
 
             if (HighHighState != null)
@@ -55,16 +54,14 @@ namespace Opc.Ua
                 displayName = new TranslationInfo(
                     "ConditionStateHighHighActive",
                     "en-US",
-                    ConditionStateNames.HighHighActive
-                );
+                    ConditionStateNames.HighHighActive);
             }
             else if ((limit & LimitAlarmStates.LowLow) != 0)
             {
                 displayName = new TranslationInfo(
                     "ConditionStateLowLowActive",
                     "en-US",
-                    ConditionStateNames.LowLowActive
-                );
+                    ConditionStateNames.LowLowActive);
             }
             else if ((limit & LimitAlarmStates.High) != 0)
             {

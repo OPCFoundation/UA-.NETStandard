@@ -107,10 +107,8 @@ namespace Opc.Ua.PubSub
                     return true;
                 }
 
-                if (
-                    version.MajorVersion != metadata.ConfigurationVersion.MajorVersion ||
-                    version.MinorVersion != metadata.ConfigurationVersion.MinorVersion
-                )
+                if (version.MajorVersion != metadata.ConfigurationVersion.MajorVersion ||
+                    version.MinorVersion != metadata.ConfigurationVersion.MinorVersion)
                 {
                     // keep a copy of ConfigurationVersion
                     state.ConfigurationVersion = metadata.ConfigurationVersion
@@ -199,8 +197,7 @@ namespace Opc.Ua.PubSub
                         return;
                     }
 
-                    for (
-                        int ii = 0;
+                    for (int ii = 0;
                         ii < dataset.Fields.Length && ii < state.LastDataSet.Fields.Length;
                         ii++)
                     {

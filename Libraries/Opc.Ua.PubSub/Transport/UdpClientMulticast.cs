@@ -66,8 +66,7 @@ namespace Opc.Ua.PubSub.Transport
                 Utils.Trace(
                     Utils.TraceMasks.Error,
                     "UdpClientMulticast set SetSocketOption resulted in ex {0}",
-                    ex.Message
-                );
+                    ex.Message);
             }
             try
             {
@@ -79,8 +78,7 @@ namespace Opc.Ua.PubSub.Transport
                 Utils.Trace(
                     Utils.TraceMasks.Error,
                     "UdpClientMulticast set ExclusiveAddressUse = false resulted in ex {0}",
-                    ex.Message
-                );
+                    ex.Message);
             }
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
@@ -98,8 +96,7 @@ namespace Opc.Ua.PubSub.Transport
                 "UdpClientMulticast was created for local Address: {0}:{1} and multicast address: {2}.",
                 localAddress,
                 port,
-                multicastAddress
-            );
+                multicastAddress);
         }
 
         /// <summary>

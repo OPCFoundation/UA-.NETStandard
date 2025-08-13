@@ -94,9 +94,7 @@ namespace Opc.Ua.Client.Tests
             m_endpointUrl = new Uri(
                 Utils.ReplaceLocalhost(
                     "opc.tcp://localhost:" +
-                    ServerFixture.Port.ToString(CultureInfo.InvariantCulture)
-                )
-            );
+                    ServerFixture.Port.ToString(CultureInfo.InvariantCulture)));
             // start reverse connection
             ReferenceServer.AddReverseConnection(
                 new Uri(ClientFixture.ReverseConnectUri),
@@ -224,8 +222,7 @@ namespace Opc.Ua.Client.Tests
                 config,
                 Endpoints,
                 m_endpointUrl,
-                securityPolicy
-            );
+                securityPolicy);
             Assert.NotNull(selectedEndpoint);
             var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
             Assert.NotNull(endpoint);
@@ -241,8 +238,7 @@ namespace Opc.Ua.Client.Tests
                     "Reverse Connect Client",
                     MaxTimeout,
                     new UserIdentity(new AnonymousIdentityToken()),
-                    null
-                )
+                    null)
                 .ConfigureAwait(false);
             Assert.NotNull(session);
 
@@ -258,8 +254,7 @@ namespace Opc.Ua.Client.Tests
             ReferenceDescriptionCollection referenceDescriptions = CommonTestWorkers
                 .BrowseFullAddressSpaceWorker(
                     clientTestServices,
-                    requestHeader
-                    );
+                    requestHeader);
             Assert.NotNull(referenceDescriptions);
 
             // close session
@@ -273,8 +268,7 @@ namespace Opc.Ua.Client.Tests
         public async Task ReverseConnect2Async(
             bool updateBeforeConnect,
             bool checkDomain,
-            ISessionFactory sessionFactory
-        )
+            ISessionFactory sessionFactory)
         {
             const string securityPolicy = SecurityPolicies.Basic256Sha256;
 
@@ -290,8 +284,7 @@ namespace Opc.Ua.Client.Tests
                 config,
                 Endpoints,
                 m_endpointUrl,
-                securityPolicy
-            );
+                securityPolicy);
             Assert.NotNull(selectedEndpoint);
             var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
             Assert.NotNull(endpoint);
@@ -307,8 +300,7 @@ namespace Opc.Ua.Client.Tests
                     "Reverse Connect Client",
                     MaxTimeout,
                     new UserIdentity(new AnonymousIdentityToken()),
-                    null
-                )
+                    null)
                 .ConfigureAwait(false);
 
             Assert.NotNull(session);
@@ -325,8 +317,7 @@ namespace Opc.Ua.Client.Tests
             ReferenceDescriptionCollection referenceDescriptions = CommonTestWorkers
                 .BrowseFullAddressSpaceWorker(
                     clientTestServices,
-                    requestHeader
-                    );
+                    requestHeader);
             Assert.NotNull(referenceDescriptions);
 
             // close session

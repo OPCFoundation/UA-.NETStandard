@@ -92,8 +92,7 @@ namespace Opc.Ua
             EndpointDescription endpointDescription,
             IServiceRequest request,
             AsyncCallback callback,
-            object callbackData
-        )
+            object callbackData)
         {
             if (channeId == null)
             {
@@ -153,8 +152,7 @@ namespace Opc.Ua
             EndpointDescription endpointDescription,
             OpenSecureChannelRequest request,
             X509Certificate2 clientCertificate,
-            Exception exception
-        )
+            Exception exception)
         {
             // trigger the reporting of AuditOpenSecureChannelEventType
             ServerForContext?.ReportAuditOpenSecureChannelEvent(
@@ -162,8 +160,7 @@ namespace Opc.Ua
                 endpointDescription,
                 request,
                 clientCertificate,
-                exception
-            );
+                exception);
         }
 
         /// <inheritdoc/>
@@ -193,16 +190,14 @@ namespace Opc.Ua
         public static ActivitySource ActivitySource => s_activitySource.Value;
 
         private static readonly Lazy<ActivitySource> s_activitySource = new(() =>
-            new ActivitySource(ActivitySourceName, "1.0.0")
-        );
+            new ActivitySource(ActivitySourceName, "1.0.0"));
 
         /// <summary>
         /// Tries to extract the trace details from the AdditionalParametersType.
         /// </summary>
         public static bool TryExtractActivityContextFromParameters(
             AdditionalParametersType parameters,
-            out ActivityContext activityContext
-        )
+            out ActivityContext activityContext)
         {
             if (parameters == null)
             {
@@ -265,8 +260,7 @@ namespace Opc.Ua
                         StatusCodes.BadServiceUnsupported,
                         Utils.Format(
                             "'{0}' is an unrecognized service identifier.",
-                            incoming.TypeId)
-                    );
+                            incoming.TypeId));
                 }
 
                 // invoke service.
@@ -284,7 +278,10 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="incoming">Incoming request.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
-        public virtual async Task<IServiceResponse> ProcessRequestAsync(IServiceRequest incoming, CancellationToken cancellationToken = default)
+        /// <exception cref="ServiceResultException"></exception>
+        public virtual async Task<IServiceResponse> ProcessRequestAsync(
+            IServiceRequest incoming,
+            CancellationToken cancellationToken = default)
         {
             try
             {
@@ -295,11 +292,12 @@ namespace Opc.Ua
                 // find service.
                 if (!SupportedServices.TryGetValue(incoming.TypeId, out service))
                 {
-                    throw new ServiceResultException(StatusCodes.BadServiceUnsupported, Utils.Format("'{0}' is an unrecognized service identifier.", incoming.TypeId));
+                    throw new ServiceResultException(StatusCodes.BadServiceUnsupported, Utils
+                        .Format("'{0}' is an unrecognized service identifier.", incoming.TypeId));
                 }
 
                 // invoke service.
-                return await service.InvokeAsync(incoming).ConfigureAwait(false);
+                return await service.InvokeAsync(incoming, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -329,8 +327,7 @@ namespace Opc.Ua
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadDecodingError,
-                        Utils.Format("Null message cannot be processed.")
-                    );
+                        Utils.Format("Null message cannot be processed."));
                 }
 
                 // decoding incoming message.
@@ -369,8 +366,7 @@ namespace Opc.Ua
         public virtual IAsyncResult BeginInvokeService(
             InvokeServiceMessage request,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             try
             {
@@ -443,8 +439,7 @@ namespace Opc.Ua
         {
             throw new ServiceResultException(
                 StatusCodes.BadInternalError,
-                "The endpoint is not associated with a host that supports IServerHostBase."
-            );
+                "The endpoint is not associated with a host that supports IServerHostBase.");
         }
 
         /// <summary>
@@ -465,8 +460,7 @@ namespace Opc.Ua
                 HostForContext.Server
                 ?? throw new ServiceResultException(
                     StatusCodes.BadInternalError,
-                    "The endpoint is not associated with a server instance."
-                );
+                    "The endpoint is not associated with a server instance.");
 
             // check the server status.
             if (ServiceResult.IsBad(server.ServerError))
@@ -496,8 +490,7 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(
                     StatusCodes.BadServiceUnsupported,
                     "'{0}' is an unrecognized service identifier.",
-                    requestTypeId
-                );
+                    requestTypeId);
             }
 
             return service;
@@ -697,15 +690,12 @@ namespace Opc.Ua
             /// <param name="request">The request.</param>
             public IServiceResponse Invoke(IServiceRequest request)
             {
-                var handler = m_invokeService;
-
-                if (handler == null && m_invokeServiceAsync != null)
+                if (m_invokeService == null && m_invokeServiceAsync != null)
                 {
                     Utils.LogWarning("Async Service invoced sychronously. Prefer using InvokeAsync for best performance.");
                     return InvokeAsync(request).GetAwaiter().GetResult();
                 }
-
-                return handler?.Invoke(request);
+                return m_invokeService?.Invoke(request);
             }
 
             /// <summary>
@@ -714,9 +704,11 @@ namespace Opc.Ua
             /// <param name="request">The request.</param>
             /// <param name="cancellationToken">The cancellation token.</param>
             /// <returns></returns>
-            public async Task<IServiceResponse> InvokeAsync(IServiceRequest request, CancellationToken cancellationToken = default)
+            public async Task<IServiceResponse> InvokeAsync(
+                IServiceRequest request,
+                CancellationToken cancellationToken = default)
             {
-                var asyncHandler = m_invokeServiceAsync;
+                InvokeServiceAsyncEventHandler asyncHandler = m_invokeServiceAsync;
 
                 if (asyncHandler != null)
                 {
@@ -739,7 +731,9 @@ namespace Opc.Ua
         /// <summary>
         /// A delegate used to asynchronously dispatch incoming service requests.
         /// </summary>
-        protected delegate Task<IServiceResponse> InvokeServiceAsyncEventHandler(IServiceRequest request, CancellationToken cancellationToken = default);
+        protected delegate Task<IServiceResponse> InvokeServiceAsyncEventHandler(
+            IServiceRequest request,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// An AsyncResult object when handling an asynchronous request.
@@ -757,8 +751,7 @@ namespace Opc.Ua
                 EndpointBase endpoint,
                 AsyncCallback callback,
                 object callbackData,
-                int timeout
-            )
+                int timeout)
                 : base(callback, callbackData, timeout)
             {
                 m_endpoint = endpoint;
@@ -861,8 +854,7 @@ namespace Opc.Ua
                         throw ServiceResultException.Create(
                             StatusCodes.BadServiceUnsupported,
                             "'{0}' is an unrecognized service type.",
-                            Request.TypeId
-                        );
+                            Request.TypeId);
                     }
 
                     // queue request.
@@ -904,8 +896,7 @@ namespace Opc.Ua
                         throw ServiceResultException.Create(
                             StatusCodes.BadServiceUnsupported,
                             "'{0}' is an unrecognized service type.",
-                            Request.TypeId
-                        );
+                            Request.TypeId);
                     }
 
                     // queue request.
@@ -998,19 +989,16 @@ namespace Opc.Ua
                     if (ActivitySource.HasListeners())
                     {
                         // extract trace information from the request header if available
-                        if (
-                            Request.RequestHeader?.AdditionalHeader?
+                        if (Request.RequestHeader?.AdditionalHeader?
                                 .Body is AdditionalParametersType parameters &&
                             TryExtractActivityContextFromParameters(
                                 parameters,
-                                out ActivityContext activityContext)
-                        )
+                                out ActivityContext activityContext))
                         {
                             using Activity activity = ActivitySource.StartActivity(
                                 Request.GetType().Name,
                                 ActivityKind.Server,
-                                activityContext
-                            );
+                                activityContext);
                             // call the service.
                             m_response = m_service.Invoke(Request);
                         }
@@ -1040,7 +1028,9 @@ namespace Opc.Ua
             /// <summary>
             /// Processes the request asynchronously.
             /// </summary>
-            private async Task OnProcessRequestAsync(object state, CancellationToken cancellationToken = default)
+            private async Task OnProcessRequestAsync(
+                object state,
+                CancellationToken cancellationToken = default)
             {
                 try
                 {
@@ -1050,25 +1040,34 @@ namespace Opc.Ua
                     if (ActivitySource.HasListeners())
                     {
                         // extract trace information from the request header if available
-                        if (Request.RequestHeader?.AdditionalHeader?.Body is AdditionalParametersType parameters &&
-                            TryExtractActivityContextFromParameters(parameters, out var activityContext))
+                        if (Request.RequestHeader?.AdditionalHeader?
+                            .Body is AdditionalParametersType parameters &&
+                            TryExtractActivityContextFromParameters(
+                                parameters,
+                                out var activityContext))
                         {
-                            using (var activity = ActivitySource.StartActivity(Request.GetType().Name, ActivityKind.Server, activityContext))
+                            using (var activity = ActivitySource.StartActivity(
+                                Request.GetType().Name,
+                                ActivityKind.Server,
+                                activityContext))
                             {
                                 // call the service.
-                                m_response = await m_service.InvokeAsync(Request).ConfigureAwait(false);
+                                m_response = await m_service.InvokeAsync(Request, cancellationToken)
+                                    .ConfigureAwait(false);
                             }
                         }
                         else
                         {
                             // call the service even when there is no trace information
-                            m_response = await m_service.InvokeAsync(Request).ConfigureAwait(false);
+                            m_response = await m_service.InvokeAsync(Request, cancellationToken)
+                                .ConfigureAwait(false);
                         }
                     }
                     else
                     {
                         // no listener, directly call the service.
-                        m_response = await m_service.InvokeAsync(Request).ConfigureAwait(false);
+                        m_response = await m_service.InvokeAsync(Request, cancellationToken)
+                            .ConfigureAwait(false);
                     }
                 }
                 catch (Exception e)

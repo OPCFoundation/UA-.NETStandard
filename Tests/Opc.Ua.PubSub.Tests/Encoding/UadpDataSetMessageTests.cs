@@ -42,13 +42,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
     {
         private readonly string m_publisherConfigurationFileName = Path.Combine(
             "Configuration",
-            "PublisherConfiguration.xml"
-        );
+            "PublisherConfiguration.xml");
 
         private readonly string m_subscriberConfigurationFileName = Path.Combine(
             "Configuration",
-            "SubscriberConfiguration.xml"
-        );
+            "SubscriberConfiguration.xml");
 
         private PubSubConfigurationDataType m_publisherConfiguration;
         private UaPubSubApplication m_publisherApplication;
@@ -77,8 +75,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 m_publisherConfigurationFileName,
                 true,
                 true,
-                false
-            );
+                false);
             m_publisherApplication = UaPubSubApplication.Create(publisherConfigurationFile);
             Assert.IsNotNull(m_publisherApplication, "m_publisherApplication should not be null");
 
@@ -92,12 +89,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Get first connection
             Assert.IsNotNull(
                 m_publisherConfiguration.Connections,
-                "m_publisherConfiguration.Connections should not be null"
-            );
+                "m_publisherConfiguration.Connections should not be null");
             Assert.IsNotEmpty(
                 m_publisherConfiguration.Connections,
-                "m_publisherConfiguration.Connections should not be empty"
-            );
+                "m_publisherConfiguration.Connections should not be empty");
             m_firstPublisherConnection = m_publisherApplication.PubSubConnections[0];
             Assert.IsNotNull(
                 m_firstPublisherConnection,
@@ -106,27 +101,23 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Read the first writer group
             Assert.IsNotEmpty(
                 m_publisherConfiguration.Connections[0].WriterGroups,
-                "pubSubConfigConnection.WriterGroups should not be empty"
-            );
+                "pubSubConfigConnection.WriterGroups should not be empty");
             m_firstWriterGroup = m_publisherConfiguration.Connections[0].WriterGroups[0];
             Assert.IsNotNull(m_firstWriterGroup, "m_firstWriterGroup should not be null");
 
             Assert.IsNotNull(
                 m_publisherConfiguration.PublishedDataSets,
-                "m_publisherConfiguration.PublishedDataSets should not be null"
-            );
+                "m_publisherConfiguration.PublishedDataSets should not be null");
             Assert.IsNotEmpty(
                 m_publisherConfiguration.PublishedDataSets,
-                "m_publisherConfiguration.PublishedDataSets should not be empty"
-            );
+                "m_publisherConfiguration.PublishedDataSets should not be empty");
 
             // Create a subscriber application
             string subscriberConfigurationFile = Utils.GetAbsoluteFilePath(
                 m_subscriberConfigurationFileName,
                 true,
                 true,
-                false
-            );
+                false);
             m_subscriberApplication = UaPubSubApplication.Create(subscriberConfigurationFile);
             Assert.IsNotNull(m_subscriberApplication, "m_subscriberApplication should not be null");
 
@@ -185,19 +176,16 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.SourceTimestamp |
                 DataSetFieldContentMask.StatusCode
             )]
-                DataSetFieldContentMask dataSetFieldContentMask
-        )
+                DataSetFieldContentMask dataSetFieldContentMask)
         {
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
             // Act
             // change network message mask
-            for (
-                uint dataSetMessageContentMask = 0;
+            for (uint dataSetMessageContentMask = 0;
                 dataSetMessageContentMask < kMessageContentMask;
-                dataSetMessageContentMask++
-            )
+                dataSetMessageContentMask++)
             {
                 uadpDataSetMessage.SetMessageContentMask(
                     (UadpDataSetMessageContentMask)dataSetMessageContentMask);
@@ -245,8 +233,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.SourceTimestamp |
                 DataSetFieldContentMask.StatusCode
             )]
-                DataSetFieldContentMask dataSetFieldContentMask
-        )
+                DataSetFieldContentMask dataSetFieldContentMask)
         {
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
@@ -297,8 +284,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.SourceTimestamp |
                 DataSetFieldContentMask.StatusCode
             )]
-                DataSetFieldContentMask dataSetFieldContentMask
-        )
+                DataSetFieldContentMask dataSetFieldContentMask)
         {
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
@@ -336,8 +322,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 StatusCodes.BadAggregateInvalidInputs,
                 StatusCodes.BadAlreadyExists
             )]
-                uint statusCode
-        )
+                uint statusCode)
         {
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(
@@ -390,8 +375,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.SourceTimestamp |
                 DataSetFieldContentMask.StatusCode
             )]
-                DataSetFieldContentMask dataSetFieldContentMask
-        )
+                DataSetFieldContentMask dataSetFieldContentMask)
         {
             const int versionValue = 2;
 
@@ -401,8 +385,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act
             uadpDataSetMessage.SetMessageContentMask(
                 UadpDataSetMessageContentMask.MajorVersion |
-                UadpDataSetMessageContentMask.MinorVersion
-            );
+                UadpDataSetMessageContentMask.MinorVersion);
             uadpDataSetMessage.MetaDataVersion.MajorVersion = versionValue;
             uadpDataSetMessage.MetaDataVersion.MinorVersion = versionValue * 10;
 
@@ -477,8 +460,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.SourceTimestamp |
                 DataSetFieldContentMask.StatusCode
             )]
-                DataSetFieldContentMask dataSetFieldContentMask
-        )
+                DataSetFieldContentMask dataSetFieldContentMask)
         {
             const int versionValue = 2;
 
@@ -488,8 +470,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act
             uadpDataSetMessage.SetMessageContentMask(
                 UadpDataSetMessageContentMask.MajorVersion |
-                UadpDataSetMessageContentMask.MinorVersion
-            );
+                UadpDataSetMessageContentMask.MinorVersion);
             uadpDataSetMessage.MetaDataVersion.MajorVersion = versionValue;
             uadpDataSetMessage.MetaDataVersion.MinorVersion = versionValue * 10;
 
@@ -566,8 +547,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.SourceTimestamp |
                 DataSetFieldContentMask.StatusCode
             )]
-                DataSetFieldContentMask dataSetFieldContentMask
-        )
+                DataSetFieldContentMask dataSetFieldContentMask)
         {
             const int versionValue = 2;
 
@@ -577,8 +557,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act
             uadpDataSetMessage.SetMessageContentMask(
                 UadpDataSetMessageContentMask.MajorVersion |
-                UadpDataSetMessageContentMask.MinorVersion
-            );
+                UadpDataSetMessageContentMask.MinorVersion);
             uadpDataSetMessage.MetaDataVersion.MajorVersion = versionValue;
             uadpDataSetMessage.MetaDataVersion.MinorVersion = versionValue * 10;
 
@@ -654,8 +633,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.SourceTimestamp |
                 DataSetFieldContentMask.StatusCode
             )]
-                DataSetFieldContentMask dataSetFieldContentMask
-        )
+                DataSetFieldContentMask dataSetFieldContentMask)
         {
             const int versionValue = 2;
 
@@ -665,8 +643,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act
             uadpDataSetMessage.SetMessageContentMask(
                 UadpDataSetMessageContentMask.MajorVersion |
-                UadpDataSetMessageContentMask.MinorVersion
-            );
+                UadpDataSetMessageContentMask.MinorVersion);
             uadpDataSetMessage.MetaDataVersion.MajorVersion = versionValue;
             uadpDataSetMessage.MetaDataVersion.MinorVersion = versionValue * 10;
 
@@ -741,8 +718,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.SourceTimestamp |
                 DataSetFieldContentMask.StatusCode
             )]
-                DataSetFieldContentMask dataSetFieldContentMask
-        )
+                DataSetFieldContentMask dataSetFieldContentMask)
         {
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
@@ -767,26 +743,22 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             m_publisherApplication.DataStore.WritePublishedDataItem(
                 new NodeId("BoolToggle", kNamespaceIndexSimple),
                 Attributes.Value,
-                booleanValue
-            );
+                booleanValue);
             var scalarInt32XValue = new DataValue(new Variant(100), StatusCodes.Good);
             m_publisherApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Int32", kNamespaceIndexSimple),
                 Attributes.Value,
-                scalarInt32XValue
-            );
+                scalarInt32XValue);
             var scalarInt32YValue = new DataValue(new Variant(50), StatusCodes.Good);
             m_publisherApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Int32Fast", kNamespaceIndexSimple),
                 Attributes.Value,
-                scalarInt32YValue
-            );
+                scalarInt32YValue);
             var dateTimeValue = new DataValue(new Variant(DateTime.UtcNow), StatusCodes.Good);
             m_publisherApplication.DataStore.WritePublishedDataItem(
                 new NodeId("DateTime", kNamespaceIndexSimple),
                 Attributes.Value,
-                dateTimeValue
-            );
+                dateTimeValue);
         }
 
         /// <summary>
@@ -798,12 +770,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(m_firstReaderGroup, "m_firstReaderGroup should not be null");
             Assert.IsNotEmpty(
                 m_firstReaderGroup.DataSetReaders,
-                "m_firstReaderGroup.DataSetReaders should not be empty"
-            );
+                "m_firstReaderGroup.DataSetReaders should not be empty");
             Assert.IsNotNull(
                 m_firstReaderGroup.DataSetReaders[0],
-                "m_firstReaderGroup.DataSetReaders[0] should not be null"
-            );
+                "m_firstReaderGroup.DataSetReaders[0] should not be null");
 
             return m_firstReaderGroup.DataSetReaders[0];
         }
@@ -842,8 +812,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.AreEqual(
                 1,
                 networkMessages.Count,
-                "connection.CreateNetworkMessages shall return only one network message"
-            );
+                "connection.CreateNetworkMessages shall return only one network message");
 
             var uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
 
@@ -895,8 +864,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         private static void CompareUadpDataSetMessages(
             UadpDataSetMessage uadpDataSetMessageEncode,
-            UadpDataSetMessage uadpDataSetMessageDecoded
-        )
+            UadpDataSetMessage uadpDataSetMessageDecoded)
         {
             DataSet dataSetDecoded = uadpDataSetMessageDecoded.DataSet;
             UadpDataSetMessageContentMask dataSetMessageContentMask =
@@ -905,80 +873,62 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.AreEqual(
                 uadpDataSetMessageEncode.DataSetFlags1,
                 uadpDataSetMessageDecoded.DataSetFlags1,
-                "DataSetMessages DataSetFlags1 do not match:"
-            );
+                "DataSetMessages DataSetFlags1 do not match:");
             Assert.AreEqual(
                 uadpDataSetMessageEncode.DataSetFlags2,
                 uadpDataSetMessageDecoded.DataSetFlags2,
-                "DataSetMessages DataSetFlags2 do not match:"
-            );
+                "DataSetMessages DataSetFlags2 do not match:");
 
-            if (
-                (dataSetMessageContentMask & UadpDataSetMessageContentMask.Timestamp) ==
-                UadpDataSetMessageContentMask.Timestamp
-            )
+            if ((dataSetMessageContentMask & UadpDataSetMessageContentMask.Timestamp) ==
+                UadpDataSetMessageContentMask.Timestamp)
             {
                 Assert.AreEqual(
                     uadpDataSetMessageEncode.Timestamp,
                     uadpDataSetMessageDecoded.Timestamp,
-                    "DataSetMessages TimeStamp do not match:"
-                );
+                    "DataSetMessages TimeStamp do not match:");
             }
 
-            if (
-                (dataSetMessageContentMask & UadpDataSetMessageContentMask.PicoSeconds) ==
-                UadpDataSetMessageContentMask.PicoSeconds
-            )
+            if ((dataSetMessageContentMask & UadpDataSetMessageContentMask.PicoSeconds) ==
+                UadpDataSetMessageContentMask.PicoSeconds)
             {
                 Assert.AreEqual(
                     uadpDataSetMessageEncode.PicoSeconds,
                     uadpDataSetMessageDecoded.PicoSeconds,
-                    "DataSetMessages PicoSeconds do not match:"
-                );
+                    "DataSetMessages PicoSeconds do not match:");
             }
 
-            if (
-                (dataSetMessageContentMask & UadpDataSetMessageContentMask.Status) ==
-                UadpDataSetMessageContentMask.Status
-            )
+            if ((dataSetMessageContentMask & UadpDataSetMessageContentMask.Status) ==
+                UadpDataSetMessageContentMask.Status)
             {
                 Assert.AreEqual(
                     uadpDataSetMessageEncode.Status,
                     uadpDataSetMessageDecoded.Status,
-                    "DataSetMessages Status do not match:"
-                );
+                    "DataSetMessages Status do not match:");
             }
 
-            if (
-                (dataSetMessageContentMask & UadpDataSetMessageContentMask.MajorVersion) ==
-                UadpDataSetMessageContentMask.MajorVersion
-            )
+            if ((dataSetMessageContentMask & UadpDataSetMessageContentMask.MajorVersion) ==
+                UadpDataSetMessageContentMask.MajorVersion)
             {
                 Assert.AreEqual(
                     uadpDataSetMessageEncode.MetaDataVersion.MajorVersion,
                     uadpDataSetMessageDecoded.MetaDataVersion.MajorVersion,
-                    "DataSetMessages ConfigurationMajorVersion do not match:"
-                );
+                    "DataSetMessages ConfigurationMajorVersion do not match:");
             }
 
-            if (
-                (dataSetMessageContentMask & UadpDataSetMessageContentMask.MinorVersion) ==
-                UadpDataSetMessageContentMask.MinorVersion
-            )
+            if ((dataSetMessageContentMask & UadpDataSetMessageContentMask.MinorVersion) ==
+                UadpDataSetMessageContentMask.MinorVersion)
             {
                 Assert.AreEqual(
                     uadpDataSetMessageEncode.MetaDataVersion.MinorVersion,
                     uadpDataSetMessageDecoded.MetaDataVersion.MinorVersion,
-                    "DataSetMessages ConfigurationMajorVersion do not match:"
-                );
+                    "DataSetMessages ConfigurationMajorVersion do not match:");
             }
 
             // check also the payload data
             Assert.AreEqual(
                 uadpDataSetMessageEncode.DataSet.Fields.Length,
                 dataSetDecoded.Fields.Length,
-                "DataSetMessages DataSet fields size do not match:"
-            );
+                "DataSetMessages DataSet fields size do not match:");
 
             for (int index = 0; index < uadpDataSetMessageEncode.DataSet.Fields.Length; index++)
             {
@@ -996,8 +946,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     "DataSetMessages Field.Value does not match value field at position: {0} {1}|{2}",
                     index,
                     encodedValue,
-                    decodedValue
-                );
+                    decodedValue);
             }
         }
 

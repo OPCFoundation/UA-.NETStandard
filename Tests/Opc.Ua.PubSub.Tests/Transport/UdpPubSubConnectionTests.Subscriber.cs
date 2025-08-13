@@ -66,8 +66,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 false);
             PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
-                    configurationFile
-                    );
+                    configurationFile);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
 
             var subscriberAddress = new NetworkAddressUrlDataType
@@ -94,8 +93,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
-                    configurationFile
-                    );
+                    configurationFile);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
 
             var publisherAddress = new NetworkAddressUrlDataType
@@ -166,8 +164,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 false);
             PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
-                    configurationFile
-                    );
+                    configurationFile);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
 
             var subscriberAddress = new NetworkAddressUrlDataType
@@ -194,8 +191,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
-                    configurationFile
-                    );
+                    configurationFile);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
 
             IPAddress broadcastIPAddress = GetFirstNicLastIPByteChanged(255);
@@ -225,8 +221,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             UdpClient udpBroadcastClient = new UdpClientBroadcast(
                 localhost.Address,
                 kDiscoveryPortNo,
-                UsedInContext.Publisher
-            );
+                UsedInContext.Publisher);
             Assert.IsNotNull(udpBroadcastClient, "udpBroadcastClient is null");
 
             var remoteEndPoint = new IPEndPoint(broadcastIPAddress, kDiscoveryPortNo);
@@ -276,8 +271,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 false);
             PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
-                    configurationFile
-                    );
+                    configurationFile);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
 
             var subscriberAddress = new NetworkAddressUrlDataType
@@ -304,8 +298,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
-                    configurationFile
-                    );
+                    configurationFile);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
 
             var publisherAddress = new NetworkAddressUrlDataType
@@ -384,8 +377,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 false);
             PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
-                    configurationFile
-                    );
+                    configurationFile);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
 
             //set address and create subscriber
@@ -416,8 +408,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
-                    configurationFile
-                    );
+                    configurationFile);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
 
             //set address and create publisher
@@ -525,8 +516,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 false);
             PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
-                    configurationFile
-                    );
+                    configurationFile);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
 
             //set address and create subscriber
@@ -558,8 +548,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
-                    configurationFile
-                    );
+                    configurationFile);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
 
             var publisherAddress = new NetworkAddressUrlDataType
@@ -643,8 +632,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 false);
             PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
-                    configurationFile
-                    );
+                    configurationFile);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
 
             var subscriberAddress = new NetworkAddressUrlDataType
@@ -672,8 +660,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
-                    configurationFile
-                    );
+                    configurationFile);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
 
             var publisherAddress = new NetworkAddressUrlDataType
@@ -750,8 +737,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 false);
             PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
-                    configurationFile
-                    );
+                    configurationFile);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
 
             var subscriberAddress = new NetworkAddressUrlDataType
@@ -778,8 +764,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
-                    configurationFile
-                    );
+                    configurationFile);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
 
             var publisherAddress = new NetworkAddressUrlDataType
@@ -854,8 +839,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 false);
             PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
-                    configurationFile
-                    );
+                    configurationFile);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
 
             var subscriberAddress = new NetworkAddressUrlDataType
@@ -882,8 +866,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
-                    configurationFile
-                    );
+                    configurationFile);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
 
             var publisherAddress = new NetworkAddressUrlDataType
@@ -968,8 +951,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     bytes.Length,
                     "Sent bytes size: {0} does not match received bytes size: {1}",
                     m_sentBytes.Length,
-                    bytes.Length
-                );
+                    bytes.Length);
 
                 string sentBytesStr = BitConverter.ToString(m_sentBytes);
                 string bytesStr = BitConverter.ToString(bytes);
@@ -979,8 +961,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     bytesStr,
                     "Sent bytes: {0} and received bytes: {1} content are not equal",
                     sentBytesStr,
-                    bytesStr
-                );
+                    bytesStr);
 
                 m_shutdownEvent.Set();
             }
@@ -1015,8 +996,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                         bytes.Length,
                         "Sent bytes size: {0} does not match received bytes size: {1}",
                         m_sentBytes.Length,
-                        bytes.Length
-                    );
+                        bytes.Length);
 
                     string sentBytesStr = BitConverter.ToString(m_sentBytes);
                     string bytesStr = BitConverter.ToString(bytes);
@@ -1026,8 +1006,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                         bytesStr,
                         "Sent bytes: {0} and received bytes: {1} content are not equal",
                         sentBytesStr,
-                        bytesStr
-                    );
+                        bytesStr);
                 }
                 m_shutdownEvent.Set();
             }
@@ -1082,8 +1061,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     e.PublisherEndpoints.Length,
                     "Send PublisherEndpoints: {0} and received PublisherEndpoints: {1} are not equal",
                     3,
-                    e.PublisherEndpoints.Length
-                );
+                    e.PublisherEndpoints.Length);
 
                 foreach (EndpointDescription ep in e.PublisherEndpoints)
                 {
@@ -1105,8 +1083,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         private static byte[] BuildNetworkMessages(
             UdpPubSubConnection publisherConnection,
             UdpConnectionType udpConnectionType = UdpConnectionType.Discovery,
-            int networkMessageIndex = 0
-        )
+            int networkMessageIndex = 0)
         {
             try
             {
@@ -1129,8 +1106,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 {
                     networkMessages = publisherConnection.CreateNetworkMessages(
                         writerGroup0,
-                        new WriterGroupPublishState()
-                    );
+                        new WriterGroupPublishState());
                 }
                 Assert.IsNotNull(networkMessages, "CreateNetworkMessages returned null");
 
@@ -1154,8 +1130,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         /// </summary>
         private static byte[] PreparePublisherEndpointsMessage(
             UdpPubSubConnection publisherConnection,
-            UdpConnectionType udpConnectionType = UdpConnectionType.Networking
-        )
+            UdpConnectionType udpConnectionType = UdpConnectionType.Networking)
         {
             try
             {
@@ -1167,8 +1142,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     networkMessage = publisherConnection.CreatePublisherEndpointsNetworkMessage(
                         [.. endpointDescriptions],
                         StatusCodes.Good,
-                        publisherConnection.PubSubConnectionConfiguration.PublisherId.Value
-                    );
+                        publisherConnection.PubSubConnectionConfiguration.PublisherId.Value);
                     Assert.IsNotNull(networkMessage, "uaNetworkMessage shall not return null");
 
                     return networkMessage.Encode(ServiceMessageContext.GlobalContext);
@@ -1325,14 +1299,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 PubSubConnectionDataType connection in uaPubSubApplication
                     .UaPubSubConfigurator
                     .PubSubConfiguration
-                    .Connections
-            )
+                    .Connections)
             {
                 ids.AddRange(
                     connection
                         .WriterGroups.Select(group => group.DataSetWriters)
-                        .SelectMany(writer => writer.Select(x => x.DataSetWriterId))
-                );
+                        .SelectMany(writer => writer.Select(x => x.DataSetWriterId)));
             }
             return ids;
         }

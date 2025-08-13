@@ -58,8 +58,7 @@ namespace Opc.Ua.Bindings
                 Id,
                 token.CreatedAt,
                 token.CreatedAtTickCount,
-                token.Lifetime
-            );
+                token.Lifetime);
 
             return token;
         }
@@ -85,8 +84,7 @@ namespace Opc.Ua.Bindings
                 token.TokenId,
                 token.CreatedAt,
                 token.CreatedAtTickCount,
-                token.Lifetime
-            );
+                token.Lifetime);
         }
 
         /// <summary>
@@ -102,8 +100,7 @@ namespace Opc.Ua.Bindings
                 token.TokenId,
                 token.CreatedAt,
                 token.CreatedAtTickCount,
-                token.Lifetime
-            );
+                token.Lifetime);
         }
 
         /// <summary>
@@ -211,8 +208,7 @@ namespace Opc.Ua.Bindings
             byte[] secret,
             byte[] seed,
             ChannelToken token,
-            bool isServer
-        )
+            bool isServer)
         {
             int length = m_signatureKeySize + m_encryptionKeySize + EncryptionBlockSize;
 
@@ -453,8 +449,7 @@ namespace Opc.Ua.Bindings
             ChannelToken token,
             object messageBody,
             bool isRequest,
-            out bool limitsExceeded
-        )
+            out bool limitsExceeded)
         {
             limitsExceeded = false;
             bool success = false;
@@ -556,16 +551,13 @@ namespace Opc.Ua.Bindings
                                 chunkToProcess.Array,
                                 chunkToProcess.Offset,
                                 chunkToProcess.Count,
-                                Quotas.MessageContext
-                            )
-                        )
+                                Quotas.MessageContext))
                         {
                             WriteErrorMessageBody(
                                 errorEncoder,
                                 isRequest
                                     ? StatusCodes.BadRequestTooLarge
-                                    : StatusCodes.BadResponseTooLarge
-                            );
+                                    : StatusCodes.BadResponseTooLarge);
                             int size = errorEncoder.Close();
                             chunkToProcess = new ArraySegment<byte>(
                                 chunkToProcess.Array,
@@ -661,8 +653,7 @@ namespace Opc.Ua.Bindings
                             byte[] signature = Sign(
                                 token,
                                 new ArraySegment<byte>(chunkToProcess.Array, 0, encoder.Position),
-                                isRequest
-                            );
+                                isRequest);
 
                             if (signature != null)
                             {
@@ -671,18 +662,15 @@ namespace Opc.Ua.Bindings
                         }
                     }
 
-                    if (
-                        (SecurityMode == MessageSecurityMode.SignAndEncrypt &&
+                    if ((SecurityMode == MessageSecurityMode.SignAndEncrypt &&
                             !AuthenticatedEncryption) ||
-                        (SecurityMode != MessageSecurityMode.None && AuthenticatedEncryption)
-                    )
+                        (SecurityMode != MessageSecurityMode.None && AuthenticatedEncryption))
                     {
                         // encrypt the data.
                         var dataToEncrypt = new ArraySegment<byte>(
                             chunkToProcess.Array,
                             TcpMessageLimits.SymmetricHeaderSize,
-                            encoder.Position - TcpMessageLimits.SymmetricHeaderSize
-                        );
+                            encoder.Position - TcpMessageLimits.SymmetricHeaderSize);
                         Encrypt(token, dataToEncrypt, isRequest);
                     }
 
@@ -713,8 +701,7 @@ namespace Opc.Ua.Bindings
             bool isRequest,
             out ChannelToken token,
             out uint requestId,
-            out uint sequenceNumber
-        )
+            out uint sequenceNumber)
         {
             using var decoder = new BinaryDecoder(buffer, Quotas.MessageContext);
             uint messageType = decoder.ReadUInt32(null);
@@ -729,8 +716,7 @@ namespace Opc.Ua.Bindings
                     StatusCodes.BadTcpSecureChannelUnknown,
                     "SecureChannelId is not known. ChanneId={0}, CurrentChannelId={1}",
                     channelId,
-                    ChannelId
-                );
+                    ChannelId);
             }
 
             // check for a message secured with the new token.
@@ -764,8 +750,7 @@ namespace Opc.Ua.Bindings
                     channelId,
                     tokenId,
                     currentToken.TokenId,
-                    PreviousToken != null ? (int)PreviousToken.TokenId : -1
-                );
+                    PreviousToken != null ? (int)PreviousToken.TokenId : -1);
             }
 
             token = currentToken;
@@ -785,8 +770,7 @@ namespace Opc.Ua.Bindings
                     Id,
                     token.TokenId,
                     token.CreatedAt,
-                    token.CreatedAtTickCount
-                );
+                    token.CreatedAtTickCount);
             }
 
             int headerSize = decoder.Position;
@@ -800,8 +784,7 @@ namespace Opc.Ua.Bindings
                         buffer.Array,
                         buffer.Offset + headerSize,
                         buffer.Count - headerSize),
-                    isRequest
-                );
+                    isRequest);
             }
 
             int paddingCount = 0;
@@ -814,23 +797,19 @@ namespace Opc.Ua.Bindings
                 Array.Copy(buffer.Array, signatureStart, signature, 0, signature.Length);
 
                 // verify the signature.
-                if (
-                    !Verify(
+                if (!Verify(
                         token,
                         signature,
                         new ArraySegment<byte>(
                             buffer.Array,
                             buffer.Offset,
                             buffer.Count - SymmetricSignatureSize),
-                        isRequest
-                    )
-                )
+                        isRequest))
                 {
                     Utils.LogError("ChannelId {0}: Could not verify signature on message.", Id);
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityChecksFailed,
-                        "Could not verify the signature on the message."
-                    );
+                        "Could not verify the signature on the message.");
                 }
 
                 if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
@@ -845,8 +824,7 @@ namespace Opc.Ua.Bindings
                         {
                             throw ServiceResultException.Create(
                                 StatusCodes.BadSecurityChecksFailed,
-                                "Could not verify the padding in the message."
-                            );
+                                "Could not verify the padding in the message.");
                         }
                     }
 
@@ -961,8 +939,7 @@ namespace Opc.Ua.Bindings
                             token,
                             (uint)m_localSequenceNumber,
                             dataToEncrypt,
-                            useClientKeys
-                        );
+                            useClientKeys);
                         break;
                     }
                     // narowing conversion can safely be done on m_localSequenceNumber
@@ -1010,8 +987,7 @@ namespace Opc.Ua.Bindings
                             token,
                             m_remoteSequenceNumber,
                             dataToDecrypt,
-                            useClientKeys
-                        );
+                            useClientKeys);
                         break;
                     }
 
@@ -1047,8 +1023,7 @@ namespace Opc.Ua.Bindings
             {
                 ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    "The computed hash doesn't match the expected size."
-                );
+                    "The computed hash doesn't match the expected size.");
             }
 
             // return signature.
@@ -1087,8 +1062,7 @@ namespace Opc.Ua.Bindings
             ChannelToken token,
             ReadOnlySpan<byte> signature,
             ReadOnlySpan<byte> dataToVerify,
-            bool useClientKeys
-        )
+            bool useClientKeys)
         {
             // get HMAC object.
             HMAC hmac = useClientKeys ? token.ClientHmac : token.ServerHmac;
@@ -1116,8 +1090,7 @@ namespace Opc.Ua.Bindings
             ChannelToken token,
             byte[] signature,
             ArraySegment<byte> dataToVerify,
-            bool useClientKeys
-        )
+            bool useClientKeys)
         {
             // get HMAC object.
             HMAC hmac = useClientKeys ? token.ClientHmac : token.ServerHmac;
@@ -1154,8 +1127,7 @@ namespace Opc.Ua.Bindings
                     messageType,
                     messageLength,
                     expectedSignature,
-                    actualSignature
-                );
+                    actualSignature);
 
                 return false;
             }
@@ -1176,8 +1148,7 @@ namespace Opc.Ua.Bindings
                 (useClientKeys ? token.ClientEncryptor : token.ServerEncryptor)
                 ?? throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    "Token missing symmetric key object."
-                );
+                    "Token missing symmetric key object.");
 
             using ICryptoTransform encryptor = encryptingKey.CreateEncryptor();
             byte[] blockToEncrypt = dataToEncrypt.Array;
@@ -1189,8 +1160,7 @@ namespace Opc.Ua.Bindings
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    "Input data is not an even number of encryption blocks."
-                );
+                    "Input data is not an even number of encryption blocks.");
             }
             encryptor.TransformBlock(blockToEncrypt, start, count, blockToEncrypt, start);
         }
@@ -1209,8 +1179,7 @@ namespace Opc.Ua.Bindings
                 (useClientKeys ? token.ClientEncryptor : token.ServerEncryptor)
                 ?? throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    "Token missing symmetric key object."
-                );
+                    "Token missing symmetric key object.");
 
             using ICryptoTransform decryptor = decryptingKey.CreateDecryptor();
             byte[] blockToDecrypt = dataToDecrypt.Array;
@@ -1222,8 +1191,7 @@ namespace Opc.Ua.Bindings
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    "Input data is not an even number of encryption blocks."
-                );
+                    "Input data is not an even number of encryption blocks.");
             }
 
             decryptor.TransformBlock(blockToDecrypt, start, count, blockToDecrypt, start);
@@ -1237,8 +1205,7 @@ namespace Opc.Ua.Bindings
             ChannelToken token,
             uint lastSequenceNumber,
             ArraySegment<byte> dataToEncrypt,
-            bool useClientKeys
-        )
+            bool useClientKeys)
         {
             var signingKey = (useClientKeys) ? token.ClientSigningKey : token.ServerSigningKey;
 
@@ -1246,8 +1213,7 @@ namespace Opc.Ua.Bindings
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    "Token missing symmetric key object."
-                );
+                    "Token missing symmetric key object.");
             }
 
             var encryptingKey = (useClientKeys) ? token.ClientEncryptingKey : token.ServerEncryptingKey;
@@ -1256,8 +1222,7 @@ namespace Opc.Ua.Bindings
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    "Token missing symmetric key object."
-                );
+                    "Token missing symmetric key object.");
             }
 
             var iv = (useClientKeys) ? token.ClientInitializationVector : token.ServerInitializationVector;
@@ -1266,8 +1231,7 @@ namespace Opc.Ua.Bindings
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    "Token missing symmetric key object."
-                );
+                    "Token missing symmetric key object.");
             }
 
             // Utils.Trace($"EncryptKey={Utils.ToHexString(encryptingKey)}");
@@ -1287,8 +1251,7 @@ namespace Opc.Ua.Bindings
                 new KeyParameter(encryptingKey),
                 signatureLength * 8,
                 iv,
-                null
-            );
+                null);
 
             ChaCha20Poly1305 encryptor = new ChaCha20Poly1305();
             encryptor.Init(true, parameters);
@@ -1301,16 +1264,14 @@ namespace Opc.Ua.Bindings
                 headerSize,
                 plainTextLength - headerSize,
                 ciphertext,
-                headerSize
-            );
+                headerSize);
             length += encryptor.DoFinal(ciphertext, length + headerSize);
 
             if (ciphertext.Length - headerSize != length)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    $"Cipher text not the expected size. [{ciphertext.Length - headerSize} != {length}]"
-                );
+                    $"Cipher text not the expected size. [{ciphertext.Length - headerSize} != {length}]");
             }
 
             Buffer.BlockCopy(ciphertext, 0, plaintext, 0, plainTextLength + signatureLength);
@@ -1328,8 +1289,7 @@ namespace Opc.Ua.Bindings
             ChannelToken token,
             uint lastSequenceNumber,
             ArraySegment<byte> dataToEncrypt,
-            bool useClientKeys
-        )
+            bool useClientKeys)
         {
             var signingKey = (useClientKeys) ? token.ClientSigningKey : token.ServerSigningKey;
 
@@ -1337,8 +1297,7 @@ namespace Opc.Ua.Bindings
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    "Token missing symmetric key object."
-                );
+                    "Token missing symmetric key object.");
             }
 
             ApplyChaCha20Poly1305Mask(token, lastSequenceNumber, signingKey);
@@ -1368,8 +1327,7 @@ namespace Opc.Ua.Bindings
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    $"Signed data not the expected size. [{plainTextLength + signatureLength} != {length}]"
-                );
+                    $"Signed data not the expected size. [{plainTextLength + signatureLength} != {length}]");
             }
         }
 
@@ -1380,8 +1338,7 @@ namespace Opc.Ua.Bindings
             ChannelToken token,
             uint lastSequenceNumber,
             ArraySegment<byte> dataToDecrypt,
-            bool useClientKeys
-        )
+            bool useClientKeys)
         {
             var encryptingKey = (useClientKeys) ? token.ClientEncryptingKey : token.ServerEncryptingKey;
 
@@ -1389,8 +1346,7 @@ namespace Opc.Ua.Bindings
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    "Token missing symmetric key object."
-                );
+                    "Token missing symmetric key object.");
             }
 
             var iv = (useClientKeys) ? token.ClientInitializationVector : token.ServerInitializationVector;
@@ -1399,8 +1355,7 @@ namespace Opc.Ua.Bindings
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    "Token missing symmetric key object."
-                );
+                    "Token missing symmetric key object.");
             }
 
             // Utils.Trace($"DecryptKey={Utils.ToHexString(encryptingKey)}");
@@ -1424,8 +1379,7 @@ namespace Opc.Ua.Bindings
                 new KeyParameter(encryptingKey),
                 signatureLength * 8,
                 iv,
-                null
-            );
+                null);
 
             ChaCha20Poly1305 decryptor = new ChaCha20Poly1305();
             decryptor.Init(false, parameters);
@@ -1441,16 +1395,14 @@ namespace Opc.Ua.Bindings
                 headerSize,
                 cipherTextLength + signatureLength - headerSize,
                 plaintext,
-                headerSize
-            );
+                headerSize);
             length += decryptor.DoFinal(plaintext, length + headerSize);
 
             if (plaintext.Length - headerSize != length)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    $"Plain text not the expected size. [{plaintext.Length - headerSize} != {length}]"
-                );
+                    $"Plain text not the expected size. [{plaintext.Length - headerSize} != {length}]");
             }
 
             Buffer.BlockCopy(plaintext, 0, ciphertext, 0, cipherTextLength);
@@ -1463,8 +1415,7 @@ namespace Opc.Ua.Bindings
             ChannelToken token,
             uint lastSequenceNumber,
             ArraySegment<byte> dataToDecrypt,
-            bool useClientKeys
-        )
+            bool useClientKeys)
         {
             var signingKey = (useClientKeys) ? token.ClientSigningKey : token.ServerSigningKey;
 
@@ -1472,8 +1423,7 @@ namespace Opc.Ua.Bindings
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    "Token missing symmetric key object."
-                );
+                    "Token missing symmetric key object.");
             }
 
             ApplyChaCha20Poly1305Mask(token, lastSequenceNumber, signingKey);
@@ -1504,8 +1454,7 @@ namespace Opc.Ua.Bindings
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    $"Signed data not the expected size. [{plainTextLength + signatureLength} != {length}]"
-                );
+                    $"Signed data not the expected size. [{plainTextLength + signatureLength} != {length}]");
             }
 
             for (int ii = 0; ii < mac.Length; ii++)

@@ -521,8 +521,7 @@ namespace Opc.Ua.Test
             BuiltInType builtInType,
             bool useBoundaryValues,
             int length,
-            bool fixedLength
-        )
+            bool fixedLength)
         {
             Array array = GetRandomArray(builtInType, useBoundaryValues, length, fixedLength);
             var variants = new Variant[array.Length];
@@ -819,8 +818,7 @@ namespace Opc.Ua.Test
             XmlElement element = document.CreateElement(
                 "n0",
                 CreateString(locale1, true),
-                Utils.Format("http://{0}", CreateString(locale1, true))
-            );
+                Utils.Format("http://{0}", CreateString(locale1, true)));
 
             document.AppendChild(element);
 
@@ -883,8 +881,7 @@ namespace Opc.Ua.Test
             return new ExpandedNodeId(
                 nodeId,
                 nodeId.NamespaceIndex > 0 ? NamespaceUris.GetString(nodeId.NamespaceIndex) : null,
-                serverIndex
-            );
+                serverIndex);
         }
 
         /// <inheritdoc/>
@@ -911,11 +908,9 @@ namespace Opc.Ua.Test
                 foreach (FieldInfo field in typeof(StatusCodes).GetFields(
                     BindingFlags.Public | BindingFlags.Static))
                 {
-                    if (
-                        field.Name.StartsWith("Good") ||
+                    if (field.Name.StartsWith("Good") ||
                         field.Name.StartsWith("Uncertain") ||
-                        field.Name.StartsWith("Bad")
-                    )
+                        field.Name.StartsWith("Bad"))
                     {
                         m_knownStatusCodes.Add(
                             new KeyValuePair<uint, string>((uint)field.GetValue(null), field.Name));

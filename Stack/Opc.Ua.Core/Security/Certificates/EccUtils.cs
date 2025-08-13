@@ -123,10 +123,8 @@ namespace Opc.Ua
         {
             ECCurve? curve = null;
 
-            if (
-                certificateType == ObjectTypeIds.EccApplicationCertificateType ||
-                certificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType
-            )
+            if (certificateType == ObjectTypeIds.EccApplicationCertificateType ||
+                certificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType)
             {
                 curve = ECCurve.NamedCurves.nistP256;
             }
@@ -298,15 +296,13 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    "No public key for certificate."
-                );
+                    "No public key for certificate.");
             }
             using ECDsa publicKey =
                 GetPublicKey(signingCertificate)
                 ?? throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    "No public key for certificate."
-                );
+                    "No public key for certificate.");
 
             return publicKey.KeySize / 4;
         }
@@ -341,8 +337,7 @@ namespace Opc.Ua
         public static byte[] Sign(
             ArraySegment<byte> dataToSign,
             X509Certificate2 signingCertificate,
-            string securityPolicyUri
-        )
+            string securityPolicyUri)
         {
             HashAlgorithmName algorithm = GetSignatureAlgorithmName(securityPolicyUri);
             return Sign(dataToSign, signingCertificate, algorithm);
@@ -355,8 +350,7 @@ namespace Opc.Ua
         public static byte[] Sign(
             ArraySegment<byte> dataToSign,
             X509Certificate2 signingCertificate,
-            HashAlgorithmName algorithm
-        )
+            HashAlgorithmName algorithm)
         {
 #if CURVE25519
             var publicKey = signingCertificate.BcCertificate.GetPublicKey();
@@ -407,8 +401,7 @@ namespace Opc.Ua
                 signingCertificate.GetECDsaPrivateKey()
                 ?? throw new ServiceResultException(
                     StatusCodes.BadCertificateInvalid,
-                    "Missing private key needed for create a signature."
-                );
+                    "Missing private key needed for create a signature.");
 
             using (senderPrivateKey)
             {
@@ -416,8 +409,7 @@ namespace Opc.Ua
                     dataToSign.Array,
                     dataToSign.Offset,
                     dataToSign.Count,
-                    algorithm
-                );
+                    algorithm);
 
 #if DEBUGxxx
                 using (ECDsa ecdsa = EccUtils.GetPublicKey(new X509Certificate2(signingCertificate.RawData)))
@@ -426,8 +418,7 @@ namespace Opc.Ua
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadSecurityChecksFailed,
-                            "Could not verify signature."
-                        );
+                            "Could not verify signature.");
                     }
                 }
 #endif
@@ -443,8 +434,7 @@ namespace Opc.Ua
             ArraySegment<byte> dataToVerify,
             byte[] signature,
             X509Certificate2 signingCertificate,
-            string securityPolicyUri
-        )
+            string securityPolicyUri)
         {
             return Verify(
                 dataToVerify,
@@ -460,8 +450,7 @@ namespace Opc.Ua
             ArraySegment<byte> dataToVerify,
             byte[] signature,
             X509Certificate2 signingCertificate,
-            HashAlgorithmName algorithm
-        )
+            HashAlgorithmName algorithm)
         {
 #if CURVE25519
             var publicKey = signingCertificate.BcCertificate.GetPublicKey();
@@ -568,10 +557,8 @@ namespace Opc.Ua
         {
 #if CURVE25519
             bool useAuthenticatedEncryption = false;
-            if (
-                SenderCertificate.BcCertificate.GetPublicKey() is Ed25519PublicKeyParameters
-                || SenderCertificate.BcCertificate.GetPublicKey() is Ed448PublicKeyParameters
-            )
+            if (SenderCertificate.BcCertificate.GetPublicKey() is Ed25519PublicKeyParameters
+                || SenderCertificate.BcCertificate.GetPublicKey() is Ed448PublicKeyParameters)
             {
                 useAuthenticatedEncryption = true;
             }
@@ -619,8 +606,7 @@ namespace Opc.Ua
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityChecksFailed,
-                        "Input data is not an even number of encryption blocks."
-                    );
+                        "Input data is not an even number of encryption blocks.");
                 }
 
                 encryptor.TransformBlock(dataToEncrypt, 0, dataToEncrypt.Length, dataToEncrypt, 0);
@@ -648,8 +634,7 @@ namespace Opc.Ua
                 new KeyParameter(encryptingKey),
                 signatureLength * 8,
                 iv,
-                null
-            );
+                null);
 
             ChaCha20Poly1305 encryptor = new ChaCha20Poly1305();
             encryptor.Init(true, parameters);
@@ -662,8 +647,7 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    $"CipherText not the expected size. [{ciphertext.Length} != {length}]"
-                );
+                    $"CipherText not the expected size. [{ciphertext.Length} != {length}]");
             }
 
             return ciphertext;
@@ -684,8 +668,7 @@ namespace Opc.Ua
             byte[] iv,
             byte[] dataToDecrypt,
             int offset,
-            int count
-        )
+            int count)
         {
             Utils.Trace($"EncryptKey={Utils.ToHexString(encryptingKey)}");
             Utils.Trace($"EncryptIV={Utils.ToHexString(iv)}");
@@ -696,8 +679,7 @@ namespace Opc.Ua
                 new KeyParameter(encryptingKey),
                 signatureLength * 8,
                 iv,
-                null
-            );
+                null);
 
             ChaCha20Poly1305 decryptor = new ChaCha20Poly1305();
             decryptor.Init(false, parameters);
@@ -710,8 +692,7 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    $"PlainText not the expected size or too short. [{count} != {length}]"
-                );
+                    $"PlainText not the expected size or too short. [{count} != {length}]");
             }
 
             ushort paddingSize = plaintext[length - 1];
@@ -756,15 +737,12 @@ namespace Opc.Ua
             int offset,
             int count,
             byte[] encryptingKey,
-            byte[] iv
-        )
+            byte[] iv)
         {
 #if CURVE25519
             bool useAuthenticatedEncryption = false;
-            if (
-                SenderCertificate.BcCertificate.GetPublicKey() is Ed25519PublicKeyParameters
-                || SenderCertificate.BcCertificate.GetPublicKey() is Ed448PublicKeyParameters
-            )
+            if (SenderCertificate.BcCertificate.GetPublicKey() is Ed25519PublicKeyParameters
+                || SenderCertificate.BcCertificate.GetPublicKey() is Ed448PublicKeyParameters)
             {
                 useAuthenticatedEncryption = true;
             }
@@ -785,8 +763,7 @@ namespace Opc.Ua
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityChecksFailed,
-                        "Input data is not an even number of encryption blocks."
-                    );
+                        "Input data is not an even number of encryption blocks.");
                 }
 
                 decryptor.TransformBlock(dataToDecrypt, offset, count, dataToDecrypt, offset);
@@ -835,8 +812,7 @@ namespace Opc.Ua
             Nonce receiverNonce,
             bool forDecryption,
             out byte[] encryptingKey,
-            out byte[] iv
-        )
+            out byte[] iv)
         {
             int encryptingKeySize = 32;
             int blockSize = 16;
@@ -1030,8 +1006,7 @@ namespace Opc.Ua
                 dataToDecrypt.Array,
                 dataToDecrypt.Offset,
                 dataToDecrypt.Count,
-                ServiceMessageContext.GlobalContext
-            );
+                ServiceMessageContext.GlobalContext);
             NodeId typeId = decoder.ReadNodeId(null);
 
             if (typeId != DataTypeIds.EccEncryptedSecret)
@@ -1148,14 +1123,12 @@ namespace Opc.Ua
                 startOfData + (int)length - signatureLength,
                 signature,
                 0,
-                signatureLength
-            );
+                signatureLength);
 
             var dataToSign = new ArraySegment<byte>(
                 dataToDecrypt.Array,
                 0,
-                startOfData + (int)length - signatureLength
-            );
+                startOfData + (int)length - signatureLength);
 
             if (!EccUtils.Verify(dataToSign, signature, SenderCertificate, signatureAlgorithm))
             {
@@ -1168,8 +1141,7 @@ namespace Opc.Ua
             return new ArraySegment<byte>(
                 dataToDecrypt.Array,
                 startOfEncryption,
-                (int)length - (startOfEncryption - startOfData + signatureLength)
-            );
+                (int)length - (startOfEncryption - startOfData + signatureLength));
         }
 
         /// <summary>
@@ -1191,8 +1163,7 @@ namespace Opc.Ua
         {
             ArraySegment<byte> dataToDecrypt = VerifyHeaderForEcc(
                 new ArraySegment<byte>(data, offset, count),
-                earliestTime
-            );
+                earliestTime);
 
             CreateKeysForEcc(
                 SecurityPolicyUri,
@@ -1200,23 +1171,20 @@ namespace Opc.Ua
                 ReceiverNonce,
                 true,
                 out byte[] encryptingKey,
-                out byte[] iv
-            );
+                out byte[] iv);
 
             ArraySegment<byte> plainText = DecryptSecret(
                 dataToDecrypt.Array,
                 dataToDecrypt.Offset,
                 dataToDecrypt.Count,
                 encryptingKey,
-                iv
-            );
+                iv);
 
             using var decoder = new BinaryDecoder(
                 plainText.Array,
                 plainText.Offset,
                 plainText.Count,
-                ServiceMessageContext.GlobalContext
-            );
+                ServiceMessageContext.GlobalContext);
             byte[] actualNonce = decoder.ReadByteString(null);
 
             if (expectedNonce != null && expectedNonce.Length > 0)
@@ -1244,8 +1212,7 @@ namespace Opc.Ua
             ArraySegment<byte> dataToVerify,
             byte[] signature,
             X509Certificate2 signingCertificate,
-            string securityPolicyUri
-        )
+            string securityPolicyUri)
         {
             return Verify(
                 dataToVerify,
@@ -1261,8 +1228,7 @@ namespace Opc.Ua
             ArraySegment<byte> dataToVerify,
             byte[] signature,
             X509Certificate2 signingCertificate,
-            HashAlgorithmName algorithm
-        )
+            HashAlgorithmName algorithm)
         {
 #if CURVE25519
             var publicKey = signingCertificate.BcCertificate.GetPublicKey();

@@ -44,8 +44,7 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             string owner,
             BufferSegment firstSegment,
-            ReadOnlySequence<byte> sequence
-        )
+            ReadOnlySequence<byte> sequence)
         {
             m_bufferManager = bufferManager;
             m_owner = owner;

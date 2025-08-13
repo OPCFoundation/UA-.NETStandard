@@ -61,8 +61,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             NUnit.Framework.Assert.Throws<ArgumentNullException>(
                 () => UaPubSubApplication.Create((string)null),
-                "Calling Create with null parameter shall throw error"
-            );
+                "Calling Create with null parameter shall throw error");
         }
 
         [Test(Description = "Validate Create call with null PubSubConfigurationDataType")]
@@ -70,8 +69,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             NUnit.Framework.Assert.DoesNotThrow(
                 () => UaPubSubApplication.Create((PubSubConfigurationDataType)null),
-                "Calling Create with null parameter shall not throw error"
-            );
+                "Calling Create with null parameter shall not throw error");
         }
 
         [Test(Description = "Validate Create call")]
@@ -83,13 +81,11 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             // Assert
             Assert.IsTrue(
                 uaPubSubApplication.PubSubConnections != null,
-                "uaPubSubApplication.PubSubConnections collection is null"
-            );
+                "uaPubSubApplication.PubSubConnections collection is null");
             Assert.AreEqual(
                 3,
                 uaPubSubApplication.PubSubConnections.Count,
-                "uaPubSubApplication.PubSubConnections count"
-            );
+                "uaPubSubApplication.PubSubConnections count");
             var connection = uaPubSubApplication.PubSubConnections[0] as UaPubSubConnection;
             Assert.IsTrue(connection.Publishers != null, "connection.Publishers is null");
             Assert.IsTrue(connection.Publishers.Count == 1, "connection.Publishers count is not 2");
@@ -100,14 +96,12 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Assert.IsTrue(
                     publisher.PubSubConnection == connection,
                     "connection.Publishers[{0}].PubSubConnection is not set correctly",
-                    index
-                );
+                    index);
                 Assert.IsTrue(
                     publisher.WriterGroupConfiguration.WriterGroupId ==
                         m_pubSubConfiguration.Connections[0].WriterGroups[index].WriterGroupId,
                     "connection.Publishers[{0}].WriterGroupConfiguration is not set correctly",
-                    index
-                );
+                    index);
                 index++;
             }
         }

@@ -407,8 +407,7 @@ namespace Opc.Ua
         protected override ServiceResult ReadNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            ref object value
-        )
+            ref object value)
         {
             ServiceResult result = null;
 
@@ -476,8 +475,7 @@ namespace Opc.Ua
             NumericRange indexRange,
             QualifiedName dataEncoding,
             ref object value,
-            ref DateTime sourceTimestamp
-        )
+            ref DateTime sourceTimestamp)
         {
             value = m_value;
 
@@ -633,8 +631,7 @@ namespace Opc.Ua
             NumericRange indexRange,
             object value,
             StatusCode statusCode,
-            DateTime sourceTimestamp
-        )
+            DateTime sourceTimestamp)
         {
             ServiceResult result = null;
 
@@ -661,8 +658,7 @@ namespace Opc.Ua
                 m_dataType,
                 m_valueRank,
                 context.NamespaceUris,
-                context.TypeTable
-            );
+                context.TypeTable);
 
             if (typeInfo == null || typeInfo == TypeInfo.Unknown)
             {
@@ -730,13 +726,11 @@ namespace Opc.Ua
             BrowseName = QualifiedName.Create(
                 BrowseNames.BaseDataVariableType,
                 Namespaces.OpcUa,
-                context.NamespaceUris
-            );
+                context.NamespaceUris);
             DisplayName = new LocalizedText(
                 BrowseNames.BaseDataVariableType,
                 string.Empty,
-                BrowseNames.BaseDataVariableType
-            );
+                BrowseNames.BaseDataVariableType);
             Description = null;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;

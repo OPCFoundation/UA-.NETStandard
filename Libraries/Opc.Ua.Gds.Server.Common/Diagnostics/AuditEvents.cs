@@ -47,8 +47,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             ISystemContext systemContext,
             NodeId objectId,
             MethodState method,
-            object[] inputArguments
-        )
+            object[] inputArguments)
         {
             try
             {
@@ -57,8 +56,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                 var message = new TranslationInfo(
                     "CertificateUpdateRequestedAuditEvent",
                     "en-US",
-                    "CertificateUpdateRequestedAuditEvent."
-                );
+                    "CertificateUpdateRequestedAuditEvent.");
 
                 e.Initialize(systemContext, null, EventSeverity.Min, new LocalizedText(message), true, DateTime.UtcNow); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
@@ -110,8 +108,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             object[] inputArguments,
             NodeId certificateGroupId,
             NodeId certificateTypeId,
-            Exception exception = null
-        )
+            Exception exception = null)
         {
             try
             {
@@ -123,16 +120,14 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                     message = new TranslationInfo(
                         "CertificateRequestedAuditEvent",
                         "en-US",
-                        "CertificateRequestedAuditEvent."
-                    );
+                        "CertificateRequestedAuditEvent.");
                 }
                 else
                 {
                     message = new TranslationInfo(
                         "CertificateRequestedAuditEvent",
                         "en-US",
-                        $"CertificateRequestedAuditEvent - Exception: {exception.Message}."
-                    );
+                        $"CertificateRequestedAuditEvent - Exception: {exception.Message}.");
                 }
 
                 e.Initialize(
@@ -197,8 +192,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             ISystemContext systemContext,
             NodeId objectId,
             MethodState method,
-            object[] inputArguments
-        )
+            object[] inputArguments)
         {
             try
             {
@@ -207,8 +201,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                 var message = new TranslationInfo(
                     "ApplicationRegistrationChangedAuditEvent",
                     "en-US",
-                    "ApplicationRegistrationChangedAuditEvent."
-                );
+                    "ApplicationRegistrationChangedAuditEvent.");
 
                 e.Initialize(systemContext, null, EventSeverity.Min, new LocalizedText(message), true, DateTime.UtcNow); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 

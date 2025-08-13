@@ -76,8 +76,7 @@ namespace Opc.Ua.Client
         /// </summary>
         internal readonly EventId SubscriptionStateMessageEventId = new(
             TraceMasks.Operation,
-            nameof(SubscriptionState)
-        );
+            nameof(SubscriptionState));
 
         internal readonly EventId NotificationEventId = new(
             TraceMasks.Operation,
@@ -107,8 +106,7 @@ namespace Opc.Ua.Client
             double currentPublishingInterval,
             uint currentKeepAliveCount,
             bool currentPublishingEnabled,
-            uint monitoredItemCount
-        )
+            uint monitoredItemCount)
         {
             if (IsEnabled())
             {
@@ -121,8 +119,7 @@ namespace Opc.Ua.Client
                     currentPublishingInterval,
                     currentKeepAliveCount,
                     currentPublishingEnabled,
-                    monitoredItemCount
-                );
+                    monitoredItemCount);
             }
             else if (Logger.IsEnabled(LogLevel.Information))
             {
@@ -136,8 +133,7 @@ namespace Opc.Ua.Client
                     currentPublishingInterval,
                     currentKeepAliveCount,
                     currentPublishingEnabled,
-                    monitoredItemCount
-                );
+                    monitoredItemCount);
             }
         }
 

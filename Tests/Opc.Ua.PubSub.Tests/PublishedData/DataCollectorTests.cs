@@ -67,8 +67,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 false);
             PubSubConfigurationDataType pubSubConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
-                    configurationFile
-                    );
+                    configurationFile);
 
             var dataCollector = new DataCollector(new UaPubSubDataStore());
             //Act
@@ -79,8 +78,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Assert.IsNotNull(
                 collectedDataSet,
                 "Cannot collect data therefore the '{0}' publishedDataSet was not registered correctly.",
-                pubSubConfiguration.PublishedDataSets[0].Name
-            );
+                pubSubConfiguration.PublishedDataSets[0].Name);
         }
 
         [Test(Description = "Validate RemovePublishedDataSet.")]
@@ -97,8 +95,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Assert.IsNull(
                 collectedDataSet,
                 "The '{0}' publishedDataSet was not removed correctly.",
-                publishedDataSet.Name
-            );
+                publishedDataSet.Name);
         }
 
         [Test(Description = "Validate RemovePublishedDataSet with null parameter.")]
@@ -119,8 +116,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             dataStore.WritePublishedDataItem(
                 new NodeId("BoolToggle", NamespaceIndex),
                 0,
-                new DataValue(new Variant(false))
-            );
+                new DataValue(new Variant(false)));
             dataStore.WritePublishedDataItem(
                 new NodeId("Int32", NamespaceIndex),
                 0,
@@ -132,8 +128,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             dataStore.WritePublishedDataItem(
                 new NodeId("DateTime", NamespaceIndex),
                 0,
-                new DataValue(new Variant(DateTime.MaxValue))
-            );
+                new DataValue(new Variant(DateTime.MaxValue)));
 
             var dataCollector = new DataCollector(dataStore);
 
@@ -185,8 +180,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                     {
                         PublishedVariable = new NodeId(field.Name, NamespaceIndex),
                         AttributeId = Attributes.Value
-                    }
-                );
+                    });
             }
             publishedDataSetSimple.DataSetSource = new ExtensionObject(publishedDataItems);
 
@@ -197,38 +191,32 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             //Assert
             Assert.IsNotNull(
                 publishedDataItems,
-                "The m_firstPublishedDataSet.DataSetSource is not PublishedDataItemsDataType."
-            );
+                "The m_firstPublishedDataSet.DataSetSource is not PublishedDataItemsDataType.");
             Assert.IsNotNull(collectedDataSet, "collectedDataSet is null.");
             Assert.IsNotNull(collectedDataSet.Fields, "collectedDataSet.Fields is null.");
 
             Assert.AreEqual(
                 collectedDataSet.Fields.Length,
                 publishedDataItems.PublishedData.Count,
-                "collectedDataSet and published data fields count do not match."
-            );
+                "collectedDataSet and published data fields count do not match.");
 
             // validate collected values
             Assert.AreEqual(
                 collectedDataSet.Fields[0].Value.Value,
                 false,
-                "collectedDataSet.Fields[0].Value.Value does not match."
-            );
+                "collectedDataSet.Fields[0].Value.Value does not match.");
             Assert.AreEqual(
                 collectedDataSet.Fields[1].Value.Value,
                 1,
-                "collectedDataSet.Fields[1].Value.Value does not match."
-            );
+                "collectedDataSet.Fields[1].Value.Value does not match.");
             Assert.AreEqual(
                 collectedDataSet.Fields[2].Value.Value,
                 2,
-                "collectedDataSet.Fields[2].Value.Value does not match."
-            );
+                "collectedDataSet.Fields[2].Value.Value does not match.");
             Assert.AreEqual(
                 collectedDataSet.Fields[3].Value.Value,
                 DateTime.MaxValue,
-                "collectedDataSet.Fields[3].Value.Value does not match."
-            );
+                "collectedDataSet.Fields[3].Value.Value does not match.");
         }
 
         [Test(Description = "Validate CollectData from ExtensionFields.")]
@@ -294,8 +282,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                     new PublishedVariableDataType
                     {
                         SubstituteValue = new QualifiedName(field.Name)
-                    }
-                );
+                    });
             }
             publishedDataSetSimple.DataSetSource = new ExtensionObject(publishedDataItems);
 
@@ -305,37 +292,31 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             //Assert
             Assert.IsNotNull(
                 publishedDataItems,
-                "The m_firstPublishedDataSet.DataSetSource is not PublishedDataItemsDataType."
-            );
+                "The m_firstPublishedDataSet.DataSetSource is not PublishedDataItemsDataType.");
             Assert.IsNotNull(collectedDataSet, "collectedDataSet is null.");
             Assert.IsNotNull(collectedDataSet.Fields, "collectedDataSet.Fields is null.");
 
             Assert.AreEqual(
                 collectedDataSet.Fields.Length,
                 publishedDataItems.PublishedData.Count,
-                "collectedDataSet and published data fields count do not match."
-            );
+                "collectedDataSet and published data fields count do not match.");
             // validate collected values
             Assert.AreEqual(
                 collectedDataSet.Fields[0].Value.Value,
                 true,
-                "collectedDataSet.Fields[0].Value.Value does not match."
-            );
+                "collectedDataSet.Fields[0].Value.Value does not match.");
             Assert.AreEqual(
                 collectedDataSet.Fields[1].Value.Value,
                 100,
-                "collectedDataSet.Fields[1].Value.Value does not match."
-            );
+                "collectedDataSet.Fields[1].Value.Value does not match.");
             Assert.AreEqual(
                 collectedDataSet.Fields[2].Value.Value,
                 50,
-                "collectedDataSet.Fields[2].Value.Value does not match."
-            );
+                "collectedDataSet.Fields[2].Value.Value does not match.");
             Assert.AreEqual(
                 collectedDataSet.Fields[3].Value.Value,
                 DateTime.Today,
-                "collectedDataSet.Fields[3].Value.Value does not match."
-            );
+                "collectedDataSet.Fields[3].Value.Value does not match.");
         }
 
         [Test(Description = "Validate CollectData unknown dataset name.")]
@@ -360,8 +341,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             //Assert
             NUnit.Framework.Assert.Throws<ArgumentException>(
                 () => dataCollector.CollectData(null),
-                "The data collect does not throw exception when null parameter."
-            );
+                "The data collect does not throw exception when null parameter.");
         }
     }
 }

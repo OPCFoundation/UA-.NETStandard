@@ -485,8 +485,7 @@ namespace Opc.Ua.Bindings
                 m_settings.ClientCertificate,
                 m_settings.ClientCertificateChain,
                 m_settings.ServerCertificate,
-                m_settings.Description
-            );
+                m_settings.Description);
 
             // use socket for reverse connections, ignore otherwise
             if (socket != null)

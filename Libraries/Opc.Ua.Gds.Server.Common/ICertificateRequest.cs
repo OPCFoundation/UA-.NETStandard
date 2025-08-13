@@ -84,8 +84,7 @@ namespace Opc.Ua.Gds.Server
             string certificateGroupId,
             string certificateTypeId,
             byte[] certificateRequest,
-            string authorityId
-        );
+            string authorityId);
 
         /// <summary>
         /// Start a request for a new key pair.
@@ -107,8 +106,7 @@ namespace Opc.Ua.Gds.Server
             string[] domainNames,
             string privateKeyFormat,
             string privateKeyPassword,
-            string authorityId
-        );
+            string authorityId);
 
         /// <summary>
         /// Approve or reject a request.
@@ -139,8 +137,7 @@ namespace Opc.Ua.Gds.Server
             out string certificateGroupId,
             out string certificateTypeId,
             out byte[] signedCertificate,
-            out byte[] privateKey
-        );
+            out byte[] privateKey);
 
         /// <summary>
         /// Read a certificate request.
@@ -163,7 +160,6 @@ namespace Opc.Ua.Gds.Server
             out string subjectName,
             out string[] domainNames,
             out string privateKeyFormat,
-            out string privateKeyPassword
-        );
+            out string privateKeyPassword);
     }
 }

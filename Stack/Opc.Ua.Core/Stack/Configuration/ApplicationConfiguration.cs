@@ -216,8 +216,7 @@ namespace Opc.Ua
         public static Task<ApplicationConfiguration> Load(
             string sectionName,
             ApplicationType applicationType,
-            Type systemType
-        )
+            Type systemType)
         {
             return LoadAsync(sectionName, applicationType, systemType);
         }
@@ -233,8 +232,7 @@ namespace Opc.Ua
         public static Task<ApplicationConfiguration> LoadAsync(
             string sectionName,
             ApplicationType applicationType,
-            Type systemType
-        )
+            Type systemType)
         {
             string filePath = GetFilePathFromAppConfig(sectionName);
 
@@ -251,8 +249,7 @@ namespace Opc.Ua
                     .AppendFormat(
                     CultureInfo.InvariantCulture,
                     "Current directory is: {0}",
-                    Directory.GetCurrentDirectory()
-                );
+                    Directory.GetCurrentDirectory());
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
                     message.ToString());
@@ -291,8 +288,7 @@ namespace Opc.Ua
                 message.AppendFormat(
                     CultureInfo.InvariantCulture,
                     "Configuration file could not be loaded: {0}",
-                    file.FullName
-                )
+                    file.FullName)
                     .AppendLine()
                     .AppendFormat(CultureInfo.InvariantCulture, "Error is: {0}", e.Message);
                 throw ServiceResultException.Create(
@@ -313,8 +309,7 @@ namespace Opc.Ua
         public static Task<ApplicationConfiguration> Load(
             FileInfo file,
             ApplicationType applicationType,
-            Type systemType
-        )
+            Type systemType)
         {
             return LoadAsync(file, applicationType, systemType);
         }
@@ -329,8 +324,7 @@ namespace Opc.Ua
         public static Task<ApplicationConfiguration> LoadAsync(
             FileInfo file,
             ApplicationType applicationType,
-            Type systemType
-        )
+            Type systemType)
         {
             return LoadAsync(file, applicationType, systemType, true);
         }
@@ -350,8 +344,7 @@ namespace Opc.Ua
             ApplicationType applicationType,
             Type systemType,
             bool applyTraceSettings,
-            ICertificatePasswordProvider certificatePasswordProvider = null
-        )
+            ICertificatePasswordProvider certificatePasswordProvider = null)
         {
             return LoadAsync(
                 file,
@@ -378,8 +371,7 @@ namespace Opc.Ua
             Type systemType,
             bool applyTraceSettings,
             ICertificatePasswordProvider certificatePasswordProvider = null,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             ApplicationConfiguration configuration = null;
 
@@ -392,8 +384,7 @@ namespace Opc.Ua
                         systemType,
                         applyTraceSettings,
                         certificatePasswordProvider,
-                        ct
-                    )
+                        ct)
                     .ConfigureAwait(false);
             }
             catch (Exception e)
@@ -402,8 +393,7 @@ namespace Opc.Ua
                 message.AppendFormat(
                     CultureInfo.InvariantCulture,
                     "Configuration file could not be loaded: {0}",
-                    file.FullName
-                )
+                    file.FullName)
                     .AppendLine()
                     .Append(e.Message);
                 throw ServiceResultException.Create(
@@ -435,8 +425,7 @@ namespace Opc.Ua
             ApplicationType applicationType,
             Type systemType,
             bool applyTraceSettings,
-            ICertificatePasswordProvider certificatePasswordProvider = null
-        )
+            ICertificatePasswordProvider certificatePasswordProvider = null)
         {
             return LoadAsync(
                 stream,
@@ -463,8 +452,7 @@ namespace Opc.Ua
             Type systemType,
             bool applyTraceSettings,
             ICertificatePasswordProvider certificatePasswordProvider = null,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             systemType ??= typeof(ApplicationConfiguration);
 
@@ -562,16 +550,14 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
-                    "ApplicationName must be specified."
-                );
+                    "ApplicationName must be specified.");
             }
 
             if (SecurityConfiguration == null)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
-                    "SecurityConfiguration must be specified."
-                );
+                    "SecurityConfiguration must be specified.");
             }
 
             SecurityConfiguration.Validate();
@@ -609,8 +595,7 @@ namespace Opc.Ua
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError,
-                        "ClientConfiguration must be specified."
-                    );
+                        "ClientConfiguration must be specified.");
                 }
 
                 ClientConfiguration.Validate();
@@ -622,8 +607,7 @@ namespace Opc.Ua
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError,
-                        "ServerConfiguration must be specified."
-                    );
+                        "ServerConfiguration must be specified.");
                 }
 
                 ServerConfiguration.Validate();
@@ -635,8 +619,7 @@ namespace Opc.Ua
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError,
-                        "DiscoveryServerConfiguration must be specified."
-                    );
+                        "DiscoveryServerConfiguration must be specified.");
                 }
 
                 DiscoveryServerConfiguration.Validate();
@@ -690,8 +673,7 @@ namespace Opc.Ua
                 true,
                 false,
                 false,
-                false
-            );
+                false);
 
             if (filePath == null)
             {
@@ -704,8 +686,7 @@ namespace Opc.Ua
                         "{0}{1}{2}",
                         sourceFile.DirectoryName,
                         Path.DirectorySeparatorChar,
-                        filePath
-                    );
+                        filePath);
                 }
             }
 
@@ -733,8 +714,7 @@ namespace Opc.Ua
                     true,
                     false,
                     true,
-                    true
-                );
+                    true);
                 if (localFilePath != filePath)
                 {
                     endpoints.Save(localFilePath);

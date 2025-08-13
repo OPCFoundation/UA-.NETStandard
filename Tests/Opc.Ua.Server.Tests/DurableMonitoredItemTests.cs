@@ -1245,8 +1245,7 @@ namespace Opc.Ua.Server.Tests
                     string.Format(
                         CultureInfo.InvariantCulture,
                         "Dequeue operation failed for the {0}st item",
-                        i)
-                );
+                        i));
                 Assert.That(i, Is.EqualTo(value.ClientHandle));
 
                 //simulate publishing operation
@@ -1284,8 +1283,7 @@ namespace Opc.Ua.Server.Tests
                     string.Format(
                         CultureInfo.InvariantCulture,
                         "Dequeue operation failed for the {0}st item",
-                        i)
-                );
+                        i));
                 Assert.That(i, Is.EqualTo((uint)value.Value));
 
                 //simulate publishing operation
@@ -1325,8 +1323,7 @@ namespace Opc.Ua.Server.Tests
                 queueSize,
                 false,
                 1000,
-                true
-            );
+                true);
         }
     }
 }

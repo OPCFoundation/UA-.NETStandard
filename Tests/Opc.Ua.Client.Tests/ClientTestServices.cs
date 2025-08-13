@@ -49,8 +49,7 @@ namespace Opc.Ua.Client.Tests
             uint requestedMaxReferencesPerNode,
             BrowseDescriptionCollection nodesToBrowse,
             out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return m_session.Browse(
                 requestHeader,
@@ -58,8 +57,7 @@ namespace Opc.Ua.Client.Tests
                 requestedMaxReferencesPerNode,
                 nodesToBrowse,
                 out results,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
         }
 
         public ResponseHeader BrowseNext(
@@ -67,16 +65,14 @@ namespace Opc.Ua.Client.Tests
             bool releaseContinuationPoints,
             ByteStringCollection continuationPoints,
             out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return m_session.BrowseNext(
                 requestHeader,
                 releaseContinuationPoints,
                 continuationPoints,
                 out results,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
         }
 
         public ResponseHeader CreateSubscription(
@@ -90,8 +86,7 @@ namespace Opc.Ua.Client.Tests
             out uint subscriptionId,
             out double revisedPublishingInterval,
             out uint revisedLifetimeCount,
-            out uint revisedMaxKeepAliveCount
-        )
+            out uint revisedMaxKeepAliveCount)
         {
             return m_session.CreateSubscription(
                 requestHeader,
@@ -104,8 +99,7 @@ namespace Opc.Ua.Client.Tests
                 out subscriptionId,
                 out revisedPublishingInterval,
                 out revisedLifetimeCount,
-                out revisedMaxKeepAliveCount
-            );
+                out revisedMaxKeepAliveCount);
         }
 
         public ResponseHeader CreateMonitoredItems(
@@ -114,8 +108,7 @@ namespace Opc.Ua.Client.Tests
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequestCollection itemsToCreate,
             out MonitoredItemCreateResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return m_session.CreateMonitoredItems(
                 requestHeader,
@@ -123,8 +116,7 @@ namespace Opc.Ua.Client.Tests
                 timestampsToReturn,
                 itemsToCreate,
                 out results,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
         }
 
         public ResponseHeader ModifySubscription(
@@ -137,8 +129,7 @@ namespace Opc.Ua.Client.Tests
             byte priority,
             out double revisedPublishingInterval,
             out uint revisedLifetimeCount,
-            out uint revisedMaxKeepAliveCount
-        )
+            out uint revisedMaxKeepAliveCount)
         {
             return m_session.ModifySubscription(
                 requestHeader,
@@ -150,8 +141,7 @@ namespace Opc.Ua.Client.Tests
                 priority,
                 out revisedPublishingInterval,
                 out revisedLifetimeCount,
-                out revisedMaxKeepAliveCount
-            );
+                out revisedMaxKeepAliveCount);
         }
 
         public ResponseHeader ModifyMonitoredItems(
@@ -160,8 +150,7 @@ namespace Opc.Ua.Client.Tests
             TimestampsToReturn timestampsToReturn,
             MonitoredItemModifyRequestCollection itemsToModify,
             out MonitoredItemModifyResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return m_session.ModifyMonitoredItems(
                 requestHeader,
@@ -169,8 +158,7 @@ namespace Opc.Ua.Client.Tests
                 timestampsToReturn,
                 itemsToModify,
                 out results,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
         }
 
         public ResponseHeader Publish(
@@ -181,8 +169,7 @@ namespace Opc.Ua.Client.Tests
             out bool moreNotifications,
             out NotificationMessage notificationMessage,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return m_session.Publish(
                 requestHeader,
@@ -192,8 +179,7 @@ namespace Opc.Ua.Client.Tests
                 out moreNotifications,
                 out notificationMessage,
                 out results,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
         }
 
         public ResponseHeader SetPublishingMode(
@@ -201,16 +187,14 @@ namespace Opc.Ua.Client.Tests
             bool publishingEnabled,
             UInt32Collection subscriptionIds,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return m_session.SetPublishingMode(
                 requestHeader,
                 publishingEnabled,
                 subscriptionIds,
                 out results,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
         }
 
         public ResponseHeader SetMonitoringMode(
@@ -219,8 +203,7 @@ namespace Opc.Ua.Client.Tests
             MonitoringMode monitoringMode,
             UInt32Collection monitoredItemIds,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return m_session.SetMonitoringMode(
                 requestHeader,
@@ -228,31 +211,27 @@ namespace Opc.Ua.Client.Tests
                 monitoringMode,
                 monitoredItemIds,
                 out results,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
         }
 
         public ResponseHeader Republish(
             RequestHeader requestHeader,
             uint subscriptionId,
             uint retransmitSequenceNumber,
-            out NotificationMessage notificationMessage
-        )
+            out NotificationMessage notificationMessage)
         {
             return m_session.Republish(
                 requestHeader,
                 subscriptionId,
                 retransmitSequenceNumber,
-                out notificationMessage
-            );
+                out notificationMessage);
         }
 
         public ResponseHeader DeleteSubscriptions(
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return m_session.DeleteSubscriptions(
                 requestHeader,
@@ -266,31 +245,27 @@ namespace Opc.Ua.Client.Tests
             UInt32Collection subscriptionIds,
             bool sendInitialValues,
             out TransferResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return m_session.TransferSubscriptions(
                 requestHeader,
                 subscriptionIds,
                 sendInitialValues,
                 out results,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
         }
 
         public ResponseHeader TranslateBrowsePathsToNodeIds(
             RequestHeader requestHeader,
             BrowsePathCollection browsePaths,
             out BrowsePathResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return m_session.TranslateBrowsePathsToNodeIds(
                 requestHeader,
                 browsePaths,
                 out results,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
         }
     }
 }

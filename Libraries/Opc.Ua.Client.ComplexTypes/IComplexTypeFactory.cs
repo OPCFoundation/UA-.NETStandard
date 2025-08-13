@@ -42,8 +42,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public abstract IComplexTypeBuilder Create(
             string targetNamespace,
             int targetNamespaceIndex,
-            string moduleName = null
-        );
+            string moduleName = null);
 
         /// <summary>
         /// Types defined in the factory.
@@ -93,8 +92,7 @@ namespace Opc.Ua.Client.ComplexTypes
         void AddTypeIdAttribute(
             ExpandedNodeId complexTypeId,
             ExpandedNodeId binaryEncodingId,
-            ExpandedNodeId xmlEncodingId
-        );
+            ExpandedNodeId xmlEncodingId);
 
         /// <summary>
         /// Create a property field of a class with get and set.

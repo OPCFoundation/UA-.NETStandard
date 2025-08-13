@@ -44,8 +44,7 @@ namespace Alarms
             int interval,
             bool optional = true,
             double maxShelveTime = AlarmDefines.NORMAL_MAX_TIME_SHELVED,
-            bool create = true
-        )
+            bool create = true)
             : base(
                 alarmNodeManager,
                 parent,
@@ -56,8 +55,7 @@ namespace Alarms
                 interval,
                 optional,
                 maxShelveTime,
-                false
-            )
+                false)
         {
             if (create)
             {
@@ -68,8 +66,7 @@ namespace Alarms
         public new void Initialize(
             uint alarmTypeIdentifier,
             string name,
-            double maxTimeShelved = AlarmDefines.NORMAL_MAX_TIME_SHELVED
-        )
+            double maxTimeShelved = AlarmDefines.NORMAL_MAX_TIME_SHELVED)
         {
             // Create an alarm and trigger name - Create a base method for creating the trigger, just provide the name
 

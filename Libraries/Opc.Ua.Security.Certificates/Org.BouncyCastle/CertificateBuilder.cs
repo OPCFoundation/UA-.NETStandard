@@ -147,21 +147,18 @@ namespace Opc.Ua.Security.Certificates
             X509Certificate2 certificate,
             string friendlyName,
             RSA privateKey,
-            string passcode
-        )
+            string passcode)
         {
             Org.BouncyCastle.X509.X509Certificate x509 = new X509CertificateParser()
                 .ReadCertificate(
-                    certificate.RawData
-                    );
+                    certificate.RawData);
             using var cfrg = new CryptoApiRandomGenerator();
             return X509Utils.CreatePfxWithPrivateKey(
                 x509,
                 friendlyName,
                 X509Utils.GetRsaPrivateKeyParameter(privateKey),
                 passcode,
-                new SecureRandom(cfrg)
-            );
+                new SecureRandom(cfrg));
         }
 
 #if NET472_OR_GREATER
@@ -211,8 +208,7 @@ namespace Opc.Ua.Security.Certificates
             ISignatureFactory signatureFactory = new Asn1SignatureFactory(
                 X509Utils.GetRSAHashAlgorithm(X509Defaults.HashAlgorithmName),
                 signingKey,
-                random
-            );
+                random);
 
             Asn1Set attributes = null;
             X509SubjectAltNameExtension san = certificate
@@ -266,13 +262,10 @@ namespace Opc.Ua.Security.Certificates
                 values.Add(
                     new Org.BouncyCastle.Asn1.X509.X509Extension(
                         false,
-                        new DerOctetString(new GeneralNames([.. generalNames]).GetDerEncoded())
-                    )
-                );
+                        new DerOctetString(new GeneralNames([.. generalNames]).GetDerEncoded())));
                 var attribute = new Org.BouncyCastle.Asn1.Pkcs.AttributePkcs(
                     Org.BouncyCastle.Asn1.Pkcs.PkcsObjectIdentifiers.Pkcs9AtExtensionRequest,
-                    new DerSet(new Org.BouncyCastle.Asn1.X509.X509Extensions(oids, values))
-                );
+                    new DerSet(new Org.BouncyCastle.Asn1.X509.X509Extensions(oids, values)));
                 attributes = new DerSet(attribute);
             }
 
@@ -280,8 +273,7 @@ namespace Opc.Ua.Security.Certificates
                 signatureFactory,
                 new CertificateFactoryX509Name(certificate.SubjectName),
                 publicKey,
-                attributes
-            );
+                attributes);
 
             return pkcs10CertificationRequest.GetEncoded();
         }
@@ -348,9 +340,7 @@ namespace Opc.Ua.Security.Certificates
                     Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectKeyIdentifier.Id,
                     false,
                     X509ExtensionUtilities.CreateSubjectKeyIdentifier(
-                        SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(subjectPublicKey)
-                    )
-                );
+                        SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(subjectPublicKey)));
             }
 
             // Basic constraints
@@ -397,9 +387,7 @@ namespace Opc.Ua.Security.Certificates
                     X509ExtensionUtilities.CreateAuthorityKeyIdentifier(
                         issuerPublicKey,
                         new GeneralNames(new GeneralName(m_issuerIssuerAKI)),
-                        issuerSerialNumber
-                    )
-                );
+                        issuerSerialNumber));
             }
 
             if (!m_isCA)
@@ -434,9 +422,7 @@ namespace Opc.Ua.Security.Certificates
                             {
                                 new(Oids.ServerAuthentication), // server auth
                                 new(Oids.ClientAuthentication) // client auth
-                            }
-                        )
-                    );
+                            }));
                 }
             }
             else if (m_extensions.FindExtension<X509KeyUsageExtension>() == null)
@@ -446,8 +432,7 @@ namespace Opc.Ua.Security.Certificates
                     Org.BouncyCastle.Asn1.X509.X509Extensions.KeyUsage,
                     true,
                     new KeyUsage(
-                        KeyUsage.CrlSign | KeyUsage.DigitalSignature | KeyUsage.KeyCertSign)
-                );
+                        KeyUsage.CrlSign | KeyUsage.DigitalSignature | KeyUsage.KeyCertSign));
             }
 
             foreach (System.Security.Cryptography.X509Certificates.X509Extension extension in m_extensions)
@@ -473,8 +458,7 @@ namespace Opc.Ua.Security.Certificates
                 signatureFactory == null)
             {
                 throw new NotSupportedException(
-                    "Need an issuer certificate with a private key or a signature generator."
-                );
+                    "Need an issuer certificate with a private key or a signature generator.");
             }
 
             // cert generators
@@ -497,8 +481,7 @@ namespace Opc.Ua.Security.Certificates
                     IssuerCAKeyCert);
                 signatureFactory = new Asn1SignatureFactory(
                     X509Utils.GetRSAHashAlgorithm(HashAlgorithmName),
-                    signingKey
-                );
+                    signingKey);
             }
             Org.BouncyCastle.X509.X509Certificate x509 = cg.Generate(signatureFactory);
 
@@ -531,8 +514,7 @@ namespace Opc.Ua.Security.Certificates
                 signatureFactory == null)
             {
                 throw new NotSupportedException(
-                    "Need an issuer certificate with a private key or a signature generator."
-                );
+                    "Need an issuer certificate with a private key or a signature generator.");
             }
 
             using var cfrg = new CryptoApiRandomGenerator();
@@ -574,8 +556,7 @@ namespace Opc.Ua.Security.Certificates
                 signatureFactory = new Asn1SignatureFactory(
                     X509Utils.GetRSAHashAlgorithm(HashAlgorithmName),
                     signingKey,
-                    random
-                );
+                    random);
             }
             Org.BouncyCastle.X509.X509Certificate x509 = cg.Generate(signatureFactory);
 

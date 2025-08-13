@@ -47,12 +47,10 @@ namespace Opc.Ua.Server
             if (createDurable)
             {
                 Utils.LogError(
-                    "EventMonitoredItemQueue does not support durable queues, please provide full implementation of IDurableMonitoredItemQueue using Server.CreateDurableMonitoredItemQueueFactory to supply own factory"
-                );
+                    "EventMonitoredItemQueue does not support durable queues, please provide full implementation of IDurableMonitoredItemQueue using Server.CreateDurableMonitoredItemQueueFactory to supply own factory");
                 throw new ArgumentException(
                     "DataChangeMonitoredItemQueue does not support durable Queues",
-                    nameof(createDurable)
-                );
+                    nameof(createDurable));
             }
             m_events = [];
             MonitoredItemId = monitoredItemId;
@@ -105,8 +103,7 @@ namespace Opc.Ua.Server
             {
                 throw new ServiceResultException(
                     StatusCodes.BadInternalError,
-                    "Error queueing Event. Queue size is set to 0"
-                );
+                    "Error queueing Event. Queue size is set to 0");
             }
 
             //Discard oldest

@@ -48,8 +48,7 @@ namespace Opc.Ua
             NodeId typeDefinitionId,
             IList<QualifiedName> relativePath,
             uint attributeId,
-            NumericRange indexRange
-        );
+            NumericRange indexRange);
     }
 
     /// <summary>
@@ -78,8 +77,7 @@ namespace Opc.Ua
             NodeId referenceTypeId,
             int hops,
             bool includeTypeDefintionSubtypes,
-            bool includeReferenceSubtypes
-        );
+            bool includeReferenceSubtypes);
 
         /// <summary>
         /// Returns the list of nodes related to the current target.
@@ -92,8 +90,7 @@ namespace Opc.Ua
             NodeId referenceTypeId,
             int hops,
             bool includeTypeDefintionSubtypes,
-            bool includeReferenceSubtypes
-        );
+            bool includeReferenceSubtypes);
 
         /// <summary>
         /// Returns the value of attributes for nodes which are related to the current node.
@@ -111,8 +108,7 @@ namespace Opc.Ua
             NodeId typeDefinitionId,
             RelativePath relativePath,
             uint attributeId,
-            NumericRange indexRange
-        );
+            NumericRange indexRange);
     }
 
     /// <summary>

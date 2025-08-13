@@ -240,8 +240,7 @@ namespace Opc.Ua
         protected override ServiceResult ReadNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            ref object value
-        )
+            ref object value)
         {
             ServiceResult result = null;
 

@@ -96,8 +96,7 @@ namespace Opc.Ua.Configuration
             string subjectName,
             string pkiRoot = null,
             string appRoot = null,
-            string rejectedRoot = null
-        )
+            string rejectedRoot = null)
         {
             pkiRoot = DefaultPKIRoot(pkiRoot);
             appRoot = appRoot == null ? pkiRoot : DefaultPKIRoot(appRoot);
@@ -163,8 +162,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderSecurityOptions AddSecurityConfiguration(
             CertificateIdentifierCollection applicationCertificates,
             string pkiRoot = null,
-            string rejectedRoot = null
-        )
+            string rejectedRoot = null)
         {
             pkiRoot = DefaultPKIRoot(pkiRoot);
             rejectedRoot = rejectedRoot == null ? pkiRoot : DefaultPKIRoot(rejectedRoot);
@@ -225,8 +223,7 @@ namespace Opc.Ua.Configuration
             string appRoot,
             string trustedRoot,
             string issuerRoot,
-            string rejectedRoot = null
-        )
+            string rejectedRoot = null)
         {
             string appStoreType = CertificateStoreIdentifier.DetermineStoreType(appRoot);
             string issuerRootType = CertificateStoreIdentifier.DetermineStoreType(issuerRoot);
@@ -268,8 +265,7 @@ namespace Opc.Ua.Configuration
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderSecurityOptionStores AddSecurityConfigurationUserStore(
             string trustedRoot,
-            string issuerRoot
-        )
+            string issuerRoot)
         {
             string trustedRootType = CertificateStoreIdentifier.DetermineStoreType(trustedRoot);
             string issuerRootType = CertificateStoreIdentifier.DetermineStoreType(issuerRoot);
@@ -293,8 +289,7 @@ namespace Opc.Ua.Configuration
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderSecurityOptionStores AddSecurityConfigurationHttpsStore(
             string trustedRoot,
-            string issuerRoot
-        )
+            string issuerRoot)
         {
             string trustedRootType = CertificateStoreIdentifier.DetermineStoreType(trustedRoot);
             string issuerRootType = CertificateStoreIdentifier.DetermineStoreType(issuerRoot);
@@ -321,19 +316,15 @@ namespace Opc.Ua.Configuration
         public async Task<ApplicationConfiguration> Create()
         {
             // sanity checks
-            if (
-                ApplicationInstance
+            if (ApplicationInstance
                     .ApplicationType is ApplicationType.Server or ApplicationType.ClientAndServer &&
-                ApplicationConfiguration.ServerConfiguration == null
-            )
+                ApplicationConfiguration.ServerConfiguration == null)
             {
                 throw new ArgumentException("ApplicationType Server is not configured.");
             }
-            if (
-                ApplicationInstance
+            if (ApplicationInstance
                     .ApplicationType is ApplicationType.Client or ApplicationType.ClientAndServer &&
-                ApplicationConfiguration.ClientConfiguration == null
-            )
+                ApplicationConfiguration.ClientConfiguration == null)
             {
                 throw new ArgumentException("ApplicationType Client is not configured.");
             }
@@ -342,8 +333,7 @@ namespace Opc.Ua.Configuration
             if (ApplicationConfiguration.ServerConfiguration?.UserTokenPolicies.Count == 0)
             {
                 ApplicationConfiguration.ServerConfiguration.UserTokenPolicies.Add(
-                    new UserTokenPolicy(UserTokenType.Anonymous)
-                );
+                    new UserTokenPolicy(UserTokenType.Anonymous));
             }
 
             // ensure for secure transport profiles
@@ -367,8 +357,7 @@ namespace Opc.Ua.Configuration
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerSelected AsServer(
             string[] baseAddresses,
-            string[] alternateBaseAddresses = null
-        )
+            string[] alternateBaseAddresses = null)
         {
             switch (ApplicationInstance.ApplicationType)
             {
@@ -473,18 +462,15 @@ namespace Opc.Ua.Configuration
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerSelected AddPolicy(
             MessageSecurityMode securityMode,
-            string securityPolicy
-        )
+            string securityPolicy)
         {
             if (!SecurityPolicies.IsValidSecurityPolicyUri(securityPolicy))
             {
                 throw new ArgumentException("Unknown security policy", nameof(securityPolicy));
             }
 
-            if (
-                securityMode == MessageSecurityMode.None ||
-                securityPolicy.Equals(SecurityPolicies.None, StringComparison.Ordinal)
-            )
+            if (securityMode == MessageSecurityMode.None ||
+                securityPolicy.Equals(SecurityPolicies.None, StringComparison.Ordinal))
             {
                 throw new ArgumentException("Use AddUnsecurePolicyNone to add no security policy.");
             }
@@ -492,8 +478,7 @@ namespace Opc.Ua.Configuration
             InternalAddPolicy(
                 ApplicationConfiguration.ServerConfiguration.SecurityPolicies,
                 securityMode,
-                securityPolicy
-            );
+                securityPolicy);
             return this;
         }
 
@@ -521,8 +506,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderSecurityOptions SetApplicationCertificates(
-            CertificateIdentifierCollection certIdList
-        )
+            CertificateIdentifierCollection certIdList)
         {
             ApplicationConfiguration.SecurityConfiguration.ApplicationCertificates = certIdList;
             return this;
@@ -566,8 +550,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderSecurityOptions SetRejectUnknownRevocationStatus(
-            bool rejectUnknownRevocationStatus
-        )
+            bool rejectUnknownRevocationStatus)
         {
             ApplicationConfiguration.SecurityConfiguration.RejectUnknownRevocationStatus =
                 rejectUnknownRevocationStatus;
@@ -576,8 +559,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderSecurityOptions SetUseValidatedCertificates(
-            bool useValidatedCertificates
-        )
+            bool useValidatedCertificates)
         {
             ApplicationConfiguration.SecurityConfiguration.UseValidatedCertificates
                 = useValidatedCertificates;
@@ -586,8 +568,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderSecurityOptions SetSuppressNonceValidationErrors(
-            bool suppressNonceValidationErrors
-        )
+            bool suppressNonceValidationErrors)
         {
             ApplicationConfiguration.SecurityConfiguration.SuppressNonceValidationErrors =
                 suppressNonceValidationErrors;
@@ -613,8 +594,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderSecurityOptions AddCertificatePasswordProvider(
-            ICertificatePasswordProvider certificatePasswordProvider
-        )
+            ICertificatePasswordProvider certificatePasswordProvider)
         {
             ApplicationConfiguration.SecurityConfiguration.CertificatePasswordProvider
                 = certificatePasswordProvider;
@@ -774,8 +754,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerOptions SetMaxBrowseContinuationPoints(
-            int maxBrowseContinuationPoints
-        )
+            int maxBrowseContinuationPoints)
         {
             ApplicationConfiguration.ServerConfiguration.MaxBrowseContinuationPoints
                 = maxBrowseContinuationPoints;
@@ -784,8 +763,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerOptions SetMaxQueryContinuationPoints(
-            int maxQueryContinuationPoints
-        )
+            int maxQueryContinuationPoints)
         {
             ApplicationConfiguration.ServerConfiguration.MaxQueryContinuationPoints
                 = maxQueryContinuationPoints;
@@ -794,8 +772,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerOptions SetMaxHistoryContinuationPoints(
-            int maxHistoryContinuationPoints
-        )
+            int maxHistoryContinuationPoints)
         {
             ApplicationConfiguration.ServerConfiguration.MaxHistoryContinuationPoints
                 = maxHistoryContinuationPoints;
@@ -864,8 +841,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerOptions SetMaxNotificationsPerPublish(
-            int maxNotificationsPerPublish
-        )
+            int maxNotificationsPerPublish)
         {
             ApplicationConfiguration.ServerConfiguration.MaxNotificationsPerPublish
                 = maxNotificationsPerPublish;
@@ -874,8 +850,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerOptions SetMinMetadataSamplingInterval(
-            int minMetadataSamplingInterval
-        )
+            int minMetadataSamplingInterval)
         {
             ApplicationConfiguration.ServerConfiguration.MinMetadataSamplingInterval
                 = minMetadataSamplingInterval;
@@ -884,8 +859,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerOptions SetAvailableSamplingRates(
-            SamplingRateGroupCollection availableSampleRates
-        )
+            SamplingRateGroupCollection availableSampleRates)
         {
             ApplicationConfiguration.ServerConfiguration.AvailableSamplingRates
                 = availableSampleRates;
@@ -894,8 +868,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerOptions SetRegistrationEndpoint(
-            EndpointDescription registrationEndpoint
-        )
+            EndpointDescription registrationEndpoint)
         {
             ApplicationConfiguration.ServerConfiguration.RegistrationEndpoint
                 = registrationEndpoint;
@@ -978,8 +951,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerOptions SetSupportedPrivateKeyFormats(
-            StringCollection supportedPrivateKeyFormats
-        )
+            StringCollection supportedPrivateKeyFormats)
         {
             ApplicationConfiguration.ServerConfiguration.SupportedPrivateKeyFormats
                 = supportedPrivateKeyFormats;
@@ -1004,8 +976,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerOptions SetReverseConnect(
-            ReverseConnectServerConfiguration reverseConnectConfiguration
-        )
+            ReverseConnectServerConfiguration reverseConnectConfiguration)
         {
             ApplicationConfiguration.ServerConfiguration.ReverseConnect
                 = reverseConnectConfiguration;
@@ -1073,8 +1044,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         IApplicationConfigurationBuilderClientOptions IApplicationConfigurationBuilderClientOptions.SetMinSubscriptionLifetime(
-            int minSubscriptionLifetime
-        )
+            int minSubscriptionLifetime)
         {
             ApplicationConfiguration.ClientConfiguration.MinSubscriptionLifetime
                 = minSubscriptionLifetime;
@@ -1083,8 +1053,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderClientOptions SetReverseConnect(
-            ReverseConnectClientConfiguration reverseConnect
-        )
+            ReverseConnectClientConfiguration reverseConnect)
         {
             ApplicationConfiguration.ClientConfiguration.ReverseConnect = reverseConnect;
             return this;
@@ -1131,8 +1100,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerOptions SetDurableSubscriptionsEnabled(
-            bool durableSubscriptionsEnabled
-        )
+            bool durableSubscriptionsEnabled)
         {
             ApplicationConfiguration.ServerConfiguration.DurableSubscriptionsEnabled
                 = durableSubscriptionsEnabled;
@@ -1141,8 +1109,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerOptions SetMaxDurableNotificationQueueSize(
-            int maxDurableNotificationQueueSize
-        )
+            int maxDurableNotificationQueueSize)
         {
             ApplicationConfiguration.ServerConfiguration.MaxDurableNotificationQueueSize =
                 maxDurableNotificationQueueSize;
@@ -1160,8 +1127,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerOptions SetMaxDurableSubscriptionLifetime(
-            int maxDurableSubscriptionLifetimeInHours
-        )
+            int maxDurableSubscriptionLifetimeInHours)
         {
             ApplicationConfiguration.ServerConfiguration.MaxDurableSubscriptionLifetimeInHours =
                 maxDurableSubscriptionLifetimeInHours;
@@ -1178,8 +1144,7 @@ namespace Opc.Ua.Configuration
         public static CertificateIdentifierCollection CreateDefaultApplicationCertificates(
             string subjectName,
             string storeType = null,
-            string storePath = null
-        )
+            string storePath = null)
         {
             var certificateIdentifiers = new CertificateIdentifierCollection
             {
@@ -1208,8 +1173,7 @@ namespace Opc.Ua.Configuration
                         SubjectName = subjectName,
                         CertificateType = ObjectTypeIds.EccNistP384ApplicationCertificateType
                     }
-                ]
-            );
+                ]);
 
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
@@ -1231,8 +1195,7 @@ namespace Opc.Ua.Configuration
                             CertificateType = ObjectTypeIds
                                 .EccBrainpoolP384r1ApplicationCertificateType
                         }
-                    ]
-                );
+                    ]);
             }
 #endif
             return certificateIdentifiers;
@@ -1325,12 +1288,10 @@ namespace Opc.Ua.Configuration
                 {
                     startIndex--;
                 }
-                if (
-                    startIndex > 0 &&
+                if (startIndex > 0 &&
                     pkiRoot
                         .Substring(startIndex, leafPath.Length)
-                        .Equals(leafPath, StringComparison.OrdinalIgnoreCase)
-                )
+                        .Equals(leafPath, StringComparison.OrdinalIgnoreCase))
                 {
                     return pkiRoot;
                 }
@@ -1344,13 +1305,10 @@ namespace Opc.Ua.Configuration
                 {
                     case TrustlistType.Application:
 #if !NETFRAMEWORK
-                        if (
-                            !RuntimeInformation.IsOSPlatform(OSPlatform.Windows) &&
+                        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows) &&
                             pkiRoot.StartsWith(
                                 CertificateStoreIdentifier.CurrentUser,
-                                StringComparison.OrdinalIgnoreCase
-                            )
-                        )
+                                StringComparison.OrdinalIgnoreCase))
                         {
                             return pkiRoot + "My";
                         }
@@ -1409,10 +1367,8 @@ namespace Opc.Ua.Configuration
                 {
                     InternalAddPolicy(policies, MessageSecurityMode.None, SecurityPolicies.None);
                 }
-                else if (
-                    securityMode >= MessageSecurityMode.SignAndEncrypt ||
-                    (includeSign && securityMode == MessageSecurityMode.Sign)
-                )
+                else if (securityMode >= MessageSecurityMode.SignAndEncrypt ||
+                    (includeSign && securityMode == MessageSecurityMode.Sign))
                 {
                     foreach (string policyUri in defaultPolicyUris)
                     {
@@ -1469,8 +1425,7 @@ namespace Opc.Ua.Configuration
         private static bool InternalAddPolicy(
             ServerSecurityPolicyCollection policies,
             MessageSecurityMode securityMode,
-            string policyUri
-        )
+            string policyUri)
         {
             if (securityMode == MessageSecurityMode.Invalid)
             {
@@ -1482,15 +1437,13 @@ namespace Opc.Ua.Configuration
                 SecurityMode = securityMode,
                 SecurityPolicyUri = policyUri
             };
-            if (
-                policies.Find(s =>
+            if (policies.Find(s =>
                     s.SecurityMode == newPolicy.SecurityMode &&
                     string.Equals(
                         s.SecurityPolicyUri,
                         newPolicy.SecurityPolicyUri,
                         StringComparison.Ordinal)
-                ) == null
-            )
+                ) == null)
             {
                 policies.Add(newPolicy);
                 return true;

@@ -145,8 +145,7 @@ namespace Opc.Ua.Configuration
         public void StartAsService(ServerBase server)
         {
             throw new NotImplementedException(
-                ".NetStandard Opc.Ua libraries do not support to start as a windows service"
-            );
+                ".NetStandard Opc.Ua libraries do not support to start as a windows service");
         }
 
         /// <summary>
@@ -193,8 +192,7 @@ namespace Opc.Ua.Configuration
             ApplicationType applicationType,
             Type configurationType,
             bool applyTraceSettings,
-            ICertificatePasswordProvider certificatePasswordProvider = null
-        )
+            ICertificatePasswordProvider certificatePasswordProvider = null)
         {
             return LoadAppConfigAsync(
                     silent,
@@ -202,8 +200,7 @@ namespace Opc.Ua.Configuration
                     applicationType,
                     configurationType,
                     applyTraceSettings,
-                    certificatePasswordProvider
-                )
+                    certificatePasswordProvider)
                 .AsTask();
         }
 
@@ -217,8 +214,7 @@ namespace Opc.Ua.Configuration
             Type configurationType,
             bool applyTraceSettings,
             ICertificatePasswordProvider certificatePasswordProvider = null,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             LogInfo("Loading application configuration file. {0}", filePath);
 
@@ -232,8 +228,7 @@ namespace Opc.Ua.Configuration
                         configurationType,
                         applyTraceSettings,
                         certificatePasswordProvider,
-                        ct
-                    )
+                        ct)
                     .ConfigureAwait(false);
             }
             catch (Exception e)
@@ -266,8 +261,7 @@ namespace Opc.Ua.Configuration
             ApplicationType applicationType,
             Type configurationType,
             bool applyTraceSettings,
-            ICertificatePasswordProvider certificatePasswordProvider = null
-        )
+            ICertificatePasswordProvider certificatePasswordProvider = null)
         {
             return LoadAppConfigAsync(
                     silent,
@@ -275,8 +269,7 @@ namespace Opc.Ua.Configuration
                     applicationType,
                     configurationType,
                     applyTraceSettings,
-                    certificatePasswordProvider
-                )
+                    certificatePasswordProvider)
                 .AsTask();
         }
 
@@ -290,8 +283,7 @@ namespace Opc.Ua.Configuration
             Type configurationType,
             bool applyTraceSettings,
             ICertificatePasswordProvider certificatePasswordProvider = null,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             LogInfo("Loading application from stream.");
 
@@ -305,8 +297,7 @@ namespace Opc.Ua.Configuration
                         configurationType,
                         applyTraceSettings,
                         certificatePasswordProvider,
-                        ct
-                    )
+                        ct)
                     .ConfigureAwait(false);
             }
             catch (Exception e)
@@ -347,8 +338,7 @@ namespace Opc.Ua.Configuration
         public async Task<ApplicationConfiguration> LoadApplicationConfigurationAsync(
             Stream stream,
             bool silent,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             ApplicationConfiguration configuration = null;
 
@@ -361,8 +351,7 @@ namespace Opc.Ua.Configuration
                         ConfigurationType,
                         true,
                         CertificatePasswordProvider,
-                        ct
-                    )
+                        ct)
                     .ConfigureAwait(false);
             }
             catch (Exception) when (silent)
@@ -408,8 +397,7 @@ namespace Opc.Ua.Configuration
         public async ValueTask<ApplicationConfiguration> LoadApplicationConfigurationAsync(
             string filePath,
             bool silent,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             ApplicationConfiguration configuration = null;
 
@@ -422,8 +410,7 @@ namespace Opc.Ua.Configuration
                         ConfigurationType,
                         true,
                         CertificatePasswordProvider,
-                        ct
-                    )
+                        ct)
                     .ConfigureAwait(false);
             }
             catch (Exception) when (silent)
@@ -434,8 +421,7 @@ namespace Opc.Ua.Configuration
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
-                    "Could not load configuration file."
-                );
+                    "Could not load configuration file.");
             }
 
             ApplicationConfiguration = FixupAppConfig(configuration);
@@ -448,8 +434,7 @@ namespace Opc.Ua.Configuration
         /// </summary>
         public ValueTask<ApplicationConfiguration> LoadApplicationConfigurationAsync(
             bool silent,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             string filePath = ApplicationConfiguration.GetFilePathFromAppConfig(ConfigSectionName);
             return LoadApplicationConfigurationAsync(filePath, silent, ct);
@@ -469,8 +454,7 @@ namespace Opc.Ua.Configuration
                 for (int i = 0; i < configuration.ServerConfiguration.BaseAddresses.Count; i++)
                 {
                     configuration.ServerConfiguration.BaseAddresses[i] = ReplaceLocalhost(
-                        configuration.ServerConfiguration.BaseAddresses[i]
-                    );
+                        configuration.ServerConfiguration.BaseAddresses[i]);
                 }
             }
             return configuration;
@@ -514,8 +498,7 @@ namespace Opc.Ua.Configuration
         public Task<bool> CheckApplicationInstanceCertificates(
             bool silent,
             ushort lifeTimeInMonths,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             return CheckApplicationInstanceCertificatesAsync(silent, lifeTimeInMonths, ct).AsTask();
         }
@@ -537,8 +520,7 @@ namespace Opc.Ua.Configuration
         /// <exception cref="ArgumentException"></exception>
         public async ValueTask DeleteApplicationInstanceCertificateAsync(
             string[] profileIds = null,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             // TODO: delete only selected profiles
             if (ApplicationConfiguration == null)
@@ -564,8 +546,7 @@ namespace Opc.Ua.Configuration
         public async ValueTask<bool> CheckApplicationInstanceCertificatesAsync(
             bool silent,
             ushort? lifeTimeInMonths = null,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             lifeTimeInMonths ??= CertificateFactory.DefaultLifeTime;
             LogInfo("Checking application instance certificate.");
@@ -583,8 +564,7 @@ namespace Opc.Ua.Configuration
             {
                 throw new ServiceResultException(
                     StatusCodes.BadConfigurationError,
-                    "Need at least one Application Certificate."
-                );
+                    "Need at least one Application Certificate.");
             }
 
             bool result = true;
@@ -596,8 +576,7 @@ namespace Opc.Ua.Configuration
                         silent,
                         minimumKeySize,
                         lifeTimeInMonths.Value,
-                        ct
-                    )
+                        ct)
                     .ConfigureAwait(false);
                 result = result && nextResult;
             }
@@ -614,8 +593,7 @@ namespace Opc.Ua.Configuration
             bool silent,
             ushort minimumKeySize,
             ushort lifeTimeInMonths,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             ApplicationConfiguration configuration = ApplicationConfiguration;
 
@@ -623,8 +601,7 @@ namespace Opc.Ua.Configuration
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
-                    "Configuration file does not specify a certificate."
-                );
+                    "Configuration file does not specify a certificate.");
             }
 
             // reload the certificate from disk in the cache.
@@ -651,8 +628,7 @@ namespace Opc.Ua.Configuration
                         certificate,
                         silent,
                         minimumKeySize,
-                        ct
-                    )
+                        ct)
                     .ConfigureAwait(false);
 
                 if (!certificateValid)
@@ -666,8 +642,7 @@ namespace Opc.Ua.Configuration
                         StatusCodes.BadConfigurationError,
                         message.ToString(),
                         id.SubjectName,
-                        ReplaceSpecialFolderNames(id.StorePath)
-                    );
+                        ReplaceSpecialFolderNames(id.StorePath));
                 }
             }
             else
@@ -681,8 +656,7 @@ namespace Opc.Ua.Configuration
                     throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError,
                         "Cannot access certificate private key. Subject={0}",
-                        certificate.Subject
-                    );
+                        certificate.Subject);
                 }
 
                 // check for missing thumbprint.
@@ -709,20 +683,16 @@ namespace Opc.Ua.Configuration
                             .AppendLine("Use it instead?")
                             .AppendLine("Requested: {0}")
                             .AppendLine("Found: {1}");
-                        if (
-                            !await ApproveMessageAsync(
+                        if (!await ApproveMessageAsync(
                                     Format(message.ToString(), id.SubjectName, certificate.Subject),
-                                    silent
-                                )
-                                .ConfigureAwait(false)
-                        )
+                                    silent)
+                                .ConfigureAwait(false))
                         {
                             throw ServiceResultException.Create(
                                 StatusCodes.BadConfigurationError,
                                 message.ToString(),
                                 id.SubjectName,
-                                certificate.Subject
-                            );
+                                certificate.Subject);
                         }
                     }
                     else
@@ -746,8 +716,7 @@ namespace Opc.Ua.Configuration
                             configuration,
                             id,
                             lifeTimeInMonths,
-                            ct
-                        )
+                            ct)
                         .ConfigureAwait(false);
                 }
                 else
@@ -766,8 +735,7 @@ namespace Opc.Ua.Configuration
                         StatusCodes.BadConfigurationError,
                         message.ToString(),
                         id.SubjectName,
-                        id.StorePath
-                    );
+                        id.StorePath);
                 }
             }
             else if (configuration.SecurityConfiguration.AddAppCertToTrustedStore)
@@ -825,8 +793,7 @@ namespace Opc.Ua.Configuration
             X509Certificate2 certificate,
             bool silent,
             ushort minimumKeySize,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             if (certificate == null)
             {
@@ -842,8 +809,7 @@ namespace Opc.Ua.Configuration
                     StatusCodes.BadCertificateHostNameInvalid,
                     StatusCodes.BadCertificateRevocationUnknown,
                     StatusCodes.BadCertificateIssuerRevocationUnknown
-                ]
-            );
+                ]);
 
             LogCertificate("Check application instance certificate.", certificate);
 
@@ -857,16 +823,14 @@ namespace Opc.Ua.Configuration
                         certificate.HasPrivateKey
                             ? X509CertificateLoader.LoadCertificate(certificate.RawData)
                             : certificate,
-                        ct
-                    )
+                        ct)
                     .ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 string message = Format(
                     "Error validating certificate. Exception: {0}. Use certificate anyway?",
-                    ex.Message
-                );
+                    ex.Message);
                 if (!await ApproveMessageAsync(message, silent).ConfigureAwait(false))
                 {
                     return false;
@@ -885,8 +849,7 @@ namespace Opc.Ua.Configuration
                 string message = Format(
                     "The key size ({0}) in the certificate is less than the minimum provided ({1}). Use certificate anyway?",
                     keySize,
-                    minimumKeySize
-                );
+                    minimumKeySize);
 
                 if (!await ApproveMessageAsync(message, silent).ConfigureAwait(false))
                 {
@@ -895,11 +858,9 @@ namespace Opc.Ua.Configuration
             }
 
             // check domains.
-            if (
-                configuration.ApplicationType != ApplicationType.Client &&
+            if (configuration.ApplicationType != ApplicationType.Client &&
                 !await CheckDomainsInCertificateAsync(configuration, certificate, silent, ct)
-                    .ConfigureAwait(false)
-            )
+                    .ConfigureAwait(false))
             {
                 return false;
             }
@@ -940,8 +901,7 @@ namespace Opc.Ua.Configuration
             ApplicationConfiguration configuration,
             X509Certificate2 certificate,
             bool silent,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             LogInfo("Check domains in certificate.");
 
@@ -1009,8 +969,7 @@ namespace Opc.Ua.Configuration
 
                 string message = Format(
                     "The server is configured to use domain '{0}' which does not appear in the certificate. Use certificate anyway?",
-                    serverDomainNames[ii]
-                );
+                    serverDomainNames[ii]);
 
                 valid = false;
 
@@ -1039,8 +998,7 @@ namespace Opc.Ua.Configuration
             ApplicationConfiguration configuration,
             CertificateIdentifier id,
             ushort lifeTimeInMonths,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             // delete any existing certificate.
             await DeleteApplicationInstanceCertificateAsync(configuration, id, ct).ConfigureAwait(
@@ -1067,16 +1025,13 @@ namespace Opc.Ua.Configuration
                     configuration.ApplicationUri,
                     configuration.ApplicationName,
                     id.SubjectName,
-                    serverDomainNames
-                )
+                    serverDomainNames)
                 .SetLifeTime(lifeTimeInMonths);
 
-            if (
-                id.CertificateType == null ||
+            if (id.CertificateType == null ||
                 id.CertificateType == ObjectTypeIds.ApplicationCertificateType ||
                 id.CertificateType == ObjectTypeIds.RsaMinApplicationCertificateType ||
-                id.CertificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType
-            )
+                id.CertificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
             {
                 id.Certificate = builder.SetRSAKeySize(CertificateFactory.DefaultKeySize)
                     .CreateForRSA();
@@ -1088,15 +1043,13 @@ namespace Opc.Ua.Configuration
 #if !ECC_SUPPORT
                 throw new ServiceResultException(
                     StatusCodes.BadConfigurationError,
-                    "The Ecc certificate type is not supported."
-                );
+                    "The Ecc certificate type is not supported.");
 #else
                 ECCurve? curve =
                     EccUtils.GetCurveFromCertificateTypeId(id.CertificateType)
                     ?? throw new ServiceResultException(
                         StatusCodes.BadConfigurationError,
-                        "The Ecc certificate type is not supported."
-                    );
+                        "The Ecc certificate type is not supported.");
 
                 id.Certificate = builder.SetECCurve(curve.Value).CreateForECDsa();
 
@@ -1155,8 +1108,7 @@ namespace Opc.Ua.Configuration
         private static async Task DeleteApplicationInstanceCertificateAsync(
             ApplicationConfiguration configuration,
             CertificateIdentifier id,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             if (id == null)
             {
@@ -1171,15 +1123,12 @@ namespace Opc.Ua.Configuration
                 LogCertificate(
                     TraceMasks.Security,
                     "Deleting application instance certificate and private key.",
-                    certificate
-                );
+                    certificate);
             }
 
             // delete trusted peer certificate.
-            if (
-                configuration.SecurityConfiguration != null &&
-                configuration.SecurityConfiguration.TrustedPeerCertificates != null
-            )
+            if (configuration.SecurityConfiguration != null &&
+                configuration.SecurityConfiguration.TrustedPeerCertificates != null)
             {
                 string thumbprint = id.Thumbprint;
 
@@ -1204,8 +1153,7 @@ namespace Opc.Ua.Configuration
                                 LogInfo(
                                     TraceMasks.Security,
                                     "Application Instance Certificate [{0}] deleted from trusted store.",
-                                    thumbprint
-                                );
+                                    thumbprint);
                             }
                         }
                         finally
@@ -1227,8 +1175,7 @@ namespace Opc.Ua.Configuration
                     LogCertificate(
                         TraceMasks.Security,
                         "Application certificate and private key deleted.",
-                        certificate
-                    );
+                        certificate);
                 }
             }
 
@@ -1246,8 +1193,7 @@ namespace Opc.Ua.Configuration
         private static async Task AddToTrustedStoreAsync(
             ApplicationConfiguration configuration,
             X509Certificate2 certificate,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             if (certificate == null)
             {
@@ -1256,11 +1202,9 @@ namespace Opc.Ua.Configuration
 
             string storePath = null;
 
-            if (
-                configuration != null &&
+            if (configuration != null &&
                 configuration.SecurityConfiguration != null &&
-                configuration.SecurityConfiguration.TrustedPeerCertificates != null
-            )
+                configuration.SecurityConfiguration.TrustedPeerCertificates != null)
             {
                 storePath = configuration.SecurityConfiguration.TrustedPeerCertificates.StorePath;
             }
@@ -1319,21 +1263,17 @@ namespace Opc.Ua.Configuration
                             if (X509Utils.IsECDsaSignature(certificates[ii]) &&
                                 X509Utils.IsECDsaSignature(certificate))
                             {
-                                if (
-                                    X509Utils
+                                if (X509Utils
                                         .GetECDsaQualifier(certificates[ii])
                                         .Equals(
                                             X509Utils.GetECDsaQualifier(certificate),
-                                            StringComparison.Ordinal)
-                                )
+                                            StringComparison.Ordinal))
                                 {
                                     deleteCert = true;
                                 }
                             }
-                            else if (
-                                !X509Utils.IsECDsaSignature(certificates[ii]) &&
-                                !X509Utils.IsECDsaSignature(certificate)
-                            )
+                            else if (!X509Utils.IsECDsaSignature(certificates[ii]) &&
+                                !X509Utils.IsECDsaSignature(certificate))
                             {
                                 deleteCert = true;
                             }

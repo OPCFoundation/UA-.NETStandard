@@ -60,8 +60,7 @@ namespace Opc.Ua
             Stream ostrm,
             Export.ModelTableEntry model,
             DateTime lastModified,
-            bool outputRedundantNames
-        )
+            bool outputRedundantNames)
         {
             var nodeSet = new Export.UANodeSet();
 

@@ -81,19 +81,16 @@ namespace Opc.Ua.Configuration.Tests
             IApplicationConfigurationBuilderSecurityOptionStores appConfigBuilder = application
                 .Build(
                     applicationUri: "urn:localhost:CertStoreTypeTest",
-                    productUri: "uri:opcfoundation.org:Tests:CertStoreTypeTest"
-                )
+                    productUri: "uri:opcfoundation.org:Tests:CertStoreTypeTest")
                 .AsClient()
                 .AddSecurityConfigurationStores(
                     subjectName: "CN=CertStoreTypeTest, O=OPC Foundation",
                     appRoot: TestCertStore.StoreTypePrefix + appStorePath,
                     trustedRoot: TestCertStore.StoreTypePrefix + trustedStorePath,
-                    issuerRoot: TestCertStore.StoreTypePrefix + issuerStorePath
-                )
+                    issuerRoot: TestCertStore.StoreTypePrefix + issuerStorePath)
                 .AddSecurityConfigurationUserStore(
                     trustedRoot: TestCertStore.StoreTypePrefix + trustedUserStorePath,
-                    issuerRoot: TestCertStore.StoreTypePrefix + issuerUserStorePath
-                );
+                    issuerRoot: TestCertStore.StoreTypePrefix + issuerUserStorePath);
 
             // patch custom stores before creating the config
             ApplicationConfiguration appConfig = await appConfigBuilder.Create()
@@ -115,8 +112,7 @@ namespace Opc.Ua.Configuration.Tests
             Assert.IsTrue(
                 instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore);
             var certificateStoreIdentifier = new CertificateStoreIdentifier(
-                TestCertStore.StoreTypePrefix + trustedUserStorePath
-            );
+                TestCertStore.StoreTypePrefix + trustedUserStorePath);
             using ICertificateStore store = certificateStoreIdentifier.OpenStore();
             Assert.IsTrue(
                 instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
@@ -302,8 +298,7 @@ namespace Opc.Ua.Configuration.Tests
         public Task<X509CRLCollection> EnumerateCRLsAsync(
             X509Certificate2 issuer,
             bool validateUpdateTime = true,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             return m_innerStore.EnumerateCRLsAsync(issuer, validateUpdateTime, ct);
         }
@@ -319,8 +314,7 @@ namespace Opc.Ua.Configuration.Tests
         public Task<StatusCode> IsRevokedAsync(
             X509Certificate2 issuer,
             X509Certificate2 certificate,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             return m_innerStore.IsRevokedAsync(issuer, certificate, ct);
         }
@@ -335,8 +329,7 @@ namespace Opc.Ua.Configuration.Tests
             string subjectName,
             string applicationUri,
             NodeId certificateType,
-            string password
-        )
+            string password)
         {
             return LoadPrivateKeyAsync(
                 thumbprint,
@@ -353,8 +346,7 @@ namespace Opc.Ua.Configuration.Tests
             string applicationUri,
             NodeId certificateType,
             string password,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             return m_innerStore.LoadPrivateKeyAsync(
                 thumbprint,
@@ -362,8 +354,7 @@ namespace Opc.Ua.Configuration.Tests
                 applicationUri,
                 certificateType,
                 password,
-                ct
-            );
+                ct);
         }
 
         /// <inheritdoc/>
@@ -377,8 +368,7 @@ namespace Opc.Ua.Configuration.Tests
         public Task AddRejectedAsync(
             X509Certificate2Collection certificates,
             int maxCertificates,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             return m_innerStore.AddRejectedAsync(certificates, maxCertificates, ct);
         }

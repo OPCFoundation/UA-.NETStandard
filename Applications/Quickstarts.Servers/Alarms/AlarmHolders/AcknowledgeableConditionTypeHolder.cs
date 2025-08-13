@@ -46,8 +46,7 @@ namespace Alarms
             Type controllerType,
             int interval,
             bool optional = true,
-            bool create = true
-        )
+            bool create = true)
             : base(
                 alarmNodeManager,
                 parent,
@@ -157,8 +156,7 @@ namespace Alarms
             ISystemContext context,
             ConditionState condition,
             byte[] eventId,
-            LocalizedText comment
-        )
+            LocalizedText comment)
         {
             string eventIdString = Utils.ToHexString(eventId);
 
@@ -208,8 +206,7 @@ namespace Alarms
             ISystemContext context,
             ConditionState condition,
             byte[] eventId,
-            LocalizedText comment
-        )
+            LocalizedText comment)
         {
             string eventIdString = Utils.ToHexString(eventId);
 

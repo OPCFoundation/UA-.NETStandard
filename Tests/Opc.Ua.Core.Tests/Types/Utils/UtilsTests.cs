@@ -111,15 +111,13 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 new ServiceResultException(StatusCodes.BadEdited_OutOfRange),
                 "Exception {0} {1}",
                 2,
-                3
-            );
+                3);
             Utils.Trace(
                 new ServiceResultException(StatusCodes.BadAggregateConfigurationRejected),
                 "Exception {0} {1}",
                 true,
                 2,
-                3
-            );
+                3);
             Utils.Trace(
                 new ServiceResultException(StatusCodes.BadEdited_OutOfRange),
                 "Exception {0} {1}",
@@ -364,16 +362,14 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void RelativePathParseInvalidNamespaceIndex(
             string[] currentNamespaces,
             string[] targetNamespaces,
-            string path
-        )
+            string path)
         {
             var currentTable = new NamespaceTable([.. currentNamespaces]);
             var targetTable = new NamespaceTable([.. targetNamespaces]);
 
             var typeTable = new TypeTable(new NamespaceTable());
             ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                RelativePath.Parse(path, typeTable, currentTable, targetTable).Format(typeTable)
-            );
+                RelativePath.Parse(path, typeTable, currentTable, targetTable).Format(typeTable));
             Assert.AreEqual(
                 (StatusCode)StatusCodes.BadIndexRangeInvalid,
                 (StatusCode)sre.StatusCode);
@@ -554,8 +550,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             var typeTable = new TypeTable(new NamespaceTable());
             const string str = "/abc#def";
             NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                RelativePath.Parse(str, typeTable).Format(typeTable)
-            );
+                RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
         /// <summary>
@@ -579,8 +574,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             var typeTable = new TypeTable(new NamespaceTable());
             const string str = "/abc&#!def";
             NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                RelativePath.Parse(str, typeTable).Format(typeTable)
-            );
+                RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
         /// <summary>
@@ -592,8 +586,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             var typeTable = new TypeTable(new NamespaceTable());
             const string str = "<abc&#!def>";
             NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                RelativePath.Parse(str, typeTable).Format(typeTable)
-            );
+                RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
         /// <summary>
@@ -605,8 +598,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             var typeTable = new TypeTable(new NamespaceTable());
             const string str = "/abc&$!def";
             NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                RelativePath.Parse(str, typeTable).Format(typeTable)
-            );
+                RelativePath.Parse(str, typeTable).Format(typeTable));
         }
     }
 }

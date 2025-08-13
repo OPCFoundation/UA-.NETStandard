@@ -282,11 +282,9 @@ namespace Opc.Ua
                 }
 
                 // extract the type definition for the event.
-                if (
-                    field.BrowsePath.Count == 1 &&
+                if (field.BrowsePath.Count == 1 &&
                     field.AttributeId == Attributes.Value &&
-                    field.BrowsePath[0] == BrowseNames.EventType
-                )
+                    field.BrowsePath[0] == BrowseNames.EventType)
                 {
                     m_typeDefinitionId = value as NodeId;
                     continue;
@@ -402,15 +400,12 @@ namespace Opc.Ua
             NodeId typeDefinitionId,
             IList<QualifiedName> relativePath,
             uint attributeId,
-            NumericRange indexRange
-        )
+            NumericRange indexRange)
         {
             // check the type definition.
-            if (
-                !NodeId.IsNull(typeDefinitionId) &&
+            if (!NodeId.IsNull(typeDefinitionId) &&
                 typeDefinitionId != ObjectTypes.BaseEventType &&
-                !context.TypeTree.IsTypeOf(TypeDefinitionId, typeDefinitionId)
-            )
+                !context.TypeTree.IsTypeOf(TypeDefinitionId, typeDefinitionId))
             {
                 return null;
             }
@@ -659,11 +654,9 @@ namespace Opc.Ua
 
             NodeId typeDefinitionId = m_typeDefinitionId;
 
-            if (
-                !NodeId.IsNull(typeDefinitionId) &&
+            if (!NodeId.IsNull(typeDefinitionId) &&
                 IsObjectOrVariable &&
-                browser.IsRequired(ReferenceTypeIds.HasTypeDefinition, false)
-            )
+                browser.IsRequired(ReferenceTypeIds.HasTypeDefinition, false))
             {
                 browser.Add(ReferenceTypeIds.HasTypeDefinition, false, typeDefinitionId);
             }

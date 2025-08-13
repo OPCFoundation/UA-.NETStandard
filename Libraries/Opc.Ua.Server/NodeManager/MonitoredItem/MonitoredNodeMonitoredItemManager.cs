@@ -68,8 +68,7 @@ namespace Opc.Ua.Server
             uint revisedQueueSize,
             bool createDurable,
             uint monitoredItemId,
-            Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache
-        )
+            Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache)
         {
             // check if the node is already being monitored.
 
@@ -102,8 +101,7 @@ namespace Opc.Ua.Server
                 revisedQueueSize,
                 itemToCreate.RequestedParameters.DiscardOldest,
                 0,
-                createDurable
-            );
+                createDurable);
 
             // save the monitored item.
             monitoredNode.Add(datachangeItem);
@@ -139,8 +137,7 @@ namespace Opc.Ua.Server
         public StatusCode DeleteMonitoredItem(
             ServerSystemContext context,
             ISampledDataChangeMonitoredItem monitoredItem,
-            NodeHandle handle
-        )
+            NodeHandle handle)
         {
             // check if the node is already being monitored.
             if (MonitoredNodes.TryGetValue(handle.NodeId, out MonitoredNode2 monitoredNode))
@@ -166,8 +163,7 @@ namespace Opc.Ua.Server
             ServerSystemContext context,
             ISampledDataChangeMonitoredItem monitoredItem,
             MonitoringMode monitoringMode,
-            NodeHandle handle
-        )
+            NodeHandle handle)
         {
             // update monitoring mode.
             MonitoringMode previousMode = monitoredItem.SetMonitoringMode(monitoringMode);
@@ -191,8 +187,7 @@ namespace Opc.Ua.Server
             IStoredMonitoredItem storedMonitoredItem,
             IUserIdentity savedOwnerIdentity,
             Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache,
-            out ISampledDataChangeMonitoredItem monitoredItem
-        )
+            out ISampledDataChangeMonitoredItem monitoredItem)
         {
             // check if the node is already being monitored.
             if (!MonitoredNodes.TryGetValue(handle.Node.NodeId, out MonitoredNode2 monitoredNode))
@@ -210,8 +205,7 @@ namespace Opc.Ua.Server
                 server,
                 nodeManager,
                 handle,
-                storedMonitoredItem
-            );
+                storedMonitoredItem);
 
             // update monitored item list.
             monitoredItem = datachangeItem;
@@ -232,8 +226,7 @@ namespace Opc.Ua.Server
             double samplingInterval,
             uint revisedQueueSize,
             ISampledDataChangeMonitoredItem monitoredItem,
-            MonitoredItemModifyRequest itemToModify
-        )
+            MonitoredItemModifyRequest itemToModify)
         {
             // modify the monitored item parameters.
             return monitoredItem.ModifyAttributes(
@@ -245,8 +238,7 @@ namespace Opc.Ua.Server
                 euRange,
                 samplingInterval,
                 revisedQueueSize,
-                itemToModify.RequestedParameters.DiscardOldest
-            );
+                itemToModify.RequestedParameters.DiscardOldest);
         }
 
         /// <inheritdoc/>
@@ -254,8 +246,7 @@ namespace Opc.Ua.Server
             ServerSystemContext context,
             NodeState source,
             IEventMonitoredItem monitoredItem,
-            bool unsubscribe
-        )
+            bool unsubscribe)
         {
             MonitoredNode2 monitoredNode = null;
             // handle unsubscribe.
@@ -280,10 +271,8 @@ namespace Opc.Ua.Server
             }
 
             // only objects or views can be subscribed to.
-            if (
-                (source is not BaseObjectState instance) ||
-                (instance.EventNotifier & EventNotifiers.SubscribeToEvents) == 0
-            )
+            if ((source is not BaseObjectState instance) ||
+                (instance.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
             {
                 if ((source is not ViewState view) ||
                     (view.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)

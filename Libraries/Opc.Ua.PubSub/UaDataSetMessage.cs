@@ -123,13 +123,10 @@ namespace Opc.Ua.PubSub
         /// <param name="configurationVersionDataType">The value to validate MetadataVersion against</param>
         /// <returns>NoError if validation passes or the cause of the failure</returns>
         protected DataSetDecodeErrorReason ValidateMetadataVersion(
-            ConfigurationVersionDataType configurationVersionDataType
-        )
+            ConfigurationVersionDataType configurationVersionDataType)
         {
-            if (
-                MetaDataVersion.MajorVersion != kDefaultConfigMajorVersion &&
-                MetaDataVersion.MajorVersion != configurationVersionDataType.MajorVersion
-            )
+            if (MetaDataVersion.MajorVersion != kDefaultConfigMajorVersion &&
+                MetaDataVersion.MajorVersion != configurationVersionDataType.MajorVersion)
             {
                 return DataSetDecodeErrorReason.MetadataMajorVersion;
             }

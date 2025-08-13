@@ -130,15 +130,13 @@ namespace Opc.Ua
             "%CommonApplicationData%",
             "OPC Foundation",
             "pki",
-            "own"
-        );
+            "own");
 #else
         public static readonly string DefaultStorePath = Path.Combine(
             "%LocalApplicationData%",
             "OPC Foundation",
             "pki",
-            "own"
-        );
+            "own");
 #endif
 
         /// <summary>
@@ -168,8 +166,7 @@ namespace Opc.Ua
             {
                 { UriSchemeHttps, "Opc.Ua.Bindings.Https" },
                 { UriSchemeOpcHttps, "Opc.Ua.Bindings.Https" }
-            }
-        );
+            });
 
         /// <summary>
         /// Returns <c>true</c> if the url starts with opc.https or https.
@@ -381,8 +378,7 @@ namespace Opc.Ua
                                 file.FullName,
                                 FileMode.Append,
                                 FileAccess.Write,
-                                FileShare.Read)
-                        );
+                                FileShare.Read));
                         if (truncated)
                         {
                             writer.WriteLine("WARNING - LOG FILE TRUNCATED.");
@@ -520,8 +516,7 @@ namespace Opc.Ua
                         CultureInfo.InvariantCulture,
                         " {0} '{1}'",
                         StatusCodes.GetBrowseName(sre.StatusCode),
-                        sre.Message
-                    );
+                        sre.Message);
                 }
                 else
                 {
@@ -598,8 +593,7 @@ namespace Opc.Ua
             TState state,
             Exception exception,
             int traceMask,
-            Func<TState, Exception, string> formatter
-        )
+            Func<TState, Exception, string> formatter)
         {
             // do nothing if mask not enabled.
             bool tracingEnabled = Tracing.IsEnabled();
@@ -616,8 +610,7 @@ namespace Opc.Ua
                 message.AppendFormat(
                     CultureInfo.InvariantCulture,
                     "{0:d} {0:HH:mm:ss.fff} ",
-                    DateTime.UtcNow.ToLocalTime()
-                )
+                    DateTime.UtcNow.ToLocalTime())
                     .Append(formatter(state, exception));
                 if (exception != null)
                 {
@@ -669,8 +662,7 @@ namespace Opc.Ua
             message.AppendFormat(
                 CultureInfo.InvariantCulture,
                 "{0:d} {0:HH:mm:ss.fff} ",
-                DateTime.UtcNow.ToLocalTime()
-            );
+                DateTime.UtcNow.ToLocalTime());
 
             // format message.
             if (args != null && args.Length > 0)
@@ -841,8 +833,7 @@ namespace Opc.Ua
             bool checkCurrentDirectory,
             bool throwOnError,
             bool createAlways,
-            bool writable = false
-        )
+            bool writable = false)
         {
             filePath = ReplaceSpecialFolderNames(filePath);
 
@@ -880,9 +871,7 @@ namespace Opc.Ua
                                     "{0}{1}{2}",
                                     Directory.GetCurrentDirectory(),
                                     Path.DirectorySeparatorChar,
-                                    filePath
-                                )
-                            );
+                                    filePath));
 #if NETFRAMEWORK
                             if (!localFile.Exists)
                             {
@@ -892,9 +881,7 @@ namespace Opc.Ua
                                         Path.GetDirectoryName(
                                             Assembly.GetExecutingAssembly().Location),
                                         Path.DirectorySeparatorChar,
-                                        filePath
-                                    )
-                                );
+                                        filePath));
                                 if (localFile2.Exists)
                                 {
                                     localFile = localFile2;
@@ -909,8 +896,7 @@ namespace Opc.Ua
                                     "{0}{1}{2}",
                                     Path.GetTempPath(),
                                     Path.DirectorySeparatorChar,
-                                    filePath)
-                            );
+                                    filePath));
                         }
 
                         if (localFile.Exists)
@@ -941,8 +927,7 @@ namespace Opc.Ua
                     StatusCodes.BadConfigurationError,
                     message.ToString(),
                     filePath,
-                    Directory.GetCurrentDirectory()
-                );
+                    Directory.GetCurrentDirectory());
             }
 
             return null;
@@ -997,8 +982,7 @@ namespace Opc.Ua
             string dirPath,
             bool checkCurrentDirectory,
             bool throwOnError,
-            bool createAlways
-        )
+            bool createAlways)
         {
             string originalPath = dirPath;
             dirPath = ReplaceSpecialFolderNames(dirPath);
@@ -1036,9 +1020,7 @@ namespace Opc.Ua
                                     "{0}{1}{2}",
                                     Directory.GetCurrentDirectory(),
                                     Path.DirectorySeparatorChar,
-                                    dirPath
-                                )
-                            );
+                                    dirPath));
 #if NETFRAMEWORK
                             if (!directory.Exists)
                             {
@@ -1048,9 +1030,7 @@ namespace Opc.Ua
                                         Path.GetDirectoryName(
                                             Assembly.GetExecutingAssembly().Location),
                                         Path.DirectorySeparatorChar,
-                                        dirPath
-                                    )
-                                );
+                                        dirPath));
                                 if (directory2.Exists)
                                 {
                                     directory = directory2;
@@ -1082,8 +1062,7 @@ namespace Opc.Ua
                     StatusCodes.BadConfigurationError,
                     "Directory does not exist: {0}\r\nCurrent directory is: {1}",
                     originalPath,
-                    Directory.GetCurrentDirectory()
-                );
+                    Directory.GetCurrentDirectory());
             }
 
             return null;
@@ -1842,8 +1821,7 @@ namespace Opc.Ua
         public static LocalizedText SelectLocalizedText(
             IList<string> localeIds,
             IList<LocalizedText> names,
-            LocalizedText defaultName
-        )
+            LocalizedText defaultName)
         {
             // check if no locales requested.
             if (localeIds == null || localeIds.Count == 0)
@@ -2010,8 +1988,7 @@ namespace Opc.Ua
             //try to find the MemberwiseClone method by reflection.
             MethodInfo memberwiseCloneMethod = type.GetMethod(
                 "MemberwiseClone",
-                BindingFlags.Public | BindingFlags.Instance
-            );
+                BindingFlags.Public | BindingFlags.Instance);
             if (memberwiseCloneMethod != null)
             {
                 object clone = memberwiseCloneMethod.Invoke(value, null);
@@ -2297,10 +2274,8 @@ namespace Opc.Ua
                 // compare each rank.
                 for (int ii = 0; ii < array1.Rank; ii++)
                 {
-                    if (
-                        array1.GetLowerBound(ii) != array2.GetLowerBound(ii) ||
-                        array1.GetUpperBound(ii) != array2.GetUpperBound(ii)
-                    )
+                    if (array1.GetLowerBound(ii) != array2.GetLowerBound(ii) ||
+                        array1.GetUpperBound(ii) != array2.GetUpperBound(ii))
                     {
                         return false;
                     }
@@ -2694,8 +2669,7 @@ namespace Opc.Ua
         public static void UpdateExtension<T>(
             ref XmlElementCollection extensions,
             XmlQualifiedName elementName,
-            object value
-        )
+            object value)
         {
             var document = new XmlDocument();
 
@@ -2736,11 +2710,9 @@ namespace Opc.Ua
             {
                 for (int ii = 0; ii < extensions.Count; ii++)
                 {
-                    if (
-                        extensions[ii] != null &&
+                    if (extensions[ii] != null &&
                         extensions[ii].LocalName == elementName.Name &&
-                        extensions[ii].NamespaceURI == elementName.Namespace
-                    )
+                        extensions[ii].NamespaceURI == elementName.Namespace)
                     {
                         // remove the existing value if the value is null.
                         if (value == null)
@@ -2968,8 +2940,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public static X509Certificate2 ParseCertificateBlob(
             ReadOnlyMemory<byte> certificateData,
-            bool useAsnParser = false
-        )
+            bool useAsnParser = false)
         {
             // macOS X509Certificate2 constructor throws exception if a certchain is encoded
             // use AsnParser on macOS to parse for byteblobs,
@@ -2995,8 +2966,7 @@ namespace Opc.Ua
                 throw new ServiceResultException(
                     StatusCodes.BadCertificateInvalid,
                     "Could not parse DER encoded form of a X509 certificate.",
-                    e
-                );
+                    e);
             }
         }
 
@@ -3008,8 +2978,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public static X509Certificate2Collection ParseCertificateChainBlob(
             ReadOnlyMemory<byte> certificateData,
-            bool useAsnParser = false
-        )
+            bool useAsnParser = false)
         {
             var certificateChain = new X509Certificate2Collection();
 
@@ -3043,8 +3012,7 @@ namespace Opc.Ua
                     throw new ServiceResultException(
                         StatusCodes.BadCertificateInvalid,
                         "Could not parse DER encoded form of a X509 certificate.",
-                        e
-                    );
+                        e);
                 }
 
                 certificateChain.Add(certificate);
@@ -3195,8 +3163,7 @@ namespace Opc.Ua
             {
                 throw new ServiceResultException(
                     StatusCodes.BadUnexpectedError,
-                    "The HMAC algorithm requires a non-null seed."
-                );
+                    "The HMAC algorithm requires a non-null seed.");
             }
 
             byte[] keySeed = hmac.ComputeHash(seed);

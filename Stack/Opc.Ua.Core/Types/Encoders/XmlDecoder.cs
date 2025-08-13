@@ -243,8 +243,7 @@ namespace Opc.Ua
                     StatusCodes.BadDecodingError,
                     "Skip {0} failed: {1}",
                     qname.Name,
-                    xe.Message
-                );
+                    xe.Message);
             }
         }
 
@@ -524,8 +523,7 @@ namespace Opc.Ua
                     StatusCodes.BadDecodingError,
                     "Element '{1}:{0}' is not allowed in a Variant.",
                     m_reader.LocalName,
-                    m_reader.NamespaceURI
-                );
+                    m_reader.NamespaceURI);
             }
             finally
             {
@@ -575,8 +573,7 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
                     "Failed to decode xml extension object body: {0}",
-                    ae.Message
-                );
+                    ae.Message);
             }
 
             // check for empty body.
@@ -1384,8 +1381,7 @@ namespace Opc.Ua
             {
                 Utils.LogWarning(
                     "Cannot de-serialize extension objects if the NamespaceUri is not in the NamespaceTable: Type = {0}",
-                    typeId
-                );
+                    typeId);
             }
 
             // read body.
@@ -1441,8 +1437,7 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
                     "Type does not support IEncodeable interface: '{0}'",
-                    systemType.FullName
-                );
+                    systemType.FullName);
             }
 
             if (encodeableTypeId != null)
@@ -1474,9 +1469,7 @@ namespace Opc.Ua
                         !(
                             m_reader.NodeType == XmlNodeType.EndElement &&
                             m_reader.LocalName == fieldName &&
-                            m_reader.NamespaceURI == m_namespaces.Peek()
-                        )
-                    )
+                            m_reader.NamespaceURI == m_namespaces.Peek()))
                     {
                         if (m_reader.NodeType == XmlNodeType.None)
                         {
@@ -1484,8 +1477,7 @@ namespace Opc.Ua
                                 StatusCodes.BadDecodingError,
                                 "Unexpected end of stream decoding field '{0}' for type '{1}'.",
                                 fieldName,
-                                systemType.FullName
-                            );
+                                systemType.FullName);
                         }
 
                         m_reader.Skip();
@@ -1502,8 +1494,7 @@ namespace Opc.Ua
                     "Error decoding field '{0}' for type '{1}': {2}",
                     fieldName,
                     systemType.Name,
-                    xe.Message
-                );
+                    xe.Message);
             }
             finally
             {
@@ -2462,8 +2453,7 @@ namespace Opc.Ua
             int valueRank,
             BuiltInType builtInType,
             Type systemType,
-            ExpandedNodeId encodeableTypeId = null
-        )
+            ExpandedNodeId encodeableTypeId = null)
         {
             if (valueRank == ValueRanks.OneDimension)
             {
@@ -2499,8 +2489,7 @@ namespace Opc.Ua
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadDecodingError,
-                        "The Matrix contains invalid elements"
-                    );
+                        "The Matrix contains invalid elements");
                 }
 
                 Matrix matrix;
@@ -2519,8 +2508,7 @@ namespace Opc.Ua
             throw ServiceResultException.Create(
                 StatusCodes.BadDecodingError,
                 "Invalid ValueRank {0} for Array",
-                valueRank
-            );
+                valueRank);
         }
 
         /// <inheritdoc/>
@@ -2547,8 +2535,7 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of InnerDiagnosticInfo was exceeded"
-                );
+                    "Maximum nesting level of InnerDiagnosticInfo was exceeded");
             }
 
             CheckAndIncrementNestingLevel();
@@ -2645,8 +2632,7 @@ namespace Opc.Ua
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadDecodingError,
-                        "The Matrix contains invalid elements."
-                    );
+                        "The Matrix contains invalid elements.");
                 }
 
                 if (dimensions != null && dimensions.Count > 0)
@@ -2656,15 +2642,13 @@ namespace Opc.Ua
                     (bool valid, int matrixLength) = Matrix.ValidateDimensions(
                         dimensionsArray,
                         length,
-                        Context.MaxArrayLength
-                    );
+                        Context.MaxArrayLength);
 
                     if (!valid || (matrixLength != length))
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadDecodingError,
-                            "ArrayDimensions length does not match with the ArrayLength in Variant object."
-                        );
+                            "ArrayDimensions length does not match with the ArrayLength in Variant object.");
                     }
 
                     return new Matrix(elements, typeInfo.BuiltInType, dimensionsArray);
@@ -2715,8 +2699,7 @@ namespace Opc.Ua
                 "DiagnosticInfo" => TypeInfo.Arrays.DiagnosticInfo,
                 _ => throw new ServiceResultException(
                     StatusCodes.BadDecodingError,
-                    $"Unsupported element type: {elementTypeName}"
-                )
+                    $"Unsupported element type: {elementTypeName}")
             };
         }
 
@@ -2732,8 +2715,7 @@ namespace Opc.Ua
             string fieldName,
             BuiltInType builtInType,
             Type systemType,
-            ExpandedNodeId encodeableTypeId
-        )
+            ExpandedNodeId encodeableTypeId)
         {
             CheckAndIncrementNestingLevel();
 
@@ -2906,8 +2888,7 @@ namespace Opc.Ua
                         throw ServiceResultException.Create(
                             StatusCodes.BadDecodingError,
                             "Cannot decode unknown type in Array object with BuiltInType: {0}.",
-                            builtInType
-                        );
+                            builtInType);
                 }
             }
             finally
@@ -2937,8 +2918,7 @@ namespace Opc.Ua
                         "ReadString in {0} exceeds MaxStringLength: {1} > {2}",
                         functionName,
                         value.Length,
-                        Context.MaxStringLength
-                    );
+                        Context.MaxStringLength);
                 }
 
                 return value;
@@ -2955,8 +2935,7 @@ namespace Opc.Ua
                 StatusCodes.BadDecodingError,
                 "Unable to read string of {0}: {1}",
                 functionName,
-                message
-            );
+                message);
         }
 
         private static byte[] SafeConvertFromBase64String(string s)
@@ -2970,8 +2949,7 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
                     "Error decoding base64 string: {0}",
-                    fe.Message
-                );
+                    fe.Message);
             }
         }
 
@@ -3013,8 +2991,7 @@ namespace Opc.Ua
                             m_reader.LocalName,
                             m_reader.NamespaceURI,
                             fieldName,
-                            m_namespaces.Peek()
-                        );
+                            m_namespaces.Peek());
                     }
 
                     isNil = true;
@@ -3044,11 +3021,9 @@ namespace Opc.Ua
                     m_reader.MoveToContent();
 
                     // check for an element with no children but not empty (due to whitespace).
-                    if (
-                        m_reader.NodeType == XmlNodeType.EndElement &&
+                    if (m_reader.NodeType == XmlNodeType.EndElement &&
                         m_reader.LocalName == fieldName &&
-                        m_reader.NamespaceURI == m_namespaces.Peek()
-                    )
+                        m_reader.NamespaceURI == m_namespaces.Peek())
                     {
                         m_reader.ReadEndElement();
                         return false;
@@ -3064,8 +3039,7 @@ namespace Opc.Ua
                     StatusCodes.BadDecodingError,
                     "Unable to read field {0}: {1}",
                     fieldName,
-                    xe.Message
-                );
+                    xe.Message);
             }
         }
 
@@ -3081,11 +3055,9 @@ namespace Opc.Ua
                 {
                     m_reader.MoveToContent();
 
-                    if (
-                        m_reader.NodeType != XmlNodeType.EndElement ||
+                    if (m_reader.NodeType != XmlNodeType.EndElement ||
                         m_reader.LocalName != fieldName ||
-                        m_reader.NamespaceURI != m_namespaces.Peek()
-                    )
+                        m_reader.NamespaceURI != m_namespaces.Peek())
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadDecodingError,
@@ -3093,8 +3065,7 @@ namespace Opc.Ua
                             m_reader.LocalName,
                             m_reader.NamespaceURI,
                             fieldName,
-                            m_namespaces.Peek()
-                        );
+                            m_namespaces.Peek());
                     }
 
                     m_reader.ReadEndElement();
@@ -3105,8 +3076,7 @@ namespace Opc.Ua
                         StatusCodes.BadDecodingError,
                         "Unable to read end field: {0}: {1}",
                         fieldName,
-                        xe.Message
-                    );
+                        xe.Message);
                 }
             }
         }
@@ -3164,8 +3134,7 @@ namespace Opc.Ua
                     StatusCodes.BadEncodingLimitsExceeded,
                     "Maximum nesting level of {0} in function {1} was exceeded",
                     Context.MaxEncodingNestingLevels,
-                    functionName
-                );
+                    functionName);
             }
             m_nestingLevel++;
         }
@@ -3176,16 +3145,14 @@ namespace Opc.Ua
         private static ServiceResultException CreateBadDecodingError(
             string fieldName,
             Exception ex,
-            [CallerMemberName] string functionName = null
-        )
+            [CallerMemberName] string functionName = null)
         {
             return ServiceResultException.Create(
                 StatusCodes.BadDecodingError,
                 "Unable to read field {0} in function {1}: {2}",
                 fieldName,
                 functionName,
-                ex.Message
-            );
+                ex.Message);
         }
 
         /// <summary>
@@ -3200,8 +3167,7 @@ namespace Opc.Ua
             string fieldName,
             Func<string, T> converter,
             string xml,
-            [CallerMemberName] string functionName = null
-        )
+            [CallerMemberName] string functionName = null)
         {
             try
             {

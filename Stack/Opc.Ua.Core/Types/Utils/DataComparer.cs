@@ -874,8 +874,7 @@ namespace Opc.Ua.Test
                     return CompareArray(
                         (ExpandedNodeId[])value1.Value,
                         (ExpandedNodeId[])value2.Value,
-                        CompareExpandedNodeId
-                    );
+                        CompareExpandedNodeId);
                 }
                 if (systemType == typeof(StatusCode[]))
                 {
@@ -889,32 +888,28 @@ namespace Opc.Ua.Test
                     return CompareArray(
                         (DiagnosticInfo[])value1.Value,
                         (DiagnosticInfo[])value2.Value,
-                        CompareDiagnosticInfo
-                    );
+                        CompareDiagnosticInfo);
                 }
                 if (systemType == typeof(QualifiedName[]))
                 {
                     return CompareArray(
                         (QualifiedName[])value1.Value,
                         (QualifiedName[])value2.Value,
-                        CompareQualifiedName
-                    );
+                        CompareQualifiedName);
                 }
                 if (systemType == typeof(LocalizedText[]))
                 {
                     return CompareArray(
                         (LocalizedText[])value1.Value,
                         (LocalizedText[])value2.Value,
-                        CompareLocalizedText
-                    );
+                        CompareLocalizedText);
                 }
                 if (systemType == typeof(ExtensionObject[]))
                 {
                     return CompareArray(
                         (ExtensionObject[])value1.Value,
                         (ExtensionObject[])value2.Value,
-                        CompareExtensionObject
-                    );
+                        CompareExtensionObject);
                 }
                 if (systemType == typeof(DataValue[]))
                 {
@@ -1161,11 +1156,9 @@ namespace Opc.Ua.Test
                 return true;
             }
 
-            if (
-                value1 is IEncodeable encodeable1 &&
+            if (value1 is IEncodeable encodeable1 &&
                 value2 is IEncodeable encodeable2 &&
-                encodeable1.IsEqual(encodeable2)
-            )
+                encodeable1.IsEqual(encodeable2))
             {
                 return true;
             }
@@ -1242,8 +1235,7 @@ namespace Opc.Ua.Test
                     StatusCodes.BadUnexpectedError,
                     "'{0}' is not equal to '{1}'.",
                     value1,
-                    value2
-                );
+                    value2);
             }
 
             return false;

@@ -42,8 +42,7 @@ namespace Opc.Ua.PubSub
         public DataSetDecodeErrorEventArgs(
             DataSetDecodeErrorReason dataSetDecodeErrorReason,
             UaNetworkMessage networkMessage,
-            DataSetReaderDataType dataSetReader
-        )
+            DataSetReaderDataType dataSetReader)
         {
             DecodeErrorReason = dataSetDecodeErrorReason;
             UaNetworkMessage = networkMessage;

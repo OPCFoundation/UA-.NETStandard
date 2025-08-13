@@ -53,8 +53,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public override IComplexTypeBuilder Create(
             string targetNamespace,
             int targetNamespaceIndex,
-            string moduleName = null
-        )
+            string moduleName = null)
         {
             return new ComplexTypeBuilder(
                 m_moduleFactory,

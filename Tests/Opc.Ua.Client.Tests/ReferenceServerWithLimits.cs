@@ -63,8 +63,7 @@ namespace Opc.Ua.Client.Tests
             uint requestedMaxReferencesPerNode,
             BrowseDescriptionCollection nodesToBrowse,
             out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return base.Browse(
                 requestHeader,
@@ -72,8 +71,7 @@ namespace Opc.Ua.Client.Tests
                 TestMaxBrowseReferencesPerNode,
                 nodesToBrowse,
                 out results,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
         }
 
         public void SetMaxNumberOfContinuationPoints(uint maxNumberOfContinuationPoints)
@@ -98,8 +96,7 @@ namespace Opc.Ua.Client.Tests
 
         protected override MasterNodeManager CreateMasterNodeManager(
             IServerInternal server,
-            ApplicationConfiguration configuration
-        )
+            ApplicationConfiguration configuration)
         {
             Utils.LogInfo(
                 Utils.TraceMasks.StartStop,
@@ -120,16 +117,14 @@ namespace Opc.Ua.Client.Tests
                 server,
                 configuration,
                 null,
-                [.. nodeManagers]
-            );
+                [.. nodeManagers]);
             // create master node manager.
             return MasterNodeManagerReference;
         }
 
         protected override ISessionManager CreateSessionManager(
             IServerInternal server,
-            ApplicationConfiguration configuration
-        )
+            ApplicationConfiguration configuration)
         {
             SessionManagerForTest = new SessionManagerWithLimits(server, configuration);
             return SessionManagerForTest;
@@ -158,8 +153,7 @@ namespace Opc.Ua.Client.Tests
             uint maxResponseMessageSize,
             double maxRequestAge,
             int maxBrowseContinuationPoints,
-            int maxHistoryContinuationPoints
-        )
+            int maxHistoryContinuationPoints)
             : base(
                 context,
                 server,
@@ -174,8 +168,7 @@ namespace Opc.Ua.Client.Tests
                 clientCertificateChain,
                 sessionTimeout,
                 maxBrowseContinuationPoints,
-                maxHistoryContinuationPoints
-            )
+                maxHistoryContinuationPoints)
         {
         }
 
@@ -226,8 +219,7 @@ namespace Opc.Ua.Client.Tests
             double sessionTimeout,
             uint maxResponseMessageSize,
             int maxRequestAge, // TBD - Remove unused parameter.
-            int maxContinuationPoints
-        )
+            int maxContinuationPoints)
         {
             return new ServerSessionWithLimits(
                 context,
@@ -245,8 +237,7 @@ namespace Opc.Ua.Client.Tests
                 maxResponseMessageSize,
                 m_4TestMaxRequestAge,
                 m_4TestMaxBrowseContinuationPoints,
-                m_4TestMaxHistoryContinuationPoints
-            );
+                m_4TestMaxHistoryContinuationPoints);
         }
     }
 
@@ -260,8 +251,7 @@ namespace Opc.Ua.Client.Tests
             IServerInternal server,
             ApplicationConfiguration configuration,
             string dynamicNamespaceUri,
-            params INodeManager[] additionalManagers
-        )
+            params INodeManager[] additionalManagers)
             : base(server, configuration, dynamicNamespaceUri, additionalManagers)
         {
         }
@@ -279,8 +269,7 @@ namespace Opc.Ua.Client.Tests
             uint maxReferencesPerNode,
             BrowseDescriptionCollection nodesToBrowse,
             out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             if (context == null)
             {
@@ -315,8 +304,7 @@ namespace Opc.Ua.Client.Tests
                     viewHandle,
                     PermissionType.Browse,
                     null,
-                    true
-                );
+                    true);
                 if (ServiceResult.IsBad(validationResult))
                 {
                     throw new ServiceResultException(validationResult);
@@ -338,11 +326,9 @@ namespace Opc.Ua.Client.Tests
                     // release all allocated continuation points.
                     foreach (BrowseResult current in results)
                     {
-                        if (
-                            current != null &&
+                        if (current != null &&
                             current.ContinuationPoint != null &&
-                            current.ContinuationPoint.Length > 0
-                        )
+                            current.ContinuationPoint.Length > 0)
                         {
                             ContinuationPoint cp = context.Session
                                 .RestoreContinuationPoint(current.ContinuationPoint);
@@ -371,8 +357,7 @@ namespace Opc.Ua.Client.Tests
                         MaxContinuationPointsPerBrowseForUnitTest <= 0 ||
                         continuationPointsAssigned < MaxContinuationPointsPerBrowseForUnitTest,
                         nodeToBrowse,
-                        result
-                    );
+                        result);
                 }
                 catch (Exception e)
                 {

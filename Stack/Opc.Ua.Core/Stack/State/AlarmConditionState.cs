@@ -85,8 +85,7 @@ namespace Opc.Ua
         public virtual void SetActiveEffectiveSubState(
             ISystemContext context,
             LocalizedText displayName,
-            DateTime transitionTime
-        )
+            DateTime transitionTime)
         {
             if (ActiveState.EffectiveDisplayName != null)
             {
@@ -176,11 +175,9 @@ namespace Opc.Ua
             }
             else
             {
-                if (
-                    ShelvingState == null ||
+                if (ShelvingState == null ||
                     ShelvingState.CurrentState.Id.Value == ObjectIds
-                        .ShelvedStateMachineType_Unshelved
-                )
+                        .ShelvedStateMachineType_Unshelved)
                 {
                     SuppressedOrShelved.Value = false;
                 }
@@ -279,8 +276,7 @@ namespace Opc.Ua
                     OnUnshelveTimeUpdate,
                     context,
                     UnshelveTimeUpdateRate,
-                    UnshelveTimeUpdateRate
-                );
+                    UnshelveTimeUpdateRate);
 
                 m_unshelveTimer = new Timer(
                     OnTimerExpired,
@@ -380,10 +376,8 @@ namespace Opc.Ua
 
                 if (ActiveState.Id.Value)
                 {
-                    if (
-                        ActiveState.EffectiveDisplayName != null &&
-                        !LocalizedText.IsNullOrEmpty(ActiveState.EffectiveDisplayName.Value)
-                    )
+                    if (ActiveState.EffectiveDisplayName != null &&
+                        !LocalizedText.IsNullOrEmpty(ActiveState.EffectiveDisplayName.Value))
                     {
                         builder.Append(ActiveState.EffectiveDisplayName.Value);
                     }
@@ -405,10 +399,8 @@ namespace Opc.Ua
                 suppressedState = SuppressedState.Value;
             }
 
-            if (
-                ShelvingState != null &&
-                ShelvingState.CurrentState.Id.Value != ObjectIds.ShelvedStateMachineType_Unshelved
-            )
+            if (ShelvingState != null &&
+                ShelvingState.CurrentState.Id.Value != ObjectIds.ShelvedStateMachineType_Unshelved)
             {
                 suppressedState = ShelvingState.CurrentState.Value;
             }
@@ -489,8 +481,7 @@ namespace Opc.Ua
             ISystemContext context,
             MethodState method,
             IList<object> inputArguments,
-            IList<object> outputArguments
-        )
+            IList<object> outputArguments)
         {
             ServiceResult error = null;
 
@@ -531,8 +522,7 @@ namespace Opc.Ua
                     var info = new TranslationInfo(
                         "AuditConditionOneShotShelve",
                         "en-US",
-                        "The OneShotShelve method was called."
-                    );
+                        "The OneShotShelve method was called.");
 
                     e.Initialize(
                         context,
@@ -540,8 +530,7 @@ namespace Opc.Ua
                         EventSeverity.Low,
                         new LocalizedText(info),
                         ServiceResult.IsGood(error),
-                        DateTime.UtcNow
-                    );
+                        DateTime.UtcNow);
 
                     e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
                     e.SetChildValue(context, BrowseNames.SourceName, "Method/OneShotShelve", false);
@@ -578,8 +567,7 @@ namespace Opc.Ua
             ISystemContext context,
             MethodState method,
             NodeId objectId,
-            double shelvingTime
-        )
+            double shelvingTime)
         {
             ServiceResult error = null;
 
@@ -626,8 +614,7 @@ namespace Opc.Ua
                     var info = new TranslationInfo(
                         "AuditConditionTimedShelve",
                         "en-US",
-                        "The TimedShelve method was called."
-                    );
+                        "The TimedShelve method was called.");
 
                     e.Initialize(
                         context,
@@ -635,8 +622,7 @@ namespace Opc.Ua
                         EventSeverity.Low,
                         new LocalizedText(info),
                         ServiceResult.IsGood(error),
-                        DateTime.UtcNow
-                    );
+                        DateTime.UtcNow);
 
                     e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
                     e.SetChildValue(context, BrowseNames.SourceName, "Method/TimedShelve", false);
@@ -679,8 +665,7 @@ namespace Opc.Ua
             ISystemContext context,
             MethodState method,
             IList<object> inputArguments,
-            IList<object> outputArguments
-        )
+            IList<object> outputArguments)
         {
             ServiceResult error = null;
 
@@ -722,8 +707,7 @@ namespace Opc.Ua
                     var info = new TranslationInfo(
                         "AuditConditionUnshelve",
                         "en-US",
-                        "The Unshelve method was called."
-                    );
+                        "The Unshelve method was called.");
 
                     e.Initialize(
                         context,
@@ -731,8 +715,7 @@ namespace Opc.Ua
                         EventSeverity.Low,
                         new LocalizedText(info),
                         ServiceResult.IsGood(error),
-                        DateTime.UtcNow
-                    );
+                        DateTime.UtcNow);
 
                     e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
                     e.SetChildValue(context, BrowseNames.SourceName, "Method/UnShelve", false);
@@ -804,8 +787,7 @@ namespace Opc.Ua
         AlarmConditionState alarm,
         bool shelving,
         bool oneShot,
-        double shelvingTime
-    );
+        double shelvingTime);
 
     /// <summary>
     /// Used to receive notifications when the timed shelve period elapses for an alarm.
@@ -814,8 +796,7 @@ namespace Opc.Ua
     /// <param name="alarm">The alarm that raised the event.</param>
     public delegate ServiceResult AlarmConditionTimedUnshelveEventHandler(
         ISystemContext context,
-        AlarmConditionState alarm
-    );
+        AlarmConditionState alarm);
 
     /// <summary>
     /// Used to receive notifications when the shelving state is either OneShotShelved or TimedShelved.
@@ -825,6 +806,5 @@ namespace Opc.Ua
     /// <param name="alarm">The alarm that raised the event.</param>
     public delegate ServiceResult AlarmConditionUnshelveTimeValueEventHandler(
         ISystemContext context,
-        AlarmConditionState alarm
-    );
+        AlarmConditionState alarm);
 }

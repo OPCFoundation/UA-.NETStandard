@@ -101,16 +101,14 @@ namespace Quickstarts.Servers
                 {
                     Opc.Ua.Utils.LogDebug(
                         "Dequeue was requeusted but queue was not restored for monitoreditem {0} try to restore for 10 ms.",
-                        MonitoredItemId
-                    );
+                        MonitoredItemId);
                     m_batchPersistor.RequestBatchRestore(m_dequeueBatch);
 
                     if (!SpinWait.SpinUntil(() => !m_dequeueBatch.RestoreInProgress, 10))
                     {
                         Opc.Ua.Utils.LogDebug(
                             "Dequeue failed for monitoreditem {0} as queue could not be restored in time.",
-                            MonitoredItemId
-                        );
+                            MonitoredItemId);
                         // Dequeue failed as queue could not be restored in time
                         return false;
                     }
@@ -132,8 +130,7 @@ namespace Quickstarts.Servers
             {
                 throw new ServiceResultException(
                     StatusCodes.BadInternalError,
-                    "Error queueing Event. Queue size is set to 0"
-                );
+                    "Error queueing Event. Queue size is set to 0");
             }
 
             //Discard oldest
@@ -241,12 +238,10 @@ namespace Quickstarts.Servers
                 else if (i >= m_enqueueBatch.Events.Count && m_eventBatches.Count > 0)
                 {
                     int indexInStoredBatch = i - m_enqueueBatch.Events.Count;
-                    if (
-                        indexInStoredBatch < m_eventBatches[^1].Events.Count &&
+                    if (indexInStoredBatch < m_eventBatches[^1].Events.Count &&
                         m_eventBatches[^1].Events[
                             indexInStoredBatch] is EventFieldList storedEvent &&
-                        ReferenceEquals(instance, storedEvent.Handle)
-                    )
+                        ReferenceEquals(instance, storedEvent.Handle))
                     {
                         return true;
                     }

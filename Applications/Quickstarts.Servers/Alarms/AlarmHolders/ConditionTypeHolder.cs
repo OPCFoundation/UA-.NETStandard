@@ -43,8 +43,7 @@ namespace Alarms
             SupportedAlarmConditionType alarmConditionType,
             Type controllerType,
             int interval,
-            bool optional
-        )
+            bool optional)
             : base(
                 alarmNodeManager,
                 parent,
@@ -125,8 +124,7 @@ namespace Alarms
                         " EventId " +
                         postEventId +
                         " created, Message " +
-                        alarm.Message.Value.Text
-                    );
+                        alarm.Message.Value.Text);
 
                     m_alarmController.SetBranchCount(alarm.GetBranchCount());
                 }
@@ -170,8 +168,7 @@ namespace Alarms
                     " Value " +
                     m_alarmController.GetValue().ToString(CultureInfo.InvariantCulture) +
                     " Message " +
-                    alarm.Message.Value.Text
-                );
+                    alarm.Message.Value.Text);
 
                 alarm.ClearChangeMasks(SystemContext, true);
 
@@ -312,8 +309,7 @@ namespace Alarms
             ISystemContext context,
             ConditionState condition,
             byte[] eventId,
-            LocalizedText comment
-        )
+            LocalizedText comment)
         {
             ConditionState alarm = GetAlarm();
 

@@ -270,8 +270,7 @@ namespace Opc.Ua.Client
                 Utils.LogError(
                     "Could not fetch references for valid node with NodeId = {0}. Error = {1}",
                     nodeId,
-                    Redact.Create(e)
-                );
+                    Redact.Create(e));
             }
 
             InternalWriteLockedAttach(source);
@@ -291,8 +290,7 @@ namespace Opc.Ua.Client
             }
 
             var localIds = new NodeIdCollection(
-                nodeIds.Select(nodeId => ExpandedNodeId.ToNodeId(nodeId, m_session.NamespaceUris))
-            );
+                nodeIds.Select(nodeId => ExpandedNodeId.ToNodeId(nodeId, m_session.NamespaceUris)));
 
             // fetch nodes and references from server.
             (IList<Node> sourceNodes, IList<ServiceResult> readErrors) = await m_session
@@ -359,8 +357,7 @@ namespace Opc.Ua.Client
             NodeId referenceTypeId,
             bool isInverse,
             bool includeSubtypes,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             IList<INode> targets = [];
 
@@ -403,8 +400,7 @@ namespace Opc.Ua.Client
             IList<NodeId> referenceTypeIds,
             bool isInverse,
             bool includeSubtypes,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             IList<INode> targets = [];
             if (nodeIds.Count == 0 || referenceTypeIds.Count == 0)

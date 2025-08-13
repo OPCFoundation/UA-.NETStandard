@@ -251,8 +251,7 @@ namespace Opc.Ua
                     builtInType == BuiltInType.Enumeration) ||
                 (sanityCheck.BuiltInType == BuiltInType.ByteString &&
                     builtInType == BuiltInType.Byte) ||
-                (builtInType == BuiltInType.Variant)
-            );
+                (builtInType == BuiltInType.Variant));
 #endif
         }
 
@@ -278,8 +277,7 @@ namespace Opc.Ua
         public static (bool valid, int flatLength) ValidateDimensions(
             bool allowZeroDimension,
             Int32Collection dimensions,
-            int maxArrayLength
-        )
+            int maxArrayLength)
         {
             bool ValidateWithSideEffect(int i, Int32Collection dimCollection)
             {
@@ -293,8 +291,7 @@ namespace Opc.Ua
                     Utils.LogTrace(
                         "ReadArray read dimensions[{0}] = {1}. Matrix will have 0 elements.",
                         i,
-                        dimCollection
-                    );
+                        dimCollection);
                     dimCollection[i] = 0;
                     return false;
                 }
@@ -305,8 +302,7 @@ namespace Opc.Ua
                         "ArrayDimensions [{0}] = {1} is greater than MaxArrayLength {2}.",
                         i,
                         dimCollection[i],
-                        maxArrayLength
-                    );
+                        maxArrayLength);
                 }
                 return true;
             }
@@ -327,8 +323,7 @@ namespace Opc.Ua
         public static (bool valid, int flatLength) ValidateDimensions(
             Int32Collection dimensions,
             int flatLength,
-            int maxArrayLength
-        )
+            int maxArrayLength)
         {
             bool ValidateAgainstExpectedFlatLength(int i, Int32Collection dimCollection)
             {
@@ -337,8 +332,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
                         "ArrayDimensions [{0}] is zero in Variant object.",
-                        i
-                    );
+                        i);
                 }
                 else if (dimCollection[i] > flatLength && flatLength > 0)
                 {
@@ -347,8 +341,7 @@ namespace Opc.Ua
                         "ArrayDimensions [{0}] = {1} is greater than length {2}.",
                         i,
                         dimCollection[i],
-                        flatLength
-                    );
+                        flatLength);
                 }
                 return true;
             }
@@ -384,8 +377,7 @@ namespace Opc.Ua
         private static (bool valid, int flatLength) ValidateDimensions(
             Int32Collection dimensions,
             int maxArrayLength,
-            ValidateDimensionsFunction customValidation
-        )
+            ValidateDimensionsFunction customValidation)
         {
             (bool valid, int flatLength) = (false, 1);
             try
@@ -410,8 +402,7 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
-                    "The dimensions of the matrix are invalid and overflow when used to calculate the size."
-                );
+                    "The dimensions of the matrix are invalid and overflow when used to calculate the size.");
             }
             if ((maxArrayLength > 0) && (flatLength > maxArrayLength))
             {
@@ -419,8 +410,7 @@ namespace Opc.Ua
                     StatusCodes.BadEncodingLimitsExceeded,
                     "Maximum array length of {0} was exceeded while summing up to {1} from the array dimensions",
                     maxArrayLength,
-                    flatLength
-                );
+                    flatLength);
             }
 
             return (valid, flatLength);

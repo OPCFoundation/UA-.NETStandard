@@ -204,8 +204,7 @@ namespace Opc.Ua.Server
         public uint Publish(
             OperationContext context,
             Queue<EventFieldList> notifications,
-            uint maxNotificationsPerPublish
-        )
+            uint maxNotificationsPerPublish)
         {
             uint notificationCount = 0;
             while (notificationCount < maxNotificationsPerPublish &&

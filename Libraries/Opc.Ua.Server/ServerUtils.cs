@@ -228,8 +228,7 @@ namespace Opc.Ua.Server
             uint queueSize,
             bool discardOldest,
             MonitoringFilter filter,
-            MonitoringMode monitoringMode
-        )
+            MonitoringMode monitoringMode)
         {
             if (!s_eventsEnabled)
             {
@@ -268,8 +267,7 @@ namespace Opc.Ua.Server
             uint queueSize,
             bool discardOldest,
             MonitoringFilter filter,
-            MonitoringMode monitoringMode
-        )
+            MonitoringMode monitoringMode)
         {
             if (!s_eventsEnabled)
             {
@@ -305,8 +303,7 @@ namespace Opc.Ua.Server
             uint code,
             OperationContext context,
             DiagnosticInfoCollection diagnosticInfos,
-            int index
-        )
+            int index)
         {
             var error = new ServiceResult(code);
 
@@ -329,8 +326,7 @@ namespace Opc.Ua.Server
             uint code,
             StatusCodeCollection results,
             DiagnosticInfoCollection diagnosticInfos,
-            OperationContext context
-        )
+            OperationContext context)
         {
             var error = new ServiceResult(code);
             results.Add(error.Code);
@@ -353,8 +349,7 @@ namespace Opc.Ua.Server
             StatusCodeCollection results,
             DiagnosticInfoCollection diagnosticInfos,
             int index,
-            OperationContext context
-        )
+            OperationContext context)
         {
             var error = new ServiceResult(code);
             results[index] = error.Code;
@@ -378,8 +373,7 @@ namespace Opc.Ua.Server
         public static void CreateSuccess(
             StatusCodeCollection results,
             DiagnosticInfoCollection diagnosticInfos,
-            OperationContext context
-        )
+            OperationContext context)
         {
             results.Add(StatusCodes.Good);
 
@@ -394,8 +388,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public static DiagnosticInfoCollection CreateDiagnosticInfoCollection(
             OperationContext context,
-            IList<ServiceResult> errors
-        )
+            IList<ServiceResult> errors)
         {
             // all done if no diagnostics requested.
             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) == 0)
@@ -431,8 +424,7 @@ namespace Opc.Ua.Server
         public static StatusCodeCollection CreateStatusCodeCollection(
             OperationContext context,
             IList<ServiceResult> errors,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             diagnosticInfos = null;
 
@@ -471,8 +463,7 @@ namespace Opc.Ua.Server
         public static DiagnosticInfo CreateDiagnosticInfo(
             IServerInternal server,
             OperationContext context,
-            ServiceResult error
-        )
+            ServiceResult error)
         {
             if (error == null)
             {

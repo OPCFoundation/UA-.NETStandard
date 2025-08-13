@@ -48,8 +48,7 @@ namespace Opc.Ua.Client.ComplexTypes
             AssemblyModule moduleFactory,
             string targetNamespace,
             int targetNamespaceIndex,
-            string moduleName = null
-        )
+            string moduleName = null)
         {
             TargetNamespace = targetNamespace;
             TargetNamespaceIndex = targetNamespaceIndex;
@@ -94,8 +93,7 @@ namespace Opc.Ua.Client.ComplexTypes
             EnumBuilder enumBuilder = m_moduleBuilder.DefineEnum(
                 GetFullQualifiedTypeName(typeName),
                 TypeAttributes.Public,
-                typeof(int)
-            );
+                typeof(int));
             enumBuilder.DataContractAttribute(TargetNamespace);
             if (enumDefinition.Fields != null)
             {
@@ -146,8 +144,7 @@ namespace Opc.Ua.Client.ComplexTypes
             TypeBuilder structureBuilder = m_moduleBuilder.DefineType(
                 GetFullQualifiedTypeName(name),
                 TypeAttributes.Public | TypeAttributes.Class,
-                baseType
-            );
+                baseType);
             structureBuilder.DataContractAttribute(TargetNamespace);
             structureBuilder.StructureDefinitionAttribute(structureDefinition);
             return new ComplexTypeFieldBuilder(structureBuilder, structureDefinition.StructureType);

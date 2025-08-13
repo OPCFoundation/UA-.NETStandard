@@ -36,8 +36,7 @@ namespace Opc.Ua.Security
             EndpointDescription endpoint,
             X509Certificate2 clientCertificate,
             X509Certificate2 serverCertificate,
-            BinaryEncodingSupport encodingSupport
-        )
+            BinaryEncodingSupport encodingSupport)
         {
             // do nothing if security turned off.
             if ((Utils.TraceMask & Utils.TraceMasks.Security) == 0)
@@ -68,8 +67,7 @@ namespace Opc.Ua.Security
                     endpointUrl,
                     endpoint.SecurityMode.ToString(),
                     SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri),
-                    encoding
-                );
+                    encoding);
 
                 if (endpoint.SecurityMode != MessageSecurityMode.None)
                 {
@@ -83,8 +81,7 @@ namespace Opc.Ua.Security
                     "SECURE CHANNEL CREATED [{0}] [ID={1}] Connected To: {2}",
                     implementationInfo,
                     secureChannelId,
-                    endpointUrl
-                );
+                    endpointUrl);
             }
         }
 

@@ -110,8 +110,7 @@ namespace Opc.Ua.Server
 
                 Task.Factory.StartNew(
                     () => MonitorSessions(m_minSessionTimeout),
-                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach
-                );
+                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
             }
         }
 
@@ -151,8 +150,7 @@ namespace Opc.Ua.Server
             out NodeId sessionId,
             out NodeId authenticationToken,
             out byte[] serverNonce,
-            out double revisedSessionTimeout
-        )
+            out double revisedSessionTimeout)
         {
             sessionId = 0;
             serverNonce = null;
@@ -184,11 +182,9 @@ namespace Opc.Ua.Server
 
                 // can assign a simple identifier if secured.
                 authenticationToken = null;
-                if (
-                    !string.IsNullOrEmpty(context.ChannelContext.SecureChannelId) &&
+                if (!string.IsNullOrEmpty(context.ChannelContext.SecureChannelId) &&
                     context.ChannelContext.EndpointDescription
-                        .SecurityMode != MessageSecurityMode.None
-                )
+                        .SecurityMode != MessageSecurityMode.None)
                 {
                     authenticationToken = new NodeId(
                         Utils.IncrementIdentifier(ref m_lastSessionId));
@@ -238,8 +234,7 @@ namespace Opc.Ua.Server
                     revisedSessionTimeout,
                     maxResponseMessageSize,
                     m_maxRequestAge,
-                    m_maxBrowseContinuationPoints
-                );
+                    m_maxBrowseContinuationPoints);
 
                 // get the session id.
                 sessionId = session.Id;
@@ -271,8 +266,7 @@ namespace Opc.Ua.Server
             ExtensionObject userIdentityToken,
             SignatureData userTokenSignature,
             StringCollection localeIds,
-            out byte[] serverNonce
-        )
+            out byte[] serverNonce)
         {
             serverNonce = null;
 
@@ -319,8 +313,7 @@ namespace Opc.Ua.Server
                     userIdentityToken,
                     userTokenSignature,
                     out newIdentity,
-                    out userTokenPolicy
-                );
+                    out userTokenPolicy);
 
                 serverNonce = serverNonceObject.Data;
             }
@@ -338,8 +331,7 @@ namespace Opc.Ua.Server
                         var args = new ImpersonateEventArgs(
                             newIdentity,
                             userTokenPolicy,
-                            context.ChannelContext.EndpointDescription
-                        );
+                            context.ChannelContext.EndpointDescription);
                         m_ImpersonateUser(session, args);
 
                         if (ServiceResult.IsBad(args.IdentityValidationError))
@@ -368,8 +360,7 @@ namespace Opc.Ua.Server
                     StatusCodes.BadIdentityTokenInvalid,
                     e,
                     "Could not validate user identity token: {0}",
-                    newIdentity
-                );
+                    newIdentity);
             }
 
             // check for validation error.
@@ -387,8 +378,7 @@ namespace Opc.Ua.Server
                 identity,
                 effectiveIdentity,
                 localeIds,
-                serverNonceObject
-            );
+                serverNonceObject);
 
             // raise session related event.
             if (contextChanged)
@@ -480,8 +470,7 @@ namespace Opc.Ua.Server
                     {
                         var args = new ValidateSessionLessRequestEventArgs(
                             requestHeader.AuthenticationToken,
-                            requestType
-                        );
+                            requestType);
                         handler(this, args);
 
                         if (ServiceResult.IsBad(args.Error))
@@ -506,11 +495,9 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                if (
-                    e is ServiceResultException sre &&
+                if (e is ServiceResultException sre &&
                     sre.StatusCode == StatusCodes.BadSessionNotActivated &&
-                    session != null
-                )
+                    session != null)
                 {
                     CloseSession(session.Id);
                 }
@@ -554,8 +541,7 @@ namespace Opc.Ua.Server
                 clientCertificateChain,
                 sessionTimeout,
                 m_maxBrowseContinuationPoints,
-                m_maxHistoryContinuationPoints
-            );
+                m_maxHistoryContinuationPoints);
         }
 
         /// <summary>

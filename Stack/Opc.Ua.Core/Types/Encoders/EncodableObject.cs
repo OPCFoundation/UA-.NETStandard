@@ -57,8 +57,7 @@ namespace Opc.Ua
         public static ServiceResult ApplyDataEncoding(
             IServiceMessageContext context,
             QualifiedName dataEncoding,
-            ref object value
-        )
+            ref object value)
         {
             // check if nothing to do.
             if (QualifiedName.IsNull(dataEncoding) || value == null)
@@ -152,8 +151,7 @@ namespace Opc.Ua
                 return ServiceResult.Create(
                     e,
                     StatusCodes.BadTypeMismatch,
-                    "Could not convert value to requested format."
-                );
+                    "Could not convert value to requested format.");
             }
         }
 

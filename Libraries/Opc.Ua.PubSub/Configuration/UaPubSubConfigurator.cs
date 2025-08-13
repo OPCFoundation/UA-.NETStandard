@@ -291,8 +291,7 @@ namespace Opc.Ua.PubSub.Configuration
             }
             PubSubConfigurationDataType pubSubConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
-                    configFilePath
-                    );
+                    configFilePath);
 
             LoadConfiguration(pubSubConfiguration, replaceExisting);
         }
@@ -367,8 +366,7 @@ namespace Opc.Ua.PubSub.Configuration
             if (m_objectsToIds.ContainsKey(publishedDataSetDataType))
             {
                 throw new ArgumentException(
-                    "This PublishedDataSetDataType instance is already added to the configuration."
-                );
+                    "This PublishedDataSetDataType instance is already added to the configuration.");
             }
             try
             {
@@ -390,8 +388,7 @@ namespace Opc.Ua.PubSub.Configuration
                         Utils.Trace(
                             Utils.TraceMasks.Error,
                             "Attempted to add PublishedDataSetDataType with duplicate name = {0}",
-                            publishedDataSetDataType.Name
-                        );
+                            publishedDataSetDataType.Name);
                         return StatusCodes.BadBrowseNameDuplicated;
                     }
 
@@ -408,8 +405,7 @@ namespace Opc.Ua.PubSub.Configuration
                         {
                             PublishedDataSetId = newPublishedDataSetId,
                             PublishedDataSetDataType = publishedDataSetDataType
-                        }
-                    );
+                        });
 
                     publishedDataSetDataType.ExtensionFields ??= [];
                     var extensionFields = new KeyValuePairCollection(
@@ -451,8 +447,7 @@ namespace Opc.Ua.PubSub.Configuration
                     Utils.Trace(
                         Utils.TraceMasks.Information,
                         "Current configuration does not contain PublishedDataSetDataType with ConfigId = {0}",
-                        publishedDataSetId
-                    );
+                        publishedDataSetId);
                     return StatusCodes.Good;
                 }
                 return RemovePublishedDataSet(publishedDataSetDataType);
@@ -511,8 +506,7 @@ namespace Opc.Ua.PubSub.Configuration
                             {
                                 PublishedDataSetId = publishedDataSetId,
                                 PublishedDataSetDataType = publishedDataSetDataType
-                            }
-                        );
+                            });
                         return StatusCodes.Good;
                     }
                 }
@@ -561,8 +555,7 @@ namespace Opc.Ua.PubSub.Configuration
                         Utils.Trace(
                             Utils.TraceMasks.Error,
                             "AddExtensionField -  A field with the name already exists. Duplicate name = {0}",
-                            extensionField.Key
-                        );
+                            extensionField.Key);
                         return StatusCodes.BadNodeIdExists;
                     }
                 }
@@ -580,8 +573,7 @@ namespace Opc.Ua.PubSub.Configuration
                         PublishedDataSetId = publishedDataSetConfigId,
                         ExtensionFieldId = newextensionFieldId,
                         ExtensionField = extensionField
-                    }
-                );
+                    });
 
                 return StatusCodes.Good;
             }
@@ -596,12 +588,10 @@ namespace Opc.Ua.PubSub.Configuration
         {
             lock (m_lock)
             {
-                if (
-                    (FindObjectById(
+                if ((FindObjectById(
                         publishedDataSetConfigId) is not PublishedDataSetDataType publishedDataSetDataType) ||
                     (FindObjectById(
-                        extensionFieldConfigId) is not KeyValuePair extensionFieldToRemove)
-                )
+                        extensionFieldConfigId) is not KeyValuePair extensionFieldToRemove))
                 {
                     return StatusCodes.BadNodeIdInvalid;
                 }
@@ -626,8 +616,7 @@ namespace Opc.Ua.PubSub.Configuration
                                 PublishedDataSetId = publishedDataSetConfigId,
                                 ExtensionFieldId = extensionFieldConfigId,
                                 ExtensionField = extensionField
-                            }
-                        );
+                            });
                         return StatusCodes.Good;
                     }
                 }
@@ -650,8 +639,7 @@ namespace Opc.Ua.PubSub.Configuration
             if (m_objectsToIds.ContainsKey(pubSubConnectionDataType))
             {
                 throw new ArgumentException(
-                    "This PubSubConnectionDataType instance is already added to the configuration."
-                );
+                    "This PubSubConnectionDataType instance is already added to the configuration.");
             }
             try
             {
@@ -672,8 +660,7 @@ namespace Opc.Ua.PubSub.Configuration
                         Utils.Trace(
                             Utils.TraceMasks.Error,
                             "Attempted to add PubSubConnectionDataType with duplicate name = {0}",
-                            pubSubConnectionDataType.Name
-                        );
+                            pubSubConnectionDataType.Name);
                         return StatusCodes.BadBrowseNameDuplicated;
                     }
 
@@ -705,8 +692,7 @@ namespace Opc.Ua.PubSub.Configuration
                         {
                             ConnectionId = newConnectionId,
                             PubSubConnectionDataType = pubSubConnectionDataType
-                        }
-                    );
+                        });
                     //handler reader & writer groups
                     foreach (WriterGroupDataType writerGroup in writerGroups)
                     {
@@ -760,8 +746,7 @@ namespace Opc.Ua.PubSub.Configuration
                     Utils.Trace(
                         Utils.TraceMasks.Information,
                         "Current configuration does not contain PubSubConnectionDataType with ConfigId = {0}",
-                        connectionId
-                    );
+                        connectionId);
                     return StatusCodes.BadNodeIdUnknown;
                 }
                 return RemoveConnection(pubSubConnectionDataType);
@@ -789,17 +774,13 @@ namespace Opc.Ua.PubSub.Configuration
                         // remove children
                         foreach (
                             WriterGroupDataType writerGroup in new WriterGroupDataTypeCollection(
-                                pubSubConnectionDataType.WriterGroups
-                            )
-                        )
+                                pubSubConnectionDataType.WriterGroups))
                         {
                             RemoveWriterGroup(writerGroup);
                         }
                         foreach (
                             ReaderGroupDataType readerGroup in new ReaderGroupDataTypeCollection(
-                                pubSubConnectionDataType.ReaderGroups
-                            )
-                        )
+                                pubSubConnectionDataType.ReaderGroups))
                         {
                             RemoveReaderGroup(readerGroup);
                         }
@@ -817,8 +798,7 @@ namespace Opc.Ua.PubSub.Configuration
                             {
                                 ConnectionId = connectionId,
                                 PubSubConnectionDataType = pubSubConnectionDataType
-                            }
-                        );
+                            });
                         return StatusCodes.Good;
                     }
                     return StatusCodes.BadNodeIdUnknown;
@@ -856,9 +836,7 @@ namespace Opc.Ua.PubSub.Configuration
                 throw new ArgumentException(
                     Utils.Format(
                         "There is no connection with configurationId = {0} in current configuration.",
-                        parentConnectionId
-                    )
-                );
+                        parentConnectionId));
             }
             try
             {
@@ -885,8 +863,7 @@ namespace Opc.Ua.PubSub.Configuration
                             Utils.Trace(
                                 Utils.TraceMasks.Error,
                                 "Attempted to add WriterGroupDataType with duplicate name = {0}",
-                                writerGroupDataType.Name
-                            );
+                                writerGroupDataType.Name);
                             return StatusCodes.BadBrowseNameDuplicated;
                         }
 
@@ -911,8 +888,7 @@ namespace Opc.Ua.PubSub.Configuration
                                 ConnectionId = parentConnectionId,
                                 WriterGroupId = newWriterGroupId,
                                 WriterGroupDataType = writerGroupDataType
-                            }
-                        );
+                            });
 
                         //handler datasetWriters
                         foreach (DataSetWriterDataType datasetWriter in dataSetWriters)
@@ -956,8 +932,7 @@ namespace Opc.Ua.PubSub.Configuration
                     Utils.Trace(
                         Utils.TraceMasks.Information,
                         "Current configuration does not contain WriterGroupDataType with ConfigId = {0}",
-                        writerGroupId
-                    );
+                        writerGroupId);
                     return StatusCodes.BadNodeIdUnknown;
                 }
                 return RemoveWriterGroup(writerGroupDataType);
@@ -985,9 +960,7 @@ namespace Opc.Ua.PubSub.Configuration
                         // remove children
                         foreach (
                             DataSetWriterDataType dataSetWriter in new DataSetWriterDataTypeCollection(
-                                writerGroupDataType.DataSetWriters
-                            )
-                        )
+                                writerGroupDataType.DataSetWriters))
                         {
                             RemoveDataSetWriter(dataSetWriter);
                         }
@@ -1012,8 +985,7 @@ namespace Opc.Ua.PubSub.Configuration
                                     WriterGroupId = writerGroupId,
                                     WriterGroupDataType = writerGroupDataType,
                                     ConnectionId = parentConnectionId
-                                }
-                            );
+                                });
                             return StatusCodes.Good;
                         }
                     }
@@ -1046,17 +1018,14 @@ namespace Opc.Ua.PubSub.Configuration
             if (m_objectsToIds.ContainsKey(dataSetWriterDataType))
             {
                 throw new ArgumentException(
-                    "This DataSetWriterDataType instance is already added to the configuration."
-                );
+                    "This DataSetWriterDataType instance is already added to the configuration.");
             }
             if (!m_idsToObjects.TryGetValue(parentWriterGroupId, out object value))
             {
                 throw new ArgumentException(
                     Utils.Format(
                         "There is no WriterGroup with configurationId = {0} in current configuration.",
-                        parentWriterGroupId
-                    )
-                );
+                        parentWriterGroupId));
             }
             try
             {
@@ -1079,8 +1048,7 @@ namespace Opc.Ua.PubSub.Configuration
                             Utils.Trace(
                                 Utils.TraceMasks.Error,
                                 "Attempted to add DataSetWriterDataType with duplicate name = {0}",
-                                dataSetWriterDataType.Name
-                            );
+                                dataSetWriterDataType.Name);
                             return StatusCodes.BadBrowseNameDuplicated;
                         }
 
@@ -1106,8 +1074,7 @@ namespace Opc.Ua.PubSub.Configuration
                                 WriterGroupId = parentWriterGroupId,
                                 DataSetWriterId = newDataSetWriterId,
                                 DataSetWriterDataType = dataSetWriterDataType
-                            }
-                        );
+                            });
 
                         return StatusCodes.Good;
                     }
@@ -1140,8 +1107,7 @@ namespace Opc.Ua.PubSub.Configuration
                     Utils.Trace(
                         Utils.TraceMasks.Information,
                         "Current configuration does not contain DataSetWriterDataType with ConfigId = {0}",
-                        dataSetWriterId
-                    );
+                        dataSetWriterId);
                     return StatusCodes.BadNodeIdUnknown;
                 }
                 return RemoveDataSetWriter(dataSetWriterDataType);
@@ -1187,8 +1153,7 @@ namespace Opc.Ua.PubSub.Configuration
                                     WriterGroupId = parentWriterGroupId,
                                     DataSetWriterDataType = dataSetWriterDataType,
                                     DataSetWriterId = dataSetWriterId
-                                }
-                            );
+                                });
                             return StatusCodes.Good;
                         }
                     }
@@ -1227,9 +1192,7 @@ namespace Opc.Ua.PubSub.Configuration
                 throw new ArgumentException(
                     Utils.Format(
                         "There is no connection with configurationId = {0} in current configuration.",
-                        parentConnectionId
-                    )
-                );
+                        parentConnectionId));
             }
             try
             {
@@ -1256,8 +1219,7 @@ namespace Opc.Ua.PubSub.Configuration
                             Utils.Trace(
                                 Utils.TraceMasks.Error,
                                 "Attempted to add ReaderGroupDataType with duplicate name = {0}",
-                                readerGroupDataType.Name
-                            );
+                                readerGroupDataType.Name);
                             return StatusCodes.BadBrowseNameDuplicated;
                         }
 
@@ -1283,8 +1245,7 @@ namespace Opc.Ua.PubSub.Configuration
                                 ConnectionId = parentConnectionId,
                                 ReaderGroupId = newReaderGroupId,
                                 ReaderGroupDataType = readerGroupDataType
-                            }
-                        );
+                            });
 
                         //handler datasetWriters
                         foreach (DataSetReaderDataType datasetReader in dataSetReaders)
@@ -1327,8 +1288,7 @@ namespace Opc.Ua.PubSub.Configuration
                     Utils.Trace(
                         Utils.TraceMasks.Information,
                         "Current configuration does not contain ReaderGroupDataType with ConfigId = {0}",
-                        readerGroupId
-                    );
+                        readerGroupId);
                     return StatusCodes.BadInvalidArgument;
                 }
                 return RemoveReaderGroup(readerGroupDataType);
@@ -1356,9 +1316,7 @@ namespace Opc.Ua.PubSub.Configuration
                         // remove children
                         foreach (
                             DataSetReaderDataType dataSetReader in new DataSetReaderDataTypeCollection(
-                                readerGroupDataType.DataSetReaders
-                            )
-                        )
+                                readerGroupDataType.DataSetReaders))
                         {
                             RemoveDataSetReader(dataSetReader);
                         }
@@ -1383,8 +1341,7 @@ namespace Opc.Ua.PubSub.Configuration
                                     ReaderGroupId = readerGroupId,
                                     ReaderGroupDataType = readerGroupDataType,
                                     ConnectionId = parentConnectionId
-                                }
-                            );
+                                });
                             return StatusCodes.Good;
                         }
                     }
@@ -1417,17 +1374,14 @@ namespace Opc.Ua.PubSub.Configuration
             if (m_objectsToIds.ContainsKey(dataSetReaderDataType))
             {
                 throw new ArgumentException(
-                    "This DataSetReaderDataType instance is already added to the configuration."
-                );
+                    "This DataSetReaderDataType instance is already added to the configuration.");
             }
             if (!m_idsToObjects.TryGetValue(parentReaderGroupId, out object value))
             {
                 throw new ArgumentException(
                     Utils.Format(
                         "There is no ReaderGroup with configurationId = {0} in current configuration.",
-                        parentReaderGroupId
-                    )
-                );
+                        parentReaderGroupId));
             }
             try
             {
@@ -1450,8 +1404,7 @@ namespace Opc.Ua.PubSub.Configuration
                             Utils.Trace(
                                 Utils.TraceMasks.Error,
                                 "Attempted to add DataSetReaderDataType with duplicate name = {0}",
-                                dataSetReaderDataType.Name
-                            );
+                                dataSetReaderDataType.Name);
                             return StatusCodes.BadBrowseNameDuplicated;
                         }
 
@@ -1477,8 +1430,7 @@ namespace Opc.Ua.PubSub.Configuration
                                 ReaderGroupId = parentReaderGroupId,
                                 DataSetReaderId = newDataSetReaderId,
                                 DataSetReaderDataType = dataSetReaderDataType
-                            }
-                        );
+                            });
 
                         return StatusCodes.Good;
                     }
@@ -1511,8 +1463,7 @@ namespace Opc.Ua.PubSub.Configuration
                     Utils.Trace(
                         Utils.TraceMasks.Information,
                         "Current configuration does not contain DataSetReaderDataType with ConfigId = {0}",
-                        dataSetReaderId
-                    );
+                        dataSetReaderId);
                     return StatusCodes.BadNodeIdUnknown;
                 }
                 return RemoveDataSetReader(dataSetReaderDataType);
@@ -1558,8 +1509,7 @@ namespace Opc.Ua.PubSub.Configuration
                                     ReaderGroupId = parenReaderGroupId,
                                     DataSetReaderDataType = dataSetReaderDataType,
                                     DataSetReaderId = dataSetReaderId
-                                }
-                            );
+                                });
                             return StatusCodes.Good;
                         }
                     }
@@ -1599,16 +1549,14 @@ namespace Opc.Ua.PubSub.Configuration
             {
                 throw new ArgumentException(
                     "This {0} instance is not part of current configuration.",
-                    configurationObject.GetType().Name
-                );
+                    configurationObject.GetType().Name);
             }
             PubSubState currentState = FindStateForObject(configurationObject);
             if (currentState != PubSubState.Disabled)
             {
                 Utils.Trace(
                     Utils.TraceMasks.Information,
-                    "Attempted to call Enable() on an object that is not in Disabled state"
-                );
+                    "Attempted to call Enable() on an object that is not in Disabled state");
                 return StatusCodes.BadInvalidState;
             }
             PubSubState parentState = PubSubState.Operational;
@@ -1655,16 +1603,14 @@ namespace Opc.Ua.PubSub.Configuration
             {
                 throw new ArgumentException(
                     "This {0} instance is not part of current configuration.",
-                    configurationObject.GetType().Name
-                );
+                    configurationObject.GetType().Name);
             }
             PubSubState currentState = FindStateForObject(configurationObject);
             if (currentState == PubSubState.Disabled)
             {
                 Utils.Trace(
                     Utils.TraceMasks.Information,
-                    "Attempted to call Disable() on an object that is already in Disabled state"
-                );
+                    "Attempted to call Disable() on an object that is already in Disabled state");
                 return StatusCodes.BadInvalidState;
             }
 
@@ -1691,8 +1637,7 @@ namespace Opc.Ua.PubSub.Configuration
                         ConfigurationObjectId = id,
                         NewState = newState,
                         OldState = oldState
-                    }
-                );
+                    });
                 bool configurationObjectEnabled
                     = newState is PubSubState.Operational or PubSubState.Paused;
                 //update the Enabled flag in config object

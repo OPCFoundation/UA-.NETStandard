@@ -24,18 +24,14 @@ namespace Opc.Ua.Core.Tests.Schema
                     SecurityPolicies.Basic128Rsa15) <
                     SecuredApplication.CalculateSecurityLevel(
                         MessageSecurityMode.SignAndEncrypt,
-                        SecurityPolicies.Basic128Rsa15
-                    )
-            );
+                        SecurityPolicies.Basic128Rsa15));
             Assert.That(
                 SecuredApplication.CalculateSecurityLevel(
                     MessageSecurityMode.Sign,
                     SecurityPolicies.Basic128Rsa15) <
                     SecuredApplication.CalculateSecurityLevel(
                         MessageSecurityMode.SignAndEncrypt,
-                        SecurityPolicies.Aes256_Sha256_RsaPss
-                    )
-            );
+                        SecurityPolicies.Aes256_Sha256_RsaPss));
         }
 
         /// <summary>
@@ -47,14 +43,12 @@ namespace Opc.Ua.Core.Tests.Schema
             Assert.That(
                 SecuredApplication.CalculateSecurityLevel(
                     MessageSecurityMode.None,
-                    SecurityPolicies.Basic128Rsa15) == 0
-            );
+                    SecurityPolicies.Basic128Rsa15) == 0);
             Assert.That(
                 SecuredApplication.CalculateSecurityLevel(
                     MessageSecurityMode.Invalid,
                     SecurityPolicies.Basic128Rsa15) ==
-                    0
-            );
+                    0);
         }
 
         /// <summary>
@@ -69,8 +63,7 @@ namespace Opc.Ua.Core.Tests.Schema
                     SecurityPolicies.Basic128Rsa15) <
                     SecuredApplication.CalculateSecurityLevel(
                         MessageSecurityMode.Sign,
-                        SecurityPolicies.Basic256)
-            );
+                        SecurityPolicies.Basic256));
 
             Assert.That(
                 SecuredApplication.CalculateSecurityLevel(
@@ -78,9 +71,7 @@ namespace Opc.Ua.Core.Tests.Schema
                     SecurityPolicies.Basic256) <
                     SecuredApplication.CalculateSecurityLevel(
                         MessageSecurityMode.Sign,
-                        SecurityPolicies.Basic256Sha256
-                    )
-            );
+                        SecurityPolicies.Basic256Sha256));
 
             Assert.That(
                 SecuredApplication.CalculateSecurityLevel(
@@ -88,9 +79,7 @@ namespace Opc.Ua.Core.Tests.Schema
                     SecurityPolicies.Basic256Sha256) <
                     SecuredApplication.CalculateSecurityLevel(
                         MessageSecurityMode.Sign,
-                        SecurityPolicies.Aes128_Sha256_RsaOaep
-                    )
-            );
+                        SecurityPolicies.Aes128_Sha256_RsaOaep));
 
             Assert.That(
                 SecuredApplication.CalculateSecurityLevel(
@@ -99,9 +88,7 @@ namespace Opc.Ua.Core.Tests.Schema
                 ) <
                     SecuredApplication.CalculateSecurityLevel(
                         MessageSecurityMode.Sign,
-                        SecurityPolicies.Aes256_Sha256_RsaPss
-                    )
-            );
+                        SecurityPolicies.Aes256_Sha256_RsaPss));
         }
     }
 }

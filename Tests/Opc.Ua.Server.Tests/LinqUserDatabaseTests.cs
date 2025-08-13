@@ -20,11 +20,9 @@ namespace Opc.Ua.Server.Tests
 
             //Act+ Assert
             NUnit.Framework.Assert.Throws<ArgumentException>(() =>
-                usersDb.CreateUser(string.Empty, "PW", [Role.AuthenticatedUser])
-            );
+                usersDb.CreateUser(string.Empty, "PW", [Role.AuthenticatedUser]));
             NUnit.Framework.Assert.Throws<ArgumentException>(() =>
-                usersDb.CreateUser("Name", string.Empty, [Role.AuthenticatedUser])
-            );
+                usersDb.CreateUser("Name", string.Empty, [Role.AuthenticatedUser]));
         }
 
         [Test]

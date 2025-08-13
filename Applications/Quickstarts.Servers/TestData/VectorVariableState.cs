@@ -76,8 +76,7 @@ namespace TestData
                 NumericRange.Empty,
                 system.ReadValue(this),
                 StatusCodes.Good,
-                DateTime.UtcNow
-            );
+                DateTime.UtcNow);
 
             AccessLevel = accessLevel;
             UserAccessLevel = userAccessLevel;

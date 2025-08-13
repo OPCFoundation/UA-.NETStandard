@@ -147,8 +147,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             IServiceMessageContext context,
             StructureType structureType,
             string testFunc,
-            out ExpandedNodeId nodeId
-        )
+            out ExpandedNodeId nodeId)
         {
             uint typeId = (uint)Interlocked.Add(ref m_nodeIdCount, 100);
             var complexTypeStructure = new StructureDefinition
@@ -163,8 +162,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             IComplexTypeFieldBuilder fieldBuilder = m_complexTypeBuilder.AddStructuredType(
                 structureType.ToString() + "." + testFunc,
-                complexTypeStructure
-            );
+                complexTypeStructure);
             nodeId = new ExpandedNodeId(typeId++, m_complexTypeBuilder.TargetNamespace);
             var binaryEncodingId = new ExpandedNodeId(
                 typeId++,
@@ -196,14 +194,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var collection = new StructureFieldCollection();
             foreach (BuiltInType builtInType in BuiltInTypes)
             {
-                if (
-                    builtInType
+                if (builtInType
                     is BuiltInType.Null
                         or BuiltInType.Variant
                         or BuiltInType.DataValue
                         or BuiltInType.ExtensionObject
-                        or >= BuiltInType.Number
-                )
+                        or >= BuiltInType.Number)
                 {
                     continue;
                 }
@@ -218,8 +214,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                         IsOptional = false,
                         MaxStringLength = 0,
                         ValueRank = -1
-                    }
-                );
+                    });
             }
             return collection;
         }
@@ -230,8 +225,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public void CreateComplexTypes(
             IServiceMessageContext context,
             Dictionary<StructureType, (ExpandedNodeId, Type)> dict,
-            string nameExtension
-        )
+            string nameExtension)
         {
             foreach (StructureType structureType in StructureTypes)
             {
@@ -239,8 +233,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     context,
                     structureType,
                     nameof(CreateComplexTypes) + nameExtension,
-                    out ExpandedNodeId nodeId
-                );
+                    out ExpandedNodeId nodeId);
                 dict[structureType] = (nodeId, type);
             }
         }
@@ -298,8 +291,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             JsonEncodingType jsonEncodingType,
             StructureType structureType,
             ExpandedNodeId nodeId,
-            object data
-        )
+            object data)
         {
             string encodeInfo = $"Encoder: {encoderType} Type:{structureType}";
             TestContext.Out.WriteLine(encodeInfo);
@@ -318,9 +310,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                         encoderContext,
                         encoderStream,
                         typeof(DataValue),
-                        jsonEncodingType
-                    )
-                )
+                        jsonEncodingType))
                 {
                     encoder.WriteExtensionObject("ExtensionObject", expected);
                 }
@@ -352,8 +342,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             //Assert.AreEqual(expected.Body, result.Body, encodeInfo);
             Assert.IsTrue(
                 Utils.IsEqual(expected.Body, result.Body),
-                $"Opc.Ua.Utils.IsEqual failed to compare expected and result.\r\n{encodeInfo}.\r\n{expected.Body}!={result.Body}."
-            );
+                $"Opc.Ua.Utils.IsEqual failed to compare expected and result.\r\n{encodeInfo}.\r\n{expected.Body}!={result.Body}.");
         }
 
         /// <summary>

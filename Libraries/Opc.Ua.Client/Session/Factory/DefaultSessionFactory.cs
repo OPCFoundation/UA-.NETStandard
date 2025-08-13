@@ -61,8 +61,7 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             return CreateAsync(
                 configuration,
@@ -73,8 +72,7 @@ namespace Opc.Ua.Client
                 sessionTimeout,
                 identity,
                 preferredLocales,
-                ct
-            );
+                ct);
         }
 
         /// <inheritdoc/>
@@ -87,8 +85,7 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             return await Session
                 .CreateAsync(
@@ -102,8 +99,7 @@ namespace Opc.Ua.Client
                     sessionTimeout,
                     identity,
                     preferredLocales,
-                    ct
-                )
+                    ct)
                 .ConfigureAwait(false);
         }
 
@@ -118,8 +114,7 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             return await Session
                 .CreateAsync(
@@ -133,8 +128,7 @@ namespace Opc.Ua.Client
                     sessionTimeout,
                     identity,
                     preferredLocales,
-                    ct
-                )
+                    ct)
                 .ConfigureAwait(false);
         }
 
@@ -149,8 +143,7 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity userIdentity,
             IList<string> preferredLocales,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             if (reverseConnectManager == null)
             {
@@ -163,8 +156,7 @@ namespace Opc.Ua.Client
                         sessionTimeout,
                         userIdentity,
                         preferredLocales,
-                        ct
-                    )
+                        ct)
                     .ConfigureAwait(false);
             }
 
@@ -186,8 +178,7 @@ namespace Opc.Ua.Client
                             connection,
                             endpoint.Description.SecurityMode,
                             endpoint.Description.SecurityPolicyUri,
-                            ct
-                        )
+                            ct)
                         .ConfigureAwait(false);
                     updateBeforeConnect = false;
                     connection = null;
@@ -204,8 +195,7 @@ namespace Opc.Ua.Client
                     sessionTimeout,
                     userIdentity,
                     preferredLocales,
-                    ct
-                )
+                    ct)
                 .ConfigureAwait(false);
         }
 
@@ -216,8 +206,7 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
             EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null
-        )
+            StringCollection discoveryProfileUris = null)
         {
             return Session.Create(
                 this,
@@ -226,8 +215,7 @@ namespace Opc.Ua.Client
                 endpoint,
                 clientCertificate,
                 availableEndpoints,
-                discoveryProfileUris
-            );
+                discoveryProfileUris);
         }
 
         /// <inheritdoc/>
@@ -237,8 +225,7 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
             bool checkDomain,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             return Session.CreateChannelAsync(
                 configuration,
@@ -246,8 +233,7 @@ namespace Opc.Ua.Client
                 endpoint,
                 updateBeforeConnect,
                 checkDomain,
-                ct
-            );
+                ct);
         }
 
         /// <inheritdoc/>
@@ -259,8 +245,7 @@ namespace Opc.Ua.Client
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(sessionTemplate),
-                    "The ISession provided is not of a supported type."
-                );
+                    "The ISession provided is not of a supported type.");
             }
 
             return await Session.RecreateAsync(template, ct).ConfigureAwait(false);
@@ -270,15 +255,13 @@ namespace Opc.Ua.Client
         public virtual async Task<ISession> RecreateAsync(
             ISession sessionTemplate,
             ITransportWaitingConnection connection,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             if (sessionTemplate is not Session template)
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(sessionTemplate),
-                    "The ISession provided is not of a supported type"
-                );
+                    "The ISession provided is not of a supported type");
             }
 
             return await Session.RecreateAsync(template, connection, ct).ConfigureAwait(false);
@@ -288,15 +271,13 @@ namespace Opc.Ua.Client
         public virtual async Task<ISession> RecreateAsync(
             ISession sessionTemplate,
             ITransportChannel transportChannel,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             if (sessionTemplate is not Session template)
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(sessionTemplate),
-                    "The ISession provided is not of a supported type"
-                );
+                    "The ISession provided is not of a supported type");
             }
             return await Session.RecreateAsync(template, transportChannel, ct)
                 .ConfigureAwait(false);
@@ -306,8 +287,7 @@ namespace Opc.Ua.Client
         public virtual Session Create(
             ISessionChannel channel,
             ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint
-        )
+            ConfiguredEndpoint endpoint)
         {
             return new Session(channel, configuration, endpoint);
         }
@@ -319,8 +299,7 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
             EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null
-        )
+            StringCollection discoveryProfileUris = null)
         {
             return new Session(
                 channel,
@@ -328,8 +307,7 @@ namespace Opc.Ua.Client
                 endpoint,
                 clientCertificate,
                 availableEndpoints,
-                discoveryProfileUris
-            );
+                discoveryProfileUris);
         }
     }
 }

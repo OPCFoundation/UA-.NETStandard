@@ -63,8 +63,7 @@ namespace Opc.Ua.Server.Tests
             bool useSecurity = false,
             UserIdentityToken identityToken = null,
             double sessionTimeout = DefaultSessionTimeout,
-            uint maxResponseMessageSize = DefaultMaxResponseMessageSize
-        )
+            uint maxResponseMessageSize = DefaultMaxResponseMessageSize)
         {
             // Find TCP endpoint
             EndpointDescriptionCollection endpoints = server.GetEndpoints();
@@ -113,8 +112,7 @@ namespace Opc.Ua.Server.Tests
                 out EndpointDescriptionCollection endpointDescriptions,
                 out SignedSoftwareCertificateCollection serverSoftwareCertificates,
                 out SignatureData signatureData,
-                out uint maxRequestMessageSize
-            );
+                out uint maxRequestMessageSize);
             ValidateResponse(response);
 
             // Activate session
@@ -128,8 +126,7 @@ namespace Opc.Ua.Server.Tests
                 null,
                 out serverNonce,
                 out StatusCodeCollection results,
-                out DiagnosticInfoCollection diagnosticInfos
-            );
+                out DiagnosticInfoCollection diagnosticInfos);
             ValidateResponse(response);
 
             return requestHeader;
@@ -167,8 +164,7 @@ namespace Opc.Ua.Server.Tests
                     new ServiceResult(
                         header.ServiceResult,
                         header.ServiceDiagnostics,
-                        header.StringTable)
-                );
+                        header.StringTable));
             }
         }
 
@@ -193,16 +189,14 @@ namespace Opc.Ua.Server.Tests
             {
                 throw new ArgumentException(
                     "Must call ValidateDiagnosticInfos() for DiagnosticInfoCollections.",
-                    nameof(response)
-                );
+                    nameof(response));
             }
 
             if (response == null || response.Count != request.Count)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadUnexpectedError,
-                    "The server returned a list without the expected number of elements."
-                );
+                    "The server returned a list without the expected number of elements.");
             }
         }
 
@@ -215,8 +209,7 @@ namespace Opc.Ua.Server.Tests
         public static void ValidateDiagnosticInfos(
             DiagnosticInfoCollection response,
             IList request,
-            StringCollection stringTable
-        )
+            StringCollection stringTable)
         {
             // returning an empty list for diagnostic info arrays is allowed.
             if (response != null && response.Count != 0)
@@ -225,8 +218,7 @@ namespace Opc.Ua.Server.Tests
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadUnexpectedError,
-                        "The server forgot to fill in the DiagnosticInfos array correctly when returning an operation level error."
-                    );
+                        "The server forgot to fill in the DiagnosticInfos array correctly when returning an operation level error.");
                 }
 
                 // now validate the string table
@@ -237,17 +229,14 @@ namespace Opc.Ua.Server.Tests
                         if (response[ii] is DiagnosticInfo diagnosticInfo &&
                             !diagnosticInfo.IsNullDiagnosticInfo)
                         {
-                            if (
-                                diagnosticInfo.NamespaceUri >= stringTable.Count ||
+                            if (diagnosticInfo.NamespaceUri >= stringTable.Count ||
                                 diagnosticInfo.SymbolicId >= stringTable.Count ||
                                 diagnosticInfo.Locale >= stringTable.Count ||
-                                diagnosticInfo.LocalizedText >= stringTable.Count
-                            )
+                                diagnosticInfo.LocalizedText >= stringTable.Count)
                             {
                                 throw new ServiceResultException(
                                     StatusCodes.BadUnexpectedError,
-                                    "The server forgot to fill in string table for the DiagnosticInfos array correctly when returning an operation level error."
-                                );
+                                    "The server forgot to fill in string table for the DiagnosticInfos array correctly when returning an operation level error.");
                             }
                             var serviceResult = new ServiceResult(
                                 StatusCodes.Good,
@@ -268,8 +257,7 @@ namespace Opc.Ua.Server.Tests
         /// <param name="template">The template for the browse description for each node id.</param>
         public static BrowseDescriptionCollection CreateBrowseDescriptionCollectionFromNodeId(
             NodeIdCollection nodeIdCollection,
-            BrowseDescription template
-        )
+            BrowseDescription template)
         {
             var browseDescriptionCollection = new BrowseDescriptionCollection();
             foreach (NodeId nodeId in nodeIdCollection)
@@ -333,8 +321,7 @@ namespace Opc.Ua.Server.Tests
                 { Attributes.UserRolePermissions, null },
                 { Attributes.AccessRestrictions, null },
                 { Attributes.AccessLevelEx, null }
-            }
-        );
+            });
 
         /// <summary>
         /// Get free IP Port.

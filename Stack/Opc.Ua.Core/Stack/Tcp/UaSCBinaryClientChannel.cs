@@ -38,8 +38,7 @@ namespace Opc.Ua.Bindings
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
             X509Certificate2 serverCertificate,
-            EndpointDescription endpoint
-        )
+            EndpointDescription endpoint)
             : base(
                 contextId,
                 bufferManager,
@@ -47,8 +46,7 @@ namespace Opc.Ua.Bindings
                 serverCertificate,
                 endpoint != null ? [.. new EndpointDescription[] { endpoint }] : null,
                 endpoint != null ? endpoint.SecurityMode : MessageSecurityMode.None,
-                endpoint != null ? endpoint.SecurityPolicyUri : SecurityPolicies.None
-            )
+                endpoint != null ? endpoint.SecurityPolicyUri : SecurityPolicies.None)
         {
             if (endpoint != null && endpoint.SecurityMode != MessageSecurityMode.None)
             {
@@ -64,8 +62,7 @@ namespace Opc.Ua.Bindings
                             "The DER encoded certificate may not be more than {0} bytes.",
                             TcpMessageLimits.MaxCertificateSize
                         ),
-                        nameof(clientCertificate)
-                    );
+                        nameof(clientCertificate));
                 }
 
                 ClientCertificate = clientCertificate;
@@ -352,8 +349,7 @@ namespace Opc.Ua.Bindings
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadRequestInterrupted,
-                        "Attempting to reconnect to the server."
-                    );
+                        "Attempting to reconnect to the server.");
                 }
 
                 // send request.
@@ -471,9 +467,7 @@ namespace Opc.Ua.Bindings
                 ForceReconnect(
                     ServiceResult.Create(
                         StatusCodes.BadTcpMessageTypeInvalid,
-                        "Server sent an unexpected acknowledge message."
-                    )
-                );
+                        "Server sent an unexpected acknowledge message."));
                 return false;
             }
 
@@ -505,8 +499,7 @@ namespace Opc.Ua.Bindings
                         StatusCodes.BadTcpNotEnoughResources,
                         "Returned client send buffer size is larger than requested size ({0}>{1} bytes).",
                         sendBufferSize,
-                        SendBufferSize
-                    );
+                        SendBufferSize);
                     return false;
                 }
 
@@ -516,8 +509,7 @@ namespace Opc.Ua.Bindings
                         StatusCodes.BadTcpNotEnoughResources,
                         "Returned client receive buffer size is larger than requested size ({0}>{1} bytes).",
                         receiveBufferSize,
-                        ReceiveBufferSize
-                    );
+                        ReceiveBufferSize);
                     return false;
                 }
 
@@ -528,8 +520,7 @@ namespace Opc.Ua.Bindings
                     m_handshakeOperation.Fault(
                         StatusCodes.BadTcpNotEnoughResources,
                         "Client receive buffer size is out of valid range ({0} bytes).",
-                        receiveBufferSize
-                    );
+                        receiveBufferSize);
                     return false;
                 }
 
@@ -539,8 +530,7 @@ namespace Opc.Ua.Bindings
                     m_handshakeOperation.Fault(
                         StatusCodes.BadTcpNotEnoughResources,
                         "Client send buffer size is out of valid range ({0} bytes).",
-                        sendBufferSize
-                    );
+                        sendBufferSize);
                     return false;
                 }
 
@@ -590,8 +580,7 @@ namespace Opc.Ua.Bindings
                 m_handshakeOperation.Fault(
                     e,
                     StatusCodes.BadTcpInternalError,
-                    "Could not send an Open Secure Channel request."
-                );
+                    "Could not send an Open Secure Channel request.");
             }
 
             return false;
@@ -627,8 +616,7 @@ namespace Opc.Ua.Bindings
                 ClientCertificate,
                 ClientCertificateChain,
                 ServerCertificate,
-                new ArraySegment<byte>(buffer, 0, buffer.Length)
-            );
+                new ArraySegment<byte>(buffer, 0, buffer.Length));
 
             // save token.
             m_requestedToken = token;
@@ -661,9 +649,7 @@ namespace Opc.Ua.Bindings
                 ForceReconnect(
                     ServiceResult.Create(
                         StatusCodes.BadTcpMessageTypeInvalid,
-                        "Server sent an unexpected OpenSecureChannel response."
-                    )
-                );
+                        "Server sent an unexpected OpenSecureChannel response."));
                 return false;
             }
 
@@ -691,8 +677,7 @@ namespace Opc.Ua.Bindings
                     out channelId,
                     out serverCertificate,
                     out requestId,
-                    out sequenceNumber
-                );
+                    out sequenceNumber);
             }
             catch (Exception e)
             {
@@ -700,9 +685,7 @@ namespace Opc.Ua.Bindings
                     ServiceResult.Create(
                         e,
                         StatusCodes.BadSecurityChecksFailed,
-                        "Could not verify security on OpenSecureChannel response."
-                    )
-                );
+                        "Could not verify security on OpenSecureChannel response."));
                 return false;
             }
 
@@ -732,8 +715,7 @@ namespace Opc.Ua.Bindings
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadTypeMismatch,
-                        "Server did not return a valid OpenSecureChannelResponse."
-                    );
+                        "Server did not return a valid OpenSecureChannelResponse.");
                 }
 
                 // the client needs to use the creation time assigned when it sent
@@ -753,8 +735,7 @@ namespace Opc.Ua.Bindings
                 string implementation = string.Format(
                     CultureInfo.InvariantCulture,
                     s_implementationString,
-                    m_socketFactory.Implementation
-                );
+                    m_socketFactory.Implementation);
 
                 // log security information.
                 if (State == TcpChannelState.Opening)
@@ -766,8 +747,7 @@ namespace Opc.Ua.Bindings
                         EndpointDescription,
                         ClientCertificate,
                         serverCertificate,
-                        BinaryEncodingSupport.Required
-                    );
+                        BinaryEncodingSupport.Required);
                 }
                 else
                 {
@@ -801,8 +781,7 @@ namespace Opc.Ua.Bindings
                 m_handshakeOperation.Fault(
                     e,
                     StatusCodes.BadTcpInternalError,
-                    "Could not process OpenSecureChannelResponse."
-                );
+                    "Could not process OpenSecureChannelResponse.");
             }
             finally
             {
@@ -836,8 +815,7 @@ namespace Opc.Ua.Bindings
             BufferCollection buffers,
             object state,
             int bytesWritten,
-            ServiceResult result
-        )
+            ServiceResult result)
         {
             lock (DataLock)
             {
@@ -897,9 +875,7 @@ namespace Opc.Ua.Bindings
                     ServiceResult.Create(
                         StatusCodes.BadTcpMessageTypeInvalid,
                         "The client does not recognize the message type: {0:X8}.",
-                        messageType
-                    )
-                );
+                        messageType));
                 return false;
             }
         }
@@ -921,8 +897,7 @@ namespace Opc.Ua.Bindings
                         Utils.LogWarning(
                             "ChannelId {0}: Could not gracefully close the channel. Reason={1}",
                             ChannelId,
-                            error
-                        );
+                            error);
                         break;
                 }
             }
@@ -942,15 +917,13 @@ namespace Opc.Ua.Bindings
             var queuedOperation = new QueuedOperation(operation, timeout, request);
 
             // operations that must be sent first and which allow for a connect.
-            if (
-                request.TypeId == DataTypeIds.ActivateSessionRequest ||
+            if (request.TypeId == DataTypeIds.ActivateSessionRequest ||
                 request.TypeId == DataTypeIds.CreateSessionRequest ||
                 request.TypeId == DataTypeIds.GetEndpointsRequest ||
                 request.TypeId == DataTypeIds.FindServersOnNetworkRequest ||
                 request.TypeId == DataTypeIds.FindServersRequest ||
                 request.TypeId == DataTypeIds.RegisterServerRequest ||
-                request.TypeId == DataTypeIds.RegisterServer2Request
-            )
+                request.TypeId == DataTypeIds.RegisterServer2Request)
             {
                 m_queuedOperations.Add(queuedOperation);
                 return true;
@@ -1009,8 +982,7 @@ namespace Opc.Ua.Bindings
                     var fault = ServiceResult.Create(
                         ex,
                         StatusCodes.BadTcpInternalError,
-                        "An unexpected error occurred while connecting to the server."
-                    );
+                        "An unexpected error occurred while connecting to the server.");
 
                     operation.Fault(fault);
                 }
@@ -1027,8 +999,7 @@ namespace Opc.Ua.Bindings
                 Utils.LogInfo(
                     "ChannelId {0}: Scheduled Handshake Starting: TokenId={1}",
                     ChannelId,
-                    CurrentToken?.TokenId
-                );
+                    CurrentToken?.TokenId);
 
                 lock (DataLock)
                 {
@@ -1040,8 +1011,7 @@ namespace Opc.Ua.Bindings
                         Utils.LogInfo(
                             "ChannelId {0}: Attempting Renew Token Now: TokenId={1}",
                             ChannelId,
-                            token?.TokenId
-                        );
+                            token?.TokenId);
 
                         // do nothing if not connected.
                         if (State != TcpChannelState.Open)
@@ -1090,8 +1060,7 @@ namespace Opc.Ua.Bindings
                         Utils.LogInfo(
                             "ChannelId {0}: CLIENTCHANNEL SOCKET CLOSED ON SCHEDULED HANDSHAKE: {1:X8}",
                             channelId,
-                            socket.Handle
-                        );
+                            socket.Handle);
                         socket.Close();
                     }
 
@@ -1123,9 +1092,7 @@ namespace Opc.Ua.Bindings
                     ServiceResult.Create(
                         e,
                         StatusCodes.BadUnexpectedError,
-                        "Unexpected error reconnecting or renewing a token."
-                    )
-                );
+                        "Unexpected error reconnecting or renewing a token."));
             }
         }
 
@@ -1157,8 +1124,7 @@ namespace Opc.Ua.Bindings
                     error = ServiceResult.Create(
                         e,
                         StatusCodes.BadUnexpectedError,
-                        "Unexpected error reconnecting or renewing a token."
-                    );
+                        "Unexpected error reconnecting or renewing a token.");
 
                     // check for expired channel or token.
                     if (error.Code is StatusCodes.BadTcpSecureChannelUnknown or StatusCodes
@@ -1203,8 +1169,7 @@ namespace Opc.Ua.Bindings
                     token,
                     request,
                     true,
-                    out bool limitsExceeded
-                );
+                    out bool limitsExceeded);
 
                 BeginWriteMessage(buffers, operation);
                 buffers = null;
@@ -1239,13 +1204,11 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         private IServiceResponse ParseResponse(BufferCollection chunksToProcess)
         {
-            if (
-                BinaryDecoder.DecodeMessage(
+            if (BinaryDecoder.DecodeMessage(
                     new ArraySegmentStream(chunksToProcess),
                     null,
                     Quotas.MessageContext)
-                is not IServiceResponse response
-            )
+                is not IServiceResponse response)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadStructureMissing,
@@ -1318,8 +1281,7 @@ namespace Opc.Ua.Bindings
                     Utils.LogInfo(
                         "ChannelId {0}: CLIENTCHANNEL SOCKET CLOSED SHUTDOWN: {1:X8}",
                         channelId,
-                        socket.Handle
-                    );
+                        socket.Handle);
                     socket.Close();
                 }
 
@@ -1389,8 +1351,7 @@ namespace Opc.Ua.Bindings
                     "ChannelId {0}: Attempting Reconnect in {1} ms. Reason: {2}",
                     ChannelId,
                     m_waitBetweenReconnects,
-                    reason.ToLongString()
-                );
+                    reason.ToLongString());
                 m_handshakeTimer = new Timer(
                     m_startHandshake,
                     null,
@@ -1450,8 +1411,7 @@ namespace Opc.Ua.Bindings
                 ChannelId,
                 token.CreatedAt.AddMilliseconds(token.Lifetime),
                 HiResClock.UtcTickCount(token.CreatedAtTickCount + timeToRenewal),
-                timeToRenewal
-            );
+                timeToRenewal);
 
             m_handshakeTimer = new Timer(m_startHandshake, token, timeToRenewal, Timeout.Infinite);
         }
@@ -1471,8 +1431,7 @@ namespace Opc.Ua.Bindings
                 throw ServiceResultException.Create(
                     StatusCodes.BadUnexpectedError,
                     "Could not add request {0} to list of pending operations.",
-                    operation.RequestId
-                );
+                    operation.RequestId);
             }
             return operation;
         }
@@ -1496,8 +1455,7 @@ namespace Opc.Ua.Bindings
             {
                 Utils.LogWarning(
                     "Could not remove requestId {0} from list of pending operations.",
-                    operation.RequestId
-                );
+                    operation.RequestId);
             }
         }
 
@@ -1543,8 +1501,7 @@ namespace Opc.Ua.Bindings
                         {
                             request.Operation.Fault(
                                 StatusCodes.BadNoCommunication,
-                                "Error establishing a connection: " + e.Message
-                            );
+                                "Error establishing a connection: " + e.Message);
                             continue;
                         }
                         finally
@@ -1557,8 +1514,7 @@ namespace Opc.Ua.Bindings
                     {
                         request.Operation.Fault(
                             StatusCodes.BadConnectionClosed,
-                            "Could not send request because connection is closed."
-                        );
+                            "Could not send request because connection is closed.");
                         continue;
                     }
 
@@ -1594,8 +1550,7 @@ namespace Opc.Ua.Bindings
                     m_handshakeOperation.Fault(
                         ServiceResult.Create(
                             StatusCodes.BadConnectionClosed,
-                            "Channel was closed by the user.")
-                    );
+                            "Channel was closed by the user."));
                     OperationCompleted(m_handshakeOperation);
                 }
 
@@ -1674,8 +1629,7 @@ namespace Opc.Ua.Bindings
                 currentToken,
                 request,
                 true,
-                out _
-            );
+                out _);
 
             // send the message.
             try
@@ -1710,8 +1664,7 @@ namespace Opc.Ua.Bindings
                     false,
                     out ChannelToken token,
                     out requestId,
-                    out sequenceNumber
-                );
+                    out sequenceNumber);
             }
             catch (Exception e)
             {
@@ -1719,9 +1672,7 @@ namespace Opc.Ua.Bindings
                     ServiceResult.Create(
                         e,
                         StatusCodes.BadSecurityChecksFailed,
-                        "Could not verify security on response."
-                    )
-                );
+                        "Could not verify security on response."));
                 return false;
             }
 

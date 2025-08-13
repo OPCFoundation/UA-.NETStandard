@@ -62,9 +62,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         new Variant((m_random.NextDouble() - 0.5) * 1000.0),
                         m_random.NextDouble() > 0.1 ? StatusCodes.Good : StatusCodes.BadDataLost,
                         now,
-                        now
-                    )
-                );
+                        now));
             }
         }
 
@@ -128,8 +126,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // for validating benchmark tests
             m_context = new ServiceMessageContext();
             m_memoryManager = new RecyclableMemoryStreamManager(
-                new RecyclableMemoryStreamManager.Options { BlockSize = StreamBufferSize }
-            );
+                new RecyclableMemoryStreamManager.Options { BlockSize = StreamBufferSize });
             m_bufferManager = new BufferManager(nameof(BinaryEncoder), StreamBufferSize);
         }
 
@@ -148,8 +145,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // for validating benchmark tests
             m_context = new ServiceMessageContext();
             m_memoryManager = new RecyclableMemoryStreamManager(
-                new RecyclableMemoryStreamManager.Options { BlockSize = StreamBufferSize }
-            );
+                new RecyclableMemoryStreamManager.Options { BlockSize = StreamBufferSize });
             m_bufferManager = new BufferManager(nameof(BinaryEncoder), StreamBufferSize);
         }
 

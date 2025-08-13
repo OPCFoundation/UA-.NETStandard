@@ -205,8 +205,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
             Assert.AreEqual(
                 Utils.IsEqual(m_bufferA, (object)m_bufferB),
-                Utils.IsEqual(m_bufferA, (IEnumerable)m_bufferB)
-            );
+                Utils.IsEqual(m_bufferA, (IEnumerable)m_bufferB));
             Assert.AreEqual(
                 Utils.IsEqual(null, (object)m_bufferB),
                 Utils.IsEqual(null, (IEnumerable)m_bufferB));
@@ -381,10 +380,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 // compare each rank.
                 for (int ii = 0; ii < array1.Rank; ii++)
                 {
-                    if (
-                        array1.GetLowerBound(ii) != array2.GetLowerBound(ii) ||
-                        array1.GetUpperBound(ii) != array2.GetUpperBound(ii)
-                    )
+                    if (array1.GetLowerBound(ii) != array2.GetLowerBound(ii) ||
+                        array1.GetUpperBound(ii) != array2.GetUpperBound(ii))
                     {
                         return false;
                     }

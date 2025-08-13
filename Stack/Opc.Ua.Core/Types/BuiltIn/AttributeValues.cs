@@ -181,8 +181,7 @@ namespace Opc.Ua
         public static bool IsValid(
             IList<uint> actualArrayDimensions,
             int valueRank,
-            IList<uint> expectedArrayDimensions
-        )
+            IList<uint> expectedArrayDimensions)
         {
             // check if parameter omitted.
             if (actualArrayDimensions == null || actualArrayDimensions.Count == 0)

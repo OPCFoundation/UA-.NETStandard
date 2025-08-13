@@ -59,8 +59,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             [ValueSource(
                 nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
-            Type systemType
-        )
+            Type systemType)
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
@@ -83,8 +82,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 jsonEncodingType,
                 BuiltInType.ExtensionObject,
                 memoryStreamType,
-                new ExtensionObject(testObject.TypeId, testObject)
-            );
+                new ExtensionObject(testObject.TypeId, testObject));
         }
 
         [Theory]
@@ -93,8 +91,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             [ValueSource(
                 nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
-            Type systemType
-        )
+            Type systemType)
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
@@ -123,8 +120,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         Context,
                         encoderStream,
                         systemType,
-                        jsonEncodingType)
-                )
+                        jsonEncodingType))
                 {
                     encoder.PushNamespace("urn:This:is:another:namespace");
                     encoder.WriteArray(objectName, array, ValueRanks.OneDimension, builtInType);
@@ -143,8 +139,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     Assert.IsTrue(
                         xml.Contains(
                             "<Array xmlns=\"urn:This:is:another:namespace\">",
-                            StringComparison.Ordinal)
-                    );
+                            StringComparison.Ordinal));
                     break;
             }
 
@@ -162,8 +157,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     ValueRanks.OneDimension,
                     BuiltInType.Variant,
                     systemType,
-                    dataTypeId
-                );
+                    dataTypeId);
                 decoder.PopNamespace();
             }
 
@@ -177,8 +171,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.IsTrue(Utils.IsEqual(expected, result), encodeInfo);
             Assert.IsTrue(
                 Utils.IsEqual(expected, result),
-                "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo
-            );
+                "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
         }
 
         [Theory]
@@ -188,8 +181,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
             bool encodeAsMatrix,
-            Type systemType
-        )
+            Type systemType)
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
@@ -224,8 +216,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         Context,
                         encoderStream,
                         systemType,
-                        jsonEncodingType)
-                )
+                        jsonEncodingType))
                 {
                     if (encodeAsMatrix)
                     {
@@ -267,8 +258,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     matrix.TypeInfo.ValueRank,
                     BuiltInType.Variant,
                     systemType,
-                    dataTypeId
-                );
+                    dataTypeId);
             }
 
             TestContext.Out.WriteLine("Result:");
@@ -284,8 +274,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.AreEqual(matrix, resultMatrix, encodeInfo);
             Assert.IsTrue(
                 Utils.IsEqual(expected, result),
-                "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo
-            );
+                "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
         }
 
         /// <summary>
@@ -315,10 +304,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     {
                         case BuiltInType.ExtensionObject:
                             object propertyObject = property.GetValue(typeInstance);
-                            if (
-                                propertyObject == null &&
-                                property.PropertyType.IsAssignableFrom(typeof(ExtensionObject))
-                            )
+                            if (propertyObject == null &&
+                                property.PropertyType.IsAssignableFrom(typeof(ExtensionObject)))
                             {
                                 property.SetValue(typeInstance, ExtensionObject.Null);
                             }

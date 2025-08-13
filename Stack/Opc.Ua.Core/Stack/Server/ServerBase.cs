@@ -159,8 +159,7 @@ namespace Opc.Ua
             EndpointDescription endpointDescription,
             OpenSecureChannelRequest request,
             X509Certificate2 clientCertificate,
-            Exception exception
-        )
+            Exception exception)
         {
             // raise an audit open secure channel event.
         }
@@ -259,8 +258,7 @@ namespace Opc.Ua
                 configuration,
                 bindingFactory,
                 out ApplicationDescription serverDescription,
-                out EndpointDescriptionCollection endpoints
-            );
+                out EndpointDescriptionCollection endpoints);
 
             // save discovery information.
             ServerDescription = serverDescription;
@@ -277,8 +275,7 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
-                    "The UA server does not have a default host."
-                );
+                    "The UA server does not have a default host.");
             }
 
             lock (ServiceHosts)
@@ -328,8 +325,7 @@ namespace Opc.Ua
                 configuration,
                 bindingFactory,
                 out ApplicationDescription serverDescription,
-                out EndpointDescriptionCollection endpoints
-            );
+                out EndpointDescriptionCollection endpoints);
 
             // save discovery information.
             ServerDescription = serverDescription;
@@ -512,8 +508,7 @@ namespace Opc.Ua
                 this,
                 minRequestThreadCount,
                 maxRequestThreadCount,
-                maxQueuedRequestCount
-            );
+                maxQueuedRequestCount);
         }
 
         /// <summary>
@@ -612,15 +607,13 @@ namespace Opc.Ua
         public static void SetServerCertificateInEndpointDescription(
             EndpointDescription description,
             CertificateTypesProvider certificateTypesProvider,
-            bool checkRequireEncryption = true
-        )
+            bool checkRequireEncryption = true)
         {
             if (!checkRequireEncryption || RequireEncryption(description))
             {
                 X509Certificate2 serverCertificate = certificateTypesProvider
                     .GetInstanceCertificate(
-                        description.SecurityPolicyUri
-                        );
+                        description.SecurityPolicyUri);
                 // check if complete chain should be sent.
                 if (certificateTypesProvider.SendCertificateChain)
                 {
@@ -759,8 +752,7 @@ namespace Opc.Ua
             foreach (
                 CertificateIdentifier certificateIdentifier in Configuration
                     .SecurityConfiguration
-                    .ApplicationCertificates
-            )
+                    .ApplicationCertificates)
             {
                 // preload chain
                 X509Certificate2 certificate = certificateIdentifier.FindAsync(false).GetAwaiter()
@@ -798,8 +790,7 @@ namespace Opc.Ua
             EndpointDescriptionCollection endpoints,
             EndpointConfiguration endpointConfiguration,
             ITransportListener listener,
-            ICertificateValidator certificateValidator
-        )
+            ICertificateValidator certificateValidator)
         {
             // create the stack listener.
             try
@@ -857,15 +848,12 @@ namespace Opc.Ua
         /// </returns>
         public virtual UserTokenPolicyCollection GetUserTokenPolicies(
             ApplicationConfiguration configuration,
-            EndpointDescription description
-        )
+            EndpointDescription description)
         {
             var policies = new UserTokenPolicyCollection();
 
-            if (
-                configuration.ServerConfiguration == null ||
-                configuration.ServerConfiguration.UserTokenPolicies == null
-            )
+            if (configuration.ServerConfiguration == null ||
+                configuration.ServerConfiguration.UserTokenPolicies == null)
             {
                 return policies;
             }
@@ -874,10 +862,8 @@ namespace Opc.Ua
             {
                 var clone = (UserTokenPolicy)policy.Clone();
 
-                if (
-                    string.IsNullOrEmpty(policy.SecurityPolicyUri) &&
-                    description.SecurityMode == MessageSecurityMode.None
-                )
+                if (string.IsNullOrEmpty(policy.SecurityPolicyUri) &&
+                    description.SecurityMode == MessageSecurityMode.None)
                 {
                     if (clone.TokenType == UserTokenType.Anonymous)
                     {
@@ -1049,8 +1035,7 @@ namespace Opc.Ua
                                         Url = alternateUrl,
                                         ProfileUri = baseAddress.ProfileUri,
                                         DiscoveryUrl = alternateUrl
-                                    }
-                                );
+                                    });
                             }
                             break;
                         }
@@ -1093,13 +1078,11 @@ namespace Opc.Ua
         {
             string url = baseAddress.Url.ToString();
 
-            if (
-                (baseAddress.ProfileUri == Profiles.HttpsBinaryTransport) &&
+            if ((baseAddress.ProfileUri == Profiles.HttpsBinaryTransport) &&
                 Utils.IsUriHttpRelatedScheme(url) &&
                 (!url.EndsWith(
                     ConfiguredEndpoint.DiscoverySuffix,
-                    StringComparison.OrdinalIgnoreCase))
-            )
+                    StringComparison.OrdinalIgnoreCase)))
             {
                 url += ConfiguredEndpoint.DiscoverySuffix;
             }
@@ -1119,8 +1102,7 @@ namespace Opc.Ua
             Uri clientUrl,
             ApplicationDescription description,
             IList<BaseAddress> baseAddresses,
-            LocalizedText applicationName
-        )
+            LocalizedText applicationName)
         {
             // get the discovery urls.
             var discoveryUrls = new StringCollection();
@@ -1162,8 +1144,7 @@ namespace Opc.Ua
             Uri clientUrl,
             IList<BaseAddress> baseAddresses,
             IList<EndpointDescription> endpoints,
-            ApplicationDescription application
-        )
+            ApplicationDescription application)
         {
             var translations = new EndpointDescriptionCollection();
 
@@ -1182,10 +1163,8 @@ namespace Opc.Ua
                     foreach (BaseAddress baseAddress in baseAddresses)
                     {
                         bool translateHttpsEndpoint = false;
-                        if (
-                            endpoint.TransportProfileUri == Profiles.HttpsBinaryTransport &&
-                            baseAddress.ProfileUri == Profiles.HttpsBinaryTransport
-                        )
+                        if (endpoint.TransportProfileUri == Profiles.HttpsBinaryTransport &&
+                            baseAddress.ProfileUri == Profiles.HttpsBinaryTransport)
                         {
                             translateHttpsEndpoint = true;
                         }
@@ -1212,12 +1191,10 @@ namespace Opc.Ua
                             EndpointUrl = baseAddress.Url.ToString()
                         };
 
-                        if (
-                            endpointUrl.Path.StartsWith(
+                        if (endpointUrl.Path.StartsWith(
                                 baseAddress.Url.PathAndQuery,
                                 StringComparison.Ordinal) &&
-                            endpointUrl.Path.Length > baseAddress.Url.PathAndQuery.Length
-                        )
+                            endpointUrl.Path.Length > baseAddress.Url.PathAndQuery.Length)
                         {
                             string suffix = endpointUrl.Path[baseAddress.Url.PathAndQuery.Length..];
                             translation.EndpointUrl += suffix;
@@ -1232,17 +1209,13 @@ namespace Opc.Ua
                         translation.UserIdentityTokens = endpoint.UserIdentityTokens;
                         translation.Server = application;
 
-                        if (
-                            !translations.Exists(match =>
+                        if (!translations.Exists(match =>
                                 match.EndpointUrl
                                     .Equals(translation.EndpointUrl, StringComparison.Ordinal) &&
                                 match.SecurityMode == translation.SecurityMode &&
                                 match.SecurityPolicyUri.Equals(
                                     translation.SecurityPolicyUri,
-                                    StringComparison.Ordinal
-                                )
-                            )
-                        )
+                                    StringComparison.Ordinal)))
                         {
                             translations.Add(translation);
                         }
@@ -1316,8 +1289,7 @@ namespace Opc.Ua
                 exception,
                 (DiagnosticsMasks)requestHeader.ReturnDiagnostics,
                 true,
-                stringTable
-            );
+                stringTable);
             responseHeader.StringTable = stringTable.ToArray();
 
             return responseHeader;
@@ -1406,15 +1378,13 @@ namespace Opc.Ua
                         securityPolicy.SecurityPolicyUri)
                     ?? throw new ServiceResultException(
                         StatusCodes.BadConfigurationError,
-                        "Server does not have an instance certificate assigned."
-                    );
+                        "Server does not have an instance certificate assigned.");
 
                 if (!instanceCertificate.HasPrivateKey)
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadConfigurationError,
-                        "Server does not have access to the private key for the instance certificate."
-                    );
+                        "Server does not have access to the private key for the instance certificate.");
                 }
 
                 defaultInstanceCertificate ??= instanceCertificate;
@@ -1436,8 +1406,7 @@ namespace Opc.Ua
             {
                 X509Certificate2 instanceCertificate = InstanceCertificateTypesProvider
                     .GetInstanceCertificate(
-                        configuration.ServerConfiguration.SecurityPolicies[0].SecurityPolicyUri
-                        );
+                        configuration.ServerConfiguration.SecurityPolicies[0].SecurityPolicyUri);
 
                 configuration.ApplicationUri = X509Utils.GetApplicationUriFromCertificate(
                     instanceCertificate);
@@ -1448,8 +1417,7 @@ namespace Opc.Ua
                         "http://{0}/{1}/{2}",
                         Utils.GetHostName(),
                         configuration.ApplicationName,
-                        Guid.NewGuid()
-                    );
+                        Guid.NewGuid());
                 }
             }
 
@@ -1481,8 +1449,7 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             TransportListenerBindings bindingFactory,
             out ApplicationDescription serverDescription,
-            out EndpointDescriptionCollection endpoints
-        )
+            out EndpointDescriptionCollection endpoints)
         {
             serverDescription = null;
             endpoints = null;
@@ -1531,7 +1498,10 @@ namespace Opc.Ua
         /// <param name="request">The request.</param>
         /// <param name="calldata">The calldata passed with the request.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        protected virtual async Task ProcessRequestAsync(IEndpointIncomingRequest request, object calldata, CancellationToken cancellationToken = default)
+        protected virtual async Task ProcessRequestAsync(
+            IEndpointIncomingRequest request,
+            object calldata,
+            CancellationToken cancellationToken = default)
         {
             await request.CallAsync(cancellationToken).ConfigureAwait(false);
         }
@@ -1568,13 +1538,11 @@ namespace Opc.Ua
                 ThreadPool.GetMinThreads(out minThreadCount, out int minCompletionPortThreads);
                 ThreadPool.SetMinThreads(
                     Math.Max(minThreadCount, m_minThreadCount),
-                    Math.Max(minCompletionPortThreads, m_minThreadCount)
-                );
+                    Math.Max(minCompletionPortThreads, m_minThreadCount));
                 ThreadPool.GetMaxThreads(out maxThreadCount, out int maxCompletionPortThreads);
                 ThreadPool.SetMaxThreads(
                     Math.Max(maxThreadCount, m_maxThreadCount),
-                    Math.Max(maxCompletionPortThreads, m_maxThreadCount)
-                );
+                    Math.Max(maxCompletionPortThreads, m_maxThreadCount));
             }
 
             /// <summary>
@@ -1639,8 +1607,7 @@ namespace Opc.Ua
                         Utils.LogTrace(
                             "Too many operations. Total: {0} Active: {1}",
                             totalThreadCount,
-                            activeThreadCount
-                        );
+                            activeThreadCount);
                     }
                     else
                     {
@@ -1667,8 +1634,7 @@ namespace Opc.Ua
                                 "Thread created: {0:X8}. Total: {1} Active: {2}",
                                 thread.ManagedThreadId,
                                 totalThreadCount,
-                                activeThreadCount
-                            );
+                                activeThreadCount);
 
                             return;
                         }
@@ -1707,8 +1673,7 @@ namespace Opc.Ua
                                     "Thread ended: {0:X8}. Total: {1} Active: {2}",
                                     Environment.CurrentManagedThreadId,
                                     m_totalThreadCount,
-                                    m_activeThreadCount
-                                );
+                                    m_activeThreadCount);
                                 return;
                             }
 
@@ -1759,7 +1724,11 @@ namespace Opc.Ua
             /// <param name="minThreadCount">The minimum number of threads in the pool.</param>
             /// <param name="maxThreadCount">The maximum number of threads  in the pool.</param>
             /// <param name="maxRequestCount">The maximum number of requests that will placed in the queue.</param>
-            public RequestQueue(ServerBase server, int minThreadCount, int maxThreadCount, int maxRequestCount)
+            public RequestQueue(
+                ServerBase server,
+                int minThreadCount,
+                int maxThreadCount,
+                int maxRequestCount)
             {
                 m_server = server;
                 m_minThreadCount = minThreadCount;
@@ -1780,6 +1749,7 @@ namespace Opc.Ua
                     m_workers.Add(Task.Run(() => WorkerLoopAsync(m_cts.Token)));
                 }
             }
+
             /// <summary>
             /// Frees any unmanaged resources.
             /// </summary>
@@ -1788,6 +1758,7 @@ namespace Opc.Ua
                 Dispose(true);
                 GC.SuppressFinalize(this);
             }
+
             /// <summary>
             /// An overrideable version of the Dispose.
             /// </summary>
@@ -1809,6 +1780,7 @@ namespace Opc.Ua
                     Utils.SilentDispose(m_cts);
                 }
             }
+
             /// <summary>
             /// Schedules an incoming request.
             /// </summary>
@@ -1831,7 +1803,8 @@ namespace Opc.Ua
                     return;
                 }
                 // Optionally scale up workers if needed
-                if (m_totalThreadCount < m_maxThreadCount && m_activeThreadCount >= m_totalThreadCount)
+                if (m_totalThreadCount < m_maxThreadCount &&
+                    m_activeThreadCount >= m_totalThreadCount)
                 {
                     lock (m_workers)
                     {
@@ -1856,7 +1829,8 @@ namespace Opc.Ua
                     while (!ct.IsCancellationRequested)
                     {
                         // wait for a request
-                        if ((!await m_queueSignal.WaitAsync(15_000, ct).ConfigureAwait(false)) && m_totalThreadCount > m_minThreadCount)
+                        if ((!await m_queueSignal.WaitAsync(15_000, ct).ConfigureAwait(false)) &&
+                            m_totalThreadCount > m_minThreadCount)
                         {
                             //end loop if no requests and we have enough threads
                             return;
@@ -1869,7 +1843,8 @@ namespace Opc.Ua
                             {
                                 Interlocked.Decrement(ref m_queuedRequestsCount);
                                 Interlocked.Increment(ref m_activeThreadCount);
-                                await m_server.ProcessRequestAsync(request, null, ct).ConfigureAwait(false);
+                                await m_server.ProcessRequestAsync(request, null, ct)
+                                    .ConfigureAwait(false);
                             }
                             catch (Exception ex)
                             {
@@ -1893,7 +1868,6 @@ namespace Opc.Ua
                 }
             }
 
-            #region private Fields
             private readonly ServerBase m_server;
             private readonly int m_minThreadCount;
             private readonly int m_maxThreadCount;
@@ -1906,7 +1880,6 @@ namespace Opc.Ua
             private int m_totalThreadCount;
             private int m_queuedRequestsCount;
             private bool m_stopped;
-            #endregion
         }
 #endif
 

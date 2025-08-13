@@ -186,8 +186,7 @@ namespace Opc.Ua
         protected override ServiceResult ReadNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            ref object value
-        )
+            ref object value)
         {
             ServiceResult result = null;
 
@@ -206,11 +205,9 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        if (
-                            dataTypeDefinition?.Body is StructureDefinition structureType &&
+                        if (dataTypeDefinition?.Body is StructureDefinition structureType &&
                             (structureType.DefaultEncodingId == null ||
-                                structureType.DefaultEncodingId.IsNullNodeId)
-                        )
+                                structureType.DefaultEncodingId.IsNullNodeId))
                         {
                             // one time set the id for binary encoding, currently the only supported encoding
                             structureType.SetDefaultEncodingId(context, NodeId, null);

@@ -184,8 +184,7 @@ namespace Opc.Ua.Server
                             (int)BrowseResultMask.NodeClass |
                             (int)BrowseResultMask.BrowseName |
                             (int)BrowseResultMask.DisplayName |
-                            (int)BrowseResultMask.TypeDefinition
-                        )
+                            (int)BrowseResultMask.TypeDefinition)
                     ) != 0;
             }
         }

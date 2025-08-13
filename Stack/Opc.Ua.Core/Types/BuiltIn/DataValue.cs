@@ -484,8 +484,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(
                         StatusCodes.BadTypeMismatch,
                         "DataValue is not of type {0}.",
-                        expectedType.Name
-                    );
+                        expectedType.Name);
                 }
             }
 
@@ -525,8 +524,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(
                         StatusCodes.BadTypeMismatch,
                         "DataValue is not of type {0}.",
-                        typeof(T).Name
-                    );
+                        typeof(T).Name);
                 }
 
                 return (T)value;
@@ -538,8 +536,7 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(
                     StatusCodes.BadTypeMismatch,
                     "DataValue is null and not of value type {0}.",
-                    typeof(T).Name
-                );
+                    typeof(T).Name);
             }
 
             return default;

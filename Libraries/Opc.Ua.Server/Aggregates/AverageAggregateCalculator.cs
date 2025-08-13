@@ -52,8 +52,7 @@ namespace Opc.Ua.Server
             DateTime endTime,
             double processingInterval,
             bool stepped,
-            AggregateConfiguration configuration
-        )
+            AggregateConfiguration configuration)
             : base(aggregateId, startTime, endTime, processingInterval, stepped, configuration)
         {
             SetPartialBit = aggregateId != ObjectIds.AggregateFunction_Average;

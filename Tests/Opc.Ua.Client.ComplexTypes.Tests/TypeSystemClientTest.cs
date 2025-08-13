@@ -125,8 +125,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             m_url = new Uri(
                 m_uriScheme +
                 "://localhost:" +
-                m_serverFixture.Port.ToString(CultureInfo.InvariantCulture)
-            );
+                m_serverFixture.Port.ToString(CultureInfo.InvariantCulture));
             try
             {
                 Session = await m_clientFixture
@@ -136,8 +135,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             catch (Exception e)
             {
                 NUnit.Framework.Assert.Ignore(
-                    $"OneTimeSetup failed to create session, tests skipped. Error: {e.Message}"
-                );
+                    $"OneTimeSetup failed to create session, tests skipped. Error: {e.Message}");
             }
         }
 
@@ -176,8 +174,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         public async Task LoadTypeSystemAsync(
             bool onlyEnumTypes,
             bool disableDataTypeDefinition,
-            bool disableDataTypeDictionary
-        )
+            bool disableDataTypeDictionary)
         {
             var typeSystem = new ComplexTypeSystem(Session);
             Assert.NotNull(typeSystem);
@@ -198,8 +195,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             {
                 NodeIdDictionary<DataTypeDefinition> definitions = typeSystem
                     .GetDataTypeDefinitionsForDataType(
-                        dataTypeId
-                        );
+                        dataTypeId);
                 Assert.IsNotEmpty(definitions);
                 Type type = Session.Factory.GetSystemType(dataTypeId);
                 Assert.IsNotNull(type);
@@ -236,8 +232,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             var variableIds = new NodeIdCollection(
                 referenceDescriptions
                     .Where(r => r.NodeClass == NodeClass.Variable)
-                    .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris))
-            );
+                    .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris)));
 
             TestContext.Out.WriteLine("VariableIds: {0}", variableIds.Count);
 
@@ -251,8 +246,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 ServiceResult result = serviceResults[ii++];
                 Assert.IsTrue(
                     ServiceResult.IsGood(serviceResult),
-                    $"Expected good result, but received {serviceResult}"
-                );
+                    $"Expected good result, but received {serviceResult}");
             }
         }
 
@@ -277,10 +271,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     .Where(r =>
                         r.NodeClass == NodeClass.Variable &&
                         r is VariableNode v &&
-                        v.DataType.NamespaceIndex != 0
-                    )
-                    .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris))
-            );
+                        v.DataType.NamespaceIndex != 0)
+                    .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris)));
 
             TestContext.Out.WriteLine("VariableIds: {0}", variableIds.Count);
 
@@ -302,11 +294,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 var variableExpandedNodeId = NodeId.ToExpandedNodeId(
                     variableId,
                     Session.NamespaceUris);
-                if (
-                    allNodes.FirstOrDefault(
+                if (allNodes.FirstOrDefault(
                         n => n.NodeId == variableId) is VariableNode variableNode &&
-                    variableNode.DataType.NamespaceIndex != 0
-                )
+                    variableNode.DataType.NamespaceIndex != 0)
                 {
                     TestContext.Out.WriteLine("Check for custom type: {0}", variableNode);
                     var fullTypeId = NodeId.ToExpandedNodeId(
@@ -334,8 +324,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                             TestContext.Out.WriteLine(
                                 "-- Variable: {0} complex type unavailable --> {1}",
                                 variableNode.NodeId,
-                                variableNode.DataType
-                            );
+                                variableNode.DataType);
                             (_, _) = await samples.ReadAllValuesAsync(this, [variableId])
                                 .ConfigureAwait(false);
                         }
@@ -344,8 +333,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                             TestContext.Out.WriteLine(
                                 "-- Variable: {0} opaque typeid --> {1}",
                                 variableNode.NodeId,
-                                lastGoodType
-                            );
+                                lastGoodType);
                         }
                         continue;
                     }
@@ -359,8 +347,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                             TestContext.Out.WriteLine(
                                 "Variable: {0} type is decoded as ExtensionObject --> {1}",
                                 variableNode,
-                                value.Value
-                            );
+                                value.Value);
                             (_, _) = await samples.ReadAllValuesAsync(this, [variableId])
                                 .ConfigureAwait(false);
                         }
@@ -379,8 +366,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                                 TestContext.Out.WriteLine(
                                     "Variable: {0} type is decoded as ExtensionObject --> {1}",
                                     variableNode,
-                                    valueItem
-                                );
+                                    valueItem);
                                 (_, _) = await samples.ReadAllValuesAsync(this, [variableId])
                                     .ConfigureAwait(false);
                             }
@@ -392,8 +378,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             if (testFailed)
             {
                 NUnit.Framework.Assert.Fail(
-                    "Test failed, unknown or undecodable complex type detected. See log for information."
-                );
+                    "Test failed, unknown or undecodable complex type detected. See log for information.");
             }
         }
 
@@ -447,8 +432,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     property.Name,
                     property.PropertyType.Name,
                     property.ValueRank,
-                    complexType[property.Name].ToString()
-                );
+                    complexType[property.Name].ToString());
             }
 
             complexType["ByteValue"] = (byte)0;
@@ -505,8 +489,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     property.Name,
                     property.GetType().Name,
                     property.ValueRank,
-                    complexType[property.Name].ToString()
-                );
+                    complexType[property.Name].ToString());
             }
 
             Assert.AreEqual(complexType["ByteValue"], (byte)0);

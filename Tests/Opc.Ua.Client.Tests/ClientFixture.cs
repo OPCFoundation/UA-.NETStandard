@@ -113,8 +113,7 @@ namespace Opc.Ua.Client.Tests
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     "CN=" + clientName + ", O=OPC Foundation, DC=localhost",
                     CertificateStoreType.Directory,
-                    pkiRoot
-                );
+                    pkiRoot);
 
             // build the application configuration.
             Config = await application
@@ -131,8 +130,7 @@ namespace Opc.Ua.Client.Tests
                         MaxNodesPerRead = kDefaultOperationLimits,
                         MaxMonitoredItemsPerCall = kDefaultOperationLimits,
                         MaxNodesPerWrite = kDefaultOperationLimits
-                    }
-                )
+                    })
                 .AddSecurityConfiguration(applicationCerts, pkiRoot)
                 // .SetApplicationCertificates(applicationCerts)
                 .SetAutoAcceptUntrustedCertificates(true)
@@ -239,12 +237,12 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Connects the url endpoint with specified security profile.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public async Task<ISession> ConnectAsync(
             Uri url,
             string securityProfile,
             EndpointDescriptionCollection endpoints = null,
-            IUserIdentity userIdentity = null
-        )
+            IUserIdentity userIdentity = null)
         {
             string uri = url.AbsoluteUri;
             Uri getEndpointsUrl = url;
@@ -267,17 +265,10 @@ namespace Opc.Ua.Client.Tests
                     ).ConfigureAwait(false);
                     return await ConnectAsync(endpoint, userIdentity).ConfigureAwait(false);
                 }
-                catch (ServiceResultException e)
+                catch (ServiceResultException e) when (e.StatusCode == StatusCodes.BadServerHalted)
                 {
-                    if (e.StatusCode == StatusCodes.BadServerHalted)
-                    {
-                        serverHalted = true;
-                        await Task.Delay(1000).ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        throw;
-                    }
+                    serverHalted = true;
+                    await Task.Delay(1000).ConfigureAwait(false);
                 }
             } while (serverHalted);
 
@@ -356,8 +347,7 @@ namespace Opc.Ua.Client.Tests
         public async Task<ConfiguredEndpoint> GetEndpointAsync(
             Uri url,
             string securityPolicy,
-            EndpointDescriptionCollection endpoints = null
-        )
+            EndpointDescriptionCollection endpoints = null)
         {
             endpoints ??= await GetEndpointsAsync(url).ConfigureAwait(false);
             EndpointDescription endpointDescription = SelectEndpoint(
@@ -381,8 +371,7 @@ namespace Opc.Ua.Client.Tests
             ApplicationConfiguration configuration,
             EndpointDescriptionCollection endpoints,
             Uri url,
-            string securityPolicy
-        )
+            string securityPolicy)
         {
             EndpointDescription selectedEndpoint = null;
 
@@ -393,29 +382,22 @@ namespace Opc.Ua.Client.Tests
                 if (endpoint.EndpointUrl.StartsWith(url.Scheme))
                 {
                     // skip unsupported security policies
-                    if (
-                        !configuration.SecurityConfiguration.SupportedSecurityPolicies.Contains(
-                            endpoint.SecurityPolicyUri
-                        )
-                    )
+                    if (!configuration.SecurityConfiguration.SupportedSecurityPolicies.Contains(
+                            endpoint.SecurityPolicyUri))
                     {
                         continue;
                     }
 
                     // pick the first available endpoint by default.
-                    if (
-                        selectedEndpoint == null &&
-                        securityPolicy.Equals(endpoint.SecurityPolicyUri, StringComparison.Ordinal)
-                    )
+                    if (selectedEndpoint == null &&
+                        securityPolicy.Equals(endpoint.SecurityPolicyUri, StringComparison.Ordinal))
                     {
                         selectedEndpoint = endpoint;
                         continue;
                     }
 
-                    if (
-                        selectedEndpoint?.SecurityMode < endpoint.SecurityMode &&
-                        securityPolicy.Equals(endpoint.SecurityPolicyUri, StringComparison.Ordinal)
-                    )
+                    if (selectedEndpoint?.SecurityMode < endpoint.SecurityMode &&
+                        securityPolicy.Equals(endpoint.SecurityPolicyUri, StringComparison.Ordinal))
                     {
                         selectedEndpoint = endpoint;
                     }
@@ -510,8 +492,7 @@ namespace Opc.Ua.Client.Tests
                             activity.OperationName,
                             activity.TraceId,
                             activity.SpanId,
-                            activity.Duration
-                        )
+                            activity.Duration)
                 };
             }
             ActivitySource.AddActivityListener(ActivityListener);

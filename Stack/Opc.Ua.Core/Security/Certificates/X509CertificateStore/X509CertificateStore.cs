@@ -83,8 +83,7 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(
                     StatusCodes.BadUnexpectedError,
                     "Path does not specify a store name. Path={0}",
-                    location
-                );
+                    location);
             }
 
             // extract store location.
@@ -263,8 +262,7 @@ namespace Opc.Ua
             string subjectName,
             string applicationUri,
             NodeId certificateType,
-            string password
-        )
+            string password)
         {
             return Task.FromResult<X509Certificate2>(null);
         }
@@ -277,8 +275,7 @@ namespace Opc.Ua
             string applicationUri,
             NodeId certificateType,
             string password,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             return Task.FromResult<X509Certificate2>(null);
         }
@@ -300,8 +297,7 @@ namespace Opc.Ua
         public async Task<StatusCode> IsRevokedAsync(
             X509Certificate2 issuer,
             X509Certificate2 certificate,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             if (!SupportsCRLs)
             {
@@ -340,10 +336,8 @@ namespace Opc.Ua
                     return (StatusCode)StatusCodes.BadCertificateRevoked;
                 }
 
-                if (
-                    crl.ThisUpdate <= DateTime.UtcNow &&
-                    (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow)
-                )
+                if (crl.ThisUpdate <= DateTime.UtcNow &&
+                    (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
                 {
                     crlExpired = false;
                 }
@@ -411,8 +405,7 @@ namespace Opc.Ua
         public async Task<X509CRLCollection> EnumerateCRLsAsync(
             X509Certificate2 issuer,
             bool validateUpdateTime = true,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             if (!SupportsCRLs)
             {
@@ -435,13 +428,10 @@ namespace Opc.Ua
                     continue;
                 }
 
-                if (
-                    !validateUpdateTime ||
+                if (!validateUpdateTime ||
                     (
                         crl.ThisUpdate <= DateTime.UtcNow &&
-                        (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow)
-                    )
-                )
+                        (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow)))
                 {
                     crls.Add(crl);
                 }
@@ -476,10 +466,8 @@ namespace Opc.Ua
                 false);
             foreach (X509Certificate2 certificate in certificates)
             {
-                if (
-                    X509Utils.CompareDistinguishedName(certificate.SubjectName, crl.IssuerName) &&
-                    crl.VerifySignature(certificate, false)
-                )
+                if (X509Utils.CompareDistinguishedName(certificate.SubjectName, crl.IssuerName) &&
+                    crl.VerifySignature(certificate, false))
                 {
                     issuer = certificate;
                     break;
@@ -490,8 +478,7 @@ namespace Opc.Ua
             {
                 throw new ServiceResultException(
                     StatusCodes.BadCertificateInvalid,
-                    "Could not find issuer of the CRL."
-                );
+                    "Could not find issuer of the CRL.");
             }
             using var store = new X509Store(m_storeName, m_storeLocation);
             store.Open(OpenFlags.ReadWrite);
@@ -536,8 +523,7 @@ namespace Opc.Ua
         public Task AddRejectedAsync(
             X509Certificate2Collection certificates,
             int maxCertificates,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             return Task.CompletedTask;
         }

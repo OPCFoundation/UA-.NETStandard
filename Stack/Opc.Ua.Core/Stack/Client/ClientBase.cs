@@ -381,8 +381,7 @@ namespace Opc.Ua
                     serviceName,
                     (int)requestHandle,
                     (int)statusCode.Code,
-                    pendingRequestCount
-                );
+                    pendingRequestCount);
             }
             else
             {
@@ -421,8 +420,7 @@ namespace Opc.Ua
                     new ServiceResult(
                         header.ServiceResult,
                         header.ServiceDiagnostics,
-                        header.StringTable)
-                );
+                        header.StringTable));
             }
         }
 
@@ -439,16 +437,14 @@ namespace Opc.Ua
             {
                 throw new ArgumentException(
                     "Must call ValidateDiagnosticInfos() for DiagnosticInfoCollections.",
-                    nameof(response)
-                );
+                    nameof(response));
             }
 
             if (response == null || response.Count != request.Count)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadUnexpectedError,
-                    "The server returned a list without the expected number of elements."
-                );
+                    "The server returned a list without the expected number of elements.");
             }
         }
 
@@ -465,8 +461,7 @@ namespace Opc.Ua
             {
                 throw new ServiceResultException(
                     StatusCodes.BadUnexpectedError,
-                    "The server forgot to fill in the DiagnosticInfos array correctly when returning an operation level error."
-                );
+                    "The server forgot to fill in the DiagnosticInfos array correctly when returning an operation level error.");
             }
         }
 
@@ -482,8 +477,7 @@ namespace Opc.Ua
             StatusCode statusCode,
             int index,
             DiagnosticInfoCollection diagnosticInfos,
-            ResponseHeader responseHeader
-        )
+            ResponseHeader responseHeader)
         {
             if (diagnosticInfos != null && diagnosticInfos.Count > index)
             {
@@ -510,16 +504,14 @@ namespace Opc.Ua
             Type expectedType,
             int index,
             DiagnosticInfoCollection diagnosticInfos,
-            ResponseHeader responseHeader
-        )
+            ResponseHeader responseHeader)
         {
             // check for null.
             if (value == null)
             {
                 return new ServiceResult(
                     StatusCodes.BadUnexpectedError,
-                    "The server returned a value for a data value."
-                );
+                    "The server returned a value for a data value.");
             }
 
             // check status code.
@@ -535,8 +527,7 @@ namespace Opc.Ua
                     StatusCodes.BadUnexpectedError,
                     "The server returned data value of type {0} when a value of type {1} was expected.",
                     value.Value != null ? value.Value.GetType().Name : "(null)",
-                    expectedType.Name
-                );
+                    expectedType.Name);
             }
 
             return null;

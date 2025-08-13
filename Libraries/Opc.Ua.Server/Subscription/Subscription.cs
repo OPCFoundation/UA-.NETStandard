@@ -53,8 +53,7 @@ namespace Opc.Ua.Server
             uint maxNotificationsPerPublish,
             byte priority,
             bool publishingEnabled,
-            uint maxMessageCount
-        )
+            uint maxMessageCount)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             Session = session ?? throw new ArgumentNullException(nameof(session));
@@ -122,8 +121,7 @@ namespace Opc.Ua.Server
             m_diagnosticsId = server.DiagnosticsNodeManager.CreateSubscriptionDiagnostics(
                 systemContext,
                 Diagnostics,
-                OnUpdateDiagnostics
-            );
+                OnUpdateDiagnostics);
 
             TraceState(LogLevel.Information, TraceStateId.Config, "CREATED");
         }
@@ -204,8 +202,7 @@ namespace Opc.Ua.Server
             m_diagnosticsId = server.DiagnosticsNodeManager.CreateSubscriptionDiagnostics(
                 systemContext,
                 Diagnostics,
-                OnUpdateDiagnostics
-            );
+                OnUpdateDiagnostics);
 
             TraceState(LogLevel.Information, TraceStateId.Config, "RESTORED");
 
@@ -403,8 +400,7 @@ namespace Opc.Ua.Server
                         [.. m_monitoredItems.Keys],
                         true,
                         out StatusCodeCollection results,
-                        out DiagnosticInfoCollection diagnosticInfos
-                    );
+                        out DiagnosticInfoCollection diagnosticInfos);
                 }
                 catch (Exception e)
                 {
@@ -487,13 +483,10 @@ namespace Opc.Ua.Server
 
                         // update any triggered items.
 
-                        if (
-                            monitoredItem.IsReadyToTrigger &&
+                        if (monitoredItem.IsReadyToTrigger &&
                             m_itemsToTrigger.TryGetValue(
                                 current.Value.Id,
-                                out List<ITriggeredMonitoredItem> triggeredItems
-                            )
-                        )
+                                out List<ITriggeredMonitoredItem> triggeredItems))
                         {
                             for (int ii = 0; ii < triggeredItems.Count; ii++)
                             {
@@ -720,8 +713,7 @@ namespace Opc.Ua.Server
         public NotificationMessage Publish(
             OperationContext context,
             out UInt32Collection availableSequenceNumbers,
-            out bool moreNotifications
-        )
+            out bool moreNotifications)
         {
             if (context == null)
             {
@@ -845,8 +837,7 @@ namespace Opc.Ua.Server
         private NotificationMessage InnerPublish(
             OperationContext context,
             out UInt32Collection availableSequenceNumbers,
-            out bool moreNotifications
-        )
+            out bool moreNotifications)
         {
             // check session.
             VerifySession(context);
@@ -907,16 +898,14 @@ namespace Opc.Ua.Server
                             context,
                             datachanges,
                             datachangeDiagnostics,
-                            maxNotificationsPerMonitoredItem
-                        );
+                            maxNotificationsPerMonitoredItem);
                     }
                     else
                     {
                         hasMoreValuesToPublish = ((IEventMonitoredItem)monitoredItem).Publish(
                             context,
                             events,
-                            maxNotificationsPerMonitoredItem
-                        );
+                            maxNotificationsPerMonitoredItem);
                     }
 
                     // if item has more values to publish leave it at the front of the list
@@ -930,10 +919,8 @@ namespace Opc.Ua.Server
                     }
 
                     // check there are enough notifications for a message.
-                    if (
-                        m_maxNotificationsPerPublish > 0 &&
-                        events.Count + datachanges.Count > m_maxNotificationsPerPublish
-                    )
+                    if (m_maxNotificationsPerPublish > 0 &&
+                        events.Count + datachanges.Count > m_maxNotificationsPerPublish)
                     {
                         // construct message.
                         int eventCount = events.Count;
@@ -943,8 +930,7 @@ namespace Opc.Ua.Server
                             events,
                             datachanges,
                             datachangeDiagnostics,
-                            out int notificationCount
-                        );
+                            out int notificationCount);
 
                         // add to list of messages to send.
                         messages.Add(message);
@@ -980,8 +966,7 @@ namespace Opc.Ua.Server
                         events,
                         datachanges,
                         datachangeDiagnostics,
-                        out int notificationCount
-                    );
+                        out int notificationCount);
 
                     // add to list of messages to send.
                     messages.Add(message);
@@ -1047,8 +1032,7 @@ namespace Opc.Ua.Server
                     "WARNING: QUEUE OVERFLOW. Dropping {0} Messages. Increase MaxMessageQueueSize. SubId={1}, MaxMessageQueueSize={2}",
                     overflowCount,
                     Id,
-                    m_maxMessageCount
-                );
+                    m_maxMessageCount);
                 messages.RemoveRange(0, overflowCount);
             }
 
@@ -1111,8 +1095,7 @@ namespace Opc.Ua.Server
             Queue<EventFieldList> events,
             Queue<MonitoredItemNotification> datachanges,
             Queue<DiagnosticInfo> datachangeDiagnostics,
-            out int notificationCount
-        )
+            out int notificationCount)
         {
             notificationCount = 0;
 
@@ -1243,8 +1226,7 @@ namespace Opc.Ua.Server
             uint maxLifetimeCount,
             uint maxKeepAliveCount,
             uint maxNotificationsPerPublish,
-            byte priority
-        )
+            byte priority)
         {
             lock (m_lock)
             {
@@ -1344,8 +1326,7 @@ namespace Opc.Ua.Server
             out StatusCodeCollection addResults,
             out DiagnosticInfoCollection addDiagnosticInfos,
             out StatusCodeCollection removeResults,
-            out DiagnosticInfoCollection removeDiagnosticInfos
-        )
+            out DiagnosticInfoCollection removeDiagnosticInfos)
         {
             if (context == null)
             {
@@ -1429,8 +1410,7 @@ namespace Opc.Ua.Server
                             DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                                 m_server,
                                 context,
-                                removeResults[ii]
-                            );
+                                removeResults[ii]);
                             diagnosticsExist = true;
                             removeDiagnosticInfos.Add(diagnosticInfo);
                         }
@@ -1462,8 +1442,7 @@ namespace Opc.Ua.Server
                             DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                                 m_server,
                                 context,
-                                addResults[ii]
-                            );
+                                addResults[ii]);
                             diagnosticsExist = true;
                             addDiagnosticInfos.Add(diagnosticInfo);
                         }
@@ -1483,8 +1462,7 @@ namespace Opc.Ua.Server
                             DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                                 m_server,
                                 context,
-                                addResults[ii]
-                            );
+                                addResults[ii]);
                             diagnosticsExist = true;
                             addDiagnosticInfos.Add(diagnosticInfo);
                         }
@@ -1541,8 +1519,7 @@ namespace Opc.Ua.Server
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequestCollection itemsToCreate,
             out MonitoredItemCreateResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             if (context == null)
             {
@@ -1586,8 +1563,7 @@ namespace Opc.Ua.Server
                 errors,
                 filterResults,
                 monitoredItems,
-                IsDurable
-            );
+                IsDurable);
 
             // allocate results.
             bool diagnosticsExist = false;
@@ -1693,8 +1669,7 @@ namespace Opc.Ua.Server
         private static void ModifyItemSamplingInterval(
             double oldInterval,
             double newInterval,
-            MonitoringMode monitoringMode
-        )
+            MonitoringMode monitoringMode)
         {
             // TBD
         }
@@ -1751,8 +1726,7 @@ namespace Opc.Ua.Server
             TimestampsToReturn timestampsToReturn,
             MonitoredItemModifyRequestCollection itemsToModify,
             out MonitoredItemModifyResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             if (context == null)
             {
@@ -1796,12 +1770,9 @@ namespace Opc.Ua.Server
                 {
                     filterResults.Add(null);
 
-                    if (
-                        !m_monitoredItems.TryGetValue(
+                    if (!m_monitoredItems.TryGetValue(
                             itemsToModify[ii].MonitoredItemId,
-                            out LinkedListNode<IMonitoredItem> node
-                        )
-                    )
+                            out LinkedListNode<IMonitoredItem> node))
                     {
                         monitoredItems.Add(null);
                         errors.Add(StatusCodes.BadMonitoredItemIdInvalid);
@@ -1812,8 +1783,7 @@ namespace Opc.Ua.Server
                             DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                                 m_server,
                                 context,
-                                errors[ii]
-                            );
+                                errors[ii]);
                             diagnosticsExist = true;
                             diagnosticInfos.Add(diagnosticInfo);
                         }
@@ -1845,8 +1815,7 @@ namespace Opc.Ua.Server
                     monitoredItems,
                     itemsToModify,
                     errors,
-                    filterResults
-                );
+                    filterResults);
             }
 
             lock (m_lock)
@@ -1880,8 +1849,7 @@ namespace Opc.Ua.Server
                         ModifyItemSamplingInterval(
                             originalSamplingIntervals[ii],
                             result.RevisedSamplingInterval,
-                            monitoredItems[ii].MonitoringMode
-                        );
+                            monitoredItems[ii].MonitoringMode);
                     }
 
                     if (filterResults[ii] != null)
@@ -1891,11 +1859,9 @@ namespace Opc.Ua.Server
 
                     results.Add(result);
 
-                    if (
-                        (context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0 &&
+                    if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0 &&
                         error != null &&
-                        error.Code != StatusCodes.Good
-                    )
+                        error.Code != StatusCodes.Good)
                     {
                         diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
                             m_server,
@@ -1922,8 +1888,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             UInt32Collection monitoredItemIds,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             DeleteMonitoredItems(
                 context,
@@ -1942,8 +1907,7 @@ namespace Opc.Ua.Server
             UInt32Collection monitoredItemIds,
             bool doNotCheckSession,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             if (context == null)
             {
@@ -2000,8 +1964,7 @@ namespace Opc.Ua.Server
                             DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                                 m_server,
                                 context,
-                                errors[ii]
-                            );
+                                errors[ii]);
                             diagnosticsExist = true;
                             diagnosticInfos.Add(diagnosticInfo);
                         }
@@ -2083,11 +2046,9 @@ namespace Opc.Ua.Server
                             originalMonitoringModes[ii]);
                     }
 
-                    if (
-                        (context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0 &&
+                    if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0 &&
                         error != null &&
-                        error.Code != StatusCodes.Good
-                    )
+                        error.Code != StatusCodes.Good)
                     {
                         diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
                             m_server,
@@ -2116,8 +2077,7 @@ namespace Opc.Ua.Server
             MonitoringMode monitoringMode,
             UInt32Collection monitoredItemIds,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             if (context == null)
             {
@@ -2170,8 +2130,7 @@ namespace Opc.Ua.Server
                             DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                                 m_server,
                                 context,
-                                errors[ii]
-                            );
+                                errors[ii]);
                             diagnosticsExist = true;
                             diagnosticInfos.Add(diagnosticInfo);
                         }
@@ -2223,15 +2182,12 @@ namespace Opc.Ua.Server
                         ModifyItemMonitoringMode(
                             monitoredItems[ii].SamplingInterval,
                             originalMonitoringModes[ii],
-                            monitoringMode
-                        );
+                            monitoringMode);
                     }
 
-                    if (
-                        (context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0 &&
+                    if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0 &&
                         error != null &&
-                        error.Code != StatusCodes.Good
-                    )
+                        error.Code != StatusCodes.Good)
                     {
                         diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
                             m_server,
@@ -2293,8 +2249,7 @@ namespace Opc.Ua.Server
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadMonitoredItemIdInvalid,
-                        "Cannot refresh conditions for a monitored item that does not exist."
-                    );
+                        "Cannot refresh conditions for a monitored item that does not exist.");
                 }
             }
         }
@@ -2311,10 +2266,8 @@ namespace Opc.Ua.Server
                 // build list of items to refresh.
                 foreach (LinkedListNode<IMonitoredItem> monitoredItem in m_monitoredItems.Values)
                 {
-                    if (
-                        monitoredItem.Value is IEventMonitoredItem eventMonitoredItem &&
-                        eventMonitoredItem.EventFilter != null
-                    )
+                    if (monitoredItem.Value is IEventMonitoredItem eventMonitoredItem &&
+                        eventMonitoredItem.EventFilter != null)
                     {
                         // add to list that gets reported to the NodeManagers.
                         monitoredItems.Add(eventMonitoredItem);
@@ -2346,10 +2299,8 @@ namespace Opc.Ua.Server
                     monitoredItemId,
                     out LinkedListNode<IMonitoredItem> monitoredItem))
                 {
-                    if (
-                        monitoredItem.Value is IEventMonitoredItem eventMonitoredItem &&
-                        eventMonitoredItem.EventFilter != null
-                    )
+                    if (monitoredItem.Value is IEventMonitoredItem eventMonitoredItem &&
+                        eventMonitoredItem.EventFilter != null)
                     {
                         // add to list that gets reported to the NodeManagers.
                         monitoredItems.Add(eventMonitoredItem);
@@ -2359,8 +2310,7 @@ namespace Opc.Ua.Server
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadMonitoredItemIdInvalid,
-                        "Cannot refresh conditions for a monitored item that does not exist."
-                    );
+                        "Cannot refresh conditions for a monitored item that does not exist.");
                 }
 
                 // nothing to do if no event subscriptions.
@@ -2390,8 +2340,7 @@ namespace Opc.Ua.Server
                 messageTemplate = Utils.Format(
                     "Condition refresh {{0}} for subscription {0}, monitored item {1}.",
                     Id,
-                    monitoredItemId
-                );
+                    monitoredItemId);
             }
 
             lock (m_lock)
@@ -2402,8 +2351,7 @@ namespace Opc.Ua.Server
                 var message = new TranslationInfo(
                     "RefreshStartEvent",
                     "en-US",
-                    Utils.Format(messageTemplate, "started")
-                );
+                    Utils.Format(messageTemplate, "started"));
 
                 e.Initialize(systemContext, null, EventSeverity.Low, new LocalizedText(message));
 
@@ -2455,8 +2403,7 @@ namespace Opc.Ua.Server
                 var message = new TranslationInfo(
                     "RefreshEndEvent",
                     "en-US",
-                    Utils.Format(messageTemplate, "completed")
-                );
+                    Utils.Format(messageTemplate, "completed"));
 
                 e.Initialize(systemContext, null, EventSeverity.Low, new LocalizedText(message));
 
@@ -2494,8 +2441,7 @@ namespace Opc.Ua.Server
                 {
                     Utils.LogError(
                         "SetSubscriptionDurable requested for subscription with id {0}, but no IMonitoredItemQueueFactory that supports durable queues was registered",
-                        Id
-                    );
+                        Id);
                     TraceState(
                         LogLevel.Information,
                         TraceStateId.Config,
@@ -2651,8 +2597,7 @@ namespace Opc.Ua.Server
             {
                 throw new ServiceResultException(
                     StatusCodes.BadSubscriptionIdInvalid,
-                    "Subscription belongs to a different session."
-                );
+                    "Subscription belongs to a different session.");
             }
         }
 
@@ -2724,8 +2669,7 @@ namespace Opc.Ua.Server
                         m_maxKeepAliveCount,
                         m_maxLifetimeCount,
                         m_maxNotificationsPerPublish,
-                        publishingEnabled
-                    );
+                        publishingEnabled);
                     break;
                 case TraceStateId.Items:
                     Utils.Log(
@@ -2751,8 +2695,7 @@ namespace Opc.Ua.Server
                         monitoredItems,
                         itemsToCheck,
                         itemsToPublish,
-                        sentMessages
-                    );
+                        sentMessages);
                     break;
             }
         }

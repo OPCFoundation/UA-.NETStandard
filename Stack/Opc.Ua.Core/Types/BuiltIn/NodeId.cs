@@ -321,8 +321,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(
                         StatusCodes.BadNodeIdInvalid,
                         "Invalid NodeId ({0}).",
-                        originalText
-                    );
+                        originalText);
                 }
 
                 string namespaceUri = Utils.UnescapeUri(text.AsSpan()[4..index]);
@@ -336,8 +335,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(
                         StatusCodes.BadNodeIdInvalid,
                         "No mapping to NamespaceIndex for NamespaceUri ({0}).",
-                        namespaceUri
-                    );
+                        namespaceUri);
                 }
 
                 text = text[(index + 1)..];
@@ -352,8 +350,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(
                         StatusCodes.BadNodeIdInvalid,
                         "Invalid ExpandedNodeId ({0}).",
-                        originalText
-                    );
+                        originalText);
                 }
 
                 if (ushort.TryParse(text[3..index], out ushort ns))
@@ -416,8 +413,7 @@ namespace Opc.Ua
             throw ServiceResultException.Create(
                 StatusCodes.BadNodeIdInvalid,
                 "Invalid NodeId Identifier ({0}).",
-                originalText
-            );
+                originalText);
         }
 
         /// <summary>
@@ -510,8 +506,7 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(
                     StatusCodes.BadNodeIdInvalid,
                     "NamespaceUri ({0}) is not in the namespace table.",
-                    namespaceUri
-                );
+                    namespaceUri);
             }
 
             return new NodeId(identifier, (ushort)index);
@@ -874,8 +869,7 @@ namespace Opc.Ua
                 throw new ServiceResultException(
                     StatusCodes.BadNodeIdInvalid,
                     Utils.Format("Cannot parse node id text: '{0}'", text),
-                    e
-                );
+                    e);
             }
 
             throw argumentException;
@@ -947,8 +941,7 @@ namespace Opc.Ua
             StringBuilder buffer,
             object identifier,
             IdType identifierType,
-            ushort namespaceIndex
-        )
+            ushort namespaceIndex)
         {
             if (namespaceIndex != 0)
             {
@@ -1780,8 +1773,7 @@ namespace Opc.Ua
             IFormatProvider formatProvider,
             StringBuilder buffer,
             object identifier,
-            IdType identifierType
-        )
+            IdType identifierType)
         {
             switch (identifierType)
             {

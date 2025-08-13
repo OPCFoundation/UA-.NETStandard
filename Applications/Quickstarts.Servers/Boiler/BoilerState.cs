@@ -68,8 +68,7 @@ namespace Boiler
             uint transitionId,
             uint causeId,
             IList<object> inputArguments,
-            IList<object> outputArguments
-        )
+            IList<object> outputArguments)
         {
             switch (causeId)
             {
@@ -232,8 +231,7 @@ namespace Boiler
                     m_drum.LevelIndicator.Output.Value,
                     m_levelController.SetPoint.Value,
                     0.1,
-                    m_drum.LevelIndicator.Output.EURange.Value
-                );
+                    m_drum.LevelIndicator.Output.EURange.Value);
 
                 // calculate inputs for custom controller.
                 m_customController.Input1.Value = m_levelController.UpdateMeasurement(
@@ -255,8 +253,7 @@ namespace Boiler
                 // update flow controller set point.
                 m_flowController.SetPoint.Value = GetValue(
                     (m_customController.ControlOut.Value + 1) / 2,
-                    m_inputPipe.FlowTransmitter1.Output.EURange.Value
-                );
+                    m_inputPipe.FlowTransmitter1.Output.EURange.Value);
 
                 double error = m_flowController.UpdateMeasurement(
                     m_inputPipe.FlowTransmitter1.Output);
@@ -270,20 +267,17 @@ namespace Boiler
                     m_inputPipe.FlowTransmitter1.Output.Value,
                     m_flowController.SetPoint.Value,
                     0.6,
-                    m_inputPipe.FlowTransmitter1.Output.EURange.Value
-                );
+                    m_inputPipe.FlowTransmitter1.Output.EURange.Value);
 
                 // add pertubations.
                 m_drum.LevelIndicator.Output.Value
                     = RoundAndPerturb(m_drum.LevelIndicator.Output.Value, 3);
                 m_inputPipe.FlowTransmitter1.Output.Value = RoundAndPerturb(
                     m_inputPipe.FlowTransmitter1.Output.Value,
-                    3
-                );
+                    3);
                 m_outputPipe.FlowTransmitter2.Output.Value = RoundAndPerturb(
                     m_outputPipe.FlowTransmitter2.Output.Value,
-                    3
-                );
+                    3);
 
                 ClearChangeMasks(m_simulationContext, true);
             }

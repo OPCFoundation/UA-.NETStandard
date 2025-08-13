@@ -278,8 +278,7 @@ namespace Opc.Ua.Client.ComplexTypes
             IFormatProvider formatProvider,
             StringBuilder body,
             object value,
-            int valueRank
-        )
+            int valueRank)
         {
             _ = AddSeparator(body);
             if (valueRank >= 0 && value is Array array)
@@ -402,8 +401,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingError,
                     "Cannot encode a property with unsupported ValueRank {0}.",
-                    valueRank
-                );
+                    valueRank);
             }
         }
 
@@ -526,8 +524,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     throw ServiceResultException.Create(
                         StatusCodes.BadEncodingError,
                         "Cannot encode unknown type {0}.",
-                        propertyType.Name
-                    );
+                        propertyType.Name);
             }
         }
 
@@ -539,8 +536,7 @@ namespace Opc.Ua.Client.ComplexTypes
             string name,
             PropertyInfo property,
             BuiltInType builtInType,
-            int valueRank
-        )
+            int valueRank)
         {
             Type elementType = property.PropertyType.GetElementType() ??
                 property.PropertyType.GetItemType();
@@ -587,8 +583,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
                     "Cannot decode a property with unsupported ValueRank {0}.",
-                    valueRank
-                );
+                    valueRank);
             }
         }
 
@@ -705,8 +700,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
                         "Cannot decode unknown type {0}.",
-                        propertyType.Name
-                    );
+                        propertyType.Name);
             }
         }
 
@@ -718,8 +712,7 @@ namespace Opc.Ua.Client.ComplexTypes
             string name,
             PropertyInfo property,
             BuiltInType builtInType,
-            int valueRank
-        )
+            int valueRank)
         {
             Type elementType = property.PropertyType.GetElementType() ??
                 property.PropertyType.GetItemType();

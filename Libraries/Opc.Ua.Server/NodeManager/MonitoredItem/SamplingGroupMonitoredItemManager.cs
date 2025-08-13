@@ -41,16 +41,14 @@ namespace Opc.Ua.Server
         public SamplingGroupMonitoredItemManager(
             CustomNodeManager2 nodeManager,
             IServerInternal server,
-            ApplicationConfiguration configuration
-        )
+            ApplicationConfiguration configuration)
         {
             m_samplingGroupManager = new SamplingGroupManager(
                 server,
                 nodeManager,
                 (uint)configuration.ServerConfiguration.MaxNotificationQueueSize,
                 (uint)configuration.ServerConfiguration.MaxDurableNotificationQueueSize,
-                configuration.ServerConfiguration.AvailableSamplingRates
-            );
+                configuration.ServerConfiguration.AvailableSamplingRates);
 
             m_nodeManager = nodeManager;
             MonitoredNodes = [];
@@ -80,8 +78,7 @@ namespace Opc.Ua.Server
             uint revisedQueueSize,
             bool createDurable,
             uint monitoredItemId,
-            Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache
-        )
+            Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache)
         {
             // set min sampling interval if 0
             if (samplingInterval.CompareTo(0.0) == 0)
@@ -101,8 +98,7 @@ namespace Opc.Ua.Server
                     itemToCreate,
                     euRange,
                     samplingInterval,
-                    createDurable
-                    );
+                    createDurable);
 
             // save the monitored item.
             MonitoredItems.AddOrUpdate(
@@ -142,8 +138,7 @@ namespace Opc.Ua.Server
         public StatusCode DeleteMonitoredItem(
             ServerSystemContext context,
             ISampledDataChangeMonitoredItem monitoredItem,
-            NodeHandle handle
-        )
+            NodeHandle handle)
         {
             // validate monitored item.
             if (!MonitoredItems.TryGetValue(
@@ -178,8 +173,7 @@ namespace Opc.Ua.Server
             double samplingInterval,
             uint revisedQueueSize,
             ISampledDataChangeMonitoredItem monitoredItem,
-            MonitoredItemModifyRequest itemToModify
-        )
+            MonitoredItemModifyRequest itemToModify)
         {
             // validate monitored item.
             if (!MonitoredItems.TryGetValue(
@@ -199,8 +193,7 @@ namespace Opc.Ua.Server
                 timestampsToReturn,
                 monitoredItem,
                 itemToModify,
-                euRange
-            );
+                euRange);
         }
 
         /// <inheritdoc/>
@@ -208,8 +201,7 @@ namespace Opc.Ua.Server
             ServerSystemContext context,
             ISampledDataChangeMonitoredItem monitoredItem,
             MonitoringMode monitoringMode,
-            NodeHandle handle
-        )
+            NodeHandle handle)
         {
             if (!MonitoredItems.TryGetValue(
                 monitoredItem.Id,
@@ -267,15 +259,13 @@ namespace Opc.Ua.Server
             IStoredMonitoredItem storedMonitoredItem,
             IUserIdentity savedOwnerIdentity,
             Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache,
-            out ISampledDataChangeMonitoredItem monitoredItem
-        )
+            out ISampledDataChangeMonitoredItem monitoredItem)
         {
             // create monitored item.
             monitoredItem = m_samplingGroupManager.RestoreMonitoredItem(
                 handle,
                 storedMonitoredItem,
-                savedOwnerIdentity
-            );
+                savedOwnerIdentity);
 
             // save monitored item.
             MonitoredItems.TryAdd(monitoredItem.Id, monitoredItem);
@@ -288,8 +278,7 @@ namespace Opc.Ua.Server
             ServerSystemContext context,
             NodeState source,
             IEventMonitoredItem monitoredItem,
-            bool unsubscribe
-        )
+            bool unsubscribe)
         {
             MonitoredNode2 monitoredNode = null;
             // handle unsubscribe.
@@ -314,10 +303,8 @@ namespace Opc.Ua.Server
             }
 
             // only objects or views can be subscribed to.
-            if (
-                source is not BaseObjectState instance ||
-                (instance.EventNotifier & EventNotifiers.SubscribeToEvents) == 0
-            )
+            if (source is not BaseObjectState instance ||
+                (instance.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
             {
                 if (source is not ViewState view ||
                     (view.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)

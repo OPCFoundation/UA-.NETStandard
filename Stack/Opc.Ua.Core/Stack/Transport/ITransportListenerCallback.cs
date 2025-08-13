@@ -36,8 +36,7 @@ namespace Opc.Ua
             EndpointDescription endpointDescription,
             IServiceRequest request,
             AsyncCallback callback,
-            object callbackData
-        );
+            object callbackData);
 
         /// <summary>
         /// Ends processing a request received via a binary encoded channel.

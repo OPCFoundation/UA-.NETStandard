@@ -63,8 +63,7 @@ namespace Opc.Ua.Server
             ISystemContext context,
             uint subscriptionId,
             uint lifetimeInHours,
-            out uint revisedLifetimeInHours
-        );
+            out uint revisedLifetimeInHours);
 
         /// <summary>
         /// Creates a new subscription.
@@ -80,8 +79,7 @@ namespace Opc.Ua.Server
             out uint subscriptionId,
             out double revisedPublishingInterval,
             out uint revisedLifetimeCount,
-            out uint revisedMaxKeepAliveCount
-        );
+            out uint revisedMaxKeepAliveCount);
 
         /// <summary>
         /// Starts up the manager makes it ready to create subscriptions.
@@ -110,8 +108,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             UInt32Collection subscriptionIds,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        );
+            out DiagnosticInfoCollection diagnosticInfos);
 
         /// <summary>
         /// Publishes a subscription.
@@ -124,8 +121,7 @@ namespace Opc.Ua.Server
             out UInt32Collection availableSequenceNumbers,
             out bool moreNotifications,
             out StatusCodeCollection acknowledgeResults,
-            out DiagnosticInfoCollection acknowledgeDiagnosticInfos
-        );
+            out DiagnosticInfoCollection acknowledgeDiagnosticInfos);
 
         /// <summary>
         /// Completes the publish.
@@ -150,8 +146,7 @@ namespace Opc.Ua.Server
             byte priority,
             out double revisedPublishingInterval,
             out uint revisedLifetimeCount,
-            out uint revisedMaxKeepAliveCount
-        );
+            out uint revisedMaxKeepAliveCount);
 
         /// <summary>
         /// Sets the publishing mode for a set of subscriptions.
@@ -161,8 +156,7 @@ namespace Opc.Ua.Server
             bool publishingEnabled,
             UInt32Collection subscriptionIds,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        );
+            out DiagnosticInfoCollection diagnosticInfos);
 
         /// <summary>
         /// Attaches a groups of subscriptions to a different session.
@@ -172,8 +166,7 @@ namespace Opc.Ua.Server
             UInt32Collection subscriptionIds,
             bool sendInitialValues,
             out TransferResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        );
+            out DiagnosticInfoCollection diagnosticInfos);
 
         /// <summary>
         /// Republishes a previously published notification message.
@@ -195,8 +188,7 @@ namespace Opc.Ua.Server
             out StatusCodeCollection addResults,
             out DiagnosticInfoCollection addDiagnosticInfos,
             out StatusCodeCollection removeResults,
-            out DiagnosticInfoCollection removeDiagnosticInfos
-        );
+            out DiagnosticInfoCollection removeDiagnosticInfos);
 
         /// <summary>
         /// Adds monitored items to a subscription.
@@ -207,8 +199,7 @@ namespace Opc.Ua.Server
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequestCollection itemsToCreate,
             out MonitoredItemCreateResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        );
+            out DiagnosticInfoCollection diagnosticInfos);
 
         /// <summary>
         /// Modifies monitored items in a subscription.
@@ -219,8 +210,7 @@ namespace Opc.Ua.Server
             TimestampsToReturn timestampsToReturn,
             MonitoredItemModifyRequestCollection itemsToModify,
             out MonitoredItemModifyResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        );
+            out DiagnosticInfoCollection diagnosticInfos);
 
         /// <summary>
         /// Deletes the monitored items in a subscription.
@@ -230,8 +220,7 @@ namespace Opc.Ua.Server
             uint subscriptionId,
             UInt32Collection monitoredItemIds,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        );
+            out DiagnosticInfoCollection diagnosticInfos);
 
         /// <summary>
         /// Changes the monitoring mode for a set of items.
@@ -242,8 +231,7 @@ namespace Opc.Ua.Server
             MonitoringMode monitoringMode,
             UInt32Collection monitoredItemIds,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        );
+            out DiagnosticInfoCollection diagnosticInfos);
 
         /// <summary>
         /// Signals that a session is closing.

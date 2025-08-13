@@ -46,8 +46,7 @@ namespace Opc.Ua.Bindings
             IList<string> baseAddresses,
             ApplicationDescription serverDescription,
             List<ServerSecurityPolicy> securityPolicies,
-            CertificateTypesProvider certificateTypesProvider
-        )
+            CertificateTypesProvider certificateTypesProvider)
         {
             // generate a unique host name.
             string hostName = hostName = "/Https";
@@ -133,8 +132,7 @@ namespace Opc.Ua.Bindings
                 {
                     X509Certificate2 instanceCertificate = certificateTypesProvider
                         .GetInstanceCertificate(
-                            bestPolicy.SecurityPolicyUri
-                            );
+                            bestPolicy.SecurityPolicyUri);
                     description.ServerCertificate = instanceCertificate.RawData;
 
                     // check if complete chain should be sent.
@@ -142,8 +140,7 @@ namespace Opc.Ua.Bindings
                     {
                         description.ServerCertificate = certificateTypesProvider
                             .LoadCertificateChainRaw(
-                                instanceCertificate
-                                );
+                                instanceCertificate);
                     }
                 }
 
@@ -151,8 +148,7 @@ namespace Opc.Ua.Bindings
                 description.SecurityPolicyUri = bestPolicy.SecurityPolicyUri;
                 description.SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(
                     bestPolicy.SecurityMode,
-                    bestPolicy.SecurityPolicyUri
-                );
+                    bestPolicy.SecurityPolicyUri);
                 description.UserIdentityTokens = serverBase.GetUserTokenPolicies(
                     configuration,
                     description);
@@ -177,8 +173,7 @@ namespace Opc.Ua.Bindings
                         endpoints,
                         endpointConfiguration,
                         listener,
-                        configuration.CertificateValidator.GetChannelValidator()
-                    );
+                        configuration.CertificateValidator.GetChannelValidator());
                 }
                 else
                 {

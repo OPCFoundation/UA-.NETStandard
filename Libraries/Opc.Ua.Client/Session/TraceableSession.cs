@@ -61,8 +61,7 @@ namespace Opc.Ua.Client
         public static ActivitySource ActivitySource => s_activitySource.Value;
 
         private static readonly Lazy<ActivitySource> s_activitySource = new(() =>
-            new ActivitySource(ActivitySourceName, "1.0.0")
-        );
+            new ActivitySource(ActivitySourceName, "1.0.0"));
 
         /// <inheritdoc/>
         public ISession Session { get; }
@@ -390,8 +389,7 @@ namespace Opc.Ua.Client
         public IEnumerable<Subscription> Load(
             Stream stream,
             bool transferSubscriptions = false,
-            IEnumerable<Type> knownTypes = null
-        )
+            IEnumerable<Type> knownTypes = null)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.Load(stream, transferSubscriptions, knownTypes);
@@ -401,8 +399,7 @@ namespace Opc.Ua.Client
         public IEnumerable<Subscription> Load(
             string filePath,
             bool transferSubscriptions = false,
-            IEnumerable<Type> knownTypes = null
-        )
+            IEnumerable<Type> knownTypes = null)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.Load(filePath, transferSubscriptions, knownTypes);
@@ -478,8 +475,7 @@ namespace Opc.Ua.Client
             IList<NodeId> nodeIds,
             out IList<Node> nodeCollection,
             out IList<ServiceResult> errors,
-            bool optionalAttributes = false
-        )
+            bool optionalAttributes = false)
         {
             using Activity activity = ActivitySource.StartActivity();
             Session.ReadNodes(nodeIds, out nodeCollection, out errors, optionalAttributes);
@@ -491,8 +487,7 @@ namespace Opc.Ua.Client
             NodeClass nodeClass,
             out IList<Node> nodeCollection,
             out IList<ServiceResult> errors,
-            bool optionalAttributes = false
-        )
+            bool optionalAttributes = false)
         {
             using Activity activity = ActivitySource.StartActivity();
             Session.ReadNodes(
@@ -538,8 +533,7 @@ namespace Opc.Ua.Client
         public void FetchReferences(
             IList<NodeId> nodeIds,
             out IList<ReferenceDescriptionCollection> referenceDescriptions,
-            out IList<ServiceResult> errors
-        )
+            out IList<ServiceResult> errors)
         {
             using Activity activity = ActivitySource.StartActivity();
             Session.FetchReferences(nodeIds, out referenceDescriptions, out errors);
@@ -557,8 +551,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<(IList<ReferenceDescriptionCollection>, IList<ServiceResult>)> FetchReferencesAsync(
             IList<NodeId> nodeIds,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.FetchReferencesAsync(nodeIds, ct).ConfigureAwait(false);
@@ -576,8 +569,7 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales
-        )
+            IList<string> preferredLocales)
         {
             using Activity activity = ActivitySource.StartActivity();
             Session.Open(sessionName, sessionTimeout, identity, preferredLocales);
@@ -589,8 +581,7 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            bool checkDomain
-        )
+            bool checkDomain)
         {
             using Activity activity = ActivitySource.StartActivity();
             Session.Open(sessionName, sessionTimeout, identity, preferredLocales, checkDomain);
@@ -603,8 +594,7 @@ namespace Opc.Ua.Client
             IUserIdentity identity,
             IList<string> preferredLocales,
             bool checkDomain,
-            bool closeChannel
-        )
+            bool closeChannel)
         {
             using Activity activity = ActivitySource.StartActivity();
             Session.Open(
@@ -635,8 +625,7 @@ namespace Opc.Ua.Client
             NodeId instanceId,
             IList<string> componentPaths,
             out NodeIdCollection componentIds,
-            out IList<ServiceResult> errors
-        )
+            out IList<ServiceResult> errors)
         {
             using Activity activity = ActivitySource.StartActivity();
             Session.FindComponentIds(instanceId, componentPaths, out componentIds, out errors);
@@ -647,8 +636,7 @@ namespace Opc.Ua.Client
             IList<NodeId> variableIds,
             IList<Type> expectedTypes,
             out IList<object> values,
-            out IList<ServiceResult> errors
-        )
+            out IList<ServiceResult> errors)
         {
             using Activity activity = ActivitySource.StartActivity();
             Session.ReadValues(variableIds, expectedTypes, out values, out errors);
@@ -672,8 +660,7 @@ namespace Opc.Ua.Client
         public void ReadDisplayName(
             IList<NodeId> nodeIds,
             out IList<string> displayNames,
-            out IList<ServiceResult> errors
-        )
+            out IList<ServiceResult> errors)
         {
             using Activity activity = ActivitySource.StartActivity();
             Session.ReadDisplayName(nodeIds, out displayNames, out errors);
@@ -695,8 +682,7 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             await Session.OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, ct)
@@ -710,8 +696,7 @@ namespace Opc.Ua.Client
             IUserIdentity identity,
             IList<string> preferredLocales,
             bool checkDomain,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             await Session
@@ -727,8 +712,7 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             bool checkDomain,
             bool closeChannel,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             await Session
@@ -755,8 +739,7 @@ namespace Opc.Ua.Client
             IList<NodeId> nodeIds,
             NodeClass nodeClass,
             bool optionalAttributes = false,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.ReadNodesAsync(nodeIds, nodeClass, optionalAttributes, ct)
@@ -782,8 +765,7 @@ namespace Opc.Ua.Client
             NodeId nodeId,
             NodeClass nodeClass,
             bool optionalAttributes = true,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.ReadNodeAsync(nodeId, nodeClass, optionalAttributes, ct)
@@ -794,8 +776,7 @@ namespace Opc.Ua.Client
         public async Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(
             IList<NodeId> nodeIds,
             bool optionalAttributes = false,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.ReadNodesAsync(nodeIds, optionalAttributes, ct)
@@ -805,8 +786,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<(DataValueCollection, IList<ServiceResult>)> ReadValuesAsync(
             IList<NodeId> nodeIds,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.ReadValuesAsync(nodeIds, ct).ConfigureAwait(false);
@@ -926,8 +906,7 @@ namespace Opc.Ua.Client
             bool includeSubtypes,
             uint nodeClassMask,
             out byte[] continuationPoint,
-            out ReferenceDescriptionCollection references
-        )
+            out ReferenceDescriptionCollection references)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.Browse(
@@ -940,8 +919,7 @@ namespace Opc.Ua.Client
                 includeSubtypes,
                 nodeClassMask,
                 out continuationPoint,
-                out references
-            );
+                out references);
         }
 
         /// <inheritdoc/>
@@ -955,8 +933,7 @@ namespace Opc.Ua.Client
             bool includeSubtypes,
             uint nodeClassMask,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginBrowse(
                 requestHeader,
@@ -968,16 +945,14 @@ namespace Opc.Ua.Client
                 includeSubtypes,
                 nodeClassMask,
                 callback,
-                asyncState
-            );
+                asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndBrowse(
             IAsyncResult result,
             out byte[] continuationPoint,
-            out ReferenceDescriptionCollection references
-        )
+            out ReferenceDescriptionCollection references)
         {
             return Session.EndBrowse(result, out continuationPoint, out references);
         }
@@ -988,8 +963,7 @@ namespace Opc.Ua.Client
             bool releaseContinuationPoint,
             byte[] continuationPoint,
             out byte[] revisedContinuationPoint,
-            out ReferenceDescriptionCollection references
-        )
+            out ReferenceDescriptionCollection references)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.BrowseNext(
@@ -997,8 +971,7 @@ namespace Opc.Ua.Client
                 releaseContinuationPoint,
                 continuationPoint,
                 out revisedContinuationPoint,
-                out references
-            );
+                out references);
         }
 
         /// <inheritdoc/>
@@ -1007,24 +980,21 @@ namespace Opc.Ua.Client
             bool releaseContinuationPoint,
             byte[] continuationPoint,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginBrowseNext(
                 requestHeader,
                 releaseContinuationPoint,
                 continuationPoint,
                 callback,
-                asyncState
-            );
+                asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndBrowseNext(
             IAsyncResult result,
             out byte[] revisedContinuationPoint,
-            out ReferenceDescriptionCollection references
-        )
+            out ReferenceDescriptionCollection references)
         {
             return Session.EndBrowseNext(result, out revisedContinuationPoint, out references);
         }
@@ -1060,8 +1030,7 @@ namespace Opc.Ua.Client
         public async Task<(bool, ServiceResult)> RepublishAsync(
             uint subscriptionId,
             uint sequenceNumber,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.RepublishAsync(subscriptionId, sequenceNumber, ct)
@@ -1087,8 +1056,7 @@ namespace Opc.Ua.Client
             out EndpointDescriptionCollection serverEndpoints,
             out SignedSoftwareCertificateCollection serverSoftwareCertificates,
             out SignatureData serverSignature,
-            out uint maxRequestMessageSize
-        )
+            out uint maxRequestMessageSize)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.CreateSession(
@@ -1109,8 +1077,7 @@ namespace Opc.Ua.Client
                 out serverEndpoints,
                 out serverSoftwareCertificates,
                 out serverSignature,
-                out maxRequestMessageSize
-            );
+                out maxRequestMessageSize);
         }
 
         /// <inheritdoc/>
@@ -1125,8 +1092,7 @@ namespace Opc.Ua.Client
             double requestedSessionTimeout,
             uint maxResponseMessageSize,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginCreateSession(
                 requestHeader,
@@ -1139,8 +1105,7 @@ namespace Opc.Ua.Client
                 requestedSessionTimeout,
                 maxResponseMessageSize,
                 callback,
-                asyncState
-            );
+                asyncState);
         }
 
         /// <inheritdoc/>
@@ -1154,8 +1119,7 @@ namespace Opc.Ua.Client
             out EndpointDescriptionCollection serverEndpoints,
             out SignedSoftwareCertificateCollection serverSoftwareCertificates,
             out SignatureData serverSignature,
-            out uint maxRequestMessageSize
-        )
+            out uint maxRequestMessageSize)
         {
             return Session.EndCreateSession(
                 result,
@@ -1167,8 +1131,7 @@ namespace Opc.Ua.Client
                 out serverEndpoints,
                 out serverSoftwareCertificates,
                 out serverSignature,
-                out maxRequestMessageSize
-            );
+                out maxRequestMessageSize);
         }
 
         /// <inheritdoc/>
@@ -1182,8 +1145,7 @@ namespace Opc.Ua.Client
             byte[] clientCertificate,
             double requestedSessionTimeout,
             uint maxResponseMessageSize,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session
@@ -1197,8 +1159,7 @@ namespace Opc.Ua.Client
                     clientCertificate,
                     requestedSessionTimeout,
                     maxResponseMessageSize,
-                    ct
-                )
+                    ct)
                 .ConfigureAwait(false);
         }
 
@@ -1212,8 +1173,7 @@ namespace Opc.Ua.Client
             SignatureData userTokenSignature,
             out byte[] serverNonce,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.ActivateSession(
@@ -1225,8 +1185,7 @@ namespace Opc.Ua.Client
                 userTokenSignature,
                 out serverNonce,
                 out results,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1238,8 +1197,7 @@ namespace Opc.Ua.Client
             ExtensionObject userIdentityToken,
             SignatureData userTokenSignature,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginActivateSession(
                 requestHeader,
@@ -1249,8 +1207,7 @@ namespace Opc.Ua.Client
                 userIdentityToken,
                 userTokenSignature,
                 callback,
-                asyncState
-            );
+                asyncState);
         }
 
         /// <inheritdoc/>
@@ -1258,8 +1215,7 @@ namespace Opc.Ua.Client
             IAsyncResult result,
             out byte[] serverNonce,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return Session.EndActivateSession(
                 result,
@@ -1276,8 +1232,7 @@ namespace Opc.Ua.Client
             StringCollection localeIds,
             ExtensionObject userIdentityToken,
             SignatureData userTokenSignature,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session
@@ -1288,8 +1243,7 @@ namespace Opc.Ua.Client
                     localeIds,
                     userIdentityToken,
                     userTokenSignature,
-                    ct
-                )
+                    ct)
                 .ConfigureAwait(false);
         }
 
@@ -1305,8 +1259,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             bool deleteSubscriptions,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginCloseSession(
                 requestHeader,
@@ -1325,8 +1278,7 @@ namespace Opc.Ua.Client
         public async Task<CloseSessionResponse> CloseSessionAsync(
             RequestHeader requestHeader,
             bool deleteSubscriptions,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.CloseSessionAsync(requestHeader, deleteSubscriptions, ct)
@@ -1348,8 +1300,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             uint requestHandle,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginCancel(requestHeader, requestHandle, callback, asyncState);
         }
@@ -1364,8 +1315,7 @@ namespace Opc.Ua.Client
         public async Task<CancelResponse> CancelAsync(
             RequestHeader requestHeader,
             uint requestHandle,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.CancelAsync(requestHeader, requestHandle, ct)
@@ -1377,8 +1327,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             AddNodesItemCollection nodesToAdd,
             out AddNodesResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.AddNodes(requestHeader, nodesToAdd, out results, out diagnosticInfos);
@@ -1389,8 +1338,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             AddNodesItemCollection nodesToAdd,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginAddNodes(requestHeader, nodesToAdd, callback, asyncState);
         }
@@ -1399,8 +1347,7 @@ namespace Opc.Ua.Client
         public ResponseHeader EndAddNodes(
             IAsyncResult result,
             out AddNodesResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return Session.EndAddNodes(result, out results, out diagnosticInfos);
         }
@@ -1409,8 +1356,7 @@ namespace Opc.Ua.Client
         public async Task<AddNodesResponse> AddNodesAsync(
             RequestHeader requestHeader,
             AddNodesItemCollection nodesToAdd,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.AddNodesAsync(requestHeader, nodesToAdd, ct).ConfigureAwait(false);
@@ -1421,8 +1367,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             AddReferencesItemCollection referencesToAdd,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.AddReferences(
@@ -1437,8 +1382,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             AddReferencesItemCollection referencesToAdd,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginAddReferences(requestHeader, referencesToAdd, callback, asyncState);
         }
@@ -1447,8 +1391,7 @@ namespace Opc.Ua.Client
         public ResponseHeader EndAddReferences(
             IAsyncResult result,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return Session.EndAddReferences(result, out results, out diagnosticInfos);
         }
@@ -1457,8 +1400,7 @@ namespace Opc.Ua.Client
         public async Task<AddReferencesResponse> AddReferencesAsync(
             RequestHeader requestHeader,
             AddReferencesItemCollection referencesToAdd,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.AddReferencesAsync(requestHeader, referencesToAdd, ct)
@@ -1470,8 +1412,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             DeleteNodesItemCollection nodesToDelete,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.DeleteNodes(
@@ -1486,8 +1427,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             DeleteNodesItemCollection nodesToDelete,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginDeleteNodes(requestHeader, nodesToDelete, callback, asyncState);
         }
@@ -1496,8 +1436,7 @@ namespace Opc.Ua.Client
         public ResponseHeader EndDeleteNodes(
             IAsyncResult result,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return Session.EndDeleteNodes(result, out results, out diagnosticInfos);
         }
@@ -1506,8 +1445,7 @@ namespace Opc.Ua.Client
         public async Task<DeleteNodesResponse> DeleteNodesAsync(
             RequestHeader requestHeader,
             DeleteNodesItemCollection nodesToDelete,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.DeleteNodesAsync(requestHeader, nodesToDelete, ct)
@@ -1519,8 +1457,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             DeleteReferencesItemCollection referencesToDelete,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.DeleteReferences(
@@ -1535,8 +1472,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             DeleteReferencesItemCollection referencesToDelete,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginDeleteReferences(
                 requestHeader,
@@ -1549,8 +1485,7 @@ namespace Opc.Ua.Client
         public ResponseHeader EndDeleteReferences(
             IAsyncResult result,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return Session.EndDeleteReferences(result, out results, out diagnosticInfos);
         }
@@ -1559,8 +1494,7 @@ namespace Opc.Ua.Client
         public async Task<DeleteReferencesResponse> DeleteReferencesAsync(
             RequestHeader requestHeader,
             DeleteReferencesItemCollection referencesToDelete,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.DeleteReferencesAsync(requestHeader, referencesToDelete, ct)
@@ -1574,8 +1508,7 @@ namespace Opc.Ua.Client
             uint requestedMaxReferencesPerNode,
             BrowseDescriptionCollection nodesToBrowse,
             out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.Browse(
@@ -1584,8 +1517,7 @@ namespace Opc.Ua.Client
                 requestedMaxReferencesPerNode,
                 nodesToBrowse,
                 out results,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1595,8 +1527,7 @@ namespace Opc.Ua.Client
             uint requestedMaxReferencesPerNode,
             BrowseDescriptionCollection nodesToBrowse,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginBrowse(
                 requestHeader,
@@ -1604,16 +1535,14 @@ namespace Opc.Ua.Client
                 requestedMaxReferencesPerNode,
                 nodesToBrowse,
                 callback,
-                asyncState
-            );
+                asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndBrowse(
             IAsyncResult result,
             out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return Session.EndBrowse(result, out results, out diagnosticInfos);
         }
@@ -1624,8 +1553,7 @@ namespace Opc.Ua.Client
             ViewDescription view,
             uint requestedMaxReferencesPerNode,
             BrowseDescriptionCollection nodesToBrowse,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session
@@ -1639,8 +1567,7 @@ namespace Opc.Ua.Client
             bool releaseContinuationPoints,
             ByteStringCollection continuationPoints,
             out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.BrowseNext(
@@ -1648,8 +1575,7 @@ namespace Opc.Ua.Client
                 releaseContinuationPoints,
                 continuationPoints,
                 out results,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1658,24 +1584,21 @@ namespace Opc.Ua.Client
             bool releaseContinuationPoints,
             ByteStringCollection continuationPoints,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginBrowseNext(
                 requestHeader,
                 releaseContinuationPoints,
                 continuationPoints,
                 callback,
-                asyncState
-            );
+                asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndBrowseNext(
             IAsyncResult result,
             out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return Session.EndBrowseNext(result, out results, out diagnosticInfos);
         }
@@ -1685,8 +1608,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             bool releaseContinuationPoints,
             ByteStringCollection continuationPoints,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session
@@ -1705,8 +1627,7 @@ namespace Opc.Ua.Client
             bool includeSubtypes,
             uint nodeClassMask,
             out IList<ReferenceDescriptionCollection> result,
-            out IList<ServiceResult> errors
-        )
+            out IList<ServiceResult> errors)
         {
             using Activity activity = ActivitySource.StartActivity();
             Session.ManagedBrowse(
@@ -1719,8 +1640,7 @@ namespace Opc.Ua.Client
                 includeSubtypes,
                 nodeClassMask,
                 out result,
-                out errors
-            );
+                out errors);
         }
 
         /// <inheritdoc/>
@@ -1733,8 +1653,7 @@ namespace Opc.Ua.Client
             NodeId referenceTypeId,
             bool includeSubtypes,
             uint nodeClassMask,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session
@@ -1747,8 +1666,7 @@ namespace Opc.Ua.Client
                     referenceTypeId,
                     includeSubtypes,
                     nodeClassMask,
-                    ct
-                )
+                    ct)
                 .ConfigureAwait(false);
         }
 
@@ -1757,8 +1675,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             BrowsePathCollection browsePaths,
             out BrowsePathResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.TranslateBrowsePathsToNodeIds(
@@ -1773,8 +1690,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             BrowsePathCollection browsePaths,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginTranslateBrowsePathsToNodeIds(
                 requestHeader,
@@ -1787,8 +1703,7 @@ namespace Opc.Ua.Client
         public ResponseHeader EndTranslateBrowsePathsToNodeIds(
             IAsyncResult result,
             out BrowsePathResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return Session.EndTranslateBrowsePathsToNodeIds(
                 result,
@@ -1800,8 +1715,7 @@ namespace Opc.Ua.Client
         public async Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
             RequestHeader requestHeader,
             BrowsePathCollection browsePaths,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session
@@ -1813,8 +1727,7 @@ namespace Opc.Ua.Client
         public ResponseHeader RegisterNodes(
             RequestHeader requestHeader,
             NodeIdCollection nodesToRegister,
-            out NodeIdCollection registeredNodeIds
-        )
+            out NodeIdCollection registeredNodeIds)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.RegisterNodes(requestHeader, nodesToRegister, out registeredNodeIds);
@@ -1825,8 +1738,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             NodeIdCollection nodesToRegister,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginRegisterNodes(requestHeader, nodesToRegister, callback, asyncState);
         }
@@ -1843,8 +1755,7 @@ namespace Opc.Ua.Client
         public async Task<RegisterNodesResponse> RegisterNodesAsync(
             RequestHeader requestHeader,
             NodeIdCollection nodesToRegister,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.RegisterNodesAsync(requestHeader, nodesToRegister, ct)
@@ -1865,8 +1776,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             NodeIdCollection nodesToUnregister,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginUnregisterNodes(
                 requestHeader,
@@ -1885,8 +1795,7 @@ namespace Opc.Ua.Client
         public async Task<UnregisterNodesResponse> UnregisterNodesAsync(
             RequestHeader requestHeader,
             NodeIdCollection nodesToUnregister,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.UnregisterNodesAsync(requestHeader, nodesToUnregister, ct)
@@ -1905,8 +1814,7 @@ namespace Opc.Ua.Client
             out byte[] continuationPoint,
             out ParsingResultCollection parsingResults,
             out DiagnosticInfoCollection diagnosticInfos,
-            out ContentFilterResult filterResult
-        )
+            out ContentFilterResult filterResult)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.QueryFirst(
@@ -1920,8 +1828,7 @@ namespace Opc.Ua.Client
                 out continuationPoint,
                 out parsingResults,
                 out diagnosticInfos,
-                out filterResult
-            );
+                out filterResult);
         }
 
         /// <inheritdoc/>
@@ -1933,8 +1840,7 @@ namespace Opc.Ua.Client
             uint maxDataSetsToReturn,
             uint maxReferencesToReturn,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginQueryFirst(
                 requestHeader,
@@ -1944,8 +1850,7 @@ namespace Opc.Ua.Client
                 maxDataSetsToReturn,
                 maxReferencesToReturn,
                 callback,
-                asyncState
-            );
+                asyncState);
         }
 
         /// <inheritdoc/>
@@ -1955,8 +1860,7 @@ namespace Opc.Ua.Client
             out byte[] continuationPoint,
             out ParsingResultCollection parsingResults,
             out DiagnosticInfoCollection diagnosticInfos,
-            out ContentFilterResult filterResult
-        )
+            out ContentFilterResult filterResult)
         {
             return Session.EndQueryFirst(
                 result,
@@ -1964,8 +1868,7 @@ namespace Opc.Ua.Client
                 out continuationPoint,
                 out parsingResults,
                 out diagnosticInfos,
-                out filterResult
-            );
+                out filterResult);
         }
 
         /// <inheritdoc/>
@@ -1976,8 +1879,7 @@ namespace Opc.Ua.Client
             ContentFilter filter,
             uint maxDataSetsToReturn,
             uint maxReferencesToReturn,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session
@@ -1998,8 +1900,7 @@ namespace Opc.Ua.Client
             bool releaseContinuationPoint,
             byte[] continuationPoint,
             out QueryDataSetCollection queryDataSets,
-            out byte[] revisedContinuationPoint
-        )
+            out byte[] revisedContinuationPoint)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.QueryNext(
@@ -2007,8 +1908,7 @@ namespace Opc.Ua.Client
                 releaseContinuationPoint,
                 continuationPoint,
                 out queryDataSets,
-                out revisedContinuationPoint
-            );
+                out revisedContinuationPoint);
         }
 
         /// <inheritdoc/>
@@ -2017,24 +1917,21 @@ namespace Opc.Ua.Client
             bool releaseContinuationPoint,
             byte[] continuationPoint,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginQueryNext(
                 requestHeader,
                 releaseContinuationPoint,
                 continuationPoint,
                 callback,
-                asyncState
-            );
+                asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndQueryNext(
             IAsyncResult result,
             out QueryDataSetCollection queryDataSets,
-            out byte[] revisedContinuationPoint
-        )
+            out byte[] revisedContinuationPoint)
         {
             return Session.EndQueryNext(result, out queryDataSets, out revisedContinuationPoint);
         }
@@ -2044,8 +1941,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             bool releaseContinuationPoint,
             byte[] continuationPoint,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session
@@ -2060,8 +1956,7 @@ namespace Opc.Ua.Client
             TimestampsToReturn timestampsToReturn,
             ReadValueIdCollection nodesToRead,
             out DataValueCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.Read(
@@ -2070,8 +1965,7 @@ namespace Opc.Ua.Client
                 timestampsToReturn,
                 nodesToRead,
                 out results,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -2081,8 +1975,7 @@ namespace Opc.Ua.Client
             TimestampsToReturn timestampsToReturn,
             ReadValueIdCollection nodesToRead,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginRead(
                 requestHeader,
@@ -2097,8 +1990,7 @@ namespace Opc.Ua.Client
         public ResponseHeader EndRead(
             IAsyncResult result,
             out DataValueCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return Session.EndRead(result, out results, out diagnosticInfos);
         }
@@ -2109,8 +2001,7 @@ namespace Opc.Ua.Client
             double maxAge,
             TimestampsToReturn timestampsToReturn,
             ReadValueIdCollection nodesToRead,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session
@@ -2126,8 +2017,7 @@ namespace Opc.Ua.Client
             bool releaseContinuationPoints,
             HistoryReadValueIdCollection nodesToRead,
             out HistoryReadResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.HistoryRead(
@@ -2137,8 +2027,7 @@ namespace Opc.Ua.Client
                 releaseContinuationPoints,
                 nodesToRead,
                 out results,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -2149,8 +2038,7 @@ namespace Opc.Ua.Client
             bool releaseContinuationPoints,
             HistoryReadValueIdCollection nodesToRead,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginHistoryRead(
                 requestHeader,
@@ -2159,16 +2047,14 @@ namespace Opc.Ua.Client
                 releaseContinuationPoints,
                 nodesToRead,
                 callback,
-                asyncState
-            );
+                asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndHistoryRead(
             IAsyncResult result,
             out HistoryReadResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return Session.EndHistoryRead(result, out results, out diagnosticInfos);
         }
@@ -2180,8 +2066,7 @@ namespace Opc.Ua.Client
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
             HistoryReadValueIdCollection nodesToRead,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session
@@ -2191,8 +2076,7 @@ namespace Opc.Ua.Client
                     timestampsToReturn,
                     releaseContinuationPoints,
                     nodesToRead,
-                    ct
-                )
+                    ct)
                 .ConfigureAwait(false);
         }
 
@@ -2201,8 +2085,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             WriteValueCollection nodesToWrite,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.Write(requestHeader, nodesToWrite, out results, out diagnosticInfos);
@@ -2213,8 +2096,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             WriteValueCollection nodesToWrite,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginWrite(requestHeader, nodesToWrite, callback, asyncState);
         }
@@ -2223,8 +2105,7 @@ namespace Opc.Ua.Client
         public ResponseHeader EndWrite(
             IAsyncResult result,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return Session.EndWrite(result, out results, out diagnosticInfos);
         }
@@ -2233,8 +2114,7 @@ namespace Opc.Ua.Client
         public async Task<WriteResponse> WriteAsync(
             RequestHeader requestHeader,
             WriteValueCollection nodesToWrite,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.WriteAsync(requestHeader, nodesToWrite, ct).ConfigureAwait(false);
@@ -2245,8 +2125,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             ExtensionObjectCollection historyUpdateDetails,
             out HistoryUpdateResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.HistoryUpdate(
@@ -2261,8 +2140,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             ExtensionObjectCollection historyUpdateDetails,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginHistoryUpdate(
                 requestHeader,
@@ -2275,8 +2153,7 @@ namespace Opc.Ua.Client
         public ResponseHeader EndHistoryUpdate(
             IAsyncResult result,
             out HistoryUpdateResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return Session.EndHistoryUpdate(result, out results, out diagnosticInfos);
         }
@@ -2285,8 +2162,7 @@ namespace Opc.Ua.Client
         public async Task<HistoryUpdateResponse> HistoryUpdateAsync(
             RequestHeader requestHeader,
             ExtensionObjectCollection historyUpdateDetails,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.HistoryUpdateAsync(requestHeader, historyUpdateDetails, ct)
@@ -2298,8 +2174,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             CallMethodRequestCollection methodsToCall,
             out CallMethodResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.Call(requestHeader, methodsToCall, out results, out diagnosticInfos);
@@ -2310,8 +2185,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             CallMethodRequestCollection methodsToCall,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginCall(requestHeader, methodsToCall, callback, asyncState);
         }
@@ -2320,8 +2194,7 @@ namespace Opc.Ua.Client
         public ResponseHeader EndCall(
             IAsyncResult result,
             out CallMethodResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return Session.EndCall(result, out results, out diagnosticInfos);
         }
@@ -2330,8 +2203,7 @@ namespace Opc.Ua.Client
         public async Task<CallResponse> CallAsync(
             RequestHeader requestHeader,
             CallMethodRequestCollection methodsToCall,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.CallAsync(requestHeader, methodsToCall, ct).ConfigureAwait(false);
@@ -2344,8 +2216,7 @@ namespace Opc.Ua.Client
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequestCollection itemsToCreate,
             out MonitoredItemCreateResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.CreateMonitoredItems(
@@ -2354,8 +2225,7 @@ namespace Opc.Ua.Client
                 timestampsToReturn,
                 itemsToCreate,
                 out results,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -2365,8 +2235,7 @@ namespace Opc.Ua.Client
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequestCollection itemsToCreate,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginCreateMonitoredItems(
                 requestHeader,
@@ -2374,16 +2243,14 @@ namespace Opc.Ua.Client
                 timestampsToReturn,
                 itemsToCreate,
                 callback,
-                asyncState
-            );
+                asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndCreateMonitoredItems(
             IAsyncResult result,
             out MonitoredItemCreateResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return Session.EndCreateMonitoredItems(result, out results, out diagnosticInfos);
         }
@@ -2394,8 +2261,7 @@ namespace Opc.Ua.Client
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequestCollection itemsToCreate,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session
@@ -2415,8 +2281,7 @@ namespace Opc.Ua.Client
             TimestampsToReturn timestampsToReturn,
             MonitoredItemModifyRequestCollection itemsToModify,
             out MonitoredItemModifyResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.ModifyMonitoredItems(
@@ -2425,8 +2290,7 @@ namespace Opc.Ua.Client
                 timestampsToReturn,
                 itemsToModify,
                 out results,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -2436,8 +2300,7 @@ namespace Opc.Ua.Client
             TimestampsToReturn timestampsToReturn,
             MonitoredItemModifyRequestCollection itemsToModify,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginModifyMonitoredItems(
                 requestHeader,
@@ -2445,16 +2308,14 @@ namespace Opc.Ua.Client
                 timestampsToReturn,
                 itemsToModify,
                 callback,
-                asyncState
-            );
+                asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndModifyMonitoredItems(
             IAsyncResult result,
             out MonitoredItemModifyResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return Session.EndModifyMonitoredItems(result, out results, out diagnosticInfos);
         }
@@ -2465,8 +2326,7 @@ namespace Opc.Ua.Client
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
             MonitoredItemModifyRequestCollection itemsToModify,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session
@@ -2486,8 +2346,7 @@ namespace Opc.Ua.Client
             MonitoringMode monitoringMode,
             UInt32Collection monitoredItemIds,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.SetMonitoringMode(
@@ -2496,8 +2355,7 @@ namespace Opc.Ua.Client
                 monitoringMode,
                 monitoredItemIds,
                 out results,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -2507,8 +2365,7 @@ namespace Opc.Ua.Client
             MonitoringMode monitoringMode,
             UInt32Collection monitoredItemIds,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginSetMonitoringMode(
                 requestHeader,
@@ -2516,16 +2373,14 @@ namespace Opc.Ua.Client
                 monitoringMode,
                 monitoredItemIds,
                 callback,
-                asyncState
-            );
+                asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndSetMonitoringMode(
             IAsyncResult result,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return Session.EndSetMonitoringMode(result, out results, out diagnosticInfos);
         }
@@ -2536,8 +2391,7 @@ namespace Opc.Ua.Client
             uint subscriptionId,
             MonitoringMode monitoringMode,
             UInt32Collection monitoredItemIds,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session
@@ -2560,8 +2414,7 @@ namespace Opc.Ua.Client
             out StatusCodeCollection addResults,
             out DiagnosticInfoCollection addDiagnosticInfos,
             out StatusCodeCollection removeResults,
-            out DiagnosticInfoCollection removeDiagnosticInfos
-        )
+            out DiagnosticInfoCollection removeDiagnosticInfos)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.SetTriggering(
@@ -2573,8 +2426,7 @@ namespace Opc.Ua.Client
                 out addResults,
                 out addDiagnosticInfos,
                 out removeResults,
-                out removeDiagnosticInfos
-            );
+                out removeDiagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -2585,8 +2437,7 @@ namespace Opc.Ua.Client
             UInt32Collection linksToAdd,
             UInt32Collection linksToRemove,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginSetTriggering(
                 requestHeader,
@@ -2595,8 +2446,7 @@ namespace Opc.Ua.Client
                 linksToAdd,
                 linksToRemove,
                 callback,
-                asyncState
-            );
+                asyncState);
         }
 
         /// <inheritdoc/>
@@ -2605,16 +2455,14 @@ namespace Opc.Ua.Client
             out StatusCodeCollection addResults,
             out DiagnosticInfoCollection addDiagnosticInfos,
             out StatusCodeCollection removeResults,
-            out DiagnosticInfoCollection removeDiagnosticInfos
-        )
+            out DiagnosticInfoCollection removeDiagnosticInfos)
         {
             return Session.EndSetTriggering(
                 result,
                 out addResults,
                 out addDiagnosticInfos,
                 out removeResults,
-                out removeDiagnosticInfos
-            );
+                out removeDiagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -2624,8 +2472,7 @@ namespace Opc.Ua.Client
             uint triggeringItemId,
             UInt32Collection linksToAdd,
             UInt32Collection linksToRemove,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session
@@ -2645,8 +2492,7 @@ namespace Opc.Ua.Client
             uint subscriptionId,
             UInt32Collection monitoredItemIds,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.DeleteMonitoredItems(
@@ -2654,8 +2500,7 @@ namespace Opc.Ua.Client
                 subscriptionId,
                 monitoredItemIds,
                 out results,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -2664,24 +2509,21 @@ namespace Opc.Ua.Client
             uint subscriptionId,
             UInt32Collection monitoredItemIds,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginDeleteMonitoredItems(
                 requestHeader,
                 subscriptionId,
                 monitoredItemIds,
                 callback,
-                asyncState
-            );
+                asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndDeleteMonitoredItems(
             IAsyncResult result,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return Session.EndDeleteMonitoredItems(result, out results, out diagnosticInfos);
         }
@@ -2691,8 +2533,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             uint subscriptionId,
             UInt32Collection monitoredItemIds,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session
@@ -2712,8 +2553,7 @@ namespace Opc.Ua.Client
             out uint subscriptionId,
             out double revisedPublishingInterval,
             out uint revisedLifetimeCount,
-            out uint revisedMaxKeepAliveCount
-        )
+            out uint revisedMaxKeepAliveCount)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.CreateSubscription(
@@ -2727,8 +2567,7 @@ namespace Opc.Ua.Client
                 out subscriptionId,
                 out revisedPublishingInterval,
                 out revisedLifetimeCount,
-                out revisedMaxKeepAliveCount
-            );
+                out revisedMaxKeepAliveCount);
         }
 
         /// <inheritdoc/>
@@ -2741,8 +2580,7 @@ namespace Opc.Ua.Client
             bool publishingEnabled,
             byte priority,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginCreateSubscription(
                 requestHeader,
@@ -2753,8 +2591,7 @@ namespace Opc.Ua.Client
                 publishingEnabled,
                 priority,
                 callback,
-                asyncState
-            );
+                asyncState);
         }
 
         /// <inheritdoc/>
@@ -2763,16 +2600,14 @@ namespace Opc.Ua.Client
             out uint subscriptionId,
             out double revisedPublishingInterval,
             out uint revisedLifetimeCount,
-            out uint revisedMaxKeepAliveCount
-        )
+            out uint revisedMaxKeepAliveCount)
         {
             return Session.EndCreateSubscription(
                 result,
                 out subscriptionId,
                 out revisedPublishingInterval,
                 out revisedLifetimeCount,
-                out revisedMaxKeepAliveCount
-            );
+                out revisedMaxKeepAliveCount);
         }
 
         /// <inheritdoc/>
@@ -2784,8 +2619,7 @@ namespace Opc.Ua.Client
             uint maxNotificationsPerPublish,
             bool publishingEnabled,
             byte priority,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session
@@ -2797,8 +2631,7 @@ namespace Opc.Ua.Client
                     maxNotificationsPerPublish,
                     publishingEnabled,
                     priority,
-                    ct
-                )
+                    ct)
                 .ConfigureAwait(false);
         }
 
@@ -2813,8 +2646,7 @@ namespace Opc.Ua.Client
             byte priority,
             out double revisedPublishingInterval,
             out uint revisedLifetimeCount,
-            out uint revisedMaxKeepAliveCount
-        )
+            out uint revisedMaxKeepAliveCount)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.ModifySubscription(
@@ -2827,8 +2659,7 @@ namespace Opc.Ua.Client
                 priority,
                 out revisedPublishingInterval,
                 out revisedLifetimeCount,
-                out revisedMaxKeepAliveCount
-            );
+                out revisedMaxKeepAliveCount);
         }
 
         /// <inheritdoc/>
@@ -2841,8 +2672,7 @@ namespace Opc.Ua.Client
             uint maxNotificationsPerPublish,
             byte priority,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginModifySubscription(
                 requestHeader,
@@ -2853,8 +2683,7 @@ namespace Opc.Ua.Client
                 maxNotificationsPerPublish,
                 priority,
                 callback,
-                asyncState
-            );
+                asyncState);
         }
 
         /// <inheritdoc/>
@@ -2862,15 +2691,13 @@ namespace Opc.Ua.Client
             IAsyncResult result,
             out double revisedPublishingInterval,
             out uint revisedLifetimeCount,
-            out uint revisedMaxKeepAliveCount
-        )
+            out uint revisedMaxKeepAliveCount)
         {
             return Session.EndModifySubscription(
                 result,
                 out revisedPublishingInterval,
                 out revisedLifetimeCount,
-                out revisedMaxKeepAliveCount
-            );
+                out revisedMaxKeepAliveCount);
         }
 
         /// <inheritdoc/>
@@ -2882,8 +2709,7 @@ namespace Opc.Ua.Client
             uint requestedMaxKeepAliveCount,
             uint maxNotificationsPerPublish,
             byte priority,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session
@@ -2895,8 +2721,7 @@ namespace Opc.Ua.Client
                     requestedMaxKeepAliveCount,
                     maxNotificationsPerPublish,
                     priority,
-                    ct
-                )
+                    ct)
                 .ConfigureAwait(false);
         }
 
@@ -2906,8 +2731,7 @@ namespace Opc.Ua.Client
             bool publishingEnabled,
             UInt32Collection subscriptionIds,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.SetPublishingMode(
@@ -2915,8 +2739,7 @@ namespace Opc.Ua.Client
                 publishingEnabled,
                 subscriptionIds,
                 out results,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -2925,24 +2748,21 @@ namespace Opc.Ua.Client
             bool publishingEnabled,
             UInt32Collection subscriptionIds,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginSetPublishingMode(
                 requestHeader,
                 publishingEnabled,
                 subscriptionIds,
                 callback,
-                asyncState
-            );
+                asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndSetPublishingMode(
             IAsyncResult result,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return Session.EndSetPublishingMode(result, out results, out diagnosticInfos);
         }
@@ -2952,8 +2772,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             bool publishingEnabled,
             UInt32Collection subscriptionIds,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session
@@ -2970,8 +2789,7 @@ namespace Opc.Ua.Client
             out bool moreNotifications,
             out NotificationMessage notificationMessage,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.Publish(
@@ -2982,8 +2800,7 @@ namespace Opc.Ua.Client
                 out moreNotifications,
                 out notificationMessage,
                 out results,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -2991,8 +2808,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginPublish(
                 requestHeader,
@@ -3009,8 +2825,7 @@ namespace Opc.Ua.Client
             out bool moreNotifications,
             out NotificationMessage notificationMessage,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return Session.EndPublish(
                 result,
@@ -3019,16 +2834,14 @@ namespace Opc.Ua.Client
                 out moreNotifications,
                 out notificationMessage,
                 out results,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
         }
 
         /// <inheritdoc/>
         public async Task<PublishResponse> PublishAsync(
             RequestHeader requestHeader,
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.PublishAsync(requestHeader, subscriptionAcknowledgements, ct)
@@ -3040,8 +2853,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             uint subscriptionId,
             uint retransmitSequenceNumber,
-            out NotificationMessage notificationMessage
-        )
+            out NotificationMessage notificationMessage)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.Republish(
@@ -3057,16 +2869,14 @@ namespace Opc.Ua.Client
             uint subscriptionId,
             uint retransmitSequenceNumber,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginRepublish(
                 requestHeader,
                 subscriptionId,
                 retransmitSequenceNumber,
                 callback,
-                asyncState
-            );
+                asyncState);
         }
 
         /// <inheritdoc/>
@@ -3082,8 +2892,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             uint subscriptionId,
             uint retransmitSequenceNumber,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session
@@ -3097,8 +2906,7 @@ namespace Opc.Ua.Client
             UInt32Collection subscriptionIds,
             bool sendInitialValues,
             out TransferResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.TransferSubscriptions(
@@ -3106,8 +2914,7 @@ namespace Opc.Ua.Client
                 subscriptionIds,
                 sendInitialValues,
                 out results,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -3116,24 +2923,21 @@ namespace Opc.Ua.Client
             UInt32Collection subscriptionIds,
             bool sendInitialValues,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginTransferSubscriptions(
                 requestHeader,
                 subscriptionIds,
                 sendInitialValues,
                 callback,
-                asyncState
-            );
+                asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndTransferSubscriptions(
             IAsyncResult result,
             out TransferResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return Session.EndTransferSubscriptions(result, out results, out diagnosticInfos);
         }
@@ -3143,8 +2947,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
             bool sendInitialValues,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session
@@ -3157,8 +2960,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             using Activity activity = ActivitySource.StartActivity();
             return Session.DeleteSubscriptions(
@@ -3173,8 +2975,7 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             return Session.BeginDeleteSubscriptions(
                 requestHeader,
@@ -3187,8 +2988,7 @@ namespace Opc.Ua.Client
         public ResponseHeader EndDeleteSubscriptions(
             IAsyncResult result,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos
-        )
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return Session.EndDeleteSubscriptions(result, out results, out diagnosticInfos);
         }
@@ -3197,8 +2997,7 @@ namespace Opc.Ua.Client
         public async Task<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.DeleteSubscriptionsAsync(requestHeader, subscriptionIds, ct)
@@ -3288,8 +3087,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<bool> RemoveSubscriptionsAsync(
             IEnumerable<Subscription> subscriptions,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.RemoveSubscriptionsAsync(subscriptions, ct).ConfigureAwait(false);
@@ -3299,8 +3097,7 @@ namespace Opc.Ua.Client
         public async Task<bool> ReactivateSubscriptionsAsync(
             SubscriptionCollection subscriptions,
             bool sendInitialValues,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session
@@ -3312,8 +3109,7 @@ namespace Opc.Ua.Client
         public async Task<bool> TransferSubscriptionsAsync(
             SubscriptionCollection subscriptions,
             bool sendInitialValues,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.TransferSubscriptionsAsync(subscriptions, sendInitialValues, ct)
@@ -3325,8 +3121,7 @@ namespace Opc.Ua.Client
             NodeId objectId,
             NodeId methodId,
             CancellationToken ct = default,
-            params object[] args
-        )
+            params object[] args)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.CallAsync(objectId, methodId, ct, args).ConfigureAwait(false);
@@ -3344,8 +3139,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<(bool, IList<ServiceResult>)> ResendDataAsync(
             IEnumerable<Subscription> subscriptions,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.ResendDataAsync(subscriptions, ct).ConfigureAwait(false);

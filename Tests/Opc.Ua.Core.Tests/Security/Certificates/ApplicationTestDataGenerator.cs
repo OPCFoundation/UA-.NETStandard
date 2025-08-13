@@ -93,8 +93,7 @@ namespace Opc.Ua.Core.Tests
             string appUri = ("urn:localhost:opcfoundation.org:" + pureAppUri.ToLower()).Replace(
                 "localhost",
                 localhost,
-                StringComparison.Ordinal
-            );
+                StringComparison.Ordinal);
 
             int port = (DataGenerator.GetRandomInt16() & 0x1fff) + 50000;
             switch (appType)
@@ -163,9 +162,7 @@ namespace Opc.Ua.Core.Tests
                             "opc.tcp://{0}:{1}/{2}",
                             name,
                             port++.ToString(CultureInfo.InvariantCulture),
-                            appUri
-                        )
-                    );
+                            appUri));
                 }
                 if ((random & 2) == 0)
                 {
@@ -174,8 +171,7 @@ namespace Opc.Ua.Core.Tests
                             "http://{0}:{1}/{2}",
                             name,
                             port++.ToString(CultureInfo.InvariantCulture),
-                            appUri)
-                    );
+                            appUri));
                 }
                 if ((random & 4) == 0)
                 {
@@ -184,9 +180,7 @@ namespace Opc.Ua.Core.Tests
                             "opc.https://{0}:{1}/{2}",
                             name,
                             port++.ToString(CultureInfo.InvariantCulture),
-                            appUri
-                        )
-                    );
+                            appUri));
                 }
             }
             return result;

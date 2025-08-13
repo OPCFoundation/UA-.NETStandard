@@ -99,8 +99,7 @@ namespace Opc.Ua
                     this,
                     new ConfigurationWatcherEventArgs(
                         m_configuration,
-                        m_configuration.SourceFilePath)
-                );
+                        m_configuration.SourceFilePath));
             }
             catch (Exception exception)
             {

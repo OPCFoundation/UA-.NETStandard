@@ -62,8 +62,7 @@ namespace Opc.Ua.PubSub
             NodeId nodeId,
             Variant value,
             StatusCode? status = null,
-            DateTime? timestamp = null
-        )
+            DateTime? timestamp = null)
         {
             if (nodeId == null)
             {
@@ -100,8 +99,7 @@ namespace Opc.Ua.PubSub
         public void WritePublishedDataItem(
             NodeId nodeId,
             uint attributeId = Attributes.Value,
-            DataValue dataValue = null
-        )
+            DataValue dataValue = null)
         {
             if (nodeId == null)
             {
@@ -152,10 +150,8 @@ namespace Opc.Ua.PubSub
             }
             lock (m_lock)
             {
-                if (
-                    m_store.TryGetValue(nodeId, out Dictionary<uint, DataValue> dictionary) &&
-                    dictionary.TryGetValue(attributeId, out DataValue value)
-                )
+                if (m_store.TryGetValue(nodeId, out Dictionary<uint, DataValue> dictionary) &&
+                    dictionary.TryGetValue(attributeId, out DataValue value))
                 {
                     return value;
                 }

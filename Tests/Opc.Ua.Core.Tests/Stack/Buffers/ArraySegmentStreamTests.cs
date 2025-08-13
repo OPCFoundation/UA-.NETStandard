@@ -50,8 +50,7 @@ namespace Opc.Ua.Buffers.Tests
             // Arrange
             var bufferManager = new BufferManager(
                 nameof(ArraySegmentStreamWhenConstructedWithDefaultOptionsShouldNotThrow),
-                0x10000 - 1
-            );
+                0x10000 - 1);
             var stream = new ArraySegmentStream(bufferManager);
 
             // Act
@@ -139,8 +138,7 @@ namespace Opc.Ua.Buffers.Tests
         [Theory]
         public void ArraySegmentStreamWrite(
             [Values(0, 1, 16, 17, 128, 333, 777, 1024, 4096)] int chunkSize,
-            [Values(16, 128, 333, 1024, 4096, 65536)] int defaultBufferSize
-        )
+            [Values(16, 128, 333, 1024, 4096, 65536)] int defaultBufferSize)
         {
             var random = new Random(42);
             int length;
@@ -149,8 +147,7 @@ namespace Opc.Ua.Buffers.Tests
             // Arrange
             var bufferManager = new BufferManager(
                 nameof(ArraySegmentStreamWhenConstructedWithDefaultOptionsShouldNotThrow),
-                defaultBufferSize
-            );
+                defaultBufferSize);
             using var writer = new ArraySegmentStream(bufferManager);
             // Act
             for (int i = 0; i <= byte.MaxValue; i++)

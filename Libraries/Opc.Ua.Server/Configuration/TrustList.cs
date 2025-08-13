@@ -51,8 +51,7 @@ namespace Opc.Ua.Server
             CertificateStoreIdentifier trustedListStore,
             CertificateStoreIdentifier issuerListStore,
             SecureAccess readAccess,
-            SecureAccess writeAccess
-        )
+            SecureAccess writeAccess)
         {
             m_node = node;
             m_trustedStore = trustedListStore;
@@ -88,8 +87,7 @@ namespace Opc.Ua.Server
             MethodState method,
             NodeId objectId,
             byte mode,
-            ref uint fileHandle
-        )
+            ref uint fileHandle)
         {
             return Open(
                 context,
@@ -105,8 +103,7 @@ namespace Opc.Ua.Server
             MethodState method,
             NodeId objectId,
             uint masks,
-            ref uint fileHandle
-        )
+            ref uint fileHandle)
         {
             return Open(
                 context,
@@ -123,8 +120,7 @@ namespace Opc.Ua.Server
             NodeId objectId,
             OpenFileMode mode,
             TrustListMasks masks,
-            ref uint fileHandle
-        )
+            ref uint fileHandle)
         {
             HasSecureReadAccess(context);
 
@@ -164,8 +160,7 @@ namespace Opc.Ua.Server
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadConfigurationError,
-                            "Failed to open trusted certificate store."
-                        );
+                            "Failed to open trusted certificate store.");
                     }
 
                     if (((int)masks & (int)TrustListMasks.TrustedCertificates) != 0)
@@ -197,8 +192,7 @@ namespace Opc.Ua.Server
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadConfigurationError,
-                            "Failed to open issuer certificate store."
-                        );
+                            "Failed to open issuer certificate store.");
                     }
 
                     if (((int)masks & (int)TrustListMasks.IssuerCertificates) != 0)
@@ -244,8 +238,7 @@ namespace Opc.Ua.Server
             NodeId objectId,
             uint fileHandle,
             int length,
-            ref byte[] data
-        )
+            ref byte[] data)
         {
             HasSecureReadAccess(context);
 
@@ -286,8 +279,7 @@ namespace Opc.Ua.Server
             MethodState method,
             NodeId objectId,
             uint fileHandle,
-            byte[] data
-        )
+            byte[] data)
         {
             HasSecureWriteAccess(context);
 
@@ -342,8 +334,7 @@ namespace Opc.Ua.Server
             MethodState method,
             NodeId objectId,
             uint fileHandle,
-            ref bool restartRequired
-        )
+            ref bool restartRequired)
         {
             object[] inputParameters = [fileHandle];
             m_node.ReportTrustListUpdateRequestedAuditEvent(
@@ -351,8 +342,7 @@ namespace Opc.Ua.Server
                 objectId,
                 "Method/CloseAndUpdate",
                 method.NodeId,
-                inputParameters
-            );
+                inputParameters);
             HasSecureWriteAccess(context);
 
             ServiceResult result = StatusCodes.Good;
@@ -416,34 +406,26 @@ namespace Opc.Ua.Server
                     // update store
                     // test integrity of all CRLs
                     int updateMasks = (int)TrustListMasks.None;
-                    if (
-                        (masks & (int)TrustListMasks.IssuerCertificates) != 0 &&
+                    if ((masks & (int)TrustListMasks.IssuerCertificates) != 0 &&
                         UpdateStoreCertificatesAsync(m_issuerStore, issuerCertificates).GetAwaiter()
-                            .GetResult()
-                    )
+                            .GetResult())
                     {
                         updateMasks |= (int)TrustListMasks.IssuerCertificates;
                     }
-                    if (
-                        (masks & (int)TrustListMasks.IssuerCrls) != 0 &&
-                        UpdateStoreCrlsAsync(m_issuerStore, issuerCrls).GetAwaiter().GetResult()
-                    )
+                    if ((masks & (int)TrustListMasks.IssuerCrls) != 0 &&
+                        UpdateStoreCrlsAsync(m_issuerStore, issuerCrls).GetAwaiter().GetResult())
                     {
                         updateMasks |= (int)TrustListMasks.IssuerCrls;
                     }
-                    if (
-                        (masks & (int)TrustListMasks.TrustedCertificates) != 0 &&
+                    if ((masks & (int)TrustListMasks.TrustedCertificates) != 0 &&
                         UpdateStoreCertificatesAsync(m_trustedStore, trustedCertificates)
                             .GetAwaiter()
-                            .GetResult()
-                    )
+                            .GetResult())
                     {
                         updateMasks |= (int)TrustListMasks.TrustedCertificates;
                     }
-                    if (
-                        (masks & (int)TrustListMasks.TrustedCrls) != 0 &&
-                        UpdateStoreCrlsAsync(m_trustedStore, trustedCrls).GetAwaiter().GetResult()
-                    )
+                    if ((masks & (int)TrustListMasks.TrustedCrls) != 0 &&
+                        UpdateStoreCrlsAsync(m_trustedStore, trustedCrls).GetAwaiter().GetResult())
                     {
                         updateMasks |= (int)TrustListMasks.TrustedCrls;
                     }
@@ -475,8 +457,7 @@ namespace Opc.Ua.Server
                 "Method/CloseAndUpdate",
                 method.NodeId,
                 inputParameters,
-                result.StatusCode
-            );
+                result.StatusCode);
 
             return result;
         }
@@ -486,8 +467,7 @@ namespace Opc.Ua.Server
             MethodState method,
             NodeId objectId,
             byte[] certificate,
-            bool isTrustedCertificate
-        )
+            bool isTrustedCertificate)
         {
             object[] inputParameters = [certificate, isTrustedCertificate];
             m_node.ReportTrustListUpdateRequestedAuditEvent(
@@ -495,8 +475,7 @@ namespace Opc.Ua.Server
                 objectId,
                 "Method/AddCertificate",
                 method.NodeId,
-                inputParameters
-            );
+                inputParameters);
             HasSecureWriteAccess(context);
 
             ServiceResult result = StatusCodes.Good;
@@ -552,8 +531,7 @@ namespace Opc.Ua.Server
                 "Method/AddCertificate",
                 method.NodeId,
                 inputParameters,
-                result.StatusCode
-            );
+                result.StatusCode);
 
             return result;
         }
@@ -563,8 +541,7 @@ namespace Opc.Ua.Server
             MethodState method,
             NodeId objectId,
             string thumbprint,
-            bool isTrustedCertificate
-        )
+            bool isTrustedCertificate)
         {
             object[] inputParameters = [thumbprint];
             m_node.ReportTrustListUpdateRequestedAuditEvent(
@@ -572,8 +549,7 @@ namespace Opc.Ua.Server
                 objectId,
                 "Method/RemoveCertificate",
                 method.NodeId,
-                inputParameters
-            );
+                inputParameters);
 
             HasSecureWriteAccess(context);
             ServiceResult result = StatusCodes.Good;
@@ -598,8 +574,7 @@ namespace Opc.Ua.Server
                         {
                             throw new ServiceResultException(
                                 StatusCodes.BadConfigurationError,
-                                "Failed to open certificate store."
-                            );
+                                "Failed to open certificate store.");
                         }
 
                         X509Certificate2Collection certCollection = store
@@ -620,12 +595,10 @@ namespace Opc.Ua.Server
                             {
                                 foreach (X509Certificate2 cert in certCollection)
                                 {
-                                    if (
-                                        X509Utils.CompareDistinguishedName(
+                                    if (X509Utils.CompareDistinguishedName(
                                             cert.SubjectName,
                                             crl.IssuerName) &&
-                                        crl.VerifySignature(cert, false)
-                                    )
+                                        crl.VerifySignature(cert, false))
                                     {
                                         crlsToDelete.Add(crl);
                                         break;
@@ -664,8 +637,7 @@ namespace Opc.Ua.Server
                 "Method/RemoveCertificate",
                 method.NodeId,
                 inputParameters,
-                result.StatusCode
-            );
+                result.StatusCode);
 
             return result;
         }
@@ -710,8 +682,7 @@ namespace Opc.Ua.Server
 
         private static async Task<bool> UpdateStoreCrlsAsync(
             CertificateStoreIdentifier storeIdentifier,
-            X509CRLCollection updatedCrls
-        )
+            X509CRLCollection updatedCrls)
         {
             bool result = true;
             try
@@ -723,8 +694,7 @@ namespace Opc.Ua.Server
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadConfigurationError,
-                            "Failed to open certificate store."
-                        );
+                            "Failed to open certificate store.");
                     }
 
                     X509CRLCollection storeCrls = await store.EnumerateCRLsAsync()
@@ -756,8 +726,7 @@ namespace Opc.Ua.Server
 
         private static async Task<bool> UpdateStoreCertificatesAsync(
             CertificateStoreIdentifier storeIdentifier,
-            X509Certificate2Collection updatedCerts
-        )
+            X509Certificate2Collection updatedCerts)
         {
             bool result = true;
             try
@@ -769,8 +738,7 @@ namespace Opc.Ua.Server
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadConfigurationError,
-                            "Failed to open certificate store."
-                        );
+                            "Failed to open certificate store.");
                     }
 
                     X509Certificate2Collection storeCerts = await store.EnumerateAsync()

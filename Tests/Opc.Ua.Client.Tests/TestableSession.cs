@@ -61,8 +61,7 @@ namespace Opc.Ua.Client.Tests
         public TestableSession(
             ISessionChannel channel,
             ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint
-        )
+            ConfiguredEndpoint endpoint)
             : this(channel as ITransportChannel, configuration, endpoint, null)
         {
         }
@@ -90,8 +89,7 @@ namespace Opc.Ua.Client.Tests
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
             EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null
-        )
+            StringCollection discoveryProfileUris = null)
             : base(
                 channel,
                 configuration,

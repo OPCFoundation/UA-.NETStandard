@@ -89,8 +89,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId
-        )
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
             // Arrange
             const UadpNetworkMessageContentMask uadpNetworkMessageContentMask =
@@ -117,8 +116,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
-                    nameSpaceIndexForData: NamespaceIndexAllTypes
-                    );
+                    nameSpaceIndexForData: NamespaceIndexAllTypes);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
@@ -131,17 +129,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration first connection should not be null"
-            );
+                "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration  first writer group of first connection should not be null"
-            );
+                "publisherConfiguration  first writer group of first connection should not be null");
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(
                 publisherConfiguration.Connections[0].WriterGroups[0],
-                new WriterGroupPublishState()
-            );
+                new WriterGroupPublishState());
             // filter out the metadata message
             networkMessages = [.. from m in networkMessages where !m.IsMetaDataMessage select m];
 
@@ -151,8 +146,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.AreEqual(
                 1,
                 networkMessages.Count,
-                "connection.CreateNetworkMessages shall return only one network message"
-            );
+                "connection.CreateNetworkMessages shall return only one network message");
 
             var uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
 
@@ -170,8 +164,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
-                    nameSpaceIndexForData: NamespaceIndexAllTypes
-                    );
+                    nameSpaceIndexForData: NamespaceIndexAllTypes);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
@@ -179,8 +172,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
-                "subscriberConfiguration first connection should not be null"
-            );
+                "subscriberConfiguration first connection should not be null");
             List<DataSetReaderDataType> dataSetReaders = subscriberApplication
                 .PubSubConnections[0]
                 .GetOperationalDataSetReaders();
@@ -233,8 +225,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 (byte)1
             // , (UInt16)1, (UInt32)1, (UInt64)1, "abc"
             )]
-                object publisherId
-        )
+                object publisherId)
         {
             // Arrange
             const UadpNetworkMessageContentMask uadpNetworkMessageContentMask =
@@ -261,8 +252,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
-                    nameSpaceIndexForData: NamespaceIndexAllTypes
-                    );
+                    nameSpaceIndexForData: NamespaceIndexAllTypes);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
@@ -275,17 +265,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration first connection should not be null"
-            );
+                "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration  first writer group of first connection should not be null"
-            );
+                "publisherConfiguration  first writer group of first connection should not be null");
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(
                 publisherConfiguration.Connections[0].WriterGroups[0],
-                new WriterGroupPublishState()
-            );
+                new WriterGroupPublishState());
             // filter out the metadata message
             networkMessages = [.. from m in networkMessages where !m.IsMetaDataMessage select m];
 
@@ -295,8 +282,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.AreEqual(
                 1,
                 networkMessages.Count,
-                "connection.CreateNetworkMessages shall return only one network message"
-            );
+                "connection.CreateNetworkMessages shall return only one network message");
 
             var uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
 
@@ -314,8 +300,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
-                    nameSpaceIndexForData: NamespaceIndexAllTypes
-                    );
+                    nameSpaceIndexForData: NamespaceIndexAllTypes);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
@@ -323,8 +308,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
-                "subscriberConfiguration first connection should not be null"
-            );
+                "subscriberConfiguration first connection should not be null");
             List<DataSetReaderDataType> dataSetReaders = subscriberApplication
                 .PubSubConnections[0]
                 .GetOperationalDataSetReaders();
@@ -354,8 +338,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             [Values(
                 (byte)1 /*, (UInt16)1, (UInt32)1, (UInt64)1, "abc"*/
             )]
-                object publisherId
-        )
+                object publisherId)
         {
             // Arrange
             const UadpNetworkMessageContentMask uadpNetworkMessageContentMask =
@@ -382,8 +365,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
-                    nameSpaceIndexForData: NamespaceIndexAllTypes
-                    );
+                    nameSpaceIndexForData: NamespaceIndexAllTypes);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
@@ -396,17 +378,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration first connection should not be null"
-            );
+                "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration  first writer group of first connection should not be null"
-            );
+                "publisherConfiguration  first writer group of first connection should not be null");
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(
                 publisherConfiguration.Connections[0].WriterGroups[0],
-                new WriterGroupPublishState()
-            );
+                new WriterGroupPublishState());
 
             // filter out the metadata message
             networkMessages = [.. from m in networkMessages where !m.IsMetaDataMessage select m];
@@ -417,8 +396,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.AreEqual(
                 1,
                 networkMessages.Count,
-                "connection.CreateNetworkMessages shall return only one network message"
-            );
+                "connection.CreateNetworkMessages shall return only one network message");
 
             var uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
 
@@ -433,8 +411,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
-                    nameSpaceIndexForData: NamespaceIndexAllTypes
-                    );
+                    nameSpaceIndexForData: NamespaceIndexAllTypes);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
@@ -442,8 +419,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
-                "subscriberConfiguration first connection should not be null"
-            );
+                "subscriberConfiguration first connection should not be null");
             List<DataSetReaderDataType> dataSetReaders = subscriberApplication
                 .PubSubConnections[0]
                 .GetOperationalDataSetReaders();
@@ -470,8 +446,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId
-        )
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
             // Arrange
             const ushort writerGroupId = 1;
@@ -499,8 +474,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
-                    nameSpaceIndexForData: NamespaceIndexAllTypes
-                    );
+                    nameSpaceIndexForData: NamespaceIndexAllTypes);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
@@ -513,17 +487,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration first connection should not be null"
-            );
+                "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration  first writer group of first connection should not be null"
-            );
+                "publisherConfiguration  first writer group of first connection should not be null");
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(
                 publisherConfiguration.Connections[0].WriterGroups[0],
-                new WriterGroupPublishState()
-            );
+                new WriterGroupPublishState());
             // filter out the metadata message
             networkMessages = [.. from m in networkMessages where !m.IsMetaDataMessage select m];
 
@@ -533,8 +504,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.AreEqual(
                 1,
                 networkMessages.Count,
-                "connection.CreateNetworkMessages shall return only one network message"
-            );
+                "connection.CreateNetworkMessages shall return only one network message");
 
             var uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
 
@@ -552,8 +522,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
-                    nameSpaceIndexForData: NamespaceIndexAllTypes
-                    );
+                    nameSpaceIndexForData: NamespaceIndexAllTypes);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
@@ -561,8 +530,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
-                "subscriberConfiguration first connection should not be null"
-            );
+                "subscriberConfiguration first connection should not be null");
             List<DataSetReaderDataType> dataSetReaders = subscriberApplication
                 .PubSubConnections[0]
                 .GetOperationalDataSetReaders();
@@ -589,8 +557,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId
-        )
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
             // Arrange
             const ushort writerGroupId = 1;
@@ -619,8 +586,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
-                    nameSpaceIndexForData: NamespaceIndexAllTypes
-                    );
+                    nameSpaceIndexForData: NamespaceIndexAllTypes);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
@@ -633,17 +599,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration first connection should not be null"
-            );
+                "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration  first writer group of first connection should not be null"
-            );
+                "publisherConfiguration  first writer group of first connection should not be null");
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(
                 publisherConfiguration.Connections[0].WriterGroups[0],
-                new WriterGroupPublishState()
-            );
+                new WriterGroupPublishState());
 
             // filter out the metadata message
             networkMessages = [.. from m in networkMessages where !m.IsMetaDataMessage select m];
@@ -653,8 +616,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.AreEqual(
                 1,
                 networkMessages.Count,
-                "connection.CreateNetworkMessages shall return only one network message"
-            );
+                "connection.CreateNetworkMessages shall return only one network message");
 
             var uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
 
@@ -675,8 +637,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
-                    nameSpaceIndexForData: NamespaceIndexAllTypes
-                    );
+                    nameSpaceIndexForData: NamespaceIndexAllTypes);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
@@ -684,8 +645,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
-                "subscriberConfiguration first connection should not be null"
-            );
+                "subscriberConfiguration first connection should not be null");
             List<DataSetReaderDataType> dataSetReaders = subscriberApplication
                 .PubSubConnections[0]
                 .GetOperationalDataSetReaders();
@@ -712,8 +672,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId
-        )
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
             // Arrange
             const ushort writerGroupId = 1;
@@ -742,8 +701,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
-                    nameSpaceIndexForData: NamespaceIndexAllTypes
-                    );
+                    nameSpaceIndexForData: NamespaceIndexAllTypes);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
@@ -756,17 +714,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration first connection should not be null"
-            );
+                "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration  first writer group of first connection should not be null"
-            );
+                "publisherConfiguration  first writer group of first connection should not be null");
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(
                 publisherConfiguration.Connections[0].WriterGroups[0],
-                new WriterGroupPublishState()
-            );
+                new WriterGroupPublishState());
             // filter out the metadata message
             networkMessages = [.. from m in networkMessages where !m.IsMetaDataMessage select m];
             Assert.IsNotNull(
@@ -775,8 +730,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.AreEqual(
                 1,
                 networkMessages.Count,
-                "connection.CreateNetworkMessages shall return only one network message"
-            );
+                "connection.CreateNetworkMessages shall return only one network message");
 
             var uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
 
@@ -797,8 +751,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
-                    nameSpaceIndexForData: NamespaceIndexAllTypes
-                    );
+                    nameSpaceIndexForData: NamespaceIndexAllTypes);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
@@ -806,8 +759,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
-                "subscriberConfiguration first connection should not be null"
-            );
+                "subscriberConfiguration first connection should not be null");
             List<DataSetReaderDataType> dataSetReaders = subscriberApplication
                 .PubSubConnections[0]
                 .GetOperationalDataSetReaders();
@@ -834,8 +786,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId
-        )
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
             // Arrange
             const ushort writerGroupId = 1;
@@ -864,8 +815,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
-                    nameSpaceIndexForData: NamespaceIndexAllTypes
-                    );
+                    nameSpaceIndexForData: NamespaceIndexAllTypes);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
@@ -878,12 +828,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration first connection should not be null"
-            );
+                "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration  first writer group of first connection should not be null"
-            );
+                "publisherConfiguration  first writer group of first connection should not be null");
             var uaNetworkMessage =
                 connection.CreateNetworkMessages(
                     publisherConfiguration.Connections[0].WriterGroups[0],
@@ -907,8 +855,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
-                    nameSpaceIndexForData: NamespaceIndexAllTypes
-                    );
+                    nameSpaceIndexForData: NamespaceIndexAllTypes);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
@@ -916,8 +863,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
-                "subscriberConfiguration first connection should not be null"
-            );
+                "subscriberConfiguration first connection should not be null");
             List<DataSetReaderDataType> dataSetReaders = subscriberApplication
                 .PubSubConnections[0]
                 .GetOperationalDataSetReaders();
@@ -944,8 +890,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId
-        )
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
             // Arrange
             const ushort writerGroupId = 1;
@@ -973,8 +918,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
-                    nameSpaceIndexForData: NamespaceIndexAllTypes
-                    );
+                    nameSpaceIndexForData: NamespaceIndexAllTypes);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
@@ -987,17 +931,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration first connection should not be null"
-            );
+                "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration  first writer group of first connection should not be null"
-            );
+                "publisherConfiguration  first writer group of first connection should not be null");
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(
                 publisherConfiguration.Connections[0].WriterGroups[0],
-                new WriterGroupPublishState()
-            );
+                new WriterGroupPublishState());
             // filter out the metadata message
             networkMessages = [.. from m in networkMessages where !m.IsMetaDataMessage select m];
 
@@ -1007,8 +948,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.AreEqual(
                 1,
                 networkMessages.Count,
-                "connection.CreateNetworkMessages shall return only one network message"
-            );
+                "connection.CreateNetworkMessages shall return only one network message");
 
             var uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
 
@@ -1026,8 +966,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
-                    nameSpaceIndexForData: NamespaceIndexAllTypes
-                    );
+                    nameSpaceIndexForData: NamespaceIndexAllTypes);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
@@ -1035,8 +974,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
-                "subscriberConfiguration first connection should not be null"
-            );
+                "subscriberConfiguration first connection should not be null");
             List<DataSetReaderDataType> dataSetReaders = subscriberApplication
                 .PubSubConnections[0]
                 .GetOperationalDataSetReaders();
@@ -1063,8 +1001,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId
-        )
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
             // Arrange
             const ushort writerGroupId = 1;
@@ -1093,8 +1030,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
-                    nameSpaceIndexForData: NamespaceIndexAllTypes
-                    );
+                    nameSpaceIndexForData: NamespaceIndexAllTypes);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
@@ -1107,17 +1043,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration first connection should not be null"
-            );
+                "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration  first writer group of first connection should not be null"
-            );
+                "publisherConfiguration  first writer group of first connection should not be null");
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(
                 publisherConfiguration.Connections[0].WriterGroups[0],
-                new WriterGroupPublishState()
-            );
+                new WriterGroupPublishState());
             // filter out the metadata message
             networkMessages = [.. from m in networkMessages where !m.IsMetaDataMessage select m];
             Assert.IsNotNull(
@@ -1126,8 +1059,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.AreEqual(
                 1,
                 networkMessages.Count,
-                "connection.CreateNetworkMessages shall return only one network message"
-            );
+                "connection.CreateNetworkMessages shall return only one network message");
 
             var uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
 
@@ -1148,8 +1080,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
-                    nameSpaceIndexForData: NamespaceIndexAllTypes
-                    );
+                    nameSpaceIndexForData: NamespaceIndexAllTypes);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
@@ -1157,8 +1088,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
-                "subscriberConfiguration first connection should not be null"
-            );
+                "subscriberConfiguration first connection should not be null");
             List<DataSetReaderDataType> dataSetReaders = subscriberApplication
                 .PubSubConnections[0]
                 .GetOperationalDataSetReaders();
@@ -1185,8 +1115,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId
-        )
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
             // Arrange
             const ushort writerGroupId = 1;
@@ -1215,8 +1144,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
-                    nameSpaceIndexForData: NamespaceIndexAllTypes
-                    );
+                    nameSpaceIndexForData: NamespaceIndexAllTypes);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
@@ -1229,17 +1157,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration first connection should not be null"
-            );
+                "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration  first writer group of first connection should not be null"
-            );
+                "publisherConfiguration  first writer group of first connection should not be null");
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(
                 publisherConfiguration.Connections[0].WriterGroups[0],
-                new WriterGroupPublishState()
-            );
+                new WriterGroupPublishState());
             // filter out the metadata message
             networkMessages = [.. from m in networkMessages where !m.IsMetaDataMessage select m];
 
@@ -1249,8 +1174,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.AreEqual(
                 1,
                 networkMessages.Count,
-                "connection.CreateNetworkMessages shall return only one network message"
-            );
+                "connection.CreateNetworkMessages shall return only one network message");
 
             var uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
 
@@ -1271,8 +1195,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
-                    nameSpaceIndexForData: NamespaceIndexAllTypes
-                    );
+                    nameSpaceIndexForData: NamespaceIndexAllTypes);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
@@ -1280,8 +1203,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
-                "subscriberConfiguration first connection should not be null"
-            );
+                "subscriberConfiguration first connection should not be null");
             List<DataSetReaderDataType> dataSetReaders = subscriberApplication
                 .PubSubConnections[0]
                 .GetOperationalDataSetReaders();
@@ -1308,8 +1230,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId
-        )
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
             // Arrange
             const UadpNetworkMessageContentMask uadpNetworkMessageContentMask =
@@ -1334,8 +1255,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
-                    nameSpaceIndexForData: NamespaceIndexAllTypes
-                    );
+                    nameSpaceIndexForData: NamespaceIndexAllTypes);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
@@ -1348,17 +1268,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration first connection should not be null"
-            );
+                "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration  first writer group of first connection should not be null"
-            );
+                "publisherConfiguration  first writer group of first connection should not be null");
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(
                 publisherConfiguration.Connections[0].WriterGroups[0],
-                new WriterGroupPublishState()
-            );
+                new WriterGroupPublishState());
 
             // filter out the metadata message
             networkMessages = [.. from m in networkMessages where !m.IsMetaDataMessage select m];
@@ -1369,8 +1286,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.AreEqual(
                 1,
                 networkMessages.Count,
-                "connection.CreateNetworkMessages shall return only one network message"
-            );
+                "connection.CreateNetworkMessages shall return only one network message");
 
             var uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
 
@@ -1389,8 +1305,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
-                    nameSpaceIndexForData: NamespaceIndexAllTypes
-                    );
+                    nameSpaceIndexForData: NamespaceIndexAllTypes);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
@@ -1398,8 +1313,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
-                "subscriberConfiguration first connection should not be null"
-            );
+                "subscriberConfiguration first connection should not be null");
             List<DataSetReaderDataType> dataSetReaders = subscriberApplication
                 .PubSubConnections[0]
                 .GetOperationalDataSetReaders();
@@ -1426,8 +1340,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId
-        )
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
             // Arrange
             const UadpNetworkMessageContentMask uadpNetworkMessageContentMask =
@@ -1455,8 +1368,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
-                    nameSpaceIndexForData: NamespaceIndexAllTypes
-                    );
+                    nameSpaceIndexForData: NamespaceIndexAllTypes);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
@@ -1471,29 +1383,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration first connection should not be null"
-            );
+                "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0].WriterGroups[0],
-                "publisherConfiguration  first writer group of first connection should not be null"
-            );
+                "publisherConfiguration  first writer group of first connection should not be null");
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(
                 publisherConfiguration.Connections[0].WriterGroups[0],
-                publishState
-            );
+                publishState);
             Assert.IsNotNull(
                 networkMessages,
                 "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(
                 networkMessages.Count,
                 1,
-                "connection.CreateNetworkMessages shall have at least one network message"
-            );
+                "connection.CreateNetworkMessages shall have at least one network message");
 
             List<UadpNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper
                 .GetUadpUaMetaDataNetworkMessages(
-                    [.. networkMessages.Cast<UadpNetworkMessage>()]
-                    );
+                    [.. networkMessages.Cast<UadpNetworkMessage>()]);
             Assert.IsNotNull(
                 uaMetaDataNetworkMessages,
                 "Uadp ua-metadata entries are missing from configuration!");
@@ -1521,8 +1428,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId
-        )
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
             // Arrange
             const UadpNetworkMessageContentMask uadpNetworkMessageContentMask =
@@ -1551,8 +1457,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes,
-                    0
-                    );
+                    0);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
@@ -1567,30 +1472,25 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration first connection should not be null"
-            );
+                "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0].WriterGroups[0],
-                "publisherConfiguration  first writer group of first connection should not be null"
-            );
+                "publisherConfiguration  first writer group of first connection should not be null");
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(
                 publisherConfiguration.Connections[0].WriterGroups[0],
-                publishState
-            );
+                publishState);
             Assert.IsNotNull(
                 networkMessages,
                 "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(
                 networkMessages.Count,
                 1,
-                "connection.CreateNetworkMessages shall have at least one network message"
-            );
+                "connection.CreateNetworkMessages shall have at least one network message");
 
             List<UadpNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper
                 .GetUadpUaMetaDataNetworkMessages(
-                    [.. networkMessages.Cast<UadpNetworkMessage>()]
-                    );
+                    [.. networkMessages.Cast<UadpNetworkMessage>()]);
             Assert.IsNotNull(
                 uaMetaDataNetworkMessages,
                 "Uadp ua-metadata entries are missing from configuration!");
@@ -1599,8 +1499,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.AreEqual(
                 dataSetMetaDataArray.Length,
                 uaMetaDataNetworkMessages.Count,
-                "The ua-metadata messages count is different from the number of metadata in publisher!"
-            );
+                "The ua-metadata messages count is different from the number of metadata in publisher!");
             int index = 0;
             foreach (UadpNetworkMessage uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
             {
@@ -1610,8 +1509,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         dataSetMetaDataArray[index],
                         uaMetaDataNetworkMessage.DataSetMetaData),
                     "Metadata from network message is different from the original one for name " +
-                    dataSetMetaDataArray[index].Name
-                );
+                    dataSetMetaDataArray[index].Name);
 
                 index++;
             }
@@ -1619,20 +1517,17 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // get the messages again and see if there are any metadata messages
             networkMessages = connection.CreateNetworkMessages(
                 publisherConfiguration.Connections[0].WriterGroups[0],
-                publishState
-            );
+                publishState);
             Assert.IsNotNull(
                 networkMessages,
                 "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(
                 networkMessages.Count,
                 1,
-                "connection.CreateNetworkMessages shall have at least one network message"
-            );
+                "connection.CreateNetworkMessages shall have at least one network message");
 
             uaMetaDataNetworkMessages = MessagesHelper.GetUadpUaMetaDataNetworkMessages(
-                [.. networkMessages.Cast<UadpNetworkMessage>()]
-            );
+                [.. networkMessages.Cast<UadpNetworkMessage>()]);
             Assert.IsNotNull(
                 uaMetaDataNetworkMessages,
                 "Uadp ua-metadata entries are missing from configuration!");
@@ -1641,8 +1536,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.AreEqual(
                 0,
                 uaMetaDataNetworkMessages.Count,
-                "The ua-metadata messages count shall be zero for the second time when create messages is called!"
-            );
+                "The ua-metadata messages count shall be zero for the second time when create messages is called!");
         }
 
         [Test(
@@ -1664,8 +1558,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetFieldContentMask.StatusCode
             )]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId
-        )
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
             // Arrange
             const UadpNetworkMessageContentMask uadpNetworkMessageContentMask =
@@ -1694,8 +1587,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes,
-                    0
-                    );
+                    0);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
@@ -1710,29 +1602,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration first connection should not be null"
-            );
+                "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0].WriterGroups[0],
-                "publisherConfiguration  first writer group of first connection should not be null"
-            );
+                "publisherConfiguration  first writer group of first connection should not be null");
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(
                 publisherConfiguration.Connections[0].WriterGroups[0],
-                publishState
-            );
+                publishState);
             Assert.IsNotNull(
                 networkMessages,
                 "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(
                 networkMessages.Count,
                 1,
-                "connection.CreateNetworkMessages shall have at least one network message"
-            );
+                "connection.CreateNetworkMessages shall have at least one network message");
 
             List<UadpNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper
                 .GetUadpUaMetaDataNetworkMessages(
-                    [.. networkMessages.Cast<UadpNetworkMessage>()]
-                    );
+                    [.. networkMessages.Cast<UadpNetworkMessage>()]);
             Assert.IsNotNull(
                 uaMetaDataNetworkMessages,
                 "Uadp ua-metadata entries are missing from configuration!");
@@ -1741,8 +1628,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.AreEqual(
                 dataSetMetaDataArray.Length,
                 uaMetaDataNetworkMessages.Count,
-                "The ua-metadata messages count is different from the number of metadata in publisher!"
-            );
+                "The ua-metadata messages count is different from the number of metadata in publisher!");
             int index = 0;
             foreach (UadpNetworkMessage uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
             {
@@ -1752,8 +1638,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         dataSetMetaDataArray[index],
                         uaMetaDataNetworkMessage.DataSetMetaData),
                     "Metadata from network message is different from the original one for name " +
-                    dataSetMetaDataArray[index].Name
-                );
+                    dataSetMetaDataArray[index].Name);
 
                 index++;
             }
@@ -1761,20 +1646,17 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // get the messages again and see if there are any metadata messages
             networkMessages = connection.CreateNetworkMessages(
                 publisherConfiguration.Connections[0].WriterGroups[0],
-                publishState
-            );
+                publishState);
             Assert.IsNotNull(
                 networkMessages,
                 "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(
                 networkMessages.Count,
                 1,
-                "connection.CreateNetworkMessages shall have at least one network message"
-            );
+                "connection.CreateNetworkMessages shall have at least one network message");
 
             uaMetaDataNetworkMessages = MessagesHelper.GetUadpUaMetaDataNetworkMessages(
-                [.. networkMessages.Cast<UadpNetworkMessage>()]
-            );
+                [.. networkMessages.Cast<UadpNetworkMessage>()]);
             Assert.IsNotNull(
                 uaMetaDataNetworkMessages,
                 "Uadp ua-metadata entries are missing from configuration!");
@@ -1783,8 +1665,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.AreEqual(
                 0,
                 uaMetaDataNetworkMessages.Count,
-                "The ua-metadata messages count shall be zero for the second time when create messages is called!"
-            );
+                "The ua-metadata messages count shall be zero for the second time when create messages is called!");
 
             // change the metadata version
             DateTime currentDateTime = DateTime.UtcNow;
@@ -1792,8 +1673,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             {
                 dataSetMetaData.ConfigurationVersion.MajorVersion = ConfigurationVersionUtils
                     .CalculateVersionTime(
-                        currentDateTime
-                        );
+                        currentDateTime);
                 dataSetMetaData.ConfigurationVersion.MinorVersion = dataSetMetaData
                     .ConfigurationVersion
                     .MajorVersion;
@@ -1802,32 +1682,26 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // get the messages again and see if there are any metadata messages
             networkMessages = connection.CreateNetworkMessages(
                 publisherConfiguration.Connections[0].WriterGroups[0],
-                publishState
-            );
+                publishState);
             Assert.IsNotNull(
                 networkMessages,
-                "After MetaDataVersion change - connection.CreateNetworkMessages shall not return null"
-            );
+                "After MetaDataVersion change - connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(
                 networkMessages.Count,
                 1,
-                "After MetaDataVersion change - connection.CreateNetworkMessages shall have at least one network message"
-            );
+                "After MetaDataVersion change - connection.CreateNetworkMessages shall have at least one network message");
 
             uaMetaDataNetworkMessages = MessagesHelper.GetUadpUaMetaDataNetworkMessages(
-                [.. networkMessages.Cast<UadpNetworkMessage>()]
-            );
+                [.. networkMessages.Cast<UadpNetworkMessage>()]);
             Assert.IsNotNull(
                 uaMetaDataNetworkMessages,
-                "After MetaDataVersion change - Uadp ua-metadata entries are missing from configuration!"
-            );
+                "After MetaDataVersion change - Uadp ua-metadata entries are missing from configuration!");
 
             // check if there are any metadata messages. second time around there shall be no metadata messages
             Assert.AreEqual(
                 dataSetMetaDataArray.Length,
                 uaMetaDataNetworkMessages.Count,
-                "After MetaDataVersion change - The ua-metadata messages count shall be equal to number of dataSetMetaData!"
-            );
+                "After MetaDataVersion change - The ua-metadata messages count shall be equal to number of dataSetMetaData!");
 
             index = 0;
             foreach (UadpNetworkMessage uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
@@ -1838,8 +1712,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         dataSetMetaDataArray[index],
                         uaMetaDataNetworkMessage.DataSetMetaData),
                     "After MetaDataVersion change - Metadata from network message is different from the original one for name " +
-                    dataSetMetaDataArray[index].Name
-                );
+                    dataSetMetaDataArray[index].Name);
 
                 index++;
             }
@@ -1853,8 +1726,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId,
             [Values(100, 1000, 2000)] double metaDataUpdateTime,
             [Values(30, 40)] double maxDeviation,
-            [Values(10)] int publishTimeInSeconds
-        )
+            [Values(10)] int publishTimeInSeconds)
         {
             s_publishTimes.Clear();
 
@@ -1880,8 +1752,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: NamespaceIndexAllTypes,
-                    0
-                    );
+                    0);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // create the mock IMqttPubSubConnection that will bje used to monitor hpw often the metadata will be sent
@@ -1897,9 +1768,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 .Setup(x =>
                     x.CreateDataSetMetaDataNetworkMessage(
                         It.IsAny<WriterGroupDataType>(),
-                        It.IsAny<DataSetWriterDataType>()
-                    )
-                )
+                        It.IsAny<DataSetWriterDataType>()))
                 .Callback(() => s_publishTimes.Add(DateTime.Now));
 
             WriterGroupDataType writerGroupDataType = publisherConfiguration.Connections[0]
@@ -1910,8 +1779,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 mockConnection.Object,
                 writerGroupDataType,
                 writerGroupDataType.DataSetWriters[0],
-                metaDataUpdateTime
-            );
+                metaDataUpdateTime);
             mqttMetaDataPublisher.Start();
 
             //wait so many seconds
@@ -1942,8 +1810,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 maxDeviation,
                 publishTimeInSeconds,
                 faultIndex,
-                faultDeviation
-            );
+                faultDeviation);
         }
 
         /// <summary>
@@ -1968,15 +1835,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.AreEqual(
                 uadpNetworkMessage.WriterGroupId,
                 uaNetworkMessageDecoded.WriterGroupId,
-                "The Decoded WriterId does not match encoded value"
-            );
+                "The Decoded WriterId does not match encoded value");
 
             Assert.IsTrue(
                 Utils.IsEqual(
                     uadpNetworkMessage.DataSetMetaData,
                     uaNetworkMessageDecoded.DataSetMetaData),
-                uadpNetworkMessage.DataSetMetaData.Name + " Decoded metadata is not equal "
-            );
+                uadpNetworkMessage.DataSetMetaData.Name + " Decoded metadata is not equal ");
         }
 
         /// <summary>
@@ -1984,8 +1849,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         private static void CompareEncodeDecode(
             UadpNetworkMessage uadpNetworkMessage,
-            IList<DataSetReaderDataType> dataSetReaders
-        )
+            IList<DataSetReaderDataType> dataSetReaders)
         {
             byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
 
@@ -2004,8 +1868,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         private static void Compare(
             UadpNetworkMessage uadpNetworkMessageEncode,
-            UadpNetworkMessage uadpNetworkMessageDecoded
-        )
+            UadpNetworkMessage uadpNetworkMessageDecoded)
         {
             UadpNetworkMessageContentMask networkMessageContentMask =
                 uadpNetworkMessageEncode.NetworkMessageContentMask;
@@ -2021,16 +1884,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.AreEqual(
                 uadpNetworkMessageEncode.UADPFlags,
                 uadpNetworkMessageDecoded.UADPFlags,
-                "UADPFlags were not decoded correctly"
-            );
+                "UADPFlags were not decoded correctly");
 
             if ((networkMessageContentMask & UadpNetworkMessageContentMask.PublisherId) != 0)
             {
                 Assert.AreEqual(
                     uadpNetworkMessageEncode.PublisherId,
                     uadpNetworkMessageDecoded.PublisherId,
-                    "PublisherId was not decoded correctly"
-                );
+                    "PublisherId was not decoded correctly");
             }
 
             if ((networkMessageContentMask & UadpNetworkMessageContentMask.DataSetClassId) != 0)
@@ -2038,28 +1899,23 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Assert.AreEqual(
                     uadpNetworkMessageEncode.DataSetClassId,
                     uadpNetworkMessageDecoded.DataSetClassId,
-                    "DataSetClassId was not decoded correctly"
-                );
+                    "DataSetClassId was not decoded correctly");
             }
 
-            if (
-                (
+            if ((
                     networkMessageContentMask &
                     (
                         UadpNetworkMessageContentMask.GroupHeader |
                         UadpNetworkMessageContentMask.WriterGroupId |
                         UadpNetworkMessageContentMask.GroupVersion |
                         UadpNetworkMessageContentMask.NetworkMessageNumber |
-                        UadpNetworkMessageContentMask.SequenceNumber
-                    )
-                ) != 0
-            )
+                        UadpNetworkMessageContentMask.SequenceNumber)
+                ) != 0)
             {
                 Assert.AreEqual(
                     uadpNetworkMessageEncode.GroupFlags,
                     uadpNetworkMessageDecoded.GroupFlags,
-                    "GroupFlags was not decoded correctly"
-                );
+                    "GroupFlags was not decoded correctly");
             }
 
             if ((networkMessageContentMask & UadpNetworkMessageContentMask.WriterGroupId) != 0)
@@ -2067,8 +1923,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Assert.AreEqual(
                     uadpNetworkMessageEncode.WriterGroupId,
                     uadpNetworkMessageDecoded.WriterGroupId,
-                    "WriterGroupId was not decoded correctly"
-                );
+                    "WriterGroupId was not decoded correctly");
             }
 
             if ((networkMessageContentMask & UadpNetworkMessageContentMask.GroupVersion) != 0)
@@ -2076,8 +1931,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Assert.AreEqual(
                     uadpNetworkMessageEncode.GroupVersion,
                     uadpNetworkMessageDecoded.GroupVersion,
-                    "GroupVersion was not decoded correctly"
-                );
+                    "GroupVersion was not decoded correctly");
             }
 
             if ((networkMessageContentMask &
@@ -2086,8 +1940,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Assert.AreEqual(
                     uadpNetworkMessageEncode.NetworkMessageNumber,
                     uadpNetworkMessageDecoded.NetworkMessageNumber,
-                    "NetworkMessageNumber was not decoded correctly"
-                );
+                    "NetworkMessageNumber was not decoded correctly");
             }
 
             if ((networkMessageContentMask & UadpNetworkMessageContentMask.SequenceNumber) != 0)
@@ -2095,8 +1948,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Assert.AreEqual(
                     uadpNetworkMessageEncode.SequenceNumber,
                     uadpNetworkMessageDecoded.SequenceNumber,
-                    "SequenceNumber was not decoded correctly"
-                );
+                    "SequenceNumber was not decoded correctly");
             }
 
             if ((networkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0)
@@ -2105,8 +1957,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Assert.AreEqual(
                     uadpNetworkMessageEncode.DataSetMessages.Count,
                     uadpNetworkMessageDecoded.DataSetMessages.Count,
-                    "UadpDataSetMessages.Count was not decoded correctly"
-                );
+                    "UadpDataSetMessages.Count was not decoded correctly");
             }
 
             if ((networkMessageContentMask & UadpNetworkMessageContentMask.Timestamp) != 0)
@@ -2114,8 +1965,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Assert.AreEqual(
                     uadpNetworkMessageEncode.Timestamp,
                     uadpNetworkMessageDecoded.Timestamp,
-                    "Timestamp was not decoded correctly"
-                );
+                    "Timestamp was not decoded correctly");
             }
 
             if ((networkMessageContentMask & UadpNetworkMessageContentMask.PicoSeconds) != 0)
@@ -2123,8 +1973,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Assert.AreEqual(
                     uadpNetworkMessageEncode.PicoSeconds,
                     uadpNetworkMessageDecoded.PicoSeconds,
-                    "PicoSeconds was not decoded correctly"
-                );
+                    "PicoSeconds was not decoded correctly");
             }
 
             var receivedDataSetMessages = uadpNetworkMessageDecoded.DataSetMessages.ToList();
@@ -2136,8 +1985,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 uadpNetworkMessageEncode.DataSetMessages.Count,
                 receivedDataSetMessages.Count,
                 "UadpDataSetMessages.Count was not decoded correctly (Count = {0})",
-                receivedDataSetMessages.Count
-            );
+                receivedDataSetMessages.Count);
 
             // check if the encoded match the received decoded DataSets
             for (int i = 0; i < receivedDataSetMessages.Count; i++)
@@ -2155,15 +2003,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Assert.IsNotNull(
                     decodedDataSet,
                     "DataSet '{0}' is missing from subscriber datasets!",
-                    uadpDataSetMessage?.DataSet.Name
-                );
+                    uadpDataSetMessage?.DataSet.Name);
 
                 Assert.AreEqual(
                     uadpDataSetMessage.DataSet.Fields.Length,
                     decodedDataSet.Fields.Length,
                     "DataSet.Fields.Length was not decoded correctly, DataSetWriterId = {0}",
-                    uadpDataSetMessage.DataSetWriterId
-                );
+                    uadpDataSetMessage.DataSetWriterId);
 
                 // check the fields data consistency
                 // at this time the DataSetField has just value!?
@@ -2175,14 +2021,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         fieldEncoded,
                         "uadpDataSetMessage.DataSet.Fields[{0}] is null,  DataSetWriterId = {1}",
                         index,
-                        uadpDataSetMessage.DataSetWriterId
-                    );
+                        uadpDataSetMessage.DataSetWriterId);
                     Assert.IsNotNull(
                         fieldDecoded,
                         "uadpDataSetMessageDecoded.DataSet.Fields[{0}] is null,  DataSetWriterId = {1}",
                         index,
-                        uadpDataSetMessage.DataSetWriterId
-                    );
+                        uadpDataSetMessage.DataSetWriterId);
 
                     DataValue dataValueEncoded = fieldEncoded.Value;
                     DataValue dataValueDecoded = fieldDecoded.Value;
@@ -2190,28 +2034,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         fieldEncoded.Value,
                         "uadpDataSetMessage.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
                         index,
-                        uadpDataSetMessage.DataSetWriterId
-                    );
+                        uadpDataSetMessage.DataSetWriterId);
                     Assert.IsNotNull(
                         fieldDecoded.Value,
                         "uadpDataSetMessageDecoded.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
                         index,
-                        uadpDataSetMessage.DataSetWriterId
-                    );
+                        uadpDataSetMessage.DataSetWriterId);
 
                     // check dataValues values
                     Assert.IsNotNull(
                         fieldEncoded.Value.Value,
                         "uadpDataSetMessage.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
                         index,
-                        uadpDataSetMessage.DataSetWriterId
-                    );
+                        uadpDataSetMessage.DataSetWriterId);
                     Assert.IsNotNull(
                         fieldDecoded.Value.Value,
                         "uadpDataSetMessageDecoded.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
                         index,
-                        uadpDataSetMessage.DataSetWriterId
-                    );
+                        uadpDataSetMessage.DataSetWriterId);
 
                     // check dataValues values
                     string fieldName = fieldEncoded.FieldMetaData.Name;
@@ -2221,15 +2061,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         dataValueDecoded.Value,
                         "Wrong: Fields[{0}].DataValue.Value; DataSetWriterId = {1}",
                         fieldName,
-                        uadpDataSetMessage.DataSetWriterId
-                    );
+                        uadpDataSetMessage.DataSetWriterId);
 
                     // Checks just for DataValue type only
-                    if (
-                        (uadpDataSetMessage.FieldContentMask &
+                    if ((uadpDataSetMessage.FieldContentMask &
                             DataSetFieldContentMask.StatusCode) ==
-                        DataSetFieldContentMask.StatusCode
-                    )
+                        DataSetFieldContentMask.StatusCode)
                     {
                         // check dataValues StatusCode
                         Assert.AreEqual(
@@ -2237,32 +2074,26 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                             dataValueDecoded.StatusCode,
                             "Wrong: Fields[{0}].DataValue.StatusCode; DataSetWriterId = {1}",
                             fieldName,
-                            uadpDataSetMessage.DataSetWriterId
-                        );
+                            uadpDataSetMessage.DataSetWriterId);
                     }
 
                     // check dataValues SourceTimestamp
-                    if (
-                        (uadpDataSetMessage.FieldContentMask &
+                    if ((uadpDataSetMessage.FieldContentMask &
                             DataSetFieldContentMask.SourceTimestamp) ==
-                        DataSetFieldContentMask.SourceTimestamp
-                    )
+                        DataSetFieldContentMask.SourceTimestamp)
                     {
                         Assert.AreEqual(
                             dataValueEncoded.SourceTimestamp,
                             dataValueDecoded.SourceTimestamp,
                             "Wrong: Fields[{0}].DataValue.SourceTimestamp; DataSetWriterId = {1}",
                             fieldName,
-                            uadpDataSetMessage.DataSetWriterId
-                        );
+                            uadpDataSetMessage.DataSetWriterId);
                     }
 
                     // check dataValues ServerTimestamp
-                    if (
-                        (uadpDataSetMessage.FieldContentMask &
+                    if ((uadpDataSetMessage.FieldContentMask &
                             DataSetFieldContentMask.ServerTimestamp) ==
-                        DataSetFieldContentMask.ServerTimestamp
-                    )
+                        DataSetFieldContentMask.ServerTimestamp)
                     {
                         // check dataValues ServerTimestamp
                         Assert.AreEqual(
@@ -2270,32 +2101,26 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                             dataValueDecoded.ServerTimestamp,
                             "Wrong: Fields[{0}].DataValue.ServerTimestamp; DataSetWriterId = {1}",
                             fieldName,
-                            uadpDataSetMessage.DataSetWriterId
-                        );
+                            uadpDataSetMessage.DataSetWriterId);
                     }
 
                     // check dataValues SourcePicoseconds
-                    if (
-                        (uadpDataSetMessage.FieldContentMask &
+                    if ((uadpDataSetMessage.FieldContentMask &
                             DataSetFieldContentMask.SourcePicoSeconds) ==
-                        DataSetFieldContentMask.SourcePicoSeconds
-                    )
+                        DataSetFieldContentMask.SourcePicoSeconds)
                     {
                         Assert.AreEqual(
                             dataValueEncoded.SourcePicoseconds,
                             dataValueDecoded.SourcePicoseconds,
                             "Wrong: Fields[{0}].DataValue.SourcePicoseconds; DataSetWriterId = {1}",
                             fieldName,
-                            uadpDataSetMessage.DataSetWriterId
-                        );
+                            uadpDataSetMessage.DataSetWriterId);
                     }
 
                     // check dataValues ServerPicoSeconds
-                    if (
-                        (uadpDataSetMessage.FieldContentMask &
+                    if ((uadpDataSetMessage.FieldContentMask &
                             DataSetFieldContentMask.ServerPicoSeconds) ==
-                        DataSetFieldContentMask.ServerPicoSeconds
-                    )
+                        DataSetFieldContentMask.ServerPicoSeconds)
                     {
                         // check dataValues ServerPicoseconds
                         Assert.AreEqual(
@@ -2303,8 +2128,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                             dataValueDecoded.ServerPicoseconds,
                             "Wrong: Fields[{0}].DataValue.ServerPicoseconds; DataSetWriterId = {1}",
                             fieldName,
-                            uadpDataSetMessage.DataSetWriterId
-                        );
+                            uadpDataSetMessage.DataSetWriterId);
                     }
                 }
             }

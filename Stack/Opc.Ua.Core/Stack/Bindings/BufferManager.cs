@@ -165,8 +165,7 @@ namespace Opc.Ua.Bindings
                 buffer.GetHashCode(),
                 buffer.Length,
                 owner,
-                ++m_buffersTaken
-            );
+                ++m_buffersTaken);
 #endif
             buffer[^1] = kCookieUnlocked;
 
@@ -203,8 +202,7 @@ namespace Opc.Ua.Bindings
                             m_name,
                             allocation.Id,
                             allocation.Owner,
-                            allocation.Buffer.Length / 1024
-                        );
+                            allocation.Buffer.Length / 1024);
                     }
                 }
             }
@@ -215,8 +213,7 @@ namespace Opc.Ua.Bindings
                 this.GetHashCode(),
                 buffer.GetHashCode(),
                 buffer.Length,
-                owner
-            );
+                owner);
 #endif
         }
 
@@ -276,8 +273,7 @@ namespace Opc.Ua.Bindings
                 buffer.GetHashCode(),
                 buffer.Length,
                 owner,
-                --m_buffersTaken
-            );
+                --m_buffersTaken);
 #endif
             if (buffer[^1] != kCookieUnlocked)
             {
@@ -308,8 +304,7 @@ namespace Opc.Ua.Bindings
                             allocation.Id,
                             allocation.Owner,
                             allocation.ReleasedBy,
-                            allocation.Buffer.Length / 1024
-                        );
+                            allocation.Buffer.Length / 1024);
                     }
                 }
 
@@ -340,8 +335,7 @@ namespace Opc.Ua.Bindings
                                 allocation.Id,
                                 allocation.Owner,
                                 allocation.Buffer.Length / 1024,
-                                age
-                            );
+                                age);
 
                             allocation.Reported = (int)age;
                         }
@@ -377,8 +371,7 @@ namespace Opc.Ua.Bindings
                 Utils.LogWarning(
                     "BufferManager: Max buffer size {0} + cookie length {1} may waste memory because it allocates buffers in the next bucket!",
                     maxBufferSize,
-                    kCookieLength
-                );
+                    kCookieLength);
                 return bufferArrayPoolSize - kCookieLength;
             }
             return maxBufferSize;

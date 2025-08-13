@@ -42,8 +42,7 @@ namespace Opc.Ua.Client.Tests
         public Session Create(
             ISessionChannel channel,
             ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint
-        )
+            ConfiguredEndpoint endpoint)
         {
             return new TestableSession(channel, configuration, endpoint);
         }
@@ -55,8 +54,7 @@ namespace Opc.Ua.Client.Tests
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
             EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null
-        )
+            StringCollection discoveryProfileUris = null)
         {
             return new TestableSession(
                 channel,
@@ -64,8 +62,7 @@ namespace Opc.Ua.Client.Tests
                 endpoint,
                 clientCertificate,
                 availableEndpoints,
-                discoveryProfileUris
-            );
+                discoveryProfileUris);
         }
     }
 }

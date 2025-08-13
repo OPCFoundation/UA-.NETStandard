@@ -87,8 +87,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             NUnit.Framework.Assert.Throws<ArgumentException>(
                 () => configurator.Enable(null),
-                "The Enable method does not throw exception when called with null parameter."
-            );
+                "The Enable method does not throw exception when called with null parameter.");
         }
 
         [Test(Description = "Validate Call Disable on null object")]
@@ -98,8 +97,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             NUnit.Framework.Assert.Throws<ArgumentException>(
                 () => configurator.Disable(null),
-                "The Disable method does not throw exception when called with null parameter."
-            );
+                "The Disable method does not throw exception when called with null parameter.");
         }
 
         [Test(Description = "Validate Call Enable on non existing object")]
@@ -110,8 +108,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var nonExisting = new PubSubConfigurationDataType();
             NUnit.Framework.Assert.Throws<ArgumentException>(
                 () => configurator.Enable(nonExisting),
-                "The Enable method does not throw exception when called with non existing parameter."
-            );
+                "The Enable method does not throw exception when called with non existing parameter.");
         }
 
         [Test(Description = "Validate Call Disable on non existing object")]
@@ -122,8 +119,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var nonExisting = new PubSubConfigurationDataType();
             NUnit.Framework.Assert.Throws<ArgumentException>(
                 () => configurator.Disable(nonExisting),
-                "The Disable method does not throw exception when called with non existing parameter."
-            );
+                "The Disable method does not throw exception when called with non existing parameter.");
         }
     }
 }

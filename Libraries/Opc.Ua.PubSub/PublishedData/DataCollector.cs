@@ -67,18 +67,15 @@ namespace Opc.Ua.PubSub.PublishedData
                 Utils.Trace(Utils.TraceMasks.Error, "The DataSetMetaData field is null.");
                 return false;
             }
-            if (
-                ExtensionObject.ToEncodeable(publishedDataSet.DataSetSource)
+            if (ExtensionObject.ToEncodeable(publishedDataSet.DataSetSource)
                     is PublishedDataItemsDataType publishedDataItems &&
                 publishedDataItems.PublishedData != null &&
                 publishedDataItems.PublishedData.Count != publishedDataSet.DataSetMetaData.Fields
-                    .Count
-            )
+                    .Count)
             {
                 Utils.Trace(
                     Utils.TraceMasks.Error,
-                    "The DataSetSource.Count is different from DataSetMetaData.Fields.Count."
-                );
+                    "The DataSetSource.Count is different from DataSetMetaData.Fields.Count.");
                 return false;
             }
 
@@ -105,8 +102,7 @@ namespace Opc.Ua.PubSub.PublishedData
                 Utils.Trace(
                     Utils.TraceMasks.Error,
                     "The PublishedDataSet {0} was not registered because it is not configured properly.",
-                    publishedDataSet.Name
-                );
+                    publishedDataSet.Name);
             }
         }
 
@@ -141,12 +137,10 @@ namespace Opc.Ua.PubSub.PublishedData
                         DataSetMetaData = publishedDataSet.DataSetMetaData
                     };
 
-                    if (
-                        ExtensionObject.ToEncodeable(publishedDataSet.DataSetSource)
+                    if (ExtensionObject.ToEncodeable(publishedDataSet.DataSetSource)
                             is PublishedDataItemsDataType publishedDataItems &&
                         publishedDataItems.PublishedData != null &&
-                        publishedDataItems.PublishedData.Count > 0
-                    )
+                        publishedDataItems.PublishedData.Count > 0)
                     {
                         dataSet.Fields = new Field[publishedDataItems.PublishedData.Count];
                         for (int i = 0; i < publishedDataItems.PublishedData.Count; i++)
@@ -168,8 +162,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                 {
                                     dataValue = m_dataStore.ReadPublishedDataItem(
                                         publishedVariable.PublishedVariable,
-                                        publishedVariable.AttributeId
-                                    );
+                                        publishedVariable.AttributeId);
                                 }
 
                                 if (dataValue == null)
@@ -185,8 +178,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                         KeyValuePair extensionField = publishedDataSet
                                             .ExtensionFields
                                             .Find(x =>
-                                                x.Key == extensionFieldName
-                                                );
+                                                x.Key == extensionFieldName);
                                         if (extensionField != null)
                                         {
                                             dataValue = new DataValue(extensionField.Value);
@@ -199,10 +191,8 @@ namespace Opc.Ua.PubSub.PublishedData
                                     dataValue = Utils.Clone(dataValue);
 
                                     //check StatusCode and return SubstituteValue if possible
-                                    if (
-                                        dataValue.StatusCode == StatusCodes.Bad &&
-                                        publishedVariable.SubstituteValue != Variant.Null
-                                    )
+                                    if (dataValue.StatusCode == StatusCodes.Bad &&
+                                        publishedVariable.SubstituteValue != Variant.Null)
                                     {
                                         dataValue.Value = publishedVariable.SubstituteValue.Value;
                                         dataValue.StatusCode = StatusCodes.UncertainSubstituteValue;
@@ -225,10 +215,8 @@ namespace Opc.Ua.PubSub.PublishedData
                                     case BuiltInType.String:
                                         if (field.FieldMetaData.ValueRank == ValueRanks.Scalar)
                                         {
-                                            if (
-                                                variant.Value is string strFieldValue &&
-                                                ShouldBringToConstraints((uint)strFieldValue.Length)
-                                            )
+                                            if (variant.Value is string strFieldValue &&
+                                                ShouldBringToConstraints((uint)strFieldValue.Length))
                                             {
                                                 variant.Value = strFieldValue[
                                                     ..(int)field.FieldMetaData.MaxStringLength
@@ -260,11 +248,9 @@ namespace Opc.Ua.PubSub.PublishedData
                                     case BuiltInType.ByteString:
                                         if (field.FieldMetaData.ValueRank == ValueRanks.Scalar)
                                         {
-                                            if (
-                                                variant.Value is byte[] byteStringFieldValue &&
+                                            if (variant.Value is byte[] byteStringFieldValue &&
                                                 ShouldBringToConstraints(
-                                                    (uint)byteStringFieldValue.Length)
-                                            )
+                                                    (uint)byteStringFieldValue.Length))
                                             {
                                                 byte[] byteArray = (byte[])byteStringFieldValue
                                                     .Clone();
@@ -290,8 +276,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                                             .Clone();
                                                         Array.Resize(
                                                             ref byteArray,
-                                                            (int)field.FieldMetaData.MaxStringLength
-                                                        );
+                                                            (int)field.FieldMetaData.MaxStringLength);
                                                         valueArray[idx] = byteArray;
                                                     }
                                                 }
@@ -312,8 +297,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                     "DataCollector.CollectData for dataset {0} field {1} resulted in ex {2}",
                                     dataSetName,
                                     i,
-                                    ex
-                                );
+                                    ex);
                             }
                         }
                         return dataSet;

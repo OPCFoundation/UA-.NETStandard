@@ -420,8 +420,7 @@ namespace Opc.Ua
                         return ServiceResult.Create(
                             StatusCodes.BadIndexRangeInvalid,
                             "NumericRange does not have a valid end index ({0}).",
-                            range.End
-                        );
+                            range.End);
                     }
 
                     if (range.Begin >= range.End)
@@ -429,8 +428,7 @@ namespace Opc.Ua
                         return ServiceResult.Create(
                             StatusCodes.BadIndexRangeInvalid,
                             "NumericRange does not have a start index that is less than the end index ({0}).",
-                            range
-                        );
+                            range);
                     }
                 }
                 else
@@ -444,8 +442,7 @@ namespace Opc.Ua
                     return ServiceResult.Create(
                         StatusCodes.BadIndexRangeInvalid,
                         "NumericRange does not have a valid start index ({0}).",
-                        range.Begin
-                    );
+                        range.Begin);
                 }
             }
             catch (Exception e)
@@ -454,8 +451,7 @@ namespace Opc.Ua
                     e,
                     StatusCodes.BadIndexRangeInvalid,
                     "NumericRange cannot be parsed ({0}).",
-                    textToParse
-                );
+                    textToParse);
             }
 
             return ServiceResult.Good;
@@ -487,10 +483,8 @@ namespace Opc.Ua
 
             if (SubRanges.Length > typeInfo.ValueRank)
             {
-                if (
-                    typeInfo.BuiltInType is BuiltInType.ByteString or BuiltInType.String &&
-                    SubRanges.Length == typeInfo.ValueRank + 1
-                )
+                if (typeInfo.BuiltInType is BuiltInType.ByteString or BuiltInType.String &&
+                    SubRanges.Length == typeInfo.ValueRank + 1)
                 {
                     finalRange = SubRanges[^1];
                 }
@@ -738,10 +732,8 @@ namespace Opc.Ua
 
             if (SubRanges != null && SubRanges.Length > srcTypeInfo.ValueRank)
             {
-                if (
-                    srcTypeInfo.BuiltInType is BuiltInType.ByteString or BuiltInType.String &&
-                    SubRanges.Length == srcTypeInfo.ValueRank + 1
-                )
+                if (srcTypeInfo.BuiltInType is BuiltInType.ByteString or BuiltInType.String &&
+                    SubRanges.Length == srcTypeInfo.ValueRank + 1)
                 {
                     finalRange = SubRanges[^1];
                 }

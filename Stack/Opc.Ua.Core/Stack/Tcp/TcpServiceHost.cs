@@ -42,8 +42,7 @@ namespace Opc.Ua.Bindings
             IList<string> baseAddresses,
             ApplicationDescription serverDescription,
             List<ServerSecurityPolicy> securityPolicies,
-            CertificateTypesProvider instanceCertificateTypesProvider
-        )
+            CertificateTypesProvider instanceCertificateTypesProvider)
         {
             // generate a unique host name.
             string hostName = "/Tcp";
@@ -95,8 +94,7 @@ namespace Opc.Ua.Bindings
                             SecurityPolicyUri = policy.SecurityPolicyUri,
                             SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(
                                 policy.SecurityMode,
-                                policy.SecurityPolicyUri
-                            )
+                                policy.SecurityPolicyUri)
                         };
                         description.UserIdentityTokens = serverBase.GetUserTokenPolicies(
                             configuration,
@@ -104,8 +102,7 @@ namespace Opc.Ua.Bindings
 
                         ServerBase.SetServerCertificateInEndpointDescription(
                             description,
-                            instanceCertificateTypesProvider
-                        );
+                            instanceCertificateTypesProvider);
 
                         listenerEndpoints.Add(description);
                     }
@@ -115,8 +112,7 @@ namespace Opc.Ua.Bindings
                         listenerEndpoints,
                         endpointConfiguration,
                         listener,
-                        configuration.CertificateValidator.GetChannelValidator()
-                    );
+                        configuration.CertificateValidator.GetChannelValidator());
 
                     endpoints.AddRange(listenerEndpoints);
                 }
@@ -124,8 +120,7 @@ namespace Opc.Ua.Bindings
                 {
                     Utils.LogError(
                         "Failed to create endpoint {0} because the transport profile is unsupported.",
-                        Redaction.Redact.Create(uri)
-                    );
+                        Redaction.Redact.Create(uri));
                 }
             }
 

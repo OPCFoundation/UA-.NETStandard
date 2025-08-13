@@ -112,8 +112,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             BuiltInType builtInType,
             object instance,
             string expectedReversible,
-            string expectedNonReversible
-        )
+            string expectedNonReversible)
         {
             Add(
                 new JsonValidationData
@@ -124,8 +123,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     ExpectedNonReversible = expectedNonReversible,
                     ExpectedCompact = expectedReversible,
                     ExpectedVerbose = expectedNonReversible
-                }
-            );
+                });
         }
 
         public void Add(
@@ -134,8 +132,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expectedReversible,
             string expectedNonReversible,
             string expectedCompact,
-            string expectedVerbose
-        )
+            string expectedVerbose)
         {
             Add(
                 new JsonValidationData
@@ -146,8 +143,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     ExpectedNonReversible = expectedNonReversible,
                     ExpectedCompact = expectedCompact,
                     ExpectedVerbose = expectedVerbose
-                }
-            );
+                });
         }
 
         public void Add(
@@ -155,8 +151,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             object instance,
             string expectedReversible,
             string expectedNonReversible,
-            bool includeDefaultValue
-        )
+            bool includeDefaultValue)
         {
             Add(
                 new JsonValidationData
@@ -168,8 +163,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     ExpectedCompact = expectedReversible,
                     ExpectedVerbose = expectedNonReversible,
                     IncludeDefaultValue = includeDefaultValue
-                }
-            );
+                });
         }
 
         public void Add(
@@ -179,8 +173,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expectedNonReversible,
             string expectedCompact,
             string expectedVerbose,
-            bool includeDefaultValue
-        )
+            bool includeDefaultValue)
         {
             Add(
                 new JsonValidationData
@@ -192,8 +185,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     ExpectedCompact = expectedCompact,
                     ExpectedVerbose = expectedVerbose,
                     IncludeDefaultValue = includeDefaultValue
-                }
-            );
+                });
         }
     }
 

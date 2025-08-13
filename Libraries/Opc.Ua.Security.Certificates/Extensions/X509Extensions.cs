@@ -78,8 +78,7 @@ namespace Opc.Ua.Security.Certificates
                             e.Oid.Value
                                 is X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifierOid
                                     or X509AuthorityKeyIdentifierExtension
-                                        .AuthorityKeyIdentifier2Oid
-                        );
+                                        .AuthorityKeyIdentifier2Oid);
                     if (extension != null)
                     {
                         return new X509AuthorityKeyIdentifierExtension(
@@ -95,8 +94,7 @@ namespace Opc.Ua.Security.Certificates
                         .FirstOrDefault(e =>
                             e.Oid.Value
                                 is X509SubjectAltNameExtension.SubjectAltNameOid
-                                    or X509SubjectAltNameExtension.SubjectAltName2Oid
-                        );
+                                    or X509SubjectAltNameExtension.SubjectAltName2Oid);
                     if (extension != null)
                     {
                         return new X509SubjectAltNameExtension(extension, extension.Critical) as T;
@@ -127,16 +125,14 @@ namespace Opc.Ua.Security.Certificates
         /// <exception cref="ArgumentNullException"></exception>
         public static X509Extension BuildX509AuthorityInformationAccess(
             this string[] caIssuerUrls,
-            string ocspResponder = null
-        )
+            string ocspResponder = null)
         {
             if (string.IsNullOrEmpty(ocspResponder) &&
                 (caIssuerUrls == null || caIssuerUrls.Length == 0))
             {
                 throw new ArgumentNullException(
                     nameof(caIssuerUrls),
-                    "One CA Issuer Url or OCSP responder is required for the extension."
-                );
+                    "One CA Issuer Url or OCSP responder is required for the extension.");
             }
 
             var generalNameUriChoice = new Asn1Tag(TagClass.ContextSpecific, 6);
@@ -273,8 +269,7 @@ namespace Opc.Ua.Security.Certificates
             return new X509AuthorityKeyIdentifierExtension(
                 ski.SubjectKeyIdentifier.FromHexString(),
                 issuerCaCertificate.IssuerName,
-                issuerCaCertificate.GetSerialNumber()
-            );
+                issuerCaCertificate.GetSerialNumber());
         }
 
         /// <summary>

@@ -195,11 +195,9 @@ namespace Opc.Ua.Export
                         DesignToolOnly = node.DesignToolOnly
                     };
 
-                    if (
-                        o.MethodDeclarationId != null &&
+                    if (o.MethodDeclarationId != null &&
                         !o.MethodDeclarationId.IsNullNodeId &&
-                        o.MethodDeclarationId != o.NodeId
-                    )
+                        o.MethodDeclarationId != o.NodeId)
                     {
                         value.MethodDeclarationId = Export(
                             o.MethodDeclarationId,
@@ -357,18 +355,15 @@ namespace Opc.Ua.Export
                 BrowseDirection.Both,
                 null,
                 null,
-                true
-            );
+                true);
             var exportedReferences = new List<Reference>();
             IReference reference = browser.Next();
 
             while (reference != null)
             {
-                if (
-                    node.NodeClass == NodeClass.Method &&
+                if (node.NodeClass == NodeClass.Method &&
                     !reference.IsInverse &&
-                    reference.ReferenceTypeId == ReferenceTypeIds.HasTypeDefinition
-                )
+                    reference.ReferenceTypeId == ReferenceTypeIds.HasTypeDefinition)
                 {
                     reference = browser.Next();
                     continue;
@@ -561,14 +556,12 @@ namespace Opc.Ua.Export
                             NodeId referenceTypeId = ImportNodeId(
                                 node.References[ii].ReferenceType,
                                 context.NamespaceUris,
-                                true
-                            );
+                                true);
                             bool isInverse = !node.References[ii].IsForward;
                             ExpandedNodeId targetId = ImportExpandedNodeId(
                                 node.References[ii].Value,
                                 context.NamespaceUris,
-                                context.ServerUris
-                            );
+                                context.ServerUris);
 
                             if (referenceTypeId == ReferenceTypeIds.HasTypeDefinition && !isInverse)
                             {
@@ -736,14 +729,12 @@ namespace Opc.Ua.Export
                     NodeId referenceTypeId = ImportNodeId(
                         node.References[ii].ReferenceType,
                         context.NamespaceUris,
-                        true
-                    );
+                        true);
                     bool isInverse = !node.References[ii].IsForward;
                     ExpandedNodeId targetId = ImportExpandedNodeId(
                         node.References[ii].Value,
                         context.NamespaceUris,
-                        context.ServerUris
-                    );
+                        context.ServerUris);
 
                     if (importedNode is BaseInstanceState instance)
                     {
@@ -764,11 +755,9 @@ namespace Opc.Ua.Export
                         }
                     }
 
-                    if (
-                        importedNode is BaseTypeState type &&
+                    if (importedNode is BaseTypeState type &&
                         referenceTypeId == ReferenceTypeIds.HasSubtype &&
-                        isInverse
-                    )
+                        isInverse)
                     {
                         type.SuperTypeId = ExpandedNodeId.ToNodeId(targetId, context.NamespaceUris);
                         continue;
@@ -978,8 +967,7 @@ namespace Opc.Ua.Export
             DataTypeState dataType,
             ExtensionObject source,
             NamespaceTable namespaceUris,
-            bool outputRedundantNames
-        )
+            bool outputRedundantNames)
         {
             if (source == null || source.Body == null)
             {
@@ -1000,8 +988,7 @@ namespace Opc.Ua.Export
 
             if (source.Body is StructureDefinition sd)
             {
-                if (sd
-                    .StructureType is StructureType.Union or StructureType.UnionWithSubtypedValues)
+                if (sd.StructureType is StructureType.Union or StructureType.UnionWithSubtypedValues)
                 {
                     definition.IsUnion = true;
                 }
@@ -1025,11 +1012,9 @@ namespace Opc.Ua.Export
                             output.IsOptional = field.IsOptional;
                             output.AllowSubTypes = false;
                         }
-                        else if (
-                            sd.StructureType
+                        else if (sd.StructureType
                             is StructureType.StructureWithSubtypedValues
-                                or StructureType.UnionWithSubtypedValues
-                        )
+                                or StructureType.UnionWithSubtypedValues)
                         {
                             output.IsOptional = false;
                             output.AllowSubTypes = field.IsOptional;
@@ -1188,11 +1173,9 @@ namespace Opc.Ua.Export
                             {
                                 output.IsOptional = false;
                             }
-                            else if (
-                                sd.StructureType
+                            else if (sd.StructureType
                                 is StructureType.StructureWithSubtypedValues
-                                    or StructureType.UnionWithSubtypedValues
-                            )
+                                    or StructureType.UnionWithSubtypedValues)
                             {
                                 output.IsOptional = field.AllowSubTypes;
                             }

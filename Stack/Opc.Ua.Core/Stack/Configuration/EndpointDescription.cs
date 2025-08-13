@@ -29,12 +29,10 @@ namespace Opc.Ua
 
             var parsedUrl = new UriBuilder(url);
 
-            if (
-                Utils.IsUriHttpRelatedScheme(parsedUrl.Scheme) &&
+            if (Utils.IsUriHttpRelatedScheme(parsedUrl.Scheme) &&
                 !parsedUrl.Path.EndsWith(
                     ConfiguredEndpoint.DiscoverySuffix,
-                    StringComparison.OrdinalIgnoreCase)
-            )
+                    StringComparison.OrdinalIgnoreCase))
             {
                 parsedUrl.Path += ConfiguredEndpoint.DiscoverySuffix;
             }
@@ -94,8 +92,7 @@ namespace Opc.Ua
                     {
                         return policy;
                     }
-                    else if (
-                        (
+                    else if ((
                             policy.SecurityPolicyUri != null &&
                             tokenSecurityPolicyUri != null &&
                             EccUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
@@ -103,9 +100,7 @@ namespace Opc.Ua
                         ) ||
                         (
                             !EccUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
-                            !EccUtils.IsEccPolicy(tokenSecurityPolicyUri)
-                        )
-                    )
+                            !EccUtils.IsEccPolicy(tokenSecurityPolicyUri)))
                     {
                         sameEncryptionAlgorithm ??= policy;
                     }
@@ -130,8 +125,7 @@ namespace Opc.Ua
         public UserTokenPolicy FindUserTokenPolicy(
             UserTokenType tokenType,
             XmlQualifiedName issuedTokenType,
-            string tokenSecurityPolicyUri
-        )
+            string tokenSecurityPolicyUri)
         {
             if (issuedTokenType == null)
             {
@@ -150,8 +144,7 @@ namespace Opc.Ua
         public UserTokenPolicy FindUserTokenPolicy(
             UserTokenType tokenType,
             string issuedTokenType,
-            string tokenSecurityPolicyUri
-        )
+            string tokenSecurityPolicyUri)
         {
             // construct issuer type.
             string issuedTokenTypeText = issuedTokenType;
@@ -169,8 +162,7 @@ namespace Opc.Ua
                     {
                         return policy;
                     }
-                    else if (
-                        (
+                    else if ((
                             policy.SecurityPolicyUri != null &&
                             tokenSecurityPolicyUri != null &&
                             EccUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
@@ -178,9 +170,7 @@ namespace Opc.Ua
                         ) ||
                         (
                             !EccUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
-                            !EccUtils.IsEccPolicy(tokenSecurityPolicyUri)
-                        )
-                    )
+                            !EccUtils.IsEccPolicy(tokenSecurityPolicyUri)))
                     {
                         sameEncryptionAlgorithm ??= policy;
                     }

@@ -406,9 +406,7 @@ namespace Opc.Ua
                         StatusCodes.BadNotSupported,
                         Utils.Format(
                             "Cannot add an object with type '{0}' to an extension object.",
-                            m_body.GetType().FullName
-                        )
-                    );
+                            m_body.GetType().FullName));
                 }
             }
         }
@@ -522,8 +520,7 @@ namespace Opc.Ua
                             .GetType()
                             .GetProperties(BindingFlags.Public |
                                 BindingFlags.FlattenHierarchy |
-                                BindingFlags.Instance)
-                    )
+                                BindingFlags.Instance))
                     {
                         object[] attributes = [.. property.GetCustomAttributes(
                             typeof(DataMemberAttribute),
@@ -764,8 +761,7 @@ namespace Opc.Ua
                     throw new ServiceResultException(
                         StatusCodes.BadDecodingError,
                         Utils.Format("Did not read all of a extension object body: '{0}'", TypeId),
-                        e
-                    );
+                        e);
                 }
             }
         }

@@ -78,8 +78,7 @@ namespace Opc.Ua
             NodeId typeDefinitionId,
             IList<QualifiedName> relativePath,
             uint attributeId,
-            NumericRange indexRange
-        )
+            NumericRange indexRange)
         {
             if (!NodeId.IsNull(typeDefinitionId) &&
                 !context.TypeTree.IsTypeOf(m_typeDefinitionId, typeDefinitionId))
@@ -225,8 +224,7 @@ namespace Opc.Ua
             ChildNode node,
             IList<QualifiedName> relativePath,
             int index,
-            uint attributeId
-        )
+            uint attributeId)
         {
             if (index >= relativePath.Count)
             {

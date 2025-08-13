@@ -63,8 +63,7 @@ namespace TestData
         public TestDataNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
-            string[] namespaceUris
-        )
+            string[] namespaceUris)
             : base(server, configuration)
         {
             // update the namespaces.
@@ -73,8 +72,7 @@ namespace TestData
             Server.Factory.AddEncodeableTypes(
                 typeof(TestDataNodeManager)
                     .Assembly.GetExportedTypes()
-                    .Where(t => t.FullName.StartsWith(typeof(TestDataNodeManager).Namespace))
-            );
+                    .Where(t => t.FullName.StartsWith(typeof(TestDataNodeManager).Namespace)));
 
             // get the configuration for the node manager.
             m_configuration =
@@ -193,8 +191,7 @@ namespace TestData
                 // start monitoring the system status.
                 m_systemStatusCondition = (TestSystemConditionState)FindPredefinedNode(
                     new NodeId(Objects.Data_Conditions_SystemStatus, m_typeNamespaceIndex),
-                    typeof(TestSystemConditionState)
-                );
+                    typeof(TestSystemConditionState));
 
                 if (m_systemStatusCondition != null)
                 {
@@ -206,8 +203,7 @@ namespace TestData
                 // link all conditions to the conditions folder.
                 NodeState conditionsFolder = FindPredefinedNode(
                     new NodeId(Objects.Data_Conditions, m_typeNamespaceIndex),
-                    typeof(NodeState)
-                );
+                    typeof(NodeState));
 
                 foreach (NodeState node in PredefinedNodes.Values)
                 {
@@ -222,13 +218,11 @@ namespace TestData
                 // enable history for all numeric scalar values.
                 var scalarValues = (ScalarValueObjectState)FindPredefinedNode(
                     new NodeId(Objects.Data_Dynamic_Scalar, m_typeNamespaceIndex),
-                    typeof(ScalarValueObjectState)
-                );
+                    typeof(ScalarValueObjectState));
 
                 scalarValues.Int32Value.Historizing = true;
                 scalarValues.Int32Value.AccessLevel = (byte)(
-                    scalarValues.Int32Value.AccessLevel | AccessLevels.HistoryRead
-                );
+                    scalarValues.Int32Value.AccessLevel | AccessLevels.HistoryRead);
 
                 m_system.EnableHistoryArchiving(scalarValues.Int32Value);
 
@@ -236,49 +230,40 @@ namespace TestData
                 {
                     ScalarStructureVariableState variable
                         = FindTypeState<ScalarStructureVariableState>(
-                        Variables.Data_Static_Structure_ScalarStructure
-                    );
+                        Variables.Data_Static_Structure_ScalarStructure);
                     m_dataStaticStructureScalarStructure = new ScalarStructureVariableValue(
                         variable,
                         m_system.GetRandomScalarStructureDataType(),
-                        null
-                    );
+                        null);
                 }
                 {
                     ScalarStructureVariableState variable
                         = FindTypeState<ScalarStructureVariableState>(
-                        Variables.Data_Dynamic_Structure_ScalarStructure
-                    );
+                        Variables.Data_Dynamic_Structure_ScalarStructure);
                     m_dataDynamicStructureScalarStructure = new ScalarStructureVariableValue(
                         variable,
                         m_system.GetRandomScalarStructureDataType(),
-                        null
-                    );
+                        null);
                 }
                 {
                     VectorVariableState variable = FindTypeState<VectorVariableState>(
-                        Variables.Data_Static_Structure_VectorStructure
-                    );
+                        Variables.Data_Static_Structure_VectorStructure);
                     m_dataStaticStructureVectorStructure = new VectorVariableValue(
                         variable,
                         m_system.GetRandomVector(),
-                        null
-                    );
+                        null);
                 }
                 {
                     VectorVariableState variable = FindTypeState<VectorVariableState>(
-                        Variables.Data_Dynamic_Structure_VectorStructure
-                    );
+                        Variables.Data_Dynamic_Structure_VectorStructure);
                     m_dataDynamicStructureVectorStructure = new VectorVariableValue(
                         variable,
                         m_system.GetRandomVector(),
-                        null
-                    );
+                        null);
                 }
                 {
                     VectorVariableState variable = FindTypeState<VectorVariableState>(
-                        Variables.Data_Static_Scalar_VectorValue
-                    );
+                        Variables.Data_Static_Scalar_VectorValue);
                     m_dataStaticVectorScalarValue = new VectorVariableValue(
                         variable,
                         m_system.GetRandomVector(),
@@ -286,13 +271,11 @@ namespace TestData
                 }
                 {
                     VectorVariableState variable = FindTypeState<VectorVariableState>(
-                        Variables.Data_Dynamic_Scalar_VectorValue
-                    );
+                        Variables.Data_Dynamic_Scalar_VectorValue);
                     m_dataDynamicVectorScalarValue = new VectorVariableValue(
                         variable,
                         m_system.GetRandomVector(),
-                        null
-                    );
+                        null);
                 }
             }
         }
@@ -307,8 +290,7 @@ namespace TestData
                 context,
                 "Quickstarts.Servers.TestData.Generated.TestData.PredefinedNodes.uanodes",
                 GetType().GetTypeInfo().Assembly,
-                true
-            );
+                true);
             return predefinedNodes;
         }
 
@@ -518,10 +500,8 @@ namespace TestData
                 return null;
             }
 
-            if (
-                context.OperationContext.Session.RestoreHistoryContinuationPoint(continuationPoint)
-                is not HistoryDataReader reader
-            )
+            if (context.OperationContext.Session.RestoreHistoryContinuationPoint(continuationPoint)
+                is not HistoryDataReader reader)
             {
                 return null;
             }
@@ -550,8 +530,7 @@ namespace TestData
         protected virtual ServiceResult GetHistoryDataSource(
             ServerSystemContext context,
             BaseVariableState variable,
-            out IHistoryDataSource datasource
-        )
+            out IHistoryDataSource datasource)
         {
             datasource = m_system.GetHistoryFile(variable);
 
@@ -573,8 +552,7 @@ namespace TestData
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
             HistoryReadValueId nodeToRead,
-            HistoryReadResult result
-        )
+            HistoryReadResult result)
         {
             var serverContext = context as ServerSystemContext;
 
@@ -628,8 +606,7 @@ namespace TestData
                     timestampsToReturn,
                     nodeToRead.ParsedIndexRange,
                     nodeToRead.DataEncoding,
-                    data.DataValues
-                );
+                    data.DataValues);
             }
 
             // continue reading data until done or max values reached.
@@ -638,8 +615,7 @@ namespace TestData
                 timestampsToReturn,
                 nodeToRead.ParsedIndexRange,
                 nodeToRead.DataEncoding,
-                data.DataValues
-            );
+                data.DataValues);
 
             // save continuation point.
             if (!complete)
@@ -701,19 +677,15 @@ namespace TestData
         protected override void OnMonitoredItemCreated(
             ServerSystemContext context,
             NodeHandle handle,
-            ISampledDataChangeMonitoredItem monitoredItem
-        )
+            ISampledDataChangeMonitoredItem monitoredItem)
         {
-            if (
-                SystemScanRequired(handle.MonitoredNode, monitoredItem) &&
-                monitoredItem.MonitoringMode != MonitoringMode.Disabled
-            )
+            if (SystemScanRequired(handle.MonitoredNode, monitoredItem) &&
+                monitoredItem.MonitoringMode != MonitoringMode.Disabled)
             {
                 m_system.StartMonitoringValue(
                     monitoredItem.Id,
                     monitoredItem.SamplingInterval,
-                    handle.Node as BaseVariableState
-                );
+                    handle.Node as BaseVariableState);
             }
         }
 
@@ -726,13 +698,10 @@ namespace TestData
         protected override void OnMonitoredItemModified(
             ServerSystemContext context,
             NodeHandle handle,
-            ISampledDataChangeMonitoredItem monitoredItem
-        )
+            ISampledDataChangeMonitoredItem monitoredItem)
         {
-            if (
-                SystemScanRequired(handle.MonitoredNode, monitoredItem) &&
-                monitoredItem.MonitoringMode != MonitoringMode.Disabled
-            )
+            if (SystemScanRequired(handle.MonitoredNode, monitoredItem) &&
+                monitoredItem.MonitoringMode != MonitoringMode.Disabled)
             {
                 var source = handle.Node as BaseVariableState;
                 m_system.StopMonitoringValue(monitoredItem.Id);
@@ -752,8 +721,7 @@ namespace TestData
         protected override void OnMonitoredItemDeleted(
             ServerSystemContext context,
             NodeHandle handle,
-            ISampledDataChangeMonitoredItem monitoredItem
-        )
+            ISampledDataChangeMonitoredItem monitoredItem)
         {
             // check for variables that need to be scanned.
             if (SystemScanRequired(handle.MonitoredNode, monitoredItem))
@@ -775,8 +743,7 @@ namespace TestData
             NodeHandle handle,
             ISampledDataChangeMonitoredItem monitoredItem,
             MonitoringMode previousMode,
-            MonitoringMode monitoringMode
-        )
+            MonitoringMode monitoringMode)
         {
             if (SystemScanRequired(handle.MonitoredNode, monitoredItem))
             {
@@ -828,8 +795,7 @@ namespace TestData
                             ExpandedNodeId.ToNodeId(ObjectIds.Data_Conditions, SystemContext.NamespaceUris),
                             ReferenceTypeIds.HasComponent,
                             new QualifiedName("ResetSystemDialog", m_namespaceIndex),
-                            m_dialog
-                        );
+                            m_dialog);
 
                         m_dialog.OnAfterResponse = OnDialogComplete;
                     }
@@ -861,8 +827,7 @@ namespace TestData
                             SystemContext,
                             "Reset the test system?",
                             (uint)(int)(DialogConditionChoice.Ok | DialogConditionChoice.Cancel),
-                            (ushort)EventSeverity.MediumHigh
-                        );
+                            (ushort)EventSeverity.MediumHigh);
                     }
 
                     // report the event.
@@ -870,8 +835,7 @@ namespace TestData
                         "TestSystemStatusChange",
                         "en-US",
                         "The TestSystem status is now {0}.",
-                        systemStatus
-                    );
+                        systemStatus);
 
                     m_systemStatusCondition.ReportConditionChange(SystemContext, null, new LocalizedText(info), false);
                 }
@@ -888,8 +852,7 @@ namespace TestData
         private ServiceResult OnDialogComplete(
             ISystemContext context,
             DialogConditionState dialog,
-            DialogConditionChoice response
-        )
+            DialogConditionChoice response)
         {
             if (m_dialog != null)
             {

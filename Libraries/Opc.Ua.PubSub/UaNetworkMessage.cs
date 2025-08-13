@@ -62,8 +62,7 @@ namespace Opc.Ua.PubSub
         /// <param name="uaDataSetMessages">The containing data set messages.</param>
         protected UaNetworkMessage(
             WriterGroupDataType writerGroupConfiguration,
-            List<UaDataSetMessage> uaDataSetMessages
-        )
+            List<UaDataSetMessage> uaDataSetMessages)
         {
             WriterGroupConfiguration = writerGroupConfiguration;
             m_uaDataSetMessages = uaDataSetMessages;
@@ -148,8 +147,7 @@ namespace Opc.Ua.PubSub
         public abstract void Decode(
             IServiceMessageContext messageContext,
             byte[] message,
-            IList<DataSetReaderDataType> dataSetReaders
-        );
+            IList<DataSetReaderDataType> dataSetReaders);
 
         /// <summary>
         /// The DataSetDecodeErrorOccurred event handler

@@ -31,9 +31,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     TestContext.CurrentContext.TestDirectory,
                     "Security",
                     "Certificates",
-                    "CertificateStoreTypeTestConfig.xml"
-                )
-            );
+                    "CertificateStoreTypeTestConfig.xml"));
             ApplicationConfiguration appConfig = await ApplicationConfiguration
                 .LoadAsync(fileInfo, ApplicationType.Client, null)
                 .ConfigureAwait(false);
@@ -48,8 +46,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore);
 
             var certificateStoreIdentifier = new CertificateStoreIdentifier(
-                TestCertStore.StoreTypePrefix + @"CurrentUser\Disallowed"
-            );
+                TestCertStore.StoreTypePrefix + @"CurrentUser\Disallowed");
             using ICertificateStore store = certificateStoreIdentifier.OpenStore();
             Assert.IsTrue(
                 instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
@@ -223,8 +220,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public Task<X509CRLCollection> EnumerateCRLsAsync(
             X509Certificate2 issuer,
             bool validateUpdateTime = true,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             return m_innerStore.EnumerateCRLsAsync(issuer, validateUpdateTime, ct);
         }
@@ -240,8 +236,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public Task<StatusCode> IsRevokedAsync(
             X509Certificate2 issuer,
             X509Certificate2 certificate,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             return m_innerStore.IsRevokedAsync(issuer, certificate, ct);
         }
@@ -256,8 +251,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             string subjectName,
             string applicationUri,
             NodeId certificateType,
-            string password
-        )
+            string password)
         {
             return LoadPrivateKeyAsync(
                 thumbprint,
@@ -274,8 +268,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             string applicationUri,
             NodeId certificateType,
             string password,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             return m_innerStore.LoadPrivateKeyAsync(
                 thumbprint,
@@ -283,8 +276,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 applicationUri,
                 certificateType,
                 password,
-                ct
-            );
+                ct);
         }
 
         /// <inheritdoc/>
@@ -298,8 +290,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public Task AddRejectedAsync(
             X509Certificate2Collection certificates,
             int maxCertificates,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             return m_innerStore.AddRejectedAsync(certificates, maxCertificates, ct);
         }

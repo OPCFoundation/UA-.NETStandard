@@ -230,23 +230,19 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.AreEqual(
                 localizedText.Translations.Count,
                 deepCopy.Translations.Count,
-                "Translations count should be the same"
-            );
+                "Translations count should be the same");
             Assert.AreEqual(
                 localizedText.Translations["en-US"],
                 deepCopy.Translations["en-US"],
-                "English translation should be the same"
-            );
+                "English translation should be the same");
             Assert.AreEqual(
                 localizedText.Translations["de-DE"],
                 deepCopy.Translations["de-DE"],
-                "German translation should be the same"
-            );
+                "German translation should be the same");
             Assert.AreEqual(
                 localizedText.Translations["fr-FR"],
                 deepCopy.Translations["fr-FR"],
-                "French translation should be the same"
-            );
+                "French translation should be the same");
         }
     }
 }

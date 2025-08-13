@@ -1020,8 +1020,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 new RecyclableMemoryStreamManager.Options
                 {
                     BlockSize = BufferManager.MaxSuggestedBufferSize
-                }
-            );
+                });
             using var memoryStream = new RecyclableMemoryStream(recyclableMemoryStreamManager);
             ConstructorStream(memoryStream);
         }
@@ -1203,8 +1202,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void JsonEncode(
             JsonEncodingType jsonEncodingType,
             JsonValidationData jsonValidationData,
-            MemoryStreamType memoryStreamType
-        )
+            MemoryStreamType memoryStreamType)
         {
             EncodeJsonVerifyResult(
                 jsonValidationData.BuiltInType,
@@ -1213,8 +1211,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 jsonEncodingType,
                 jsonValidationData.GetExpected(jsonEncodingType),
                 false,
-                jsonValidationData.IncludeDefaultValue
-            );
+                jsonValidationData.IncludeDefaultValue);
         }
 
         /// <summary>
@@ -1292,8 +1289,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "s=test_dyn_binaryencodingid",
                 "s=test_dyn_xmlencodingid",
                 "s=test_dyn_jsonencodingid",
-                new Dictionary<string, (int, string)> { { "Foo", (1, "bar_1") } }
-            );
+                new Dictionary<string, (int, string)> { { "Foo", (1, "bar_1") } });
             using var encoder = new JsonEncoder(Context, true, false);
             encoder.WriteEncodeable("bar_1", encodeable, typeof(DynamicEncodeable));
 
@@ -1332,8 +1328,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "ns=1;test_dyn2_jsonencodingid",
                 new Dictionary<string, (int, string)> {
                     { "Foo", (1, "bar_1") },
-                    { "Foo2", (2, "bar_2") } }
-            );
+                    { "Foo2", (2, "bar_2") } });
 
             // Register in the context's Factory, make it a custom factory so the dynamic type can look up its type information when instantiated during encoding/decoding
             var dynamicContext = new ServiceMessageContext
@@ -1352,8 +1347,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     var encoder = new XmlEncoder(
                         new XmlQualifiedName("uax:ExtensionObject", null),
                         xmlWriter,
-                        Context)
-                )
+                        Context))
                 {
                     var extensionObject = new ExtensionObject(encodeable);
                     encoder.WriteExtensionObject(null, extensionObject);
@@ -1420,8 +1414,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var encodeable = new FooBarEncodeable();
             using var encoder = new JsonEncoder(Context, true, true);
             NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                encoder.WriteEncodeable(encodeable.Foo, encodeable, typeof(FooBarEncodeable))
-            );
+                encoder.WriteEncodeable(encodeable.Foo, encodeable, typeof(FooBarEncodeable)));
         }
 
         /// <summary>
@@ -1530,8 +1523,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 encodeables,
                 /*lang=json,strict*/
                 "{\"array\":[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]}",
-                false
-            );
+                false);
         }
 
         /// <summary>
@@ -1566,9 +1558,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     encodeables,
                     "[\"array\":[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]]",
                     true,
-                    true
-                )
-            );
+                    true));
         }
 
         /// <summary>
@@ -1584,8 +1574,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 encodeables,
                 /*lang=json,strict*/
                 "[[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]]",
-                true
-            );
+                true);
         }
 
         /// <summary>
@@ -1718,8 +1707,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 dateTimeString,
                 CultureInfo.InvariantCulture,
                 DateTimeStyles.AdjustToUniversal,
-                out DateTime dateTime
-            );
+                out DateTime dateTime);
             Assert.True(success);
             DateTimeEncodeStringTest(dateTime);
         }
@@ -1748,8 +1736,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void DataValueWithStatusCodes(
             JsonEncodingType jsonEncodingType,
             [ValueSource(nameof(GoodAndBadStatusCodes))] StatusCode statusCodeVariant,
-            [ValueSource(nameof(GoodAndBadStatusCodes))] StatusCode statusCode
-        )
+            [ValueSource(nameof(GoodAndBadStatusCodes))] StatusCode statusCode)
         {
             var dataValue = new DataValue
             {
@@ -1787,8 +1774,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine(
                 "Encoded: \"o\": {0} \"yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK\": {1}",
                 resultO,
-                resultString
-            );
+                resultString);
 
             // last char is always 'Z', Utc time
             Assert.AreEqual('Z', resultString[^1]);
@@ -1807,8 +1793,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine(
                 "Decoded Xml: {0} {1}",
                 decodedXmlO.ToString("o"),
-                decodedXmlString.ToString("o")
-            );
+                decodedXmlString.ToString("o"));
             Assert.True(Utils.IsEqual(decodedXmlString, decodedXmlO));
 
             // ensure decoded values are identical
@@ -1816,14 +1801,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 resultString,
                 CultureInfo.InvariantCulture,
                 DateTimeStyles.AdjustToUniversal,
-                out DateTime decodedString
-            );
+                out DateTime decodedString);
             bool successO = DateTime.TryParse(
                 resultO,
                 CultureInfo.InvariantCulture,
                 DateTimeStyles.AdjustToUniversal,
-                out DateTime decodedO
-            );
+                out DateTime decodedO);
             Assert.True(successString);
             Assert.True(successO);
 
@@ -1890,8 +1873,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             List<FooBarEncodeable> encodeables,
             string expected,
             bool topLevelIsArray,
-            bool noExpectedValidation = false
-        )
+            bool noExpectedValidation = false)
         {
             try
             {

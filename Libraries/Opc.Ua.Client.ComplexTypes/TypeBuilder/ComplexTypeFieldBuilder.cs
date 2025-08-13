@@ -53,8 +53,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public void AddTypeIdAttribute(
             ExpandedNodeId complexTypeId,
             ExpandedNodeId binaryEncodingId,
-            ExpandedNodeId xmlEncodingId
-        )
+            ExpandedNodeId xmlEncodingId)
         {
             m_structureBuilder.StructureTypeIdAttribute(
                 complexTypeId,
@@ -68,14 +67,12 @@ namespace Opc.Ua.Client.ComplexTypes
             FieldBuilder fieldBuilder = m_structureBuilder.DefineField(
                 "_" + field.Name,
                 fieldType,
-                FieldAttributes.Private
-            );
+                FieldAttributes.Private);
             PropertyBuilder propertyBuilder = m_structureBuilder.DefineProperty(
                 field.Name,
                 PropertyAttributes.None,
                 fieldType,
-                null
-            );
+                null);
             const System.Reflection.MethodAttributes methodAttributes =
                 System.Reflection.MethodAttributes.Public |
                 System.Reflection.MethodAttributes.HideBySig |
@@ -85,8 +82,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 "set_" + field.Name,
                 methodAttributes,
                 null,
-                [fieldType]
-            );
+                [fieldType]);
             ILGenerator setIl = setBuilder.GetILGenerator();
             setIl.Emit(OpCodes.Ldarg_0);
             setIl.Emit(OpCodes.Ldarg_1);
@@ -96,8 +92,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 // set the union selector to the new field index
                 FieldInfo unionField = typeof(UnionComplexType).GetField(
                     "m_switchField",
-                    BindingFlags.NonPublic | BindingFlags.Instance
-                );
+                    BindingFlags.NonPublic | BindingFlags.Instance);
                 setIl.Emit(OpCodes.Ldarg_0);
                 setIl.Emit(OpCodes.Ldc_I4, order);
                 setIl.Emit(OpCodes.Stfld, unionField);
@@ -108,8 +103,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 "get_" + field.Name,
                 methodAttributes,
                 fieldType,
-                Type.EmptyTypes
-            );
+                Type.EmptyTypes);
             ILGenerator getIl = getBuilder.GetILGenerator();
             getIl.Emit(OpCodes.Ldarg_0);
             getIl.Emit(OpCodes.Ldfld, fieldBuilder);

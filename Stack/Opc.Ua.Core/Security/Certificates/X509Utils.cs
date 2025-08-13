@@ -184,16 +184,14 @@ namespace Opc.Ua
                 const string urn = "urn:";
                 for (int i = 0; i < alternateName.Uris.Count; i++)
                 {
-                    if (
-                        string.Compare(
+                    if (string.Compare(
                             alternateName.Uris[i],
                             0,
                             urn,
                             0,
                             urn.Length,
                             StringComparison.OrdinalIgnoreCase) ==
-                        0
-                    )
+                        0)
                     {
                         return true;
                     }
@@ -552,8 +550,7 @@ namespace Opc.Ua
         public static bool VerifyKeyPair(
             X509Certificate2 certWithPublicKey,
             X509Certificate2 certWithPrivateKey,
-            bool throwOnError = false
-        )
+            bool throwOnError = false)
         {
             return X509PfxUtils.VerifyKeyPair(certWithPublicKey, certWithPrivateKey, throwOnError);
         }
@@ -565,8 +562,7 @@ namespace Opc.Ua
         public static bool VerifyECDsaKeyPair(
             X509Certificate2 certWithPublicKey,
             X509Certificate2 certWithPrivateKey,
-            bool throwOnError = false
-        )
+            bool throwOnError = false)
         {
 #if ECC_SUPPORT
             return X509PfxUtils.VerifyECDsaKeyPair(
@@ -584,8 +580,7 @@ namespace Opc.Ua
         public static bool VerifyRSAKeyPair(
             X509Certificate2 certWithPublicKey,
             X509Certificate2 certWithPrivateKey,
-            bool throwOnError = false
-        )
+            bool throwOnError = false)
         {
             return X509PfxUtils.VerifyRSAKeyPair(
                 certWithPublicKey,
@@ -624,7 +619,7 @@ namespace Opc.Ua
 #if !NETFRAMEWORK
                 && RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
 #endif
-            )
+                )
             {
                 // see https://github.com/dotnet/runtime/issues/29144
                 string passcode = GeneratePasscode();
@@ -634,8 +629,7 @@ namespace Opc.Ua
                 return X509CertificateLoader.LoadPkcs12(
                     certificate.Export(X509ContentType.Pfx, passcode),
                     passcode,
-                    storageFlags
-                );
+                    storageFlags);
             }
             return certificate;
         }
@@ -650,8 +644,7 @@ namespace Opc.Ua
         public static X509Certificate2 CreateCertificateFromPKCS12(
             byte[] rawData,
             string password,
-            bool noEphemeralKeySet = false
-        )
+            bool noEphemeralKeySet = false)
         {
             return X509PfxUtils.CreateCertificateFromPKCS12(rawData, password, noEphemeralKeySet);
         }
@@ -662,18 +655,15 @@ namespace Opc.Ua
         public static async Task<X509Certificate2> FindIssuerCABySerialNumberAsync(
             ICertificateStore store,
             X500DistinguishedName issuer,
-            string serialnumber
-        )
+            string serialnumber)
         {
             X509Certificate2Collection certificates = await store.EnumerateAsync()
                 .ConfigureAwait(false);
 
             foreach (X509Certificate2 certificate in certificates)
             {
-                if (
-                    CompareDistinguishedName(certificate.SubjectName, issuer) &&
-                    Utils.IsEqual(certificate.SerialNumber, serialnumber)
-                )
+                if (CompareDistinguishedName(certificate.SubjectName, issuer) &&
+                    Utils.IsEqual(certificate.SerialNumber, serialnumber))
                 {
                     return certificate;
                 }
@@ -698,8 +688,7 @@ namespace Opc.Ua
             this X509Certificate2 certificate,
             string storeType,
             string storePath,
-            string password = null
-        )
+            string password = null)
         {
             // add cert to the store.
             if (!string.IsNullOrEmpty(storePath) && !string.IsNullOrEmpty(storeType))
@@ -733,8 +722,7 @@ namespace Opc.Ua
         public static X509Certificate2 AddToStore(
             this X509Certificate2 certificate,
             CertificateStoreIdentifier storeIdentifier,
-            string password = null
-        )
+            string password = null)
         {
             // add cert to the store.
             if (storeIdentifier != null)
@@ -775,8 +763,7 @@ namespace Opc.Ua
             string storeType,
             string storePath,
             string password = null,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             // add cert to the store.
             if (!string.IsNullOrEmpty(storePath) && !string.IsNullOrEmpty(storeType))
@@ -811,8 +798,7 @@ namespace Opc.Ua
             this X509Certificate2 certificate,
             CertificateStoreIdentifier storeIdentifier,
             string password = null,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             // add cert to the store.
             if (storeIdentifier != null)

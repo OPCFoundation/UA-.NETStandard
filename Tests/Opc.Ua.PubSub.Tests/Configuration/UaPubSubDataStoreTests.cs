@@ -51,8 +51,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 (double)8,
                 (float)9,
                 "10")]
-                object value
-        )
+                object value)
         {
             //Arrange
             var dataStore = new UaPubSubDataStore();
@@ -96,8 +95,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             NUnit.Framework.Assert.Throws<ArgumentException>(() =>
                 dataStore.WritePublishedDataItem(
                     new NodeId("ns=0;i=2253"),
-                    Attributes.AccessLevelEx + 1)
-            );
+                    Attributes.AccessLevelEx + 1));
         }
 
         [Test(Description = "Validate ReadPublishedDataItem call for non existing node id")]
@@ -136,8 +134,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             NUnit.Framework.Assert.Throws<ArgumentException>(() =>
                 dataStore.ReadPublishedDataItem(
                     new NodeId("ns=0;i=2253"),
-                    Attributes.AccessLevelEx + 1)
-            );
+                    Attributes.AccessLevelEx + 1));
         }
     }
 }

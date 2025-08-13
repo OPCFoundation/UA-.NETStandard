@@ -41,8 +41,7 @@ namespace Alarms
             FolderState parent,
             SourceController trigger,
             Type controllerType,
-            int interval
-        )
+            int interval)
         {
             m_alarmNodeManager = alarmNodeManager;
             m_parent = parent;
@@ -197,8 +196,7 @@ namespace Alarms
                 caller,
                 m_mapName,
                 Utils.ToHexString(m_alarm.EventId.Value),
-                message
-            );
+                message);
         }
 
         public virtual void SetValue(string message = "")
@@ -241,8 +239,7 @@ namespace Alarms
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp
-        )
+            ref DateTime timestamp)
         {
             if (Trigger.Value != value)
             {

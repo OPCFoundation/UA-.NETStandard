@@ -73,10 +73,8 @@ namespace Opc.Ua.Sample
                 {
                     DataChangeMonitoredItem monitoredItem = m_monitoredItems[ii];
 
-                    if (
-                        monitoredItem.AttributeId == attributeId &&
-                        monitoredItem.MonitoringMode != MonitoringMode.Disabled
-                    )
+                    if (monitoredItem.AttributeId == attributeId &&
+                        monitoredItem.MonitoringMode != MonitoringMode.Disabled)
                     {
                         return true;
                     }
@@ -120,8 +118,7 @@ namespace Opc.Ua.Sample
             bool discardOldest,
             DataChangeFilter filter,
             Range range,
-            bool alwaysReportUpdates
-        )
+            bool alwaysReportUpdates)
         {
             var monitoredItem = new DataChangeMonitoredItem(
                 Server.MonitoredItemQueueFactory,
@@ -139,8 +136,7 @@ namespace Opc.Ua.Sample
                 discardOldest,
                 filter,
                 range,
-                alwaysReportUpdates
-            );
+                alwaysReportUpdates);
 
             if (m_monitoredItems == null)
             {
@@ -179,8 +175,7 @@ namespace Opc.Ua.Sample
             MonitoringMode monitoringMode,
             uint clientHandle,
             double samplingInterval,
-            bool alwaysReportUpdates
-        )
+            bool alwaysReportUpdates)
         {
             return CreateDataChangeItem(
                 context,
@@ -197,8 +192,7 @@ namespace Opc.Ua.Sample
                 false,
                 null,
                 null,
-                alwaysReportUpdates
-            );
+                alwaysReportUpdates);
         }
 
         /// <summary>
@@ -212,8 +206,7 @@ namespace Opc.Ua.Sample
                 Server.SubscriptionStore,
                 Server.MonitoredItemQueueFactory,
                 this,
-                storedMonitoredItem
-            );
+                storedMonitoredItem);
 
             if (m_monitoredItems == null)
             {

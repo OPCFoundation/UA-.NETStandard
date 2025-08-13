@@ -565,8 +565,7 @@ namespace Opc.Ua
                         value,
                         index,
                         count,
-                        Base64FormattingOptions.InsertLineBreaks)
-                );
+                        Base64FormattingOptions.InsertLineBreaks));
                 EndField(fieldName);
             }
         }
@@ -655,8 +654,7 @@ namespace Opc.Ua
                         value.IdType,
                         namespaceIndex,
                         value.NamespaceUri,
-                        serverIndex
-                    );
+                        serverIndex);
                     WriteString("Identifier", buffer.ToString());
                 }
 
@@ -721,8 +719,7 @@ namespace Opc.Ua
                     {
                         Utils.LogWarning(
                             "InnerDiagnosticInfo dropped because nesting exceeds maximum of {0}.",
-                            DiagnosticInfo.MaxInnerDepth
-                        );
+                            DiagnosticInfo.MaxInnerDepth);
                     }
                 }
 
@@ -888,8 +885,7 @@ namespace Opc.Ua
                             StatusCodes.BadEncodingError,
                             "Cannot encode bodies of type '{0}' in ExtensionObject unless the NamespaceUri ({1}) is in the encoder's NamespaceTable.",
                             encodeable.GetType().FullName,
-                            typeId.NamespaceUri
-                        );
+                            typeId.NamespaceUri);
                     }
 
                     localTypeId = NodeId.Null;
@@ -1760,8 +1756,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(
                         StatusCodes.BadEncodingLimitsExceeded,
                         "Encodeable Array length={0}",
-                        values.Count
-                    );
+                        values.Count);
                 }
 
                 // get name for type being encoded.
@@ -1784,9 +1779,7 @@ namespace Opc.Ua
                                 StatusCodes.BadEncodingError,
                                 Utils.Format(
                                     "Objects with type '{0}' are not allowed in the array being serialized.",
-                                    systemType.FullName
-                                )
-                            );
+                                    systemType.FullName));
                         }
 
                         WriteEncodeable(xmlName.Name, value, systemType);
@@ -1813,8 +1806,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(
                         StatusCodes.BadEncodingLimitsExceeded,
                         "Enumerated Array length={0}",
-                        values.Length
-                    );
+                        values.Length);
                 }
 
                 // get name for type being encoded.
@@ -2034,8 +2026,7 @@ namespace Opc.Ua
                                     throw ServiceResultException.Create(
                                         StatusCodes.BadEncodingError,
                                         "Type '{0}' is not allowed in an Enumeration.",
-                                        value.GetType().FullName
-                                    );
+                                        value.GetType().FullName);
                                 }
                                 ints = new int[enums.Length];
                                 for (int ii = 0; ii < enums.Length; ii++)
@@ -2062,8 +2053,7 @@ namespace Opc.Ua
                             throw ServiceResultException.Create(
                                 StatusCodes.BadEncodingError,
                                 "Unexpected type encountered while encoding an array of Variants: {0}",
-                                value.GetType()
-                            );
+                                value.GetType());
                     }
                 }
                 // write matrix.
@@ -2078,8 +2068,7 @@ namespace Opc.Ua
                     StatusCodes.BadEncodingError,
                     Utils.Format(
                         "Type '{0}' is not allowed in an Variant.",
-                        value.GetType().FullName)
-                );
+                        value.GetType().FullName));
             }
             finally
             {
@@ -2126,9 +2115,7 @@ namespace Opc.Ua
                     StatusCodes.BadEncodingError,
                     Utils.Format(
                         "Don't know how to encode extension object body with type '{0}'.",
-                        body.GetType().FullName
-                    )
-                );
+                        body.GetType().FullName));
             }
 
             // encode extension object in xml.
@@ -2273,9 +2260,7 @@ namespace Opc.Ua
                                         StatusCodes.BadEncodingError,
                                         Utils.Format(
                                             "Type '{0}' is not allowed in an Enumeration.",
-                                            array.GetType().FullName
-                                        )
-                                    );
+                                            array.GetType().FullName));
                                 }
                                 ints = new int[enums.Length];
                                 for (int ii = 0; ii < enums.Length; ii++)
@@ -2315,8 +2300,7 @@ namespace Opc.Ua
                             throw ServiceResultException.Create(
                                 StatusCodes.BadEncodingError,
                                 "Unexpected type encountered while encoding an array of Variants: {0}",
-                                array.GetType()
-                            );
+                                array.GetType());
                         }
                         default:
                         {
@@ -2333,8 +2317,7 @@ namespace Opc.Ua
                             throw ServiceResultException.Create(
                                 StatusCodes.BadEncodingError,
                                 "Unexpected BuiltInType encountered while encoding an array: {0}",
-                                builtInType
-                            );
+                                builtInType);
                         }
                     }
                 }
@@ -2357,8 +2340,7 @@ namespace Opc.Ua
                             throw ServiceResultException.Create(
                                 StatusCodes.BadEncodingError,
                                 "Unexpected array type encountered while encoding array: {0}",
-                                array.GetType().Name
-                            );
+                                array.GetType().Name);
                         }
                     }
 
@@ -2476,8 +2458,7 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "Maximum nesting level of {0} was exceeded",
-                    Context.MaxEncodingNestingLevels
-                );
+                    Context.MaxEncodingNestingLevels);
             }
             m_nestingLevel++;
         }

@@ -155,8 +155,7 @@ namespace Opc.Ua
             EventId eventId,
             TState state,
             Exception exception,
-            Func<TState, Exception, string> formatter
-        )
+            Func<TState, Exception, string> formatter)
         {
             if (!IsEnabled())
             {
@@ -275,8 +274,7 @@ namespace Opc.Ua
                     ServiceCallStartMessage,
                     serviceName,
                     requestHandle,
-                    pendingRequestCount
-                );
+                    pendingRequestCount);
             }
         }
 
@@ -304,8 +302,7 @@ namespace Opc.Ua
                     ServiceCallStopMessage,
                     serviceName,
                     requestHandle,
-                    pendingRequestCount
-                );
+                    pendingRequestCount);
             }
         }
 
@@ -343,8 +340,7 @@ namespace Opc.Ua
                     serviceName,
                     requestHandle,
                     pendingRequestCount,
-                    statusCode
-                );
+                    statusCode);
             }
         }
 

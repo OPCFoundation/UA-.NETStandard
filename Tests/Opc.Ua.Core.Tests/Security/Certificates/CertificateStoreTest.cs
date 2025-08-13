@@ -236,8 +236,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 //Add Test PEM Chain
                 File.Copy(
                     TestUtils.EnumerateTestAssets("Test_chain.pem").First(),
-                    certPath + Path.DirectorySeparatorChar + "Test_chain.pem"
-                );
+                    certPath + Path.DirectorySeparatorChar + "Test_chain.pem");
 
                 X509Certificate2Collection certificates = await store.EnumerateAsync()
                     .ConfigureAwait(false);
@@ -247,8 +246,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 //Add private key for leaf cert to private folder
                 File.WriteAllBytes(
                     privatePath + Path.DirectorySeparatorChar + "Test_chain.pem",
-                    DecryptKeyPairPemBase64()
-                );
+                    DecryptKeyPairPemBase64());
 
                 //refresh store to obtain private key
                 await store.EnumerateAsync().ConfigureAwait(false);
@@ -280,8 +278,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     certificates.Find(
                         X509FindType.FindByThumbprint,
                         "14A630438BF775E19169D3279069BBF20419EF84",
-                        false)
-                );
+                        false));
             }
             finally
             {
@@ -322,8 +319,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 // Add leaf cert with private key
                 File.WriteAllBytes(
                     certPath + Path.DirectorySeparatorChar + "Test_keyPair.pem",
-                    DecryptKeyPairPemBase64()
-                );
+                    DecryptKeyPairPemBase64());
 
                 X509Certificate2Collection certificates = await store.EnumerateAsync()
                     .ConfigureAwait(false);
@@ -334,8 +330,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     certificates.Find(
                         X509FindType.FindByThumbprint,
                         "14A630438BF775E19169D3279069BBF20419EF84",
-                        false)
-                );
+                        false));
                 //Load private key
                 X509Certificate2 cert = await store
                     .LoadPrivateKeyAsync(
@@ -372,13 +367,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             X509Certificate2 appCertificate = GetTestCert();
             _ = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                appCertificate.AddToStore(CertificateStoreType.X509Store, "User\\UA_MachineDefault")
-            );
+                appCertificate.AddToStore(CertificateStoreType.X509Store, "User\\UA_MachineDefault"));
             _ = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                 appCertificate.AddToStore(
                     CertificateStoreType.X509Store,
-                    "System\\UA_MachineDefault")
-            );
+                    "System\\UA_MachineDefault"));
         }
 
         /// <summary>
@@ -524,8 +517,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             //Delete first crl with revoked certificates
             X509CRL crl = (await x509Store.EnumerateCRLsAsync().ConfigureAwait(false)).Single(c =>
-                c.Issuer == X509StoreSubject
-            );
+                c.Issuer == X509StoreSubject);
             await x509Store.DeleteCRLAsync(crl).ConfigureAwait(false);
 
             X509CRLCollection crlsAfterFirstDelete = await x509Store.EnumerateCRLsAsync()
@@ -579,13 +571,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
                     NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() =>
-                        x509Store.AddCRLAsync(new X509CRL())
-                    );
+                        x509Store.AddCRLAsync(new X509CRL()));
                     NUnit.Framework.Assert
                         .ThrowsAsync<ServiceResultException>(() => x509Store.EnumerateCRLsAsync());
                     NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() =>
-                        x509Store.DeleteCRLAsync(new X509CRL())
-                    );
+                        x509Store.DeleteCRLAsync(new X509CRL()));
                 }
                 else
                 {

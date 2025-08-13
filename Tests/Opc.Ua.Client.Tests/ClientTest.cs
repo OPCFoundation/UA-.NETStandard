@@ -158,8 +158,7 @@ namespace Opc.Ua.Client.Tests
                     "  {0}/{1}/{2}",
                     endpoint.SecurityLevel,
                     endpoint.SecurityMode,
-                    endpoint.SecurityPolicyUri
-                );
+                    endpoint.SecurityPolicyUri);
 
                 if (endpoint.ServerCertificate != null)
                 {
@@ -288,9 +287,7 @@ namespace Opc.Ua.Client.Tests
                     TimestampsToReturn.Neither,
                     readValues,
                     out DataValueCollection results,
-                    out DiagnosticInfoCollection diagnosticInfos
-                )
-            );
+                    out DiagnosticInfoCollection diagnosticInfos));
             StatusCode statusCode = StatusCodes.BadSecurityPolicyRejected;
             // race condition, if socket closed is detected before the error was returned,
             // client may report channel closed instead of security policy rejected
@@ -302,8 +299,7 @@ namespace Opc.Ua.Client.Tests
                 (StatusCode)StatusCodes.BadSecurityPolicyRejected,
                 (StatusCode)sre.StatusCode,
                 "Unexpected Status: {0}",
-                sre
-            );
+                sre);
         }
 
         /// <summary>
@@ -336,8 +332,7 @@ namespace Opc.Ua.Client.Tests
             {
                 ServiceResultException sre = NUnit.Framework.Assert
                     .Throws<ServiceResultException>(() =>
-                        client.GetEndpoints(profileUris)
-                        );
+                        client.GetEndpoints(profileUris));
                 // race condition, if socket closed is detected before the error was returned,
                 // client may report channel closed instead of security policy rejected
                 if (StatusCodes.BadSecureChannelClosed == sre.StatusCode)
@@ -348,8 +343,7 @@ namespace Opc.Ua.Client.Tests
                     (StatusCode)StatusCodes.BadSecurityPolicyRejected,
                     (StatusCode)sre.StatusCode,
                     "Unexpected Status: {0}",
-                    sre
-                );
+                    sre);
             }
         }
 
@@ -365,8 +359,7 @@ namespace Opc.Ua.Client.Tests
 
             CertificateIdentifierCollection applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
-                    ClientFixture.Config.SecurityConfiguration.ApplicationCertificate.SubjectName
-                );
+                    ClientFixture.Config.SecurityConfiguration.ApplicationCertificate.SubjectName);
 
             _ = await applicationInstance
                 .Build(ClientFixture.Config.ApplicationUri, ClientFixture.Config.ProductUri)
@@ -434,8 +427,7 @@ namespace Opc.Ua.Client.Tests
             ServiceResultException sre = NUnit.Framework.Assert
                 .ThrowsAsync<ServiceResultException>(async () =>
                     await session.ReadNodeAsync(nodeId, CancellationToken.None)
-                        .ConfigureAwait(false)
-                    );
+                        .ConfigureAwait(false));
             Assert.AreEqual(
                 (StatusCode)StatusCodes.BadSessionIdInvalid,
                 (StatusCode)sre.StatusCode);
@@ -470,8 +462,7 @@ namespace Opc.Ua.Client.Tests
             ServiceResultException sre = NUnit.Framework.Assert
                 .ThrowsAsync<ServiceResultException>(async () =>
                     await session.ReadNodeAsync(nodeId, CancellationToken.None)
-                        .ConfigureAwait(false)
-                    );
+                        .ConfigureAwait(false));
             Assert.AreEqual(
                 (StatusCode)StatusCodes.BadSessionIdInvalid,
                 (StatusCode)sre.StatusCode);
@@ -575,8 +566,7 @@ namespace Opc.Ua.Client.Tests
                     }
 
                     quitEvent.Set();
-                }
-            );
+                });
 
             bool timeout = quitEvent.WaitOne(connectTimeout);
             Assert.True(timeout);
@@ -759,8 +749,7 @@ namespace Opc.Ua.Client.Tests
                     .Throws<ServiceResultException>(() =>
                         session1.ReadValue(
                         VariableIds.Server_ServerStatus,
-                        typeof(ServerStatusDataType))
-                        );
+                        typeof(ServerStatusDataType)));
                 Assert.AreEqual(
                     (StatusCode)StatusCodes.BadSecureChannelClosed,
                     (StatusCode)exception.StatusCode);
@@ -814,8 +803,7 @@ namespace Opc.Ua.Client.Tests
 
             // cannot read using a closed session, validate the status code
             sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType))
-            );
+                session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
             Assert.AreEqual(
                 (StatusCode)StatusCodes.BadSessionIdInvalid,
                 (StatusCode)sre.StatusCode,
@@ -834,8 +822,7 @@ namespace Opc.Ua.Client.Tests
 
             // cannot read using a closed channel, validate the status code
             sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType))
-            );
+                session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
 
             // TODO: Both channel should return BadNotConnected
             if (StatusCodes.BadSecureChannelClosed != sre.StatusCode)
@@ -853,8 +840,7 @@ namespace Opc.Ua.Client.Tests
                     Assert.AreEqual(
                         (StatusCode)StatusCodes.BadUnknownResponse,
                         (StatusCode)sre.StatusCode,
-                        sre.Message
-                    );
+                        sre.Message);
                 }
             }
         }
@@ -886,8 +872,7 @@ namespace Opc.Ua.Client.Tests
         public async Task ReconnectSessionOnAlternateChannelWithSavedSessionSecretsAsync(
             string securityPolicy,
             bool anonymous,
-            bool asyncReconnect
-        )
+            bool asyncReconnect)
         {
             ServiceResultException sre;
 
@@ -904,13 +889,11 @@ namespace Opc.Ua.Client.Tests
             UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
                 userIdentity.TokenType,
                 userIdentity.IssuedTokenType,
-                endpoint.Description.SecurityPolicyUri
-            );
+                endpoint.Description.SecurityPolicyUri);
             if (identityPolicy == null)
             {
                 NUnit.Framework.Assert.Ignore(
-                    $"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}"
-                );
+                    $"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");
             }
 
             // the active channel
@@ -979,13 +962,11 @@ namespace Opc.Ua.Client.Tests
                 sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                     session1.ReadValue(
                         VariableIds.Server_ServerStatus,
-                        typeof(ServerStatusDataType))
-                );
+                        typeof(ServerStatusDataType)));
                 Assert.AreEqual(
                     (StatusCode)StatusCodes.BadSecureChannelIdInvalid,
                     (StatusCode)sre.StatusCode,
-                    sre.Message
-                );
+                    sre.Message);
             }
             else
             {
@@ -1025,13 +1006,11 @@ namespace Opc.Ua.Client.Tests
             UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
                 userIdentityAnonymous.TokenType,
                 userIdentityAnonymous.IssuedTokenType,
-                endpoint.Description.SecurityPolicyUri
-            );
+                endpoint.Description.SecurityPolicyUri);
             if (identityPolicy == null)
             {
                 NUnit.Framework.Assert.Ignore(
-                    $"No UserTokenPolicy found for {userIdentityAnonymous.TokenType} / {userIdentityAnonymous.IssuedTokenType}"
-                );
+                    $"No UserTokenPolicy found for {userIdentityAnonymous.TokenType} / {userIdentityAnonymous.IssuedTokenType}");
             }
 
             // the active channel
@@ -1111,43 +1090,34 @@ namespace Opc.Ua.Client.Tests
                 Session.OperationLimits.MaxNodesPerRead);
             ValidateOperationLimit(
                 OperationLimits.MaxNodesPerHistoryReadData,
-                Session.OperationLimits.MaxNodesPerHistoryReadData
-            );
+                Session.OperationLimits.MaxNodesPerHistoryReadData);
             ValidateOperationLimit(
                 OperationLimits.MaxNodesPerHistoryReadEvents,
-                Session.OperationLimits.MaxNodesPerHistoryReadEvents
-            );
+                Session.OperationLimits.MaxNodesPerHistoryReadEvents);
             ValidateOperationLimit(
                 OperationLimits.MaxNodesPerBrowse,
                 Session.OperationLimits.MaxNodesPerBrowse);
             ValidateOperationLimit(
                 OperationLimits.MaxMonitoredItemsPerCall,
-                Session.OperationLimits.MaxMonitoredItemsPerCall
-            );
+                Session.OperationLimits.MaxMonitoredItemsPerCall);
             ValidateOperationLimit(
                 OperationLimits.MaxNodesPerHistoryUpdateData,
-                Session.OperationLimits.MaxNodesPerHistoryUpdateData
-            );
+                Session.OperationLimits.MaxNodesPerHistoryUpdateData);
             ValidateOperationLimit(
                 OperationLimits.MaxNodesPerHistoryUpdateEvents,
-                Session.OperationLimits.MaxNodesPerHistoryUpdateEvents
-            );
+                Session.OperationLimits.MaxNodesPerHistoryUpdateEvents);
             ValidateOperationLimit(
                 OperationLimits.MaxNodesPerMethodCall,
-                Session.OperationLimits.MaxNodesPerMethodCall
-            );
+                Session.OperationLimits.MaxNodesPerMethodCall);
             ValidateOperationLimit(
                 OperationLimits.MaxNodesPerNodeManagement,
-                Session.OperationLimits.MaxNodesPerNodeManagement
-            );
+                Session.OperationLimits.MaxNodesPerNodeManagement);
             ValidateOperationLimit(
                 OperationLimits.MaxNodesPerRegisterNodes,
-                Session.OperationLimits.MaxNodesPerRegisterNodes
-            );
+                Session.OperationLimits.MaxNodesPerRegisterNodes);
             ValidateOperationLimit(
                 OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds,
-                Session.OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds
-            );
+                Session.OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
             ValidateOperationLimit(
                 OperationLimits.MaxNodesPerWrite,
                 Session.OperationLimits.MaxNodesPerWrite);
@@ -1212,8 +1182,7 @@ namespace Opc.Ua.Client.Tests
                 typeof(int));
             _ = Session.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
             ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                Session.ReadValue(VariableIds.Server_ServerStatus, typeof(ServiceHost))
-            );
+                Session.ReadValue(VariableIds.Server_ServerStatus, typeof(ServiceHost)));
             Assert.AreEqual((StatusCode)StatusCodes.BadTypeMismatch, (StatusCode)sre.StatusCode);
         }
 
@@ -1307,8 +1276,7 @@ namespace Opc.Ua.Client.Tests
                 NodeClass.DataType,
                 out IList<Node> nodes,
                 out _,
-                false
-            );
+                false);
             ValidateDataTypeDefinition(nodes[0]);
         }
 
@@ -1335,8 +1303,7 @@ namespace Opc.Ua.Client.Tests
             var structureDefinition = dataTypeDefinition.Body as StructureDefinition;
             Assert.AreEqual(
                 ObjectIds.ProgramDiagnosticDataType_Encoding_DefaultBinary,
-                structureDefinition.DefaultEncodingId
-            );
+                structureDefinition.DefaultEncodingId);
         }
 
         [Theory]
@@ -1378,8 +1345,7 @@ namespace Opc.Ua.Client.Tests
                 clientTestServices,
                 requestHeader,
                 operationLimits ? OperationLimits : null,
-                outputResult: true
-            );
+                outputResult: true);
 
             if (securityPolicy != null)
             {
@@ -1412,9 +1378,7 @@ namespace Opc.Ua.Client.Tests
                             Session.ReadDisplayName(
                                 nodeIds,
                                 out IList<string> displayNames,
-                                out IList<ServiceResult> errors
-                            )
-                            );
+                                out IList<ServiceResult> errors));
                     Assert.AreEqual(
                         (StatusCode)StatusCodes.BadTooManyOperations,
                         (StatusCode)sre.StatusCode);
@@ -1423,8 +1387,7 @@ namespace Opc.Ua.Client.Tests
                         Session.ReadDisplayName(
                             [.. nodeIds.Take((int)OperationLimits.MaxNodesPerRead)],
                             out IList<string> displayNames,
-                            out IList<ServiceResult> errors
-                        );
+                            out IList<ServiceResult> errors);
                         foreach (string name in displayNames)
                         {
                             TestContext.Out.WriteLine("{0}", name);
@@ -1543,8 +1506,7 @@ namespace Opc.Ua.Client.Tests
                     .Take(nodeCount)
                     .Select(reference => ExpandedNodeId.ToNodeId(
                         reference.NodeId,
-                        Session.NamespaceUris))
-            );
+                        Session.NamespaceUris)));
 
             Session.ReadNodes(
                 nodes,
@@ -1615,8 +1577,7 @@ namespace Opc.Ua.Client.Tests
                     .Take(nodeCount)
                     .Select(reference => ExpandedNodeId.ToNodeId(
                         reference.NodeId,
-                        Session.NamespaceUris))
-            );
+                        Session.NamespaceUris)));
 
             (IList<Node> nodeCollection, IList<ServiceResult> errors) = await Session
                 .ReadNodesAsync(nodes, true)
@@ -1680,12 +1641,10 @@ namespace Opc.Ua.Client.Tests
         public void ReadAvailableEncodings()
         {
             ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                Session.ReadAvailableEncodings(DataTypeIds.BaseDataType)
-            );
+                Session.ReadAvailableEncodings(DataTypeIds.BaseDataType));
             Assert.AreEqual((StatusCode)StatusCodes.BadNodeIdInvalid, (StatusCode)sre.StatusCode);
             ReferenceDescriptionCollection encoding = Session.ReadAvailableEncodings(
-                VariableIds.Server_ServerStatus_CurrentTime
-            );
+                VariableIds.Server_ServerStatus_CurrentTime);
             Assert.NotNull(encoding);
             Assert.AreEqual(0, encoding.Count);
         }
@@ -1725,8 +1684,7 @@ namespace Opc.Ua.Client.Tests
                     requestHeader,
                     testSet,
                     0,
-                    -1
-                );
+                    -1);
 
                 TestContext.Out.WriteLine("Transfer SubscriptionIds: {0}", subscriptionIds[0]);
 
@@ -1746,8 +1704,7 @@ namespace Opc.Ua.Client.Tests
                     requestHeader,
                     subscriptionIds,
                     sendInitialData,
-                    false
-                );
+                    false);
 
                 // verify the notification of message transfer
                 requestHeader = new RequestHeader
@@ -1759,8 +1716,7 @@ namespace Opc.Ua.Client.Tests
                     clientTestServices,
                     requestHeader,
                     subscriptionIds,
-                    true
-                );
+                    true);
 
                 transferSession.Close();
             }
@@ -1778,8 +1734,7 @@ namespace Opc.Ua.Client.Tests
             public TestableTraceableRequestHeaderClientSession(
                 ISessionChannel channel,
                 ApplicationConfiguration configuration,
-                ConfiguredEndpoint endpoint
-            )
+                ConfiguredEndpoint endpoint)
                 : base(channel, configuration, endpoint)
             {
             }
@@ -1870,8 +1825,7 @@ namespace Opc.Ua.Client.Tests
                         = new TestableTraceableRequestHeaderClientSession(
                         sessionChannelMock.Object,
                         ClientFixture.Config,
-                        endpoint
-                    );
+                        endpoint);
                     var request = new CreateSessionRequest { RequestHeader = new RequestHeader() };
 
                     // Mock call TestableUpdateRequestHeader() to simulate the header update
@@ -1885,19 +1839,16 @@ namespace Opc.Ua.Client.Tests
 
                     // Simulate extraction
                     ActivityContext extractedContext = TestExtractActivityContextFromParameters(
-                        additionalHeader.Body as AdditionalParametersType
-                    );
+                        additionalHeader.Body as AdditionalParametersType);
 
                     // Verify that the trace context is propagated.
                     Assert.AreEqual(activity.TraceId, extractedContext.TraceId);
                     Assert.AreEqual(activity.SpanId, extractedContext.SpanId);
 
                     TestContext.Out.WriteLine(
-                        $"Activity TraceId: {activity.TraceId}, Activity SpanId: {activity.SpanId}"
-                    );
+                        $"Activity TraceId: {activity.TraceId}, Activity SpanId: {activity.SpanId}");
                     TestContext.Out.WriteLine(
-                        $"Extracted TraceId: {extractedContext.TraceId}, Extracted SpanId: {extractedContext.SpanId}"
-                    );
+                        $"Extracted TraceId: {extractedContext.TraceId}, Extracted SpanId: {extractedContext.SpanId}");
                 }
             }
 
@@ -1967,14 +1918,11 @@ namespace Opc.Ua.Client.Tests
                 SecurityPolicies.ECC_brainpoolP256r1,
                 SecurityPolicies.ECC_brainpoolP384r1
             )]
-                string securityPolicy
-        )
+                string securityPolicy)
         {
-            if (
-                !RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ||
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ||
                 (securityPolicy != SecurityPolicies.ECC_brainpoolP256r1) ||
-                (securityPolicy != SecurityPolicies.ECC_brainpoolP384r1)
-            )
+                (securityPolicy != SecurityPolicies.ECC_brainpoolP384r1))
             {
                 var userIdentity = new UserIdentity("user1", "password");
 
@@ -1987,13 +1935,11 @@ namespace Opc.Ua.Client.Tests
                 UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
                     userIdentity.TokenType,
                     userIdentity.IssuedTokenType,
-                    endpoint.Description.SecurityPolicyUri
-                );
+                    endpoint.Description.SecurityPolicyUri);
                 if (identityPolicy == null)
                 {
                     NUnit.Framework.Assert.Ignore(
-                        $"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}"
-                    );
+                        $"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");
                 }
 
                 // the active channel
@@ -2022,14 +1968,11 @@ namespace Opc.Ua.Client.Tests
                 SecurityPolicies.ECC_brainpoolP256r1,
                 SecurityPolicies.ECC_brainpoolP384r1
             )]
-                string securityPolicy
-        )
+                string securityPolicy)
         {
-            if (
-                !RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ||
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ||
                 (securityPolicy != SecurityPolicies.ECC_brainpoolP256r1) ||
-                (securityPolicy != SecurityPolicies.ECC_brainpoolP384r1)
-            )
+                (securityPolicy != SecurityPolicies.ECC_brainpoolP384r1))
             {
                 const string identityToken = "fakeTokenString";
 
@@ -2051,14 +1994,12 @@ namespace Opc.Ua.Client.Tests
                 UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
                     userIdentity.TokenType,
                     userIdentity.IssuedTokenType,
-                    securityPolicy
-                );
+                    securityPolicy);
 
                 if (identityPolicy == null)
                 {
                     NUnit.Framework.Assert.Ignore(
-                        $"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}"
-                    );
+                        $"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");
                 }
 
                 // the active channel
@@ -2088,8 +2029,7 @@ namespace Opc.Ua.Client.Tests
                 SecurityPolicies.ECC_brainpoolP256r1,
                 SecurityPolicies.ECC_brainpoolP384r1
             )]
-                string securityPolicy
-        )
+                string securityPolicy)
         {
             var eccCurveHashPairs = new ECCurveHashPairCollection
             {
@@ -2103,8 +2043,7 @@ namespace Opc.Ua.Client.Tests
                     {
                         { ECCurve.NamedCurves.brainpoolP256r1, HashAlgorithmName.SHA256 },
                         { ECCurve.NamedCurves.brainpoolP384r1, HashAlgorithmName.SHA384 }
-                    }
-                );
+                    });
             }
 
             foreach (ECCurveHashPair eccurveHashPair in eccCurveHashPairs)
@@ -2134,13 +2073,11 @@ namespace Opc.Ua.Client.Tests
                     UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
                         userIdentity.TokenType,
                         userIdentity.IssuedTokenType,
-                        endpoint.Description.SecurityPolicyUri
-                    );
+                        endpoint.Description.SecurityPolicyUri);
                     if (identityPolicy == null)
                     {
                         NUnit.Framework.Assert.Ignore(
-                            $"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}"
-                        );
+                            $"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");
                     }
 
                     // the active channel
@@ -2334,8 +2271,7 @@ namespace Opc.Ua.Client.Tests
             Assert.IsFalse(
                 subscription.GetMonitoredItems(
                     out UInt32Collection serverHandles,
-                    out UInt32Collection clientHandles)
-            );
+                    out UInt32Collection clientHandles));
         }
 
         /// <summary>
@@ -2359,8 +2295,7 @@ namespace Opc.Ua.Client.Tests
             Assert.IsFalse(
                 subscription.GetMonitoredItems(
                     out UInt32Collection serverHandles,
-                    out UInt32Collection clientHandles)
-            );
+                    out UInt32Collection clientHandles));
         }
 
         /// <summary>
@@ -2384,8 +2319,7 @@ namespace Opc.Ua.Client.Tests
             Assert.IsFalse(
                 subscription.GetMonitoredItems(
                     out UInt32Collection serverHandles,
-                    out UInt32Collection clientHandles)
-            );
+                    out UInt32Collection clientHandles));
         }
 
         /// <summary>
@@ -2414,8 +2348,7 @@ namespace Opc.Ua.Client.Tests
             Assert.IsFalse(
                 subscription.GetMonitoredItems(
                     out UInt32Collection serverHandles,
-                    out UInt32Collection clientHandles)
-            );
+                    out UInt32Collection clientHandles));
         }
 
         /// <summary>

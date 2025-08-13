@@ -125,8 +125,7 @@ namespace Opc.Ua
             ISystemContext context,
             MethodState method,
             NodeId objectId,
-            int selectedResponse
-        )
+            int selectedResponse)
         {
             ServiceResult error = null;
 
@@ -169,8 +168,7 @@ namespace Opc.Ua
                     var info = new TranslationInfo(
                         "AuditConditionDialogResponse",
                         "en-US",
-                        "The Respond method was called."
-                    );
+                        "The Respond method was called.");
 
                     e.Initialize(
                         context,
@@ -178,8 +176,7 @@ namespace Opc.Ua
                         EventSeverity.Low,
                         new LocalizedText(info),
                         ServiceResult.IsGood(error),
-                        DateTime.UtcNow
-                    );
+                        DateTime.UtcNow);
 
                     e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
                     e.SetChildValue(context, BrowseNames.SourceName, "Method/Respond", false);
@@ -195,8 +192,7 @@ namespace Opc.Ua
                         context,
                         BrowseNames.SelectedResponse,
                         selectedResponse.ToString(CultureInfo.InvariantCulture),
-                        false
-                    );
+                        false);
 
                     ReportEvent(context, e);
                 }
@@ -212,6 +208,5 @@ namespace Opc.Ua
     public delegate ServiceResult DialogResponseEventHandler(
         ISystemContext context,
         DialogConditionState dialog,
-        int selectedResponse
-    );
+        int selectedResponse);
 }

@@ -80,8 +80,7 @@ namespace Opc.Ua.Server.Tests
             EventId eventId,
             TState state,
             Exception exception,
-            Func<TState, Exception, string> formatter
-        )
+            Func<TState, Exception, string> formatter)
         {
             if (logLevel < MinimumLogLevel)
             {

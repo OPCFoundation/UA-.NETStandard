@@ -37,7 +37,7 @@ using Opc.Ua;
 namespace TestData
 {
     #region ScalarStructureDataType Class
-    #if (!OPCUA_EXCLUDE_ScalarStructureDataType)
+#if (!OPCUA_EXCLUDE_ScalarStructureDataType)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -50,13 +50,13 @@ namespace TestData
         {
             Initialize();
         }
-            
+
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-            
+
         private void Initialize()
         {
             m_booleanValue = true;
@@ -94,7 +94,7 @@ namespace TestData
         [DataMember(Name = "BooleanValue", IsRequired = false, Order = 1)]
         public bool BooleanValue
         {
-            get { return m_booleanValue;  }
+            get { return m_booleanValue; }
             set { m_booleanValue = value; }
         }
 
@@ -102,7 +102,7 @@ namespace TestData
         [DataMember(Name = "SByteValue", IsRequired = false, Order = 2)]
         public sbyte SByteValue
         {
-            get { return m_sByteValue;  }
+            get { return m_sByteValue; }
             set { m_sByteValue = value; }
         }
 
@@ -110,7 +110,7 @@ namespace TestData
         [DataMember(Name = "ByteValue", IsRequired = false, Order = 3)]
         public byte ByteValue
         {
-            get { return m_byteValue;  }
+            get { return m_byteValue; }
             set { m_byteValue = value; }
         }
 
@@ -118,7 +118,7 @@ namespace TestData
         [DataMember(Name = "Int16Value", IsRequired = false, Order = 4)]
         public short Int16Value
         {
-            get { return m_int16Value;  }
+            get { return m_int16Value; }
             set { m_int16Value = value; }
         }
 
@@ -126,7 +126,7 @@ namespace TestData
         [DataMember(Name = "UInt16Value", IsRequired = false, Order = 5)]
         public ushort UInt16Value
         {
-            get { return m_uInt16Value;  }
+            get { return m_uInt16Value; }
             set { m_uInt16Value = value; }
         }
 
@@ -134,7 +134,7 @@ namespace TestData
         [DataMember(Name = "Int32Value", IsRequired = false, Order = 6)]
         public int Int32Value
         {
-            get { return m_int32Value;  }
+            get { return m_int32Value; }
             set { m_int32Value = value; }
         }
 
@@ -142,7 +142,7 @@ namespace TestData
         [DataMember(Name = "UInt32Value", IsRequired = false, Order = 7)]
         public uint UInt32Value
         {
-            get { return m_uInt32Value;  }
+            get { return m_uInt32Value; }
             set { m_uInt32Value = value; }
         }
 
@@ -150,7 +150,7 @@ namespace TestData
         [DataMember(Name = "Int64Value", IsRequired = false, Order = 8)]
         public long Int64Value
         {
-            get { return m_int64Value;  }
+            get { return m_int64Value; }
             set { m_int64Value = value; }
         }
 
@@ -158,7 +158,7 @@ namespace TestData
         [DataMember(Name = "UInt64Value", IsRequired = false, Order = 9)]
         public ulong UInt64Value
         {
-            get { return m_uInt64Value;  }
+            get { return m_uInt64Value; }
             set { m_uInt64Value = value; }
         }
 
@@ -166,7 +166,7 @@ namespace TestData
         [DataMember(Name = "FloatValue", IsRequired = false, Order = 10)]
         public float FloatValue
         {
-            get { return m_floatValue;  }
+            get { return m_floatValue; }
             set { m_floatValue = value; }
         }
 
@@ -174,7 +174,7 @@ namespace TestData
         [DataMember(Name = "DoubleValue", IsRequired = false, Order = 11)]
         public double DoubleValue
         {
-            get { return m_doubleValue;  }
+            get { return m_doubleValue; }
             set { m_doubleValue = value; }
         }
 
@@ -182,7 +182,7 @@ namespace TestData
         [DataMember(Name = "StringValue", IsRequired = false, Order = 12)]
         public string StringValue
         {
-            get { return m_stringValue;  }
+            get { return m_stringValue; }
             set { m_stringValue = value; }
         }
 
@@ -190,7 +190,7 @@ namespace TestData
         [DataMember(Name = "DateTimeValue", IsRequired = false, Order = 13)]
         public DateTime DateTimeValue
         {
-            get { return m_dateTimeValue;  }
+            get { return m_dateTimeValue; }
             set { m_dateTimeValue = value; }
         }
 
@@ -198,7 +198,7 @@ namespace TestData
         [DataMember(Name = "GuidValue", IsRequired = false, Order = 14)]
         public Uuid GuidValue
         {
-            get { return m_guidValue;  }
+            get { return m_guidValue; }
             set { m_guidValue = value; }
         }
 
@@ -206,7 +206,7 @@ namespace TestData
         [DataMember(Name = "ByteStringValue", IsRequired = false, Order = 15)]
         public byte[] ByteStringValue
         {
-            get { return m_byteStringValue;  }
+            get { return m_byteStringValue; }
             set { m_byteStringValue = value; }
         }
 
@@ -214,7 +214,7 @@ namespace TestData
         [DataMember(Name = "XmlElementValue", IsRequired = false, Order = 16)]
         public XmlElement XmlElementValue
         {
-            get { return m_xmlElementValue;  }
+            get { return m_xmlElementValue; }
             set { m_xmlElementValue = value; }
         }
 
@@ -222,7 +222,7 @@ namespace TestData
         [DataMember(Name = "NodeIdValue", IsRequired = false, Order = 17)]
         public NodeId NodeIdValue
         {
-            get { return m_nodeIdValue;  }
+            get { return m_nodeIdValue; }
             set { m_nodeIdValue = value; }
         }
 
@@ -230,7 +230,7 @@ namespace TestData
         [DataMember(Name = "ExpandedNodeIdValue", IsRequired = false, Order = 18)]
         public ExpandedNodeId ExpandedNodeIdValue
         {
-            get { return m_expandedNodeIdValue;  }
+            get { return m_expandedNodeIdValue; }
             set { m_expandedNodeIdValue = value; }
         }
 
@@ -238,7 +238,7 @@ namespace TestData
         [DataMember(Name = "QualifiedNameValue", IsRequired = false, Order = 19)]
         public QualifiedName QualifiedNameValue
         {
-            get { return m_qualifiedNameValue;  }
+            get { return m_qualifiedNameValue; }
             set { m_qualifiedNameValue = value; }
         }
 
@@ -246,7 +246,7 @@ namespace TestData
         [DataMember(Name = "LocalizedTextValue", IsRequired = false, Order = 20)]
         public LocalizedText LocalizedTextValue
         {
-            get { return m_localizedTextValue;  }
+            get { return m_localizedTextValue; }
             set { m_localizedTextValue = value; }
         }
 
@@ -254,7 +254,7 @@ namespace TestData
         [DataMember(Name = "StatusCodeValue", IsRequired = false, Order = 21)]
         public StatusCode StatusCodeValue
         {
-            get { return m_statusCodeValue;  }
+            get { return m_statusCodeValue; }
             set { m_statusCodeValue = value; }
         }
 
@@ -262,7 +262,7 @@ namespace TestData
         [DataMember(Name = "VariantValue", IsRequired = false, Order = 22)]
         public Variant VariantValue
         {
-            get { return m_variantValue;  }
+            get { return m_variantValue; }
             set { m_variantValue = value; }
         }
 
@@ -270,7 +270,7 @@ namespace TestData
         [DataMember(Name = "EnumerationValue", IsRequired = false, Order = 23)]
         public int EnumerationValue
         {
-            get { return m_enumerationValue;  }
+            get { return m_enumerationValue; }
             set { m_enumerationValue = value; }
         }
 
@@ -278,7 +278,7 @@ namespace TestData
         [DataMember(Name = "StructureValue", IsRequired = false, Order = 24)]
         public ExtensionObject StructureValue
         {
-            get { return m_structureValue;  }
+            get { return m_structureValue; }
             set { m_structureValue = value; }
         }
 
@@ -286,7 +286,7 @@ namespace TestData
         [DataMember(Name = "NumberValue", IsRequired = false, Order = 25)]
         public Variant NumberValue
         {
-            get { return m_numberValue;  }
+            get { return m_numberValue; }
             set { m_numberValue = value; }
         }
 
@@ -294,7 +294,7 @@ namespace TestData
         [DataMember(Name = "IntegerValue", IsRequired = false, Order = 26)]
         public Variant IntegerValue
         {
-            get { return m_integerValue;  }
+            get { return m_integerValue; }
             set { m_integerValue = value; }
         }
 
@@ -302,23 +302,23 @@ namespace TestData
         [DataMember(Name = "UIntegerValue", IsRequired = false, Order = 27)]
         public Variant UIntegerValue
         {
-            get { return m_uIntegerValue;  }
+            get { return m_uIntegerValue; }
             set { m_uIntegerValue = value; }
         }
         #endregion
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId => DataTypeIds.ScalarStructureDataType; 
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ScalarStructureDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ScalarStructureDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ScalarStructureDataType_Encoding_DefaultXml;
-                    
+
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ScalarStructureDataType_Encoding_DefaultJson; 
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ScalarStructureDataType_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -407,33 +407,60 @@ namespace TestData
                 return false;
             }
 
-            if (!Utils.IsEqual(m_booleanValue, value.m_booleanValue)) return false;
-            if (!Utils.IsEqual(m_sByteValue, value.m_sByteValue)) return false;
-            if (!Utils.IsEqual(m_byteValue, value.m_byteValue)) return false;
-            if (!Utils.IsEqual(m_int16Value, value.m_int16Value)) return false;
-            if (!Utils.IsEqual(m_uInt16Value, value.m_uInt16Value)) return false;
-            if (!Utils.IsEqual(m_int32Value, value.m_int32Value)) return false;
-            if (!Utils.IsEqual(m_uInt32Value, value.m_uInt32Value)) return false;
-            if (!Utils.IsEqual(m_int64Value, value.m_int64Value)) return false;
-            if (!Utils.IsEqual(m_uInt64Value, value.m_uInt64Value)) return false;
-            if (!Utils.IsEqual(m_floatValue, value.m_floatValue)) return false;
-            if (!Utils.IsEqual(m_doubleValue, value.m_doubleValue)) return false;
-            if (!Utils.IsEqual(m_stringValue, value.m_stringValue)) return false;
-            if (!Utils.IsEqual(m_dateTimeValue, value.m_dateTimeValue)) return false;
-            if (!Utils.IsEqual(m_guidValue, value.m_guidValue)) return false;
-            if (!Utils.IsEqual(m_byteStringValue, value.m_byteStringValue)) return false;
-            if (!Utils.IsEqual(m_xmlElementValue, value.m_xmlElementValue)) return false;
-            if (!Utils.IsEqual(m_nodeIdValue, value.m_nodeIdValue)) return false;
-            if (!Utils.IsEqual(m_expandedNodeIdValue, value.m_expandedNodeIdValue)) return false;
-            if (!Utils.IsEqual(m_qualifiedNameValue, value.m_qualifiedNameValue)) return false;
-            if (!Utils.IsEqual(m_localizedTextValue, value.m_localizedTextValue)) return false;
-            if (!Utils.IsEqual(m_statusCodeValue, value.m_statusCodeValue)) return false;
-            if (!Utils.IsEqual(m_variantValue, value.m_variantValue)) return false;
-            if (!Utils.IsEqual(m_enumerationValue, value.m_enumerationValue)) return false;
-            if (!Utils.IsEqual(m_structureValue, value.m_structureValue)) return false;
-            if (!Utils.IsEqual(m_numberValue, value.m_numberValue)) return false;
-            if (!Utils.IsEqual(m_integerValue, value.m_integerValue)) return false;
-            if (!Utils.IsEqual(m_uIntegerValue, value.m_uIntegerValue)) return false;
+            if (!Utils.IsEqual(m_booleanValue, value.m_booleanValue))
+                return false;
+            if (!Utils.IsEqual(m_sByteValue, value.m_sByteValue))
+                return false;
+            if (!Utils.IsEqual(m_byteValue, value.m_byteValue))
+                return false;
+            if (!Utils.IsEqual(m_int16Value, value.m_int16Value))
+                return false;
+            if (!Utils.IsEqual(m_uInt16Value, value.m_uInt16Value))
+                return false;
+            if (!Utils.IsEqual(m_int32Value, value.m_int32Value))
+                return false;
+            if (!Utils.IsEqual(m_uInt32Value, value.m_uInt32Value))
+                return false;
+            if (!Utils.IsEqual(m_int64Value, value.m_int64Value))
+                return false;
+            if (!Utils.IsEqual(m_uInt64Value, value.m_uInt64Value))
+                return false;
+            if (!Utils.IsEqual(m_floatValue, value.m_floatValue))
+                return false;
+            if (!Utils.IsEqual(m_doubleValue, value.m_doubleValue))
+                return false;
+            if (!Utils.IsEqual(m_stringValue, value.m_stringValue))
+                return false;
+            if (!Utils.IsEqual(m_dateTimeValue, value.m_dateTimeValue))
+                return false;
+            if (!Utils.IsEqual(m_guidValue, value.m_guidValue))
+                return false;
+            if (!Utils.IsEqual(m_byteStringValue, value.m_byteStringValue))
+                return false;
+            if (!Utils.IsEqual(m_xmlElementValue, value.m_xmlElementValue))
+                return false;
+            if (!Utils.IsEqual(m_nodeIdValue, value.m_nodeIdValue))
+                return false;
+            if (!Utils.IsEqual(m_expandedNodeIdValue, value.m_expandedNodeIdValue))
+                return false;
+            if (!Utils.IsEqual(m_qualifiedNameValue, value.m_qualifiedNameValue))
+                return false;
+            if (!Utils.IsEqual(m_localizedTextValue, value.m_localizedTextValue))
+                return false;
+            if (!Utils.IsEqual(m_statusCodeValue, value.m_statusCodeValue))
+                return false;
+            if (!Utils.IsEqual(m_variantValue, value.m_variantValue))
+                return false;
+            if (!Utils.IsEqual(m_enumerationValue, value.m_enumerationValue))
+                return false;
+            if (!Utils.IsEqual(m_structureValue, value.m_structureValue))
+                return false;
+            if (!Utils.IsEqual(m_numberValue, value.m_numberValue))
+                return false;
+            if (!Utils.IsEqual(m_integerValue, value.m_integerValue))
+                return false;
+            if (!Utils.IsEqual(m_uIntegerValue, value.m_uIntegerValue))
+                return false;
 
             return true;
         }
@@ -521,13 +548,13 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public ScalarStructureDataTypeCollection() {}
+        public ScalarStructureDataTypeCollection() { }
 
         /// <remarks />
-        public ScalarStructureDataTypeCollection(int capacity) : base(capacity) {}
+        public ScalarStructureDataTypeCollection(int capacity) : base(capacity) { }
 
         /// <remarks />
-        public ScalarStructureDataTypeCollection(IEnumerable<ScalarStructureDataType> collection) : base(collection) {}
+        public ScalarStructureDataTypeCollection(IEnumerable<ScalarStructureDataType> collection) : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -576,11 +603,11 @@ namespace TestData
         }
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region ArrayValueDataType Class
-    #if (!OPCUA_EXCLUDE_ArrayValueDataType)
+#if (!OPCUA_EXCLUDE_ArrayValueDataType)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -593,13 +620,13 @@ namespace TestData
         {
             Initialize();
         }
-            
+
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-            
+
         private void Initialize()
         {
             m_booleanValue = new BooleanCollection();
@@ -1176,16 +1203,16 @@ namespace TestData
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId => DataTypeIds.ArrayValueDataType; 
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ArrayValueDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ArrayValueDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ArrayValueDataType_Encoding_DefaultXml;
-                    
+
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ArrayValueDataType_Encoding_DefaultJson; 
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ArrayValueDataType_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -1274,33 +1301,60 @@ namespace TestData
                 return false;
             }
 
-            if (!Utils.IsEqual(m_booleanValue, value.m_booleanValue)) return false;
-            if (!Utils.IsEqual(m_sByteValue, value.m_sByteValue)) return false;
-            if (!Utils.IsEqual(m_byteValue, value.m_byteValue)) return false;
-            if (!Utils.IsEqual(m_int16Value, value.m_int16Value)) return false;
-            if (!Utils.IsEqual(m_uInt16Value, value.m_uInt16Value)) return false;
-            if (!Utils.IsEqual(m_int32Value, value.m_int32Value)) return false;
-            if (!Utils.IsEqual(m_uInt32Value, value.m_uInt32Value)) return false;
-            if (!Utils.IsEqual(m_int64Value, value.m_int64Value)) return false;
-            if (!Utils.IsEqual(m_uInt64Value, value.m_uInt64Value)) return false;
-            if (!Utils.IsEqual(m_floatValue, value.m_floatValue)) return false;
-            if (!Utils.IsEqual(m_doubleValue, value.m_doubleValue)) return false;
-            if (!Utils.IsEqual(m_stringValue, value.m_stringValue)) return false;
-            if (!Utils.IsEqual(m_dateTimeValue, value.m_dateTimeValue)) return false;
-            if (!Utils.IsEqual(m_guidValue, value.m_guidValue)) return false;
-            if (!Utils.IsEqual(m_byteStringValue, value.m_byteStringValue)) return false;
-            if (!Utils.IsEqual(m_xmlElementValue, value.m_xmlElementValue)) return false;
-            if (!Utils.IsEqual(m_nodeIdValue, value.m_nodeIdValue)) return false;
-            if (!Utils.IsEqual(m_expandedNodeIdValue, value.m_expandedNodeIdValue)) return false;
-            if (!Utils.IsEqual(m_qualifiedNameValue, value.m_qualifiedNameValue)) return false;
-            if (!Utils.IsEqual(m_localizedTextValue, value.m_localizedTextValue)) return false;
-            if (!Utils.IsEqual(m_statusCodeValue, value.m_statusCodeValue)) return false;
-            if (!Utils.IsEqual(m_variantValue, value.m_variantValue)) return false;
-            if (!Utils.IsEqual(m_enumerationValue, value.m_enumerationValue)) return false;
-            if (!Utils.IsEqual(m_structureValue, value.m_structureValue)) return false;
-            if (!Utils.IsEqual(m_numberValue, value.m_numberValue)) return false;
-            if (!Utils.IsEqual(m_integerValue, value.m_integerValue)) return false;
-            if (!Utils.IsEqual(m_uIntegerValue, value.m_uIntegerValue)) return false;
+            if (!Utils.IsEqual(m_booleanValue, value.m_booleanValue))
+                return false;
+            if (!Utils.IsEqual(m_sByteValue, value.m_sByteValue))
+                return false;
+            if (!Utils.IsEqual(m_byteValue, value.m_byteValue))
+                return false;
+            if (!Utils.IsEqual(m_int16Value, value.m_int16Value))
+                return false;
+            if (!Utils.IsEqual(m_uInt16Value, value.m_uInt16Value))
+                return false;
+            if (!Utils.IsEqual(m_int32Value, value.m_int32Value))
+                return false;
+            if (!Utils.IsEqual(m_uInt32Value, value.m_uInt32Value))
+                return false;
+            if (!Utils.IsEqual(m_int64Value, value.m_int64Value))
+                return false;
+            if (!Utils.IsEqual(m_uInt64Value, value.m_uInt64Value))
+                return false;
+            if (!Utils.IsEqual(m_floatValue, value.m_floatValue))
+                return false;
+            if (!Utils.IsEqual(m_doubleValue, value.m_doubleValue))
+                return false;
+            if (!Utils.IsEqual(m_stringValue, value.m_stringValue))
+                return false;
+            if (!Utils.IsEqual(m_dateTimeValue, value.m_dateTimeValue))
+                return false;
+            if (!Utils.IsEqual(m_guidValue, value.m_guidValue))
+                return false;
+            if (!Utils.IsEqual(m_byteStringValue, value.m_byteStringValue))
+                return false;
+            if (!Utils.IsEqual(m_xmlElementValue, value.m_xmlElementValue))
+                return false;
+            if (!Utils.IsEqual(m_nodeIdValue, value.m_nodeIdValue))
+                return false;
+            if (!Utils.IsEqual(m_expandedNodeIdValue, value.m_expandedNodeIdValue))
+                return false;
+            if (!Utils.IsEqual(m_qualifiedNameValue, value.m_qualifiedNameValue))
+                return false;
+            if (!Utils.IsEqual(m_localizedTextValue, value.m_localizedTextValue))
+                return false;
+            if (!Utils.IsEqual(m_statusCodeValue, value.m_statusCodeValue))
+                return false;
+            if (!Utils.IsEqual(m_variantValue, value.m_variantValue))
+                return false;
+            if (!Utils.IsEqual(m_enumerationValue, value.m_enumerationValue))
+                return false;
+            if (!Utils.IsEqual(m_structureValue, value.m_structureValue))
+                return false;
+            if (!Utils.IsEqual(m_numberValue, value.m_numberValue))
+                return false;
+            if (!Utils.IsEqual(m_integerValue, value.m_integerValue))
+                return false;
+            if (!Utils.IsEqual(m_uIntegerValue, value.m_uIntegerValue))
+                return false;
 
             return true;
         }
@@ -1388,13 +1442,13 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public ArrayValueDataTypeCollection() {}
+        public ArrayValueDataTypeCollection() { }
 
         /// <remarks />
-        public ArrayValueDataTypeCollection(int capacity) : base(capacity) {}
+        public ArrayValueDataTypeCollection(int capacity) : base(capacity) { }
 
         /// <remarks />
-        public ArrayValueDataTypeCollection(IEnumerable<ArrayValueDataType> collection) : base(collection) {}
+        public ArrayValueDataTypeCollection(IEnumerable<ArrayValueDataType> collection) : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -1443,11 +1497,11 @@ namespace TestData
         }
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region UserScalarValueDataType Class
-    #if (!OPCUA_EXCLUDE_UserScalarValueDataType)
+#if (!OPCUA_EXCLUDE_UserScalarValueDataType)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -1460,13 +1514,13 @@ namespace TestData
         {
             Initialize();
         }
-            
+
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-            
+
         private void Initialize()
         {
             m_booleanDataType = true;
@@ -1499,7 +1553,7 @@ namespace TestData
         [DataMember(Name = "BooleanDataType", IsRequired = false, Order = 1)]
         public bool BooleanDataType
         {
-            get { return m_booleanDataType;  }
+            get { return m_booleanDataType; }
             set { m_booleanDataType = value; }
         }
 
@@ -1507,7 +1561,7 @@ namespace TestData
         [DataMember(Name = "SByteDataType", IsRequired = false, Order = 2)]
         public sbyte SByteDataType
         {
-            get { return m_sByteDataType;  }
+            get { return m_sByteDataType; }
             set { m_sByteDataType = value; }
         }
 
@@ -1515,7 +1569,7 @@ namespace TestData
         [DataMember(Name = "ByteDataType", IsRequired = false, Order = 3)]
         public byte ByteDataType
         {
-            get { return m_byteDataType;  }
+            get { return m_byteDataType; }
             set { m_byteDataType = value; }
         }
 
@@ -1523,7 +1577,7 @@ namespace TestData
         [DataMember(Name = "Int16DataType", IsRequired = false, Order = 4)]
         public short Int16DataType
         {
-            get { return m_int16DataType;  }
+            get { return m_int16DataType; }
             set { m_int16DataType = value; }
         }
 
@@ -1531,7 +1585,7 @@ namespace TestData
         [DataMember(Name = "UInt16DataType", IsRequired = false, Order = 5)]
         public ushort UInt16DataType
         {
-            get { return m_uInt16DataType;  }
+            get { return m_uInt16DataType; }
             set { m_uInt16DataType = value; }
         }
 
@@ -1539,7 +1593,7 @@ namespace TestData
         [DataMember(Name = "Int32DataType", IsRequired = false, Order = 6)]
         public int Int32DataType
         {
-            get { return m_int32DataType;  }
+            get { return m_int32DataType; }
             set { m_int32DataType = value; }
         }
 
@@ -1547,7 +1601,7 @@ namespace TestData
         [DataMember(Name = "UInt32DataType", IsRequired = false, Order = 7)]
         public uint UInt32DataType
         {
-            get { return m_uInt32DataType;  }
+            get { return m_uInt32DataType; }
             set { m_uInt32DataType = value; }
         }
 
@@ -1555,7 +1609,7 @@ namespace TestData
         [DataMember(Name = "Int64DataType", IsRequired = false, Order = 8)]
         public long Int64DataType
         {
-            get { return m_int64DataType;  }
+            get { return m_int64DataType; }
             set { m_int64DataType = value; }
         }
 
@@ -1563,7 +1617,7 @@ namespace TestData
         [DataMember(Name = "UInt64DataType", IsRequired = false, Order = 9)]
         public ulong UInt64DataType
         {
-            get { return m_uInt64DataType;  }
+            get { return m_uInt64DataType; }
             set { m_uInt64DataType = value; }
         }
 
@@ -1571,7 +1625,7 @@ namespace TestData
         [DataMember(Name = "FloatDataType", IsRequired = false, Order = 10)]
         public float FloatDataType
         {
-            get { return m_floatDataType;  }
+            get { return m_floatDataType; }
             set { m_floatDataType = value; }
         }
 
@@ -1579,7 +1633,7 @@ namespace TestData
         [DataMember(Name = "DoubleDataType", IsRequired = false, Order = 11)]
         public double DoubleDataType
         {
-            get { return m_doubleDataType;  }
+            get { return m_doubleDataType; }
             set { m_doubleDataType = value; }
         }
 
@@ -1587,7 +1641,7 @@ namespace TestData
         [DataMember(Name = "StringDataType", IsRequired = false, Order = 12)]
         public string StringDataType
         {
-            get { return m_stringDataType;  }
+            get { return m_stringDataType; }
             set { m_stringDataType = value; }
         }
 
@@ -1595,7 +1649,7 @@ namespace TestData
         [DataMember(Name = "DateTimeDataType", IsRequired = false, Order = 13)]
         public DateTime DateTimeDataType
         {
-            get { return m_dateTimeDataType;  }
+            get { return m_dateTimeDataType; }
             set { m_dateTimeDataType = value; }
         }
 
@@ -1603,7 +1657,7 @@ namespace TestData
         [DataMember(Name = "GuidDataType", IsRequired = false, Order = 14)]
         public Uuid GuidDataType
         {
-            get { return m_guidDataType;  }
+            get { return m_guidDataType; }
             set { m_guidDataType = value; }
         }
 
@@ -1611,7 +1665,7 @@ namespace TestData
         [DataMember(Name = "ByteStringDataType", IsRequired = false, Order = 15)]
         public byte[] ByteStringDataType
         {
-            get { return m_byteStringDataType;  }
+            get { return m_byteStringDataType; }
             set { m_byteStringDataType = value; }
         }
 
@@ -1619,7 +1673,7 @@ namespace TestData
         [DataMember(Name = "XmlElementDataType", IsRequired = false, Order = 16)]
         public XmlElement XmlElementDataType
         {
-            get { return m_xmlElementDataType;  }
+            get { return m_xmlElementDataType; }
             set { m_xmlElementDataType = value; }
         }
 
@@ -1627,7 +1681,7 @@ namespace TestData
         [DataMember(Name = "NodeIdDataType", IsRequired = false, Order = 17)]
         public NodeId NodeIdDataType
         {
-            get { return m_nodeIdDataType;  }
+            get { return m_nodeIdDataType; }
             set { m_nodeIdDataType = value; }
         }
 
@@ -1635,7 +1689,7 @@ namespace TestData
         [DataMember(Name = "ExpandedNodeIdDataType", IsRequired = false, Order = 18)]
         public ExpandedNodeId ExpandedNodeIdDataType
         {
-            get { return m_expandedNodeIdDataType;  }
+            get { return m_expandedNodeIdDataType; }
             set { m_expandedNodeIdDataType = value; }
         }
 
@@ -1643,7 +1697,7 @@ namespace TestData
         [DataMember(Name = "QualifiedNameDataType", IsRequired = false, Order = 19)]
         public QualifiedName QualifiedNameDataType
         {
-            get { return m_qualifiedNameDataType;  }
+            get { return m_qualifiedNameDataType; }
             set { m_qualifiedNameDataType = value; }
         }
 
@@ -1651,7 +1705,7 @@ namespace TestData
         [DataMember(Name = "LocalizedTextDataType", IsRequired = false, Order = 20)]
         public LocalizedText LocalizedTextDataType
         {
-            get { return m_localizedTextDataType;  }
+            get { return m_localizedTextDataType; }
             set { m_localizedTextDataType = value; }
         }
 
@@ -1659,7 +1713,7 @@ namespace TestData
         [DataMember(Name = "StatusCodeDataType", IsRequired = false, Order = 21)]
         public StatusCode StatusCodeDataType
         {
-            get { return m_statusCodeDataType;  }
+            get { return m_statusCodeDataType; }
             set { m_statusCodeDataType = value; }
         }
 
@@ -1667,23 +1721,23 @@ namespace TestData
         [DataMember(Name = "VariantDataType", IsRequired = false, Order = 22)]
         public Variant VariantDataType
         {
-            get { return m_variantDataType;  }
+            get { return m_variantDataType; }
             set { m_variantDataType = value; }
         }
         #endregion
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId => DataTypeIds.UserScalarValueDataType; 
+        public virtual ExpandedNodeId TypeId => DataTypeIds.UserScalarValueDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.UserScalarValueDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.UserScalarValueDataType_Encoding_DefaultXml;
-                    
+
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.UserScalarValueDataType_Encoding_DefaultJson; 
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.UserScalarValueDataType_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -1762,28 +1816,50 @@ namespace TestData
                 return false;
             }
 
-            if (!Utils.IsEqual(m_booleanDataType, value.m_booleanDataType)) return false;
-            if (!Utils.IsEqual(m_sByteDataType, value.m_sByteDataType)) return false;
-            if (!Utils.IsEqual(m_byteDataType, value.m_byteDataType)) return false;
-            if (!Utils.IsEqual(m_int16DataType, value.m_int16DataType)) return false;
-            if (!Utils.IsEqual(m_uInt16DataType, value.m_uInt16DataType)) return false;
-            if (!Utils.IsEqual(m_int32DataType, value.m_int32DataType)) return false;
-            if (!Utils.IsEqual(m_uInt32DataType, value.m_uInt32DataType)) return false;
-            if (!Utils.IsEqual(m_int64DataType, value.m_int64DataType)) return false;
-            if (!Utils.IsEqual(m_uInt64DataType, value.m_uInt64DataType)) return false;
-            if (!Utils.IsEqual(m_floatDataType, value.m_floatDataType)) return false;
-            if (!Utils.IsEqual(m_doubleDataType, value.m_doubleDataType)) return false;
-            if (!Utils.IsEqual(m_stringDataType, value.m_stringDataType)) return false;
-            if (!Utils.IsEqual(m_dateTimeDataType, value.m_dateTimeDataType)) return false;
-            if (!Utils.IsEqual(m_guidDataType, value.m_guidDataType)) return false;
-            if (!Utils.IsEqual(m_byteStringDataType, value.m_byteStringDataType)) return false;
-            if (!Utils.IsEqual(m_xmlElementDataType, value.m_xmlElementDataType)) return false;
-            if (!Utils.IsEqual(m_nodeIdDataType, value.m_nodeIdDataType)) return false;
-            if (!Utils.IsEqual(m_expandedNodeIdDataType, value.m_expandedNodeIdDataType)) return false;
-            if (!Utils.IsEqual(m_qualifiedNameDataType, value.m_qualifiedNameDataType)) return false;
-            if (!Utils.IsEqual(m_localizedTextDataType, value.m_localizedTextDataType)) return false;
-            if (!Utils.IsEqual(m_statusCodeDataType, value.m_statusCodeDataType)) return false;
-            if (!Utils.IsEqual(m_variantDataType, value.m_variantDataType)) return false;
+            if (!Utils.IsEqual(m_booleanDataType, value.m_booleanDataType))
+                return false;
+            if (!Utils.IsEqual(m_sByteDataType, value.m_sByteDataType))
+                return false;
+            if (!Utils.IsEqual(m_byteDataType, value.m_byteDataType))
+                return false;
+            if (!Utils.IsEqual(m_int16DataType, value.m_int16DataType))
+                return false;
+            if (!Utils.IsEqual(m_uInt16DataType, value.m_uInt16DataType))
+                return false;
+            if (!Utils.IsEqual(m_int32DataType, value.m_int32DataType))
+                return false;
+            if (!Utils.IsEqual(m_uInt32DataType, value.m_uInt32DataType))
+                return false;
+            if (!Utils.IsEqual(m_int64DataType, value.m_int64DataType))
+                return false;
+            if (!Utils.IsEqual(m_uInt64DataType, value.m_uInt64DataType))
+                return false;
+            if (!Utils.IsEqual(m_floatDataType, value.m_floatDataType))
+                return false;
+            if (!Utils.IsEqual(m_doubleDataType, value.m_doubleDataType))
+                return false;
+            if (!Utils.IsEqual(m_stringDataType, value.m_stringDataType))
+                return false;
+            if (!Utils.IsEqual(m_dateTimeDataType, value.m_dateTimeDataType))
+                return false;
+            if (!Utils.IsEqual(m_guidDataType, value.m_guidDataType))
+                return false;
+            if (!Utils.IsEqual(m_byteStringDataType, value.m_byteStringDataType))
+                return false;
+            if (!Utils.IsEqual(m_xmlElementDataType, value.m_xmlElementDataType))
+                return false;
+            if (!Utils.IsEqual(m_nodeIdDataType, value.m_nodeIdDataType))
+                return false;
+            if (!Utils.IsEqual(m_expandedNodeIdDataType, value.m_expandedNodeIdDataType))
+                return false;
+            if (!Utils.IsEqual(m_qualifiedNameDataType, value.m_qualifiedNameDataType))
+                return false;
+            if (!Utils.IsEqual(m_localizedTextDataType, value.m_localizedTextDataType))
+                return false;
+            if (!Utils.IsEqual(m_statusCodeDataType, value.m_statusCodeDataType))
+                return false;
+            if (!Utils.IsEqual(m_variantDataType, value.m_variantDataType))
+                return false;
 
             return true;
         }
@@ -1861,13 +1937,13 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public UserScalarValueDataTypeCollection() {}
+        public UserScalarValueDataTypeCollection() { }
 
         /// <remarks />
-        public UserScalarValueDataTypeCollection(int capacity) : base(capacity) {}
+        public UserScalarValueDataTypeCollection(int capacity) : base(capacity) { }
 
         /// <remarks />
-        public UserScalarValueDataTypeCollection(IEnumerable<UserScalarValueDataType> collection) : base(collection) {}
+        public UserScalarValueDataTypeCollection(IEnumerable<UserScalarValueDataType> collection) : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -1916,11 +1992,11 @@ namespace TestData
         }
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region UserArrayValueDataType Class
-    #if (!OPCUA_EXCLUDE_UserArrayValueDataType)
+#if (!OPCUA_EXCLUDE_UserArrayValueDataType)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -1933,13 +2009,13 @@ namespace TestData
         {
             Initialize();
         }
-            
+
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-            
+
         private void Initialize()
         {
             m_booleanDataType = new BooleanCollection();
@@ -2411,16 +2487,16 @@ namespace TestData
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId => DataTypeIds.UserArrayValueDataType; 
+        public virtual ExpandedNodeId TypeId => DataTypeIds.UserArrayValueDataType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.UserArrayValueDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.UserArrayValueDataType_Encoding_DefaultXml;
-                    
+
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.UserArrayValueDataType_Encoding_DefaultJson; 
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.UserArrayValueDataType_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -2499,28 +2575,50 @@ namespace TestData
                 return false;
             }
 
-            if (!Utils.IsEqual(m_booleanDataType, value.m_booleanDataType)) return false;
-            if (!Utils.IsEqual(m_sByteDataType, value.m_sByteDataType)) return false;
-            if (!Utils.IsEqual(m_byteDataType, value.m_byteDataType)) return false;
-            if (!Utils.IsEqual(m_int16DataType, value.m_int16DataType)) return false;
-            if (!Utils.IsEqual(m_uInt16DataType, value.m_uInt16DataType)) return false;
-            if (!Utils.IsEqual(m_int32DataType, value.m_int32DataType)) return false;
-            if (!Utils.IsEqual(m_uInt32DataType, value.m_uInt32DataType)) return false;
-            if (!Utils.IsEqual(m_int64DataType, value.m_int64DataType)) return false;
-            if (!Utils.IsEqual(m_uInt64DataType, value.m_uInt64DataType)) return false;
-            if (!Utils.IsEqual(m_floatDataType, value.m_floatDataType)) return false;
-            if (!Utils.IsEqual(m_doubleDataType, value.m_doubleDataType)) return false;
-            if (!Utils.IsEqual(m_stringDataType, value.m_stringDataType)) return false;
-            if (!Utils.IsEqual(m_dateTimeDataType, value.m_dateTimeDataType)) return false;
-            if (!Utils.IsEqual(m_guidDataType, value.m_guidDataType)) return false;
-            if (!Utils.IsEqual(m_byteStringDataType, value.m_byteStringDataType)) return false;
-            if (!Utils.IsEqual(m_xmlElementDataType, value.m_xmlElementDataType)) return false;
-            if (!Utils.IsEqual(m_nodeIdDataType, value.m_nodeIdDataType)) return false;
-            if (!Utils.IsEqual(m_expandedNodeIdDataType, value.m_expandedNodeIdDataType)) return false;
-            if (!Utils.IsEqual(m_qualifiedNameDataType, value.m_qualifiedNameDataType)) return false;
-            if (!Utils.IsEqual(m_localizedTextDataType, value.m_localizedTextDataType)) return false;
-            if (!Utils.IsEqual(m_statusCodeDataType, value.m_statusCodeDataType)) return false;
-            if (!Utils.IsEqual(m_variantDataType, value.m_variantDataType)) return false;
+            if (!Utils.IsEqual(m_booleanDataType, value.m_booleanDataType))
+                return false;
+            if (!Utils.IsEqual(m_sByteDataType, value.m_sByteDataType))
+                return false;
+            if (!Utils.IsEqual(m_byteDataType, value.m_byteDataType))
+                return false;
+            if (!Utils.IsEqual(m_int16DataType, value.m_int16DataType))
+                return false;
+            if (!Utils.IsEqual(m_uInt16DataType, value.m_uInt16DataType))
+                return false;
+            if (!Utils.IsEqual(m_int32DataType, value.m_int32DataType))
+                return false;
+            if (!Utils.IsEqual(m_uInt32DataType, value.m_uInt32DataType))
+                return false;
+            if (!Utils.IsEqual(m_int64DataType, value.m_int64DataType))
+                return false;
+            if (!Utils.IsEqual(m_uInt64DataType, value.m_uInt64DataType))
+                return false;
+            if (!Utils.IsEqual(m_floatDataType, value.m_floatDataType))
+                return false;
+            if (!Utils.IsEqual(m_doubleDataType, value.m_doubleDataType))
+                return false;
+            if (!Utils.IsEqual(m_stringDataType, value.m_stringDataType))
+                return false;
+            if (!Utils.IsEqual(m_dateTimeDataType, value.m_dateTimeDataType))
+                return false;
+            if (!Utils.IsEqual(m_guidDataType, value.m_guidDataType))
+                return false;
+            if (!Utils.IsEqual(m_byteStringDataType, value.m_byteStringDataType))
+                return false;
+            if (!Utils.IsEqual(m_xmlElementDataType, value.m_xmlElementDataType))
+                return false;
+            if (!Utils.IsEqual(m_nodeIdDataType, value.m_nodeIdDataType))
+                return false;
+            if (!Utils.IsEqual(m_expandedNodeIdDataType, value.m_expandedNodeIdDataType))
+                return false;
+            if (!Utils.IsEqual(m_qualifiedNameDataType, value.m_qualifiedNameDataType))
+                return false;
+            if (!Utils.IsEqual(m_localizedTextDataType, value.m_localizedTextDataType))
+                return false;
+            if (!Utils.IsEqual(m_statusCodeDataType, value.m_statusCodeDataType))
+                return false;
+            if (!Utils.IsEqual(m_variantDataType, value.m_variantDataType))
+                return false;
 
             return true;
         }
@@ -2598,13 +2696,13 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public UserArrayValueDataTypeCollection() {}
+        public UserArrayValueDataTypeCollection() { }
 
         /// <remarks />
-        public UserArrayValueDataTypeCollection(int capacity) : base(capacity) {}
+        public UserArrayValueDataTypeCollection(int capacity) : base(capacity) { }
 
         /// <remarks />
-        public UserArrayValueDataTypeCollection(IEnumerable<UserArrayValueDataType> collection) : base(collection) {}
+        public UserArrayValueDataTypeCollection(IEnumerable<UserArrayValueDataType> collection) : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -2653,11 +2751,11 @@ namespace TestData
         }
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region Vector Class
-    #if (!OPCUA_EXCLUDE_Vector)
+#if (!OPCUA_EXCLUDE_Vector)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -2670,13 +2768,13 @@ namespace TestData
         {
             Initialize();
         }
-            
+
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-            
+
         private void Initialize()
         {
             m_x = (double)0;
@@ -2690,7 +2788,7 @@ namespace TestData
         [DataMember(Name = "X", IsRequired = false, Order = 1)]
         public double X
         {
-            get { return m_x;  }
+            get { return m_x; }
             set { m_x = value; }
         }
 
@@ -2698,7 +2796,7 @@ namespace TestData
         [DataMember(Name = "Y", IsRequired = false, Order = 2)]
         public double Y
         {
-            get { return m_y;  }
+            get { return m_y; }
             set { m_y = value; }
         }
 
@@ -2706,23 +2804,23 @@ namespace TestData
         [DataMember(Name = "Z", IsRequired = false, Order = 3)]
         public double Z
         {
-            get { return m_z;  }
+            get { return m_z; }
             set { m_z = value; }
         }
         #endregion
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId => DataTypeIds.Vector; 
+        public virtual ExpandedNodeId TypeId => DataTypeIds.Vector;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.Vector_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Vector_Encoding_DefaultXml;
-                    
+
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.Vector_Encoding_DefaultJson; 
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.Vector_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -2763,9 +2861,12 @@ namespace TestData
                 return false;
             }
 
-            if (!Utils.IsEqual(m_x, value.m_x)) return false;
-            if (!Utils.IsEqual(m_y, value.m_y)) return false;
-            if (!Utils.IsEqual(m_z, value.m_z)) return false;
+            if (!Utils.IsEqual(m_x, value.m_x))
+                return false;
+            if (!Utils.IsEqual(m_y, value.m_y))
+                return false;
+            if (!Utils.IsEqual(m_z, value.m_z))
+                return false;
 
             return true;
         }
@@ -2805,13 +2906,13 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public VectorCollection() {}
+        public VectorCollection() { }
 
         /// <remarks />
-        public VectorCollection(int capacity) : base(capacity) {}
+        public VectorCollection(int capacity) : base(capacity) { }
 
         /// <remarks />
-        public VectorCollection(IEnumerable<Vector> collection) : base(collection) {}
+        public VectorCollection(IEnumerable<Vector> collection) : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -2860,11 +2961,11 @@ namespace TestData
         }
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region VectorUnion Class
-    #if (!OPCUA_EXCLUDE_VectorUnion)
+#if (!OPCUA_EXCLUDE_VectorUnion)
     /// <remarks />
     /// <exclude />
     public enum VectorUnionFields : uint
@@ -2916,7 +3017,7 @@ namespace TestData
         [DataMember(Name = "X", IsRequired = false, Order = 1)]
         public double X
         {
-            get { return m_x;  }
+            get { return m_x; }
             set { m_x = value; }
         }
 
@@ -2924,7 +3025,7 @@ namespace TestData
         [DataMember(Name = "Y", IsRequired = false, Order = 2)]
         public double Y
         {
-            get { return m_y;  }
+            get { return m_y; }
             set { m_y = value; }
         }
 
@@ -2932,14 +3033,14 @@ namespace TestData
         [DataMember(Name = "Z", IsRequired = false, Order = 3)]
         public double Z
         {
-            get { return m_z;  }
+            get { return m_z; }
             set { m_z = value; }
         }
         #endregion
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId => DataTypeIds.VectorUnion; 
+        public virtual ExpandedNodeId TypeId => DataTypeIds.VectorUnion;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.VectorUnion_Encoding_DefaultBinary;
@@ -2948,7 +3049,7 @@ namespace TestData
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.VectorUnion_Encoding_DefaultXml;
 
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.VectorUnion_Encoding_DefaultJson; 
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.VectorUnion_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -2958,12 +3059,16 @@ namespace TestData
 
             switch (SwitchField)
             {
-                default: { break; }
-                case VectorUnionFields.X: { encoder.WriteDouble("X", X); break; }
-                case VectorUnionFields.Y: { encoder.WriteDouble("Y", Y); break; }
-                case VectorUnionFields.Z: { encoder.WriteDouble("Z", Z); break; }
+                default:
+                { break; }
+                case VectorUnionFields.X:
+                { encoder.WriteDouble("X", X); break; }
+                case VectorUnionFields.Y:
+                { encoder.WriteDouble("Y", Y); break; }
+                case VectorUnionFields.Z:
+                { encoder.WriteDouble("Z", Z); break; }
             }
-            
+
             encoder.PopNamespace();
         }
 
@@ -2973,13 +3078,17 @@ namespace TestData
             decoder.PushNamespace(TestData.Namespaces.TestData);
 
             SwitchField = (VectorUnionFields)decoder.ReadUInt32(nameof(SwitchField));
-                
+
             switch (SwitchField)
             {
-                default: { break; }
-                case VectorUnionFields.X: { X = decoder.ReadDouble("X"); break; }
-                case VectorUnionFields.Y: { Y = decoder.ReadDouble("Y"); break; }
-                case VectorUnionFields.Z: { Z = decoder.ReadDouble("Z"); break; }
+                default:
+                { break; }
+                case VectorUnionFields.X:
+                { X = decoder.ReadDouble("X"); break; }
+                case VectorUnionFields.Y:
+                { Y = decoder.ReadDouble("Y"); break; }
+                case VectorUnionFields.Z:
+                { Z = decoder.ReadDouble("Z"); break; }
             }
 
             decoder.PopNamespace();
@@ -3000,14 +3109,19 @@ namespace TestData
                 return false;
             }
 
-            if (value.SwitchField != this.SwitchField) return false;
+            if (value.SwitchField != this.SwitchField)
+                return false;
 
             switch (SwitchField)
             {
-                default: { break; }
-                case VectorUnionFields.X: { if (!Utils.IsEqual(m_x, value.m_x)) return false; break; }
-                case VectorUnionFields.Y: { if (!Utils.IsEqual(m_y, value.m_y)) return false; break; }
-                case VectorUnionFields.Z: { if (!Utils.IsEqual(m_z, value.m_z)) return false; break; }
+                default:
+                { break; }
+                case VectorUnionFields.X:
+                { if (!Utils.IsEqual(m_x, value.m_x)) return false; break; }
+                case VectorUnionFields.Y:
+                { if (!Utils.IsEqual(m_y, value.m_y)) return false; break; }
+                case VectorUnionFields.Z:
+                { if (!Utils.IsEqual(m_z, value.m_z)) return false; break; }
             }
 
             return true;
@@ -3028,10 +3142,14 @@ namespace TestData
 
             switch (SwitchField)
             {
-                default: { break; }
-                case VectorUnionFields.X: { clone.m_x = (double)Utils.Clone(this.m_x); break; }
-                case VectorUnionFields.Y: { clone.m_y = (double)Utils.Clone(this.m_y); break; }
-                case VectorUnionFields.Z: { clone.m_z = (double)Utils.Clone(this.m_z); break; }
+                default:
+                { break; }
+                case VectorUnionFields.X:
+                { clone.m_x = (double)Utils.Clone(this.m_x); break; }
+                case VectorUnionFields.Y:
+                { clone.m_y = (double)Utils.Clone(this.m_y); break; }
+                case VectorUnionFields.Z:
+                { clone.m_z = (double)Utils.Clone(this.m_z); break; }
             }
 
             return clone;
@@ -3054,13 +3172,13 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public VectorUnionCollection() {}
+        public VectorUnionCollection() { }
 
         /// <remarks />
-        public VectorUnionCollection(int capacity) : base(capacity) {}
+        public VectorUnionCollection(int capacity) : base(capacity) { }
 
         /// <remarks />
-        public VectorUnionCollection(IEnumerable<VectorUnion> collection) : base(collection) {}
+        public VectorUnionCollection(IEnumerable<VectorUnion> collection) : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -3109,16 +3227,16 @@ namespace TestData
         }
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region VectorWithOptionalFields Class
-    #if (!OPCUA_EXCLUDE_VectorWithOptionalFields)
+#if (!OPCUA_EXCLUDE_VectorWithOptionalFields)
     /// <remarks />
     /// <exclude />
-    
+
     public enum VectorWithOptionalFieldsFields : uint
-    {   
+    {
         None = 0,
         /// <remarks />
         X = 0x1,
@@ -3127,7 +3245,7 @@ namespace TestData
         /// <remarks />
         Z = 0x4
     }
-        
+
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -3165,7 +3283,7 @@ namespace TestData
         [DataMember(Name = "X", IsRequired = false, Order = 1)]
         public double X
         {
-            get { return m_x;  }
+            get { return m_x; }
             set { m_x = value; }
         }
 
@@ -3173,7 +3291,7 @@ namespace TestData
         [DataMember(Name = "Y", IsRequired = false, Order = 2)]
         public double Y
         {
-            get { return m_y;  }
+            get { return m_y; }
             set { m_y = value; }
         }
 
@@ -3181,23 +3299,23 @@ namespace TestData
         [DataMember(Name = "Z", IsRequired = false, Order = 3)]
         public double Z
         {
-            get { return m_z;  }
+            get { return m_z; }
             set { m_z = value; }
         }
         #endregion
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId => DataTypeIds.VectorWithOptionalFields; 
+        public virtual ExpandedNodeId TypeId => DataTypeIds.VectorWithOptionalFields;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.VectorWithOptionalFields_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.VectorWithOptionalFields_Encoding_DefaultXml;
-            
+
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.VectorWithOptionalFields_Encoding_DefaultJson; 
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.VectorWithOptionalFields_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -3205,9 +3323,12 @@ namespace TestData
             encoder.PushNamespace(TestData.Namespaces.TestData);
             encoder.WriteUInt32(nameof(EncodingMask), (uint)EncodingMask);
 
-            if ((EncodingMask & VectorWithOptionalFieldsFields.X) != 0) encoder.WriteDouble("X", X);
-            if ((EncodingMask & VectorWithOptionalFieldsFields.Y) != 0) encoder.WriteDouble("Y", Y);
-            if ((EncodingMask & VectorWithOptionalFieldsFields.Z) != 0) encoder.WriteDouble("Z", Z);
+            if ((EncodingMask & VectorWithOptionalFieldsFields.X) != 0)
+                encoder.WriteDouble("X", X);
+            if ((EncodingMask & VectorWithOptionalFieldsFields.Y) != 0)
+                encoder.WriteDouble("Y", Y);
+            if ((EncodingMask & VectorWithOptionalFieldsFields.Z) != 0)
+                encoder.WriteDouble("Z", Z);
 
             encoder.PopNamespace();
         }
@@ -3219,9 +3340,12 @@ namespace TestData
 
             EncodingMask = (VectorWithOptionalFieldsFields)decoder.ReadUInt32(nameof(EncodingMask));
 
-            if ((EncodingMask & VectorWithOptionalFieldsFields.X) != 0) X = decoder.ReadDouble("X");
-            if ((EncodingMask & VectorWithOptionalFieldsFields.Y) != 0) Y = decoder.ReadDouble("Y");
-            if ((EncodingMask & VectorWithOptionalFieldsFields.Z) != 0) Z = decoder.ReadDouble("Z");
+            if ((EncodingMask & VectorWithOptionalFieldsFields.X) != 0)
+                X = decoder.ReadDouble("X");
+            if ((EncodingMask & VectorWithOptionalFieldsFields.Y) != 0)
+                Y = decoder.ReadDouble("Y");
+            if ((EncodingMask & VectorWithOptionalFieldsFields.Z) != 0)
+                Z = decoder.ReadDouble("Z");
 
             decoder.PopNamespace();
         }
@@ -3241,11 +3365,18 @@ namespace TestData
                 return false;
             }
 
-            if (value.EncodingMask != this.EncodingMask) return false;
+            if (value.EncodingMask != this.EncodingMask)
+                return false;
 
-            if ((EncodingMask & VectorWithOptionalFieldsFields.X) != 0) if (!Utils.IsEqual(m_x, value.m_x)) return false;
-            if ((EncodingMask & VectorWithOptionalFieldsFields.Y) != 0) if (!Utils.IsEqual(m_y, value.m_y)) return false;
-            if ((EncodingMask & VectorWithOptionalFieldsFields.Z) != 0) if (!Utils.IsEqual(m_z, value.m_z)) return false;
+            if ((EncodingMask & VectorWithOptionalFieldsFields.X) != 0)
+                if (!Utils.IsEqual(m_x, value.m_x))
+                    return false;
+            if ((EncodingMask & VectorWithOptionalFieldsFields.Y) != 0)
+                if (!Utils.IsEqual(m_y, value.m_y))
+                    return false;
+            if ((EncodingMask & VectorWithOptionalFieldsFields.Z) != 0)
+                if (!Utils.IsEqual(m_z, value.m_z))
+                    return false;
 
             return true;
         }
@@ -3263,9 +3394,12 @@ namespace TestData
 
             clone.EncodingMask = this.EncodingMask;
 
-            if ((EncodingMask & VectorWithOptionalFieldsFields.X) != 0) clone.m_x = (double)Utils.Clone(this.m_x);
-            if ((EncodingMask & VectorWithOptionalFieldsFields.Y) != 0) clone.m_y = (double)Utils.Clone(this.m_y);
-            if ((EncodingMask & VectorWithOptionalFieldsFields.Z) != 0) clone.m_z = (double)Utils.Clone(this.m_z);
+            if ((EncodingMask & VectorWithOptionalFieldsFields.X) != 0)
+                clone.m_x = (double)Utils.Clone(this.m_x);
+            if ((EncodingMask & VectorWithOptionalFieldsFields.Y) != 0)
+                clone.m_y = (double)Utils.Clone(this.m_y);
+            if ((EncodingMask & VectorWithOptionalFieldsFields.Z) != 0)
+                clone.m_z = (double)Utils.Clone(this.m_z);
 
             return clone;
         }
@@ -3287,13 +3421,13 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public VectorWithOptionalFieldsCollection() {}
+        public VectorWithOptionalFieldsCollection() { }
 
         /// <remarks />
-        public VectorWithOptionalFieldsCollection(int capacity) : base(capacity) {}
+        public VectorWithOptionalFieldsCollection(int capacity) : base(capacity) { }
 
         /// <remarks />
-        public VectorWithOptionalFieldsCollection(IEnumerable<VectorWithOptionalFields> collection) : base(collection) {}
+        public VectorWithOptionalFieldsCollection(IEnumerable<VectorWithOptionalFields> collection) : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -3342,11 +3476,11 @@ namespace TestData
         }
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region MultipleVectors Class
-    #if (!OPCUA_EXCLUDE_MultipleVectors)
+#if (!OPCUA_EXCLUDE_MultipleVectors)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -3359,13 +3493,13 @@ namespace TestData
         {
             Initialize();
         }
-            
+
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-            
+
         private void Initialize()
         {
             m_vector = new Vector();
@@ -3501,16 +3635,16 @@ namespace TestData
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId => DataTypeIds.MultipleVectors; 
+        public virtual ExpandedNodeId TypeId => DataTypeIds.MultipleVectors;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.MultipleVectors_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MultipleVectors_Encoding_DefaultXml;
-                    
+
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.MultipleVectors_Encoding_DefaultJson; 
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.MultipleVectors_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -3557,12 +3691,18 @@ namespace TestData
                 return false;
             }
 
-            if (!Utils.IsEqual(m_vector, value.m_vector)) return false;
-            if (!Utils.IsEqual(m_vectorUnion, value.m_vectorUnion)) return false;
-            if (!Utils.IsEqual(m_vectorWithOptionalFields, value.m_vectorWithOptionalFields)) return false;
-            if (!Utils.IsEqual(m_vectorArray, value.m_vectorArray)) return false;
-            if (!Utils.IsEqual(m_vectorUnionArray, value.m_vectorUnionArray)) return false;
-            if (!Utils.IsEqual(m_vectorWithOptionalFieldsArray, value.m_vectorWithOptionalFieldsArray)) return false;
+            if (!Utils.IsEqual(m_vector, value.m_vector))
+                return false;
+            if (!Utils.IsEqual(m_vectorUnion, value.m_vectorUnion))
+                return false;
+            if (!Utils.IsEqual(m_vectorWithOptionalFields, value.m_vectorWithOptionalFields))
+                return false;
+            if (!Utils.IsEqual(m_vectorArray, value.m_vectorArray))
+                return false;
+            if (!Utils.IsEqual(m_vectorUnionArray, value.m_vectorUnionArray))
+                return false;
+            if (!Utils.IsEqual(m_vectorWithOptionalFieldsArray, value.m_vectorWithOptionalFieldsArray))
+                return false;
 
             return true;
         }
@@ -3608,13 +3748,13 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public MultipleVectorsCollection() {}
+        public MultipleVectorsCollection() { }
 
         /// <remarks />
-        public MultipleVectorsCollection(int capacity) : base(capacity) {}
+        public MultipleVectorsCollection(int capacity) : base(capacity) { }
 
         /// <remarks />
-        public MultipleVectorsCollection(IEnumerable<MultipleVectors> collection) : base(collection) {}
+        public MultipleVectorsCollection(IEnumerable<MultipleVectors> collection) : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -3663,11 +3803,11 @@ namespace TestData
         }
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region WorkOrderStatusType Class
-    #if (!OPCUA_EXCLUDE_WorkOrderStatusType)
+#if (!OPCUA_EXCLUDE_WorkOrderStatusType)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -3680,13 +3820,13 @@ namespace TestData
         {
             Initialize();
         }
-            
+
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-            
+
         private void Initialize()
         {
             m_actor = null;
@@ -3700,7 +3840,7 @@ namespace TestData
         [DataMember(Name = "Actor", IsRequired = false, Order = 1)]
         public string Actor
         {
-            get { return m_actor;  }
+            get { return m_actor; }
             set { m_actor = value; }
         }
 
@@ -3708,7 +3848,7 @@ namespace TestData
         [DataMember(Name = "Timestamp", IsRequired = false, Order = 2)]
         public DateTime Timestamp
         {
-            get { return m_timestamp;  }
+            get { return m_timestamp; }
             set { m_timestamp = value; }
         }
 
@@ -3716,23 +3856,23 @@ namespace TestData
         [DataMember(Name = "Comment", IsRequired = false, Order = 3)]
         public LocalizedText Comment
         {
-            get { return m_comment;  }
+            get { return m_comment; }
             set { m_comment = value; }
         }
         #endregion
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId => DataTypeIds.WorkOrderStatusType; 
+        public virtual ExpandedNodeId TypeId => DataTypeIds.WorkOrderStatusType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.WorkOrderStatusType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.WorkOrderStatusType_Encoding_DefaultXml;
-                    
+
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.WorkOrderStatusType_Encoding_DefaultJson; 
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.WorkOrderStatusType_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -3773,9 +3913,12 @@ namespace TestData
                 return false;
             }
 
-            if (!Utils.IsEqual(m_actor, value.m_actor)) return false;
-            if (!Utils.IsEqual(m_timestamp, value.m_timestamp)) return false;
-            if (!Utils.IsEqual(m_comment, value.m_comment)) return false;
+            if (!Utils.IsEqual(m_actor, value.m_actor))
+                return false;
+            if (!Utils.IsEqual(m_timestamp, value.m_timestamp))
+                return false;
+            if (!Utils.IsEqual(m_comment, value.m_comment))
+                return false;
 
             return true;
         }
@@ -3815,13 +3958,13 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public WorkOrderStatusTypeCollection() {}
+        public WorkOrderStatusTypeCollection() { }
 
         /// <remarks />
-        public WorkOrderStatusTypeCollection(int capacity) : base(capacity) {}
+        public WorkOrderStatusTypeCollection(int capacity) : base(capacity) { }
 
         /// <remarks />
-        public WorkOrderStatusTypeCollection(IEnumerable<WorkOrderStatusType> collection) : base(collection) {}
+        public WorkOrderStatusTypeCollection(IEnumerable<WorkOrderStatusType> collection) : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -3870,11 +4013,11 @@ namespace TestData
         }
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region WorkOrderType Class
-    #if (!OPCUA_EXCLUDE_WorkOrderType)
+#if (!OPCUA_EXCLUDE_WorkOrderType)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -3887,13 +4030,13 @@ namespace TestData
         {
             Initialize();
         }
-            
+
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-            
+
         private void Initialize()
         {
             m_iD = Uuid.Empty;
@@ -3908,7 +4051,7 @@ namespace TestData
         [DataMember(Name = "ID", IsRequired = false, Order = 1)]
         public Uuid ID
         {
-            get { return m_iD;  }
+            get { return m_iD; }
             set { m_iD = value; }
         }
 
@@ -3916,7 +4059,7 @@ namespace TestData
         [DataMember(Name = "AssetID", IsRequired = false, Order = 2)]
         public string AssetID
         {
-            get { return m_assetID;  }
+            get { return m_assetID; }
             set { m_assetID = value; }
         }
 
@@ -3924,7 +4067,7 @@ namespace TestData
         [DataMember(Name = "StartTime", IsRequired = false, Order = 3)]
         public DateTime StartTime
         {
-            get { return m_startTime;  }
+            get { return m_startTime; }
             set { m_startTime = value; }
         }
 
@@ -3951,16 +4094,16 @@ namespace TestData
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId => DataTypeIds.WorkOrderType; 
+        public virtual ExpandedNodeId TypeId => DataTypeIds.WorkOrderType;
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.WorkOrderType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.WorkOrderType_Encoding_DefaultXml;
-                    
+
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.WorkOrderType_Encoding_DefaultJson; 
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.WorkOrderType_Encoding_DefaultJson;
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -4003,10 +4146,14 @@ namespace TestData
                 return false;
             }
 
-            if (!Utils.IsEqual(m_iD, value.m_iD)) return false;
-            if (!Utils.IsEqual(m_assetID, value.m_assetID)) return false;
-            if (!Utils.IsEqual(m_startTime, value.m_startTime)) return false;
-            if (!Utils.IsEqual(m_statusComments, value.m_statusComments)) return false;
+            if (!Utils.IsEqual(m_iD, value.m_iD))
+                return false;
+            if (!Utils.IsEqual(m_assetID, value.m_assetID))
+                return false;
+            if (!Utils.IsEqual(m_startTime, value.m_startTime))
+                return false;
+            if (!Utils.IsEqual(m_statusComments, value.m_statusComments))
+                return false;
 
             return true;
         }
@@ -4048,13 +4195,13 @@ namespace TestData
     {
         #region Constructors
         /// <remarks />
-        public WorkOrderTypeCollection() {}
+        public WorkOrderTypeCollection() { }
 
         /// <remarks />
-        public WorkOrderTypeCollection(int capacity) : base(capacity) {}
+        public WorkOrderTypeCollection(int capacity) : base(capacity) { }
 
         /// <remarks />
-        public WorkOrderTypeCollection(IEnumerable<WorkOrderType> collection) : base(collection) {}
+        public WorkOrderTypeCollection(IEnumerable<WorkOrderType> collection) : base(collection) { }
         #endregion
 
         #region Static Operators
@@ -4103,6 +4250,6 @@ namespace TestData
         }
     }
     #endregion
-    #endif
+#endif
     #endregion
 }

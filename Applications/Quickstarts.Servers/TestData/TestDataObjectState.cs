@@ -183,8 +183,7 @@ namespace TestData
             ISystemContext context,
             MethodState method,
             NodeId objectId,
-            uint count
-        )
+            uint count)
         {
             ClearChangeMasks(context, true);
 
@@ -196,8 +195,7 @@ namespace TestData
                     "GenerateValuesEventType",
                     "en-US",
                     "New values generated for test source '{0}'.",
-                    DisplayName
-                );
+                    DisplayName);
 
                 e.Initialize(context, this, EventSeverity.MediumLow, new LocalizedText(message));
 
@@ -225,8 +223,7 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp
-        )
+            ref DateTime timestamp)
         {
             if (node is not BaseVariableState variable)
             {
@@ -254,8 +251,7 @@ namespace TestData
                     context,
                     indexRange,
                     dataEncoding,
-                    ref value
-                );
+                    ref value);
 
                 if (ServiceResult.IsBad(error))
                 {

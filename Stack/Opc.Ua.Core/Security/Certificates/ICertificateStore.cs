@@ -105,8 +105,7 @@ namespace Opc.Ua
         Task AddRejectedAsync(
             X509Certificate2Collection certificates,
             int maxCertificates,
-            CancellationToken ct = default
-        );
+            CancellationToken ct = default);
 
         /// <summary>
         /// Deletes a certificate from the store.
@@ -163,8 +162,7 @@ namespace Opc.Ua
             string subjectName,
             string applicationUri,
             NodeId certificateType,
-            string password
-        );
+            string password);
 
         /// <summary>
         /// Finds the certificate with the specified thumbprint.
@@ -183,8 +181,7 @@ namespace Opc.Ua
             string applicationUri,
             NodeId certificateType,
             string password,
-            CancellationToken ct = default
-        );
+            CancellationToken ct = default);
 
         /// <summary>
         /// Checks if issuer has revoked the certificate.
@@ -198,8 +195,7 @@ namespace Opc.Ua
         Task<StatusCode> IsRevokedAsync(
             X509Certificate2 issuer,
             X509Certificate2 certificate,
-            CancellationToken ct = default
-        );
+            CancellationToken ct = default);
 
         /// <summary>
         /// Whether the store supports CRLs.
@@ -231,8 +227,7 @@ namespace Opc.Ua
         Task<X509CRLCollection> EnumerateCRLsAsync(
             X509Certificate2 issuer,
             bool validateUpdateTime = true,
-            CancellationToken ct = default
-        );
+            CancellationToken ct = default);
 
         /// <summary>
         /// Adds a CRL to the store.

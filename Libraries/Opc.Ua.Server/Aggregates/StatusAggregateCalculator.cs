@@ -52,8 +52,7 @@ namespace Opc.Ua.Server
             DateTime endTime,
             double processingInterval,
             bool stepped,
-            AggregateConfiguration configuration
-        )
+            AggregateConfiguration configuration)
             : base(aggregateId, startTime, endTime, processingInterval, stepped, configuration)
         {
             SetPartialBit = true;
@@ -208,14 +207,11 @@ namespace Opc.Ua.Server
             };
             value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
 
-            if (
-                (StatusCode.IsBad(worstQuality) && badQualityCount > 1) ||
-                (StatusCode.IsUncertain(worstQuality) && uncertainQualityCount > 1)
-            )
+            if ((StatusCode.IsBad(worstQuality) && badQualityCount > 1) ||
+                (StatusCode.IsUncertain(worstQuality) && uncertainQualityCount > 1))
             {
                 value.StatusCode = value.StatusCode.SetAggregateBits(
-                    value.StatusCode.AggregateBits | AggregateBits.MultipleValues
-                );
+                    value.StatusCode.AggregateBits | AggregateBits.MultipleValues);
             }
 
             // return result.

@@ -37,13 +37,11 @@ namespace Opc.Ua.PubSub.Tests.Configuration
     {
         internal static readonly string PublisherConfigurationFileName = Path.Combine(
             "Configuration",
-            "PublisherConfiguration.xml"
-        );
+            "PublisherConfiguration.xml");
 
         internal static readonly string SubscriberConfigurationFileName = Path.Combine(
             "Configuration",
-            "SubscriberConfiguration.xml"
-        );
+            "SubscriberConfiguration.xml");
 
         private string m_publisherConfigurationFile;
         private string m_subscriberConfigurationFile;
@@ -60,8 +58,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 SubscriberConfigurationFileName,
                 true,
                 true,
-                false
-            );
+                false);
         }
 
         [Test(Description = "Validate transition of state Disabled_0 to Paused_1 on Publisher")]

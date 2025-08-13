@@ -92,8 +92,7 @@ namespace Opc.Ua
                         Utils.LogWarning(
                             "WARNING: Adding '{0}' to shared StringTable #{1}.",
                             m_strings[ii],
-                            InstanceId
-                        );
+                            InstanceId);
                     }
                 }
 #endif

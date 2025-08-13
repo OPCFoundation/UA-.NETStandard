@@ -105,8 +105,7 @@ namespace TestData
             InitializeVariable(
                 context,
                 VectorWithOptionalFieldsValue,
-                Variables.ScalarValueObjectType_VectorWithOptionalFieldsValue
-            );
+                Variables.ScalarValueObjectType_VectorWithOptionalFieldsValue);
             InitializeVariable(
                 context,
                 MultipleVectorsValue,
@@ -120,8 +119,7 @@ namespace TestData
             ISystemContext context,
             MethodState method,
             NodeId objectId,
-            uint count
-        )
+            uint count)
         {
             if (context.SystemHandle is not TestDataSystem system)
             {

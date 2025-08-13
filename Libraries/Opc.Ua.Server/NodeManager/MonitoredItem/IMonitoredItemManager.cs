@@ -73,8 +73,7 @@ namespace Opc.Ua.Server
             uint revisedQueueSize,
             bool createDurable,
             uint monitoredItemId,
-            Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache
-        );
+            Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache);
 
         /// <summary>
         /// Modify a monitored item
@@ -88,8 +87,7 @@ namespace Opc.Ua.Server
             double samplingInterval,
             uint revisedQueueSize,
             ISampledDataChangeMonitoredItem monitoredItem,
-            MonitoredItemModifyRequest itemToModify
-        );
+            MonitoredItemModifyRequest itemToModify);
 
         /// <summary>
         /// Delete a MonitoredItem and remove it from the table of monitored items.
@@ -97,8 +95,7 @@ namespace Opc.Ua.Server
         StatusCode DeleteMonitoredItem(
             ServerSystemContext context,
             ISampledDataChangeMonitoredItem monitoredItem,
-            NodeHandle handle
-        );
+            NodeHandle handle);
 
         /// <summary>
         /// Set the monitoring mode for a monitored item
@@ -107,8 +104,7 @@ namespace Opc.Ua.Server
             ServerSystemContext context,
             ISampledDataChangeMonitoredItem monitoredItem,
             MonitoringMode monitoringMode,
-            NodeHandle handle
-        );
+            NodeHandle handle);
 
         /// <summary>
         /// Restore a monitored item
@@ -121,8 +117,7 @@ namespace Opc.Ua.Server
             IStoredMonitoredItem storedMonitoredItem,
             IUserIdentity savedOwnerIdentity,
             Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache,
-            out ISampledDataChangeMonitoredItem monitoredItem
-        );
+            out ISampledDataChangeMonitoredItem monitoredItem);
 
         /// <summary>
         /// Subscribe to events of the specified node.
@@ -131,7 +126,6 @@ namespace Opc.Ua.Server
             ServerSystemContext context,
             NodeState source,
             IEventMonitoredItem monitoredItem,
-            bool unsubscribe
-        );
+            bool unsubscribe);
     }
 }

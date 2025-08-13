@@ -47,8 +47,7 @@ namespace Opc.Ua
             BrowseDirection browseDirection,
             QualifiedName browseName,
             IEnumerable<IReference> additionalReferences,
-            bool internalOnly
-        )
+            bool internalOnly)
         {
             SystemContext = context;
             View = view;
@@ -165,11 +164,9 @@ namespace Opc.Ua
             }
 
             // check subtypes if possible.
-            if (
-                IncludeSubtypes &&
+            if (IncludeSubtypes &&
                 SystemContext != null &&
-                SystemContext.TypeTable.IsTypeOf(referenceType, ReferenceType)
-            )
+                SystemContext.TypeTable.IsTypeOf(referenceType, ReferenceType))
             {
                 return true;
             }

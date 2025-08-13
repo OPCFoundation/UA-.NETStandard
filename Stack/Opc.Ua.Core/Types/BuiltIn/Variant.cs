@@ -70,12 +70,10 @@ namespace Opc.Ua
             var sanityCheck = TypeInfo.Construct(m_value);
 
             // except special case byte array vs. bytestring
-            if (
-                sanityCheck.BuiltInType == BuiltInType.ByteString &&
+            if (sanityCheck.BuiltInType == BuiltInType.ByteString &&
                 sanityCheck.ValueRank == ValueRanks.Scalar &&
                 typeInfo.BuiltInType == BuiltInType.Byte &&
-                typeInfo.ValueRank == ValueRanks.OneDimension
-            )
+                typeInfo.ValueRank == ValueRanks.OneDimension)
             {
                 return;
             }
@@ -89,13 +87,11 @@ namespace Opc.Ua
 
             System.Diagnostics.Debug.Assert(
                 sanityCheck.BuiltInType == TypeInfo.BuiltInType,
-                Utils.Format("{0} != {1}", sanityCheck.BuiltInType, typeInfo.BuiltInType)
-            );
+                Utils.Format("{0} != {1}", sanityCheck.BuiltInType, typeInfo.BuiltInType));
 
             System.Diagnostics.Debug.Assert(
                 sanityCheck.ValueRank == TypeInfo.ValueRank,
-                Utils.Format("{0} != {1}", sanityCheck.ValueRank, typeInfo.ValueRank)
-            );
+                Utils.Format("{0} != {1}", sanityCheck.ValueRank, typeInfo.ValueRank));
 #endif
         }
 
@@ -814,8 +810,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
                         e,
-                        "Error decoding Variant value."
-                    );
+                        "Error decoding Variant value.");
                 }
                 finally
                 {
@@ -2291,8 +2286,7 @@ namespace Opc.Ua
                         StatusCodes.BadNotSupported,
                         Utils.Format(
                             "The type '{0}' cannot be stored in a Variant object.",
-                            value.GetType().FullName)
-                    );
+                            value.GetType().FullName));
                 // convert Guids to Uuids.
                 case BuiltInType.Guid:
                     var guid = value as Guid?;
@@ -2361,8 +2355,7 @@ namespace Opc.Ua
                         StatusCodes.BadNotSupported,
                         Utils.Format(
                             "The type '{0}' cannot be stored in a Variant object.",
-                            array.GetType().FullName)
-                    );
+                            array.GetType().FullName));
                 }
                 // convert Guids to Uuids.
                 case BuiltInType.Guid:
@@ -2507,8 +2500,7 @@ namespace Opc.Ua
                 StatusCodes.BadNotSupported,
                 Utils.Format(
                     "Arrays of the type '{0}' cannot be stored in a Variant object.",
-                    value.GetType().FullName)
-            );
+                    value.GetType().FullName));
         }
 
         private object m_value;

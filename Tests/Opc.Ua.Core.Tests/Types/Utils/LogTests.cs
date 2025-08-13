@@ -173,8 +173,7 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
             Utils.Trace(
                 Utils.TraceMasks.Information,
                 "This is a Information message: {0}",
-                Utils.TraceMasks.Information
-            );
+                Utils.TraceMasks.Information);
             if (Utils.Logger.IsEnabled(LogLevel.Information))
             {
                 Assert.AreEqual(Utils.TraceMasks.Information, logger.LastTraceEventArgs.TraceMask);
@@ -216,8 +215,7 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
             Utils.Trace(
                 Utils.TraceMasks.ServiceDetail,
                 "This is a ServiceDetail message: {0}",
-                Utils.TraceMasks.ServiceDetail
-            );
+                Utils.TraceMasks.ServiceDetail);
             if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
                 Assert.AreEqual(
@@ -247,8 +245,7 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
             Utils.Trace(
                 Utils.TraceMasks.OperationDetail,
                 "This is a OperationDetail message: {0}",
-                Utils.TraceMasks.OperationDetail
-            );
+                Utils.TraceMasks.OperationDetail);
             if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
                 Assert.AreEqual(
@@ -278,8 +275,7 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
             Utils.Trace(
                 Utils.TraceMasks.ExternalSystem,
                 "This is a ExternalSystem message: {0}",
-                Utils.TraceMasks.ExternalSystem
-            );
+                Utils.TraceMasks.ExternalSystem);
             if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
                 Assert.AreEqual(

@@ -370,8 +370,7 @@ namespace Opc.Ua.Security
                 default:
                     Utils.LogWarning(
                         "Security level requested for unknown Security Policy {policy}. Returning security level 0",
-                        policyUri
-                    );
+                        policyUri);
                     return 0;
             }
 

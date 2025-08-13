@@ -75,8 +75,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// <inheritdoc/>
         public Task<IReadOnlyDictionary<NodeId, DataDictionary>> LoadDataTypeSystem(
             NodeId dataTypeSystem = null,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             return Task.FromResult<IReadOnlyDictionary<NodeId, DataDictionary>>(DataTypeSystem);
         }
@@ -85,8 +84,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public Task<IList<NodeId>> BrowseForEncodingsAsync(
             IList<ExpandedNodeId> nodeIds,
             string[] supportedEncodings,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             return Task.FromResult((IList<NodeId>)[]);
         }
@@ -111,9 +109,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 var result = new List<NodeId>();
                 foreach (
                     ReferenceNode reference in dataTypeNode.References.Where(r =>
-                        r.ReferenceTypeId.Equals(ReferenceTypeIds.HasEncoding)
-                    )
-                )
+                        r.ReferenceTypeId.Equals(ReferenceTypeIds.HasEncoding)))
                 {
                     INode encodingNode = DataTypeNodes[
                         ExpandedNodeId.ToNodeId(reference.TargetId, NamespaceUris)];
@@ -150,8 +146,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             CancellationToken ct = default)
         {
             return Task.FromResult<(ExpandedNodeId typeId, ExpandedNodeId encodingId, DataTypeNode dataTypeNode)>(
-                (null, null, null)
-            );
+                (null, null, null));
         }
 
         /// <inheritdoc/>
@@ -160,8 +155,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             bool nestedSubTypes = false,
             bool addRootNode = false,
             bool filterUATypes = true,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             var result = new List<INode>();
             var nodesToBrowse = new ExpandedNodeIdCollection { dataType };
@@ -186,14 +180,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                             n.NodeClass == NodeClass.DataType &&
                             ((DataTypeNode)n).DataTypeDefinition
                                 .Body is StructureDefinition structureDefinition &&
-                            Utils.IsEqual(structureDefinition.BaseDataType, node)
-                        )
+                            Utils.IsEqual(structureDefinition.BaseDataType, node))
                         .Cast<DataTypeNode>();
                     if (nestedSubTypes)
                     {
                         nextNodesToBrowse.AddRange(
-                            response.Select(r => NodeId.ToExpandedNodeId(r.NodeId, NamespaceUris))
-                        );
+                            response.Select(r => NodeId.ToExpandedNodeId(r.NodeId, NamespaceUris)));
                     }
                     if (filterUATypes)
                     {

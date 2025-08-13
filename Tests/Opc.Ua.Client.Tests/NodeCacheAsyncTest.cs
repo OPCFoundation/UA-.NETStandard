@@ -181,8 +181,7 @@ namespace Opc.Ua.Client.Tests
                                     node,
                                     ReferenceTypeIds.HierarchicalReferences,
                                     false,
-                                    true
-                                )
+                                    true)
                                 .ConfigureAwait(false);
                         }
                         else
@@ -191,8 +190,7 @@ namespace Opc.Ua.Client.Tests
                                 node,
                                 ReferenceTypeIds.HierarchicalReferences,
                                 false,
-                                true
-                            );
+                                true);
                         }
                         nextNodesToBrowse.AddRange(organizers.Select(n => n.NodeId));
                         IEnumerable<INode> objectNodes = organizers.Where(n => n is ObjectNode);
@@ -321,14 +319,12 @@ namespace Opc.Ua.Client.Tests
                 // is it a reference?
                 bool isTypeOf = nodeCache.IsTypeOf(
                     NodeId.ToExpandedNodeId(refId, Session.NamespaceUris),
-                    NodeId.ToExpandedNodeId(ReferenceTypeIds.References, Session.NamespaceUris)
-                );
+                    NodeId.ToExpandedNodeId(ReferenceTypeIds.References, Session.NamespaceUris));
                 Assert.IsTrue(isTypeOf);
                 // negative test
                 isTypeOf = nodeCache.IsTypeOf(
                     NodeId.ToExpandedNodeId(refId, Session.NamespaceUris),
-                    NodeId.ToExpandedNodeId(DataTypeIds.Byte, Session.NamespaceUris)
-                );
+                    NodeId.ToExpandedNodeId(DataTypeIds.Byte, Session.NamespaceUris));
                 Assert.IsFalse(isTypeOf);
                 IList<NodeId> subTypes = nodeCache.FindSubTypes(
                     NodeId.ToExpandedNodeId(refId, Session.NamespaceUris));
@@ -433,8 +429,7 @@ namespace Opc.Ua.Client.Tests
                     testSet,
                     [ReferenceTypeIds.NonHierarchicalReferences],
                     false,
-                    true
-                );
+                    true);
             }
             else
             {
@@ -625,8 +620,7 @@ namespace Opc.Ua.Client.Tests
                             testSet,
                             refTypeIds,
                             false,
-                            true
-                        );
+                            true);
                     });
                 }
                 else
@@ -797,8 +791,7 @@ namespace Opc.Ua.Client.Tests
                                     nodeId2 = Session.NodeCache.FindSuperType(
                                         ExpandedNodeId.ToNodeId(
                                             TestData.DataTypeIds.Vector,
-                                            Session.NamespaceUris)
-                                    );
+                                            Session.NamespaceUris));
                                 }
                                 else
                                 {
@@ -809,39 +802,32 @@ namespace Opc.Ua.Client.Tests
                                         .NodeCache.FindSuperTypeAsync(
                                             ExpandedNodeId.ToNodeId(
                                                 TestData.DataTypeIds.Vector,
-                                                Session.NamespaceUris)
-                                        )
+                                                Session.NamespaceUris))
                                         .ConfigureAwait(false);
                                 }
                                 Assert.AreEqual(DataTypeIds.Structure, nodeId);
                                 Assert.AreEqual(DataTypeIds.Structure, nodeId2);
                                 IList<NodeId> subTypes = Session.NodeCache.FindSubTypes(
-                                    new ExpandedNodeId((int)BuiltInType.Number)
-                                );
+                                    new ExpandedNodeId((int)BuiltInType.Number));
                                 bool isTypeOf = Session.NodeCache.IsTypeOf(
                                     new ExpandedNodeId((int)BuiltInType.Int32),
-                                    new ExpandedNodeId((int)BuiltInType.Number)
-                                );
+                                    new ExpandedNodeId((int)BuiltInType.Number));
                                 bool isTypeOf2 = Session.NodeCache.IsTypeOf(
                                     new NodeId((int)BuiltInType.UInt32),
-                                    number
-                                );
+                                    number);
                                 break;
                             case 8:
                                 bool isEncodingOf = Session.NodeCache.IsEncodingOf(
                                     new ExpandedNodeId((int)BuiltInType.Int32),
-                                    DataTypeIds.Structure
-                                );
+                                    DataTypeIds.Structure);
                                 Assert.False(isEncodingOf);
                                 bool isEncodingFor = Session.NodeCache.IsEncodingFor(
                                     DataTypeIds.Structure,
-                                    new TestData.ScalarStructureDataType()
-                                );
+                                    new TestData.ScalarStructureDataType());
                                 Assert.True(isEncodingFor);
                                 bool isEncodingFor2 = Session.NodeCache.IsEncodingFor(
                                     new NodeId((int)BuiltInType.UInt32),
-                                    new NodeId((int)BuiltInType.UInteger)
-                                );
+                                    new NodeId((int)BuiltInType.UInteger));
                                 Assert.False(isEncodingFor2);
                                 break;
                             case 9:

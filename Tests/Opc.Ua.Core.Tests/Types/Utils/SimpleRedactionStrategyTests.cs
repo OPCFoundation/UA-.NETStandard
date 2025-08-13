@@ -68,8 +68,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.That(
                 Assert.Throws<ArgumentOutOfRangeException>(
                     () => _ = new SimpleRedactionStrategy(-1, 0)).ParamName,
-                Is.EqualTo("minLength")
-            );
+                Is.EqualTo("minLength"));
         }
 
         [Test]
@@ -78,8 +77,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.That(
                 Assert.Throws<ArgumentOutOfRangeException>(
                     () => _ = new SimpleRedactionStrategy(12, -2)).ParamName,
-                Is.EqualTo("maxLength")
-            );
+                Is.EqualTo("maxLength"));
         }
 
         [Test]

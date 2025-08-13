@@ -119,8 +119,7 @@ namespace Opc.Ua.Client
             ExpandedNodeId nodeId,
             NodeId referenceTypeId,
             bool isInverse,
-            bool includeSubtypes
-        );
+            bool includeSubtypes);
 
         /// <summary>
         /// Returns the references of the specified nodes that meet the criteria specified.
@@ -129,8 +128,7 @@ namespace Opc.Ua.Client
             IList<ExpandedNodeId> nodeIds,
             IList<NodeId> referenceTypeIds,
             bool isInverse,
-            bool includeSubtypes
-        );
+            bool includeSubtypes);
 
 #if CLIENT_ASYNC
         /// <summary>
@@ -141,8 +139,7 @@ namespace Opc.Ua.Client
             NodeId referenceTypeId,
             bool isInverse,
             bool includeSubtypes,
-            CancellationToken ct = default
-        );
+            CancellationToken ct = default);
 
         /// <summary>
         /// Returns the references of the specified nodes that meet the criteria specified.
@@ -152,8 +149,7 @@ namespace Opc.Ua.Client
             IList<NodeId> referenceTypeIds,
             bool isInverse,
             bool includeSubtypes,
-            CancellationToken ct = default
-        );
+            CancellationToken ct = default);
 #endif
 
         /// <summary>

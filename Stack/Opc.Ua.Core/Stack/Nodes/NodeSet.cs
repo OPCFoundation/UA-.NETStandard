@@ -137,8 +137,7 @@ namespace Opc.Ua
             Array array,
             BuiltInType elementType,
             NamespaceTable namespaceUris,
-            StringTable serverUris
-        )
+            StringTable serverUris)
         {
             if (array == null)
             {
@@ -305,8 +304,7 @@ namespace Opc.Ua
                         m_namespaceUris,
                         m_serverUris,
                         namespaceUris,
-                        serverUris
-                    )
+                        serverUris)
                 };
 
                 node.References.Add(reference);
@@ -328,8 +326,7 @@ namespace Opc.Ua
             Node node,
             ReferenceNode referenceToExport,
             NamespaceTable namespaceUris,
-            StringTable serverUris
-        )
+            StringTable serverUris)
         {
             var reference = new ReferenceNode
             {
@@ -343,8 +340,7 @@ namespace Opc.Ua
                     m_namespaceUris,
                     m_serverUris,
                     namespaceUris,
-                    serverUris
-                )
+                    serverUris)
             };
 
             node.References.Add(reference);
@@ -491,8 +487,7 @@ namespace Opc.Ua
                 if (variableTypeToImport.Value.Value != null)
                 {
                     variableType.Value = new Variant(
-                        ImportValue(variableTypeToImport.Value.Value, namespaceUris, serverUris)
-                    );
+                        ImportValue(variableTypeToImport.Value.Value, namespaceUris, serverUris));
                 }
             }
 
@@ -510,8 +505,7 @@ namespace Opc.Ua
                         namespaceUris,
                         serverUris,
                         m_namespaceUris,
-                        m_serverUris
-                    )
+                        m_serverUris)
                 };
 
                 node.References.Add(reference);
@@ -535,12 +529,10 @@ namespace Opc.Ua
             {
                 Type elementType = array.GetType().GetElementType();
 
-                if (
-                    elementType != typeof(NodeId) &&
+                if (elementType != typeof(NodeId) &&
                     elementType != typeof(ExpandedNodeId) &&
                     elementType != typeof(object) &&
-                    elementType != typeof(ExtensionObject)
-                )
+                    elementType != typeof(ExtensionObject))
                 {
                     return array;
                 }
@@ -702,8 +694,7 @@ namespace Opc.Ua
         private static NodeId Translate(
             NodeId nodeId,
             NamespaceTable targetNamespaceUris,
-            NamespaceTable sourceNamespaceUris
-        )
+            NamespaceTable sourceNamespaceUris)
         {
             if (targetNamespaceUris == null)
             {
@@ -750,8 +741,7 @@ namespace Opc.Ua
         private static QualifiedName Translate(
             QualifiedName qname,
             NamespaceTable targetNamespaceUris,
-            NamespaceTable sourceNamespaceUris
-        )
+            NamespaceTable sourceNamespaceUris)
         {
             if (targetNamespaceUris == null)
             {
@@ -807,8 +797,7 @@ namespace Opc.Ua
             NamespaceTable targetNamespaceUris,
             StringTable targetServerUris,
             NamespaceTable sourceNamespaceUris,
-            StringTable sourceServerUris
-        )
+            StringTable sourceServerUris)
         {
             if (targetNamespaceUris == null)
             {

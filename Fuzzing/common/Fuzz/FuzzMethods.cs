@@ -67,9 +67,7 @@ namespace Opc.Ua.Fuzzing
             {
                 foreach (
                     MethodInfo method in type.GetMethods(
-                        BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static
-                    )
-                )
+                        BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static))
                 {
                     // Determine the target signature
                     ParameterInfo[] parameters = method.GetParameters();
@@ -92,8 +90,7 @@ namespace Opc.Ua.Fuzzing
             Type type = typeof(FuzzableCode);
             MethodInfo method = type.GetMethod(
                 fuzzingFunction,
-                BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static
-            );
+                BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
             if (method != null)
             {
                 // Determine the target signature
@@ -135,8 +132,7 @@ namespace Opc.Ua.Fuzzing
                 errorOutput.WriteLine(
                     "The fuzzing function {0} does not have the correct signature {1}.",
                     fuzzingFunction,
-                    parameters[0].ParameterType
-                );
+                    parameters[0].ParameterType);
             }
             else
             {

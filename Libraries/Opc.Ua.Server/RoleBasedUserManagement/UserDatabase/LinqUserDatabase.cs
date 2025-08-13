@@ -75,8 +75,7 @@ namespace Opc.Ua.Server.UserDatabase
                 throw new ArgumentException("Password cannot be empty.", nameof(password));
             }
             if ( //User Exists
-                Users.SingleOrDefault(x => x.UserName == userName) != null
-            )
+                Users.SingleOrDefault(x => x.UserName == userName) != null)
             {
                 return false;
             }
@@ -234,8 +233,7 @@ namespace Opc.Ua.Server.UserDatabase
             if (parts.Length != 3)
             {
                 throw new FormatException(
-                    "Unexpected hash format. Should be formatted as `{iterations}.{salt}.{hash}`"
-                );
+                    "Unexpected hash format. Should be formatted as `{iterations}.{salt}.{hash}`");
             }
 
             int iterations = Convert.ToInt32(parts[0], CultureInfo.InvariantCulture.NumberFormat);

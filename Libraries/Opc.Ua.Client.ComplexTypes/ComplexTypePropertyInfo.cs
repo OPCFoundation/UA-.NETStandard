@@ -57,8 +57,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public ComplexTypePropertyInfo(
             PropertyInfo propertyInfo,
             StructureFieldAttribute fieldAttribute,
-            DataMemberAttribute dataAttribute
-        )
+            DataMemberAttribute dataAttribute)
         {
             PropertyInfo = propertyInfo;
             FieldAttribute = fieldAttribute;

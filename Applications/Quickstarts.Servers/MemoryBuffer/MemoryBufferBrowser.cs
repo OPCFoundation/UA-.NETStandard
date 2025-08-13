@@ -50,8 +50,7 @@ namespace MemoryBuffer
             QualifiedName browseName,
             IEnumerable<IReference> additionalReferences,
             bool internalOnly,
-            MemoryBufferState buffer
-        )
+            MemoryBufferState buffer)
             : base(
                 context,
                 view,
@@ -60,8 +59,7 @@ namespace MemoryBuffer
                 browseDirection,
                 browseName,
                 additionalReferences,
-                internalOnly
-            )
+                internalOnly)
         {
             m_buffer = buffer;
             m_stage = Stage.Begin;

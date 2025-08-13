@@ -99,8 +99,7 @@ namespace Opc.Ua.Security.Certificates
         public X509AuthorityKeyIdentifierExtension(
             byte[] subjectKeyIdentifier,
             X500DistinguishedName authorityName,
-            byte[] serialNumber
-        )
+            byte[] serialNumber)
         {
             Issuer = authorityName;
             m_keyIdentifier = subjectKeyIdentifier;
@@ -297,8 +296,7 @@ namespace Opc.Ua.Security.Certificates
                             if (peekTag == dnameSequencyTag)
                             {
                                 AsnReader issuerReader = akiReader.ReadSequence(
-                                    new Asn1Tag(TagClass.ContextSpecific, 1)
-                                );
+                                    new Asn1Tag(TagClass.ContextSpecific, 1));
                                 if (issuerReader != null)
                                 {
                                     var directoryNameTag = new Asn1Tag(
@@ -308,8 +306,7 @@ namespace Opc.Ua.Security.Certificates
                                     Issuer = new X500DistinguishedName(
                                         issuerReader.ReadSequence(directoryNameTag)
                                             .ReadEncodedValue()
-                                            .ToArray()
-                                    );
+                                            .ToArray());
                                     issuerReader.ThrowIfNotEmpty();
                                 }
                                 continue;

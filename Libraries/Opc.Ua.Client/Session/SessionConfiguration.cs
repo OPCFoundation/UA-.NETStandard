@@ -54,8 +54,7 @@ namespace Opc.Ua.Client
             Nonce serverNonce,
             string userIdentityTokenPolicy,
             Nonce eccServerEphemeralKey,
-            NodeId authenthicationToken
-        )
+            NodeId authenthicationToken)
         {
             Timestamp = DateTime.UtcNow;
             SessionName = session.SessionName;

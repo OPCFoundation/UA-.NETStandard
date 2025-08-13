@@ -50,8 +50,7 @@ namespace Quickstarts.Servers
         private static readonly string s_storage_path = Path.Combine(
             Environment.CurrentDirectory,
             "Durable Subscriptions",
-            "Batches"
-        );
+            "Batches");
 
         private const string kBaseFilename = "_batch.txt";
 
@@ -227,8 +226,7 @@ namespace Quickstarts.Servers
                     var directory = new DirectoryInfo(s_storage_path);
                     var regex = new Regex(
                         $"{batchToRemove.MonitoredItemId}_.{batchToRemove.Id}._{kBaseFilename}$",
-                        RegexOptions.Compiled
-                    );
+                        RegexOptions.Compiled);
 
                     foreach (FileInfo file in directory.GetFiles())
                     {

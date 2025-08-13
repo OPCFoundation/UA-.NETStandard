@@ -53,8 +53,7 @@ namespace Opc.Ua.Sample
             MonitoringMode monitoringMode,
             uint clientHandle,
             double samplingInterval,
-            bool alwaysReportUpdates
-        )
+            bool alwaysReportUpdates)
         {
             m_source = source;
             Id = id;
@@ -93,8 +92,7 @@ namespace Opc.Ua.Sample
             bool discardOldest,
             DataChangeFilter filter,
             Range range,
-            bool alwaysReportUpdates
-        )
+            bool alwaysReportUpdates)
         {
             m_source = source;
             m_monitoredItemQueueFactory = monitoredItemQueueFactory;
@@ -138,8 +136,7 @@ namespace Opc.Ua.Sample
             ISubscriptionStore subscriptionStore,
             IMonitoredItemQueueFactory monitoredItemQueueFactory,
             MonitoredNode source,
-            IStoredMonitoredItem storedMonitoredItem
-        )
+            IStoredMonitoredItem storedMonitoredItem)
         {
             m_source = source;
             m_monitoredItemQueueFactory = monitoredItemQueueFactory;
@@ -169,16 +166,14 @@ namespace Opc.Ua.Sample
             {
                 IDataChangeMonitoredItemQueue queue = subscriptionStore
                     .RestoreDataChangeMonitoredItemQueue(
-                        storedMonitoredItem.Id
-                        );
+                        storedMonitoredItem.Id);
 
                 if (queue != null)
                 {
                     m_queue = new DataChangeQueueHandler(
                         queue,
                         storedMonitoredItem.DiscardOldest,
-                        storedMonitoredItem.SamplingInterval
-                    );
+                        storedMonitoredItem.SamplingInterval);
                 }
                 else
                 {
@@ -189,8 +184,7 @@ namespace Opc.Ua.Sample
                     m_queue.SetQueueSize(
                         storedMonitoredItem.QueueSize,
                         storedMonitoredItem.DiscardOldest,
-                        storedMonitoredItem.DiagnosticsMasks
-                    );
+                        storedMonitoredItem.DiagnosticsMasks);
                     m_queue.SetSamplingInterval(storedMonitoredItem.SamplingInterval);
                 }
             }
@@ -268,8 +262,7 @@ namespace Opc.Ua.Sample
             DiagnosticsMasks diagnosticsMasks,
             TimestampsToReturn timestampsToReturn,
             uint clientHandle,
-            double samplingInterval
-        )
+            double samplingInterval)
         {
             return Modify(
                 diagnosticsMasks,
@@ -293,8 +286,7 @@ namespace Opc.Ua.Sample
             uint queueSize,
             bool discardOldest,
             DataChangeFilter filter,
-            Range range
-        )
+            Range range)
         {
             lock (m_lock)
             {
@@ -343,8 +335,7 @@ namespace Opc.Ua.Sample
                         .SetQueueSize(
                             queueSize,
                             discardOldest,
-                            diagnosticsMasks
-                            );
+                            diagnosticsMasks);
                     m_queue.SetSamplingInterval(samplingInterval);
                 }
                 else
@@ -622,8 +613,7 @@ namespace Opc.Ua.Sample
             lock (m_lock)
             {
                 // check if value has changed.
-                if (
-                    !AlwaysReportUpdates &&
+                if (!AlwaysReportUpdates &&
                     !ignoreFilters &&
                     !MonitoredItem.ValueChanged(
                         value,
@@ -631,8 +621,7 @@ namespace Opc.Ua.Sample
                         m_lastValue,
                         m_lastError,
                         DataChangeFilter,
-                        m_range)
-                )
+                        m_range))
                 {
                     return;
                 }
@@ -771,8 +760,7 @@ namespace Opc.Ua.Sample
             OperationContext context,
             Queue<MonitoredItemNotification> notifications,
             Queue<DiagnosticInfo> diagnostics,
-            uint maxNotificationsPerPublish
-        )
+            uint maxNotificationsPerPublish)
         {
             lock (m_lock)
             {
@@ -796,8 +784,7 @@ namespace Opc.Ua.Sample
                     uint notificationCount = 0;
                     while (
                         notificationCount < maxNotificationsPerPublish &&
-                        m_queue.PublishSingleValue(out DataValue value, out ServiceResult error)
-                    )
+                        m_queue.PublishSingleValue(out DataValue value, out ServiceResult error))
                     {
                         Publish(context, value, error, notifications, diagnostics);
                         notificationCount++;
@@ -832,8 +819,7 @@ namespace Opc.Ua.Sample
             DataValue value,
             ServiceResult error,
             Queue<MonitoredItemNotification> notifications,
-            Queue<DiagnosticInfo> diagnostics
-        )
+            Queue<DiagnosticInfo> diagnostics)
         {
             // set semantics changed bit.
             if (m_semanticsChanged)
@@ -851,8 +837,7 @@ namespace Opc.Ua.Sample
                         error.NamespaceUri,
                         error.LocalizedText,
                         error.AdditionalInfo,
-                        error.InnerResult
-                    );
+                        error.InnerResult);
                 }
 
                 m_semanticsChanged = false;
@@ -874,8 +859,7 @@ namespace Opc.Ua.Sample
                         error.NamespaceUri,
                         error.LocalizedText,
                         error.AdditionalInfo,
-                        error.InnerResult
-                    );
+                        error.InnerResult);
                 }
 
                 m_structureChanged = false;

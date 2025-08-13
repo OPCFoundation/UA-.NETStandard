@@ -73,8 +73,7 @@ namespace Opc.Ua.Gds.Server
         ICertificateGroup Create(
             string authoritiesStorePath,
             CertificateGroupConfiguration certificateGroupConfiguration,
-            [Optional] string issuerCertificatesStorePath
-        );
+            [Optional] string issuerCertificatesStorePath);
 
         Task InitAsync();
 
@@ -90,8 +89,7 @@ namespace Opc.Ua.Gds.Server
             ApplicationRecordDataType application,
             NodeId certificateType,
             string[] domainNames,
-            byte[] certificateRequest
-        );
+            byte[] certificateRequest);
 
         Task<X509Certificate2KeyPair> NewKeyPairRequestAsync(
             ApplicationRecordDataType application,
@@ -99,7 +97,6 @@ namespace Opc.Ua.Gds.Server
             string subjectName,
             string[] domainNames,
             string privateKeyFormat,
-            string privateKeyPassword
-        );
+            string privateKeyPassword);
     }
 }

@@ -110,8 +110,7 @@ namespace Opc.Ua.Server
             out NodeId sessionId,
             out NodeId authenticationToken,
             out byte[] serverNonce,
-            out double revisedSessionTimeout
-        );
+            out double revisedSessionTimeout);
 
         /// <summary>
         /// Activates an existing session
@@ -124,8 +123,7 @@ namespace Opc.Ua.Server
             ExtensionObject userIdentityToken,
             SignatureData userTokenSignature,
             StringCollection localeIds,
-            out byte[] serverNonce
-        );
+            out byte[] serverNonce);
 
         /// <summary>
         /// Closes the specified session.
@@ -194,8 +192,7 @@ namespace Opc.Ua.Server
         public ImpersonateEventArgs(
             UserIdentityToken newIdentity,
             UserTokenPolicy userTokenPolicy,
-            EndpointDescription endpointDescription = null
-        )
+            EndpointDescription endpointDescription = null)
         {
             NewIdentity = newIdentity;
             UserTokenPolicy = userTokenPolicy;

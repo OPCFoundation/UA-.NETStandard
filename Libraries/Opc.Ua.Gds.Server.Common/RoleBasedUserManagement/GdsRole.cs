@@ -46,8 +46,7 @@ namespace Opc.Ua.Gds.Server
                     ObjectIds.WellKnownRole_DiscoveryAdmin,
                     new NamespaceTable([Namespaces.OpcUa, Namespaces.OpcUaGds])
                 ),
-                BrowseNames.WellKnownRole_DiscoveryAdmin
-            );
+                BrowseNames.WellKnownRole_DiscoveryAdmin);
 
         public static Role CertificateAuthorityAdmin { get; } =
             new Role(
@@ -55,8 +54,7 @@ namespace Opc.Ua.Gds.Server
                     ObjectIds.WellKnownRole_CertificateAuthorityAdmin,
                     new NamespaceTable([Namespaces.OpcUa, Namespaces.OpcUaGds])
                 ),
-                BrowseNames.WellKnownRole_CertificateAuthorityAdmin
-            );
+                BrowseNames.WellKnownRole_CertificateAuthorityAdmin);
 
         public static Role RegistrationAuthorityAdmin { get; } =
             new Role(
@@ -64,8 +62,7 @@ namespace Opc.Ua.Gds.Server
                     ObjectIds.WellKnownRole_RegistrationAuthorityAdmin,
                     new NamespaceTable([Namespaces.OpcUa, Namespaces.OpcUaGds])
                 ),
-                BrowseNames.WellKnownRole_RegistrationAuthorityAdmin
-            );
+                BrowseNames.WellKnownRole_RegistrationAuthorityAdmin);
 
         /// <summary>
         ///  A privilege to manage the own Certificates and pull trust list

@@ -28,8 +28,7 @@ namespace Opc.Ua.Bindings
             ITcpChannelListener listener,
             BufferManager bufferManager,
             ChannelQuotas quotas,
-            EndpointDescriptionCollection endpoints
-        )
+            EndpointDescriptionCollection endpoints)
             : base(contextId, listener, bufferManager, quotas, null, endpoints)
         {
         }
@@ -64,8 +63,7 @@ namespace Opc.Ua.Bindings
                     ForceChannelFault(
                         StatusCodes.BadTcpMessageTypeInvalid,
                         "The reverse connect handler does not recognize the message type: {0:X8}.",
-                        messageType
-                    );
+                        messageType);
 
                     return false;
                 }
@@ -86,8 +84,7 @@ namespace Opc.Ua.Bindings
             {
                 ForceChannelFault(
                     StatusCodes.BadTcpMessageTypeInvalid,
-                    "Client sent an unexpected ReverseHello message."
-                );
+                    "Client sent an unexpected ReverseHello message.");
                 return false;
             }
 
@@ -110,17 +107,14 @@ namespace Opc.Ua.Bindings
                 {
                     try
                     {
-                        if (
-                            !await Listener
+                        if (!await Listener
                                 .TransferListenerChannelAsync(Id, serverUri, endpointUri)
-                                .ConfigureAwait(false)
-                        )
+                                .ConfigureAwait(false))
                         {
                             SetResponseRequired(true);
                             ForceChannelFault(
                                 StatusCodes.BadTcpMessageTypeInvalid,
-                                "The reverse connection was rejected by the client."
-                            );
+                                "The reverse connection was rejected by the client.");
                         }
                     }
                     catch (Exception)
@@ -128,8 +122,7 @@ namespace Opc.Ua.Bindings
                         SetResponseRequired(true);
                         ForceChannelFault(
                             StatusCodes.BadInternalError,
-                            "Internal error approving the reverse connection."
-                        );
+                            "Internal error approving the reverse connection.");
                     }
                 });
             }
@@ -138,8 +131,7 @@ namespace Opc.Ua.Bindings
                 ForceChannelFault(
                     e,
                     StatusCodes.BadTcpInternalError,
-                    "Unexpected error while processing a ReverseHello message."
-                );
+                    "Unexpected error while processing a ReverseHello message.");
             }
 
             return false;

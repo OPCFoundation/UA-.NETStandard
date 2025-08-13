@@ -53,8 +53,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task StartServerAsync(
             bool clean,
             int basePort = -1,
-            string storeType = CertificateStoreType.Directory
-        )
+            string storeType = CertificateStoreType.Directory)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
 
@@ -123,8 +122,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 Config.CertificateValidator.CertificateValidation
                     += new CertificateValidationEventHandler(
-                    CertificateValidator_CertificateValidation
-                );
+                    CertificateValidator_CertificateValidation);
             }
 
             // get the DatabaseStorePath configuration parameter.
@@ -164,8 +162,7 @@ namespace Opc.Ua.Gds.Tests
                 applicationsDatabase,
                 applicationsDatabase,
                 new CertificateGroup(),
-                usersDatabase
-            );
+                usersDatabase);
             await Application.StartAsync(Server).ConfigureAwait(false);
 
             ServerState serverState = Server.CurrentState;
@@ -215,8 +212,7 @@ namespace Opc.Ua.Gds.Tests
 
         private static void CertificateValidator_CertificateValidation(
             CertificateValidator validator,
-            CertificateValidationEventArgs e
-        )
+            CertificateValidationEventArgs e)
         {
             if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
             {
@@ -281,23 +277,20 @@ namespace Opc.Ua.Gds.Tests
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     "CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost",
                     CertificateStoreType.Directory,
-                    gdsRoot
-                );
+                    gdsRoot);
 
             // build the application configuration.
             ApplicationConfiguration config = await application
                 .Build(
                     "urn:localhost:opcfoundation.org:GlobalDiscoveryTestServer",
-                    "http://opcfoundation.org/UA/GlobalDiscoveryTestServer"
-                )
+                    "http://opcfoundation.org/UA/GlobalDiscoveryTestServer")
                 .AsServer(baseAddresses)
                 .AddUserTokenPolicy(UserTokenType.Anonymous)
                 .AddUserTokenPolicy(UserTokenType.UserName)
                 .SetDiagnosticsEnabled(true)
                 .AddServerCapabilities("GDS")
                 .AddServerProfile(
-                    "http://opcfoundation.org/UA-Profile/Server/GlobalDiscoveryAndCertificateManagement2017"
-                )
+                    "http://opcfoundation.org/UA-Profile/Server/GlobalDiscoveryAndCertificateManagement2017")
                 .SetShutdownDelay(0)
                 .AddSecurityConfiguration(applicationCerts, gdsRoot)
                 .SetAutoAcceptUntrustedCertificates(true)

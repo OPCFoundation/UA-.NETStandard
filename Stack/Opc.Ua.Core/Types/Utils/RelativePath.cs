@@ -135,8 +135,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(
                         StatusCodes.BadSyntaxError,
                         "Could not convert BrowseName to a ReferenceTypeId: {0}",
-                        element.ReferenceTypeName
-                    );
+                        element.ReferenceTypeName);
                 }
 
                 relativePath.Elements.Add(parsedElement);
@@ -154,8 +153,7 @@ namespace Opc.Ua
             string browsePath,
             ITypeTable typeTree,
             NamespaceTable currentTable,
-            NamespaceTable targetTable
-        )
+            NamespaceTable targetTable)
         {
             // parse the string.
             var formatter = RelativePathFormatter.Parse(browsePath, currentTable, targetTable);
@@ -186,8 +184,7 @@ namespace Opc.Ua
                         if (typeTree == null)
                         {
                             throw new InvalidOperationException(
-                                "Cannot parse path with reference names without a type table."
-                            );
+                                "Cannot parse path with reference names without a type table.");
                         }
 
                         parsedElement.ReferenceTypeId = typeTree.FindReferenceType(
@@ -204,8 +201,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(
                         StatusCodes.BadSyntaxError,
                         "Could not convert BrowseName to a ReferenceTypeId: {0}",
-                        element.ReferenceTypeName
-                    );
+                        element.ReferenceTypeName);
                 }
 
                 relativePath.Elements.Add(parsedElement);
@@ -292,12 +288,10 @@ namespace Opc.Ua
                 // check reference type name.
                 QualifiedName qname = element.ReferenceTypeName;
 
-                if (
-                    qname != null &&
+                if (qname != null &&
                     qname.NamespaceIndex > 1 &&
                     qname.NamespaceIndex < mappings.Length &&
-                    mappings[qname.NamespaceIndex] == -1
-                )
+                    mappings[qname.NamespaceIndex] == -1)
                 {
                     mappings[qname.NamespaceIndex] = targetTable.GetIndexOrAppend(
                         uris[qname.NamespaceIndex]);
@@ -306,12 +300,10 @@ namespace Opc.Ua
                 // check target name.
                 qname = element.TargetName;
 
-                if (
-                    qname != null &&
+                if (qname != null &&
                     qname.NamespaceIndex > 1 &&
                     qname.NamespaceIndex < mappings.Length &&
-                    mappings[qname.NamespaceIndex] == -1
-                )
+                    mappings[qname.NamespaceIndex] == -1)
                 {
                     mappings[qname.NamespaceIndex] = targetTable.GetIndexOrAppend(
                         uris[qname.NamespaceIndex]);
@@ -358,8 +350,7 @@ namespace Opc.Ua
                     {
                         element.ReferenceTypeName = new QualifiedName(
                             qname.Name,
-                            (ushort)mappings[qname.NamespaceIndex]
-                        );
+                            (ushort)mappings[qname.NamespaceIndex]);
                     }
                     else
                     {
@@ -367,9 +358,7 @@ namespace Opc.Ua
                             StatusCodes.BadIndexRangeInvalid,
                             Utils.Format(
                                 "Cannot translate namespace index '{0}' to target namespace table.",
-                                qname.NamespaceIndex
-                            )
-                        );
+                                qname.NamespaceIndex));
                     }
                 }
 
@@ -390,9 +379,7 @@ namespace Opc.Ua
                             StatusCodes.BadIndexRangeInvalid,
                             Utils.Format(
                                 "Cannot translate namespace index '{0}' to target namespace table.",
-                                qname.NamespaceIndex
-                            )
-                        );
+                                qname.NamespaceIndex));
                     }
                 }
             }
@@ -458,8 +445,7 @@ namespace Opc.Ua
         public static RelativePathFormatter Parse(
             string textToParse,
             NamespaceTable currentTable,
-            NamespaceTable targetTable
-        )
+            NamespaceTable targetTable)
         {
             RelativePathFormatter path = Parse(textToParse);
 
@@ -499,8 +485,7 @@ namespace Opc.Ua
                 throw new ServiceResultException(
                     StatusCodes.BadIndexRangeInvalid,
                     Utils.Format("Cannot parse relative path: '{0}'.", textToParse),
-                    e
-                );
+                    e);
             }
 
             return path;
@@ -775,8 +760,7 @@ namespace Opc.Ua
                         {
                             throw new ServiceResultException(
                                 StatusCodes.BadSyntaxError,
-                                "Unexpected end after escape character '&'."
-                            );
+                                "Unexpected end after escape character '&'.");
                         }
                         next = reader.Read();
 
@@ -788,8 +772,7 @@ namespace Opc.Ua
 
                         throw new ServiceResultException(
                             StatusCodes.BadSyntaxError,
-                            Utils.Format("Invalid escape sequence '&{0}' in browse path.", next)
-                        );
+                            Utils.Format("Invalid escape sequence '&{0}' in browse path.", next));
                     }
 
                     // check for invalid character.
@@ -797,8 +780,7 @@ namespace Opc.Ua
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadSyntaxError,
-                            Utils.Format("Unexpected character '{0}' in browse path.", next)
-                        );
+                            Utils.Format("Unexpected character '{0}' in browse path.", next));
                     }
 
                     // append character.
@@ -811,8 +793,7 @@ namespace Opc.Ua
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadSyntaxError,
-                        Utils.Format("Missing closing '>' for reference type name in browse path.")
-                    );
+                        Utils.Format("Missing closing '>' for reference type name in browse path."));
                 }
 
                 if (buffer.Length == 0)
@@ -821,8 +802,7 @@ namespace Opc.Ua
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadSyntaxError,
-                            Utils.Format("Reference type name is null in browse path.")
-                        );
+                            Utils.Format("Reference type name is null in browse path."));
                     }
 
                     if (namespaceIndex == 0)

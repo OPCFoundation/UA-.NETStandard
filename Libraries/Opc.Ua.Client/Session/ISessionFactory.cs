@@ -59,8 +59,7 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            CancellationToken ct = default
-        );
+            CancellationToken ct = default);
 
         /// <summary>
         /// Creates a new communication session with a server by invoking the CreateSession service
@@ -84,8 +83,7 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            CancellationToken ct = default
-        );
+            CancellationToken ct = default);
 
         /// <summary>
         /// Creates a new session with a server using the specified channel by invoking the CreateSession service.
@@ -102,8 +100,7 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
             EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null
-        );
+            StringCollection discoveryProfileUris = null);
 
         /// <summary>
         /// Creates a secure channel to the specified endpoint.
@@ -121,8 +118,7 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
             bool checkDomain,
-            CancellationToken ct = default
-        );
+            CancellationToken ct = default);
 
         /// <summary>
         /// Creates a new communication session with a server using a reverse connection.
@@ -148,8 +144,7 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            CancellationToken ct = default
-        );
+            CancellationToken ct = default);
 
         /// <summary>
         /// Creates a new communication session with a server using a reverse connect manager.
@@ -175,8 +170,7 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity userIdentity,
             IList<string> preferredLocales,
-            CancellationToken ct = default
-        );
+            CancellationToken ct = default);
 
         /// <summary>
         /// Recreates a session based on a specified template.
@@ -196,8 +190,7 @@ namespace Opc.Ua.Client
         Task<ISession> RecreateAsync(
             ISession sessionTemplate,
             ITransportWaitingConnection connection,
-            CancellationToken ct = default
-        );
+            CancellationToken ct = default);
 
         /// <summary>
         /// Recreates a session based on a specified template using the provided channel.
@@ -209,7 +202,6 @@ namespace Opc.Ua.Client
         Task<ISession> RecreateAsync(
             ISession sessionTemplate,
             ITransportChannel transportChannel,
-            CancellationToken ct = default
-        );
+            CancellationToken ct = default);
     }
 }

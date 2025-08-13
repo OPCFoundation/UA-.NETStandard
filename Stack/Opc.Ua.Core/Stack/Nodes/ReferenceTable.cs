@@ -86,8 +86,7 @@ namespace Opc.Ua
             bool isInverse,
             ExpandedNodeId targetId,
             bool includeSubtypes,
-            ITypeTable typeTree
-        );
+            ITypeTable typeTree);
 
         /// <summary>
         /// Returns a list of references which match the specified criteria.
@@ -117,8 +116,7 @@ namespace Opc.Ua
             bool isInverse,
             bool includeSubtypes,
             ITypeTable typeTree,
-            int index
-        );
+            int index);
 
         /// <summary>
         /// Returns a list of references to the specified target.
@@ -223,8 +221,7 @@ namespace Opc.Ua
             bool isInverse,
             ExpandedNodeId targetId,
             bool includeSubtypes,
-            ITypeTable typeTree
-        )
+            ITypeTable typeTree)
         {
             var reference = new ReferenceNode(referenceTypeId, isInverse, targetId);
 
@@ -282,8 +279,7 @@ namespace Opc.Ua
             bool isInverse,
             bool includeSubtypes,
             ITypeTable typeTree,
-            int index
-        )
+            int index)
         {
             // get the list of matching references.
             IList<IReference> references;
@@ -358,8 +354,7 @@ namespace Opc.Ua
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(arrayIndex),
-                    "arrayIndex < 0 || arrayIndex >= array.Length"
-                );
+                    "arrayIndex < 0 || arrayIndex >= array.Length");
             }
 
             var elements = new KeyValuePair<IReference, object>[array.Length - arrayIndex];
@@ -518,8 +513,7 @@ namespace Opc.Ua
             }
 
             // go through list of references.
-            for (
-                LinkedListNode<KeyValuePair<IReference, T>> node = m_list.First;
+            for (LinkedListNode<KeyValuePair<IReference, T>> node = m_list.First;
                 node != null;
                 node = node.Next)
             {
@@ -645,8 +639,7 @@ namespace Opc.Ua
             {
                 var keys = new List<IReference>();
 
-                for (
-                    LinkedListNode<KeyValuePair<IReference, T>> node = m_list.First;
+                for (LinkedListNode<KeyValuePair<IReference, T>> node = m_list.First;
                     node != null;
                     node = node.Next)
                 {
@@ -761,8 +754,7 @@ namespace Opc.Ua
             {
                 var values = new List<T>();
 
-                for (
-                    LinkedListNode<KeyValuePair<IReference, T>> node = m_list.First;
+                for (LinkedListNode<KeyValuePair<IReference, T>> node = m_list.First;
                     node != null;
                     node = node.Next)
                 {

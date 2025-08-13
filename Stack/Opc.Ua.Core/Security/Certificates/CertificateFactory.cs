@@ -158,8 +158,7 @@ namespace Opc.Ua
             string applicationUri,
             string applicationName,
             string subjectName,
-            IList<string> domainNames
-        )
+            IList<string> domainNames)
         {
             SetSuitableDefaults(
                 ref applicationUri,
@@ -179,16 +178,14 @@ namespace Opc.Ua
         public static X509CRL RevokeCertificate(
             X509Certificate2 issuerCertificate,
             X509CRLCollection issuerCrls,
-            X509Certificate2Collection revokedCertificates
-        )
+            X509Certificate2Collection revokedCertificates)
         {
             return RevokeCertificate(
                 issuerCertificate,
                 issuerCrls,
                 revokedCertificates,
                 DateTime.UtcNow,
-                DateTime.UtcNow.AddMonths(12)
-            );
+                DateTime.UtcNow.AddMonths(12));
         }
 
         /// <summary>
@@ -206,15 +203,13 @@ namespace Opc.Ua
             X509CRLCollection issuerCrls,
             X509Certificate2Collection revokedCertificates,
             DateTime thisUpdate,
-            DateTime nextUpdate
-        )
+            DateTime nextUpdate)
         {
             if (!issuerCertificate.HasPrivateKey)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadCertificateInvalid,
-                    "Issuer certificate has no private key, cannot revoke certificate."
-                );
+                    "Issuer certificate has no private key, cannot revoke certificate.");
             }
 
             BigInteger crlSerialNumber = 0;
@@ -250,8 +245,7 @@ namespace Opc.Ua
                     {
                         crlRevokedList[cert.SerialNumber] = new RevokedCertificate(
                             cert.SerialNumber,
-                            CRLReason.PrivilegeWithdrawn
-                        );
+                            CRLReason.PrivilegeWithdrawn);
                     }
                 }
             }
@@ -285,8 +279,7 @@ namespace Opc.Ua
         public static byte[] CreateSigningRequest(
             X509Certificate2 certificate,
             // TODO: provide CertificateType to return CSR per certificate type
-            IList<string> domainNames = null
-        )
+            IList<string> domainNames = null)
         {
             if (!certificate.HasPrivateKey)
             {
@@ -303,8 +296,7 @@ namespace Opc.Ua
                     certificate.SubjectName,
                     rsaPublicKey,
                     Oids.GetHashAlgorithmName(certificate.SignatureAlgorithm.Value),
-                    RSASignaturePadding.Pkcs1
-                );
+                    RSASignaturePadding.Pkcs1);
             }
             else
             {
@@ -312,8 +304,7 @@ namespace Opc.Ua
                 request = new CertificateRequest(
                     certificate.SubjectName,
                     eCDsaPublicKey,
-                    Oids.GetHashAlgorithmName(certificate.SignatureAlgorithm.Value)
-                );
+                    Oids.GetHashAlgorithmName(certificate.SignatureAlgorithm.Value));
             }
             X509SubjectAltNameExtension alternateName = certificate
                 .FindExtension<X509SubjectAltNameExtension>();
@@ -365,8 +356,7 @@ namespace Opc.Ua
         /// <exception cref="NotSupportedException"></exception>
         public static X509Certificate2 CreateCertificateWithPrivateKey(
             X509Certificate2 certificate,
-            X509Certificate2 certificateWithPrivateKey
-        )
+            X509Certificate2 certificateWithPrivateKey)
         {
             if (!certificateWithPrivateKey.HasPrivateKey)
             {
@@ -402,8 +392,7 @@ namespace Opc.Ua
         public static X509Certificate2 CreateCertificateWithPEMPrivateKey(
             X509Certificate2 certificate,
             byte[] pemDataBlob,
-            string password = null
-        )
+            string password = null)
         {
             if (X509Utils.IsECDsaSignature(certificate))
             {
@@ -436,8 +425,7 @@ namespace Opc.Ua
         /// <exception cref="NotSupportedException"></exception>
         public static X509Certificate2 CreateCertificateWithPrivateKey(
             X509Certificate2 certificate,
-            X509Certificate2 certificateWithPrivateKey
-        )
+            X509Certificate2 certificateWithPrivateKey)
         {
             if (!certificateWithPrivateKey.HasPrivateKey)
             {
@@ -456,8 +444,7 @@ namespace Opc.Ua
                 certificate,
                 certificate.FriendlyName,
                 rsaPrivateKey,
-                passcode
-            );
+                passcode);
             return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
         }
 
@@ -469,8 +456,7 @@ namespace Opc.Ua
         public static X509Certificate2 CreateCertificateWithPEMPrivateKey(
             X509Certificate2 certificate,
             byte[] pemDataBlob,
-            string password = null
-        )
+            string password = null)
         {
 #if ECC_SUPPORT
             if (X509Utils.IsECDsaSignature(certificate))
@@ -487,8 +473,7 @@ namespace Opc.Ua
                         certificate,
                         certificate.FriendlyName,
                         privateKey,
-                        passcode
-                    );
+                        passcode);
                     return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
                 }
             }
@@ -505,8 +490,7 @@ namespace Opc.Ua
                     certificate,
                     certificate.FriendlyName,
                     privateKey,
-                    passcode
-                );
+                    passcode);
                 return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
             }
         }
@@ -520,8 +504,7 @@ namespace Opc.Ua
             ref string applicationUri,
             ref string applicationName,
             ref string subjectName,
-            ref IList<string> domainNames
-        )
+            ref IList<string> domainNames)
         {
             // parse the subject name if specified.
             List<string> subjectNameEntries = null;
@@ -538,8 +521,7 @@ namespace Opc.Ua
                 {
                     throw new ArgumentNullException(
                         nameof(applicationName),
-                        "Must specify a applicationName or a subjectName."
-                    );
+                        "Must specify a applicationName or a subjectName.");
                 }
 
                 // use the common name as the application name.
@@ -557,8 +539,7 @@ namespace Opc.Ua
             {
                 throw new ArgumentNullException(
                     nameof(applicationName),
-                    "Must specify a applicationName or a subjectName."
-                );
+                    "Must specify a applicationName or a subjectName.");
             }
 
             // remove special characters from name.
@@ -616,10 +597,8 @@ namespace Opc.Ua
 
             if (domainNames != null && domainNames.Count > 0)
             {
-                if (
-                    !subjectName.Contains("DC=", StringComparison.Ordinal) &&
-                    !subjectName.Contains('=', StringComparison.Ordinal)
-                )
+                if (!subjectName.Contains("DC=", StringComparison.Ordinal) &&
+                    !subjectName.Contains('=', StringComparison.Ordinal))
                 {
                     subjectName += Utils.Format(", DC={0}", domainNames[0]);
                 }

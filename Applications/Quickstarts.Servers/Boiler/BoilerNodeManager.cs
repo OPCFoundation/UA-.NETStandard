@@ -124,8 +124,7 @@ namespace Boiler
 
             NodeState folder = FindPredefinedNode(
                 ExpandedNodeId.ToNodeId(ObjectIds.Boilers, Server.NamespaceUris),
-                typeof(NodeState)
-            );
+                typeof(NodeState));
 
             folder.AddReference(Opc.Ua.ReferenceTypeIds.Organizes, false, boiler.NodeId);
             boiler.AddReference(Opc.Ua.ReferenceTypeIds.Organizes, true, folder.NodeId);
@@ -186,8 +185,7 @@ namespace Boiler
                 context,
                 "Quickstarts.Servers.Boiler.Generated.Boiler.PredefinedNodes.uanodes",
                 GetType().GetTypeInfo().Assembly,
-                true
-            );
+                true);
             return predefinedNodes;
         }
 
@@ -244,8 +242,7 @@ namespace Boiler
             ISystemContext systemContext,
             MonitoredItemCreateRequest itemToCreate,
             MonitoredNode monitoredNode,
-            DataChangeMonitoredItem monitoredItem
-        )
+            DataChangeMonitoredItem monitoredItem)
         {
             // TBD
         }
@@ -258,8 +255,7 @@ namespace Boiler
             MonitoredItemModifyRequest itemToModify,
             MonitoredNode monitoredNode,
             DataChangeMonitoredItem monitoredItem,
-            double previousSamplingInterval
-        )
+            double previousSamplingInterval)
         {
             // TBD
         }
@@ -270,8 +266,7 @@ namespace Boiler
         protected override void OnDeleteMonitoredItem(
             ISystemContext systemContext,
             MonitoredNode monitoredNode,
-            DataChangeMonitoredItem monitoredItem
-        )
+            DataChangeMonitoredItem monitoredItem)
         {
             // TBD
         }
@@ -284,8 +279,7 @@ namespace Boiler
             MonitoredNode monitoredNode,
             DataChangeMonitoredItem monitoredItem,
             MonitoringMode previousMode,
-            MonitoringMode currentMode
-        )
+            MonitoringMode currentMode)
         {
             // TBD
         }

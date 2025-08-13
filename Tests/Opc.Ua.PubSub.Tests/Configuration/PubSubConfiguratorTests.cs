@@ -54,13 +54,11 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
         internal static readonly string PublisherConfigurationFileName = Path.Combine(
             "Configuration",
-            "PublisherConfiguration.xml"
-        );
+            "PublisherConfiguration.xml");
 
         internal static readonly string SubscriberConfigurationFileName = Path.Combine(
             "Configuration",
-            "SubscriberConfiguration.xml"
-        );
+            "SubscriberConfiguration.xml");
 
         private UaPubSubConfigurator m_uaPubSubConfigurator;
         private PubSubConfigurationDataType m_pubConfigurationLoaded;
@@ -123,8 +121,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 CallCountConnectionAdded,
                 0,
                 "Expected value of CallCountConnectionAdded not equal to {0}",
-                expected
-            );
+                expected);
         }
 
         [Test(
@@ -142,8 +139,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.IsTrue(
                 result == StatusCodes.BadBrowseNameDuplicated,
                 "Status code received {0} instead of BadBrowseNameDuplicated",
-                result
-            );
+                result);
         }
 
         [Test(Description = "Validate AddConnection throws ArgumentException if a connection is added twice")]
@@ -155,8 +151,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             NUnit.Framework.Assert.Throws<ArgumentException>(
                 () => m_uaPubSubConfigurator.AddConnection(connection1),
-                "AddConnection shall throw ArgumentException if same connection is added twice"
-            );
+                "AddConnection shall throw ArgumentException if same connection is added twice");
         }
 
         [Test(Description = "Validate ConnectionRemoved event is triggered")]
@@ -194,8 +189,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.IsTrue(
                 result == StatusCodes.BadBrowseNameDuplicated,
                 "Status code received {0} instead of BadBrowseNameDuplicated",
-                result
-            );
+                result);
         }
 
         [Test(Description = "Validate PublishedDataSetRemoved event is triggered")]
@@ -222,8 +216,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.IsTrue(
                 StatusCode.IsGood(m_uaPubSubConfigurator.AddReaderGroup(
                     lastAddedConnId,
-                    new ReaderGroupDataType()))
-            );
+                    new ReaderGroupDataType())));
             Assert.AreEqual(expected, CallCountReaderGroupAdded, 0);
         }
 
@@ -255,8 +248,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             NUnit.Framework.Assert.Throws<ArgumentException>(
                 () => m_uaPubSubConfigurator.AddReaderGroup(lastAddedConnId, readerGroup1),
-                "AddReaderGroup shall throw ArgumentException if same reader-group is added twice"
-            );
+                "AddReaderGroup shall throw ArgumentException if same reader-group is added twice");
         }
 
         [Test(
@@ -277,8 +269,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.IsTrue(
                 result == StatusCodes.BadBrowseNameDuplicated,
                 "Status code received {0} instead of BadBrowseNameDuplicated",
-                result
-            );
+                result);
         }
 
         [Test(
@@ -291,8 +282,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.IsTrue(
                 result == StatusCodes.BadInvalidArgument,
                 "Status code received {0} instead of BadInvalidArgument",
-                result
-            );
+                result);
         }
 
         [Test(
@@ -303,8 +293,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var readerGroup = new ReaderGroupDataType { Name = "Name" };
             NUnit.Framework.Assert.Throws<ArgumentException>(
                 () => m_uaPubSubConfigurator.AddReaderGroup(lastAddedConnId, readerGroup),
-                "AddReaderGroup shall throw ArgumentException if readerGroup is added to invalid parent id"
-            );
+                "AddReaderGroup shall throw ArgumentException if readerGroup is added to invalid parent id");
         }
 
         [Test(Description = "Validate WriterGroupAdded event is triggered")]
@@ -317,8 +306,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.IsTrue(
                 StatusCode.IsGood(m_uaPubSubConfigurator.AddWriterGroup(
                     lastAddedConnId,
-                    new WriterGroupDataType()))
-            );
+                    new WriterGroupDataType())));
             Assert.AreEqual(expected, CallCountWriterGroupAdded, 0);
         }
 
@@ -357,8 +345,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.IsTrue(
                 result == StatusCodes.BadBrowseNameDuplicated,
                 "Status code received {0} instead of BadBrowseNameDuplicated",
-                result
-            );
+                result);
         }
 
         [Test(
@@ -371,8 +358,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.IsTrue(
                 result == StatusCodes.BadInvalidArgument,
                 "Status code received {0} instead of BadInvalidArgument",
-                result
-            );
+                result);
         }
 
         [Test(Description = "Validate AddWriterGroup throws ArgumentException if a WriterGroup is added twice")]
@@ -389,8 +375,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             NUnit.Framework.Assert.Throws<ArgumentException>(
                 () => m_uaPubSubConfigurator.AddWriterGroup(lastAddedConnId, writerGroup1),
-                "AddWriterGroup shall throw ArgumentException if same writerGroup is added twice"
-            );
+                "AddWriterGroup shall throw ArgumentException if same writerGroup is added twice");
         }
 
         [Test(
@@ -401,8 +386,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var writerGroup1 = new WriterGroupDataType { Name = "Name" };
             NUnit.Framework.Assert.Throws<ArgumentException>(
                 () => m_uaPubSubConfigurator.AddWriterGroup(lastAddedConnId, writerGroup1),
-                "AddWriterGroup shall throw ArgumentException if writerGroup is added to invalid parent id"
-            );
+                "AddWriterGroup shall throw ArgumentException if writerGroup is added to invalid parent id");
         }
 
         [Test(Description = "Validate DataSetReaderAdded event is triggered")]
@@ -421,9 +405,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 StatusCode.IsGood(
                     m_uaPubSubConfigurator.AddDataSetReader(
                         lastAddedReaderGroupId,
-                        new DataSetReaderDataType())
-                )
-            );
+                        new DataSetReaderDataType())));
             Assert.AreEqual(expected, CallCountDataSetReaderAdded, 0);
         }
 
@@ -472,8 +454,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.IsTrue(
                 result == StatusCodes.BadBrowseNameDuplicated,
                 "Status code received {0} instead of BadBrowseNameDuplicated",
-                result
-            );
+                result);
         }
 
         [Test(Description = "Validate AddDataSetReader throws ArgumentException if a dataset-reader is added twice")]
@@ -495,8 +476,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             NUnit.Framework.Assert.Throws<ArgumentException>(
                 () => m_uaPubSubConfigurator.AddDataSetReader(lastAddedGroup, reader1),
-                "AddDataSetReader shall throw ArgumentException if same dataset-reader is added twice"
-            );
+                "AddDataSetReader shall throw ArgumentException if same dataset-reader is added twice");
         }
 
         [Test(
@@ -509,8 +489,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.IsTrue(
                 result == StatusCodes.BadInvalidArgument,
                 "Status code received {0} instead of BadInvalidArgument",
-                result
-            );
+                result);
         }
 
         [Test(Description = "Validate DataSetWriterAdded event is triggered")]
@@ -530,9 +509,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 StatusCode.IsGood(
                     m_uaPubSubConfigurator.AddDataSetWriter(
                         lastAddedWriterGroupId,
-                        new DataSetWriterDataType())
-                )
-            );
+                        new DataSetWriterDataType())));
             Assert.AreEqual(expected, CallCountDataSetWriterAdded, 0);
         }
 
@@ -581,8 +558,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.IsTrue(
                 result == StatusCodes.BadBrowseNameDuplicated,
                 "Status code received {0} instead of BadBrowseNameDuplicated",
-                result
-            );
+                result);
         }
 
         [Test(Description = "Validate AddDataSetWriter throws ArgumentException if a dataset-reader is added twice")]
@@ -604,8 +580,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             NUnit.Framework.Assert.Throws<ArgumentException>(
                 () => m_uaPubSubConfigurator.AddDataSetWriter(lastAddedGroup, writer1),
-                "AddDataSetWriter shall throw ArgumentException if same dataset-reader is added twice"
-            );
+                "AddDataSetWriter shall throw ArgumentException if same dataset-reader is added twice");
         }
 
         [Test(
@@ -618,8 +593,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.IsTrue(
                 result == StatusCodes.BadInvalidArgument,
                 "Status code received {0} instead of BadInvalidArgument",
-                result
-            );
+                result);
         }
 
         [Test(Description = "Validate Publisher ConnectionAdded event is reflected in the parent UaPubSubApplication")]
@@ -694,15 +668,13 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
                 Assert.AreEqual(
                     uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration,
-                    psconNew
-                );
+                    psconNew);
                 Assert.AreEqual(
                     uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration
                         .WriterGroups[
                             lastAddedWriterGroupIdx
                             ],
-                    writerGroup
-                );
+                    writerGroup);
                 break;
             }
         }
@@ -789,15 +761,13 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     .FindIdForObject(writerGroup);
                 Assert.AreEqual(
                     uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration,
-                    psconNew
-                );
+                    psconNew);
                 Assert.AreEqual(
                     uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration
                         .WriterGroups[
                             lastAddedWriterGroupIdx
                             ],
-                    writerGroup
-                );
+                    writerGroup);
 
                 // Add the first data set writer in the configuration and check that it is reflected in Application
                 int lastAddedDataSetWriterIdx = uaPubSubApplication
@@ -820,8 +790,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                         .PubSubConnectionConfiguration
                         .WriterGroups[lastAddedWriterGroupIdx]
                         .DataSetWriters[lastAddedDataSetWriterIdx],
-                    dataSetWriter
-                );
+                    dataSetWriter);
                 break;
             }
         }
@@ -861,15 +830,13 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     .FindIdForObject(writerGroup);
                 Assert.AreEqual(
                     uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration,
-                    psconNew
-                );
+                    psconNew);
                 Assert.AreEqual(
                     uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration
                         .WriterGroups[
                             lastAddedWriterGroupIdx
                             ],
-                    writerGroup
-                );
+                    writerGroup);
 
                 // Add the first data set writer in the configuration and check that it is reflected in Application
                 var dataSetWriter = (DataSetWriterDataType)psconNew.WriterGroups[0]
@@ -926,8 +893,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Assert.AreEqual(
                     uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration
                         .PublishedDataSets[targetIdx],
-                    pds
-                );
+                    pds);
 
                 targetIdx++;
             }
@@ -1049,15 +1015,13 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
                 Assert.AreEqual(
                     uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration,
-                    psconNew
-                );
+                    psconNew);
                 Assert.AreEqual(
                     uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration
                         .ReaderGroups[
                             lastAddedReaderGroupIdx
                             ],
-                    readerGroup
-                );
+                    readerGroup);
                 break;
             }
         }
@@ -1144,15 +1108,13 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Assert.IsTrue(StatusCode.IsGood(result), "Status code received: " + result);
                 Assert.AreEqual(
                     uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration,
-                    psconNew
-                );
+                    psconNew);
                 Assert.AreEqual(
                     uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration
                         .ReaderGroups[
                             lastAddedReaderGroupIdx
                             ],
-                    readerGroup
-                );
+                    readerGroup);
 
                 // Add the first data set Reader in the configuration and check that it is reflected in Application
                 int lastAddedDataSetReaderIdx = uaPubSubApplication
@@ -1176,8 +1138,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                         .PubSubConnectionConfiguration
                         .ReaderGroups[lastAddedReaderGroupIdx]
                         .DataSetReaders[lastAddedDataSetReaderIdx],
-                    dataSetReader
-                );
+                    dataSetReader);
                 break;
             }
         }
@@ -1216,15 +1177,13 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     .FindIdForObject(readerGroup);
                 Assert.AreEqual(
                     uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration,
-                    psconNew
-                );
+                    psconNew);
                 Assert.AreEqual(
                     uaPubSubApplication.PubSubConnections[targetIdx].PubSubConnectionConfiguration
                         .ReaderGroups[
                             lastAddedReaderGroupIdx
                             ],
-                    readerGroup
-                );
+                    readerGroup);
 
                 // Add the first data set Reader in the configuration and check that it is reflected in Application
                 var dataSetReader = (DataSetReaderDataType)psconNew.ReaderGroups[0]

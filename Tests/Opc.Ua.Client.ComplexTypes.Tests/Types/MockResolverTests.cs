@@ -137,8 +137,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 .Cast<BuiltInType>()
 #endif
                 .Where(b => b is > BuiltInType.Null and <= BuiltInType.DiagnosticInfo)
-                .Select(b => new TestType(b))
-        )
+                .Select(b => new TestType(b)))
         {
             { nameof(DataTypeIds.BuildInfo), DataTypeIds.BuildInfo },
             { nameof(DataTypeIds.Duration), DataTypeIds.Duration },
@@ -177,8 +176,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public async Task CreateMockTypeAsync(
             [ValueSource(
                 nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
-            MemoryStreamType memoryStreamType
-        )
+            MemoryStreamType memoryStreamType)
         {
             var mockResolver = new MockResolver();
             EncodingType encoderType = encoderTypeGroup.EncoderType;
@@ -318,15 +316,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 jsonEncodingType,
                 StructureType.Structure,
                 dataTypeNode.NodeId,
-                car
-            );
+                car);
 
             // Test extracting type definition
 
             NodeIdDictionary<DataTypeDefinition> definitions = cts
                 .GetDataTypeDefinitionsForDataType(
-                    dataTypeNode.NodeId
-                    );
+                    dataTypeNode.NodeId);
             Assert.IsNotEmpty(definitions);
             Assert.AreEqual(1, definitions.Count);
             Assert.AreEqual(structure, definitions[dataTypeNode.NodeId]);
@@ -339,8 +335,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public async Task CreateMockArrayTypeAsync(
             [ValueSource(
                 nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
-            MemoryStreamType memoryStreamType
-        )
+            MemoryStreamType memoryStreamType)
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
@@ -351,12 +346,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 mockResolver.Factory,
                 mockResolver.NamespaceUris,
                 DataTypeIds.NamingRuleType,
-                typeof(NamingRuleType)
-            );
+                typeof(NamingRuleType));
 
             ushort nameSpaceIndex = mockResolver.NamespaceUris.GetIndexOrAppend(
-                "http://opcfoundation.org/MockResolver"
-            );
+                "http://opcfoundation.org/MockResolver");
             uint nodeId = 100;
 
             var structure = new StructureDefinition { BaseDataType = DataTypeIds.Structure };
@@ -560,15 +553,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 jsonEncodingType,
                 StructureType.Structure,
                 dataTypeNode.NodeId,
-                arrays
-            );
+                arrays);
 
             // Test extracting type definition
 
             NodeIdDictionary<DataTypeDefinition> definitions = cts
                 .GetDataTypeDefinitionsForDataType(
-                    dataTypeNode.NodeId
-                    );
+                    dataTypeNode.NodeId);
             Assert.IsNotEmpty(definitions);
             Assert.AreEqual(1, definitions.Count);
             Assert.AreEqual(structure, definitions[dataTypeNode.NodeId]);
@@ -584,8 +575,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             MemoryStreamType memoryStreamType,
             TestType typeDescription,
             bool randomValues,
-            TestRanks testRank
-        )
+            TestRanks testRank)
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
@@ -598,12 +588,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 mockResolver.Factory,
                 mockResolver.NamespaceUris,
                 DataTypeIds.NamingRuleType,
-                typeof(NamingRuleType)
-            );
+                typeof(NamingRuleType));
 
             ushort nameSpaceIndex = mockResolver.NamespaceUris.GetIndexOrAppend(
-                "http://opcfoundation.org/MockResolver"
-            );
+                "http://opcfoundation.org/MockResolver");
             uint nodeId = 100;
 
             var structure = new StructureDefinition { BaseDataType = DataTypeIds.Structure };
@@ -780,15 +768,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 jsonEncodingType,
                 StructureType.Structure,
                 dataTypeNode.NodeId,
-                testType
-            );
+                testType);
 
             // Test extracting type definition
 
             NodeIdDictionary<DataTypeDefinition> definitions = cts
                 .GetDataTypeDefinitionsForDataType(
-                    dataTypeNode.NodeId
-                    );
+                    dataTypeNode.NodeId);
             Assert.IsNotEmpty(definitions);
             Assert.AreEqual(1, definitions.Count);
             Assert.AreEqual(structure, definitions[dataTypeNode.NodeId]);
@@ -920,8 +906,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             IEncodeableFactory factory,
             NamespaceTable namespaceUris,
             ExpandedNodeId typeId,
-            Type enumType
-        )
+            Type enumType)
         {
             if (NodeId.IsNull(typeId) || enumType == null)
             {
@@ -934,8 +919,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
         private static ExpandedNodeId NormalizeExpandedNodeId(
             ExpandedNodeId expandedNodeId,
-            NamespaceTable namespaceUris
-        )
+            NamespaceTable namespaceUris)
         {
             var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, namespaceUris);
             return NodeId.ToExpandedNodeId(nodeId, namespaceUris);

@@ -111,8 +111,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             int propertyBuiltInTypes = BuiltInTypes.Length - 1;
             Type complexType = BuildComplexTypeWithAllBuiltInTypes(
                 structureType,
-                nameof(CreateComplexTypeWithData) + "." + randomValue.ToString()
-            );
+                nameof(CreateComplexTypeWithData) + "." + randomValue.ToString());
             Assert.NotNull(complexType);
             object emittedType = Activator.CreateInstance(complexType);
             var baseType = emittedType as BaseComplexType;

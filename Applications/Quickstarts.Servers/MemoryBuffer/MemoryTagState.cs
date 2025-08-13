@@ -48,8 +48,7 @@ namespace MemoryBuffer
                 parent.NodeId.NamespaceIndex);
             BrowseName = new QualifiedName(
                 Utils.Format("{1:X8}", parent.SymbolicName, offet),
-                parent.TypeDefinitionId.NamespaceIndex
-            );
+                parent.TypeDefinitionId.NamespaceIndex);
             DisplayName = BrowseName.Name;
             Description = null;
             WriteMask = AttributeWriteMask.None;

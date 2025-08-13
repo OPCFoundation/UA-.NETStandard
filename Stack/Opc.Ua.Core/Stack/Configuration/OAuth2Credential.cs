@@ -93,8 +93,7 @@ namespace Opc.Ua
 
         public static OAuth2Credential FindByServerUri(
             ApplicationConfiguration configuration,
-            string serverApplicationUri
-        )
+            string serverApplicationUri)
         {
             if (serverApplicationUri == null ||
                 !Uri.IsWellFormedUriString(serverApplicationUri, UriKind.Absolute))
@@ -119,8 +118,7 @@ namespace Opc.Ua
                             string uri = jj.ApplicationUri.Replace(
                                 "localhost",
                                 System.Net.Dns.GetHostName().ToLowerInvariant(),
-                                StringComparison.Ordinal
-                            );
+                                StringComparison.Ordinal);
 
                             if (uri == serverApplicationUri)
                             {
@@ -169,8 +167,7 @@ namespace Opc.Ua
                     string uri = ii.AuthorityUrl.Replace(
                         "localhost",
                         System.Net.Dns.GetHostName().ToLowerInvariant(),
-                        StringComparison.Ordinal
-                    );
+                        StringComparison.Ordinal);
 
                     if (!uri.EndsWith('/'))
                     {

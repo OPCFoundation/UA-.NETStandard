@@ -26,8 +26,7 @@ namespace Opc.Ua.Bindings
                     typeof(TcpTransportChannelFactory),
                     typeof(HttpsTransportChannelFactory),
                     typeof(OpcHttpsTransportChannelFactory)
-                ]
-            );
+                ]);
             Listeners = new TransportListenerBindings([typeof(TcpTransportListenerFactory)]);
         }
 

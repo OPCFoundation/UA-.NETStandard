@@ -60,8 +60,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="ct">Cancellation token to cancel operation with</param>
         Task<IReadOnlyDictionary<NodeId, DataDictionary>> LoadDataTypeSystem(
             NodeId dataTypeSystem = null,
-            CancellationToken ct = default
-        );
+            CancellationToken ct = default);
 
         /// <summary>
         /// Browse for the type and encoding id for a dictionary component.
@@ -94,8 +93,7 @@ namespace Opc.Ua.Client.ComplexTypes
         Task<IList<NodeId>> BrowseForEncodingsAsync(
             IList<ExpandedNodeId> nodeIds,
             string[] supportedEncodings,
-            CancellationToken ct = default
-        );
+            CancellationToken ct = default);
 
         /// <summary>
         /// Browse for the encodings of a type.
@@ -121,8 +119,7 @@ namespace Opc.Ua.Client.ComplexTypes
             bool nestedSubTypes = false,
             bool addRootNode = false,
             bool filterUATypes = true,
-            CancellationToken ct = default
-        );
+            CancellationToken ct = default);
 
         /// <summary>
         /// Finds a node in the node set.

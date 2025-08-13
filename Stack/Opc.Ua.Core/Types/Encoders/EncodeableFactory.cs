@@ -217,10 +217,8 @@ namespace Opc.Ua
                     m_encodeableTypes[nodeId] = systemType;
                 }
             }
-            else if (
-                unboundTypeIds != null &&
-                unboundTypeIds.TryGetValue(systemType.Name, out ExpandedNodeId jsonEncodingId)
-            )
+            else if (unboundTypeIds != null &&
+                unboundTypeIds.TryGetValue(systemType.Name, out ExpandedNodeId jsonEncodingId))
             {
                 m_encodeableTypes[jsonEncodingId] = systemType;
             }
@@ -403,8 +401,7 @@ namespace Opc.Ua
                     Utils.LogWarning(
                         "WARNING: Adding types from assembly '{0}' to shared Factory #{1}.",
                         assembly.FullName,
-                        InstanceId
-                    );
+                        InstanceId);
                 }
 #endif
 
@@ -425,8 +422,7 @@ namespace Opc.Ua
 
                         foreach (
                             FieldInfo field in systemTypes[ii].GetFields(
-                                BindingFlags.Static | BindingFlags.Public)
-                        )
+                                BindingFlags.Static | BindingFlags.Public))
                         {
                             if (field.Name.EndsWith(jsonEncodingSuffix, StringComparison.Ordinal))
                             {

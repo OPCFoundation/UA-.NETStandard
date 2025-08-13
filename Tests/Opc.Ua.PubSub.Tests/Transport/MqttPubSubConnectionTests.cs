@@ -68,8 +68,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         [Ignore("A mosquitto tool should be installed local in order to run correctly.")]
 #endif
         public void ValidateMqttLocalPubSubConnectionWithUadp(
-            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId
-        )
+            [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId)
         {
             RestartMosquitto();
 
@@ -110,21 +109,18 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
-                    nameSpaceIndexForData: kNamespaceIndexAllTypes
-                    );
+                    nameSpaceIndexForData: kNamespaceIndexAllTypes);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Configure the mqtt publisher configuration with the MQTTbroker
             PubSubConnectionDataType mqttPublisherConnection = MessagesHelper.GetConnection(
                 publisherConfiguration,
-                publisherId
-            );
+                publisherId);
             Assert.IsNotNull(mqttPublisherConnection, "The MQTT publisher connection is invalid.");
             mqttPublisherConnection.ConnectionProperties = mqttConfiguration.ConnectionProperties;
             Assert.IsNotNull(
                 mqttPublisherConnection.ConnectionProperties,
-                "The MQTT publisher connection properties are not valid."
-            );
+                "The MQTT publisher connection properties are not valid.");
 
             // Create publisher application for multiple datasets
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
@@ -135,25 +131,21 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration first connection should not be null"
-            );
+                "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0].WriterGroups[0],
-                "publisherConfiguration  first writer group of first connection should not be null"
-            );
+                "publisherConfiguration  first writer group of first connection should not be null");
 
             IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(
                 publisherConfiguration.Connections[0].WriterGroups[0],
-                new WriterGroupPublishState()
-            );
+                new WriterGroupPublishState());
             Assert.IsNotNull(
                 networkMessages,
                 "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(
                 networkMessages.Count,
                 1,
-                "connection.CreateNetworkMessages shall have at least one network message"
-            );
+                "connection.CreateNetworkMessages shall have at least one network message");
 
             var uaNetworkMessage = networkMessages[0] as PubSubEncoding.UadpNetworkMessage;
             Assert.IsNotNull(uaNetworkMessage, "networkMessageEncode should not be null");
@@ -172,8 +164,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
-                    nameSpaceIndexForData: kNamespaceIndexAllTypes
-                    );
+                    nameSpaceIndexForData: kNamespaceIndexAllTypes);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
@@ -181,22 +172,19 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
-                "subscriberConfiguration first connection should not be null"
-            );
+                "subscriberConfiguration first connection should not be null");
 
             // Configure the mqtt subscriber configuration with the MQTTbroker
             PubSubConnectionDataType mqttSubscriberConnection = MessagesHelper.GetConnection(
                 subscriberConfiguration,
-                publisherId
-            );
+                publisherId);
             Assert.IsNotNull(
                 mqttSubscriberConnection,
                 "The MQTT subscriber connection is invalid.");
             mqttSubscriberConnection.ConnectionProperties = mqttConfiguration.ConnectionProperties;
             Assert.IsNotNull(
                 mqttSubscriberConnection.ConnectionProperties,
-                "The MQTT subscriber connection properties are not valid."
-            );
+                "The MQTT subscriber connection properties are not valid.");
 
             List<DataSetReaderDataType> dataSetReaders = subscriberApplication
                 .PubSubConnections[0]
@@ -233,8 +221,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #endif
         public void ValidateMqttLocalPubSubConnectionWithDeltaUadp(
             [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId,
-            [Values(1, 2, 3, 4)] int keyFrameCount
-        )
+            [Values(1, 2, 3, 4)] int keyFrameCount)
         {
             RestartMosquitto();
 
@@ -275,21 +262,18 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: kNamespaceIndexAllTypes,
-                    keyFrameCount: Convert.ToUInt32(keyFrameCount)
-                    );
+                    keyFrameCount: Convert.ToUInt32(keyFrameCount));
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Configure the mqtt publisher configuration with the MQTTbroker
             PubSubConnectionDataType mqttPublisherConnection = MessagesHelper.GetConnection(
                 publisherConfiguration,
-                publisherId
-            );
+                publisherId);
             Assert.IsNotNull(mqttPublisherConnection, "The MQTT publisher connection is invalid.");
             mqttPublisherConnection.ConnectionProperties = mqttConfiguration.ConnectionProperties;
             Assert.IsNotNull(
                 mqttPublisherConnection.ConnectionProperties,
-                "The MQTT publisher connection properties are not valid."
-            );
+                "The MQTT publisher connection properties are not valid.");
 
             // Create publisher application for multiple datasets
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
@@ -300,25 +284,21 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration first connection should not be null"
-            );
+                "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0].WriterGroups[0],
-                "publisherConfiguration  first writer group of first connection should not be null"
-            );
+                "publisherConfiguration  first writer group of first connection should not be null");
 
             IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(
                 publisherConfiguration.Connections[0].WriterGroups[0],
-                new WriterGroupPublishState()
-            );
+                new WriterGroupPublishState());
             Assert.IsNotNull(
                 networkMessages,
                 "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(
                 networkMessages.Count,
                 1,
-                "connection.CreateNetworkMessages shall have at least one network message"
-            );
+                "connection.CreateNetworkMessages shall have at least one network message");
 
             var uaNetworkMessage = networkMessages[0] as PubSubEncoding.UadpNetworkMessage;
             Assert.IsNotNull(uaNetworkMessage, "networkMessageEncode should not be null");
@@ -338,8 +318,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: kNamespaceIndexAllTypes,
-                    keyFrameCount: Convert.ToUInt32(keyFrameCount)
-                    );
+                    keyFrameCount: Convert.ToUInt32(keyFrameCount));
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
@@ -347,22 +326,19 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
-                "subscriberConfiguration first connection should not be null"
-            );
+                "subscriberConfiguration first connection should not be null");
 
             // Configure the mqtt subscriber configuration with the MQTTbroker
             PubSubConnectionDataType mqttSubscriberConnection = MessagesHelper.GetConnection(
                 subscriberConfiguration,
-                publisherId
-            );
+                publisherId);
             Assert.IsNotNull(
                 mqttSubscriberConnection,
                 "The MQTT subscriber connection is invalid.");
             mqttSubscriberConnection.ConnectionProperties = mqttConfiguration.ConnectionProperties;
             Assert.IsNotNull(
                 mqttSubscriberConnection.ConnectionProperties,
-                "The MQTT subscriber connection properties are not valid."
-            );
+                "The MQTT subscriber connection properties are not valid.");
 
             List<DataSetReaderDataType> dataSetReaders = subscriberApplication
                 .PubSubConnections[0]
@@ -429,8 +405,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #endif
         public void ValidateMqttLocalPubSubConnectionWithJson(
             [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId,
-            [Values(0, 10000)] double metaDataUpdateTime
-        )
+            [Values(0, 10000)] double metaDataUpdateTime)
         {
             RestartMosquitto();
 
@@ -473,21 +448,18 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: kNamespaceIndexAllTypes,
-                    metaDataUpdateTime: metaDataUpdateTime
-                    );
+                    metaDataUpdateTime: metaDataUpdateTime);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Configure the mqtt publisher configuration with the MQTTbroker
             PubSubConnectionDataType mqttPublisherConnection = MessagesHelper.GetConnection(
                 publisherConfiguration,
-                publisherId
-            );
+                publisherId);
             Assert.IsNotNull(mqttPublisherConnection, "The MQTT publisher connection is invalid.");
             mqttPublisherConnection.ConnectionProperties = mqttConfiguration.ConnectionProperties;
             Assert.IsNotNull(
                 mqttPublisherConnection.ConnectionProperties,
-                "The MQTT publisher connection properties are not valid."
-            );
+                "The MQTT publisher connection properties are not valid.");
 
             // Create publisher application for multiple datasets
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
@@ -498,38 +470,32 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration first connection should not be null"
-            );
+                "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0].WriterGroups[0],
-                "publisherConfiguration  first writer group of first connection should not be null"
-            );
+                "publisherConfiguration  first writer group of first connection should not be null");
 
             IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(
                 publisherConfiguration.Connections[0].WriterGroups[0],
-                new WriterGroupPublishState()
-            );
+                new WriterGroupPublishState());
             Assert.IsNotNull(
                 networkMessages,
                 "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(
                 networkMessages.Count,
                 1,
-                "connection.CreateNetworkMessages shall have at least one network message"
-            );
+                "connection.CreateNetworkMessages shall have at least one network message");
 
             List<PubSubEncoding.JsonNetworkMessage> uaNetworkMessages = MessagesHelper
                 .GetJsonUaDataNetworkMessages(
-                    [.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]
-                    );
+                    [.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]);
             Assert.IsNotNull(
                 uaNetworkMessages,
                 "Json ua-data entries are missing from configuration!");
 
             List<PubSubEncoding.JsonNetworkMessage> uaMetaDataNetworkMessages =
                 MessagesHelper.GetJsonUaMetaDataNetworkMessages(
-                    [.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]
-                );
+                    [.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]);
             Assert.IsNotNull(
                 uaMetaDataNetworkMessages,
                 "Json ua-metadata entries are missing from configuration!");
@@ -551,8 +517,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
-                    nameSpaceIndexForData: kNamespaceIndexAllTypes
-                    );
+                    nameSpaceIndexForData: kNamespaceIndexAllTypes);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
@@ -560,22 +525,19 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
-                "subscriberConfiguration first connection should not be null"
-            );
+                "subscriberConfiguration first connection should not be null");
 
             // Configure the mqtt subscriber configuration with the MQTTbroker
             PubSubConnectionDataType mqttSubscriberConnection = MessagesHelper.GetConnection(
                 subscriberConfiguration,
-                publisherId
-            );
+                publisherId);
             Assert.IsNotNull(
                 mqttSubscriberConnection,
                 "The MQTT subscriber connection is invalid.");
             mqttSubscriberConnection.ConnectionProperties = mqttConfiguration.ConnectionProperties;
             Assert.IsNotNull(
                 mqttSubscriberConnection.ConnectionProperties,
-                "The MQTT subscriber connection properties are not valid."
-            );
+                "The MQTT subscriber connection properties are not valid.");
 
             List<DataSetReaderDataType> dataSetReaders = subscriberApplication
                 .PubSubConnections[0]
@@ -623,8 +585,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #endif
         public void ValidateMqttLocalPubSubConnectionWithDeltaJson(
             [Values((byte)1, (ushort)1, (uint)1, (ulong)1, "abc")] object publisherId,
-            [Values(2, 3, 4)] int keyFrameCount
-        )
+            [Values(2, 3, 4)] int keyFrameCount)
         {
             RestartMosquitto();
 
@@ -666,21 +627,18 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: kNamespaceIndexAllTypes,
                     metaDataUpdateTime: 1000,
-                    keyFrameCount: Convert.ToUInt32(keyFrameCount)
-                    );
+                    keyFrameCount: Convert.ToUInt32(keyFrameCount));
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Configure the mqtt publisher configuration with the MQTTbroker
             PubSubConnectionDataType mqttPublisherConnection = MessagesHelper.GetConnection(
                 publisherConfiguration,
-                publisherId
-            );
+                publisherId);
             Assert.IsNotNull(mqttPublisherConnection, "The MQTT publisher connection is invalid.");
             mqttPublisherConnection.ConnectionProperties = mqttConfiguration.ConnectionProperties;
             Assert.IsNotNull(
                 mqttPublisherConnection.ConnectionProperties,
-                "The MQTT publisher connection properties are not valid."
-            );
+                "The MQTT publisher connection properties are not valid.");
 
             // Create publisher application for multiple datasets
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
@@ -691,38 +649,32 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0],
-                "publisherConfiguration first connection should not be null"
-            );
+                "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(
                 publisherConfiguration.Connections[0].WriterGroups[0],
-                "publisherConfiguration  first writer group of first connection should not be null"
-            );
+                "publisherConfiguration  first writer group of first connection should not be null");
 
             IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(
                 publisherConfiguration.Connections[0].WriterGroups[0],
-                new WriterGroupPublishState()
-            );
+                new WriterGroupPublishState());
             Assert.IsNotNull(
                 networkMessages,
                 "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(
                 networkMessages.Count,
                 1,
-                "connection.CreateNetworkMessages shall have at least one network message"
-            );
+                "connection.CreateNetworkMessages shall have at least one network message");
 
             List<PubSubEncoding.JsonNetworkMessage> uaNetworkMessages = MessagesHelper
                 .GetJsonUaDataNetworkMessages(
-                    [.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]
-                    );
+                    [.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]);
             Assert.IsNotNull(
                 uaNetworkMessages,
                 "Json ua-data entries are missing from configuration!");
 
             List<PubSubEncoding.JsonNetworkMessage> uaMetaDataNetworkMessages =
                 MessagesHelper.GetJsonUaMetaDataNetworkMessages(
-                    [.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]
-                );
+                    [.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]);
             Assert.IsNotNull(
                 uaMetaDataNetworkMessages,
                 "Json ua-metadata entries are missing from configuration!");
@@ -745,8 +697,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     dataSetFieldContentMask: dataSetFieldContentMask,
                     dataSetMetaDataArray: dataSetMetaDataArray,
                     nameSpaceIndexForData: kNamespaceIndexAllTypes,
-                    keyFrameCount: Convert.ToUInt32(keyFrameCount)
-                    );
+                    keyFrameCount: Convert.ToUInt32(keyFrameCount));
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
@@ -754,22 +705,19 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
             Assert.IsNotNull(
                 subscriberApplication.PubSubConnections[0],
-                "subscriberConfiguration first connection should not be null"
-            );
+                "subscriberConfiguration first connection should not be null");
 
             // Configure the mqtt subscriber configuration with the MQTTbroker
             PubSubConnectionDataType mqttSubscriberConnection = MessagesHelper.GetConnection(
                 subscriberConfiguration,
-                publisherId
-            );
+                publisherId);
             Assert.IsNotNull(
                 mqttSubscriberConnection,
                 "The MQTT subscriber connection is invalid.");
             mqttSubscriberConnection.ConnectionProperties = mqttConfiguration.ConnectionProperties;
             Assert.IsNotNull(
                 mqttSubscriberConnection.ConnectionProperties,
-                "The MQTT subscriber connection properties are not valid."
-            );
+                "The MQTT subscriber connection properties are not valid.");
 
             List<DataSetReaderDataType> dataSetReaders = subscriberApplication
                 .PubSubConnections[0]
@@ -843,12 +791,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 {
                     foreach (Field field in dataSetMessage.DataSet.Fields)
                     {
-                        if (
-                            m_snapshotData.TryGetValue(
+                        if (m_snapshotData.TryGetValue(
                                 field.TargetNodeId,
                                 out DataValue snapshotValue) &&
-                            !field.Value.Equals(snapshotValue)
-                        )
+                            !field.Value.Equals(snapshotValue))
                         {
                             hasChanged = true;
                         }
@@ -909,9 +855,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 process.StartInfo = new ProcessStartInfo(
                     Path.Combine(
                         programFilesPath,
-                        Path.Combine(DefaultBrokerProcessName, $"{DefaultBrokerProcessName}.exe")
-                    )
-                )
+                        Path.Combine(DefaultBrokerProcessName, $"{DefaultBrokerProcessName}.exe")))
                 {
                     WindowStyle = ProcessWindowStyle.Hidden,
                     //startInfo.CreateNoWindow = true;

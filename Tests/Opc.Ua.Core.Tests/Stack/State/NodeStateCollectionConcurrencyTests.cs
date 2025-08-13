@@ -36,8 +36,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 new NodeId("TestNode", 7),
                 new QualifiedName("TestNode", 7),
                 new LocalizedText("TestNode"),
-                true
-            );
+                true);
 
             var references = new List<IReference>();
 
@@ -62,8 +61,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
                     referenceTargets.CompleteAdding();
                 },
-                cancellationToken
-            );
+                cancellationToken);
 
             foreach (ExpandedNodeId target in referenceTargets.GetConsumingEnumerable(
                 cancellationToken))
@@ -71,8 +69,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 bool removeReferenceSuccess = testNodeState.RemoveReference(
                     ReferenceTypeIds.HasComponent,
                     false,
-                    target
-                );
+                    target);
                 Assert.IsTrue(removeReferenceSuccess);
             }
 
@@ -101,8 +98,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 new NodeId("TestNode", 7),
                 new QualifiedName("TestNode", 7),
                 new LocalizedText("TestNode"),
-                true
-            );
+                true);
 
             var notifiers = new List<NodeState.Notifier>();
 
@@ -130,8 +126,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                             new NodeId("TestNode", 7),
                             new QualifiedName("TestNode", 7),
                             new LocalizedText("TestNode"),
-                            true
-                        );
+                            true);
 
                         var target = new ExpandedNodeId(index++, "test.namespace");
                         testNodeState.AddNotifier(
@@ -144,8 +139,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
                     notifierTargets.CompleteAdding();
                 },
-                cancellationToken
-            );
+                cancellationToken);
 
             foreach (NodeState target in notifierTargets.GetConsumingEnumerable(cancellationToken))
             {
@@ -177,8 +171,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 new NodeId("TestNode", 7),
                 new QualifiedName("TestNode", 7),
                 new LocalizedText("TestNode"),
-                true
-            );
+                true);
 
             var children = new List<BaseInstanceState>();
 
@@ -206,8 +199,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                             new NodeId("TestNode", 7),
                             new QualifiedName("TestNode", 7),
                             new LocalizedText("TestNode"),
-                            true
-                        );
+                            true);
 
                         var target = new ExpandedNodeId(index++, "test.namespace");
                         testNodeState.AddChild(targetState);
@@ -216,8 +208,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
                     childrenCollection.CompleteAdding();
                 },
-                cancellationToken
-            );
+                cancellationToken);
 
             foreach (BaseInstanceState child in childrenCollection.GetConsumingEnumerable(
                 cancellationToken))

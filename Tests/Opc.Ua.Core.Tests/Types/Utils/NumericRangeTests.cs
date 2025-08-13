@@ -118,8 +118,7 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
                 new int[,]
                 {
                     { 10 }
-                }
-            );
+                });
 
             Assert.AreEqual(new StatusCode(StatusCodes.Good), statusCode);
 
@@ -135,8 +134,7 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
                     { 4, 10, 6 },
                     { 7, 8, 9 }
                 },
-                modifiedInt3x3Matrix
-            );
+                modifiedInt3x3Matrix);
         }
 
         private static readonly string[] s_src = ["ha"];
@@ -185,8 +183,7 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
                     [0x11, 0x22, 0x33, 0x44],
                     [0x55, 0xDD, 0xEE, 0x88],
                     [0x99, 0xAA, 0xBB, 0xCC] },
-                updatedValue
-            );
+                updatedValue);
         }
     }
 }

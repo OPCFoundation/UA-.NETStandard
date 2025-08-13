@@ -79,9 +79,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 var xmlEncoder = new XmlEncoder(
                     new XmlQualifiedName("FloatSpecialValues", Namespaces.OpcUaXsd),
                     null,
-                    context
-                )
-            )
+                    context))
             {
                 xmlEncoder.PushNamespace(Namespaces.OpcUaXsd);
                 xmlEncoder.WriteFloat("Value", binaryValue);
@@ -130,9 +128,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 var xmlEncoder = new XmlEncoder(
                     new XmlQualifiedName("DoubleSpecialValues", Namespaces.OpcUaXsd),
                     null,
-                    context
-                )
-            )
+                    context))
             {
                 xmlEncoder.PushNamespace(Namespaces.OpcUaXsd);
                 xmlEncoder.WriteDouble("Value", binaryValue);
@@ -184,8 +180,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 var xmlEncoder = new XmlEncoder(
                     new XmlQualifiedName("VariantTest", Namespaces.OpcUaXsd),
                     null,
-                    context)
-            )
+                    context))
             {
                 xmlEncoder.PushNamespace(Namespaces.OpcUaXsd);
                 xmlEncoder.WriteVariant("Test", variant);
@@ -198,8 +193,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 expected.Replace("\r", string.Empty, StringComparison.Ordinal)
                     .Replace("\n", string.Empty, StringComparison.Ordinal),
                 actualXmlValue.Replace("\r", string.Empty, StringComparison.Ordinal)
-                    .Replace("\n", string.Empty, StringComparison.Ordinal)
-            );
+                    .Replace("\n", string.Empty, StringComparison.Ordinal));
 
             // Decode
             Variant actualVariant;
@@ -231,8 +225,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 var xmlEncoder = new XmlEncoder(
                     new XmlQualifiedName("VariantTest", Namespaces.OpcUaXsd),
                     null,
-                    context)
-            )
+                    context))
             {
                 xmlEncoder.PushNamespace(Namespaces.OpcUaXsd);
                 xmlEncoder.WriteVariant("Test", variant);
@@ -245,8 +238,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 expected.Replace("\r", string.Empty, StringComparison.Ordinal)
                     .Replace("\n", string.Empty, StringComparison.Ordinal),
                 actualXmlValue.Replace("\r", string.Empty, StringComparison.Ordinal)
-                    .Replace("\n", string.Empty, StringComparison.Ordinal)
-            );
+                    .Replace("\n", string.Empty, StringComparison.Ordinal));
 
             // Decode
             Variant actualVariant;

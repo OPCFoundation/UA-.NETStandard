@@ -226,8 +226,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc cref="ServerConfiguration.AvailableSamplingRates"/>
         IApplicationConfigurationBuilderServerOptions SetAvailableSamplingRates(
-            SamplingRateGroupCollection availableSampleRates
-        );
+            SamplingRateGroupCollection availableSampleRates);
 
         /// <inheritdoc cref="ServerConfiguration.RegistrationEndpoint"/>
         IApplicationConfigurationBuilderServerOptions SetRegistrationEndpoint(
@@ -271,8 +270,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc cref="ServerConfiguration.SupportedPrivateKeyFormats"/>
         IApplicationConfigurationBuilderServerOptions SetSupportedPrivateKeyFormats(
-            StringCollection supportedPrivateKeyFormats
-        );
+            StringCollection supportedPrivateKeyFormats);
 
         /// <inheritdoc cref="ServerConfiguration.MaxTrustListSize"/>
         IApplicationConfigurationBuilderServerOptions SetMaxTrustListSize(int maxTrustListSize);
@@ -283,8 +281,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc cref="ServerConfiguration.ReverseConnect"/>
         IApplicationConfigurationBuilderServerOptions SetReverseConnect(
-            ReverseConnectServerConfiguration reverseConnectConfiguration
-        );
+            ReverseConnectServerConfiguration reverseConnectConfiguration);
 
         /// <inheritdoc cref="ServerConfiguration.OperationLimits"/>
         IApplicationConfigurationBuilderServerOptions SetOperationLimits(
@@ -302,8 +299,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc cref="ServerConfiguration.MaxDurableNotificationQueueSize"/>
         IApplicationConfigurationBuilderServerOptions SetMaxDurableNotificationQueueSize(
-            int maxDurableNotificationQueueSize
-        );
+            int maxDurableNotificationQueueSize);
 
         /// <inheritdoc cref="ServerConfiguration.MaxDurableEventQueueSize"/>
         IApplicationConfigurationBuilderServerOptions SetMaxDurableEventQueueSize(
@@ -311,8 +307,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc cref="ServerConfiguration.MaxDurableSubscriptionLifetimeInHours"/>
         IApplicationConfigurationBuilderServerOptions SetMaxDurableSubscriptionLifetime(
-            int maxDurableSubscriptionLifetimeInHours
-        );
+            int maxDurableSubscriptionLifetimeInHours);
     }
 
     /// <summary>
@@ -350,8 +345,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc cref="ClientConfiguration.ReverseConnect"/>
         IApplicationConfigurationBuilderClientOptions SetReverseConnect(
-            ReverseConnectClientConfiguration reverseConnect
-        );
+            ReverseConnectClientConfiguration reverseConnect);
 
         /// <inheritdoc cref="ClientConfiguration.OperationLimits"/>
         IApplicationConfigurationBuilderClientOptions SetClientOperationLimits(
@@ -368,8 +362,7 @@ namespace Opc.Ua.Configuration
         /// </summary>
         IApplicationConfigurationBuilderServerSelected AsServer(
             string[] baseAddresses,
-            string[] alternateBaseAddresses = null
-        );
+            string[] alternateBaseAddresses = null);
     }
 
     /// <summary>
@@ -430,8 +423,7 @@ namespace Opc.Ua.Configuration
         /// <param name="securityPolicy">The security policy Uri string.</param>
         IApplicationConfigurationBuilderServerSelected AddPolicy(
             MessageSecurityMode securityMode,
-            string securityPolicy
-        );
+            string securityPolicy);
 
         /// <summary>
         /// Add user token policy to the server configuration.
@@ -472,8 +464,7 @@ namespace Opc.Ua.Configuration
             string subjectName,
             string pkiRoot = null,
             string appRoot = null,
-            string rejectedRoot = null
-        );
+            string rejectedRoot = null);
 
         /// <summary>
         /// Add the security configuration.
@@ -489,8 +480,7 @@ namespace Opc.Ua.Configuration
         IApplicationConfigurationBuilderSecurityOptions AddSecurityConfiguration(
             CertificateIdentifierCollection certIdList,
             string pkiRoot = null,
-            string rejectedRoot = null
-        );
+            string rejectedRoot = null);
 
         /// <summary>
         /// Add the security configuration for mandatory application, issuer and trusted stores.
@@ -506,8 +496,7 @@ namespace Opc.Ua.Configuration
             string appRoot,
             string trustedRoot,
             string issuerRoot,
-            string rejectedRoot = null
-        );
+            string rejectedRoot = null);
     }
 
     /// <summary>
@@ -523,8 +512,7 @@ namespace Opc.Ua.Configuration
         /// <param name="issuerRoot">The path to the issuer cert store.</param>
         IApplicationConfigurationBuilderSecurityOptionStores AddSecurityConfigurationUserStore(
             string trustedRoot,
-            string issuerRoot
-        );
+            string issuerRoot);
 
         /// <summary>
         /// Add the security configuration for the https certificate issuer and trusted stores.
@@ -533,8 +521,7 @@ namespace Opc.Ua.Configuration
         /// <param name="issuerRoot">The path to the issuer cert store.</param>
         IApplicationConfigurationBuilderSecurityOptionStores AddSecurityConfigurationHttpsStore(
             string trustedRoot,
-            string issuerRoot
-        );
+            string issuerRoot);
     }
 
     /// <summary>
@@ -554,8 +541,7 @@ namespace Opc.Ua.Configuration
         /// </remarks>
         /// <param name="certIdList">A list of Certificate identifiers</param>
         IApplicationConfigurationBuilderSecurityOptions SetApplicationCertificates(
-            CertificateIdentifierCollection certIdList
-        );
+            CertificateIdentifierCollection certIdList);
 
         /// <summary>
         /// The number of rejected certificates to keep in the store.
@@ -597,8 +583,7 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <param name="rejectUnknownRevocationStatus"><see langword="false"/> to accept CA certs with unknown revocation status.</param>
         IApplicationConfigurationBuilderSecurityOptions SetRejectUnknownRevocationStatus(
-            bool rejectUnknownRevocationStatus
-        );
+            bool rejectUnknownRevocationStatus);
 
         /// <summary>
         /// Use the validated certificates for fast Validation.
@@ -615,8 +600,7 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <param name="suppressNonceValidationErrors"><see langword="true"/> to suppress nonce validation errors.</param>
         IApplicationConfigurationBuilderSecurityOptions SetSuppressNonceValidationErrors(
-            bool suppressNonceValidationErrors
-        );
+            bool suppressNonceValidationErrors);
 
         /// <summary>
         /// Whether a certificate chain should be sent with the application certificate.
@@ -639,8 +623,7 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <param name="certificatePasswordProvider">The certificate password provider to use.</param>
         IApplicationConfigurationBuilderSecurityOptions AddCertificatePasswordProvider(
-            ICertificatePasswordProvider certificatePasswordProvider
-        );
+            ICertificatePasswordProvider certificatePasswordProvider);
     }
 
     /// <summary>

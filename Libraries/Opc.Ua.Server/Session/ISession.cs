@@ -118,8 +118,7 @@ namespace Opc.Ua.Server
             IUserIdentity identity,
             IUserIdentity effectiveIdentity,
             StringCollection localeIds,
-            Nonce serverNonce
-        );
+            Nonce serverNonce);
 
         /// <summary>
         /// Closes a session and removes itself from the address space.
@@ -194,8 +193,7 @@ namespace Opc.Ua.Server
             ExtensionObject userIdentityToken,
             SignatureData userTokenSignature,
             out UserIdentityToken identityToken,
-            out UserTokenPolicy userTokenPolicy
-        );
+            out UserTokenPolicy userTokenPolicy);
 
         /// <summary>
         /// Validate the diagnostic info.

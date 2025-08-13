@@ -158,8 +158,7 @@ namespace Opc.Ua.Server
             int rootType,
             string rootId,
             ushort namespaceIndex,
-            params string[] componentNames
-        )
+            params string[] componentNames)
         {
             var pnd = new ParsedNodeId
             {

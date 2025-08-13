@@ -27,8 +27,7 @@ namespace Opc.Ua
             ISystemContext context,
             NodeState source,
             EventSeverity severity,
-            LocalizedText message
-        )
+            LocalizedText message)
         {
             m_eventId = new PropertyState<byte[]>(this) { Value = Guid.NewGuid().ToByteArray() };
 

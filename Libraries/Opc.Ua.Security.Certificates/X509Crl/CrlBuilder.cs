@@ -200,8 +200,7 @@ namespace Opc.Ua.Security.Certificates
         /// <exception cref="ArgumentNullException"><paramref name="certificate"/> is <c>null</c>.</exception>
         public CrlBuilder AddRevokedCertificate(
             X509Certificate2 certificate,
-            CRLReason crlReason = CRLReason.Unspecified
-        )
+            CRLReason crlReason = CRLReason.Unspecified)
         {
             if (certificate == null)
             {

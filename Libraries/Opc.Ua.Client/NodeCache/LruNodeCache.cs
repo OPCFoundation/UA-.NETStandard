@@ -60,8 +60,7 @@ namespace Opc.Ua.Client
             ISession session,
             TimeSpan? cacheExpiry = null,
             int capacity = 4096,
-            bool withMetrics = false
-        )
+            bool withMetrics = false)
         {
             cacheExpiry ??= TimeSpan.FromMinutes(5);
 
@@ -131,8 +130,7 @@ namespace Opc.Ua.Client
                     async (nodeId, context) =>
                         await context.session.ReadNodeAsync(nodeId, context.ct)
                             .ConfigureAwait(false),
-                    (session: Session, ct)
-                );
+                    (session: Session, ct));
             }
         }
 
@@ -176,8 +174,7 @@ namespace Opc.Ua.Client
                 return m_values.GetOrAddAsync(
                     nodeId,
                     (nodeId, context) => context.session.ReadValueAsync(nodeId, context.ct),
-                    (session: Session, ct)
-                );
+                    (session: Session, ct));
             }
         }
 
@@ -216,8 +213,7 @@ namespace Opc.Ua.Client
             NodeId referenceTypeId,
             bool isInverse,
             bool includeSubtypes,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             return
                 (!includeSubtypes || IsTypeHierarchyLoaded([referenceTypeId])) &&
@@ -232,8 +228,7 @@ namespace Opc.Ua.Client
                 NodeId referenceTypeId,
                 bool isInverse,
                 bool includeSubtypes,
-                CancellationToken ct
-            )
+                CancellationToken ct)
             {
                 if (includeSubtypes)
                 {
@@ -251,8 +246,7 @@ namespace Opc.Ua.Client
                 IEnumerable<ReferenceDescription> references,
                 bool isInverse,
                 NodeId refTypeId,
-                bool includeSubtypes
-            )
+                bool includeSubtypes)
             {
                 return
                 [
@@ -261,9 +255,7 @@ namespace Opc.Ua.Client
                             r.IsForward == !isInverse &&
                             (
                                 r.ReferenceTypeId == refTypeId ||
-                                (includeSubtypes && IsTypeOf(r.ReferenceTypeId, refTypeId))
-                            )
-                        )
+                                (includeSubtypes && IsTypeOf(r.ReferenceTypeId, refTypeId))))
                         .Select(r => ToNodeId(r.NodeId))
                         .Where(n => !NodeId.IsNull(n))
                 ];
@@ -276,8 +268,7 @@ namespace Opc.Ua.Client
             IReadOnlyList<NodeId> referenceTypeIds,
             bool isInverse,
             bool includeSubtypes,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             var targetIds = new List<NodeId>();
             var notFound = new List<NodeId>();
@@ -323,8 +314,7 @@ namespace Opc.Ua.Client
                 bool isInverse,
                 bool includeSubtypes,
                 List<NodeId> targetIds,
-                CancellationToken ct
-            )
+                CancellationToken ct)
             {
                 if (includeSubtypes)
                 {
@@ -345,8 +335,7 @@ namespace Opc.Ua.Client
                 IEnumerable<ReferenceDescription> references,
                 bool isInverse,
                 IReadOnlyList<NodeId> referenceTypeIds,
-                bool includeSubtypes
-            )
+                bool includeSubtypes)
             {
                 return
                 [
@@ -355,9 +344,7 @@ namespace Opc.Ua.Client
                             r.IsForward == !isInverse &&
                             referenceTypeIds.Any(refTypeId =>
                                 r.ReferenceTypeId == refTypeId ||
-                                (includeSubtypes && IsTypeOf(r.ReferenceTypeId, refTypeId))
-                            )
-                        )
+                                (includeSubtypes && IsTypeOf(r.ReferenceTypeId, refTypeId))))
                         .Select(r => ToNodeId(r.NodeId))
                         .Where(n => !NodeId.IsNull(n))
                 ];
@@ -374,8 +361,7 @@ namespace Opc.Ua.Client
                     [ReferenceTypeIds.HasSubtype],
                     false,
                     false,
-                    ct
-                )
+                    ct)
                 .ConfigureAwait(false);
             if (nodes.Count > 0)
             {
@@ -445,8 +431,7 @@ namespace Opc.Ua.Client
         public async ValueTask<INode?> GetNodeWithBrowsePathAsync(
             NodeId nodeId,
             QualifiedNameCollection browsePath,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             INode? found = null;
             foreach (QualifiedName? browseName in browsePath)
@@ -469,8 +454,7 @@ namespace Opc.Ua.Client
                             ReferenceTypeIds.HierarchicalReferences,
                             false,
                             true,
-                            ct
-                        )
+                            ct)
                         .ConfigureAwait(false);
                     foreach (INode target in references)
                     {
@@ -532,8 +516,7 @@ namespace Opc.Ua.Client
                     }
                     return references;
                 },
-                (session: Session, ct)
-            );
+                (session: Session, ct));
         }
 
         /// <summary>
@@ -542,8 +525,7 @@ namespace Opc.Ua.Client
         private async ValueTask<IReadOnlyList<INode>> FetchRemainingAsync(
             List<NodeId> remainingIds,
             List<INode?> result,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             Debug.Assert(result.Count(r => r == null) == remainingIds.Count);
 
@@ -579,8 +561,7 @@ namespace Opc.Ua.Client
         private async ValueTask<IReadOnlyList<DataValue>> FetchRemainingAsync(
             List<NodeId> remainingIds,
             List<DataValue?> result,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             Debug.Assert(result.Count(r => r == null) == remainingIds.Count);
 
@@ -629,11 +610,9 @@ namespace Opc.Ua.Client
                 }
                 foreach (ReferenceDescription reference in references)
                 {
-                    if (
-                        reference.ReferenceTypeId == ReferenceTypeIds.HasSubtype &&
+                    if (reference.ReferenceTypeId == ReferenceTypeIds.HasSubtype &&
                         reference.IsForward &&
-                        !reference.NodeId.IsAbsolute
-                    )
+                        !reference.NodeId.IsAbsolute)
                     {
                         types.Enqueue(ToNodeId(reference.NodeId));
                     }

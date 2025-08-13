@@ -63,16 +63,14 @@ namespace Opc.Ua.Client
                     MaxNotificationsPerPublish,
                     false,
                     Priority,
-                    ct
-                )
+                    ct)
                 .ConfigureAwait(false);
 
             CreateSubscription(
                 response.SubscriptionId,
                 response.RevisedPublishingInterval,
                 response.RevisedMaxKeepAliveCount,
-                response.RevisedLifetimeCount
-            );
+                response.RevisedLifetimeCount);
 
             await CreateItemsAsync(ct).ConfigureAwait(false);
 
@@ -124,8 +122,7 @@ namespace Opc.Ua.Client
                             response.Results[0],
                             0,
                             response.DiagnosticInfos,
-                            response.ResponseHeader)
-                    );
+                            response.ResponseHeader));
                 }
             }
             // suppress exception if silent flag is set.
@@ -167,16 +164,14 @@ namespace Opc.Ua.Client
                     revisedKeepAliveCount,
                     MaxNotificationsPerPublish,
                     Priority,
-                    ct
-                )
+                    ct)
                 .ConfigureAwait(false);
 
             // update current state.
             ModifySubscription(
                 response.RevisedPublishingInterval,
                 response.RevisedMaxKeepAliveCount,
-                response.RevisedLifetimeCount
-            );
+                response.RevisedLifetimeCount);
 
             ChangesCompleted();
         }
@@ -207,8 +202,7 @@ namespace Opc.Ua.Client
                         response.Results[0],
                         0,
                         response.DiagnosticInfos,
-                        response.ResponseHeader)
-                );
+                        response.ResponseHeader));
             }
 
             // update current state.
@@ -292,8 +286,7 @@ namespace Opc.Ua.Client
         public async Task<IList<MonitoredItem>> CreateItemsAsync(CancellationToken ct = default)
         {
             MonitoredItemCreateRequestCollection requestItems = PrepareItemsToCreate(
-                out List<MonitoredItem> itemsToCreate
-            );
+                out List<MonitoredItem> itemsToCreate);
 
             if (requestItems.Count == 0)
             {
@@ -318,8 +311,7 @@ namespace Opc.Ua.Client
                         results[ii],
                         ii,
                         response.DiagnosticInfos,
-                        response.ResponseHeader
-                    );
+                        response.ResponseHeader);
             }
 
             m_changeMask |= SubscriptionChangeMask.ItemsCreated;
@@ -364,8 +356,7 @@ namespace Opc.Ua.Client
                         results[ii],
                         ii,
                         response.DiagnosticInfos,
-                        response.ResponseHeader
-                    );
+                        response.ResponseHeader);
             }
 
             m_changeMask |= SubscriptionChangeMask.ItemsModified;
@@ -429,8 +420,7 @@ namespace Opc.Ua.Client
         public async Task<List<ServiceResult>> SetMonitoringModeAsync(
             MonitoringMode monitoringMode,
             IList<MonitoredItem> monitoredItems,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             if (monitoredItems == null)
             {
@@ -467,8 +457,7 @@ namespace Opc.Ua.Client
                 results,
                 response.DiagnosticInfos,
                 response.ResponseHeader,
-                monitoringMode
-            );
+                monitoringMode);
 
             // raise state changed event.
             m_changeMask |= SubscriptionChangeMask.ItemsModified;

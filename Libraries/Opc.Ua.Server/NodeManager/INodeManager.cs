@@ -114,8 +114,7 @@ namespace Opc.Ua.Server
             NodeId referenceTypeId,
             bool isInverse,
             ExpandedNodeId targetId,
-            bool deleteBidirectional
-        );
+            bool deleteBidirectional);
 
         /// <summary>
         /// Returns the metadata associated with the node.
@@ -147,8 +146,7 @@ namespace Opc.Ua.Server
         void Browse(
             OperationContext context,
             ref ContinuationPoint continuationPoint,
-            IList<ReferenceDescription> references
-        );
+            IList<ReferenceDescription> references);
 
         /// <summary>
         /// Finds the targets of the relative path from the source node.
@@ -171,8 +169,7 @@ namespace Opc.Ua.Server
             object sourceHandle,
             RelativePathElement relativePath,
             IList<ExpandedNodeId> targetIds,
-            IList<NodeId> unresolvedTargetIds
-        );
+            IList<NodeId> unresolvedTargetIds);
 
         /// <summary>
         /// Reads the attribute values for a set of nodes.
@@ -200,8 +197,7 @@ namespace Opc.Ua.Server
             double maxAge,
             IList<ReadValueId> nodesToRead,
             IList<DataValue> values,
-            IList<ServiceResult> errors
-        );
+            IList<ServiceResult> errors);
 
         /// <summary>
         /// Reads the history of a set of items.
@@ -213,8 +209,7 @@ namespace Opc.Ua.Server
             bool releaseContinuationPoints,
             IList<HistoryReadValueId> nodesToRead,
             IList<HistoryReadResult> results,
-            IList<ServiceResult> errors
-        );
+            IList<ServiceResult> errors);
 
         /// <summary>
         /// Writes a set of values.
@@ -236,8 +231,7 @@ namespace Opc.Ua.Server
             Type detailsType,
             IList<HistoryUpdateDetails> nodesToUpdate,
             IList<HistoryUpdateResult> results,
-            IList<ServiceResult> errors
-        );
+            IList<ServiceResult> errors);
 
         /// <summary>
         /// Calls a method defined on an object.
@@ -246,8 +240,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             IList<CallMethodRequest> methodsToCall,
             IList<CallMethodResult> results,
-            IList<ServiceResult> errors
-        );
+            IList<ServiceResult> errors);
 
         /// <summary>
         /// Tells the NodeManager to report events from the specified notifier.
@@ -261,8 +254,7 @@ namespace Opc.Ua.Server
             object sourceId,
             uint subscriptionId,
             IEventMonitoredItem monitoredItem,
-            bool unsubscribe
-        );
+            bool unsubscribe);
 
         /// <summary>
         /// Tells the NodeManager to report events all events from all sources.
@@ -275,8 +267,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             uint subscriptionId,
             IEventMonitoredItem monitoredItem,
-            bool unsubscribe
-        );
+            bool unsubscribe);
 
         /// <summary>
         /// Tells the NodeManager to refresh any conditions.
@@ -298,8 +289,7 @@ namespace Opc.Ua.Server
             IList<MonitoringFilterResult> filterErrors,
             IList<IMonitoredItem> monitoredItems,
             bool createDurable,
-            ref long globalIdCounter
-        );
+            ref long globalIdCounter);
 
         /// <summary>
         /// Restore a set of monitored items after a restart.
@@ -307,8 +297,7 @@ namespace Opc.Ua.Server
         void RestoreMonitoredItems(
             IList<IStoredMonitoredItem> itemsToRestore,
             IList<IMonitoredItem> monitoredItems,
-            IUserIdentity savedOwnerIdentity
-        );
+            IUserIdentity savedOwnerIdentity);
 
         /// <summary>
         /// Modifies a set of monitored items.
@@ -319,8 +308,7 @@ namespace Opc.Ua.Server
             IList<IMonitoredItem> monitoredItems,
             IList<MonitoredItemModifyRequest> itemsToModify,
             IList<ServiceResult> errors,
-            IList<MonitoringFilterResult> filterErrors
-        );
+            IList<MonitoringFilterResult> filterErrors);
 
         /// <summary>
         /// Deletes a set of monitored items.
@@ -329,8 +317,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             IList<IMonitoredItem> monitoredItems,
             IList<bool> processedItems,
-            IList<ServiceResult> errors
-        );
+            IList<ServiceResult> errors);
 
         /// <summary>
         /// Transfers a set of monitored items.
@@ -343,8 +330,7 @@ namespace Opc.Ua.Server
             bool sendInitialValues,
             IList<IMonitoredItem> monitoredItems,
             IList<bool> processedItems,
-            IList<ServiceResult> errors
-        );
+            IList<ServiceResult> errors);
 
         /// <summary>
         /// Changes the monitoring mode for a set of monitored items.
@@ -354,8 +340,7 @@ namespace Opc.Ua.Server
             MonitoringMode monitoringMode,
             IList<IMonitoredItem> monitoredItems,
             IList<bool> processedItems,
-            IList<ServiceResult> errors
-        );
+            IList<ServiceResult> errors);
     }
 
     /// <summary>
@@ -386,9 +371,9 @@ namespace Opc.Ua.Server
             object targetHandle,
             BrowseResultMask resultMask,
             Dictionary<NodeId, List<object>> uniqueNodesServiceAttributesCache,
-            bool permissionsOnly
-        );
+            bool permissionsOnly);
     }
+
     /// <summary>
     /// An asynchronous verson of the <see cref="INodeManager2"/> interface.
     /// </summary>

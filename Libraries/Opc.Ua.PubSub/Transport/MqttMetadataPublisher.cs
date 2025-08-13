@@ -52,8 +52,7 @@ namespace Opc.Ua.PubSub.Transport
             IMqttPubSubConnection parentConnection,
             WriterGroupDataType writerGroup,
             DataSetWriterDataType dataSetWriter,
-            double metaDataUpdateTime
-        )
+            double metaDataUpdateTime)
         {
             m_parentConnection = parentConnection;
             m_writerGroup = writerGroup;
@@ -62,8 +61,7 @@ namespace Opc.Ua.PubSub.Transport
                 dataSetWriter.DataSetWriterId,
                 metaDataUpdateTime,
                 CanPublish,
-                PublishMessage
-            );
+                PublishMessage);
         }
 
         /// <summary>
@@ -74,8 +72,7 @@ namespace Opc.Ua.PubSub.Transport
             m_intervalRunner.Start();
             Utils.Trace(
                 "The MqttMetadataPublisher for DataSetWriterId '{0}' was started.",
-                m_dataSetWriter.DataSetWriterId
-            );
+                m_dataSetWriter.DataSetWriterId);
         }
 
         /// <summary>
@@ -87,8 +84,7 @@ namespace Opc.Ua.PubSub.Transport
 
             Utils.Trace(
                 "The MqttMetadataPublisher for DataSetWriterId '{0}' was stopped.",
-                m_dataSetWriter.DataSetWriterId
-            );
+                m_dataSetWriter.DataSetWriterId);
         }
 
         /// <summary>
@@ -109,16 +105,14 @@ namespace Opc.Ua.PubSub.Transport
                 UaNetworkMessage metaDataNetworkMessage = m_parentConnection
                     .CreateDataSetMetaDataNetworkMessage(
                         m_writerGroup,
-                        m_dataSetWriter
-                        );
+                        m_dataSetWriter);
                 if (metaDataNetworkMessage != null)
                 {
                     bool success = m_parentConnection.PublishNetworkMessage(metaDataNetworkMessage);
                     Utils.Trace(
                         "MqttMetadataPublisher Publish DataSetMetaData, DataSetWriterId:{0}; success = {1}",
                         m_dataSetWriter.DataSetWriterId,
-                        success
-                    );
+                        success);
                 }
             }
             catch (Exception e)

@@ -69,8 +69,7 @@ namespace Opc.Ua
             Action<string, T> action,
             string fieldName,
             T value,
-            bool useReversibleEncoding
-        );
+            bool useReversibleEncoding);
 
         /// <summary>
         /// Call an IEncoder action where the alternate encoding type is applied
@@ -81,8 +80,7 @@ namespace Opc.Ua
             Action<string, T> action,
             string fieldName,
             T value,
-            JsonEncodingType useEncodingType
-        );
+            JsonEncodingType useEncodingType);
     }
 
     /// <summary>

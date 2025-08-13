@@ -87,8 +87,7 @@ namespace Opc.Ua.Server
 
         private readonly EventId m_monitoredItemReadyEventId = new(
             TraceMasks.OperationDetail,
-            nameof(MonitoredItemReady)
-        );
+            nameof(MonitoredItemReady));
 
         /// <summary>
         /// The send response.
@@ -125,8 +124,7 @@ namespace Opc.Ua.Server
             string sessionId,
             string sessionName,
             string secureChannelId,
-            string identity
-        )
+            string identity)
         {
             if (IsEnabled())
             {
@@ -147,8 +145,7 @@ namespace Opc.Ua.Server
                     sessionId,
                     sessionName,
                     secureChannelId,
-                    identity
-                );
+                    identity);
             }
         }
 
@@ -215,8 +212,7 @@ namespace Opc.Ua.Server
                         "WRITE: NodeId={0} Value={1} Range={2}",
                         nodeId,
                         wrappedValue,
-                        range
-                    );
+                        range);
                 }
             }
         }
@@ -240,8 +236,7 @@ namespace Opc.Ua.Server
                         "READ: NodeId={0} Value={1} Range={2}",
                         nodeId,
                         wrappedValue,
-                        range
-                    );
+                        range);
                 }
             }
         }
@@ -284,8 +279,7 @@ namespace Opc.Ua.Server
                         wrappedValue,
                         statusCode.Code,
                         statusCode.Code,
-                        statusCode.Overflow
-                    );
+                        statusCode.Overflow);
                 }
             }
         }
@@ -311,8 +305,7 @@ namespace Opc.Ua.Server
                         wrappedValue,
                         statusCode.Code,
                         statusCode.Code,
-                        statusCode.Overflow
-                    );
+                        statusCode.Overflow);
                 }
             }
         }

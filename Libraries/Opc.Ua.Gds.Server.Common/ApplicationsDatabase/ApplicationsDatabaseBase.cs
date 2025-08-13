@@ -61,20 +61,16 @@ namespace Opc.Ua.Gds.Server.Database
                     nameof(application));
             }
 
-            if (application
-                .ApplicationType is < ApplicationType.Server or > ApplicationType.DiscoveryServer)
+            if (application.ApplicationType is < ApplicationType.Server or > ApplicationType.DiscoveryServer)
             {
                 throw new ArgumentException(
                     application.ApplicationType.ToString() + " is not a valid ApplicationType.",
-                    nameof(application)
-                );
+                    nameof(application));
             }
 
-            if (
-                application.ApplicationNames == null ||
+            if (application.ApplicationNames == null ||
                 application.ApplicationNames.Count == 0 ||
-                LocalizedText.IsNullOrEmpty(application.ApplicationNames[0])
-            )
+                LocalizedText.IsNullOrEmpty(application.ApplicationNames[0]))
             {
                 throw new ArgumentException(
                     "At least one ApplicationName must be provided.",
@@ -182,8 +178,7 @@ namespace Opc.Ua.Gds.Server.Database
             string applicationUri,
             string productUri,
             string[] serverCapabilities,
-            out DateTime lastCounterResetTime
-        )
+            out DateTime lastCounterResetTime)
         {
             lastCounterResetTime = DateTime.MinValue;
             return null;
@@ -198,8 +193,7 @@ namespace Opc.Ua.Gds.Server.Database
             string productUri,
             string[] serverCapabilities,
             out DateTime lastCounterResetTime,
-            out uint nextRecordId
-        )
+            out uint nextRecordId)
         {
             lastCounterResetTime = DateTime.MinValue;
             nextRecordId = 0;
@@ -218,8 +212,7 @@ namespace Opc.Ua.Gds.Server.Database
         public virtual bool GetApplicationCertificate(
             NodeId applicationId,
             string certificateTypeId,
-            out byte[] certificate
-        )
+            out byte[] certificate)
         {
             certificate = null;
             ValidateApplicationNodeId(applicationId);
@@ -238,8 +231,7 @@ namespace Opc.Ua.Gds.Server.Database
         public virtual bool GetApplicationTrustLists(
             NodeId applicationId,
             string certificateTypeId,
-            out string trustListId
-        )
+            out string trustListId)
         {
             trustListId = null;
             ValidateApplicationNodeId(applicationId);
@@ -313,8 +305,7 @@ namespace Opc.Ua.Gds.Server.Database
                 {
                     throw new ArgumentException(
                         "At least one Server Capability must be provided.",
-                        nameof(application)
-                    );
+                        nameof(application));
                 }
             }
 
@@ -386,10 +377,8 @@ namespace Opc.Ua.Gds.Server.Database
                 throw new ArgumentNullException(nameof(nodeId));
             }
 
-            if (
-                (nodeId.IdType != IdType.Guid && nodeId.IdType != IdType.String) ||
-                NamespaceIndex != nodeId.NamespaceIndex
-            )
+            if ((nodeId.IdType != IdType.Guid && nodeId.IdType != IdType.String) ||
+                NamespaceIndex != nodeId.NamespaceIndex)
             {
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
             }

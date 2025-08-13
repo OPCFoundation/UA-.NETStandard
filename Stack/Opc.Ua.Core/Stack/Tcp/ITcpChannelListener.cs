@@ -36,8 +36,7 @@ namespace Opc.Ua.Bindings
             uint channelId,
             X509Certificate2 clientCertificate,
             ChannelToken token,
-            OpenSecureChannelRequest request
-        );
+            OpenSecureChannelRequest request);
 
         /// <summary>
         /// Used to transfer a reverse connection socket to the client.

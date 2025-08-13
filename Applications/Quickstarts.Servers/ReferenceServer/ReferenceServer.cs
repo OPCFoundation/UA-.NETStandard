@@ -70,8 +70,7 @@ namespace Quickstarts.ReferenceServer
         /// </remarks>
         protected override MasterNodeManager CreateMasterNodeManager(
             IServerInternal server,
-            ApplicationConfiguration configuration
-        )
+            ApplicationConfiguration configuration)
         {
             Utils.LogInfo(
                 Utils.TraceMasks.StartStop,
@@ -97,8 +96,7 @@ namespace Quickstarts.ReferenceServer
 
         protected override IMonitoredItemQueueFactory CreateMonitoredItemQueueFactory(
             IServerInternal server,
-            ApplicationConfiguration configuration
-        )
+            ApplicationConfiguration configuration)
         {
             if (configuration?.ServerConfiguration?.DurableSubscriptionsEnabled == true)
             {
@@ -115,8 +113,7 @@ namespace Quickstarts.ReferenceServer
         /// <returns>Returns a subscriptionStore for a server, the return type is <seealso cref="ISubscriptionStore"/>.</returns>
         protected override ISubscriptionStore CreateSubscriptionStore(
             IServerInternal server,
-            ApplicationConfiguration configuration
-        )
+            ApplicationConfiguration configuration)
         {
             if (configuration?.ServerConfiguration?.DurableSubscriptionsEnabled == true)
             {
@@ -149,16 +146,13 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         protected override ResourceManager CreateResourceManager(
             IServerInternal server,
-            ApplicationConfiguration configuration
-        )
+            ApplicationConfiguration configuration)
         {
             var resourceManager = new ResourceManager(configuration);
 
             foreach (
                 System.Reflection.FieldInfo field in typeof(StatusCodes).GetFields(
-                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static
-                )
-            )
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static))
             {
                 uint? id = field.GetValue(typeof(StatusCodes)) as uint?;
 
@@ -220,32 +214,25 @@ namespace Quickstarts.ReferenceServer
         /// </remarks>
         public override UserTokenPolicyCollection GetUserTokenPolicies(
             ApplicationConfiguration configuration,
-            EndpointDescription description
-        )
+            EndpointDescription description)
         {
             UserTokenPolicyCollection policies = base.GetUserTokenPolicies(
                 configuration,
                 description);
 
             // sample how to modify default user token policies
-            if (
-                description.SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss &&
-                description.SecurityMode == MessageSecurityMode.SignAndEncrypt
-            )
+            if (description.SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss &&
+                description.SecurityMode == MessageSecurityMode.SignAndEncrypt)
             {
                 return [.. policies.Where(u => u.TokenType != UserTokenType.Certificate)];
             }
-            else if (
-                description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep &&
-                description.SecurityMode == MessageSecurityMode.Sign
-            )
+            else if (description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep &&
+                description.SecurityMode == MessageSecurityMode.Sign)
             {
                 return [.. policies.Where(u => u.TokenType != UserTokenType.Anonymous)];
             }
-            else if (
-                description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep &&
-                description.SecurityMode == MessageSecurityMode.SignAndEncrypt
-            )
+            else if (description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep &&
+                description.SecurityMode == MessageSecurityMode.SignAndEncrypt)
             {
                 return [.. policies.Where(u => u.TokenType != UserTokenType.UserName)];
             }
@@ -265,10 +252,8 @@ namespace Quickstarts.ReferenceServer
                 if (policy.TokenType == UserTokenType.Certificate)
                 {
                     // check if user certificate trust lists are specified in configuration.
-                    if (
-                        configuration.SecurityConfiguration.TrustedUserCertificates != null &&
-                        configuration.SecurityConfiguration.UserIssuerCertificates != null
-                    )
+                    if (configuration.SecurityConfiguration.TrustedUserCertificates != null &&
+                        configuration.SecurityConfiguration.UserIssuerCertificates != null)
                     {
                         var certificateValidator = new CertificateValidator();
                         certificateValidator.UpdateAsync(configuration.SecurityConfiguration)
@@ -276,8 +261,7 @@ namespace Quickstarts.ReferenceServer
                         certificateValidator.Update(
                             configuration.SecurityConfiguration.UserIssuerCertificates,
                             configuration.SecurityConfiguration.TrustedUserCertificates,
-                            configuration.SecurityConfiguration.RejectedCertificateStore
-                        );
+                            configuration.SecurityConfiguration.RejectedCertificateStore);
 
                         // set custom validator for user certificates.
                         m_userCertificateValidator = certificateValidator.GetChannelValidator();
@@ -346,8 +330,7 @@ namespace Quickstarts.ReferenceServer
             throw ServiceResultException.Create(
                 StatusCodes.BadIdentityTokenInvalid,
                 "Not supported user token type: {0}.",
-                args.NewIdentity
-            );
+                args.NewIdentity);
         }
 
         /// <summary>
@@ -363,8 +346,7 @@ namespace Quickstarts.ReferenceServer
                 // an empty username is not accepted.
                 throw ServiceResultException.Create(
                     StatusCodes.BadIdentityTokenInvalid,
-                    "Security token is not a valid username token. An empty username is not accepted."
-                );
+                    "Security token is not a valid username token. An empty username is not accepted.");
             }
 
             if (string.IsNullOrEmpty(password))
@@ -372,8 +354,7 @@ namespace Quickstarts.ReferenceServer
                 // an empty password is not accepted.
                 throw ServiceResultException.Create(
                     StatusCodes.BadIdentityTokenRejected,
-                    "Security token is not a valid username token. An empty password is not accepted."
-                );
+                    "Security token is not a valid username token. An empty password is not accepted.");
             }
 
             // User with permission to configure server
@@ -399,9 +380,7 @@ namespace Quickstarts.ReferenceServer
                         StatusCodes.BadUserAccessDenied,
                         "InvalidPassword",
                         LoadServerProperties().ProductUri,
-                        new LocalizedText(info)
-                    )
-                );
+                        new LocalizedText(info)));
             }
             return new RoleBasedIdentity(new UserIdentity(userNameToken), [Role.AuthenticatedUser]);
         }
@@ -434,8 +413,7 @@ namespace Quickstarts.ReferenceServer
                         "InvalidCertificate",
                         "en-US",
                         "'{0}' is an invalid user certificate.",
-                        certificate.Subject
-                    );
+                        certificate.Subject);
 
                     result = StatusCodes.BadIdentityTokenInvalid;
                 }
@@ -446,8 +424,7 @@ namespace Quickstarts.ReferenceServer
                         "UntrustedCertificate",
                         "en-US",
                         "'{0}' is not a trusted user certificate.",
-                        certificate.Subject
-                    );
+                        certificate.Subject);
                 }
 
                 // create an exception with a vendor defined sub-code.
@@ -456,8 +433,7 @@ namespace Quickstarts.ReferenceServer
                         result,
                         info.Key,
                         LoadServerProperties().ProductUri,
-                        new LocalizedText(info))
-                );
+                        new LocalizedText(info)));
             }
         }
 
@@ -502,15 +478,13 @@ namespace Quickstarts.ReferenceServer
 
                 Utils.LogWarning(
                     Utils.TraceMasks.Security,
-                    "VerifyIssuedToken: Throw ServiceResultException 0x{result:x}"
-                );
+                    "VerifyIssuedToken: Throw ServiceResultException 0x{result:x}");
                 throw new ServiceResultException(
                     new ServiceResult(
                         result,
                         info.Key,
                         LoadServerProperties().ProductUri,
-                        new LocalizedText(info))
-                );
+                        new LocalizedText(info)));
             }
         }
 

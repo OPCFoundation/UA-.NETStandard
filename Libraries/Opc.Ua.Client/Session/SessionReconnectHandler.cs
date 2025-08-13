@@ -208,8 +208,7 @@ namespace Opc.Ua.Client
             ISession session,
             ReverseConnectManager reverseConnectManager,
             int reconnectPeriod,
-            EventHandler callback
-        )
+            EventHandler callback)
         {
             lock (m_lock)
             {
@@ -381,8 +380,7 @@ namespace Opc.Ua.Client
                         Utils.LogInfo(
                             "Reconnect period is {0} ms, {1} ms elapsed in reconnect.",
                             m_reconnectPeriod,
-                            elapsed
-                        );
+                            elapsed);
                         int adjustedReconnectPeriod = CheckedReconnectPeriod(
                             m_reconnectPeriod - elapsed);
                         adjustedReconnectPeriod = JitteredReconnectPeriod(adjustedReconnectPeriod);
@@ -415,8 +413,7 @@ namespace Opc.Ua.Client
                         ITransportWaitingConnection connection = await m_reverseConnectManager
                             .WaitForConnectionAsync(
                                 new Uri(Session.Endpoint.EndpointUrl),
-                                Session.Endpoint.Server.ApplicationUri
-                            )
+                                Session.Endpoint.Server.ApplicationUri)
                             .ConfigureAwait(false);
 
                         await Session.ReconnectAsync(connection).ConfigureAwait(false);
@@ -437,14 +434,12 @@ namespace Opc.Ua.Client
                         Utils.LogWarning("Reconnect failed. Reason={0}.", sre.Result);
 
                         // check if the server endpoint could not be reached.
-                        if (
-                            sre.StatusCode
+                        if (sre.StatusCode
                             is StatusCodes.BadTcpInternalError
                                 or StatusCodes.BadCommunicationError
                                 or StatusCodes.BadNotConnected
                                 or StatusCodes.BadRequestTimeout
-                                or StatusCodes.BadTimeout
-                        )
+                                or StatusCodes.BadTimeout)
                         {
                             // check if reactivating is still an option.
                             int timeout =
@@ -466,8 +461,7 @@ namespace Opc.Ua.Client
                             m_updateFromServer = true;
                             Utils.LogInfo(
                                 "Reconnect failed due to security check. Request endpoint update from server. {0}",
-                                sre.Message
-                            );
+                                sre.Message);
                         }
                         // recreate session immediately, use existing channel
                         else if (sre.StatusCode == StatusCodes.BadSessionIdInvalid)
@@ -507,8 +501,7 @@ namespace Opc.Ua.Client
                         connection = await m_reverseConnectManager
                             .WaitForConnectionAsync(
                                 new Uri(endpointDescription.EndpointUrl),
-                                endpointDescription.Server.ApplicationUri
-                            )
+                                endpointDescription.Server.ApplicationUri)
                             .ConfigureAwait(false);
 
                         if (m_updateFromServer)
@@ -519,8 +512,7 @@ namespace Opc.Ua.Client
                                     endpoint.EndpointUrl,
                                     connection,
                                     endpoint.Description.SecurityMode,
-                                    endpoint.Description.SecurityPolicyUri
-                                )
+                                    endpoint.Description.SecurityPolicyUri)
                                 .ConfigureAwait(false);
                             m_updateFromServer = false;
                             connection = null;
@@ -539,8 +531,7 @@ namespace Opc.Ua.Client
                             .UpdateFromServerAsync(
                                 endpoint.EndpointUrl,
                                 endpoint.Description.SecurityMode,
-                                endpoint.Description.SecurityPolicyUri
-                            )
+                                endpoint.Description.SecurityPolicyUri)
                             .ConfigureAwait(false);
                         m_updateFromServer = false;
                     }
@@ -556,11 +547,9 @@ namespace Opc.Ua.Client
             }
             catch (ServiceResultException sre)
             {
-                if (
-                    sre.InnerResult?.StatusCode == StatusCodes.BadSecureChannelClosed ||
+                if (sre.InnerResult?.StatusCode == StatusCodes.BadSecureChannelClosed ||
                     sre.InnerResult?.StatusCode == StatusCodes.BadSecurityChecksFailed ||
-                    sre.InnerResult?.StatusCode == StatusCodes.BadCertificateInvalid
-                )
+                    sre.InnerResult?.StatusCode == StatusCodes.BadCertificateInvalid)
                 {
                     // schedule a fast endpoint update and retry
                     if (m_maxReconnectPeriod > MinReconnectPeriod &&
@@ -570,15 +559,13 @@ namespace Opc.Ua.Client
                     }
                     Utils.LogError(
                         "Could not reconnect due to failed security check. Request endpoint update from server. {0}",
-                        Redact.Create(sre)
-                    );
+                        Redact.Create(sre));
                 }
                 else
                 {
                     Utils.LogError(
                         "Could not reconnect the Session. Request endpoint update from server. {0}",
-                        Redact.Create(sre)
-                    );
+                        Redact.Create(sre));
                 }
                 m_updateFromServer = true;
                 return false;

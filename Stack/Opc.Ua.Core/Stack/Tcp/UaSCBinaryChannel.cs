@@ -34,8 +34,7 @@ namespace Opc.Ua.Bindings
             X509Certificate2 serverCertificate,
             EndpointDescriptionCollection endpoints,
             MessageSecurityMode securityMode,
-            string securityPolicyUri
-        )
+            string securityPolicyUri)
             : this(
                 contextId,
                 bufferManager,
@@ -44,8 +43,7 @@ namespace Opc.Ua.Bindings
                 serverCertificate,
                 endpoints,
                 securityMode,
-                securityPolicyUri
-            )
+                securityPolicyUri)
         {
         }
 
@@ -59,8 +57,7 @@ namespace Opc.Ua.Bindings
             CertificateTypesProvider serverCertificateTypesProvider,
             EndpointDescriptionCollection endpoints,
             MessageSecurityMode securityMode,
-            string securityPolicyUri
-        )
+            string securityPolicyUri)
             : this(
                 contextId,
                 bufferManager,
@@ -69,8 +66,7 @@ namespace Opc.Ua.Bindings
                 null,
                 endpoints,
                 securityMode,
-                securityPolicyUri
-            )
+                securityPolicyUri)
         {
         }
 
@@ -85,8 +81,7 @@ namespace Opc.Ua.Bindings
             X509Certificate2 serverCertificate,
             EndpointDescriptionCollection endpoints,
             MessageSecurityMode securityMode,
-            string securityPolicyUri
-        )
+            string securityPolicyUri)
         {
             // create a unique contex if none provided.
             m_contextId = contextId;
@@ -120,8 +115,7 @@ namespace Opc.Ua.Bindings
                             "The DER encoded certificate may not be more than {0} bytes.",
                             TcpMessageLimits.MaxCertificateSize
                         ),
-                        nameof(serverCertificate)
-                    );
+                        nameof(serverCertificate));
                 }
 
                 serverCertificateChain = serverCertificateTypesProvider
@@ -138,8 +132,7 @@ namespace Opc.Ua.Bindings
                         "UTF-8 form of the security policy URI may not be more than {0} bytes.",
                         TcpMessageLimits.MaxSecurityPolicyUriSize
                     ),
-                    nameof(securityPolicyUri)
-                );
+                    nameof(securityPolicyUri));
             }
 
             BufferManager = bufferManager ?? throw new ArgumentNullException(nameof(bufferManager));
@@ -314,13 +307,10 @@ namespace Opc.Ua.Bindings
         protected bool VerifySequenceNumber(uint sequenceNumber, string context)
         {
             // Accept the first sequence number depending on security policy
-            if (
-                m_firstReceivedSequenceNumber &&
+            if (m_firstReceivedSequenceNumber &&
                 (
                     !EccUtils.IsEccPolicy(SecurityPolicyUri) ||
-                    (EccUtils.IsEccPolicy(SecurityPolicyUri) && (sequenceNumber == 0))
-                )
-            )
+                    (EccUtils.IsEccPolicy(SecurityPolicyUri) && (sequenceNumber == 0))))
             {
                 m_remoteSequenceNumber = sequenceNumber;
                 m_firstReceivedSequenceNumber = false;
@@ -335,19 +325,14 @@ namespace Opc.Ua.Bindings
             }
 
             // check for a valid rollover.
-            if (
-                m_remoteSequenceNumber > TcpMessageLimits.MinSequenceNumber &&
-                sequenceNumber < TcpMessageLimits.MaxRolloverSequenceNumber
-            )
+            if (m_remoteSequenceNumber > TcpMessageLimits.MinSequenceNumber &&
+                sequenceNumber < TcpMessageLimits.MaxRolloverSequenceNumber)
             {
                 // only one rollover per token is allowed and with valid values depending on security policy
-                if (
-                    !m_sequenceRollover &&
+                if (!m_sequenceRollover &&
                     (
                         !EccUtils.IsEccPolicy(SecurityPolicyUri) ||
-                        (EccUtils.IsEccPolicy(SecurityPolicyUri) && (sequenceNumber == 0))
-                    )
-                )
+                        (EccUtils.IsEccPolicy(SecurityPolicyUri) && (sequenceNumber == 0))))
                 {
                     m_sequenceRollover = true;
                     m_remoteSequenceNumber = sequenceNumber;
@@ -360,8 +345,7 @@ namespace Opc.Ua.Bindings
                 ChannelId,
                 context,
                 sequenceNumber,
-                m_remoteSequenceNumber
-            );
+                m_remoteSequenceNumber);
             return false;
         }
 
@@ -383,8 +367,7 @@ namespace Opc.Ua.Bindings
             bool chunkOrSizeLimitsExceeded = MessageLimitsExceeded(
                 isServerContext,
                 m_partialMessageChunks.TotalSize,
-                m_partialMessageChunks.Count
-            );
+                m_partialMessageChunks.Count);
 
             if ((m_partialRequestId != requestId) || chunkOrSizeLimitsExceeded)
             {
@@ -392,8 +375,7 @@ namespace Opc.Ua.Bindings
                 {
                     Utils.LogWarning(
                         "WARNING - Discarding unprocessed message chunks for Request #{0}",
-                        m_partialRequestId
-                    );
+                        m_partialRequestId);
                 }
 
                 m_partialMessageChunks.Release(BufferManager, "SaveIntermediateChunk");
@@ -443,8 +425,7 @@ namespace Opc.Ua.Bindings
         {
             Utils.LogError(
                 "ChannelId {0}: - Message limits exceeded while building up message. Channel will be closed.",
-                ChannelId
-            );
+                ChannelId);
         }
 
         /// <inheritdoc/>
@@ -467,8 +448,7 @@ namespace Opc.Ua.Bindings
                 HandleMessageProcessingError(
                     e,
                     StatusCodes.BadTcpInternalError,
-                    "An error occurred receiving a message."
-                );
+                    "An error occurred receiving a message.");
                 BufferManager.ReturnBuffer(message.Array, "OnMessageReceived");
             }
         }
@@ -542,8 +522,7 @@ namespace Opc.Ua.Bindings
                 {
                     error = ServiceResult.Create(
                         StatusCodes.BadConnectionClosed,
-                        "The socket was closed by the remote application."
-                    );
+                        "The socket was closed by the remote application.");
                 }
                 if (e.Buffer != null)
                 {
@@ -561,8 +540,7 @@ namespace Opc.Ua.Bindings
                 error = ServiceResult.Create(
                     ex,
                     StatusCodes.BadTcpInternalError,
-                    "Unexpected error during write operation."
-                );
+                    "Unexpected error during write operation.");
                 HandleWriteComplete(e.BufferList, e.UserToken, e.BytesTransferred, error);
             }
 
@@ -580,8 +558,7 @@ namespace Opc.Ua.Bindings
                 (Socket?.MessageSocketEventArgs())
                 ?? throw ServiceResultException.Create(
                     StatusCodes.BadConnectionClosed,
-                    "The socket was closed by the remote application."
-                );
+                    "The socket was closed by the remote application.");
 
             try
             {
@@ -612,8 +589,7 @@ namespace Opc.Ua.Bindings
                 error = ServiceResult.Create(
                     ex,
                     StatusCodes.BadTcpInternalError,
-                    "Unexpected error during write operation."
-                );
+                    "Unexpected error during write operation.");
                 if (args != null)
                 {
                     HandleWriteComplete(null, state, args.BytesTransferred, error);
@@ -659,8 +635,7 @@ namespace Opc.Ua.Bindings
                 error = ServiceResult.Create(
                     ex,
                     StatusCodes.BadTcpInternalError,
-                    "Unexpected error during write operation."
-                );
+                    "Unexpected error during write operation.");
                 HandleWriteComplete(buffers, state, args.BytesTransferred, error);
                 args.Dispose();
             }
@@ -673,8 +648,7 @@ namespace Opc.Ua.Bindings
             BufferCollection buffers,
             object state,
             int bytesWritten,
-            ServiceResult result
-        )
+            ServiceResult result)
         {
             // Communication is active on the channel
             UpdateLastActiveTime();
@@ -941,8 +915,7 @@ namespace Opc.Ua.Bindings
                     StatusCodes.BadTcpMessageTypeInvalid,
                     "Expected message type {0:X8} instead of {0:X8}.",
                     expectedMessageType,
-                    messageType
-                );
+                    messageType);
             }
             int messageSize = decoder.ReadInt32(null);
             if (messageSize > count)
@@ -951,8 +924,7 @@ namespace Opc.Ua.Bindings
                     StatusCodes.BadTcpMessageTooLarge,
                     "Messages size {0} is larger than buffer size {1}.",
                     messageSize,
-                    count
-                );
+                    count);
             }
         }
 
@@ -1026,6 +998,5 @@ namespace Opc.Ua.Bindings
     public delegate void TcpChannelStateEventHandler(
         UaSCUaBinaryChannel channel,
         TcpChannelState state,
-        ServiceResult error
-    );
+        ServiceResult error);
 }

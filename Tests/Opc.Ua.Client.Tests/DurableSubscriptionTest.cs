@@ -69,8 +69,7 @@ namespace Opc.Ua.Client.Tests
             bool enableTracing,
             bool disableActivityLogging,
             bool securityNone,
-            TextWriter writer
-        )
+            TextWriter writer)
         {
             {
                 // start Ref server
@@ -103,14 +102,12 @@ namespace Opc.Ua.Client.Tests
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies
                 .Add(new UserTokenPolicy(UserTokenType.UserName));
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.Certificate)
-            );
+                new UserTokenPolicy(UserTokenType.Certificate));
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
                 new UserTokenPolicy(UserTokenType.IssuedToken)
                 {
                     IssuedTokenType = Profiles.JwtUserToken
-                }
-            );
+                });
 
             ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out)
                 .ConfigureAwait(false);
@@ -148,16 +145,14 @@ namespace Opc.Ua.Client.Tests
                             ServerUrl,
                             SecurityPolicies.Basic256Sha256,
                             null,
-                            new UserIdentity("sysadmin", "demo")
-                        )
+                            new UserIdentity("sysadmin", "demo"))
                         .ConfigureAwait(false);
                     Session.DeleteSubscriptionsOnClose = false;
                 }
                 catch (Exception e)
                 {
                     NUnit.Framework.Assert.Ignore(
-                        $"OneTimeSetup failed to create session, tests skipped. Error: {e.Message}"
-                    );
+                        $"OneTimeSetup failed to create session, tests skipped. Error: {e.Message}");
                 }
             }
             if (ServerFixture == null)
@@ -200,8 +195,7 @@ namespace Opc.Ua.Client.Tests
             uint lifetimeCount,
             uint requestedHours,
             uint expectedHours,
-            uint expectedLifetime
-        )
+            uint expectedLifetime)
         {
             var subscription = new TestableSubscription(Session.DefaultSubscription)
             {
@@ -231,8 +225,7 @@ namespace Opc.Ua.Client.Tests
             Assert.IsNotNull(maxLifetimeCountValue.Value);
             Assert.AreEqual(
                 expectedLifetime,
-                Convert.ToUInt32(maxLifetimeCountValue.Value, CultureInfo.InvariantCulture)
-            );
+                Convert.ToUInt32(maxLifetimeCountValue.Value, CultureInfo.InvariantCulture));
 
             Assert.True(Session.RemoveSubscription(subscription));
         }
@@ -259,8 +252,7 @@ namespace Opc.Ua.Client.Tests
             uint queueSize,
             uint expectedRevisedQueueSize,
             uint expectedModifiedQueueSize,
-            bool useEventMI
-        )
+            bool useEventMI)
         {
             TestableSubscription subscription = await CreateDurableSubscriptionAsync()
                 .ConfigureAwait(false);
@@ -341,8 +333,7 @@ namespace Opc.Ua.Client.Tests
             NUnit.Framework.Assert.That(ServiceResult.IsGood(result[0].Status.Error), Is.True);
 
             NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                Session.Call(ObjectIds.Server, MethodIds.Server_SetSubscriptionDurable, id, 1)
-            );
+                Session.Call(ObjectIds.Server, MethodIds.Server_SetSubscriptionDurable, id, 1));
 
             Assert.True(Session.RemoveSubscription(subscription));
         }
@@ -366,8 +357,7 @@ namespace Opc.Ua.Client.Tests
             Assert.True(Session.RemoveSubscription(subscription));
 
             NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                Session.Call(ObjectIds.Server, MethodIds.Server_SetSubscriptionDurable, id, 1)
-            );
+                Session.Call(ObjectIds.Server, MethodIds.Server_SetSubscriptionDurable, id, 1));
         }
 
         [Test]
@@ -503,8 +493,7 @@ namespace Opc.Ua.Client.Tests
                 " Transfer Result " +
                 result.ToString() +
                 " Expected " +
-                setSubscriptionDurable
-            );
+                setSubscriptionDurable);
 
             if (setSubscriptionDurable && !restartServer)
             {
@@ -533,14 +522,12 @@ namespace Opc.Ua.Client.Tests
 
                         TimeSpan timeSpan = timestamp - previous;
                         TestContext.Out.WriteLine(
-                            $"Node: {pair.Key} Index: {index} Time: {DateTimeMs(timestamp)} Previous: {DateTimeMs(previous)} Timespan {timeSpan.TotalMilliseconds.ToString("000.", CultureInfo.InvariantCulture)}"
-                        );
+                            $"Node: {pair.Key} Index: {index} Time: {DateTimeMs(timestamp)} Previous: {DateTimeMs(previous)} Timespan {timeSpan.TotalMilliseconds.ToString("000.", CultureInfo.InvariantCulture)}");
 
                         Assert.Less(
                             Math.Abs(timeSpan.TotalMilliseconds),
                             tolerance,
-                            $"Node: {pair.Key} Index: {index} Timespan {timeSpan.TotalMilliseconds} "
-                        );
+                            $"Node: {pair.Key} Index: {index} Timespan {timeSpan.TotalMilliseconds} ");
 
                         previous = timestamp;
 
@@ -550,8 +537,7 @@ namespace Opc.Ua.Client.Tests
                             Assert.Less(
                                 Math.Abs(finalTimeSpan.TotalMilliseconds),
                                 tolerance * 2,
-                                $"Last Value - Node: {pair.Key} Index: {index} Timespan {finalTimeSpan.TotalMilliseconds} "
-                            );
+                                $"Last Value - Node: {pair.Key} Index: {index} Timespan {finalTimeSpan.TotalMilliseconds} ");
                         }
                     }
                 }
@@ -566,8 +552,7 @@ namespace Opc.Ua.Client.Tests
         private Dictionary<string, object> ValidateDataValue(
             Dictionary<string, NodeId> nodeIds,
             string desiredValue,
-            uint expectedValue
-        )
+            uint expectedValue)
         {
             Dictionary<string, object> modifiedValues = GetValues(nodeIds);
 
@@ -623,8 +608,7 @@ namespace Opc.Ua.Client.Tests
                 true,
                 0,
                 out _,
-                out ReferenceDescriptionCollection references
-            );
+                out ReferenceDescriptionCollection references);
 
             Assert.NotNull(references, "Initial Browse has no references");
             Assert.Greater(references.Count, 0, "Initial Browse has zero references");
@@ -632,8 +616,7 @@ namespace Opc.Ua.Client.Tests
             TestContext.Out.WriteLine(
                 "Initial Browse for SubscriptionDiagnosticsArray has {0} references, Desired SubscriptionId {1}",
                 references.Count,
-                subscriptionId
-            );
+                subscriptionId);
 
             foreach (ReferenceDescription reference in references)
             {
@@ -653,8 +636,7 @@ namespace Opc.Ua.Client.Tests
                         true,
                         0,
                         out byte[] anotherContinuationPoint,
-                        out ReferenceDescriptionCollection desiredReferences
-                    );
+                        out ReferenceDescriptionCollection desiredReferences);
 
                     Assert.NotNull(desiredReferences, "Secondary Browse has no references");
                     Assert.Greater(
@@ -665,8 +647,7 @@ namespace Opc.Ua.Client.Tests
                     TestContext.Out.WriteLine(
                         "Secondary Browse for SubscriptionId {0} has {1} references",
                         subscriptionId,
-                        desiredReferences.Count
-                    );
+                        desiredReferences.Count);
 
                     foreach (ReferenceDescription referenceDescription in desiredReferences)
                     {
@@ -675,8 +656,7 @@ namespace Opc.Ua.Client.Tests
                         {
                             TestContext.Out.WriteLine(
                                 "Subscription Reference {0} ExpandedNodeId is Null",
-                                referenceDescription.BrowseName.Name
-                            );
+                                referenceDescription.BrowseName.Name);
                             TestContext.Out.WriteLine(
                                 "Full ReferenceDescription {0}",
                                 referenceDescription.ToString());
@@ -685,19 +665,16 @@ namespace Opc.Ua.Client.Tests
                         {
                             recreated = new NodeId(
                                 referenceDescription.NodeId.Identifier,
-                                referenceDescription.NodeId.NamespaceIndex
-                            );
+                                referenceDescription.NodeId.NamespaceIndex);
 
                             if (recreated.IsNullNodeId)
                             {
                                 TestContext.Out.WriteLine(
                                     "Subscription Reference {0} Recreated Node is Null",
-                                    referenceDescription.BrowseName.Name
-                                );
+                                    referenceDescription.BrowseName.Name);
                                 TestContext.Out.WriteLine(
                                     "Full ReferenceDescription {0}",
-                                    referenceDescription.ToString()
-                                );
+                                    referenceDescription.ToString());
                             }
                             else
                             {
@@ -705,53 +682,37 @@ namespace Opc.Ua.Client.Tests
                                     "Subscription Reference {0} ExpandedNodeId {1} Recreated {2}",
                                     referenceDescription.BrowseName.Name,
                                     referenceDescription.NodeId.ToString(),
-                                    recreated.ToString()
-                                );
+                                    recreated.ToString());
                             }
                         }
 
-                        if (
-                            referenceDescription.BrowseName.Name.Equals(
+                        if (referenceDescription.BrowseName.Name.Equals(
                                 "MonitoredItemCount",
-                                StringComparison.OrdinalIgnoreCase
-                            )
-                        )
+                                StringComparison.OrdinalIgnoreCase))
                         {
                             monitoredItemCountNodeId = recreated;
                         }
-                        else if (
-                            referenceDescription.BrowseName.Name.Equals(
+                        else if (referenceDescription.BrowseName.Name.Equals(
                                 "MaxLifetimeCount",
-                                StringComparison.OrdinalIgnoreCase
-                            )
-                        )
+                                StringComparison.OrdinalIgnoreCase))
                         {
                             maxLifetimeCountNodeId = recreated;
                         }
-                        else if (
-                            referenceDescription.BrowseName.Name.Equals(
+                        else if (referenceDescription.BrowseName.Name.Equals(
                                 "MaxKeepAliveCount",
-                                StringComparison.OrdinalIgnoreCase
-                            )
-                        )
+                                StringComparison.OrdinalIgnoreCase))
                         {
                             maxKeepAliveCountNodeId = recreated;
                         }
-                        else if (
-                            referenceDescription.BrowseName.Name.Equals(
+                        else if (referenceDescription.BrowseName.Name.Equals(
                                 "CurrentLifetimeCount",
-                                StringComparison.OrdinalIgnoreCase
-                            )
-                        )
+                                StringComparison.OrdinalIgnoreCase))
                         {
                             currentLifetimeCountNodeId = recreated;
                         }
-                        else if (
-                            referenceDescription.BrowseName.Name.Equals(
+                        else if (referenceDescription.BrowseName.Name.Equals(
                                 "PublishingInterval",
-                                StringComparison.OrdinalIgnoreCase
-                            )
-                        )
+                                StringComparison.OrdinalIgnoreCase))
                         {
                             publishingIntervalNodeId = recreated;
                         }
@@ -803,8 +764,7 @@ namespace Opc.Ua.Client.Tests
                     },
                     new LiteralOperand {
                         Value = new Variant(new NodeId(ObjectTypeIds.BaseEventType)) }
-                ]
-            );
+                ]);
 
             return new MonitoredItem
             {

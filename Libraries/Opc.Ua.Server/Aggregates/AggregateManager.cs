@@ -155,8 +155,7 @@ namespace Opc.Ua.Server
             DateTime endTime,
             double processingInterval,
             bool stepped,
-            AggregateConfiguration configuration
-        )
+            AggregateConfiguration configuration)
         {
             if (NodeId.IsNull(aggregateId))
             {

@@ -561,8 +561,7 @@ namespace Opc.Ua
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(arrayIndex),
-                    "arrayIndex < 0 || array.Length <= arrayIndex"
-                );
+                    "arrayIndex < 0 || array.Length <= arrayIndex");
             }
 
             foreach (KeyValuePair<ulong, T> entry in m_numericIds)
@@ -571,8 +570,7 @@ namespace Opc.Ua
 
                 array[arrayIndex++] = new KeyValuePair<NodeId, T>(
                     new NodeId((uint)(entry.Key & 0xFFFFFFFF), (ushort)((entry.Key >> 32) & 0xFFFF)),
-                    entry.Value
-                );
+                    entry.Value);
             }
 
             if (m_dictionarySets == null)
@@ -596,8 +594,7 @@ namespace Opc.Ua
                         CheckCopyTo(array, arrayIndex);
                         array[arrayIndex++] = new KeyValuePair<NodeId, T>(
                             new NodeId(entry.Key, (ushort)ii),
-                            entry.Value
-                        );
+                            entry.Value);
                     }
                 }
 
@@ -608,8 +605,7 @@ namespace Opc.Ua
                         CheckCopyTo(array, arrayIndex);
                         array[arrayIndex++] = new KeyValuePair<NodeId, T>(
                             new NodeId(entry.Key, (ushort)ii),
-                            entry.Value
-                        );
+                            entry.Value);
                     }
                 }
 
@@ -620,8 +616,7 @@ namespace Opc.Ua
                         CheckCopyTo(array, arrayIndex);
                         array[arrayIndex++] = new KeyValuePair<NodeId, T>(
                             new NodeId(entry.Key.Bytes, (ushort)ii),
-                            entry.Value
-                        );
+                            entry.Value);
                     }
                 }
             }
@@ -921,8 +916,7 @@ namespace Opc.Ua
                     if (m_enumerator == null)
                     {
                         throw new InvalidOperationException(
-                            "The enumerator is positioned before the first element of the collection or after the last element."
-                        );
+                            "The enumerator is positioned before the first element of the collection or after the last element.");
                     }
 
                     NodeId id = null;
@@ -1097,8 +1091,7 @@ namespace Opc.Ua
                 if (m_version != m_dictionary.m_version)
                 {
                     throw new InvalidOperationException(
-                        "The dictionary was modified after the enumerator was created."
-                    );
+                        "The dictionary was modified after the enumerator was created.");
                 }
             }
 

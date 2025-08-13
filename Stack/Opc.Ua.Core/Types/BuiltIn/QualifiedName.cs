@@ -357,8 +357,7 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(
                     StatusCodes.BadBrowseNameInvalid,
                     "NamespaceUri ({0}) is not in the NamespaceTable.",
-                    namespaceUri
-                );
+                    namespaceUri);
             }
 
             // return the name.
@@ -459,8 +458,7 @@ namespace Opc.Ua
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadNodeIdInvalid,
-                        $"Invalid QualifiedName ({originalText})."
-                    );
+                        $"Invalid QualifiedName ({originalText}).");
                 }
 
                 string namespaceUri = Utils.UnescapeUri(text.AsSpan()[4..index]);
@@ -472,8 +470,7 @@ namespace Opc.Ua
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadNodeIdInvalid,
-                        $"No mapping to NamespaceIndex for NamespaceUri ({namespaceUri})."
-                    );
+                        $"No mapping to NamespaceIndex for NamespaceUri ({namespaceUri}).");
                 }
 
                 text = text[(index + 1)..];
@@ -492,8 +489,7 @@ namespace Opc.Ua
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadNodeIdInvalid,
-                            $"Invalid QualifiedName ({originalText})."
-                        );
+                            $"Invalid QualifiedName ({originalText}).");
                     }
                 }
 

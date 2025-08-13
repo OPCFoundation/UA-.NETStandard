@@ -428,8 +428,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
                         "Could not load nodes from resource: {0}",
-                        resourcePath
-                    );
+                        resourcePath);
                 }
             }
 
@@ -449,8 +448,7 @@ namespace Opc.Ua
             ISystemContext context,
             string resourcePath,
             Assembly assembly,
-            bool updateTables
-        )
+            bool updateTables)
         {
             if (resourcePath == null)
             {
@@ -473,8 +471,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
                         "Could not load nodes from resource: {0}",
-                        resourcePath
-                    );
+                        resourcePath);
                 }
             }
 
@@ -503,14 +500,11 @@ namespace Opc.Ua
             NodeClass nodeClass,
             QualifiedName browseName,
             NodeId referenceTypeId,
-            NodeId typeDefinitionId
-        )
+            NodeId typeDefinitionId)
         {
-            if (
-                m_types != null &&
+            if (m_types != null &&
                 !NodeId.IsNull(typeDefinitionId) &&
-                m_types.TryGetValue(typeDefinitionId, out Type type)
-            )
+                m_types.TryGetValue(typeDefinitionId, out Type type))
             {
                 return Activator.CreateInstance(type, parent) as NodeState;
             }
@@ -519,10 +513,8 @@ namespace Opc.Ua
             switch (nodeClass)
             {
                 case NodeClass.Variable:
-                    if (
-                        context.TypeTable != null &&
-                        context.TypeTable.IsTypeOf(referenceTypeId, ReferenceTypeIds.HasProperty)
-                    )
+                    if (context.TypeTable != null &&
+                        context.TypeTable.IsTypeOf(referenceTypeId, ReferenceTypeIds.HasProperty))
                     {
                         child = new PropertyState(parent);
                         break;

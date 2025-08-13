@@ -253,8 +253,7 @@ namespace Opc.Ua.Server
         void CreateServerObject(
             EventManager eventManager,
             ResourceManager resourceManager,
-            RequestManager requestManager
-        );
+            RequestManager requestManager);
 
         /// <summary>
         /// Stores the MasterNodeManager and the CoreNodeManager

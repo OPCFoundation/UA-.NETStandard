@@ -90,8 +90,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             [ValueSource(
                 nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
-            StructureType structureType
-        )
+            StructureType structureType)
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
@@ -108,8 +107,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 jsonEncodingType,
                 structureType,
                 nodeId,
-                emittedType
-            );
+                emittedType);
         }
 
         /// <summary>
@@ -122,8 +120,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             [ValueSource(
                 nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
-            StructureFieldParameter structureFieldParameter
-        )
+            StructureFieldParameter structureFieldParameter)
         {
             ExpandedNodeId nodeId;
             EncodingType encoderType = encoderTypeGroup.EncoderType;
@@ -143,8 +140,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 jsonEncodingType,
                 StructureType.StructureWithOptionalFields,
                 nodeId,
-                emittedType
-            );
+                emittedType);
             TestContext.Out
                 .WriteLine($"Optional Field: {structureFieldParameter.BuiltInType} is null.");
             baseType[structureFieldParameter.Name] = null;
@@ -155,11 +151,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 jsonEncodingType,
                 StructureType.StructureWithOptionalFields,
                 nodeId,
-                emittedType
-            );
+                emittedType);
             TestContext.Out.WriteLine(
-                $"Optional Field: {structureFieldParameter.BuiltInType} is null, all other fields have random values."
-            );
+                $"Optional Field: {structureFieldParameter.BuiltInType} is null, all other fields have random values.");
             FillStructWithValues(baseType, true);
             baseType[structureFieldParameter.Name] = null;
             EncodeDecodeComplexType(
@@ -169,8 +163,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 jsonEncodingType,
                 StructureType.StructureWithOptionalFields,
                 nodeId,
-                emittedType
-            );
+                emittedType);
             TestContext.Out.WriteLine(
                 $"Optional Field: {structureFieldParameter.BuiltInType} has random value.");
             baseType[structureFieldParameter.Name] = DataGenerator.GetRandom(builtInType);
@@ -181,8 +174,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 jsonEncodingType,
                 StructureType.StructureWithOptionalFields,
                 nodeId,
-                emittedType
-            );
+                emittedType);
         }
 
         /// <summary>
@@ -195,8 +187,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             [ValueSource(
                 nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
-            StructureFieldParameter structureFieldParameter
-        )
+            StructureFieldParameter structureFieldParameter)
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
@@ -216,8 +207,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 jsonEncodingType,
                 StructureType.Union,
                 nodeId,
-                emittedType
-            );
+                emittedType);
             TestContext.Out
                 .WriteLine($"Union Field: {structureFieldParameter.BuiltInType} is null.");
             baseType[structureFieldParameter.Name] = null;
@@ -228,8 +218,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 jsonEncodingType,
                 StructureType.Union,
                 nodeId,
-                emittedType
-            );
+                emittedType);
         }
 
         /// <summary>
@@ -256,14 +245,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             // Serialize/Encode a Variant fails without a context available
             Assert.Throws<Newtonsoft.Json.JsonSerializationException>(() =>
-                Newtonsoft.Json.JsonConvert.SerializeObject(keyValuePair)
-            );
+                Newtonsoft.Json.JsonConvert.SerializeObject(keyValuePair));
 
             // Serialize/Encode an ExtensionObject fails without a context available
             var extObjToEncode = new ExtensionObject(keyValuePair);
             Assert.Throws<Newtonsoft.Json.JsonSerializationException>(() =>
-                Newtonsoft.Json.JsonConvert.SerializeObject(extObjToEncode)
-            );
+                Newtonsoft.Json.JsonConvert.SerializeObject(extObjToEncode));
 
             // Serialize/Encode a Variant succeeds with a context available
             using (MessageContextExtension.SetScopedContext(localCtxt))

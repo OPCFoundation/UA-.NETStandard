@@ -236,8 +236,7 @@ namespace Opc.Ua.Client
             {
                 throw new ServiceResultException(
                     StatusCodes.BadServerNotConnected,
-                    "Cannot browse if not connected to a server."
-                );
+                    "Cannot browse if not connected to a server.");
             }
 
             try
@@ -265,8 +264,7 @@ namespace Opc.Ua.Client
                     m_maxReferencesReturned,
                     nodesToBrowse,
                     out BrowseResultCollection results,
-                    out DiagnosticInfoCollection diagnosticInfos
-                );
+                    out DiagnosticInfoCollection diagnosticInfos);
 
                 // ensure that the server returned valid results.
                 ClientBase.ValidateResponse(results, nodesToBrowse);
@@ -279,8 +277,7 @@ namespace Opc.Ua.Client
                         results[0].StatusCode,
                         0,
                         diagnosticInfos,
-                        responseHeader.StringTable
-                    );
+                        responseHeader.StringTable);
                 }
 
                 // fetch initial set of references.
@@ -338,8 +335,7 @@ namespace Opc.Ua.Client
             {
                 throw new ServiceResultException(
                     StatusCodes.BadInvalidState,
-                    "Cannot change browse parameters while a browse operation is in progress."
-                );
+                    "Cannot change browse parameters while a browse operation is in progress.");
             }
         }
 
@@ -361,8 +357,7 @@ namespace Opc.Ua.Client
                 cancel,
                 continuationPoints,
                 out BrowseResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos
-            );
+                out DiagnosticInfoCollection diagnosticInfos);
 
             // ensure that the server returned valid results.
             ClientBase.ValidateResponse(results, continuationPoints);
@@ -375,8 +370,7 @@ namespace Opc.Ua.Client
                     results[0].StatusCode,
                     0,
                     diagnosticInfos,
-                    responseHeader.StringTable
-                );
+                    responseHeader.StringTable);
             }
 
             // update continuation point.

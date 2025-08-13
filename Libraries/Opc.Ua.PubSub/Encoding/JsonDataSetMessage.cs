@@ -82,18 +82,15 @@ namespace Opc.Ua.PubSub.Encoding
                 // 01 RawData Field Encoding
                 m_fieldTypeEncoding = FieldTypeEncodingMask.RawData;
             }
-            else if (
-                (
+            else if ((
                     FieldContentMask &
                     (
                         DataSetFieldContentMask.StatusCode |
                         DataSetFieldContentMask.SourceTimestamp |
                         DataSetFieldContentMask.ServerTimestamp |
                         DataSetFieldContentMask.SourcePicoSeconds |
-                        DataSetFieldContentMask.ServerPicoSeconds
-                    )
-                ) != 0
-            )
+                        DataSetFieldContentMask.ServerPicoSeconds)
+                ) != 0)
             {
                 // 10 DataValue Field Encoding
                 m_fieldTypeEncoding = FieldTypeEncodingMask.DataValue;
@@ -132,8 +129,7 @@ namespace Opc.Ua.PubSub.Encoding
             IJsonDecoder jsonDecoder,
             int messagesCount,
             string messagesListName,
-            DataSetReaderDataType dataSetReader
-        )
+            DataSetReaderDataType dataSetReader)
         {
             if (messagesCount == 0)
             {
@@ -273,8 +269,7 @@ namespace Opc.Ua.PubSub.Encoding
                             object value = DecodeRawData(
                                 jsonDecoder,
                                 dataSetMetaData?.Fields[index],
-                                dataSetMetaData?.Fields[index].Name
-                            );
+                                dataSetMetaData?.Fields[index].Name);
                             dataValues.Add(new DataValue(new Variant(value)));
                             break;
                         case FieldTypeEncodingMask.DataValue:
@@ -302,10 +297,8 @@ namespace Opc.Ua.PubSub.Encoding
                                     }
                                 }
 
-                                if (
-                                    (FieldContentMask & DataSetFieldContentMask.StatusCode) != 0 &&
-                                    jsonDecoder.ReadField("StatusCode", out token)
-                                )
+                                if ((FieldContentMask & DataSetFieldContentMask.StatusCode) != 0 &&
+                                    jsonDecoder.ReadField("StatusCode", out token))
                                 {
                                     bool wasPush3 = jsonDecoder.PushStructure("StatusCode");
                                     if (wasPush3)
@@ -392,12 +385,10 @@ namespace Opc.Ua.PubSub.Encoding
                     Value = dataValues[i]
                 };
 
-                if (
-                    ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet)
+                if (ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet)
                         is TargetVariablesDataType targetVariablesData &&
                     targetVariablesData.TargetVariables != null &&
-                    i < targetVariablesData.TargetVariables.Count
-                )
+                    i < targetVariablesData.TargetVariables.Count)
                 {
                     // remember the target Attribute and target nodeId
                     dataField.TargetAttribute = targetVariablesData.TargetVariables[i].AttributeId;
@@ -591,14 +582,12 @@ namespace Opc.Ua.PubSub.Encoding
                         return jsonDecoder.ReadArray(
                             fieldName,
                             fieldMetaData.ValueRank,
-                            (BuiltInType)fieldMetaData.BuiltInType
-                        );
+                            (BuiltInType)fieldMetaData.BuiltInType);
                     }
 
                     Utils.Trace(
                         "JsonDataSetMessage - Decoding ValueRank = {0} not supported yet !!!",
-                        fieldMetaData.ValueRank
-                    );
+                        fieldMetaData.ValueRank);
                 }
                 catch (Exception ex)
                 {
@@ -614,26 +603,20 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         private void DecodeDataSetMessageHeader(IJsonDecoder jsonDecoder)
         {
-            if (
-                (DataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0 &&
-                jsonDecoder.ReadField(nameof(DataSetWriterId), out _)
-            )
+            if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0 &&
+                jsonDecoder.ReadField(nameof(DataSetWriterId), out _))
             {
                 DataSetWriterId = jsonDecoder.ReadUInt16(nameof(DataSetWriterId));
             }
 
-            if (
-                (DataSetMessageContentMask & JsonDataSetMessageContentMask.SequenceNumber) != 0 &&
-                jsonDecoder.ReadField(nameof(SequenceNumber), out _)
-            )
+            if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.SequenceNumber) != 0 &&
+                jsonDecoder.ReadField(nameof(SequenceNumber), out _))
             {
                 SequenceNumber = jsonDecoder.ReadUInt32(nameof(SequenceNumber));
             }
 
-            if (
-                (DataSetMessageContentMask & JsonDataSetMessageContentMask.MetaDataVersion) != 0 &&
-                jsonDecoder.ReadField(nameof(MetaDataVersion), out _)
-            )
+            if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.MetaDataVersion) != 0 &&
+                jsonDecoder.ReadField(nameof(MetaDataVersion), out _))
             {
                 MetaDataVersion =
                     jsonDecoder.ReadEncodeable(
@@ -642,18 +625,14 @@ namespace Opc.Ua.PubSub.Encoding
                     ConfigurationVersionDataType;
             }
 
-            if (
-                (DataSetMessageContentMask & JsonDataSetMessageContentMask.Timestamp) != 0 &&
-                jsonDecoder.ReadField(nameof(Timestamp), out _)
-            )
+            if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.Timestamp) != 0 &&
+                jsonDecoder.ReadField(nameof(Timestamp), out _))
             {
                 Timestamp = jsonDecoder.ReadDateTime(nameof(Timestamp));
             }
 
-            if (
-                (DataSetMessageContentMask & JsonDataSetMessageContentMask.Status) != 0 &&
-                jsonDecoder.ReadField(nameof(Status), out _)
-            )
+            if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.Status) != 0 &&
+                jsonDecoder.ReadField(nameof(Status), out _))
             {
                 Status = jsonDecoder.ReadStatusCode(nameof(Status));
             }

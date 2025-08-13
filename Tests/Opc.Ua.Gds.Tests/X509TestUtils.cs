@@ -44,8 +44,7 @@ namespace Opc.Ua.Gds.Tests
             byte[] privateKey,
             string privateKeyPassword,
             string privateKeyFormat,
-            byte[][] issuerCertificates
-        )
+            byte[][] issuerCertificates)
         {
             X509Certificate2 newCert = X509CertificateLoader.LoadCertificate(certificate);
             Assert.IsNotNull(newCert);
@@ -61,8 +60,7 @@ namespace Opc.Ua.Gds.Tests
                 newPrivateKeyCert = CertificateFactory.CreateCertificateWithPEMPrivateKey(
                     newCert,
                     privateKey,
-                    privateKeyPassword
-                );
+                    privateKeyPassword);
             }
             else
             {
@@ -97,8 +95,7 @@ namespace Opc.Ua.Gds.Tests
         public static void VerifySignedApplicationCert(
             ApplicationTestData testApp,
             byte[] rawSignedCert,
-            byte[][] rawIssuerCerts
-        )
+            byte[][] rawIssuerCerts)
         {
             X509Certificate2 signedCert = X509CertificateLoader.LoadCertificate(rawSignedCert);
             X509Certificate2 issuerCert = X509CertificateLoader.LoadCertificate(rawIssuerCerts[0]);
@@ -136,8 +133,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.DecipherOnly) == 0);
             Assert.True(
                 (keyUsage.KeyUsages &
-                    X509KeyUsageFlags.DigitalSignature) == X509KeyUsageFlags.DigitalSignature
-            );
+                    X509KeyUsageFlags.DigitalSignature) == X509KeyUsageFlags.DigitalSignature);
             Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.EncipherOnly) == 0);
             Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.KeyCertSign) == 0);
             Assert.True((keyUsage.KeyUsages &
@@ -156,12 +152,10 @@ namespace Opc.Ua.Gds.Tests
             {
                 Assert.True(
                     (keyUsage.KeyUsages &
-                        X509KeyUsageFlags.DataEncipherment) == X509KeyUsageFlags.DataEncipherment
-                );
+                        X509KeyUsageFlags.DataEncipherment) == X509KeyUsageFlags.DataEncipherment);
                 Assert.True(
                     (keyUsage.KeyUsages &
-                        X509KeyUsageFlags.KeyEncipherment) == X509KeyUsageFlags.KeyEncipherment
-                );
+                        X509KeyUsageFlags.KeyEncipherment) == X509KeyUsageFlags.KeyEncipherment);
                 Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.KeyAgreement) == 0);
 
                 // enhanced key usage

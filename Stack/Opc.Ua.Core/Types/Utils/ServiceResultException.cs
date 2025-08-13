@@ -190,8 +190,7 @@ namespace Opc.Ua
             StatusCode code,
             int index,
             DiagnosticInfoCollection diagnosticInfos,
-            IList<string> stringTable
-        )
+            IList<string> stringTable)
         {
             return new ServiceResultException(
                 new ServiceResult(code, index, diagnosticInfos, stringTable));

@@ -79,8 +79,7 @@ namespace Opc.Ua.PubSub.Configuration
                 buffer.AppendFormat(
                     CultureInfo.InvariantCulture,
                     "Configuration file could not be loaded: {0}\r\n",
-                    filePath
-                )
+                    filePath)
                     .AppendFormat(CultureInfo.InvariantCulture, "Error: {0}", e.Message);
 
                 throw ServiceResultException.Create(

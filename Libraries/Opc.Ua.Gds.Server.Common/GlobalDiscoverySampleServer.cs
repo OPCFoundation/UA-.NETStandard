@@ -61,8 +61,7 @@ namespace Opc.Ua.Gds.Server
             ICertificateGroup certificateGroup,
             IUserDatabase userDatabase,
             bool autoApprove = true,
-            bool createStandardUsers = true
-        )
+            bool createStandardUsers = true)
         {
             m_database = database;
             m_request = request;
@@ -98,8 +97,7 @@ namespace Opc.Ua.Gds.Server
         /// </remarks>
         protected override MasterNodeManager CreateMasterNodeManager(
             IServerInternal server,
-            ApplicationConfiguration configuration
-        )
+            ApplicationConfiguration configuration)
         {
             Utils.LogInfo("Creating the Node Managers.");
 
@@ -112,8 +110,7 @@ namespace Opc.Ua.Gds.Server
                     m_database,
                     m_request,
                     m_certificateGroup,
-                    m_autoApprove
-                )
+                    m_autoApprove)
             };
 
             // create master node manager.
@@ -158,8 +155,7 @@ namespace Opc.Ua.Gds.Server
                     var info = new TranslationInfo(
                         "NoWriteAllowed",
                         "en-US",
-                        "Must provide a valid user before calling write."
-                    );
+                        "Must provide a valid user before calling write.");
 
                     // create an exception with a vendor defined sub-code.
                     throw new ServiceResultException(
@@ -167,9 +163,7 @@ namespace Opc.Ua.Gds.Server
                             StatusCodes.BadUserAccessDenied,
                             "NoWriteAllowed",
                             Namespaces.OpcUaGds,
-                            new LocalizedText(info)
-                        )
-                    );
+                            new LocalizedText(info)));
                 }
 
                 UserIdentityToken securityToken = context.UserIdentity.GetIdentityToken();
@@ -264,8 +258,7 @@ namespace Opc.Ua.Gds.Server
                 ?? new GlobalDiscoveryServerConfiguration();
             //check if application certificate is in the Store of the GDS
             var certificateStoreIdentifier = new CertificateStoreIdentifier(
-                configuration.ApplicationCertificatesStorePath
-            );
+                configuration.ApplicationCertificatesStorePath);
             using (ICertificateStore applicationsStore = certificateStoreIdentifier.OpenStore())
             {
                 X509Certificate2Collection matchingCerts = applicationsStore
@@ -319,8 +312,7 @@ namespace Opc.Ua.Gds.Server
                         "InvalidCertificate",
                         "en-US",
                         "'{0}' is an invalid user certificate.",
-                        certificate.Subject
-                    );
+                        certificate.Subject);
 
                     result = StatusCodes.BadIdentityTokenInvalid;
                 }
@@ -331,8 +323,7 @@ namespace Opc.Ua.Gds.Server
                         "UntrustedCertificate",
                         "en-US",
                         "'{0}' is not a trusted user certificate.",
-                        certificate.Subject
-                    );
+                        certificate.Subject);
                 }
 
                 // create an exception with a vendor defined sub-code.
@@ -341,8 +332,7 @@ namespace Opc.Ua.Gds.Server
                         result,
                         info.Key,
                         LoadServerProperties().ProductUri,
-                        new LocalizedText(info))
-                );
+                        new LocalizedText(info)));
             }
         }
 
@@ -363,13 +353,11 @@ namespace Opc.Ua.Gds.Server
                 "sysadmin",
                 "demo",
                 [GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin, Role.SecurityAdmin, Role
-                    .ConfigureAdmin]
-            );
+                    .ConfigureAdmin]);
             m_userDatabase.CreateUser(
                 "appadmin",
                 "demo",
-                [Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin]
-            );
+                [Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin]);
             m_userDatabase.CreateUser("appuser", "demo", [Role.AuthenticatedUser]);
 
             m_userDatabase.CreateUser(
@@ -379,8 +367,7 @@ namespace Opc.Ua.Gds.Server
             m_userDatabase.CreateUser(
                 "CertificateAuthorityAdmin",
                 "demo",
-                [Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin]
-            );
+                [Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin]);
         }
 
         /// <summary>
@@ -396,15 +383,13 @@ namespace Opc.Ua.Gds.Server
             {
                 Utils.LogInfo(
                     "Cannot login based on ApplicationInstanceCertificate, no unique result for Application with URI: {0}",
-                    applicationUri
-                );
+                    applicationUri);
                 return;
             }
             NodeId applicationId = application.FirstOrDefault().ApplicationId;
             Utils.LogInfo(
                 "Application {0} accepted based on ApplicationInstanceCertificate as ApplicationSelfAdmin",
-                applicationUri
-            );
+                applicationUri);
             args.Identity = new GdsRoleBasedIdentity(
                 new UserIdentity(),
                 [GdsRole.ApplicationSelfAdmin],

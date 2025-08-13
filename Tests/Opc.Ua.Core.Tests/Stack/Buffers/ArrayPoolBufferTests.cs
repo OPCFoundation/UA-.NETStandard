@@ -81,8 +81,7 @@ namespace Opc.Ua.Buffers.Tests
         public void ArrayPoolBufferWriterChunking(
             [Values(0, 1, 16, 128, 333, 1024, 7777)] int chunkSize,
             [Values(16, 333, 1024, 4096)] int defaultChunkSize,
-            [Values(0, 1024, 4096, 65536)] int maxChunkSize
-        )
+            [Values(0, 1024, 4096, 65536)] int maxChunkSize)
         {
             var random = new Random(42);
             int length;

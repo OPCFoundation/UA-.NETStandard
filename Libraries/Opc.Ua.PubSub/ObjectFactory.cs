@@ -46,8 +46,7 @@ namespace Opc.Ua.PubSub
         /// <exception cref="ArgumentException"></exception>
         public static UaPubSubConnection CreateConnection(
             UaPubSubApplication uaPubSubApplication,
-            PubSubConnectionDataType pubSubConnectionDataType
-        )
+            PubSubConnectionDataType pubSubConnectionDataType)
         {
             if (pubSubConnectionDataType.TransportProfileUri == Profiles.PubSubUdpUadpTransport)
             {

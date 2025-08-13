@@ -253,8 +253,7 @@ namespace Opc.Ua.Server.Tests
                 TimestampsToReturn.Neither,
                 readIdCollection,
                 out DataValueCollection results,
-                out DiagnosticInfoCollection diagnosticInfos
-            );
+                out DiagnosticInfoCollection diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response, results, readIdCollection);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
@@ -303,8 +302,7 @@ namespace Opc.Ua.Server.Tests
                 TimestampsToReturn.Neither,
                 nodesToRead,
                 out DataValueCollection dataValues,
-                out DiagnosticInfoCollection diagnosticInfos
-            );
+                out DiagnosticInfoCollection diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response, dataValues, nodesToRead);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
@@ -326,8 +324,7 @@ namespace Opc.Ua.Server.Tests
             m_referenceDescriptions ??= CommonTestWorkers.BrowseFullAddressSpaceWorker(
                 serverTestServices,
                 m_requestHeader,
-                m_operationLimits
-            );
+                m_operationLimits);
 
             // Read all variables
             RequestHeader requestHeader = m_requestHeader;
@@ -349,8 +346,7 @@ namespace Opc.Ua.Server.Tests
                     TimestampsToReturn.Both,
                     nodesToRead,
                     out DataValueCollection dataValues,
-                    out DiagnosticInfoCollection diagnosticInfos
-                );
+                    out DiagnosticInfoCollection diagnosticInfos);
                 ServerFixtureUtils.ValidateResponse(response, dataValues, nodesToRead);
                 ServerFixtureUtils.ValidateDiagnosticInfos(
                     diagnosticInfos,
@@ -382,14 +378,12 @@ namespace Opc.Ua.Server.Tests
                     NodeId = nodeId,
                     AttributeId = Attributes.Value,
                     Value = new DataValue(1234)
-                }
-            );
+                });
             ResponseHeader response = m_server.Write(
                 requestHeader,
                 nodesToWrite,
                 out StatusCodeCollection dataValues,
-                out DiagnosticInfoCollection diagnosticInfos
-            );
+                out DiagnosticInfoCollection diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response, dataValues, nodesToWrite);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
@@ -431,8 +425,7 @@ namespace Opc.Ua.Server.Tests
             m_referenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(
                 serverTestServices,
                 m_requestHeader,
-                m_operationLimits
-            );
+                m_operationLimits);
         }
 
         /// <summary>
@@ -451,14 +444,12 @@ namespace Opc.Ua.Server.Tests
             m_referenceDescriptions ??= CommonTestWorkers.BrowseFullAddressSpaceWorker(
                 serverTestServices,
                 m_requestHeader,
-                m_operationLimits
-            );
+                m_operationLimits);
             _ = CommonTestWorkers.TranslateBrowsePathWorker(
                 serverTestServices,
                 m_referenceDescriptions,
                 m_requestHeader,
-                m_operationLimits
-            );
+                m_operationLimits);
         }
 
         /// <summary>
@@ -503,8 +494,7 @@ namespace Opc.Ua.Server.Tests
                     transferRequestHeader,
                     testSet,
                     kQueueSize,
-                    -1
-                );
+                    -1);
 
                 transferRequestHeader.Timestamp = DateTime.UtcNow;
                 m_server.CloseSession(transferRequestHeader, false);
@@ -516,8 +506,7 @@ namespace Opc.Ua.Server.Tests
                     m_requestHeader,
                     subscriptionIds,
                     sendInitialData,
-                    !useSecurity
-                );
+                    !useSecurity);
 
                 if (useSecurity)
                 {
@@ -530,8 +519,7 @@ namespace Opc.Ua.Server.Tests
                                     serverTestServices,
                                     m_requestHeader,
                                     subscriptionIds,
-                                    true
-                                );
+                                    true);
                             });
                     Assert.AreEqual(
                         (StatusCode)StatusCodes.BadNoSubscription,
@@ -569,8 +557,7 @@ namespace Opc.Ua.Server.Tests
                     m_requestHeader,
                     testSet,
                     kQueueSize,
-                    -1
-                );
+                    -1);
 
                 RequestHeader transferRequestHeader = m_server.CreateAndActivateSession(
                     "TransferSession",
@@ -581,8 +568,7 @@ namespace Opc.Ua.Server.Tests
                     transferRequestHeader,
                     subscriptionIds,
                     sendInitialData,
-                    !useSecurity
-                );
+                    !useSecurity);
 
                 if (useSecurity)
                 {
@@ -592,8 +578,7 @@ namespace Opc.Ua.Server.Tests
                         serverTestServices,
                         m_requestHeader,
                         subscriptionIds,
-                        true
-                    );
+                        true);
                 }
 
                 transferRequestHeader.Timestamp = DateTime.UtcNow;
@@ -631,8 +616,7 @@ namespace Opc.Ua.Server.Tests
                     .ToArray();
                 testSetCollection.AddRange(
                     CommonTestWorkers.NodeIdTestDataSetStatic
-                        .Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
-                );
+                        .Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)));
                 NodeId[] testSet = [.. testSetCollection];
 
                 //Re-use method CreateSubscriptionForTransfer to create a subscription
@@ -641,8 +625,7 @@ namespace Opc.Ua.Server.Tests
                     m_requestHeader,
                     testSet,
                     queueSize,
-                    0
-                );
+                    0);
 
                 RequestHeader resendDataRequestHeader = m_server.CreateAndActivateSession(
                     "ResendData");
@@ -670,8 +653,7 @@ namespace Opc.Ua.Server.Tests
                     out bool moreNotifications,
                     out NotificationMessage notificationMessage,
                     out StatusCodeCollection _,
-                    out DiagnosticInfoCollection diagnosticInfos
-                );
+                    out DiagnosticInfoCollection diagnosticInfos);
 
                 Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);
                 ServerFixtureUtils.ValidateResponse(response);
@@ -695,8 +677,7 @@ namespace Opc.Ua.Server.Tests
                         out moreNotifications,
                         out notificationMessage,
                         out StatusCodeCollection _,
-                        out diagnosticInfos
-                    );
+                        out diagnosticInfos);
 
                     Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);
                     ServerFixtureUtils.ValidateResponse(response);
@@ -717,8 +698,7 @@ namespace Opc.Ua.Server.Tests
                     resendDataRequestHeader,
                     nodesToCall,
                     out CallMethodResultCollection results,
-                    out diagnosticInfos
-                );
+                    out diagnosticInfos);
 
                 SecureChannelContext.Current = securityContext;
 
@@ -739,8 +719,7 @@ namespace Opc.Ua.Server.Tests
                     out moreNotifications,
                     out notificationMessage,
                     out StatusCodeCollection _,
-                    out diagnosticInfos
-                );
+                    out diagnosticInfos);
 
                 Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);
                 ServerFixtureUtils.ValidateResponse(response);
@@ -783,8 +762,7 @@ namespace Opc.Ua.Server.Tests
                     out moreNotifications,
                     out notificationMessage,
                     out StatusCodeCollection _,
-                    out diagnosticInfos
-                );
+                    out diagnosticInfos);
 
                 Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);
                 ServerFixtureUtils.ValidateResponse(response);
@@ -815,8 +793,7 @@ namespace Opc.Ua.Server.Tests
                         out moreNotifications,
                         out notificationMessage,
                         out StatusCodeCollection _,
-                        out diagnosticInfos
-                    );
+                        out diagnosticInfos);
 
                     Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);
                     ServerFixtureUtils.ValidateResponse(response);
@@ -848,8 +825,7 @@ namespace Opc.Ua.Server.Tests
                     out moreNotifications,
                     out notificationMessage,
                     out StatusCodeCollection _,
-                    out diagnosticInfos
-                );
+                    out diagnosticInfos);
 
                 Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);
                 ServerFixtureUtils.ValidateResponse(response);
@@ -885,8 +861,7 @@ namespace Opc.Ua.Server.Tests
                         ObjectId = ObjectIds.Server,
                         MethodId = MethodIds.Server_ResendData,
                         InputArguments = [new Variant(subscriptionId)]
-                    }
-                );
+                    });
             }
 
             //call ResendData method with subscription ids
@@ -895,8 +870,7 @@ namespace Opc.Ua.Server.Tests
                 m_requestHeader,
                 nodesToCall,
                 out CallMethodResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos
-            );
+                out DiagnosticInfoCollection diagnosticInfos);
 
             Assert.AreEqual(expectedStatus, results[0].StatusCode.Code);
             ServerFixtureUtils.ValidateResponse(response, results, nodesToCall);
@@ -928,8 +902,7 @@ namespace Opc.Ua.Server.Tests
                 TimestampsToReturn.Neither,
                 nodesToRead,
                 out DataValueCollection readDataValues,
-                out DiagnosticInfoCollection diagnosticInfos
-            );
+                out DiagnosticInfoCollection diagnosticInfos);
 
             ServerFixtureUtils.ValidateResponse(response, readDataValues, nodesToRead);
             ServerFixtureUtils.ValidateDiagnosticInfos(
@@ -957,8 +930,7 @@ namespace Opc.Ua.Server.Tests
                         NodeId = nodeId,
                         AttributeId = Attributes.Value,
                         Value = modifiedValues[ii]
-                    }
-                );
+                    });
                 ii++;
             }
 
@@ -968,8 +940,7 @@ namespace Opc.Ua.Server.Tests
                 requestHeader,
                 nodesToWrite,
                 out StatusCodeCollection writeDataValues,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response, writeDataValues, nodesToWrite);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,

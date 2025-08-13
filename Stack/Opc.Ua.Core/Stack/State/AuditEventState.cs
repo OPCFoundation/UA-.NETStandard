@@ -31,8 +31,7 @@ namespace Opc.Ua
             EventSeverity severity,
             LocalizedText message,
             bool status,
-            DateTime actionTimestamp
-        )
+            DateTime actionTimestamp)
         {
             base.Initialize(context, source, severity, message);
 

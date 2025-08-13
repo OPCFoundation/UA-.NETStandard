@@ -43,8 +43,7 @@ namespace Alarms
             SupportedAlarmConditionType alarmConditionType,
             Type controllerType,
             int interval,
-            bool optional
-        )
+            bool optional)
             : base(alarmNodeManager, parent, trigger, controllerType, interval)
         {
             m_optional = optional;

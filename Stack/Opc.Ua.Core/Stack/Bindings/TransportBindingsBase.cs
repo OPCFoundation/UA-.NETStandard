@@ -135,8 +135,7 @@ namespace Opc.Ua.Bindings
                 string fullName = Utils.DefaultOpcUaCoreAssemblyFullName.Replace(
                     Utils.DefaultOpcUaCoreAssemblyName,
                     assemblyName,
-                    StringComparison.Ordinal
-                );
+                    StringComparison.Ordinal);
                 try
                 {
                     assembly = Assembly.Load(fullName);

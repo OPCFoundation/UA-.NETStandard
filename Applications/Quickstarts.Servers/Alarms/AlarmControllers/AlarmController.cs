@@ -302,8 +302,7 @@ namespace Alarms
                 calculated,
                 offsetValue,
                 normalSpan,
-                percentageOfRange
-            );
+                percentageOfRange);
 
             return (int)calculated;
         }

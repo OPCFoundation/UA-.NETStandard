@@ -128,8 +128,7 @@ namespace Opc.Ua.Security.Certificates
                             new PbeParameters(
                                 PbeEncryptionAlgorithm.TripleDes3KeyPkcs12,
                                 HashAlgorithmName.SHA1,
-                                2000)
-                        );
+                                2000));
                 }
                 else
                 {
@@ -144,17 +143,14 @@ namespace Opc.Ua.Security.Certificates
                                 new PbeParameters(
                                     PbeEncryptionAlgorithm.TripleDes3KeyPkcs12,
                                     HashAlgorithmName.SHA1,
-                                    2000
-                                )
-                            );
+                                    2000));
                     }
                 }
             }
 
             return EncodeAsPEM(
                 exportedPkcs8PrivateKey,
-                string.IsNullOrEmpty(password) ? "PRIVATE KEY" : "ENCRYPTED PRIVATE KEY"
-            );
+                string.IsNullOrEmpty(password) ? "PRIVATE KEY" : "ENCRYPTED PRIVATE KEY");
         }
 
         /// <summary>
@@ -163,8 +159,7 @@ namespace Opc.Ua.Security.Certificates
         public static bool TryRemovePublicKeyFromPEM(
             string thumbprint,
             ReadOnlySpan<byte> pemDataBlob,
-            out byte[] modifiedPemDataBlob
-        )
+            out byte[] modifiedPemDataBlob)
         {
             modifiedPemDataBlob = null;
             const string label = "CERTIFICATE";
@@ -206,8 +201,7 @@ namespace Opc.Ua.Security.Certificates
                             pemCertificateDecoded);
 #else
                         X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(
-                            pemCertificateDecoded.ToArray()
-                        );
+                            pemCertificateDecoded.ToArray());
 #endif
                         if (thumbprint.Equals(
                             certificate.Thumbprint,
@@ -219,9 +213,7 @@ namespace Opc.Ua.Security.Certificates
                                         beginIndex -= beginlabel.Length,
                                         endIndex + endlabel.Length),
                                     string.Empty,
-                                    StringComparison.Ordinal
-                                )
-                            );
+                                    StringComparison.Ordinal));
                             return true;
                         }
                     }

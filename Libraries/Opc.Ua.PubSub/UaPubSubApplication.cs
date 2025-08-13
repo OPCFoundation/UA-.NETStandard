@@ -183,8 +183,7 @@ namespace Opc.Ua.PubSub
             }
             PubSubConfigurationDataType pubSubConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
-                    configFilePath
-                    );
+                    configFilePath);
 
             return Create(pubSubConfiguration, dataStore);
         }
@@ -198,8 +197,7 @@ namespace Opc.Ua.PubSub
         /// <returns>New instance of <see cref="UaPubSubApplication"/></returns>
         public static UaPubSubApplication Create(
             PubSubConfigurationDataType pubSubConfiguration = null,
-            IUaPubSubDataStore dataStore = null
-        )
+            IUaPubSubDataStore dataStore = null)
         {
             // if no argument received, start with empty configuration
             pubSubConfiguration ??= new PubSubConfigurationDataType();

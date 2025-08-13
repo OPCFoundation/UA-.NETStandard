@@ -42,8 +42,7 @@ namespace Opc.Ua
             string namespaceUri,
             LocalizedText localizedText,
             string additionalInfo,
-            ServiceResult innerResult
-        )
+            ServiceResult innerResult)
         {
             StatusCode = code;
             SymbolicId = symbolicId;
@@ -63,8 +62,7 @@ namespace Opc.Ua
                 outerResult.NamespaceUri,
                 outerResult.LocalizedText,
                 outerResult.AdditionalInfo,
-                innerResult
-            )
+                innerResult)
         {
         }
 
@@ -84,8 +82,7 @@ namespace Opc.Ua
             string symbolicId,
             string namespaceUri,
             LocalizedText localizedText,
-            string additionalInfo
-        )
+            string additionalInfo)
             : this(
                 code,
                 symbolicId,
@@ -169,8 +166,7 @@ namespace Opc.Ua
             string namespaceUri,
             LocalizedText localizedText,
             string additionalInfo,
-            Exception innerException
-        )
+            Exception innerException)
         {
             var innerResult = new ServiceResult(innerException);
 
@@ -210,8 +206,7 @@ namespace Opc.Ua
             string symbolicId,
             string namespaceUri,
             LocalizedText localizedText,
-            Exception innerException
-        )
+            Exception innerException)
             : this(code, symbolicId, namespaceUri, localizedText, null, innerException)
         {
         }
@@ -264,8 +259,7 @@ namespace Opc.Ua
             uint defaultCode,
             string defaultSymbolicId,
             string defaultNamespaceUri,
-            LocalizedText defaultLocalizedText
-        )
+            LocalizedText defaultLocalizedText)
         {
             if (e is ServiceResultException sre)
             {
@@ -315,8 +309,7 @@ namespace Opc.Ua
             Exception exception,
             uint defaultCode,
             string defaultSymbolicId,
-            string defaultNamespaceUri
-        )
+            string defaultNamespaceUri)
             : this(exception, defaultCode, defaultSymbolicId, defaultNamespaceUri, null)
         {
         }
@@ -366,8 +359,7 @@ namespace Opc.Ua
                     InnerResult = new ServiceResult(
                         diagnosticInfo.InnerStatusCode,
                         diagnosticInfo.InnerDiagnosticInfo,
-                        stringTable
-                    );
+                        stringTable);
                 }
             }
         }
@@ -379,8 +371,7 @@ namespace Opc.Ua
             StatusCode code,
             int index,
             DiagnosticInfoCollection diagnosticInfos,
-            IList<string> stringTable
-        )
+            IList<string> stringTable)
         {
             Code = (uint)code;
 
@@ -404,8 +395,7 @@ namespace Opc.Ua
                         InnerResult = new ServiceResult(
                             diagnosticInfo.InnerStatusCode,
                             diagnosticInfo.InnerDiagnosticInfo,
-                            stringTable
-                        );
+                            stringTable);
                     }
                 }
             }

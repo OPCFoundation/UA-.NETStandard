@@ -46,8 +46,7 @@ namespace Opc.Ua.Client
         public TraceableRequestHeaderClientSession(
             ISessionChannel channel,
             ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint
-        )
+            ConfiguredEndpoint endpoint)
             : this(channel as ITransportChannel, configuration, endpoint, null)
         {
         }
@@ -75,8 +74,7 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
             EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null
-        )
+            StringCollection discoveryProfileUris = null)
             : base(
                 channel,
                 configuration,
@@ -106,8 +104,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public static void InjectTraceIntoAdditionalParameters(
             ActivityContext context,
-            out AdditionalParametersType traceData
-        )
+            out AdditionalParametersType traceData)
         {
             traceData = new AdditionalParametersType();
 

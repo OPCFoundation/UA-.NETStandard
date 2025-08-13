@@ -532,8 +532,7 @@ namespace Opc.Ua.Bindings
                     return ServiceResult.Create(
                         StatusCodes.BadTcpMessageTypeInvalid,
                         "Message type {0:X8} is invalid.",
-                        messageType
-                    );
+                        messageType);
                 }
 
                 m_incomingMessageSize = BitConverter.ToInt32(m_receiveBuffer, 4);
@@ -545,8 +544,7 @@ namespace Opc.Ua.Bindings
                         StatusCodes.BadTcpMessageTooLarge,
                         "Messages size {0} bytes is too large for buffer of size {1}.",
                         m_incomingMessageSize,
-                        m_receiveBufferSize
-                    );
+                        m_receiveBufferSize);
                 }
 
                 // set up buffer for reading the message body.
@@ -630,8 +628,7 @@ namespace Opc.Ua.Bindings
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadTcpInternalError,
-                            args.SocketError.ToString()
-                        );
+                            args.SocketError.ToString());
                     }
                     // set state to inner complete
                     m_readState = ReadState.ReadComplete;

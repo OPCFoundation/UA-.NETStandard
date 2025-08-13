@@ -58,8 +58,7 @@ namespace Opc.Ua.PubSub.Transport
             int reconnectInterval,
             MqttClientOptions mqttClientOptions,
             Func<MqttApplicationMessageReceivedEventArgs, Task> receiveMessageHandler,
-            StringCollection topicFilter = null
-        )
+            StringCollection topicFilter = null)
         {
             IMqttClient mqttClient = s_mqttClientFactory.Value.CreateMqttClient();
 
@@ -82,8 +81,7 @@ namespace Opc.Ua.PubSub.Transport
                         Utils.Trace(
                             "{0} Subscribed to topics: {1}",
                             mqttClient?.Options?.ClientId,
-                            string.Join(",", topicFilter)
-                        );
+                            string.Join(",", topicFilter));
                     }
                     catch (Exception exception)
                     {
@@ -91,8 +89,7 @@ namespace Opc.Ua.PubSub.Transport
                             exception,
                             "{0} could not subscribe to topics: {1}",
                             mqttClient?.Options?.ClientId,
-                            string.Join(",", topicFilter)
-                        );
+                            string.Join(",", topicFilter));
                     }
                 };
             }
@@ -102,15 +99,13 @@ namespace Opc.Ua.PubSub.Transport
                 {
                     Utils.Trace(
                         "The provided MQTT message handler is null therefore messages will not be processed on client {0}!!!",
-                        mqttClient?.Options?.ClientId
-                    );
+                        mqttClient?.Options?.ClientId);
                 }
                 if (topicFilter == null)
                 {
                     Utils.Trace(
                         "The provided MQTT message topic filter is null therefore messages will not be processed on client {0}!!!",
-                        mqttClient?.Options?.ClientId
-                    );
+                        mqttClient?.Options?.ClientId);
                 }
             }
 
@@ -124,8 +119,7 @@ namespace Opc.Ua.PubSub.Transport
                         "Disconnect Handler called on client {0}, reason: {1} was connected: {2}",
                         mqttClient?.Options?.ClientId,
                         e.Reason,
-                        e.ClientWasConnected
-                    );
+                        e.ClientWasConnected);
                     await ConnectAsync(reconnectInterval, mqttClientOptions, mqttClient)
                         .ConfigureAwait(false);
                 }
@@ -134,8 +128,7 @@ namespace Opc.Ua.PubSub.Transport
                     Utils.Trace(
                         "{0} Failed to reconnect after disconnect occurred: {1}",
                         mqttClient?.Options?.ClientId,
-                        excOnDisconnect.Message
-                    );
+                        excOnDisconnect.Message);
                 }
             };
 
@@ -151,8 +144,7 @@ namespace Opc.Ua.PubSub.Transport
         private static async Task ConnectAsync(
             int reconnectInterval,
             MqttClientOptions mqttClientOptions,
-            IMqttClient mqttClient
-        )
+            IMqttClient mqttClient)
         {
             try
             {
@@ -170,8 +162,7 @@ namespace Opc.Ua.PubSub.Transport
                     Utils.Trace(
                         "MQTT client {0} connect attempt returned {0}",
                         mqttClient?.Options?.ClientId,
-                        result?.ResultCode
-                    );
+                        result?.ResultCode);
                 }
             }
             catch (Exception e)
@@ -180,8 +171,7 @@ namespace Opc.Ua.PubSub.Transport
                     "MQTT client {0} connect attempt returned {1} will try to reconnect in {2} seconds",
                     mqttClient?.Options?.ClientId,
                     e.Message,
-                    reconnectInterval
-                );
+                    reconnectInterval);
             }
         }
     }

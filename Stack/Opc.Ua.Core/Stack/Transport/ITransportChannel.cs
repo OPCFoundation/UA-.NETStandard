@@ -23,8 +23,7 @@ namespace Opc.Ua
     public delegate void ChannelTokenActivatedEventHandler(
         ITransportChannel channel,
         ChannelToken currentToken,
-        ChannelToken previousToken
-    );
+        ChannelToken previousToken);
 
     /// <summary>
     /// This is an interface to a channel which supports

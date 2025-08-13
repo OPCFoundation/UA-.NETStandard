@@ -47,8 +47,7 @@ namespace Opc.Ua.Client
         public override Session Create(
             ISessionChannel channel,
             ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint
-        )
+            ConfiguredEndpoint endpoint)
         {
             return new TraceableRequestHeaderClientSession(channel, configuration, endpoint);
         }
@@ -60,8 +59,7 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
             EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null
-        )
+            StringCollection discoveryProfileUris = null)
         {
             return new TraceableRequestHeaderClientSession(
                 channel,
@@ -69,8 +67,7 @@ namespace Opc.Ua.Client
                 endpoint,
                 clientCertificate,
                 availableEndpoints,
-                discoveryProfileUris
-            );
+                discoveryProfileUris);
         }
     }
 }

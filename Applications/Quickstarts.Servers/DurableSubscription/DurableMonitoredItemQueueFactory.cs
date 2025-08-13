@@ -154,8 +154,7 @@ namespace Quickstarts.Servers
                     }
                     Opc.Ua.Utils.LogWarning(
                         "Failed to persist queue for monitored item with id {0} as the queue was not known to the server",
-                        id
-                    );
+                        id);
                 }
                 catch (Exception ex)
                 {
@@ -222,8 +221,7 @@ namespace Quickstarts.Servers
                 StorableDataChangeQueue template = JsonConvert
                     .DeserializeObject<StorableDataChangeQueue>(
                         result,
-                        s_settings
-                        );
+                        s_settings);
 
                 var queue = new DurableDataChangeMonitoredItemQueue(template, m_batchPersistor);
                 m_dataChangeQueues.AddOrUpdate(id, queue, (_, _) => queue);

@@ -126,8 +126,7 @@ namespace Opc.Ua.Fuzzing
                         systemType = s_messageContext
                             .Factory.EncodeableTypes.Where(entry =>
                                 entry.Value
-                                    .Name == typeName /* && entry.Key.NamespaceUri == namespaceUri*/
-                            )
+                                    .Name == typeName /* && entry.Key.NamespaceUri == namespaceUri*/)
                             .Select(entry => entry.Value)
                             .FirstOrDefault();
                     }
@@ -150,8 +149,7 @@ namespace Opc.Ua.Fuzzing
                         }
                         throw ServiceResultException.Create(
                             StatusCodes.BadDecodingError,
-                            "Could not find type for decoding."
-                        );
+                            "Could not find type for decoding.");
                     }
 
                     // TODO: match ns GetEncodeableFactory(typeName, namespaceUri, out IEncodeable encodeable, out _);
@@ -179,8 +177,7 @@ namespace Opc.Ua.Fuzzing
                 Console.WriteLine(
                     "Unexpected ServiceResultException: {0} {1}",
                     (StatusCode)sre.StatusCode,
-                    sre.Message
-                );
+                    sre.Message);
 
                 throw;
             }

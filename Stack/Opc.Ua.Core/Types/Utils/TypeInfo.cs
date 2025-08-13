@@ -555,8 +555,7 @@ namespace Opc.Ua
         public static async Task<BuiltInType> GetBuiltInTypeAsync(
             NodeId datatypeId,
             ITypeTable typeTree,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             NodeId typeId = datatypeId;
 
@@ -740,8 +739,7 @@ namespace Opc.Ua
             NodeId expectedDataTypeId,
             int expectedValueRank,
             NamespaceTable namespaceUris,
-            ITypeTable typeTree
-        )
+            ITypeTable typeTree)
         {
             // get the type info.
             TypeInfo typeInfo = Construct(value);
@@ -778,11 +776,9 @@ namespace Opc.Ua
             }
 
             // A ByteString is equivalent to an Array of Bytes.
-            if (
-                typeInfo.BuiltInType == BuiltInType.ByteString &&
+            if (typeInfo.BuiltInType == BuiltInType.ByteString &&
                 typeInfo.ValueRank == ValueRanks.Scalar &&
-                expectedValueRank is ValueRanks.OneOrMoreDimensions or ValueRanks.OneDimension
-            )
+                expectedValueRank is ValueRanks.OneOrMoreDimensions or ValueRanks.OneDimension)
             {
                 if (typeTree.IsTypeOf(expectedDataTypeId, DataTypeIds.Byte))
                 {
@@ -907,10 +903,8 @@ namespace Opc.Ua
                 }
 
                 // check for enumerations.
-                if (
-                    typeInfo.BuiltInType == BuiltInType.Int32 &&
-                    typeTree.IsTypeOf(expectedDataTypeId, DataTypeIds.Enumeration)
-                )
+                if (typeInfo.BuiltInType == BuiltInType.Int32 &&
+                    typeTree.IsTypeOf(expectedDataTypeId, DataTypeIds.Enumeration))
                 {
                     return typeInfo;
                 }
@@ -1011,8 +1005,7 @@ namespace Opc.Ua
                         expectedDataTypeId,
                         ValueRanks.Scalar,
                         namespaceUris,
-                        typeTree
-                    );
+                        typeTree);
 
                     // give up at the first invalid element.
                     if (elementInfo == null)
@@ -1371,10 +1364,8 @@ namespace Opc.Ua
                 }
 
                 // check for encodeable object.
-                if (
-                    typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(systemType.GetTypeInfo()) ||
-                    name == "IEncodeable"
-                )
+                if (typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(systemType.GetTypeInfo()) ||
+                    name == "IEncodeable")
                 {
                     return new TypeInfo(BuiltInType.ExtensionObject, ValueRanks.Scalar);
                 }
@@ -1398,11 +1389,9 @@ namespace Opc.Ua
                 }
 
                 // check for encodeable object.
-                if (
-                    typeof(IEncodeable).GetTypeInfo()
+                if (typeof(IEncodeable).GetTypeInfo()
                         .IsAssignableFrom(systemType.GetElementType().GetTypeInfo()) ||
-                    name == "IEncodeable"
-                )
+                    name == "IEncodeable")
                 {
                     return new TypeInfo(BuiltInType.ExtensionObject, ValueRanks.OneDimension);
                 }
@@ -1437,10 +1426,8 @@ namespace Opc.Ua
                 }
 
                 // check for encodeable object.
-                if (
-                    typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(systemType.GetTypeInfo()) ||
-                    name == "IEncodeable"
-                )
+                if (typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(systemType.GetTypeInfo()) ||
+                    name == "IEncodeable")
                 {
                     return new TypeInfo(BuiltInType.ExtensionObject, count);
                 }
@@ -1876,8 +1863,7 @@ namespace Opc.Ua
             BuiltInType dstType,
             Array src,
             BuiltInType srcType,
-            CastArrayElementHandler convertor
-        )
+            CastArrayElementHandler convertor)
         {
             bool isSrcVariant = src.GetType().GetElementType() == typeof(Variant);
             bool isDstVariant = dst.GetType().GetElementType() == typeof(Variant);
@@ -1967,8 +1953,7 @@ namespace Opc.Ua
             Array srcArray,
             BuiltInType srcType,
             BuiltInType dstType,
-            CastArrayElementHandler convertor
-        )
+            CastArrayElementHandler convertor)
         {
             if (srcArray == null)
             {

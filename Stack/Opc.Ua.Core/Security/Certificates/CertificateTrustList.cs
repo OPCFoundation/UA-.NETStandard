@@ -70,8 +70,7 @@ namespace Opc.Ua
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadConfigurationError,
-                            "Failed to open certificate store."
-                        );
+                            "Failed to open certificate store.");
                     }
 
                     collection = await store.EnumerateAsync().ConfigureAwait(false);

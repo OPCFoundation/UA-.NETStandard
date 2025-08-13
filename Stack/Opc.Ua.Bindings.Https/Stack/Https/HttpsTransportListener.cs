@@ -305,8 +305,7 @@ namespace Opc.Ua.Bindings
                 m_hostBuilder.UseKestrel(options =>
                     options.ListenAnyIP(
                         EndpointUrl.Port,
-                        listenOptions => listenOptions.UseHttps(httpsOptions))
-                );
+                        listenOptions => listenOptions.UseHttps(httpsOptions)));
             }
             else
             {
@@ -316,8 +315,7 @@ namespace Opc.Ua.Bindings
                     options.Listen(
                         ipAddress,
                         EndpointUrl.Port,
-                        listenOptions => listenOptions.UseHttps(httpsOptions))
-                );
+                        listenOptions => listenOptions.UseHttps(httpsOptions)));
             }
 
             m_hostBuilder.UseContentRoot(Directory.GetCurrentDirectory());
@@ -400,14 +398,11 @@ namespace Opc.Ua.Bindings
                 // extract the JWT token from the HTTP headers.
                 input.RequestHeader ??= new RequestHeader();
 
-                if (
-                    NodeId.IsNull(input.RequestHeader.AuthenticationToken) &&
+                if (NodeId.IsNull(input.RequestHeader.AuthenticationToken) &&
                     input.TypeId != DataTypeIds.CreateSessionRequest &&
                     context.Request.Headers.TryGetValue(
                         kAuthorizationKey,
-                        out Microsoft.Extensions.Primitives.StringValues keys
-                    )
-                )
+                        out Microsoft.Extensions.Primitives.StringValues keys))
                 {
                     foreach (string value in keys)
                     {
@@ -416,18 +411,14 @@ namespace Opc.Ua.Bindings
                             // note: use NodeId(string, uint) to avoid the NodeId.Parse call.
                             input.RequestHeader.AuthenticationToken = new NodeId(
                                 value[(kBearerKey.Length + 1)..].Trim(),
-                                0
-                            );
+                                0);
                         }
                     }
                 }
 
-                if (
-                    !context.Request.Headers.TryGetValue(
+                if (!context.Request.Headers.TryGetValue(
                         Profiles.HttpsSecurityPolicyHeader,
-                        out Microsoft.Extensions.Primitives.StringValues header
-                    )
-                )
+                        out Microsoft.Extensions.Primitives.StringValues header))
                 {
                     header = SecurityPolicies.None;
                 }
@@ -437,10 +428,8 @@ namespace Opc.Ua.Bindings
                 {
                     if (Utils.IsUriHttpsScheme(ep.EndpointUrl))
                     {
-                        if (
-                            !string.IsNullOrEmpty(header) &&
-                            !string.Equals(ep.SecurityPolicyUri, header, StringComparison.Ordinal)
-                        )
+                        if (!string.IsNullOrEmpty(header) &&
+                            !string.Equals(ep.SecurityPolicyUri, header, StringComparison.Ordinal))
                         {
                             continue;
                         }
@@ -453,23 +442,19 @@ namespace Opc.Ua.Bindings
                 if (endpoint == null)
                 {
                     ServiceResultException serviceResultException = null;
-                    if (
-                        input.TypeId != DataTypeIds.GetEndpointsRequest &&
+                    if (input.TypeId != DataTypeIds.GetEndpointsRequest &&
                         input.TypeId != DataTypeIds.FindServersRequest &&
-                        input.TypeId != DataTypeIds.FindServersOnNetworkRequest
-                    )
+                        input.TypeId != DataTypeIds.FindServersOnNetworkRequest)
                     {
                         serviceResultException = new ServiceResultException(
                             StatusCodes.BadSecurityPolicyRejected,
-                            "Channel can only be used for discovery."
-                        );
+                            "Channel can only be used for discovery.");
                     }
                     else if (length > TcpMessageLimits.DefaultDiscoveryMaxMessageSize)
                     {
                         serviceResultException = new ServiceResultException(
                             StatusCodes.BadSecurityPolicyRejected,
-                            "Discovery Channel message size exceeded."
-                        );
+                            "Discovery Channel message size exceeded.");
                     }
 
                     if (serviceResultException != null)
@@ -539,8 +524,7 @@ namespace Opc.Ua.Bindings
         private async Task WriteServiceResponseAsync(
             HttpContext context,
             IServiceResponse response,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             byte[] encodedResponse = BinaryEncoder.EncodeMessage(response, m_quotas.MessageContext);
             context.Response.ContentLength = encodedResponse.Length;
@@ -585,8 +569,7 @@ namespace Opc.Ua.Bindings
         private bool ValidateClientCertificate(
             X509Certificate2 clientCertificate,
             X509Chain chain,
-            SslPolicyErrors sslPolicyErrors
-        )
+            SslPolicyErrors sslPolicyErrors)
         {
             if (sslPolicyErrors == SslPolicyErrors.None)
             {

@@ -45,8 +45,7 @@ namespace Alarms
             int interval,
             bool optional = true,
             double maxShelveTime = AlarmDefines.NORMAL_MAX_TIME_SHELVED,
-            bool create = true
-        )
+            bool create = true)
             : base(
                 alarmNodeManager,
                 parent,
@@ -57,8 +56,7 @@ namespace Alarms
                 interval,
                 optional,
                 maxShelveTime,
-                false
-            )
+                false)
         {
             Utils.LogTrace("{0} Discrete Constructor Optional = {1}", name, optional);
             if (create)
@@ -70,8 +68,7 @@ namespace Alarms
         public new void Initialize(
             uint alarmTypeIdentifier,
             string name,
-            double maxTimeShelved = AlarmDefines.NORMAL_MAX_TIME_SHELVED
-        )
+            double maxTimeShelved = AlarmDefines.NORMAL_MAX_TIME_SHELVED)
         {
             m_analog = false;
 

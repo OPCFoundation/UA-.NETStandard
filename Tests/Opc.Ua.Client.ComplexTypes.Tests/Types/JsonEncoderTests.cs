@@ -146,8 +146,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 extensionObject,
                 jsonEncoding,
                 jsonValidationData.GetExpected(jsonEncoding),
-                false
-            );
+                false);
         }
 
         /// <summary>
@@ -168,16 +167,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             ExtensionObject extensionObject = CreateExtensionObject(
                 StructureType.StructureWithOptionalFields,
                 nodeId,
-                emittedType
-            );
+                emittedType);
             EncodeJsonComplexTypeVerifyResult(
                 jsonValidationData.BuiltInType,
                 MemoryStreamType.ArraySegmentStream,
                 extensionObject,
                 jsonEncoding,
                 jsonValidationData.GetExpected(jsonEncoding),
-                false
-            );
+                false);
         }
 
         /// <summary>
@@ -204,8 +201,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 extensionObject,
                 jsonEncoding,
                 jsonValidationData.GetExpected(jsonEncoding),
-                false
-            );
+                false);
         }
 
         protected void EncodeJsonComplexTypeVerifyResult(
@@ -214,8 +210,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             ExtensionObject data,
             JsonEncodingType jsonEncoding,
             string expected,
-            bool topLevelIsArray
-        )
+            bool topLevelIsArray)
         {
             string encodeInfo = $"Encoder: Json Type:{builtInType} Encoding: {jsonEncoding}";
 
@@ -232,9 +227,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                         encoderStream,
                         typeof(ExtensionObject),
                         jsonEncoding,
-                        topLevelIsArray
-                    )
-                )
+                        topLevelIsArray))
                 {
                     Encode(encoder, BuiltInType.ExtensionObject, builtInType.ToString(), data);
                 }
@@ -285,8 +278,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             ExtensionObject data,
             BuiltInType builtInType,
             string expected,
-            JsonEncodingType jsonEncoding
-        )
+            JsonEncodingType jsonEncoding)
         {
             // build expected result
             string typeId = string.Empty;
@@ -480,8 +472,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                                     continue;
                                 }
                             }
-                            else if (property
-                                .Name is "NodeId" or "ExpandedNodeId" or "QualifiedName")
+                            else if (property.Name is "NodeId" or "ExpandedNodeId" or "QualifiedName")
                             {
                                 if (jsonEncoding == JsonEncodingType.Verbose)
                                 {

@@ -111,12 +111,10 @@ namespace Opc.Ua.Security.Certificates.Tests
                 Assert.NotNull(cert);
                 WriteCertificate(
                     cert,
-                    $"Default cert with ECDsa {eCCurveHash.Curve.Oid.FriendlyName} {eCCurveHash.HashAlgorithmName} signature."
-                );
+                    $"Default cert with ECDsa {eCCurveHash.Curve.Oid.FriendlyName} {eCCurveHash.HashAlgorithmName} signature.");
                 Assert.AreEqual(
                     eCCurveHash.HashAlgorithmName,
-                    Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value)
-                );
+                    Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
                 // ensure serial numbers are different
                 Assert.AreNotEqual(previousSerialNumber, cert.GetSerialNumber());
                 X509PfxUtils.VerifyECDsaKeyPair(cert, cert, true);
@@ -152,8 +150,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             }
             Assert.AreEqual(
                 eccurveHashPair.HashAlgorithmName,
-                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value)
-            );
+                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
             Assert.GreaterOrEqual(DateTime.UtcNow, cert.NotBefore);
             Assert.GreaterOrEqual(
                 DateTime.UtcNow.AddMonths(X509Defaults.LifeTime),
@@ -184,8 +181,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.NotNull(cert);
             WriteCertificate(
                 cert,
-                $"Default cert ECDsa {ecCurveHashPair.Curve.Oid.FriendlyName} with modified lifetime and alt name extension"
-            );
+                $"Default cert ECDsa {ecCurveHashPair.Curve.Oid.FriendlyName} with modified lifetime and alt name extension");
             Assert.AreEqual(Subject, cert.Subject);
             using (ECDsa privateKey = cert.GetECDsaPrivateKey())
             {
@@ -200,8 +196,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             }
             Assert.AreEqual(
                 ecCurveHashPair.HashAlgorithmName,
-                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value)
-            );
+                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
             TestUtils.ValidateSelSignedBasicConstraints(cert);
             X509PfxUtils.VerifyECDsaKeyPair(cert, cert, true);
             Assert.True(X509Utils.VerifySelfSigned(cert));
@@ -223,12 +218,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.NotNull(cert);
             WriteCertificate(
                 cert,
-                "Default cert with RSA {keyHashPair.KeySize} {keyHashPair.HashAlgorithmName} and CRL distribution points"
-            );
+                "Default cert with RSA {keyHashPair.KeySize} {keyHashPair.HashAlgorithmName} and CRL distribution points");
             Assert.AreEqual(
                 ecCurveHashPair.HashAlgorithmName,
-                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value)
-            );
+                Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
             X509BasicConstraintsExtension basicConstraintsExtension =
                 cert.Extensions.FindExtension<X509BasicConstraintsExtension>();
             Assert.NotNull(basicConstraintsExtension);
@@ -246,8 +239,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             // default cert
             NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() =>
                 CertificateBuilder.Create(Subject).SetSerialNumberLength(0).SetECCurve(eccurve)
-                    .CreateForECDsa()
-            );
+                    .CreateForECDsa());
             NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() => CertificateBuilder
                 .Create(Subject)
                 .SetSerialNumberLength(X509Defaults.SerialNumberLengthMax + 1)
@@ -279,8 +271,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             // default cert
             NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() =>
                 CertificateBuilder.Create(Subject).SetSerialNumber([]).SetECCurve(eccurve)
-                    .CreateForECDsa()
-            );
+                    .CreateForECDsa());
             NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() => CertificateBuilder
                     .Create(Subject)
                     .SetSerialNumber(new byte[X509Defaults.SerialNumberLengthMax + 1])

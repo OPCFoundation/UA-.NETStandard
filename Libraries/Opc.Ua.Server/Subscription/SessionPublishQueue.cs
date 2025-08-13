@@ -240,8 +240,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
             out StatusCodeCollection acknowledgeResults,
-            out DiagnosticInfoCollection acknowledgeDiagnosticInfos
-        )
+            out DiagnosticInfoCollection acknowledgeDiagnosticInfos)
         {
             if (context == null)
             {
@@ -274,8 +273,7 @@ namespace Opc.Ua.Server
                         {
                             ServiceResult result = subscription.Subscription.Acknowledge(
                                 context,
-                                acknowledgement.SequenceNumber
-                            );
+                                acknowledgement.SequenceNumber);
 
                             if (ServiceResult.IsGood(result))
                             {
@@ -296,8 +294,7 @@ namespace Opc.Ua.Server
                                         .CreateDiagnosticInfo(
                                             m_server,
                                             context,
-                                            result
-                                            );
+                                            result);
                                     acknowledgeDiagnosticInfos.Add(diagnosticInfo);
                                     diagnosticsExist = true;
                                 }
@@ -340,8 +337,7 @@ namespace Opc.Ua.Server
             uint clientHandle,
             DateTime deadline,
             bool requeue,
-            AsyncPublishOperation operation
-        )
+            AsyncPublishOperation operation)
         {
             QueuedRequest request = null;
 
@@ -422,10 +418,8 @@ namespace Opc.Ua.Server
                         StatusCode requestStatus = StatusCodes.Good;
 
                         // check if expired.
-                        if (
-                            queuedRequest.Deadline < DateTime.MaxValue &&
-                            queuedRequest.Deadline.AddMilliseconds(500) < DateTime.UtcNow
-                        )
+                        if (queuedRequest.Deadline < DateTime.MaxValue &&
+                            queuedRequest.Deadline.AddMilliseconds(500) < DateTime.UtcNow)
                         {
                             requestStatus = StatusCodes.BadTimeout;
                         }
@@ -654,8 +648,7 @@ namespace Opc.Ua.Server
                     {
                         subscriptionsToDelete.Add(subscription.Subscription);
                         ((SubscriptionManager)m_server.SubscriptionManager).SubscriptionExpired(
-                            subscription.Subscription
-                        );
+                            subscription.Subscription);
                         continue;
                     }
 
@@ -704,8 +697,7 @@ namespace Opc.Ua.Server
         private void AssignSubscriptionToRequest(QueuedSubscription subscription)
         {
             // find a request.
-            for (
-                LinkedListNode<QueuedRequest> node = m_queuedRequests.First;
+            for (LinkedListNode<QueuedRequest> node = m_queuedRequests.First;
                 node != null;
                 node = node.Next)
             {
@@ -839,8 +831,7 @@ namespace Opc.Ua.Server
                     return ServiceResult.Create(
                         e,
                         StatusCodes.BadTimeout,
-                        "Unexpected error waiting for subscription."
-                    );
+                        "Unexpected error waiting for subscription.");
                 }
                 finally
                 {
@@ -918,8 +909,7 @@ namespace Opc.Ua.Server
                     CultureInfo.InvariantCulture,
                     ", SubscriptionCount={0}, RequestCount={1}",
                     m_queuedSubscriptions.Count,
-                    m_queuedRequests.Count
-                );
+                    m_queuedRequests.Count);
 
                 int readyToPublish = 0;
 
@@ -938,8 +928,7 @@ namespace Opc.Ua.Server
 
                 int expiredRequests = 0;
 
-                for (
-                    LinkedListNode<QueuedRequest> ii = m_queuedRequests.First;
+                for (LinkedListNode<QueuedRequest> ii = m_queuedRequests.First;
                     ii != null;
                     ii = ii.Next)
                 {

@@ -93,8 +93,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             m_signature = m_rsaPrivateKey.SignData(
                 m_randomByteArray,
                 HashAlgorithmName.SHA256,
-                RSASignaturePadding.Pkcs1
-            );
+                RSASignaturePadding.Pkcs1);
         }
 
         /// <summary>
@@ -184,8 +183,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 m_randomByteArray,
                 m_signature,
                 HashAlgorithmName.SHA256,
-                RSASignaturePadding.Pkcs1
-            );
+                RSASignaturePadding.Pkcs1);
         }
 
         /// <summary>

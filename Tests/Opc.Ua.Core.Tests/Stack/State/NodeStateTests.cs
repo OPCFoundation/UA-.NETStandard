@@ -94,11 +94,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
             object instance;
             try
             {
-                if (
-                    typeof(BaseObjectState).GetTypeInfo().IsAssignableFrom(systemTypeInfo) ||
+                if (typeof(BaseObjectState).GetTypeInfo().IsAssignableFrom(systemTypeInfo) ||
                     typeof(BaseVariableState).GetTypeInfo().IsAssignableFrom(systemTypeInfo) ||
-                    typeof(MethodState).GetTypeInfo().IsAssignableFrom(systemTypeInfo)
-                )
+                    typeof(MethodState).GetTypeInfo().IsAssignableFrom(systemTypeInfo))
                 {
                     instance = Activator.CreateInstance(systemType, (NodeState)null);
                 }
@@ -125,12 +123,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
             }
 
             System.Reflection.TypeInfo systemTypeInfo = systemType.GetTypeInfo();
-            if (
-                systemTypeInfo.IsAbstract ||
+            if (systemTypeInfo.IsAbstract ||
                 systemTypeInfo.IsGenericType ||
                 systemTypeInfo.IsGenericTypeDefinition ||
-                !typeof(NodeState).GetTypeInfo().IsAssignableFrom(systemTypeInfo)
-            )
+                !typeof(NodeState).GetTypeInfo().IsAssignableFrom(systemTypeInfo))
             {
                 return false;
             }

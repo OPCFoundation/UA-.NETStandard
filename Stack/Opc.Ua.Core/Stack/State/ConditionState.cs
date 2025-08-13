@@ -73,8 +73,7 @@ namespace Opc.Ua
         public virtual void SetEffectiveSubState(
             ISystemContext context,
             LocalizedText displayName,
-            DateTime transitionTime
-        )
+            DateTime transitionTime)
         {
             if (EnabledState.EffectiveDisplayName != null)
             {
@@ -434,8 +433,7 @@ namespace Opc.Ua
             MethodState method,
             NodeId objectId,
             byte[] eventId,
-            LocalizedText comment
-        )
+            LocalizedText comment)
         {
             ServiceResult error = ProcessBeforeAddComment(context, eventId, comment);
 
@@ -470,8 +468,7 @@ namespace Opc.Ua
                     EventSeverity.Low,
                     new LocalizedText(info),
                     ServiceResult.IsGood(error),
-                    DateTime.UtcNow
-                );
+                    DateTime.UtcNow);
 
                 e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
                 e.SetChildValue(context, BrowseNames.SourceName, "Method/AddComment", false);
@@ -517,8 +514,7 @@ namespace Opc.Ua
         protected virtual ServiceResult ProcessBeforeAddComment(
             ISystemContext context,
             byte[] eventId,
-            LocalizedText comment
-        )
+            LocalizedText comment)
         {
             if (eventId == null)
             {
@@ -541,8 +537,7 @@ namespace Opc.Ua
                     return ServiceResult.Create(
                         e,
                         StatusCodes.BadUnexpectedError,
-                        "Unexpected error adding a comment to a Condition."
-                    );
+                        "Unexpected error adding a comment to a Condition.");
                 }
             }
 
@@ -556,8 +551,7 @@ namespace Opc.Ua
             ISystemContext context,
             MethodState method,
             IList<object> inputArguments,
-            IList<object> outputArguments
-        )
+            IList<object> outputArguments)
         {
             ServiceResult error = ProcessBeforeEnableDisable(context, true);
 
@@ -596,8 +590,7 @@ namespace Opc.Ua
                     EventSeverity.Low,
                     new LocalizedText(info),
                     ServiceResult.IsGood(error),
-                    DateTime.UtcNow
-                );
+                    DateTime.UtcNow);
 
                 e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
                 e.SetChildValue(context, BrowseNames.SourceName, "Method/Enable", false);
@@ -616,8 +609,7 @@ namespace Opc.Ua
             ISystemContext context,
             MethodState method,
             IList<object> inputArguments,
-            IList<object> outputArguments
-        )
+            IList<object> outputArguments)
         {
             // check that method can be called.
             ServiceResult error = ProcessBeforeEnableDisable(context, false);
@@ -657,8 +649,7 @@ namespace Opc.Ua
                     EventSeverity.Low,
                     new LocalizedText(info),
                     ServiceResult.IsGood(error),
-                    DateTime.UtcNow
-                );
+                    DateTime.UtcNow);
 
                 e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
                 e.SetChildValue(context, BrowseNames.SourceName, "Method/Disable", false);
@@ -700,8 +691,7 @@ namespace Opc.Ua
                     return ServiceResult.Create(
                         e,
                         StatusCodes.BadUnexpectedError,
-                        "Unexpected error enabling or disabling a Condition."
-                    );
+                        "Unexpected error enabling or disabling a Condition.");
                 }
             }
 
@@ -779,8 +769,7 @@ namespace Opc.Ua
     public delegate ServiceResult ConditionEnableEventHandler(
         ISystemContext context,
         ConditionState condition,
-        bool enabling
-    );
+        bool enabling);
 
     /// <summary>
     /// Used to receive notifications when a comment is added.
@@ -793,6 +782,5 @@ namespace Opc.Ua
         ISystemContext context,
         ConditionState condition,
         byte[] eventId,
-        LocalizedText comment
-    );
+        LocalizedText comment);
 }

@@ -305,8 +305,7 @@ namespace Opc.Ua
         protected override ServiceResult ReadNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            ref object value
-        )
+            ref object value)
         {
             ServiceResult result = null;
 
@@ -487,8 +486,7 @@ namespace Opc.Ua
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement
-        )
+            BaseInstanceState replacement)
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -552,7 +550,14 @@ namespace Opc.Ua
             IList<Variant> outputArguments,
             CancellationToken cancellationToken = default)
         {
-            return CallAsyncInternal(context, objectId, inputArguments, argumentErrors, outputArguments, sync: false, cancellationToken);
+            return CallAsyncInternal(
+                context,
+                objectId,
+                inputArguments,
+                argumentErrors,
+                outputArguments,
+                sync: false,
+                cancellationToken);
         }
 
         /// <summary>
@@ -569,16 +574,23 @@ namespace Opc.Ua
             NodeId objectId,
             IList<Variant> inputArguments,
             IList<ServiceResult> argumentErrors,
-            IList<Variant> outputArguments
-        )
+            IList<Variant> outputArguments)
         {
             // safe to access result directly as sync = true
-            var syncResult = CallAsyncInternal(context, objectId, inputArguments, argumentErrors, outputArguments, sync: true);
-            if (syncResult.IsCompletedSuccessfully)
+#pragma warning disable CA2012 // Use ValueTasks correctly
+            ValueTask<ServiceResult> syncResult = CallAsyncInternal(
+                context,
+                objectId,
+                inputArguments,
+                argumentErrors,
+                outputArguments,
+                sync: true);
+#pragma warning restore CA2012 // Use ValueTasks correctly
+            if (!syncResult.IsCompletedSuccessfully)
             {
-                return syncResult.Result;
+                return syncResult.GetAwaiter().GetResult();
             }
-            return syncResult.GetAwaiter().GetResult();
+            return syncResult.Result;
         }
 
         /// <summary>
@@ -695,7 +707,8 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    result = await CallAsync(context, objectId, inputs, outputs, cancellationToken).ConfigureAwait(false);
+                    result = await CallAsync(context, objectId, inputs, outputs, cancellationToken)
+                        .ConfigureAwait(false);
                 }
             }
             catch (Exception e)
@@ -721,8 +734,7 @@ namespace Opc.Ua
         protected virtual ServiceResult Call(
             ISystemContext context,
             IList<object> inputArguments,
-            IList<object> outputArguments
-        )
+            IList<object> outputArguments)
         {
             return Call(context, null, inputArguments, outputArguments);
         }
@@ -750,8 +762,7 @@ namespace Opc.Ua
             ISystemContext context,
             NodeId objectId,
             IList<object> inputArguments,
-            IList<object> outputArguments
-        )
+            IList<object> outputArguments)
         {
             GenericMethodCalledEventHandler2 onCallMethod2 = OnCallMethod2;
 
@@ -795,7 +806,13 @@ namespace Opc.Ua
 
             if (OnCallMethod2Async != null)
             {
-                return await onCallMethod2Async(context, this, objectId, inputArguments, outputArguments, cancellationToken).ConfigureAwait(false);
+                return await onCallMethod2Async(
+                    context,
+                    this,
+                    objectId,
+                    inputArguments,
+                    outputArguments,
+                    cancellationToken).ConfigureAwait(false);
             }
 
             return Call(context, null, inputArguments, outputArguments);
@@ -834,8 +851,7 @@ namespace Opc.Ua
                 expectedArgument.DataType,
                 expectedArgument.ValueRank,
                 context.NamespaceUris,
-                context.TypeTable
-            );
+                context.TypeTable);
 
             if (typeInfo == null)
             {
@@ -872,8 +888,7 @@ namespace Opc.Ua
         ISystemContext context,
         MethodState method,
         IList<object> inputArguments,
-        IList<object> outputArguments
-    );
+        IList<object> outputArguments);
 
     /// <summary>
     /// Used to process a method call.
@@ -883,8 +898,7 @@ namespace Opc.Ua
         MethodState method,
         NodeId objectId,
         IList<object> inputArguments,
-        IList<object> outputArguments
-    );
+        IList<object> outputArguments);
 
     /// <summary>
     /// Used to process a method call.
@@ -895,6 +909,5 @@ namespace Opc.Ua
         NodeId objectId,
         IList<object> inputArguments,
         IList<object> outputArguments,
-        CancellationToken cancellationToken = default
-    );
+        CancellationToken cancellationToken = default);
 }

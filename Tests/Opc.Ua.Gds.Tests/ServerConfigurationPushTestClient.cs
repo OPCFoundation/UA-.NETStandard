@@ -93,15 +93,13 @@ namespace Opc.Ua.Gds.Tests
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     "CN=Server Configuration Push Test Client, O=OPC Foundation",
                     CertificateStoreType.Directory,
-                    pkiRoot
-                );
+                    pkiRoot);
 
             // build the application configuration.
             Config = await application
                 .Build(
                     "urn:localhost:opcfoundation.org:ServerConfigurationPushTestClient",
-                    "http://opcfoundation.org/UA/ServerConfigurationPushTestClient"
-                )
+                    "http://opcfoundation.org/UA/ServerConfigurationPushTestClient")
                 .SetTransportQuotas(transportQuotas)
                 .AsClient()
                 .AddSecurityConfiguration(applicationCerts, pkiRoot, pkiRoot)
@@ -126,8 +124,7 @@ namespace Opc.Ua.Gds.Tests
 
             Config.CertificateValidator.CertificateValidation
                 += new CertificateValidationEventHandler(
-                CertificateValidator_CertificateValidation
-            );
+                CertificateValidator_CertificateValidation);
 
             ServerConfigurationPushTestClientConfiguration clientConfiguration =
                 application.ApplicationConfiguration
@@ -174,8 +171,7 @@ namespace Opc.Ua.Gds.Tests
 
         private static void CertificateValidator_CertificateValidation(
             CertificateValidator validator,
-            CertificateValidationEventArgs e
-        )
+            CertificateValidationEventArgs e)
         {
             if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
             {

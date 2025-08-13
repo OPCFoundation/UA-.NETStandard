@@ -136,14 +136,12 @@ namespace Opc.Ua.Client.Tests
         [TestCase(false, true)]
         public Task ReconnectSessionOnAlternateChannelWithSavedSessionSecretsSecurityNoneAsync(
             bool anonymous,
-            bool asyncReconnect
-        )
+            bool asyncReconnect)
         {
             return m_clientTest.ReconnectSessionOnAlternateChannelWithSavedSessionSecretsAsync(
                 SecurityPolicies.None,
                 anonymous,
-                asyncReconnect
-            );
+                asyncReconnect);
         }
 
         [Theory]

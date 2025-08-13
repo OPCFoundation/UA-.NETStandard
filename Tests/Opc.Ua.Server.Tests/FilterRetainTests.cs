@@ -62,8 +62,7 @@ namespace Opc.Ua.Server.Tests
                 new NodeId(12345, 1),
                 new QualifiedName("AnyAlarm", 1),
                 new LocalizedText(string.Empty, "AnyAlarm"),
-                true
-            );
+                true);
 
             alarm.EventType.Value = ObjectTypeIds.DeviceFailureEventType;
 
@@ -358,8 +357,7 @@ namespace Opc.Ua.Server.Tests
             FilterContext context,
             EventFilter filter,
             BaseObjectState alarm,
-            bool expected
-        )
+            bool expected)
         {
             SystemContext systemContext = GetSystemContext();
 
@@ -386,8 +384,7 @@ namespace Opc.Ua.Server.Tests
                 new NodeId(12345, 1),
                 new QualifiedName("AnyAlarm", 1),
                 new LocalizedText(string.Empty, "AnyAlarm"),
-                true
-            );
+                true);
 
             alarm.EventType.Value = ObjectTypeIds.ExclusiveLevelAlarmType;
 
@@ -438,8 +435,7 @@ namespace Opc.Ua.Server.Tests
                         AttributeId = Attributes.Value,
                         TypeDefinitionId = ObjectTypeIds.BaseEventType,
                         BrowsePath = desiredEventField
-                    }
-                );
+                    });
             }
 
             // ConditionId
@@ -448,8 +444,7 @@ namespace Opc.Ua.Server.Tests
                 {
                     AttributeId = Attributes.NodeId,
                     TypeDefinitionId = ObjectTypeIds.ConditionType
-                }
-            );
+                });
 
             return simpleAttributeOperands;
         }
@@ -617,8 +612,7 @@ namespace Opc.Ua.Server.Tests
                 1000.0,
                 10,
                 false,
-                1000
-            );
+                1000);
         }
     }
 }

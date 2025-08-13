@@ -102,8 +102,7 @@ namespace Opc.Ua.Server.Tests
             // Assert
             Assert.AreEqual( /*lang=json,strict*/
                 "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"]]}",
-                resultText.Text
-            );
+                resultText.Text);
             Assert.AreEqual("mul", resultText.Locale);
         }
 
@@ -154,8 +153,7 @@ namespace Opc.Ua.Server.Tests
             // Assert
             Assert.AreEqual( /*lang=json,strict*/
                 "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"]]}",
-                resultText.Text
-            );
+                resultText.Text);
             Assert.AreEqual("mul", resultText.Locale);
         }
 
@@ -176,8 +174,7 @@ namespace Opc.Ua.Server.Tests
             // Assert
             Assert.AreEqual( /*lang=json,strict*/
                 "{\"t\":[[\"de-DE\",\"Hallo\"],[\"en-US\",\"Hello\"]]}",
-                resultText.Text
-            );
+                resultText.Text);
             Assert.AreEqual("mul", resultText.Locale);
         }
 
@@ -195,8 +192,7 @@ namespace Opc.Ua.Server.Tests
             // Assert
             Assert.AreEqual( /*lang=json,strict*/
                 "{\"t\":[[\"de-DE\",\"Hallo\"],[\"en-US\",\"Hello\"]]}",
-                resultText.Text
-            );
+                resultText.Text);
             Assert.AreEqual("mul", resultText.Locale);
         }
 
@@ -214,8 +210,7 @@ namespace Opc.Ua.Server.Tests
             // Assert
             Assert.AreEqual( /*lang=json,strict*/
                 "{\"t\":[[\"de-DE\",\"Hallo User\"],[\"en-US\",\"Hello User\"]]}",
-                resultText.Text
-            );
+                resultText.Text);
             Assert.AreEqual("mul", resultText.Locale);
         }
     }

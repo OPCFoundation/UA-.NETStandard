@@ -62,8 +62,7 @@ namespace Opc.Ua.Gds.Server
         public static void HasAuthorization(
             ISystemContext context,
             IEnumerable<Role> roles,
-            [Optional] NodeId applicationId
-        )
+            [Optional] NodeId applicationId)
         {
             if (context != null)
             {
@@ -86,8 +85,7 @@ namespace Opc.Ua.Gds.Server
                 }
                 throw new ServiceResultException(
                     StatusCodes.BadUserAccessDenied,
-                    $"At least one of the Roles {string.Join(", ", roles)} is required to call the method"
-                );
+                    $"At least one of the Roles {string.Join(", ", roles)} is required to call the method");
             }
         }
 
@@ -103,8 +101,7 @@ namespace Opc.Ua.Gds.Server
             ISystemContext context,
             CertificateStoreIdentifier trustedStore,
             Dictionary<NodeId, string> certTypeMap,
-            IApplicationsDatabase applicationsDatabase
-        )
+            IApplicationsDatabase applicationsDatabase)
         {
             var roles = new List<Role> { GdsRole.CertificateAuthorityAdmin, Role.SecurityAdmin };
             if (HasRole(context.UserIdentity, roles))
@@ -112,24 +109,21 @@ namespace Opc.Ua.Gds.Server
                 return;
             }
 
-            if (
-                trustedStore != null &&
+            if (trustedStore != null &&
                 certTypeMap != null &&
                 applicationsDatabase != null &&
                 CheckSelfAdminPrivilege(
                     context.UserIdentity,
                     trustedStore,
                     certTypeMap,
-                    applicationsDatabase)
-            )
+                    applicationsDatabase))
             {
                 return;
             }
 
             throw new ServiceResultException(
                 StatusCodes.BadUserAccessDenied,
-                $"At least one of the Roles {string.Join(", ", roles)} or ApplicationSelfAdminPrivilege is required to use the TrustList"
-            );
+                $"At least one of the Roles {string.Join(", ", roles)} or ApplicationSelfAdminPrivilege is required to use the TrustList");
         }
 
         /// <summary>
@@ -139,16 +133,13 @@ namespace Opc.Ua.Gds.Server
         /// <exception cref="ServiceResultException"></exception>
         public static void HasAuthenticatedSecureChannel(ISystemContext context)
         {
-            if (
-                context is SystemContext { OperationContext: OperationContext operationContext } &&
+            if (context is SystemContext { OperationContext: OperationContext operationContext } &&
                 operationContext.ChannelContext?.EndpointDescription?.SecurityMode !=
-                    MessageSecurityMode.SignAndEncrypt
-            )
+                    MessageSecurityMode.SignAndEncrypt)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadUserAccessDenied,
-                    "Method has to be called from an authenticated secure channel."
-                );
+                    "Method has to be called from an authenticated secure channel.");
             }
         }
 
@@ -192,8 +183,7 @@ namespace Opc.Ua.Gds.Server
             IUserIdentity userIdentity,
             CertificateStoreIdentifier trustedStore,
             Dictionary<NodeId, string> certTypeMap,
-            IApplicationsDatabase applicationsDatabase
-        )
+            IApplicationsDatabase applicationsDatabase)
         {
             if (userIdentity is GdsRoleBasedIdentity identity)
             {
@@ -202,8 +192,7 @@ namespace Opc.Ua.Gds.Server
                     applicationsDatabase.GetApplicationTrustLists(
                         identity.ApplicationId,
                         certType,
-                        out string trustListId
-                    );
+                        out string trustListId);
                     if (trustedStore.StorePath == trustListId)
                     {
                         return true;

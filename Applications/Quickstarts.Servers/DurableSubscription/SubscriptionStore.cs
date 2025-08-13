@@ -48,8 +48,7 @@ namespace Quickstarts.Servers
 
         private static readonly string s_storage_path = Path.Combine(
             Environment.CurrentDirectory,
-            "Durable Subscriptions"
-        );
+            "Durable Subscriptions");
 
         private const string kFilename = "subscriptionsStore.txt";
         private readonly DurableMonitoredItemQueueFactory m_durableMonitoredItemQueueFactory;
@@ -99,8 +98,7 @@ namespace Quickstarts.Servers
                     List<IStoredSubscription> result = JsonConvert
                         .DeserializeObject<List<IStoredSubscription>>(
                             json,
-                            s_settings
-                            );
+                            s_settings);
 
                     File.Delete(filePath);
 
@@ -126,8 +124,7 @@ namespace Quickstarts.Servers
                 JsonReader reader,
                 Type objectType,
                 object existingValue,
-                JsonSerializer serializer
-            )
+                JsonSerializer serializer)
             {
                 var jo = JObject.Load(reader);
                 object body = jo["Body"].ToObject<object>(serializer);
@@ -161,8 +158,7 @@ namespace Quickstarts.Servers
                 JsonReader reader,
                 Type objectType,
                 object existingValue,
-                JsonSerializer serializer
-            )
+                JsonSerializer serializer)
             {
                 var jo = JObject.Load(reader);
                 int begin = jo["Begin"].ToObject<int>(serializer);

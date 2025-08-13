@@ -123,8 +123,7 @@ namespace Opc.Ua
             {
                 throw new ServiceResultException(
                     StatusCodes.BadNodeIdInvalid,
-                    Utils.Format("A view may not have a null node id.")
-                );
+                    Utils.Format("A view may not have a null node id."));
             }
 
             lock (m_lock)
@@ -134,8 +133,7 @@ namespace Opc.Ua
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadNodeIdExists,
-                        Utils.Format("A view with the node id '{0}' already exists.", view.NodeId)
-                    );
+                        Utils.Format("A view with the node id '{0}' already exists.", view.NodeId));
                 }
 
                 // save view.
@@ -166,8 +164,7 @@ namespace Opc.Ua
                         StatusCodes.BadViewIdUnknown,
                         Utils.Format(
                             "A reference type with the node id '{0}' does not exist.",
-                            viewId)
-                    );
+                            viewId));
                 }
 
                 // remove view node.

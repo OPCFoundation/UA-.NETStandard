@@ -702,10 +702,8 @@ namespace Opc.Ua
                 {
                     for (int j = m_applicationCertificates.Count - 1; j > i; j--)
                     {
-                        if (
-                            m_applicationCertificates[i]
-                                .CertificateType == m_applicationCertificates[j].CertificateType
-                        )
+                        if (m_applicationCertificates[i]
+                                .CertificateType == m_applicationCertificates[j].CertificateType)
                         {
                             m_applicationCertificates.RemoveAt(j);
                         }
@@ -1075,16 +1073,13 @@ namespace Opc.Ua
                             SecurityMode = securityPolicy.SecurityMode,
                             SecurityPolicyUri = policyUri
                         };
-                        if (
-                            newPolicies.Find(s =>
+                        if (newPolicies.Find(s =>
                                 s.SecurityMode == newPolicy.SecurityMode &&
                                 string.Equals(
                                     s.SecurityPolicyUri,
                                     newPolicy.SecurityPolicyUri,
-                                    StringComparison.Ordinal
-                                )
-                            ) == null
-                        )
+                                    StringComparison.Ordinal)
+                            ) == null)
                         {
                             newPolicies.Add(newPolicy);
                         }
@@ -1097,16 +1092,13 @@ namespace Opc.Ua
                         if (securityPolicy.SecurityPolicyUri
                             .Contains(supportedPolicies[i], StringComparison.Ordinal))
                         {
-                            if (
-                                newPolicies.Find(s =>
+                            if (newPolicies.Find(s =>
                                     s.SecurityMode == securityPolicy.SecurityMode &&
                                     string.Equals(
                                         s.SecurityPolicyUri,
                                         securityPolicy.SecurityPolicyUri,
-                                        StringComparison.Ordinal
-                                    )
-                                ) == null
-                            )
+                                        StringComparison.Ordinal)
+                                ) == null)
                             {
                                 newPolicies.Add(securityPolicy);
                             }
@@ -2461,8 +2453,7 @@ namespace Opc.Ua
                     m_certificate.Subject != value)
                 {
                     throw new ArgumentException(
-                        "SubjectName does not match the SubjectName of the current certificate."
-                    );
+                        "SubjectName does not match the SubjectName of the current certificate.");
                 }
 
                 m_subjectName = value;

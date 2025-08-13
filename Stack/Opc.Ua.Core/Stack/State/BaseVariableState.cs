@@ -209,8 +209,7 @@ namespace Opc.Ua
                         StatusCodes.BadTypeMismatch,
                         "Cannot convert {0} to {1}.",
                         value.GetType().Name,
-                        typeof(T).Name
-                    );
+                        typeof(T).Name);
                 }
 
                 return default(T);
@@ -222,10 +221,8 @@ namespace Opc.Ua
             {
                 // check for array of extensions.
 
-                if (
-                    value is IList<ExtensionObject> extensions &&
-                    typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(elementType.GetTypeInfo())
-                )
+                if (value is IList<ExtensionObject> extensions &&
+                    typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(elementType.GetTypeInfo()))
                 {
                     var encodeables = Array.CreateInstance(elementType, extensions.Count);
 
@@ -261,8 +258,7 @@ namespace Opc.Ua
                                 StatusCodes.BadTypeMismatch,
                                 "Cannot convert ExtensionObject to {0}. Index = {1}",
                                 elementType.Name,
-                                ii
-                            );
+                                ii);
                         }
                     }
 
@@ -280,8 +276,7 @@ namespace Opc.Ua
                             StatusCodes.BadTypeMismatch,
                             "Cannot convert {0} to {1}.",
                             value.GetType().Name,
-                            typeof(T).Name
-                        );
+                            typeof(T).Name);
                     }
 
                     // allocate and copy.
@@ -354,8 +349,7 @@ namespace Opc.Ua
                     StatusCodes.BadTypeMismatch,
                     "Cannot convert {0} to {1}.",
                     value.GetType().Name,
-                    typeof(T).Name
-                );
+                    typeof(T).Name);
             }
 
             return default(T);
@@ -374,8 +368,7 @@ namespace Opc.Ua
             ISystemContext context,
             Type targetType,
             ExtensionObject extension,
-            bool throwOnError
-        )
+            bool throwOnError)
         {
             if (targetType.IsInstanceOfType(extension.Body))
             {
@@ -423,8 +416,7 @@ namespace Opc.Ua
                                     StatusCodes.BadTypeMismatch,
                                     "Cannot convert ExtensionObject to {0}. Error = {1}",
                                     targetType.Name,
-                                    e.Message
-                                );
+                                    e.Message);
                             }
                         }
                     }
@@ -440,8 +432,7 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(
                     StatusCodes.BadTypeMismatch,
                     "Cannot convert ExtensionObject to {0}.",
-                    targetType.Name
-                );
+                    targetType.Name);
             }
 
             return null;
@@ -457,10 +448,8 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"> if it is impossible to cast the value or the value is null and <see cref="IsValueType"/> for the type <typeparamref name="T"/> returns true. </exception>
         public static T CheckTypeBeforeCast<T>(object value, bool throwOnError)
         {
-            if (
-                (value == null && typeof(T).GetTypeInfo().IsValueType) ||
-                (value != null && !typeof(T).IsInstanceOfType(value))
-            )
+            if ((value == null && typeof(T).GetTypeInfo().IsValueType) ||
+                (value != null && !typeof(T).IsInstanceOfType(value)))
             {
                 if (throwOnError)
                 {
@@ -468,8 +457,7 @@ namespace Opc.Ua
                         StatusCodes.BadTypeMismatch,
                         "Cannot convert '{0}' to a {1}.",
                         value,
-                        typeof(T).Name
-                    );
+                        typeof(T).Name);
                 }
 
                 return default;
@@ -1330,8 +1318,7 @@ namespace Opc.Ua
         protected override ServiceResult ReadNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            ref object value
-        )
+            ref object value)
         {
             ServiceResult result = null;
 
@@ -1492,8 +1479,7 @@ namespace Opc.Ua
             NumericRange indexRange,
             QualifiedName dataEncoding,
             ref object value,
-            ref DateTime sourceTimestamp
-        )
+            ref DateTime sourceTimestamp)
         {
             // check the access level for the variable.
             if ((m_accessLevel & AccessLevels.CurrentRead) == 0)
@@ -1534,8 +1520,7 @@ namespace Opc.Ua
                     dataEncoding,
                     ref value,
                     ref statusCode,
-                    ref sourceTimestamp
-                );
+                    ref sourceTimestamp);
 
                 if (ServiceResult.IsBad(result))
                 {
@@ -1598,8 +1583,7 @@ namespace Opc.Ua
             ISystemContext context,
             NumericRange indexRange,
             QualifiedName dataEncoding,
-            ref object value
-        )
+            ref object value)
         {
             ServiceResult result;
 
@@ -1876,8 +1860,7 @@ namespace Opc.Ua
             NumericRange indexRange,
             object value,
             StatusCode statusCode,
-            DateTime sourceTimestamp
-        )
+            DateTime sourceTimestamp)
         {
             ServiceResult result = null;
 
@@ -1942,8 +1925,7 @@ namespace Opc.Ua
                 m_dataType,
                 m_valueRank,
                 context.NamespaceUris,
-                context.TypeTable
-            );
+                context.TypeTable);
 
             if (typeInfo == null || typeInfo == TypeInfo.Unknown)
             {
@@ -1955,8 +1937,7 @@ namespace Opc.Ua
                         DataTypeIds.UInt32,
                         -1,
                         context.NamespaceUris,
-                        context.TypeTable
-                    );
+                        context.TypeTable);
                     if (statusCodeTypeInfo != null)
                     {
                         //the error code
@@ -2247,8 +2228,7 @@ namespace Opc.Ua
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement
-        )
+            BaseInstanceState replacement)
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -2429,8 +2409,7 @@ namespace Opc.Ua
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp
-        )
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
@@ -2455,8 +2434,7 @@ namespace Opc.Ua
                     context,
                     indexRange,
                     dataEncoding,
-                    ref value
-                );
+                    ref value);
 
                 if (ServiceResult.IsBad(result))
                 {
@@ -2555,8 +2533,7 @@ namespace Opc.Ua
     public delegate void VariableValueEventHandler(
         ISystemContext context,
         BaseVariableValue variable,
-        NodeState component
-    );
+        NodeState component);
 
     /// <summary>
     /// Specifies the policies to use when handling reads and write to value.

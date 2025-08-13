@@ -228,8 +228,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var authorityKeyIdentifier = new X509AuthorityKeyIdentifierExtension(
                 subjectKeyIdentifier ? ski.SubjectKeyIdentifier.FromHexString() : null,
                 issuerName ? m_rootCert.IssuerName : null,
-                serialNumber ? m_rootCert.GetSerialNumber() : null
-            );
+                serialNumber ? m_rootCert.GetSerialNumber() : null);
 
             TestContext.Out.WriteLine("Extension: {0}", authorityKeyIdentifier.Format(true));
 
@@ -242,8 +241,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 ServiceResultException result = NUnit.Framework.Assert
                     .Throws<ServiceResultException>(() =>
-                        m_certValidator.Validate(appCert)
-                        );
+                        m_certValidator.Validate(appCert));
                 TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
             }
             else
@@ -273,8 +271,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             m_certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
             ServiceResultException result = NUnit.Framework.Assert
                 .Throws<ServiceResultException>(() =>
-                    m_certValidator.Validate(altAppCert)
-                    );
+                    m_certValidator.Validate(altAppCert));
 
             TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
         }
@@ -287,8 +284,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public void AlternateRootCertificateWithAuthorityKeyID(
             bool subjectKeyIdentifier,
             bool issuerName,
-            bool serialNumber
-        )
+            bool serialNumber)
         {
             ICertificateBuilder certBuilder = CertificateFactory.CreateCertificate("CN=AltAppCert");
 
@@ -301,8 +297,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var authorityKeyIdentifier = new X509AuthorityKeyIdentifierExtension(
                 subjectKeyIdentifier ? ski.SubjectKeyIdentifier.FromHexString() : null,
                 issuerName ? m_rootAltCert.IssuerName : null,
-                serialNumber ? m_rootAltCert.GetSerialNumber() : null
-            );
+                serialNumber ? m_rootAltCert.GetSerialNumber() : null);
             certBuilder.AddExtension(authorityKeyIdentifier);
             TestContext.Out.WriteLine("Extension: {0}", authorityKeyIdentifier.Format(true));
 
@@ -319,8 +314,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             m_certValidator.RejectUnknownRevocationStatus = false;
             ServiceResultException result = NUnit.Framework.Assert
                 .Throws<ServiceResultException>(() =>
-                    m_certValidator.Validate(altAppCert)
-                    );
+                    m_certValidator.Validate(altAppCert));
             TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
         }
 
@@ -378,8 +372,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CertificateValidator certValidator = validator.Update();
                 ServiceResultException result = NUnit.Framework.Assert
                     .Throws<ServiceResultException>(() =>
-                        certValidator.Validate(collection)
-                        );
+                        certValidator.Validate(collection));
 
                 TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
             }
@@ -392,8 +385,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CertificateValidator certValidator = validator.Update();
                 ServiceResultException result = NUnit.Framework.Assert
                     .Throws<ServiceResultException>(() =>
-                        certValidator.Validate(collection)
-                        );
+                        certValidator.Validate(collection));
 
                 TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
             }
@@ -431,9 +423,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                             ctx.Response.OutputStream.Write(certBlob, 0, certBlob.Length);
                             ctx.SetHandled();
                             await Task.Delay(0).ConfigureAwait(false);
-                        }
-                    )
-                )
+                        }))
 #if STATIC_FOLDER // returns error 406 when GET certificate is called by .NET ChainBuilder
                 .WithStaticFolder(
                     "/",
@@ -441,8 +431,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     false,
                     m =>
                         m.WithDirectoryLister(DirectoryLister.Html)
-                            .WithCustomMimeType(".der", "application/x-x509-ca-cert")
-                )
+                            .WithCustomMimeType(".der", "application/x-x509-ca-cert"))
 #endif
             ;
 

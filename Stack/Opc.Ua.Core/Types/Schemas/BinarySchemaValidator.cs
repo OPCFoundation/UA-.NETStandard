@@ -104,12 +104,9 @@ namespace Opc.Ua.Schema.Binary
                     var serializer = new XmlSerializer(typeof(TypeDictionary));
                     serializer.Serialize(writer, Dictionary);
                 }
-                else if (
-                    !m_descriptions.TryGetValue(
+                else if (!m_descriptions.TryGetValue(
                         new XmlQualifiedName(typeName, Dictionary.TargetNamespace),
-                        out TypeDescription description
-                    )
-                )
+                        out TypeDescription description))
                 {
                     var serializer = new XmlSerializer(typeof(TypeDictionary));
                     serializer.Serialize(writer, Dictionary);
@@ -149,11 +146,8 @@ namespace Opc.Ua.Schema.Binary
             else
             {
                 // always import builtin types, unless wellknown library
-                if (
-                    !WellKnownDictionaries.Any(n =>
-                        string.Equals(n[0], Dictionary.TargetNamespace, StringComparison.Ordinal)
-                    )
-                )
+                if (!WellKnownDictionaries.Any(n =>
+                        string.Equals(n[0], Dictionary.TargetNamespace, StringComparison.Ordinal)))
                 {
                     var directive = new ImportDirective { Namespace = Namespaces.OpcUa };
                     Import(directive);
@@ -184,9 +178,7 @@ namespace Opc.Ua.Schema.Binary
                             CultureInfo.InvariantCulture,
                             "{0} '{1}' validated.",
                             description.GetType().Name,
-                            description.Name
-                        )
-                    );
+                            description.Name));
                 }
             }
         }
@@ -214,8 +206,7 @@ namespace Opc.Ua.Schema.Binary
                 throw Exception(
                     "Imported dictionary '{0}' does not match uri specified: '{1}'.",
                     dictionary.TargetNamespace,
-                    directive.Namespace
-                );
+                    directive.Namespace);
             }
 
             // save file.
@@ -409,9 +400,7 @@ namespace Opc.Ua.Schema.Binary
                         string.Format(
                             CultureInfo.InvariantCulture,
                             "Warning: The opaque type '{0}' does not have a length specified.",
-                            description.Name
-                        )
-                    );
+                            description.Name));
                 }
 
                 if (IsNull(opaque.Documentation))
@@ -420,9 +409,7 @@ namespace Opc.Ua.Schema.Binary
                         string.Format(
                             CultureInfo.InvariantCulture,
                             "Warning: The opaque type '{0}' does not have any documentation.",
-                            description.Name
-                        )
-                    );
+                            description.Name));
                 }
             }
 
@@ -459,8 +446,7 @@ namespace Opc.Ua.Schema.Binary
                             throw Exception(
                                 "Field '{1}' in structured type '{0}' is not aligned on a byte boundary.",
                                 description.Name,
-                                field.Name
-                            );
+                                field.Name);
                         }
 
                         bitCount = 0;
@@ -495,8 +481,7 @@ namespace Opc.Ua.Schema.Binary
                 throw Exception(
                     "The structured type '{0}' has a duplicate field name '{1}'.",
                     description.Name,
-                    field.Name
-                );
+                    field.Name);
             }
 
             if (IsNull(field.TypeName))
@@ -504,8 +489,7 @@ namespace Opc.Ua.Schema.Binary
                 throw Exception(
                     "Field '{0}' in structured type '{1}' has no type specified.",
                     field.Name,
-                    description.Name
-                );
+                    description.Name);
             }
 
             if (!m_descriptions.ContainsKey(field.TypeName))
@@ -514,8 +498,7 @@ namespace Opc.Ua.Schema.Binary
                     "Field '{0}' in structured type '{1}' has an unrecognized type '{2}'.",
                     field.Name,
                     description.Name,
-                    field.TypeName
-                );
+                    field.TypeName);
             }
 
             if (!string.IsNullOrEmpty(field.LengthField))
@@ -526,8 +509,7 @@ namespace Opc.Ua.Schema.Binary
                         "Field '{0}' in structured type '{1}' references an unknownn length field '{2}'.",
                         field.Name,
                         description.Name,
-                        field.LengthField
-                    );
+                        field.LengthField);
                 }
 
                 if (!IsIntegerType(value))
@@ -536,8 +518,7 @@ namespace Opc.Ua.Schema.Binary
                         "Field '{0}' in structured type '{1}' references a length field '{2}' which is not an integer value.",
                         field.Name,
                         description.Name,
-                        field.SwitchField
-                    );
+                        field.SwitchField);
                 }
             }
 
@@ -549,8 +530,7 @@ namespace Opc.Ua.Schema.Binary
                         "Field '{0}' in structured type '{1}' references an unknownn switch field '{2}'.",
                         field.Name,
                         description.Name,
-                        field.SwitchField
-                    );
+                        field.SwitchField);
                 }
 
                 if (!IsIntegerType(value))
@@ -559,8 +539,7 @@ namespace Opc.Ua.Schema.Binary
                         "Field '{0}' in structured type '{1}' references a switch field '{2}' which is not an integer value.",
                         field.Name,
                         description.Name,
-                        field.SwitchField
-                    );
+                        field.SwitchField);
                 }
             }
         }

@@ -49,8 +49,7 @@ namespace Opc.Ua.Server
             List<SamplingRateGroup> samplingRates,
             OperationContext context,
             double samplingInterval,
-            IUserIdentity savedOwnerIdentity = null
-        )
+            IUserIdentity savedOwnerIdentity = null)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_nodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
@@ -63,8 +62,7 @@ namespace Opc.Ua.Server
                     savedOwnerIdentity
                     ?? throw new ArgumentNullException(
                         nameof(savedOwnerIdentity),
-                        "Either a context with a Session or an owner identity need to be provided"
-                    );
+                        "Either a context with a Session or an owner identity need to be provided");
             }
             m_diagnosticsMask = context.DiagnosticsMask & DiagnosticsMasks.OperationAll;
             m_samplingInterval = AdjustSamplingInterval(samplingInterval);
@@ -126,8 +124,7 @@ namespace Opc.Ua.Server
 
                 m_samplingTask = Task.Factory.StartNew(
                     () => SampleMonitoredItems(m_samplingInterval),
-                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach
-                );
+                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
             }
         }
 
@@ -156,8 +153,7 @@ namespace Opc.Ua.Server
         public bool StartMonitoring(
             OperationContext context,
             ISampledDataChangeMonitoredItem monitoredItem,
-            IUserIdentity savedOwnerIdentity = null
-        )
+            IUserIdentity savedOwnerIdentity = null)
         {
             lock (m_lock)
             {
@@ -239,10 +235,8 @@ namespace Opc.Ua.Server
                 {
                     ISampledDataChangeMonitoredItem monitoredItem = m_itemsToAdd[ii];
 
-                    if (
-                        m_items.TryAdd(monitoredItem.Id, monitoredItem) &&
-                        monitoredItem.MonitoringMode != MonitoringMode.Disabled
-                    )
+                    if (m_items.TryAdd(monitoredItem.Id, monitoredItem) &&
+                        monitoredItem.MonitoringMode != MonitoringMode.Disabled)
                     {
                         itemsToSample.Add(monitoredItem);
                     }
@@ -286,8 +280,7 @@ namespace Opc.Ua.Server
         private bool MeetsGroupCriteria(
             OperationContext context,
             ISampledDataChangeMonitoredItem monitoredItem,
-            IUserIdentity savedOwnerIdentity = null
-        )
+            IUserIdentity savedOwnerIdentity = null)
         {
             // can only sample variables.
             if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0)
@@ -361,8 +354,7 @@ namespace Opc.Ua.Server
                     return maxSamplingRate;
                 }
 
-                for (
-                    double ii = samplingRate.Start;
+                for (double ii = samplingRate.Start;
                     ii <= maxSamplingRate;
                     ii += samplingRate.Increment)
                 {
@@ -443,8 +435,7 @@ namespace Opc.Ua.Server
                             Utils.LogWarning(
                                 "WARNING: SamplingGroup cannot sample fast enough. TimeToSample={0}ms, SamplingInterval={1}ms",
                                 delay,
-                                sleepCycle
-                            );
+                                sleepCycle);
                             timeToWait = sleepCycle;
                         }
                     }

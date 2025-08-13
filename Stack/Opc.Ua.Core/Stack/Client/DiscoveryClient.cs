@@ -32,8 +32,7 @@ namespace Opc.Ua
                 application,
                 discoveryUrl,
                 configuration,
-                new ServiceMessageContext()
-            );
+                new ServiceMessageContext());
             return new DiscoveryClient(channel);
         }
 
@@ -43,8 +42,7 @@ namespace Opc.Ua
         public static DiscoveryClient Create(
             ApplicationConfiguration application,
             Uri discoveryUrl,
-            EndpointConfiguration configuration
-        )
+            EndpointConfiguration configuration)
         {
             configuration ??= EndpointConfiguration.Create();
 
@@ -52,8 +50,7 @@ namespace Opc.Ua
                 application,
                 discoveryUrl,
                 configuration,
-                application.CreateMessageContext()
-            );
+                application.CreateMessageContext());
             return new DiscoveryClient(channel);
         }
 
@@ -63,8 +60,7 @@ namespace Opc.Ua
         public static DiscoveryClient Create(
             ApplicationConfiguration application,
             ITransportWaitingConnection connection,
-            EndpointConfiguration configuration
-        )
+            EndpointConfiguration configuration)
         {
             configuration ??= EndpointConfiguration.Create();
 
@@ -72,8 +68,7 @@ namespace Opc.Ua
                 application,
                 connection,
                 configuration,
-                application.CreateMessageContext()
-            );
+                application.CreateMessageContext());
             return new DiscoveryClient(channel);
         }
 
@@ -101,8 +96,7 @@ namespace Opc.Ua
         /// </summary>
         public static DiscoveryClient Create(
             ITransportWaitingConnection connection,
-            EndpointConfiguration configuration
-        )
+            EndpointConfiguration configuration)
         {
             configuration ??= EndpointConfiguration.Create();
 
@@ -110,8 +104,7 @@ namespace Opc.Ua
                 null,
                 connection,
                 configuration,
-                new ServiceMessageContext()
-            );
+                new ServiceMessageContext());
             return new DiscoveryClient(channel);
         }
 
@@ -124,8 +117,7 @@ namespace Opc.Ua
         public static DiscoveryClient Create(
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
-            ApplicationConfiguration applicationConfiguration
-        )
+            ApplicationConfiguration applicationConfiguration)
         {
             endpointConfiguration ??= EndpointConfiguration.Create();
 
@@ -152,8 +144,7 @@ namespace Opc.Ua
                 discoveryUrl,
                 endpointConfiguration,
                 new ServiceMessageContext(),
-                clientCertificate
-            );
+                clientCertificate);
             return new DiscoveryClient(channel);
         }
 
@@ -181,8 +172,7 @@ namespace Opc.Ua
         /// <param name="ct">The cancellation token.</param>
         public virtual async Task<EndpointDescriptionCollection> GetEndpointsAsync(
             StringCollection profileUris,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             GetEndpointsResponse response = await GetEndpointsAsync(
                 null,
@@ -219,8 +209,7 @@ namespace Opc.Ua
         /// <param name="ct">The cancellation token.</param>
         public virtual async Task<ApplicationDescriptionCollection> FindServersAsync(
             StringCollection serverUris,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             FindServersResponse response = await FindServersAsync(
                 null,
@@ -240,8 +229,7 @@ namespace Opc.Ua
             uint startingRecordId,
             uint maxRecordsToReturn,
             StringCollection serverCapabilityFilter,
-            out DateTime lastCounterResetTime
-        )
+            out DateTime lastCounterResetTime)
         {
             FindServersOnNetwork(
                 null,
@@ -249,8 +237,7 @@ namespace Opc.Ua
                 maxRecordsToReturn,
                 serverCapabilityFilter,
                 out lastCounterResetTime,
-                out ServerOnNetworkCollection servers
-            );
+                out ServerOnNetworkCollection servers);
 
             return servers;
         }
@@ -280,10 +267,8 @@ namespace Opc.Ua
                         continue;
                     }
 
-                    if (
-                        (endpointUrl.Scheme == discoveryEndPointUri.Scheme) &&
-                        (endpointUrl.Port == discoveryEndPointUri.Port)
-                    )
+                    if ((endpointUrl.Scheme == discoveryEndPointUri.Scheme) &&
+                        (endpointUrl.Port == discoveryEndPointUri.Port))
                     {
                         var builder = new UriBuilder(discoveryEndPointUri)
                         {
@@ -320,8 +305,7 @@ namespace Opc.Ua
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
             IServiceMessageContext messageContext,
-            X509Certificate2 clientCertificate = null
-        )
+            X509Certificate2 clientCertificate = null)
         {
             // create a default description.
             var endpoint = new EndpointDescription
@@ -349,8 +333,7 @@ namespace Opc.Ua
             ITransportWaitingConnection connection,
             EndpointConfiguration endpointConfiguration,
             IServiceMessageContext messageContext,
-            X509Certificate2 clientCertificate = null
-        )
+            X509Certificate2 clientCertificate = null)
         {
             // create a default description.
             var endpoint = new EndpointDescription
@@ -369,8 +352,7 @@ namespace Opc.Ua
                 endpointConfiguration,
                 clientCertificate,
                 null,
-                messageContext
-            );
+                messageContext);
         }
 
         /// <summary>
@@ -381,8 +363,7 @@ namespace Opc.Ua
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
             IServiceMessageContext messageContext,
-            X509Certificate2 clientCertificate = null
-        )
+            X509Certificate2 clientCertificate = null)
         {
             // create a default description.
             var endpoint = new EndpointDescription
@@ -400,8 +381,7 @@ namespace Opc.Ua
                 endpointConfiguration,
                 clientCertificate,
                 null,
-                messageContext
-            );
+                messageContext);
         }
     }
 }

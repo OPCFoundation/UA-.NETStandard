@@ -62,8 +62,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="jsonDataSetMessages"><see cref="JsonDataSetMessage"/> list as input</param>
         public JsonNetworkMessage(
             WriterGroupDataType writerGroupConfiguration,
-            List<JsonDataSetMessage> jsonDataSetMessages
-        )
+            List<JsonDataSetMessage> jsonDataSetMessages)
             : base(
                 writerGroupConfiguration,
                 jsonDataSetMessages?.ConvertAll<UaDataSetMessage>(x => x) ?? [])
@@ -236,8 +235,7 @@ namespace Opc.Ua.PubSub.Encoding
         public override void Decode(
             IServiceMessageContext context,
             byte[] message,
-            IList<DataSetReaderDataType> dataSetReaders
-        )
+            IList<DataSetReaderDataType> dataSetReaders)
         {
             string json = System.Text.Encoding.UTF8.GetString(message);
 
@@ -290,11 +288,9 @@ namespace Opc.Ua.PubSub.Encoding
                     jsonEncoder.WriteString(nameof(PublisherId), PublisherId);
                 }
 
-                if (
-                    (NetworkMessageContentMask &
+                if ((NetworkMessageContentMask &
                         JsonNetworkMessageContentMask.DataSetClassId) != 0 &&
-                    HasSingleDataSetMessage
-                )
+                    HasSingleDataSetMessage)
                 {
                     var jsonDataSetMessage = DataSetMessages[0] as JsonDataSetMessage;
 
@@ -302,8 +298,7 @@ namespace Opc.Ua.PubSub.Encoding
                     {
                         jsonEncoder.WriteString(
                             nameof(DataSetClassId),
-                            jsonDataSetMessage.DataSet.DataSetMetaData.DataSetClassId.ToString()
-                        );
+                            jsonDataSetMessage.DataSet.DataSetMetaData.DataSetClassId.ToString());
                     }
                 }
             }
@@ -319,8 +314,7 @@ namespace Opc.Ua.PubSub.Encoding
                 {
                     Utils.Trace(
                         "The JSON MetaDataMessage cannot be encoded: The DataSetWriterId property is missing for MessageId:{0}.",
-                        MessageId
-                    );
+                        MessageId);
                 }
             }
         }
@@ -398,8 +392,7 @@ namespace Opc.Ua.PubSub.Encoding
                         "Invalid JSON MessageType: {0}. Supported values are {1} and {2}.",
                         MessageType,
                         kDataSetMessageType,
-                        kMetaDataMessageType
-                    );
+                        kMetaDataMessageType);
                 }
             }
 
@@ -430,8 +423,7 @@ namespace Opc.Ua.PubSub.Encoding
                 {
                     Utils.Trace(
                         "The JSON MetaDataMessage cannot be decoded: The DataSetWriterId property is missing for MessageId:{0}.",
-                        MessageId
-                    );
+                        MessageId);
                 }
             }
         }
@@ -499,14 +491,12 @@ namespace Opc.Ua.PubSub.Encoding
                         dataSetReadersFiltered.Add(dataSetReader);
                     }
                     // publisher id
-                    else if (
-                        (NetworkMessageContentMask &
+                    else if ((NetworkMessageContentMask &
                             JsonNetworkMessageContentMask.PublisherId) != 0 &&
                         PublisherId != null &&
                         PublisherId.Equals(
                             dataSetReader.PublisherId.Value.ToString(),
-                            StringComparison.Ordinal)
-                    )
+                            StringComparison.Ordinal))
                     {
                         dataSetReadersFiltered.Add(dataSetReader);
                     }
@@ -548,10 +538,8 @@ namespace Opc.Ua.PubSub.Encoding
                     // attempt decoding for each data set reader
                     foreach (DataSetReaderDataType dataSetReader in dataSetReaders)
                     {
-                        if (
-                            ExtensionObject.ToEncodeable(dataSetReader.MessageSettings)
-                            is not JsonDataSetReaderMessageDataType jsonMessageSettings
-                        )
+                        if (ExtensionObject.ToEncodeable(dataSetReader.MessageSettings)
+                            is not JsonDataSetReaderMessageDataType jsonMessageSettings)
                         {
                             // The reader MessageSettings is not set up correctly
                             continue;
@@ -572,8 +560,7 @@ namespace Opc.Ua.PubSub.Encoding
                                 jsonMessageSettings.DataSetMessageContentMask
                         };
                         jsonDataSetMessage.SetFieldContentMask(
-                            (DataSetFieldContentMask)dataSetReader.DataSetFieldContentMask
-                        );
+                            (DataSetFieldContentMask)dataSetReader.DataSetFieldContentMask);
                         // set the flag that indicates if dataset message shall have a header
                         jsonDataSetMessage.HasDataSetMessageHeader =
                             (networkMessageContentMask &
@@ -583,22 +570,18 @@ namespace Opc.Ua.PubSub.Encoding
                             jsonDecoder,
                             messagesList.Count,
                             messagesListName,
-                            dataSetReader
-                        );
+                            dataSetReader);
                         if (jsonDataSetMessage.DataSet != null)
                         {
                             m_uaDataSetMessages.Add(jsonDataSetMessage);
                         }
-                        else if (jsonDataSetMessage
-                            .DecodeErrorReason == DataSetDecodeErrorReason.MetadataMajorVersion)
+                        else if (jsonDataSetMessage.DecodeErrorReason == DataSetDecodeErrorReason.MetadataMajorVersion)
                         {
                             OnDataSetDecodeErrorOccurred(
                                 new DataSetDecodeErrorEventArgs(
                                     DataSetDecodeErrorReason.MetadataMajorVersion,
                                     this,
-                                    dataSetReader
-                                )
-                            );
+                                    dataSetReader));
                         }
                     }
                 }

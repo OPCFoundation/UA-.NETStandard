@@ -64,8 +64,7 @@ namespace Opc.Ua.Security
                 throw ServiceResultException.Create(
                     StatusCodes.BadNotSupported,
                     "Type does not support the ISecurityConfigurationManager interface: {0}",
-                    typeName
-                );
+                    typeName);
             }
 
             return configuration;

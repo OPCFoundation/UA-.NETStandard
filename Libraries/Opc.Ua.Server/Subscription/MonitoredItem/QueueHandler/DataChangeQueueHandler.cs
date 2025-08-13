@@ -89,8 +89,7 @@ namespace Opc.Ua.Server
             uint monitoredItemId,
             bool createDurable,
             IMonitoredItemQueueFactory queueFactory,
-            Action discardedValueHandler = null
-        )
+            Action discardedValueHandler = null)
         {
             m_dataValueQueue = queueFactory.CreateDataChangeQueue(createDurable, monitoredItemId);
 
@@ -110,8 +109,7 @@ namespace Opc.Ua.Server
             IDataChangeMonitoredItemQueue dataValueQueue,
             bool discardOldest,
             double samplingInterval,
-            Action discardedValueHandler = null
-        )
+            Action discardedValueHandler = null)
         {
             m_dataValueQueue = dataValueQueue;
             m_monitoredItemId = dataValueQueue.QueueSize;
@@ -315,8 +313,7 @@ namespace Opc.Ua.Server
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadInternalError,
-                        "Error queueing DataValue. DataValueQueue was full but it was not possible to discard the oldest value."
-                    );
+                        "Error queueing DataValue. DataValueQueue was full but it was not possible to discard the oldest value.");
                 }
                 //set overflow bit in oldest value
                 m_overflow = m_dataValueQueue.PeekOldestValue();
@@ -355,8 +352,7 @@ namespace Opc.Ua.Server
                     error.NamespaceUri,
                     error.LocalizedText,
                     error.AdditionalInfo,
-                    error.InnerResult
-                );
+                    error.InnerResult);
             }
         }
 

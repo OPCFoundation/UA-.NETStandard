@@ -35,8 +35,7 @@ namespace Opc.Ua.Server.Tests
                 var baseObject = new BaseObjectState(null);
                 var nodeHandle = new NodeHandle(
                     new NodeId((string)CommonTestWorkers.NodeIdTestSetStatic[0].Identifier, 0),
-                    baseObject
-                );
+                    baseObject);
 
                 //Act
                 await RunTaskInParallelAsync(
@@ -47,8 +46,7 @@ namespace Opc.Ua.Server.Tests
                 //Assert, that entry was deleted from cache after parallel operations on the same node
                 NodeState handleFromCache = nodeManager.LookupNodeInComponentCache(
                     nodeManager.SystemContext,
-                    nodeHandle
-                );
+                    nodeHandle);
 
                 Assert.That(handleFromCache, Is.Null);
             }
@@ -132,8 +130,7 @@ namespace Opc.Ua.Server.Tests
         private static async Task UsePredefinedNodesAsync(
             TestableCustomNodeManger2 nodeManager,
             DataItemState baseObject,
-            NodeId nodeId
-        )
+            NodeId nodeId)
         {
             nodeManager.AddPredefinedNode(nodeManager.SystemContext, baseObject);
             _ = nodeManager.Find(nodeId);
@@ -155,8 +152,7 @@ namespace Opc.Ua.Server.Tests
         private static async Task UseComponentCacheAsync(
             TestableCustomNodeManger2 nodeManager,
             BaseObjectState baseObject,
-            NodeHandle nodeHandle
-        )
+            NodeHandle nodeHandle)
         {
             //-- Act
             nodeManager.AddNodeToComponentCache(nodeManager.SystemContext, nodeHandle, baseObject);
@@ -185,8 +181,7 @@ namespace Opc.Ua.Server.Tests
 
         public static async Task<(bool IsSuccess, Exception Error)> RunTaskInParallelAsync(
             Func<Task> task,
-            int iterations
-        )
+            int iterations)
         {
             var cancellationTokenSource = new CancellationTokenSource();
             Exception error = null;
@@ -210,8 +205,7 @@ namespace Opc.Ua.Server.Tests
                     {
                         tasksCompletedCount++;
                     }
-                }
-            );
+                });
 
             int spinWaitCount = 0;
             const int maxSpinWaitCount = 100;

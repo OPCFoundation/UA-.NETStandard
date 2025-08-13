@@ -103,22 +103,18 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <inheritdoc/>
         public async Task<IReadOnlyDictionary<NodeId, DataDictionary>> LoadDataTypeSystem(
             NodeId dataTypeSystem = null,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             if (dataTypeSystem == null)
             {
                 dataTypeSystem = ObjectIds.OPCBinarySchema_TypeSystem;
             }
-            else if (
-                !Utils.IsEqual(dataTypeSystem, ObjectIds.OPCBinarySchema_TypeSystem) &&
-                !Utils.IsEqual(dataTypeSystem, ObjectIds.XmlSchema_TypeSystem)
-            )
+            else if (!Utils.IsEqual(dataTypeSystem, ObjectIds.OPCBinarySchema_TypeSystem) &&
+                !Utils.IsEqual(dataTypeSystem, ObjectIds.XmlSchema_TypeSystem))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadNodeIdInvalid,
-                    $"{nameof(dataTypeSystem)} does not refer to a valid data dictionary."
-                );
+                    $"{nameof(dataTypeSystem)} does not refer to a valid data dictionary.");
             }
 
             // find the dictionary for the description.
@@ -135,8 +131,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadNodeIdInvalid,
-                    "Type system does not contain a valid data dictionary."
-                );
+                    "Type system does not contain a valid data dictionary.");
             }
 
             // batch read all encodings and namespaces
@@ -148,8 +143,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     referenceNodeIds,
                     ReferenceTypeIds.HasProperty,
                     false,
-                    ct
-                )
+                    ct)
                 .ConfigureAwait(false);
 #pragma warning restore IDE0008 // Use explicit type
 
@@ -196,8 +190,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 Utils.LogWarning(
                     "Failed to load namespace {0}: {1}",
                     namespaceNodes[ii].NodeId,
-                    nameSpaceValues[ii].StatusCode
-                );
+                    nameSpaceValues[ii].StatusCode);
             }
 
             // build the namespace/schema import dictionary
@@ -216,10 +209,8 @@ namespace Opc.Ua.Client.ComplexTypes
             foreach (INode r in references)
             {
                 var dictionaryId = ExpandedNodeId.ToNodeId(r.NodeId, NamespaceUris);
-                if (
-                    dictionaryId.NamespaceIndex != 0 &&
-                    !DataTypeSystem.TryGetValue(dictionaryId, out DataDictionary dictionaryToLoad)
-                )
+                if (dictionaryId.NamespaceIndex != 0 &&
+                    !DataTypeSystem.TryGetValue(dictionaryId, out DataDictionary dictionaryToLoad))
                 {
                     try
                     {
@@ -232,8 +223,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                     dictionaryId.ToString(),
                                     schema,
                                     imports,
-                                    ct
-                                )
+                                    ct)
                                 .ConfigureAwait(false);
                         }
                         else
@@ -263,8 +253,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public async Task<IList<NodeId>> BrowseForEncodingsAsync(
             IList<ExpandedNodeId> nodeIds,
             string[] supportedEncodings,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             // cache type encodings
 #pragma warning disable IDE0008 // Use explicit type
@@ -328,8 +317,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, NamespaceUris))
                     .ToList(),
                 binaryEncodingId,
-                xmlEncodingId
-            );
+                xmlEncodingId);
         }
 
         /// <inheritdoc/>
@@ -382,8 +370,7 @@ namespace Opc.Ua.Client.ComplexTypes
             bool nestedSubTypes = false,
             bool addRootNode = false,
             bool filterUATypes = true,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             var result = new List<INode>();
             var nodesToBrowse = new ExpandedNodeIdCollection { dataType };
@@ -531,8 +518,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         values[0].StatusCode,
                         0,
                         diagnosticInfos,
-                        responseHeader
-                    );
+                        responseHeader);
                     throw new ServiceResultException(result);
                 }
 
@@ -562,8 +548,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <exception cref="ServiceResultException"></exception>
         internal async Task<IDictionary<NodeId, byte[]>> ReadDictionariesAsync(
             IList<NodeId> dictionaryIds,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             var result = new Dictionary<NodeId, byte[]>();
             if (dictionaryIds.Count == 0)
@@ -637,8 +622,7 @@ namespace Opc.Ua.Client.ComplexTypes
             string name,
             byte[] schema = null,
             IDictionary<string, byte[]> imports = null,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             if (dictionaryId == null)
             {
@@ -656,8 +640,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadUnexpectedError,
-                    "Cannot parse empty data dictionary."
-                );
+                    "Cannot parse empty data dictionary.");
             }
 
             // Interoperability: some server may return a null terminated dictionary string
@@ -682,8 +665,7 @@ namespace Opc.Ua.Client.ComplexTypes
         private async Task AddTypeSystemAsync(
             DataDictionary dictionaryToLoad,
             NodeId dictionaryId,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
 #pragma warning disable IDE0008 // Use explicit type
             var references = await FindReferencesAsync(
@@ -787,8 +769,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private ValueTask<IReadOnlyList<DataValue>> GetValuesAsync(
             IEnumerable<ExpandedNodeId> nodeIds,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             return m_lruNodeCache.GetValuesAsync(nodeIds.ToList(), ct);
         }
@@ -800,8 +781,7 @@ namespace Opc.Ua.Client.ComplexTypes
             ExpandedNodeId nodeIds,
             NodeId referenceTypeId,
             bool isInverse,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             return m_lruNodeCache.GetReferencesAsync(
                 nodeIds,
@@ -818,8 +798,7 @@ namespace Opc.Ua.Client.ComplexTypes
             IEnumerable<ExpandedNodeId> nodeIds,
             NodeId referenceTypeId,
             bool isInverse,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             return m_lruNodeCache.GetReferencesAsync(
                 nodeIds.ToList(),
@@ -859,8 +838,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private async Task<IReadOnlyList<DataValue>> GetValuesAsync(
             IEnumerable<ExpandedNodeId> expandedNodeIds,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             var nodeIds = expandedNodeIds.Select(n => ExpandedNodeId.ToNodeId(n, NamespaceUris))
                 .ToList();
@@ -873,8 +851,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     errors,
                     (first, second) => StatusCode.IsNotBad(second.StatusCode)
                         ? first
-                        : new DataValue(second.StatusCode)
-                )
+                        : new DataValue(second.StatusCode))
             ];
         }
 
@@ -885,8 +862,7 @@ namespace Opc.Ua.Client.ComplexTypes
             ExpandedNodeId nodeId,
             NodeId referenceTypeId,
             bool isInverse,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             return m_session.NodeCache
                 .FindReferencesAsync(nodeId, referenceTypeId, isInverse, false, ct);
@@ -899,8 +875,7 @@ namespace Opc.Ua.Client.ComplexTypes
             IEnumerable<ExpandedNodeId> nodeIds,
             NodeId referenceTypeId,
             bool isInverse,
-            CancellationToken ct
-        )
+            CancellationToken ct)
         {
             return m_session.NodeCache
                 .FindReferencesAsync([.. nodeIds], [referenceTypeId], isInverse, false, ct);

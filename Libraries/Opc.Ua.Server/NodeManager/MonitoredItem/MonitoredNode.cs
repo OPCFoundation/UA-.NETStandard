@@ -213,12 +213,10 @@ namespace Opc.Ua.Server
                         continue;
                     }
                     // check if channel is not encrypted and skip if so
-                    if (
-                        monitoredItem?.Session?.EndpointDescription?.SecurityMode !=
+                    if (monitoredItem?.Session?.EndpointDescription?.SecurityMode !=
                             MessageSecurityMode.SignAndEncrypt &&
                         monitoredItem?.Session?.EndpointDescription?.TransportProfileUri !=
-                            Profiles.HttpsBinaryTransport
-                    )
+                            Profiles.HttpsBinaryTransport)
                     {
                         continue;
                     }
@@ -288,8 +286,7 @@ namespace Opc.Ua.Server
                         ServiceResult validationResult = NodeManager.ValidateRolePermissions(
                             new OperationContext(monitoredItem),
                             node.NodeId,
-                            PermissionType.Read
-                        );
+                            PermissionType.Read);
 
                         if (ServiceResult.IsBad(validationResult))
                         {
@@ -338,8 +335,7 @@ namespace Opc.Ua.Server
                 monitoredItem.AttributeId,
                 monitoredItem.IndexRange,
                 monitoredItem.DataEncoding,
-                value
-            );
+                value);
 
             if (ServiceResult.IsBad(error))
             {
@@ -357,27 +353,21 @@ namespace Opc.Ua.Server
         /// <returns>The cached or newly created context.</returns>
         private ServerSystemContext GetOrCreateContext(
             ServerSystemContext context,
-            IDataChangeMonitoredItem2 monitoredItem
-        )
+            IDataChangeMonitoredItem2 monitoredItem)
         {
             uint monitoredItemId = monitoredItem.Id;
             int currentTicks = HiResClock.TickCount;
 
             // Check if the context already exists in the cache
-            if (
-                m_contextCache.TryGetValue(
+            if (m_contextCache.TryGetValue(
                     monitoredItemId,
-                    out (ServerSystemContext Context, int CreatedAtTicks) cachedEntry
-                )
-            )
+                    out (ServerSystemContext Context, int CreatedAtTicks) cachedEntry))
             {
                 // Check if the session or user identity has changed or the entry has expired
-                if (
-                    cachedEntry.Context.OperationContext.Session != monitoredItem.Session ||
+                if (cachedEntry.Context.OperationContext.Session != monitoredItem.Session ||
                     cachedEntry.Context.OperationContext.UserIdentity != monitoredItem
                         .EffectiveIdentity ||
-                    (currentTicks - cachedEntry.CreatedAtTicks) > m_cacheLifetimeTicks
-                )
+                    (currentTicks - cachedEntry.CreatedAtTicks) > m_cacheLifetimeTicks)
                 {
                     ServerSystemContext updatedContext = context.Copy(
                         new OperationContext(monitoredItem));

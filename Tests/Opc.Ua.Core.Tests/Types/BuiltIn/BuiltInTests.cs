@@ -300,8 +300,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 "SymbolicId",
                 Namespaces.OpcUa,
                 new LocalizedText("The text", "en-us"),
-                new Exception("The inner exception.")
-            );
+                new Exception("The inner exception."));
             var diagnosticInfo = new DiagnosticInfo(
                 serviceResult,
                 DiagnosticsMasks.All,
@@ -424,8 +423,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 .Throws<ArgumentException>(() => _ = new NodeId((long)7777777, 123));
 
             ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                _ = NodeId.Create(123, "urn:xyz", new NamespaceTable())
-            );
+                _ = NodeId.Create(123, "urn:xyz", new NamespaceTable()));
             Assert.AreEqual((StatusCode)StatusCodes.BadNodeIdInvalid, (StatusCode)sre.StatusCode);
 
             NodeId opaqueId = "!,7B"u8.ToArray();
@@ -467,8 +465,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 NodeId _ = "Test";
             });
             NUnit.Framework.Assert.Throws<ArgumentException>(() =>
-                _ = NodeId.Parse("nsu=http://opcfoundation.org/Tests;s=Test")
-            );
+                _ = NodeId.Parse("nsu=http://opcfoundation.org/Tests;s=Test"));
             NUnit.Framework.Assert.Throws<ArgumentException>(() =>
             {
                 NodeId _ = "nsu=http://opcfoundation.org/Tests;s=Test";
@@ -656,8 +653,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                     Assert.AreEqual(
                         nodeIdExpected.GetHashCode(),
                         nodeId.GetHashCode(),
-                        $"Expected{nodeIdExpected}!=NodeId={nodeId}"
-                    );
+                        $"Expected{nodeIdExpected}!=NodeId={nodeId}");
                 }
             }
 
@@ -850,26 +846,22 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.AreEqual(
                 actualValueRank is ValueRanks.Scalar or ValueRanks.OneDimension or ValueRanks
                     .ScalarOrOneDimension,
-                ValueRanks.IsValid(actualValueRank, ValueRanks.ScalarOrOneDimension)
-            );
+                ValueRanks.IsValid(actualValueRank, ValueRanks.ScalarOrOneDimension));
             Assert.AreEqual(
                 actualValueRank >= 0,
                 ValueRanks.IsValid(actualValueRank, ValueRanks.OneOrMoreDimensions));
             Assert.AreEqual(
                 actualValueRank == ValueRanks.TwoDimensions,
-                ValueRanks.IsValid(actualValueRank, ValueRanks.TwoDimensions)
-            );
+                ValueRanks.IsValid(actualValueRank, ValueRanks.TwoDimensions));
             Assert.AreEqual(
                 actualValueRank == ValueRanks.OneDimension,
-                ValueRanks.IsValid(actualValueRank, ValueRanks.OneDimension)
-            );
+                ValueRanks.IsValid(actualValueRank, ValueRanks.OneDimension));
             Assert.AreEqual(
                 actualValueRank >= 0,
                 ValueRanks.IsValid(actualValueRank, ValueRanks.OneOrMoreDimensions));
             Assert.AreEqual(
                 actualValueRank == ValueRanks.Scalar,
-                ValueRanks.IsValid(actualValueRank, ValueRanks.Scalar)
-            );
+                ValueRanks.IsValid(actualValueRank, ValueRanks.Scalar));
         }
     }
 }

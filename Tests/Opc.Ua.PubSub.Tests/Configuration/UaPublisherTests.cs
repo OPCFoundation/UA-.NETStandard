@@ -52,8 +52,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ValidateUaPublisherPublishIntervalDeviation(
             [Values(100, 1000, 2000)] double publishingInterval,
             [Values(30, 40)] double maxDeviation,
-            [Values(10)] int publishTimeInSeconds
-        )
+            [Values(10)] int publishTimeInSeconds)
         {
             //Arrange
             s_publishTicks.Clear();
@@ -64,8 +63,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 .Setup(x =>
                     x.CreateNetworkMessages(
                         It.IsAny<WriterGroupDataType>(),
-                        It.IsAny<WriterGroupPublishState>())
-                )
+                        It.IsAny<WriterGroupPublishState>()))
                 .Callback(() =>
                 {
                     lock (s_lock)
@@ -118,8 +116,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 maxDeviation,
                 publishTimeInSeconds,
                 faultIndex,
-                faultDeviation
-            );
+                faultDeviation);
         }
     }
 }

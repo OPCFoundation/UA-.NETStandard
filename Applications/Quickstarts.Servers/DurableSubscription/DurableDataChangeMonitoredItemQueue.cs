@@ -50,8 +50,7 @@ namespace Quickstarts.Servers
         public DurableDataChangeMonitoredItemQueue(
             bool createDurable,
             uint monitoredItemId,
-            IBatchPersistor batchPersistor
-        )
+            IBatchPersistor batchPersistor)
         {
             IsDurable = createDurable;
             MonitoredItemId = monitoredItemId;
@@ -251,16 +250,14 @@ namespace Quickstarts.Servers
             {
                 Opc.Ua.Utils.LogDebug(
                     "Dequeue was requeusted but queue was not restored for monitoreditem {0} try to restore for 10 ms.",
-                    MonitoredItemId
-                );
+                    MonitoredItemId);
                 m_batchPersistor.RequestBatchRestore(m_dequeueBatch);
 
                 if (!SpinWait.SpinUntil(() => !m_dequeueBatch.RestoreInProgress, 10))
                 {
                     Opc.Ua.Utils.LogDebug(
                         "Dequeue failed for monitoreditem {0} as queue could not be restored in time.",
-                        MonitoredItemId
-                    );
+                        MonitoredItemId);
                     // Dequeue failed as queue could not be restored in time
                     return false;
                 }

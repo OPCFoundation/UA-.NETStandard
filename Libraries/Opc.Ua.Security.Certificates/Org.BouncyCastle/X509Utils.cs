@@ -62,8 +62,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             string friendlyName,
             AsymmetricKeyParameter privateKey,
             string passcode,
-            SecureRandom random
-        )
+            SecureRandom random)
         {
             // create pkcs12 store for cert and private key
             using var pfxData = new MemoryStream();
@@ -125,8 +124,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             return new RsaKeyParameters(
                 false,
                 new BigInteger(1, rsaParams.Modulus),
-                new BigInteger(1, rsaParams.Exponent)
-            );
+                new BigInteger(1, rsaParams.Exponent));
         }
 
         /// <summary>
@@ -160,8 +158,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
                 new BigInteger(1, rsaParams.Q),
                 new BigInteger(1, rsaParams.DP),
                 new BigInteger(1, rsaParams.DQ),
-                new BigInteger(1, rsaParams.InverseQ)
-            );
+                new BigInteger(1, rsaParams.InverseQ));
         }
 
 #if NET472_OR_GREATER
@@ -207,8 +204,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
                 curve.G,
                 curve.N,
                 curve.H,
-                curve.GetSeed()
-            );
+                curve.GetSeed());
 
             return new ECPrivateKeyParameters(d, namedDomainParameters);
         }
@@ -255,8 +251,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         }
 
         private static readonly Dictionary<string, string> s_friendlyNameToOidMap = new(
-            StringComparer.OrdinalIgnoreCase
-        )
+            StringComparer.OrdinalIgnoreCase)
         {
             { "nistP256", "1.2.840.10045.3.1.7" },
             { "nistP384", "1.3.132.0.34" },
@@ -296,8 +291,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
                                 : string.Empty;
                             string number = m.Groups[2].Value;
                             return lastChar + "-" + number;
-                        }
-                    );
+                        });
                 }
                 return ECNamedCurveTable.GetByName(bcFriendlyName);
             }
@@ -321,8 +315,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
 
             Org.BouncyCastle.Math.EC.ECPoint q = curve.Curve.CreatePoint(
                 new BigInteger(1, ecParams.Q.X),
-                new BigInteger(1, ecParams.Q.Y)
-            );
+                new BigInteger(1, ecParams.Q.Y));
 
             var domainParameters = new ECDomainParameters(
                 curve.Curve,

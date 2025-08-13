@@ -114,8 +114,7 @@ namespace Opc.Ua.Server.Tests
                     server.CurrentInstance,
                     fixture.Config,
                     null,
-                    originalNodeManager.Object
-                );
+                    originalNodeManager.Object);
                 sut.RegisterNamespaceManager(ns, newNodeManager.Object);
 
                 //-- Assert
@@ -222,8 +221,7 @@ namespace Opc.Ua.Server.Tests
                     null,
                     firstNodeManager.Object,
                     // Do not add the secondNodeManager to additionalManagers
-                    thirdNodeManager.Object
-                );
+                    thirdNodeManager.Object);
                 bool result = sut.UnregisterNamespaceManager(ns, secondNodeManager.Object);
 
                 //-- Assert
@@ -271,8 +269,7 @@ namespace Opc.Ua.Server.Tests
                     server.CurrentInstance,
                     fixture.Config,
                     null,
-                    originalNodeManager.Object
-                );
+                    originalNodeManager.Object);
                 bool result = sut.UnregisterNamespaceManager(newNs, newNodeManager.Object);
 
                 //-- Assert

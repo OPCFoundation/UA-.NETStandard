@@ -25,8 +25,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 ValueRanks.OneDimension,
                 ValueRanks.TwoDimensions
             )]
-                int valueRank
-        )
+                int valueRank)
         {
             var typeNode = new BaseDataVariableTypeState();
             var serviceMessageContext = new ServiceMessageContext();
@@ -39,8 +38,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 VariableTypeIds.DataItemType,
                 BrowseNames.DataItemType,
                 new LocalizedText("DataItemType"),
-                true
-            );
+                true);
 
             typeNode.ValueRank = valueRank;
             var loadedVariable = new BaseDataVariableTypeState();
@@ -64,8 +62,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 ValueRanks.OneDimension,
                 ValueRanks.TwoDimensions
             )]
-                int valueRank
-        )
+                int valueRank)
         {
             // Here this type node is used just as support for the instanceNode to refer to
             var typeNode = new BaseDataVariableTypeState();
@@ -79,8 +76,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 VariableTypeIds.DataItemType,
                 BrowseNames.DataItemType,
                 new LocalizedText("DataItemType"),
-                true
-            );
+                true);
 
             // The instance BaseAnalogState node is a subtype of BaseVariableState for
             // which valueRank attribute is tested

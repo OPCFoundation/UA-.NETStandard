@@ -64,16 +64,14 @@ namespace MemoryBuffer
         public MemoryBufferNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
-            string[] namespaceUris
-        )
+            string[] namespaceUris)
             : base(server)
         {
             NamespaceUris = namespaceUris;
 
             AddEncodeableNodeManagerTypes(
                 typeof(MemoryBufferNodeManager).Assembly,
-                typeof(MemoryBufferNodeManager).Namespace
-            );
+                typeof(MemoryBufferNodeManager).Namespace);
 
             // get the configuration for the node manager.
             m_configuration =
@@ -106,8 +104,7 @@ namespace MemoryBuffer
 
                 var root = (BaseInstanceState)FindPredefinedNode(
                     new NodeId(Objects.MemoryBuffers, namespaceIndex),
-                    typeof(BaseInstanceState)
-                );
+                    typeof(BaseInstanceState));
 
                 // create the nodes from configuration.
                 namespaceIndex = Server.NamespaceUris
@@ -128,8 +125,7 @@ namespace MemoryBuffer
                             new NodeId(bufferNode.SymbolicName, namespaceIndex),
                             new QualifiedName(bufferNode.SymbolicName, namespaceIndex),
                             null,
-                            true
-                        );
+                            true);
 
                         bufferNode.CreateBuffer(instance.DataType, instance.TagCount);
                         bufferNode.InitializeMonitoring(Server, this);
@@ -154,8 +150,7 @@ namespace MemoryBuffer
                 context,
                 "Quickstarts.Servers.MemoryBuffer.Generated.MemoryBuffer.PredefinedNodes.uanodes",
                 GetType().GetTypeInfo().Assembly,
-                true
-            );
+                true);
             return predefinedNodes;
         }
 
@@ -181,8 +176,7 @@ namespace MemoryBuffer
         protected override object GetManagerHandle(
             ISystemContext context,
             NodeId nodeId,
-            IDictionary<NodeId, NodeState> cache
-        )
+            IDictionary<NodeId, NodeState> cache)
         {
             lock (Lock)
             {
@@ -270,8 +264,7 @@ namespace MemoryBuffer
             bool createDurable,
             ref long globalIdCounter,
             out MonitoringFilterResult filterError,
-            out IMonitoredItem monitoredItem
-        )
+            out IMonitoredItem monitoredItem)
         {
             filterError = null;
             monitoredItem = null;
@@ -290,8 +283,7 @@ namespace MemoryBuffer
                     createDurable,
                     ref globalIdCounter,
                     out filterError,
-                    out monitoredItem
-                );
+                    out monitoredItem);
             }
 
             // validate parameters.
@@ -331,8 +323,7 @@ namespace MemoryBuffer
                 itemToCreate.ItemToMonitor.AttributeId,
                 itemToCreate.ItemToMonitor.ParsedIndexRange,
                 itemToCreate.ItemToMonitor.DataEncoding,
-                initialValue
-            );
+                initialValue);
 
             if (ServiceResult.IsBad(error))
             {
@@ -368,8 +359,7 @@ namespace MemoryBuffer
                 itemToCreate.MonitoringMode,
                 itemToCreate.RequestedParameters.ClientHandle,
                 samplingInterval,
-                createDurable
-            );
+                createDurable);
 
             // report the initial value.
             datachangeItem.QueueValue(initialValue, null);
@@ -388,8 +378,7 @@ namespace MemoryBuffer
             ServerSystemContext context,
             NodeState source,
             IStoredMonitoredItem storedMonitoredItem,
-            out IMonitoredItem monitoredItem
-        )
+            out IMonitoredItem monitoredItem)
         {
             monitoredItem = null;
 
@@ -426,8 +415,7 @@ namespace MemoryBuffer
             TimestampsToReturn timestampsToReturn,
             IMonitoredItem monitoredItem,
             MonitoredItemModifyRequest itemToModify,
-            out MonitoringFilterResult filterError
-        )
+            out MonitoringFilterResult filterError)
         {
             filterError = null;
 
@@ -440,8 +428,7 @@ namespace MemoryBuffer
                     timestampsToReturn,
                     monitoredItem,
                     itemToModify,
-                    out filterError
-                );
+                    out filterError);
             }
 
             // owned by this node manager.
@@ -469,8 +456,7 @@ namespace MemoryBuffer
                 diagnosticsMasks,
                 timestampsToReturn,
                 itemToModify.RequestedParameters.ClientHandle,
-                itemToModify.RequestedParameters.SamplingInterval
-            );
+                itemToModify.RequestedParameters.SamplingInterval);
 
             return ServiceResult.Good;
         }
@@ -481,8 +467,7 @@ namespace MemoryBuffer
         protected override ServiceResult DeleteMonitoredItem(
             ISystemContext context,
             IMonitoredItem monitoredItem,
-            out bool processed
-        )
+            out bool processed)
         {
             // check for valid handle.
             if (monitoredItem.ManagerHandle is not MemoryBufferState buffer)
@@ -512,8 +497,7 @@ namespace MemoryBuffer
             ISystemContext context,
             IMonitoredItem monitoredItem,
             MonitoringMode monitoringMode,
-            out bool processed
-        )
+            out bool processed)
         {
             // check for valid handle.
             if (monitoredItem.ManagerHandle is not MemoryBufferState buffer)
@@ -556,8 +540,7 @@ namespace MemoryBuffer
                     datachangeItem.AttributeId,
                     NumericRange.Empty,
                     null,
-                    initialValue
-                );
+                    initialValue);
 
                 datachangeItem.QueueValue(initialValue, error);
             }

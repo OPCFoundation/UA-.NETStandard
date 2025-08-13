@@ -33,8 +33,7 @@ namespace Opc.Ua
             EndpointDescription endpointDescription,
             OpenSecureChannelRequest request,
             X509Certificate2 clientCertificate,
-            Exception exception
-        );
+            Exception exception);
 
         /// <summary>
         /// Report the close secure channel audit event.

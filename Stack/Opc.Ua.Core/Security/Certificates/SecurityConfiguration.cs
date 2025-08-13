@@ -51,8 +51,7 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
-                    "ApplicationCertificate must be specified."
-                );
+                    "ApplicationCertificate must be specified.");
             }
             // ensure mandatory stores are valid
             ValidateStore(TrustedIssuerCertificates, nameof(TrustedIssuerCertificates));
@@ -76,26 +75,20 @@ namespace Opc.Ua
                 ValidateStore(UserIssuerCertificates, nameof(UserIssuerCertificates));
             }
 
-            if (
-                (TrustedHttpsCertificates != null && HttpsIssuerCertificates == null) ||
-                (HttpsIssuerCertificates != null && TrustedHttpsCertificates == null)
-            )
+            if ((TrustedHttpsCertificates != null && HttpsIssuerCertificates == null) ||
+                (HttpsIssuerCertificates != null && TrustedHttpsCertificates == null))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
-                    "Either none or both of HttpsIssuerCertificates & TrustedHttpsCertificates stores must be specified."
-                );
+                    "Either none or both of HttpsIssuerCertificates & TrustedHttpsCertificates stores must be specified.");
             }
 
-            if (
-                (TrustedUserCertificates != null && UserIssuerCertificates == null) ||
-                (UserIssuerCertificates != null && TrustedUserCertificates == null)
-            )
+            if ((TrustedUserCertificates != null && UserIssuerCertificates == null) ||
+                (UserIssuerCertificates != null && TrustedUserCertificates == null))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
-                    "Either none or both of UserIssuerCertificates & TrustedUserCertificates stores must be specified."
-                );
+                    "Either none or both of UserIssuerCertificates & TrustedUserCertificates stores must be specified.");
             }
 
             // replace subjectName DC=localhost with DC=hostname
@@ -117,8 +110,7 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
-                    storeName + " StorePath must be specified."
-                );
+                    storeName + " StorePath must be specified.");
             }
             try
             {
@@ -126,8 +118,7 @@ namespace Opc.Ua
                     storeIdentifier.OpenStore()
                     ?? throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError,
-                        $"Failed to open {storeName} store"
-                    );
+                        $"Failed to open {storeName} store");
                 store?.Close();
             }
             catch (Exception ex)
@@ -135,8 +126,7 @@ namespace Opc.Ua
                 Utils.LogError(ex, "Failed to open {storeName} store", storeName);
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
-                    storeName + " store is invalid."
-                );
+                    storeName + " store is invalid.");
             }
         }
 
@@ -151,8 +141,7 @@ namespace Opc.Ua
                 securityPolicy))
             {
                 CertificateIdentifier id = ApplicationCertificates.FirstOrDefault(certId =>
-                    certId.CertificateType == certType
-                );
+                    certId.CertificateType == certType);
                 if (id == null)
                 {
                     if (certType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
@@ -170,8 +159,7 @@ namespace Opc.Ua
                     {
                         // first Ecc certificate
                         id = ApplicationCertificates.FirstOrDefault(certId =>
-                            X509Utils.IsECDsaSignature(certId.Certificate)
-                        );
+                            X509Utils.IsECDsaSignature(certId.Certificate));
                     }
                 }
 

@@ -90,8 +90,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             bool enableTracing,
             bool disableActivityLogging,
             bool securityNone,
-            TextWriter writer
-        )
+            TextWriter writer)
         {
             // start Ref server
             ServerFixture = new ServerFixture<ReferenceServer>(
@@ -117,14 +116,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies
                 .Add(new UserTokenPolicy(UserTokenType.UserName));
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.Certificate)
-            );
+                new UserTokenPolicy(UserTokenType.Certificate));
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
                 new UserTokenPolicy(UserTokenType.IssuedToken)
                 {
                     IssuedTokenType = Profiles.JwtUserToken
-                }
-            );
+                });
 
             ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out)
                 .ConfigureAwait(false);
@@ -197,9 +194,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                             TimestampsToReturn.Neither,
                             nodesToRead,
                             out DataValueCollection results,
-                            out DiagnosticInfoCollection diagnosticInfos
-                        )
-                        );
+                            out DiagnosticInfoCollection diagnosticInfos));
 
                 Assert.AreEqual(StatusCodes.BadEncodingLimitsExceeded, x.StatusCode);
 
@@ -276,8 +271,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 0,
                 browseDescriptions,
                 out BrowseResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos
-            );
+                out DiagnosticInfoCollection diagnosticInfos);
 
             if (results[0] == null || results[0].StatusCode != StatusCodes.Good)
             {

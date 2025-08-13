@@ -213,8 +213,7 @@ namespace Opc.Ua.Server
             Range range,
             double samplingInterval,
             uint queueSize,
-            bool discardOldest
-        );
+            bool discardOldest);
     }
 
     /// <summary>
@@ -240,8 +239,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             Queue<MonitoredItemNotification> notifications,
             Queue<DiagnosticInfo> diagnostics,
-            uint maxNotificationsPerPublish
-        );
+            uint maxNotificationsPerPublish);
     }
 
     /// <summary>
@@ -338,8 +336,7 @@ namespace Opc.Ua.Server
             Range range,
             double samplingInterval,
             uint queueSize,
-            bool discardOldest
-        );
+            bool discardOldest);
 
         /// <summary>
         /// Updates the sampling interval for an item.

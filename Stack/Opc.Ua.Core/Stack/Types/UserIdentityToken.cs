@@ -31,8 +31,7 @@ namespace Opc.Ua
             Nonce receiverEphemeralKey = null,
             X509Certificate2 senderCertificate = null,
             X509Certificate2Collection senderIssuerCertificates = null,
-            bool doNotEncodeSenderCertificate = false
-        )
+            bool doNotEncodeSenderCertificate = false)
         {
         }
 
@@ -46,8 +45,7 @@ namespace Opc.Ua
             Nonce ephemeralKey = null,
             X509Certificate2 senderCertificate = null,
             X509Certificate2Collection senderIssuerCertificates = null,
-            CertificateValidator validator = null
-        )
+            CertificateValidator validator = null)
         {
         }
 
@@ -118,8 +116,7 @@ namespace Opc.Ua
             Nonce receiverEphemeralKey = null,
             X509Certificate2 senderCertificate = null,
             X509Certificate2Collection senderIssuerCertificates = null,
-            bool doNotEncodeSenderCertificate = false
-        )
+            bool doNotEncodeSenderCertificate = false)
         {
             if (m_decryptedPassword == null)
             {
@@ -144,8 +141,7 @@ namespace Opc.Ua
                 EncryptedData encryptedData = SecurityPolicies.Encrypt(
                     receiverCertificate,
                     securityPolicyUri,
-                    dataToEncrypt
-                );
+                    dataToEncrypt);
 
                 m_password = encryptedData.Data;
                 m_encryptionAlgorithm = encryptedData.Algorithm;
@@ -165,11 +161,9 @@ namespace Opc.Ua
                 };
 
                 // check if the complete chain is included in the sender issuers.
-                if (
-                    senderIssuerCertificates != null &&
+                if (senderIssuerCertificates != null &&
                     senderIssuerCertificates.Count > 0 &&
-                    senderIssuerCertificates[0].Thumbprint == senderCertificate.Thumbprint
-                )
+                    senderIssuerCertificates[0].Thumbprint == senderCertificate.Thumbprint)
                 {
                     var issuers = new X509Certificate2Collection();
 
@@ -204,8 +198,7 @@ namespace Opc.Ua
             Nonce ephemeralKey = null,
             X509Certificate2 senderCertificate = null,
             X509Certificate2Collection senderIssuerCertificates = null,
-            CertificateValidator validator = null
-        )
+            CertificateValidator validator = null)
         {
             //zero out existing password
             if (m_decryptedPassword != null)
@@ -282,8 +275,7 @@ namespace Opc.Ua
                     receiverNonce.Data,
                     m_password,
                     0,
-                    m_password.Length
-                );
+                    m_password.Length);
 #else
                 throw new NotSupportedException("Platform does not support ECC curves");
 #endif
@@ -361,8 +353,7 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(
                     StatusCodes.BadIdentityTokenInvalid,
                     e,
-                    "Could not verify user signature!"
-                );
+                    "Could not verify user signature!");
             }
         }
 
@@ -420,8 +411,7 @@ namespace Opc.Ua
             Nonce receiverEphemeralKey = null,
             X509Certificate2 senderCertificate = null,
             X509Certificate2Collection senderIssuerCertificates = null,
-            bool doNotEncodeSenderCertificate = false
-        )
+            bool doNotEncodeSenderCertificate = false)
         {
             // handle no encryption.
             if (string.IsNullOrEmpty(securityPolicyUri) ||
@@ -437,8 +427,7 @@ namespace Opc.Ua
             EncryptedData encryptedData = SecurityPolicies.Encrypt(
                 receiverCertificate,
                 securityPolicyUri,
-                dataToEncrypt
-            );
+                dataToEncrypt);
 
             m_tokenData = encryptedData.Data;
             m_encryptionAlgorithm = encryptedData.Algorithm;
@@ -455,8 +444,7 @@ namespace Opc.Ua
             Nonce ephemeralKey = null,
             X509Certificate2 senderCertificate = null,
             X509Certificate2Collection senderIssuerCertificates = null,
-            CertificateValidator validator = null
-        )
+            CertificateValidator validator = null)
         {
             // handle no encryption.
             if (string.IsNullOrEmpty(securityPolicyUri) ||

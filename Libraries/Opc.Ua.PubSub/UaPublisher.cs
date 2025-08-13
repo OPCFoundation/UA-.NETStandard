@@ -64,8 +64,7 @@ namespace Opc.Ua.PubSub
                 WriterGroupConfiguration.Name,
                 WriterGroupConfiguration.PublishingInterval,
                 CanPublish,
-                PublishMessages
-            );
+                PublishMessages);
         }
 
         /// <summary>
@@ -145,8 +144,7 @@ namespace Opc.Ua.PubSub
             {
                 IList<UaNetworkMessage> networkMessages = PubSubConnection.CreateNetworkMessages(
                     WriterGroupConfiguration,
-                    m_writerGroupPublishState
-                );
+                    m_writerGroupPublishState);
                 if (networkMessages != null)
                 {
                     foreach (UaNetworkMessage uaNetworkMessage in networkMessages)
@@ -158,8 +156,7 @@ namespace Opc.Ua.PubSub
                                 Utils.TraceMasks.Information,
                                 "UaPublisher - PublishNetworkMessage, WriterGroupId:{0}; success = {1}",
                                 WriterGroupConfiguration.WriterGroupId,
-                                success.ToString()
-                            );
+                                success.ToString());
                         }
                     }
                 }

@@ -143,8 +143,7 @@ namespace Opc.Ua.Server.Tests
                         MaxNodesPerNodeManagement = 1000,
                         MaxNodesPerRegisterNodes = 1000,
                         MaxNodesPerTranslateBrowsePathsToNodeIds = 1000
-                    }
-                );
+                    });
             }
 
             serverConfig
@@ -161,16 +160,14 @@ namespace Opc.Ua.Server.Tests
                         ConnectInterval = ReverseConnectTimeout / 4,
                         ConnectTimeout = ReverseConnectTimeout,
                         RejectTimeout = ReverseConnectTimeout / 4
-                    }
-                );
+                    });
             }
 
             CertificateIdentifierCollection applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     "CN=" + typeof(T).Name + ", C=US, S=Arizona, O=OPC Foundation, DC=localhost",
                     CertificateStoreType.Directory,
-                    pkiRoot
-                );
+                    pkiRoot);
 
             if (DurableSubscriptionsEnabled)
             {
@@ -336,8 +333,7 @@ namespace Opc.Ua.Server.Tests
                             activity.TraceId,
                             activity.SpanId,
                             activity.ParentId,
-                            activity.Duration
-                        )
+                            activity.Duration)
                 };
             }
             ActivitySource.AddActivityListener(ActivityListener);

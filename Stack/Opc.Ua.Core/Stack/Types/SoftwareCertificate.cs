@@ -33,8 +33,7 @@ namespace Opc.Ua
         public static ServiceResult Validate(
             CertificateValidator validator,
             byte[] signedCertificate,
-            out SoftwareCertificate softwareCertificate
-        )
+            out SoftwareCertificate softwareCertificate)
         {
             softwareCertificate = null;
 
@@ -50,8 +49,7 @@ namespace Opc.Ua
                 return ServiceResult.Create(
                     e,
                     StatusCodes.BadDecodingError,
-                    "Could not decode software certificate body."
-                );
+                    "Could not decode software certificate body.");
             }
 
             // find the software certificate.
@@ -61,8 +59,7 @@ namespace Opc.Ua
             {
                 return ServiceResult.Create(
                     StatusCodes.BadCertificateInvalid,
-                    "Could not find extension containing the software certificate."
-                );
+                    "Could not find extension containing the software certificate.");
             }
 
             try
@@ -77,8 +74,7 @@ namespace Opc.Ua
                 return ServiceResult.Create(
                     e,
                     StatusCodes.BadCertificateInvalid,
-                    "Certificate does not contain a valid SoftwareCertificate body."
-                );
+                    "Certificate does not contain a valid SoftwareCertificate body.");
             }
 
             // certificate is valid.

@@ -237,14 +237,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 foreach (X509Certificate2 cert in revokedCerts)
                 {
                     NUnit.Framework.Assert.Throws<CryptographicException>(() =>
-                        crl.VerifySignature(otherIssuerCertificate, true)
-                    );
+                        crl.VerifySignature(otherIssuerCertificate, true));
                     Assert.False(crl.IsRevoked(cert));
                     X509CRL nextCrl = CertificateFactory.RevokeCertificate(
                         issuerCertificate,
                         revokedList,
-                        new X509Certificate2Collection(cert)
-                    );
+                        new X509Certificate2Collection(cert));
                     crlCounter++;
                     Assert.NotNull(nextCrl);
                     Assert.True(nextCrl.IsRevoked(cert));
@@ -336,8 +334,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public static void VerifyApplicationCert(
             ApplicationTestData testApp,
             X509Certificate2 cert,
-            X509Certificate2 issuerCert = null
-        )
+            X509Certificate2 issuerCert = null)
         {
             bool signedCert = issuerCert != null;
             issuerCert ??= cert;
@@ -376,20 +373,17 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.CrlSign) == 0);
             Assert.True(
                 (keyUsage.KeyUsages &
-                    X509KeyUsageFlags.DataEncipherment) == X509KeyUsageFlags.DataEncipherment
-            );
+                    X509KeyUsageFlags.DataEncipherment) == X509KeyUsageFlags.DataEncipherment);
             Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.DecipherOnly) == 0);
             Assert.True(
                 (keyUsage.KeyUsages &
-                    X509KeyUsageFlags.DigitalSignature) == X509KeyUsageFlags.DigitalSignature
-            );
+                    X509KeyUsageFlags.DigitalSignature) == X509KeyUsageFlags.DigitalSignature);
             Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.EncipherOnly) == 0);
             Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.KeyAgreement) == 0);
             Assert.True(
                 (keyUsage.KeyUsages & X509KeyUsageFlags.KeyCertSign) == (signedCert
                     ? 0
-                    : X509KeyUsageFlags.KeyCertSign)
-            );
+                    : X509KeyUsageFlags.KeyCertSign));
             Assert.True((keyUsage.KeyUsages &
                 X509KeyUsageFlags.KeyEncipherment) == X509KeyUsageFlags.KeyEncipherment);
             Assert.True((keyUsage.KeyUsages &
@@ -418,8 +412,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     X509Utils.CompareDistinguishedName(
                         cert.SubjectName.Name,
                         authority.Issuer.Name),
-                    $"{cert.SubjectName.Name} != {authority.Issuer.Name}"
-                );
+                    $"{cert.SubjectName.Name} != {authority.Issuer.Name}");
             }
             else
             {
@@ -428,8 +421,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     X509Utils.CompareDistinguishedName(
                         issuerCert.SubjectName.Name,
                         authority.Issuer.Name),
-                    $"{cert.SubjectName.Name} != {authority.Issuer.Name}"
-                );
+                    $"{cert.SubjectName.Name} != {authority.Issuer.Name}");
             }
 
             // verify authority key in signed cert
@@ -511,8 +503,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.DecipherOnly) == 0);
             Assert.True(
                 (keyUsage.KeyUsages &
-                    X509KeyUsageFlags.DigitalSignature) == X509KeyUsageFlags.DigitalSignature
-            );
+                    X509KeyUsageFlags.DigitalSignature) == X509KeyUsageFlags.DigitalSignature);
             Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.EncipherOnly) == 0);
             Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.KeyAgreement) == 0);
             Assert.True((keyUsage.KeyUsages &

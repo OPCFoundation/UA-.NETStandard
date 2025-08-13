@@ -80,8 +80,7 @@ namespace Opc.Ua.Fuzzing
         [Theory]
         public void FuzzGoodTestcases(
             FuzzTargetFunction fuzzableCode,
-            [ValueSource(nameof(GoodTestcases))] TestcaseAsset messageEncoder
-        )
+            [ValueSource(nameof(GoodTestcases))] TestcaseAsset messageEncoder)
         {
             FuzzTarget(fuzzableCode, messageEncoder.Testcase);
         }
@@ -107,8 +106,7 @@ namespace Opc.Ua.Fuzzing
         [CancelAfter(1000)]
         public void FuzzTimeoutAssets(
             FuzzTargetFunction fuzzableCode,
-            [ValueSource(nameof(TimeoutAssets))] TestcaseAsset messageEncoder
-        )
+            [ValueSource(nameof(TimeoutAssets))] TestcaseAsset messageEncoder)
         {
             FuzzTarget(fuzzableCode, messageEncoder.Testcase);
         }
@@ -117,8 +115,7 @@ namespace Opc.Ua.Fuzzing
         [CancelAfter(1000)]
         public void FuzzSlowAssets(
             FuzzTargetFunction fuzzableCode,
-            [ValueSource(nameof(SlowAssets))] TestcaseAsset messageEncoder
-        )
+            [ValueSource(nameof(SlowAssets))] TestcaseAsset messageEncoder)
         {
             FuzzTarget(fuzzableCode, messageEncoder.Testcase);
         }

@@ -104,8 +104,7 @@ namespace Opc.Ua.PubSub.Transport
                 UdpClientBroadcast @this,
                 SocketOptionLevel socketOptionLevel,
                 SocketOptionName socketOptionName,
-                bool value
-            )
+                bool value)
             {
                 try
                 {
@@ -118,8 +117,7 @@ namespace Opc.Ua.PubSub.Transport
                         "UdpClientBroadcast set SetSocketOption {1} to {2} resulted in ex {0}",
                         ex.Message,
                         SocketOptionName.Broadcast,
-                        value
-                    );
+                        value);
                 }
             }
             SetSocketOption(this, SocketOptionLevel.Socket, SocketOptionName.Broadcast, true);
@@ -137,8 +135,7 @@ namespace Opc.Ua.PubSub.Transport
                     Utils.Trace(
                         Utils.TraceMasks.Information,
                         "UdpClientBroadcast set ExclusiveAddressUse to false resulted in ex {0}",
-                        ex.Message
-                    );
+                        ex.Message);
                 }
             }
         }

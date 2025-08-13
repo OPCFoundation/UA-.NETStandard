@@ -462,17 +462,14 @@ namespace Opc.Ua
             }
 
             // ignore non-types.
-            if (
-                (
+            if ((
                     (int)node.NodeClass &
                     (
                         (int)NodeClass.ObjectType |
                         (int)NodeClass.VariableType |
                         (int)NodeClass.ReferenceType |
-                        (int)NodeClass.DataType
-                    )
-                ) == 0
-            )
+                        (int)NodeClass.DataType)
+                ) == 0)
             {
                 return;
             }
@@ -491,8 +488,7 @@ namespace Opc.Ua
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadNodeIdInvalid,
-                        "A valid supertype identifier is required."
-                    );
+                        "A valid supertype identifier is required.");
                 }
             }
 
@@ -506,8 +502,7 @@ namespace Opc.Ua
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadNodeIdInvalid,
-                        "A valid supertype identifier is required."
-                    );
+                        "A valid supertype identifier is required.");
                 }
 
                 // create the type info.
@@ -654,8 +649,7 @@ namespace Opc.Ua
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadNodeIdInvalid,
-                        "A valid supertype identifier is required."
-                    );
+                        "A valid supertype identifier is required.");
                 }
 
                 // create the type info.

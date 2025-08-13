@@ -184,8 +184,7 @@ namespace Opc.Ua.Security.Certificates
                                 rsaPrivateKey.ImportEncryptedPkcs8PrivateKey(
                                     password.ToCharArray(),
                                     pemDecoded,
-                                    out bytesRead
-                                );
+                                    out bytesRead);
                                 break;
                             case 2:
                                 rsaPrivateKey.ImportPkcs8PrivateKey(pemDecoded, out bytesRead);

@@ -62,8 +62,7 @@ namespace Opc.Ua.Security.Certificates
                 {
                     throw new ArgumentException(
                         "Export with password not supported on this platform.",
-                        nameof(password)
-                    );
+                        nameof(password));
                 }
 
                 RsaPrivateCrtKeyParameters privateKeyParameter = X509Utils
@@ -81,13 +80,11 @@ namespace Opc.Ua.Security.Certificates
                 {
                     throw new ArgumentException(
                         "Export with password not supported on this platform.",
-                        nameof(password)
-                    );
+                        nameof(password));
                 }
 
                 ECPrivateKeyParameters privateKeyParameter = X509Utils.GetECDsaPrivateKeyParameter(
-                    certificate.GetECDsaPrivateKey()
-                );
+                    certificate.GetECDsaPrivateKey());
                 // write private key as PKCS#8
                 PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(
                     privateKeyParameter);
@@ -105,8 +102,7 @@ namespace Opc.Ua.Security.Certificates
         public static bool TryRemovePublicKeyFromPEM(
             string thumbprint,
             byte[] pemDataBlob,
-            out byte[] modifiedPemDataBlob
-        )
+            out byte[] modifiedPemDataBlob)
         {
             modifiedPemDataBlob = null;
             const string label = "CERTIFICATE";
@@ -139,8 +135,7 @@ namespace Opc.Ua.Security.Certificates
                     byte[] pemCertificateDecoded = Convert.FromBase64CharArray(
                         pemCertificateContent.ToCharArray(),
                         0,
-                        pemCertificateContent.Length
-                    );
+                        pemCertificateContent.Length);
 
                     X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(
                         pemCertificateDecoded);
@@ -153,9 +148,7 @@ namespace Opc.Ua.Security.Certificates
                                 pemText.Substring(
                                     beginIndex -= beginlabel.Length,
                                     endIndex + endlabel.Length),
-                                string.Empty
-                            )
-                        );
+                                string.Empty));
                         return true;
                     }
 

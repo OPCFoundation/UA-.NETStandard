@@ -72,8 +72,7 @@ namespace Alarms
             ushort nameSpaceIndex,
             string path,
             string name,
-            bool boolValue = false
-        )
+            bool boolValue = false)
         {
             uint dataTypeIdentifier = DataTypes.Int32;
             if (boolValue)
@@ -91,8 +90,7 @@ namespace Alarms
             ushort nameSpaceIndex,
             string path,
             string name,
-            uint dataTypeIdentifier
-        )
+            uint dataTypeIdentifier)
         {
             var variable = new BaseDataVariableState(parent)
             {

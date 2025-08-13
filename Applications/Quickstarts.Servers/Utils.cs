@@ -60,8 +60,7 @@ namespace Quickstarts.Servers
                             MethodId = new NodeId("Alarms.Start", (ushort)index),
                             ObjectId = new NodeId("Alarms", (ushort)index),
                             InputArguments = [new Variant(uint.MaxValue)]
-                        }
-                    );
+                        });
                     var requestHeader = new RequestHeader
                     {
                         Timestamp = DateTime.UtcNow,
@@ -72,8 +71,7 @@ namespace Quickstarts.Servers
                         context,
                         methodsToCall,
                         out CallMethodResultCollection results,
-                        out DiagnosticInfoCollection diagnosticInfos
-                    );
+                        out DiagnosticInfoCollection diagnosticInfos);
                     foreach (CallMethodResult result in results)
                     {
                         if (ServiceResult.IsBad(result.StatusCode))

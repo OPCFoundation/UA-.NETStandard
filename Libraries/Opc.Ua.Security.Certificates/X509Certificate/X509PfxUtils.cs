@@ -72,8 +72,7 @@ namespace Opc.Ua.Security.Certificates
         public static bool VerifyKeyPair(
             X509Certificate2 certWithPublicKey,
             X509Certificate2 certWithPrivateKey,
-            bool throwOnError = false
-        )
+            bool throwOnError = false)
         {
             if (IsECDsaSignature(certWithPublicKey))
             {
@@ -94,8 +93,7 @@ namespace Opc.Ua.Security.Certificates
         public static bool VerifyRSAKeyPair(
             X509Certificate2 certWithPublicKey,
             X509Certificate2 certWithPrivateKey,
-            bool throwOnError = false
-        )
+            bool throwOnError = false)
         {
             bool result = false;
             try
@@ -151,8 +149,7 @@ namespace Opc.Ua.Security.Certificates
         public static X509Certificate2 CreateCertificateFromPKCS12(
             byte[] rawData,
             string password,
-            bool noEphemeralKeySet = false
-        )
+            bool noEphemeralKeySet = false)
         {
             Exception ex = null;
             X509Certificate2 certificate = null;
@@ -266,8 +263,7 @@ namespace Opc.Ua.Security.Certificates
         public static bool VerifyECDsaKeyPair(
             X509Certificate2 certWithPublicKey,
             X509Certificate2 certWithPrivateKey,
-            bool throwOnError = false
-        )
+            bool throwOnError = false)
         {
             bool result = false;
             using (ECDsa ecdsaPublicKey = certWithPublicKey.GetECDsaPublicKey())

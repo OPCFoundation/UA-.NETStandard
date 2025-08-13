@@ -45,8 +45,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             m_assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(
                 new AssemblyName(assemblyName ?? Guid.NewGuid().ToString()),
-                AssemblyBuilderAccess.Run
-            );
+                AssemblyBuilderAccess.Run);
             m_moduleBuilder = m_assemblyBuilder.DefineDynamicModule(kOpcTypesModuleName);
         }
 

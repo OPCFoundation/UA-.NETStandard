@@ -232,16 +232,14 @@ namespace Opc.Ua.Bindings
                                     Utils.LogInfo(
                                         Utils.TraceMasks.Security,
                                         "{0} Validate server chain:",
-                                        nameof(HttpsTransportChannel)
-                                    );
+                                        nameof(HttpsTransportChannel));
                                     foreach (X509ChainElement element in chain.ChainElements)
                                     {
                                         Utils.LogCertificate(
                                             Utils.TraceMasks.Security,
                                             "{0}: ",
                                             element.Certificate,
-                                            i
-                                        );
+                                            i);
                                         validationChain.Add(element.Certificate);
                                         i++;
                                     }
@@ -252,8 +250,7 @@ namespace Opc.Ua.Bindings
                                         Utils.TraceMasks.Security,
                                         "{0} Validate Server Certificate: ",
                                         cert,
-                                        nameof(HttpsTransportChannel)
-                                    );
+                                        nameof(HttpsTransportChannel));
                                     validationChain.Add(cert);
                                 }
 
@@ -266,8 +263,7 @@ namespace Opc.Ua.Bindings
                                 Utils.LogError(
                                     ex,
                                     "{0} Failed to validate certificate.",
-                                    nameof(HttpsTransportChannel)
-                                );
+                                    nameof(HttpsTransportChannel));
                             }
                             return false;
                         };
@@ -320,8 +316,7 @@ namespace Opc.Ua.Bindings
                 object callbackData,
                 int timeout,
                 IServiceRequest request,
-                HttpResponseMessage response
-            )
+                HttpResponseMessage response)
                 : base(callback, callbackData, timeout)
             {
                 Request = request;
@@ -342,14 +337,11 @@ namespace Opc.Ua.Bindings
                 var content = new ByteArrayContent(
                     BinaryEncoder.EncodeMessage(request, m_quotas.MessageContext));
                 content.Headers.ContentType = s_mediaTypeHeaderValue;
-                if (
-                    EndpointDescription?.SecurityPolicyUri != null &&
+                if (EndpointDescription?.SecurityPolicyUri != null &&
                     !string.Equals(
                         EndpointDescription.SecurityPolicyUri,
                         SecurityPolicies.None,
-                        StringComparison.Ordinal
-                    )
-                )
+                        StringComparison.Ordinal))
                 {
                     content.Headers.Add(
                         Profiles.HttpsSecurityPolicyHeader,
@@ -515,14 +507,11 @@ namespace Opc.Ua.Bindings
                 var content = new ByteArrayContent(
                     BinaryEncoder.EncodeMessage(request, m_quotas.MessageContext));
                 content.Headers.ContentType = s_mediaTypeHeaderValue;
-                if (
-                    EndpointDescription?.SecurityPolicyUri != null &&
+                if (EndpointDescription?.SecurityPolicyUri != null &&
                     !string.Equals(
                         EndpointDescription.SecurityPolicyUri,
                         SecurityPolicies.None,
-                        StringComparison.Ordinal
-                    )
-                )
+                        StringComparison.Ordinal))
                 {
                     content.Headers.Add(
                         Profiles.HttpsSecurityPolicyHeader,

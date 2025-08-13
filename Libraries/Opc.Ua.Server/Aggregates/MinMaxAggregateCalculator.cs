@@ -52,8 +52,7 @@ namespace Opc.Ua.Server
             DateTime endTime,
             double processingInterval,
             bool stepped,
-            AggregateConfiguration configuration
-        )
+            AggregateConfiguration configuration)
             : base(aggregateId, startTime, endTime, processingInterval, stepped, configuration)
         {
             SetPartialBit = true;
@@ -426,11 +425,9 @@ namespace Opc.Ua.Server
             StatusCode statusCode = processedStatusCode;
 
             // set calculated if not returning actual time and value is not at the start time.
-            if (
-                !returnActualTime &&
+            if (!returnActualTime &&
                 processedTimestamp != slice.StartTime &&
-                (statusCode.AggregateBits & AggregateBits.Interpolated) == 0
-            )
+                (statusCode.AggregateBits & AggregateBits.Interpolated) == 0)
             {
                 statusCode = statusCode.SetAggregateBits(
                     statusCode.AggregateBits | AggregateBits.Calculated);
@@ -478,16 +475,14 @@ namespace Opc.Ua.Server
                     {
                         processedTimestamp = processedTimestamp.AddMilliseconds(+1);
                         value.StatusCode = value.StatusCode.SetAggregateBits(
-                            value.StatusCode.AggregateBits | AggregateBits.Interpolated
-                        );
+                            value.StatusCode.AggregateBits | AggregateBits.Interpolated);
                     }
                 }
                 else if (processedTimestamp == slice.EndTime)
                 {
                     processedTimestamp = processedTimestamp.AddMilliseconds(-1);
                     value.StatusCode = value.StatusCode.SetAggregateBits(
-                        value.StatusCode.AggregateBits | AggregateBits.Interpolated
-                    );
+                        value.StatusCode.AggregateBits | AggregateBits.Interpolated);
                 }
 
                 value.SourceTimestamp = processedTimestamp;

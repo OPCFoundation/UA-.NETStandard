@@ -41,8 +41,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             NodeId typeDefinitionId,
             IList<QualifiedName> relativePath,
             uint attributeId,
-            Ua.NumericRange indexRange
-        )
+            Ua.NumericRange indexRange)
         {
             throw new NotImplementedException();
         }
@@ -139,8 +138,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             object operandFirst2,
             object operandFirst3,
             object operandFirst4,
-            object expectedResult
-        )
+            object expectedResult)
         {
             var loperand1 = new LiteralOperand();
             var loperand2 = new LiteralOperand();
@@ -206,8 +204,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             object operandFirst1,
             object operandFirst2,
             FilterOperator filterOp,
-            object expectedResult
-        )
+            object expectedResult)
         {
             var loperand1 = new LiteralOperand();
             var loperand2 = new LiteralOperand();
@@ -252,8 +249,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             object operandFirst2,
             FilterOperator filterOp1,
             FilterOperator filterOp2,
-            object expectedResult
-        )
+            object expectedResult)
         {
             // Setup the First ContentfilterElement (the BitwiseOr or BitwiseAnd filter operation)
             var loperand1 = new LiteralOperand();
@@ -348,8 +344,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             FilterOperator filterOp1,
             object operandSecondFilter,
             FilterOperator filterOp2,
-            object expectedResult
-        )
+            object expectedResult)
         {
             // Setup the First ContentfilterElement (the BitwiseOr or BitwiseAnd filter operation)
             var loperand1 = new LiteralOperand();
@@ -396,8 +391,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             string operandFirst1,
             string operandFirst2,
             StringComparison stringComparison,
-            object expectedResult
-        )
+            object expectedResult)
         {
             Ua.ContentFilter.EqualsOperatorDefaultStringComparison = stringComparison;
             var loperand1 = new LiteralOperand { Value = new Variant(operandFirst1) };

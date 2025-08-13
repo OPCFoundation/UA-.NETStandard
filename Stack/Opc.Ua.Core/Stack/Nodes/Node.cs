@@ -332,10 +332,8 @@ namespace Opc.Ua
             }
 
             // check data type.
-            if (
-                attributeId != Attributes.Value &&
-                Attributes.GetDataTypeId(attributeId) != TypeInfo.GetDataTypeId(value)
-            )
+            if (attributeId != Attributes.Value &&
+                Attributes.GetDataTypeId(attributeId) != TypeInfo.GetDataTypeId(value))
             {
                 return StatusCodes.BadTypeMismatch;
             }
@@ -540,11 +538,9 @@ namespace Opc.Ua
 
             string referenceType = null;
 
-            if (
-                m_referenceTypeId != null &&
+            if (m_referenceTypeId != null &&
                 m_referenceTypeId.IdType == IdType.Numeric &&
-                m_referenceTypeId.NamespaceIndex == 0
-            )
+                m_referenceTypeId.NamespaceIndex == 0)
             {
                 referenceType = ReferenceTypes.GetBrowseName((uint)m_referenceTypeId.Identifier);
             }

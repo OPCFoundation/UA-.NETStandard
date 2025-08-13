@@ -65,8 +65,7 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             using Activity activity = TraceableSession.ActivitySource.StartActivity();
             ISession session = await base.CreateAsync(
@@ -78,8 +77,7 @@ namespace Opc.Ua.Client
                     sessionTimeout,
                     identity,
                     preferredLocales,
-                    ct
-                )
+                    ct)
                 .ConfigureAwait(false);
             return new TraceableSession(session);
         }
@@ -94,8 +92,7 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             using Activity activity = TraceableSession.ActivitySource.StartActivity();
             ISession session = await Session
@@ -110,8 +107,7 @@ namespace Opc.Ua.Client
                     sessionTimeout,
                     identity,
                     preferredLocales,
-                    ct
-                )
+                    ct)
                 .ConfigureAwait(false);
 
             return new TraceableSession(session);
@@ -128,8 +124,7 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             using Activity activity = TraceableSession.ActivitySource.StartActivity();
             ISession session = await Session
@@ -144,8 +139,7 @@ namespace Opc.Ua.Client
                     sessionTimeout,
                     identity,
                     preferredLocales,
-                    ct
-                )
+                    ct)
                 .ConfigureAwait(false);
 
             return new TraceableSession(session);
@@ -158,8 +152,7 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
             EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null
-        )
+            StringCollection discoveryProfileUris = null)
         {
             using Activity activity = TraceableSession.ActivitySource.StartActivity();
             return new TraceableSession(
@@ -169,9 +162,7 @@ namespace Opc.Ua.Client
                     endpoint,
                     clientCertificate,
                     availableEndpoints,
-                    discoveryProfileUris
-                )
-            );
+                    discoveryProfileUris));
         }
 
         /// <inheritdoc/>
@@ -181,8 +172,7 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
             bool checkDomain,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             using Activity activity = TraceableSession.ActivitySource.StartActivity();
             return await base.CreateChannelAsync(
@@ -191,8 +181,7 @@ namespace Opc.Ua.Client
                     endpoint,
                     updateBeforeConnect,
                     checkDomain,
-                    ct
-                )
+                    ct)
                 .ConfigureAwait(false);
         }
 
@@ -207,8 +196,7 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity userIdentity,
             IList<string> preferredLocales,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             using Activity activity = TraceableSession.ActivitySource.StartActivity();
             ISession session = await base.CreateAsync(
@@ -221,8 +209,7 @@ namespace Opc.Ua.Client
                     sessionTimeout,
                     userIdentity,
                     preferredLocales,
-                    ct
-                )
+                    ct)
                 .ConfigureAwait(false);
 
             return new TraceableSession(session);
@@ -243,8 +230,7 @@ namespace Opc.Ua.Client
         public override async Task<ISession> RecreateAsync(
             ISession sessionTemplate,
             ITransportWaitingConnection connection,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             Session session = ValidateISession(sessionTemplate);
             using Activity activity = TraceableSession.ActivitySource.StartActivity();
@@ -256,8 +242,7 @@ namespace Opc.Ua.Client
         public override async Task<ISession> RecreateAsync(
             ISession sessionTemplate,
             ITransportChannel channel,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             Session session = ValidateISession(sessionTemplate);
             using Activity activity = TraceableSession.ActivitySource.StartActivity();
@@ -277,8 +262,7 @@ namespace Opc.Ua.Client
                 {
                     throw new ArgumentOutOfRangeException(
                         nameof(sessionTemplate),
-                        "The ISession provided is not of a supported type."
-                    );
+                        "The ISession provided is not of a supported type.");
                 }
             }
             return session;

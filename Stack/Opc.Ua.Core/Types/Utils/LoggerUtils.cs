@@ -125,8 +125,7 @@ namespace Opc.Ua
             LogLevel logLevel,
             string message,
             X509Certificate2 certificate,
-            params object[] args
-        )
+            params object[] args)
         {
             LogCertificate(logLevel, 0, message, certificate, args);
         }
@@ -142,8 +141,7 @@ namespace Opc.Ua
             EventId eventId,
             string message,
             X509Certificate2 certificate,
-            params object[] args
-        )
+            params object[] args)
         {
             LogCertificate(LogLevel.Information, eventId, message, certificate, args);
         }
@@ -161,8 +159,7 @@ namespace Opc.Ua
             EventId eventId,
             string message,
             X509Certificate2 certificate,
-            params object[] args
-        )
+            params object[] args)
         {
             if (Logger.IsEnabled(logLevel))
             {
@@ -614,8 +611,7 @@ namespace Opc.Ua
             EventId eventId,
             Exception exception,
             string message,
-            params object[] args
-        )
+            params object[] args)
         {
             if (EventLog.IsEnabled())
             {
@@ -628,8 +624,7 @@ namespace Opc.Ua
                     // call the legacy logging handler (TraceEvent)
                     int traceMask = GetTraceMask(eventId, logLevel);
                     Tracing.Instance.RaiseTraceEvent(
-                        new TraceEventArgs(traceMask, message, string.Empty, exception, args)
-                    );
+                        new TraceEventArgs(traceMask, message, string.Empty, exception, args));
                     // done if mask not enabled, otherwise legacy write handler is
                     // called via logger interface to handle semantic logging.
                     if ((TraceMask & traceMask) == 0)

@@ -194,8 +194,7 @@ namespace Opc.Ua.Server.Tests
             RequestHeader requestHeader,
             OperationLimits operationLimits = null,
             BrowseDescription browseDescription = null,
-            bool outputResult = false
-        )
+            bool outputResult = false)
         {
             operationLimits ??= new OperationLimits();
             requestHeader.Timestamp = DateTime.UtcNow;
@@ -216,8 +215,7 @@ namespace Opc.Ua.Server.Tests
             BrowseDescriptionCollection browseDescriptionCollection =
                 ServerFixtureUtils.CreateBrowseDescriptionCollectionFromNodeId(
                     [.. new NodeId[] { Objects.RootFolder }],
-                    browseTemplate
-                );
+                    browseTemplate);
 
             // Browse
             ResponseHeader response = null;
@@ -235,9 +233,7 @@ namespace Opc.Ua.Server.Tests
                             0,
                             browseDescriptionCollection.Take(0).ToArray(),
                             out BrowseResultCollection results,
-                            out DiagnosticInfoCollection infos
-                        )
-                        );
+                            out DiagnosticInfoCollection infos));
                 Assert.AreEqual((StatusCode)StatusCodes.BadNothingToDo, (StatusCode)sre.StatusCode);
             }
 
@@ -257,9 +253,7 @@ namespace Opc.Ua.Server.Tests
                                 0,
                                 browseDescriptionCollection,
                                 out BrowseResultCollection results,
-                                out DiagnosticInfoCollection infos
-                            )
-                            );
+                                out DiagnosticInfoCollection infos));
                     Assert.AreEqual(
                         (StatusCode)StatusCodes.BadTooManyOperations,
                         (StatusCode)sre.StatusCode);
@@ -277,9 +271,7 @@ namespace Opc.Ua.Server.Tests
                             0,
                             tempBrowsePath,
                             out BrowseResultCollection results,
-                            out DiagnosticInfoCollection infos
-                        )
-                    );
+                            out DiagnosticInfoCollection infos));
                     Assert.AreEqual(
                         (StatusCode)StatusCodes.BadTooManyOperations,
                         (StatusCode)sre.StatusCode);
@@ -305,8 +297,7 @@ namespace Opc.Ua.Server.Tests
                             requestedMaxReferencesPerNode,
                             browseCollection,
                             out browseResultCollection,
-                            out diagnosticsInfoCollection
-                        );
+                            out diagnosticsInfoCollection);
                         ServerFixtureUtils.ValidateResponse(
                             response,
                             browseResultCollection,
@@ -314,15 +305,13 @@ namespace Opc.Ua.Server.Tests
                         ServerFixtureUtils.ValidateDiagnosticInfos(
                             diagnosticsInfoCollection,
                             browseCollection,
-                            response.StringTable
-                        );
+                            response.StringTable);
 
                         allResults.AddRange(browseResultCollection);
                     }
                     catch (ServiceResultException sre)
                         when (sre.StatusCode is StatusCodes.BadEncodingLimitsExceeded or StatusCodes
-                            .BadResponseTooLarge
-                        )
+                            .BadResponseTooLarge)
                     {
                         // try to address by overriding operation limit
                         maxNodesPerBrowse =
@@ -354,8 +343,7 @@ namespace Opc.Ua.Server.Tests
                         false,
                         continuationPoints,
                         out BrowseResultCollection browseNextResultCollection,
-                        out diagnosticsInfoCollection
-                    );
+                        out diagnosticsInfoCollection);
                     ServerFixtureUtils.ValidateResponse(
                         response,
                         browseNextResultCollection,
@@ -363,8 +351,7 @@ namespace Opc.Ua.Server.Tests
                     ServerFixtureUtils.ValidateDiagnosticInfos(
                         diagnosticsInfoCollection,
                         continuationPoints,
-                        response.StringTable
-                    );
+                        response.StringTable);
                     allResults.AddRange(browseNextResultCollection);
                     continuationPoints = ServerFixtureUtils.PrepareBrowseNext(
                         browseNextResultCollection);
@@ -383,8 +370,7 @@ namespace Opc.Ua.Server.Tests
                 browseDescriptionCollection = ServerFixtureUtils
                     .CreateBrowseDescriptionCollectionFromNodeId(
                         browseTable,
-                        browseTemplate
-                        );
+                        browseTemplate);
             }
 
             referenceDescriptions.Sort((x, y) => x.NodeId.CompareTo(y.NodeId));
@@ -399,8 +385,7 @@ namespace Opc.Ua.Server.Tests
                         "NodeId {0} {1} {2}",
                         reference.NodeId,
                         reference.NodeClass,
-                        reference.BrowseName
-                    );
+                        reference.BrowseName);
                 }
             }
             return referenceDescriptions;
@@ -413,8 +398,7 @@ namespace Opc.Ua.Server.Tests
             IServerTestServices services,
             ReferenceDescriptionCollection referenceDescriptions,
             RequestHeader requestHeader,
-            OperationLimits operationLimits
-        )
+            OperationLimits operationLimits)
         {
             // Browse template
             const uint startingNode = Objects.RootFolder;
@@ -428,15 +412,12 @@ namespace Opc.Ua.Server.Tests
                 {
                     RelativePath = new RelativePath(r.BrowseName),
                     StartingNode = startingNode
-                })
-            );
+                }));
             var allBrowsePaths = new BrowsePathResultCollection();
             while (browsePaths.Count > 0)
             {
-                if (
-                    verifyMaxNodesPerBrowse &&
-                    browsePaths.Count > operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds
-                )
+                if (verifyMaxNodesPerBrowse &&
+                    browsePaths.Count > operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds)
                 {
                     verifyMaxNodesPerBrowse = false;
                     // Test if server responds with BadTooManyOperations
@@ -446,9 +427,7 @@ namespace Opc.Ua.Server.Tests
                                 requestHeader,
                                 browsePaths,
                                 out BrowsePathResultCollection results,
-                                out DiagnosticInfoCollection infos
-                            )
-                            );
+                                out DiagnosticInfoCollection infos));
                     Assert.AreEqual(
                         (StatusCode)StatusCodes.BadTooManyOperations,
                         (StatusCode)sre.StatusCode);
@@ -462,8 +441,7 @@ namespace Opc.Ua.Server.Tests
                     requestHeader,
                     browsePathSnippet,
                     out BrowsePathResultCollection browsePathResults,
-                    out DiagnosticInfoCollection diagnosticInfos
-                );
+                    out DiagnosticInfoCollection diagnosticInfos);
                 ServerFixtureUtils.ValidateResponse(response, browsePathResults, browsePathSnippet);
                 ServerFixtureUtils.ValidateDiagnosticInfos(
                     diagnosticInfos,
@@ -522,8 +500,7 @@ namespace Opc.Ua.Server.Tests
                 out uint id,
                 out double revisedPublishingInterval,
                 out uint revisedLifetimeCount,
-                out uint revisedMaxKeepAliveCount
-            );
+                out uint revisedMaxKeepAliveCount);
             Assert.AreEqual(publishingInterval, revisedPublishingInterval);
             Assert.AreEqual(lifetimeCount, revisedLifetimeCount);
             Assert.AreEqual(maxKeepAliveCount, revisedMaxKeepAliveCount);
@@ -538,9 +515,7 @@ namespace Opc.Ua.Server.Tests
                     TimestampsToReturn.Neither,
                     itemsToCreate,
                     out MonitoredItemCreateResultCollection mockResults,
-                    out DiagnosticInfoCollection mockInfos
-                )
-            );
+                    out DiagnosticInfoCollection mockInfos));
             Assert.AreEqual((StatusCode)StatusCodes.BadNothingToDo, (StatusCode)sre.StatusCode);
 
             // add item
@@ -562,8 +537,7 @@ namespace Opc.Ua.Server.Tests
                         DiscardOldest = true,
                         QueueSize = queueSize
                     }
-                }
-            );
+                });
 
             //add event item
             itemsToCreate.Add(CreateEventMonitoredItem(queueSize, ref handleCounter));
@@ -574,8 +548,7 @@ namespace Opc.Ua.Server.Tests
                 TimestampsToReturn.Neither,
                 itemsToCreate,
                 out MonitoredItemCreateResultCollection itemCreateResults,
-                out DiagnosticInfoCollection diagnosticInfos
-            );
+                out DiagnosticInfoCollection diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response, itemCreateResults, itemsToCreate);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
@@ -593,8 +566,7 @@ namespace Opc.Ua.Server.Tests
                 priority,
                 out revisedPublishingInterval,
                 out revisedLifetimeCount,
-                out revisedMaxKeepAliveCount
-            );
+                out revisedMaxKeepAliveCount);
             Assert.AreEqual(publishingInterval, revisedPublishingInterval);
             Assert.AreEqual(lifetimeCount, revisedLifetimeCount);
             Assert.AreEqual(maxKeepAliveCount, revisedMaxKeepAliveCount);
@@ -616,8 +588,7 @@ namespace Opc.Ua.Server.Tests
                 TimestampsToReturn.Both,
                 itemsToModify,
                 out MonitoredItemModifyResultCollection modifyResults,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response, modifyResults, itemsToModify);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
@@ -634,8 +605,7 @@ namespace Opc.Ua.Server.Tests
                 out bool moreNotifications,
                 out NotificationMessage notificationMessage,
                 out StatusCodeCollection statuses,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response, statuses, acknowledgements);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
@@ -652,8 +622,7 @@ namespace Opc.Ua.Server.Tests
                 enabled,
                 subscriptions,
                 out statuses,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response, statuses, subscriptions);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
@@ -676,8 +645,7 @@ namespace Opc.Ua.Server.Tests
                     out moreNotifications,
                     out notificationMessage,
                     out statuses,
-                    out diagnosticInfos
-                );
+                    out diagnosticInfos);
                 ServerFixtureUtils.ValidateResponse(response, statuses, acknowledgements);
                 ServerFixtureUtils.ValidateDiagnosticInfos(
                     diagnosticInfos,
@@ -700,8 +668,7 @@ namespace Opc.Ua.Server.Tests
                         notificationMessage.SequenceNumber,
                         dataChangeNotification?.MonitoredItems[0].Value.ToString()
                         ?? eventNotification?.Events[0].Message.ToString(),
-                        notificationMessage.PublishTime
-                    );
+                        notificationMessage.PublishTime);
                 }
 
                 acknowledgements.Clear();
@@ -710,8 +677,7 @@ namespace Opc.Ua.Server.Tests
                     {
                         SubscriptionId = id,
                         SequenceNumber = notificationMessage.SequenceNumber
-                    }
-                );
+                    });
             } while (acknowledgements.Count > 0 && --loopCounter > 0);
 
             // republish
@@ -719,8 +685,7 @@ namespace Opc.Ua.Server.Tests
                 requestHeader,
                 subscriptionId,
                 notificationMessage.SequenceNumber,
-                out notificationMessage
-            );
+                out notificationMessage);
             ServerFixtureUtils.ValidateResponse(response);
 
             // disable publishing
@@ -730,8 +695,7 @@ namespace Opc.Ua.Server.Tests
                 enabled,
                 subscriptions,
                 out statuses,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response, statuses, subscriptions);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
@@ -747,8 +711,7 @@ namespace Opc.Ua.Server.Tests
                 MonitoringMode.Disabled,
                 monitoredItemIds,
                 out statuses,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response, statuses, monitoredItemIds);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
@@ -776,8 +739,7 @@ namespace Opc.Ua.Server.Tests
             RequestHeader requestHeader,
             NodeId[] testNodes,
             uint queueSize = DefaultMonitoredItemsQueueSize,
-            int samplingInterval = DefaultMonitoredItemsSamplingInterval
-        )
+            int samplingInterval = DefaultMonitoredItemsSamplingInterval)
         {
             // start time
 
@@ -793,8 +755,7 @@ namespace Opc.Ua.Server.Tests
                     testNode,
                     clientHandle++,
                     queueSize,
-                    samplingInterval
-                );
+                    samplingInterval);
             }
 
             var subscriptionIds = new UInt32Collection { subscriptionId };
@@ -805,8 +766,7 @@ namespace Opc.Ua.Server.Tests
                 true,
                 subscriptionIds,
                 out StatusCodeCollection statuses,
-                out DiagnosticInfoCollection diagnosticInfos
-            );
+                out DiagnosticInfoCollection diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response, statuses, subscriptionIds);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
@@ -831,8 +791,7 @@ namespace Opc.Ua.Server.Tests
                 out _,
                 out _,
                 out statuses,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response, statuses, acknowledgements);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
@@ -854,8 +813,7 @@ namespace Opc.Ua.Server.Tests
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
             bool sendInitialData,
-            bool expectAccessDenied
-        )
+            bool expectAccessDenied)
         {
             Assert.AreEqual(1, subscriptionIds.Count);
 
@@ -865,8 +823,7 @@ namespace Opc.Ua.Server.Tests
                 subscriptionIds,
                 sendInitialData,
                 out TransferResultCollection transferResults,
-                out DiagnosticInfoCollection diagnosticInfos
-            );
+                out DiagnosticInfoCollection diagnosticInfos);
             Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);
             Assert.AreEqual(subscriptionIds.Count, transferResults.Count);
             ServerFixtureUtils.ValidateResponse(response, transferResults, subscriptionIds);
@@ -906,8 +863,7 @@ namespace Opc.Ua.Server.Tests
                 out _,
                 out NotificationMessage notificationMessage,
                 out _,
-                out diagnosticInfos
-            );
+                out diagnosticInfos);
             Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);
             ServerFixtureUtils.ValidateResponse(response);
             ServerFixtureUtils.ValidateDiagnosticInfos(
@@ -939,8 +895,7 @@ namespace Opc.Ua.Server.Tests
             IServerTestServices services,
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
-            bool deleteSubscriptions
-        )
+            bool deleteSubscriptions)
         {
             // start time
             requestHeader.Timestamp = DateTime.UtcNow;
@@ -958,8 +913,7 @@ namespace Opc.Ua.Server.Tests
                 out bool moreNotifications,
                 out NotificationMessage notificationMessage,
                 out StatusCodeCollection _,
-                out DiagnosticInfoCollection diagnosticInfos
-            );
+                out DiagnosticInfoCollection diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
@@ -984,8 +938,7 @@ namespace Opc.Ua.Server.Tests
                     requestHeader,
                     subscriptionIds,
                     out StatusCodeCollection statuses,
-                    out diagnosticInfos
-                );
+                    out diagnosticInfos);
                 ServerFixtureUtils.ValidateResponse(response, statuses, subscriptionIds);
                 ServerFixtureUtils.ValidateDiagnosticInfos(
                     diagnosticInfos,
@@ -1019,8 +972,7 @@ namespace Opc.Ua.Server.Tests
                 out uint id,
                 out _,
                 out _,
-                out _
-            );
+                out _);
             ServerFixtureUtils.ValidateResponse(response);
 
             return id;
@@ -1033,8 +985,7 @@ namespace Opc.Ua.Server.Tests
             NodeId nodeId,
             uint clientHandle,
             uint queueSize,
-            int samplingInterval
-        )
+            int samplingInterval)
         {
             var itemsToCreate = new MonitoredItemCreateRequestCollection
             {
@@ -1061,8 +1012,7 @@ namespace Opc.Ua.Server.Tests
                 TimestampsToReturn.Neither,
                 itemsToCreate,
                 out MonitoredItemCreateResultCollection itemCreateResults,
-                out DiagnosticInfoCollection diagnosticInfos
-            );
+                out DiagnosticInfoCollection diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response, itemCreateResults, itemsToCreate);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
@@ -1087,8 +1037,7 @@ namespace Opc.Ua.Server.Tests
                     },
                     new LiteralOperand {
                         Value = new Variant(new NodeId(ObjectTypeIds.BaseEventType)) }
-                ]
-            );
+                ]);
 
             return new MonitoredItemCreateRequest
             {

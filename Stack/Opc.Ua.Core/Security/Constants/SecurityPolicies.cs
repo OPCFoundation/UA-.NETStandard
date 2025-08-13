@@ -96,21 +96,17 @@ namespace Opc.Ua
         private static bool IsPlatformSupportedName(string name)
         {
             // all RSA
-            if (
-                name.Equals(nameof(None), StringComparison.Ordinal) ||
+            if (name.Equals(nameof(None), StringComparison.Ordinal) ||
                 name.Equals(nameof(Basic256), StringComparison.Ordinal) ||
                 name.Equals(nameof(Basic128Rsa15), StringComparison.Ordinal) ||
                 name.Equals(nameof(Basic256Sha256), StringComparison.Ordinal) ||
-                name.Equals(nameof(Aes128_Sha256_RsaOaep), StringComparison.Ordinal)
-            )
+                name.Equals(nameof(Aes128_Sha256_RsaOaep), StringComparison.Ordinal))
             {
                 return true;
             }
 
-            if (
-                name.Equals(nameof(Aes256_Sha256_RsaPss), StringComparison.Ordinal) &&
-                RsaUtils.IsSupportingRSAPssSign.Value
-            )
+            if (name.Equals(nameof(Aes256_Sha256_RsaPss), StringComparison.Ordinal) &&
+                RsaUtils.IsSupportingRSAPssSign.Value)
             {
                 return true;
             }
@@ -139,10 +135,8 @@ namespace Opc.Ua
             }
 
             // ECC policy
-            if (
-                name.Equals(nameof(ECC_curve25519), StringComparison.Ordinal) ||
-                name.Equals(nameof(ECC_curve448), StringComparison.Ordinal)
-            )
+            if (name.Equals(nameof(ECC_curve25519), StringComparison.Ordinal) ||
+                name.Equals(nameof(ECC_curve448), StringComparison.Ordinal))
             {
 #if CURVE25519
                 return true;
@@ -177,10 +171,8 @@ namespace Opc.Ua
             foreach (FieldInfo field in typeof(SecurityPolicies).GetFields(
                 BindingFlags.Public | BindingFlags.Static))
             {
-                if (
-                    policyUri == (string)field.GetValue(typeof(SecurityPolicies)) &&
-                    IsPlatformSupportedName(field.Name)
-                )
+                if (policyUri == (string)field.GetValue(typeof(SecurityPolicies)) &&
+                    IsPlatformSupportedName(field.Name))
                 {
                     return field.Name;
                 }
@@ -358,8 +350,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityPolicyRejected,
                         "Unsupported security policy: {0}",
-                        securityPolicyUri
-                    );
+                        securityPolicyUri);
             }
 
             return encryptedData;
@@ -372,8 +363,7 @@ namespace Opc.Ua
         public static byte[] Decrypt(
             X509Certificate2 certificate,
             string securityPolicyUri,
-            EncryptedData dataToDecrypt
-        )
+            EncryptedData dataToDecrypt)
         {
             // check if nothing to do.
             if (dataToDecrypt == null)
@@ -398,8 +388,7 @@ namespace Opc.Ua
                         return RsaUtils.Decrypt(
                             new ArraySegment<byte>(dataToDecrypt.Data),
                             certificate,
-                            RsaUtils.Padding.OaepSHA1
-                        );
+                            RsaUtils.Padding.OaepSHA1);
                     }
                     break;
                 case Basic128Rsa15:
@@ -408,8 +397,7 @@ namespace Opc.Ua
                         return RsaUtils.Decrypt(
                             new ArraySegment<byte>(dataToDecrypt.Data),
                             certificate,
-                            RsaUtils.Padding.Pkcs1
-                        );
+                            RsaUtils.Padding.Pkcs1);
                     }
                     break;
                 case Aes256_Sha256_RsaPss:
@@ -418,8 +406,7 @@ namespace Opc.Ua
                         return RsaUtils.Decrypt(
                             new ArraySegment<byte>(dataToDecrypt.Data),
                             certificate,
-                            RsaUtils.Padding.OaepSHA256
-                        );
+                            RsaUtils.Padding.OaepSHA256);
                     }
                     break;
                 case ECC_nistP256:
@@ -436,15 +423,13 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityPolicyRejected,
                         "Unsupported security policy: {0}",
-                        securityPolicyUri
-                    );
+                        securityPolicyUri);
             }
 
             throw ServiceResultException.Create(
                 StatusCodes.BadIdentityTokenInvalid,
                 "Unexpected encryption algorithm : {0}",
-                dataToDecrypt.Algorithm
-            );
+                dataToDecrypt.Algorithm);
         }
 
         /// <summary>
@@ -480,8 +465,7 @@ namespace Opc.Ua
                         new ArraySegment<byte>(dataToSign),
                         certificate,
                         HashAlgorithmName.SHA1,
-                        RSASignaturePadding.Pkcs1
-                    );
+                        RSASignaturePadding.Pkcs1);
                     break;
                 case Aes128_Sha256_RsaOaep:
                 case Basic256Sha256:
@@ -490,8 +474,7 @@ namespace Opc.Ua
                         new ArraySegment<byte>(dataToSign),
                         certificate,
                         HashAlgorithmName.SHA256,
-                        RSASignaturePadding.Pkcs1
-                    );
+                        RSASignaturePadding.Pkcs1);
                     break;
                 case Aes256_Sha256_RsaPss:
                     signatureData.Algorithm = SecurityAlgorithms.RsaPssSha256;
@@ -499,8 +482,7 @@ namespace Opc.Ua
                         new ArraySegment<byte>(dataToSign),
                         certificate,
                         HashAlgorithmName.SHA256,
-                        RSASignaturePadding.Pss
-                    );
+                        RSASignaturePadding.Pss);
                     break;
 #if ECC_SUPPORT
                 case ECC_nistP256:
@@ -509,8 +491,7 @@ namespace Opc.Ua
                     signatureData.Signature = EccUtils.Sign(
                         new ArraySegment<byte>(dataToSign),
                         certificate,
-                        HashAlgorithmName.SHA256
-                    );
+                        HashAlgorithmName.SHA256);
                     break;
                 case ECC_nistP384:
                 case ECC_brainpoolP384r1:
@@ -518,8 +499,7 @@ namespace Opc.Ua
                     signatureData.Signature = EccUtils.Sign(
                         new ArraySegment<byte>(dataToSign),
                         certificate,
-                        HashAlgorithmName.SHA384
-                    );
+                        HashAlgorithmName.SHA384);
                     break;
 
 #endif
@@ -531,8 +511,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityPolicyRejected,
                         "Unsupported security policy: {0}",
-                        securityPolicyUri
-                    );
+                        securityPolicyUri);
             }
 
             return signatureData;
@@ -546,8 +525,7 @@ namespace Opc.Ua
             X509Certificate2 certificate,
             string securityPolicyUri,
             byte[] dataToVerify,
-            SignatureData signature
-        )
+            SignatureData signature)
         {
             // check if nothing to do.
             if (signature == null)
@@ -573,16 +551,14 @@ namespace Opc.Ua
                             signature.Signature,
                             certificate,
                             HashAlgorithmName.SHA1,
-                            RSASignaturePadding.Pkcs1
-                        );
+                            RSASignaturePadding.Pkcs1);
                     }
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityChecksFailed,
                         "Unexpected signature algorithm for Basic256/Basic128Rsa15: {0}\n" +
                         "Expected signature algorithm: {1}",
                         signature.Algorithm,
-                        SecurityAlgorithms.RsaSha1
-                    );
+                        SecurityAlgorithms.RsaSha1);
                 case Aes128_Sha256_RsaOaep:
                 case Basic256Sha256:
                     if (signature.Algorithm == SecurityAlgorithms.RsaSha256)
@@ -592,16 +568,14 @@ namespace Opc.Ua
                             signature.Signature,
                             certificate,
                             HashAlgorithmName.SHA256,
-                            RSASignaturePadding.Pkcs1
-                        );
+                            RSASignaturePadding.Pkcs1);
                     }
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityChecksFailed,
                         "Unexpected signature algorithm for Basic256Sha256/Aes128_Sha256_RsaOaep: {0}\n" +
                         "Expected signature algorithm: {1}",
                         signature.Algorithm,
-                        SecurityAlgorithms.RsaSha256
-                    );
+                        SecurityAlgorithms.RsaSha256);
                 case Aes256_Sha256_RsaPss:
                     if (signature.Algorithm == SecurityAlgorithms.RsaPssSha256)
                     {
@@ -610,16 +584,14 @@ namespace Opc.Ua
                             signature.Signature,
                             certificate,
                             HashAlgorithmName.SHA256,
-                            RSASignaturePadding.Pss
-                        );
+                            RSASignaturePadding.Pss);
                     }
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityChecksFailed,
                         "Unexpected signature algorithm for Aes256_Sha256_RsaPss: {0}\n" +
                         "Expected signature algorithm : {1}",
                         signature.Algorithm,
-                        SecurityAlgorithms.RsaPssSha256
-                    );
+                        SecurityAlgorithms.RsaPssSha256);
 
 #if ECC_SUPPORT
                 case ECC_nistP256:
@@ -628,16 +600,14 @@ namespace Opc.Ua
                         new ArraySegment<byte>(dataToVerify),
                         signature.Signature,
                         certificate,
-                        HashAlgorithmName.SHA256
-                    );
+                        HashAlgorithmName.SHA256);
                 case ECC_nistP384:
                 case ECC_brainpoolP384r1:
                     return EccUtils.Verify(
                         new ArraySegment<byte>(dataToVerify),
                         signature.Signature,
                         certificate,
-                        HashAlgorithmName.SHA384
-                    );
+                        HashAlgorithmName.SHA384);
 
 #endif
                 // always accept signatures if security is not used.
@@ -647,8 +617,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityPolicyRejected,
                         "Unsupported security policy: {0}",
-                        securityPolicyUri
-                    );
+                        securityPolicyUri);
             }
         }
     }

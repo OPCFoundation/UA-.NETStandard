@@ -45,8 +45,7 @@ namespace Alarms
             int interval,
             bool optional = true,
             double maxShelveTime = AlarmDefines.NORMAL_MAX_TIME_SHELVED,
-            bool create = true
-        )
+            bool create = true)
             : base(
                 alarmNodeManager,
                 parent,
@@ -56,8 +55,7 @@ namespace Alarms
                 controllerType,
                 interval,
                 optional,
-                false
-            )
+                false)
         {
             if (create)
             {
@@ -68,8 +66,7 @@ namespace Alarms
         public void Initialize(
             uint alarmTypeIdentifier,
             string name,
-            double maxTimeShelved = AlarmDefines.NORMAL_MAX_TIME_SHELVED
-        )
+            double maxTimeShelved = AlarmDefines.NORMAL_MAX_TIME_SHELVED)
         {
             // Create an alarm and trigger name - Create a base method for creating the trigger, just provide the name
 
@@ -91,8 +88,7 @@ namespace Alarms
                         null,
                         BrowseNames.ShelvingState,
                         BrowseNames.ShelvingState,
-                        false
-                    );
+                        false);
                 }
                 // Off normal does not create MaxTimeShelved.
                 alarm.MaxTimeShelved ??= new PropertyState<double>(alarm);
@@ -239,8 +235,7 @@ namespace Alarms
             AlarmConditionState alarm,
             bool shelving,
             bool oneShot,
-            double shelvingTime
-        )
+            double shelvingTime)
         {
             string shelved = "Shelved";
             string dueTo = string.Empty;

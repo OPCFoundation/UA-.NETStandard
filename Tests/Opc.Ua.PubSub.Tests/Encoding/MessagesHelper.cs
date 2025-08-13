@@ -98,8 +98,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             string transportProfileUri,
             string addressUrl,
             object publisherId,
-            PubSubType pubSubType = PubSubType.Publisher
-        )
+            PubSubType pubSubType = PubSubType.Publisher)
         {
             // Define a PubSub connection with PublisherId
             var pubSubConnection = new PubSubConnectionDataType
@@ -132,8 +131,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         public static PubSubConnectionDataType GetConnection(
             PubSubConfigurationDataType pubSubConfiguration,
-            object publisherId
-        )
+            object publisherId)
         {
             if (pubSubConfiguration != null)
             {
@@ -170,8 +168,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ushort writerGroupId,
             WriterGroupMessageDataType messageSettings,
             WriterGroupTransportDataType transportSettings,
-            string writerGroupName = null
-        )
+            string writerGroupName = null)
         {
             WriterGroupDataType writerGroup = CreateWriterGroup(writerGroupId, writerGroupName);
 
@@ -209,16 +206,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetMetaDataType[] dataSetMetaDataArray,
             ushort nameSpaceIndexForData,
             double metaDataUpdateTime = 0,
-            uint keyFrameCount = 1
-        )
+            uint keyFrameCount = 1)
         {
             // Define a PubSub connection with PublisherId
             PubSubConnectionDataType pubSubConnection1 = CreatePubSubConnection(
                 transportProfileUri,
                 addressUrl,
                 publisherId,
-                PubSubType.Publisher
-            );
+                PubSubType.Publisher);
 
             const string brokerMetaData = "$Metadata";
 
@@ -273,8 +268,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             writerGroup1.TransportSettings = new ExtensionObject(transportSettings);
 
             // create all dataset writers
-            for (
-                ushort dataSetWriterId = 1;
+            for (ushort dataSetWriterId = 1;
                 dataSetWriterId <= dataSetMetaDataArray.Length;
                 dataSetWriterId++)
             {
@@ -362,8 +356,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         {
                             PublishedVariable = new NodeId(field.Name, nameSpaceIndexForData),
                             AttributeId = Attributes.Value
-                        }
-                    );
+                        });
                 }
 
                 publishedDataSetDataType.DataSetSource
@@ -389,8 +382,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetMetaDataType[] dataSetMetaDataArray,
             ushort nameSpaceIndexForData,
             double metaDataUpdateTime = 0,
-            uint keyFrameCount = 1
-        )
+            uint keyFrameCount = 1)
         {
             return CreatePublisherConfiguration(
                 transportProfileUri,
@@ -403,8 +395,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 dataSetMetaDataArray,
                 nameSpaceIndexForData,
                 metaDataUpdateTime,
-                keyFrameCount
-            );
+                keyFrameCount);
         }
 
         /// <summary>
@@ -424,8 +415,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetFieldContentMask dataSetFieldContentMask,
             DataSetMetaDataType[] dataSetMetaDataArray,
             ushort nameSpaceIndexForData,
-            uint keyFrameCount = 1
-        )
+            uint keyFrameCount = 1)
         {
             PubSubConfigurationDataType udpPublisherConfiguration = CreatePublisherConfiguration(
                 udpTransportProfileUri,
@@ -437,8 +427,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 dataSetFieldContentMask: dataSetFieldContentMask,
                 dataSetMetaDataArray: dataSetMetaDataArray,
                 nameSpaceIndexForData: nameSpaceIndexForData,
-                keyFrameCount: keyFrameCount
-            );
+                keyFrameCount: keyFrameCount);
 
             PubSubConfigurationDataType mqttPublisherConfiguration = CreatePublisherConfiguration(
                 mqttTransportProfileUri,
@@ -450,8 +439,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 dataSetFieldContentMask: dataSetFieldContentMask,
                 dataSetMetaDataArray: dataSetMetaDataArray,
                 nameSpaceIndexForData: nameSpaceIndexForData,
-                keyFrameCount: keyFrameCount
-            );
+                keyFrameCount: keyFrameCount);
 
             // add the udp connection too
             if (udpPublisherConfiguration.Connections != null &&
@@ -477,8 +465,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetFieldContentMask dataSetFieldContentMask,
             DataSetMetaDataType[] dataSetMetaDataArray,
             ushort nameSpaceIndexForData,
-            string topic
-        )
+            string topic)
         {
             PubSubConfigurationDataType pubSubConfiguration = CreatePublisherConfiguration(
                 transportProfileUri,
@@ -489,17 +476,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 (uint)jsonDataSetMessageContentMask,
                 dataSetFieldContentMask,
                 dataSetMetaDataArray,
-                nameSpaceIndexForData
-            );
+                nameSpaceIndexForData);
 
             foreach (PubSubConnectionDataType pubSubConnection in pubSubConfiguration.Connections)
             {
                 foreach (WriterGroupDataType writerGroup in pubSubConnection.WriterGroups)
                 {
-                    if (
-                        ExtensionObject.ToEncodeable(writerGroup.TransportSettings)
-                        is BrokerWriterGroupTransportDataType brokerTransportSettings
-                    )
+                    if (ExtensionObject.ToEncodeable(writerGroup.TransportSettings)
+                        is BrokerWriterGroupTransportDataType brokerTransportSettings)
                     {
                         brokerTransportSettings.QueueName = topic;
                     }
@@ -523,8 +507,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetMetaDataType[] dataSetMetaDataArray,
             ushort nameSpaceIndexForData,
             double metaDataUpdateTime = 0,
-            uint keyFrameCount = 1
-        )
+            uint keyFrameCount = 1)
         {
             return CreatePublisherConfiguration(
                 transportProfileUri,
@@ -537,8 +520,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 dataSetMetaDataArray,
                 nameSpaceIndexForData,
                 metaDataUpdateTime,
-                keyFrameCount
-            );
+                keyFrameCount);
         }
 
         /// <summary>
@@ -554,8 +536,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetMetaDataType[] dataSetMetaDataArray,
             ushort nameSpaceIndexForData,
             double metaDataUpdateTime = 0,
-            uint keyFrameCount = 1
-        )
+            uint keyFrameCount = 1)
         {
             string writerGroupName = $"WriterGroup {writerGroupId}";
             const string brokerMetaData = "$Metadata";
@@ -602,12 +583,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 writerGroupId,
                 messageSettings,
                 transportSettings,
-                writerGroupName
-            );
+                writerGroupName);
 
             // create all dataset writers
-            for (
-                ushort dataSetWriterId = 1;
+            for (ushort dataSetWriterId = 1;
                 dataSetWriterId <= dataSetMetaDataArray.Length;
                 dataSetWriterId++)
             {
@@ -670,8 +649,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             PubSubConnectionDataType pubSubConnection = CreatePubSubConnection(
                 transportProfileUri,
                 addressUrl,
-                publisherId: 1
-            );
+                publisherId: 1);
             pubSubConnection.WriterGroups.Add(writerGroup);
 
             //create  the PubSub configuration root object
@@ -700,8 +678,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         {
                             PublishedVariable = new NodeId(field.Name, nameSpaceIndexForData),
                             AttributeId = Attributes.Value
-                        }
-                    );
+                        });
                 }
 
                 publishedDataSetDataType.DataSetSource
@@ -724,8 +701,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             JsonDataSetMessageContentMask dataSetMessageContentMask,
             DataSetFieldContentMask dataSetFieldContentMask,
             DataSetMetaDataType[] dataSetMetaDataArray,
-            ushort nameSpaceIndexForData
-        )
+            ushort nameSpaceIndexForData)
         {
             return ConfigureDataSetMessages(
                 transportProfileUri,
@@ -735,8 +711,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 (uint)dataSetMessageContentMask,
                 dataSetFieldContentMask,
                 dataSetMetaDataArray,
-                nameSpaceIndexForData
-            );
+                nameSpaceIndexForData);
         }
 
         /// <summary>
@@ -750,8 +725,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             UadpDataSetMessageContentMask dataSetMessageContentMask,
             DataSetFieldContentMask dataSetFieldContentMask,
             DataSetMetaDataType[] dataSetMetaDataArray,
-            ushort nameSpaceIndexForData
-        )
+            ushort nameSpaceIndexForData)
         {
             return ConfigureDataSetMessages(
                 transportProfileUri,
@@ -761,8 +735,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 (uint)dataSetMessageContentMask,
                 dataSetFieldContentMask,
                 dataSetMetaDataArray,
-                nameSpaceIndexForData
-            );
+                nameSpaceIndexForData);
         }
 
         /// <summary>
@@ -773,8 +746,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             string dataSetName,
             DataSetFieldContentMask dataSetFieldContentMask,
             DataSetWriterMessageDataType messageSettings,
-            uint keyFrameCount = 1
-        )
+            uint keyFrameCount = 1)
         {
             // Define DataSetWriter 'dataSetName'
             return new DataSetWriterDataType
@@ -796,8 +768,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public static PublishedDataSetDataType CreatePublishedDataSet(
             string dataSetName,
             ushort namespaceIndex,
-            FieldMetaDataCollection fieldMetaDatas
-        )
+            FieldMetaDataCollection fieldMetaDatas)
         {
             var publishedDataSet = new PublishedDataSetDataType
             {
@@ -820,8 +791,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     {
                         PublishedVariable = new NodeId(field.Name, namespaceIndex),
                         AttributeId = Attributes.Value
-                    }
-                );
+                    });
             }
 
             publishedDataSet.DataSetSource = new ExtensionObject(publishedDataSetSimpleSource);
@@ -835,8 +805,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public static ReaderGroupDataType CreateReaderGroup(
             ushort readerGroupId,
             ReaderGroupMessageDataType messageSettings,
-            ReaderGroupTransportDataType transportSettings
-        )
+            ReaderGroupTransportDataType transportSettings)
         {
             return new ReaderGroupDataType
             {
@@ -873,8 +842,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetFieldContentMask dataSetFieldContentMask,
             DataSetReaderMessageDataType messageSettings,
             DataSetReaderTransportDataType transportSettings,
-            uint keyFrameCount = 1
-        )
+            uint keyFrameCount = 1)
         {
             // Define DataSetReader 'dataSetName'
             return new DataSetReaderDataType
@@ -908,8 +876,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetFieldContentMask dataSetFieldContentMask,
             DataSetMetaDataType[] dataSetMetaDataArray,
             ushort nameSpaceIndexForData,
-            uint keyFrameCount = 1
-        )
+            uint keyFrameCount = 1)
         {
             return CreateSubscriberConfiguration(
                 transportProfileUri,
@@ -922,8 +889,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 dataSetFieldContentMask,
                 dataSetMetaDataArray,
                 nameSpaceIndexForData,
-                keyFrameCount
-            );
+                keyFrameCount);
         }
 
         /// <summary>
@@ -940,16 +906,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetFieldContentMask dataSetFieldContentMask,
             DataSetMetaDataType[] dataSetMetaDataArray,
             ushort nameSpaceIndexForData,
-            uint keyFrameCount = 1
-        )
+            uint keyFrameCount = 1)
         {
             // Define a PubSub connection with PublisherId
             PubSubConnectionDataType pubSubConnection1 = CreatePubSubConnection(
                 transportProfileUri,
                 addressUrl,
                 publisherId,
-                PubSubType.Subscriber
-            );
+                PubSubType.Subscriber);
 
             string brokerQueueName = $"WriterGroup id:{writerGroupId}";
             const string brokerMetaData = "$Metadata";
@@ -961,8 +925,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 MaxNetworkMessageSize = 1500
             };
 
-            for (
-                ushort dataSetWriterId = 1;
+            for (ushort dataSetWriterId = 1;
                 dataSetWriterId <= dataSetMetaDataArray.Length;
                 dataSetWriterId++)
             {
@@ -1038,10 +1001,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                             AttributeId = Attributes.Value,
                             OverrideValueHandling = OverrideValueHandling.OverrideValue,
                             OverrideValue = new Variant(
-                                TypeInfo.GetDefaultValue(fieldMetaData.DataType, ValueRanks.Scalar)
-                            )
-                        }
-                    );
+                                TypeInfo.GetDefaultValue(fieldMetaData.DataType, ValueRanks.Scalar))
+                        });
                 }
 
                 dataSetReader.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
@@ -1069,8 +1030,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetFieldContentMask dataSetFieldContentMask,
             DataSetMetaDataType[] dataSetMetaDataArray,
             ushort nameSpaceIndexForData,
-            uint keyFrameCount = 1
-        )
+            uint keyFrameCount = 1)
         {
             return CreateSubscriberConfiguration(
                 transportProfileUri,
@@ -1083,8 +1043,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 dataSetFieldContentMask,
                 dataSetMetaDataArray,
                 nameSpaceIndexForData,
-                keyFrameCount
-            );
+                keyFrameCount);
         }
 
         /// <summary>
@@ -1104,8 +1063,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             UadpDataSetMessageContentMask uadpDataSetMessageContentMask,
             DataSetFieldContentMask dataSetFieldContentMask,
             DataSetMetaDataType[] dataSetMetaDataArray,
-            ushort nameSpaceIndexForData
-        )
+            ushort nameSpaceIndexForData)
         {
             PubSubConfigurationDataType udpSubscriberConfiguration = CreateSubscriberConfiguration(
                 udpTransportProfileUri,
@@ -1117,8 +1075,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 uadpDataSetMessageContentMask,
                 dataSetFieldContentMask,
                 dataSetMetaDataArray,
-                nameSpaceIndexForData
-            );
+                nameSpaceIndexForData);
 
             PubSubConfigurationDataType mqttSubscriberConfiguration = CreateSubscriberConfiguration(
                 mqttTransportProfileUri,
@@ -1130,8 +1087,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 uadpDataSetMessageContentMask,
                 dataSetFieldContentMask,
                 dataSetMetaDataArray,
-                nameSpaceIndexForData
-            );
+                nameSpaceIndexForData);
 
             // add the udp connection too
             if (udpSubscriberConfiguration.Connections != null &&
@@ -1158,8 +1114,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetFieldContentMask dataSetFieldContentMask,
             DataSetMetaDataType[] dataSetMetaDataArray,
             ushort nameSpaceIndexForData,
-            string topic
-        )
+            string topic)
         {
             PubSubConfigurationDataType pubSubConfiguration = CreateSubscriberConfiguration(
                 transportProfileUri,
@@ -1171,8 +1126,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 (uint)jsonDataSetMessageContentMask,
                 dataSetFieldContentMask,
                 dataSetMetaDataArray,
-                nameSpaceIndexForData
-            );
+                nameSpaceIndexForData);
 
             foreach (PubSubConnectionDataType pubSubConnection in pubSubConfiguration.Connections)
             {
@@ -1180,10 +1134,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 {
                     foreach (DataSetReaderDataType dataSetReader in readerGroup.DataSetReaders)
                     {
-                        if (
-                            ExtensionObject.ToEncodeable(dataSetReader.TransportSettings)
-                            is BrokerDataSetReaderTransportDataType brokerTransportSettings
-                        )
+                        if (ExtensionObject.ToEncodeable(dataSetReader.TransportSettings)
+                            is BrokerDataSetReaderTransportDataType brokerTransportSettings)
                         {
                             brokerTransportSettings.QueueName = topic;
                         }
@@ -1202,8 +1154,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ushort namespaceIndex,
             FieldMetaDataCollection fieldMetaDatas,
             uint majorVersion = 1,
-            uint minorVersion = 1
-        )
+            uint minorVersion = 1)
         {
             return new DataSetMetaDataType
             {
@@ -1246,8 +1197,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// Get Json ua-data entry
         /// </summary>
         public static List<PubSubEncoding.JsonNetworkMessage> GetJsonUaDataNetworkMessages(
-            IList<PubSubEncoding.JsonNetworkMessage> networkMessages
-        )
+            IList<PubSubEncoding.JsonNetworkMessage> networkMessages)
         {
             if (networkMessages != null)
             {
@@ -1260,8 +1210,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// Get Uadp DatasetMessage type entry
         /// </summary>
         public static List<PubSubEncoding.UadpNetworkMessage> GetUadpUaDataNetworkMessages(
-            IList<PubSubEncoding.UadpNetworkMessage> networkMessages
-        )
+            IList<PubSubEncoding.UadpNetworkMessage> networkMessages)
         {
             if (networkMessages != null)
             {
@@ -1278,8 +1227,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// Get Json ua-metadata entries
         /// </summary>
         public static List<PubSubEncoding.JsonNetworkMessage> GetJsonUaMetaDataNetworkMessages(
-            IList<PubSubEncoding.JsonNetworkMessage> networkMessages
-        )
+            IList<PubSubEncoding.JsonNetworkMessage> networkMessages)
         {
             if (networkMessages != null)
             {
@@ -1292,8 +1240,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// Get Uadp ua-metadata entries
         /// </summary>
         public static List<PubSubEncoding.UadpNetworkMessage> GetUadpUaMetaDataNetworkMessages(
-            IList<PubSubEncoding.UadpNetworkMessage> networkMessages
-        )
+            IList<PubSubEncoding.UadpNetworkMessage> networkMessages)
         {
             if (networkMessages != null)
             {
@@ -1301,8 +1248,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 [
                     .. networkMessages.Where(x =>
                         x.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryResponse &&
-                        x.UADPDiscoveryType == UADPNetworkMessageDiscoveryType.DataSetMetaData
-                    )
+                        x.UADPDiscoveryType == UADPNetworkMessageDiscoveryType.DataSetMetaData)
                 ];
             }
             return null;
@@ -2679,92 +2625,77 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("BoolToggle", namespaceIndexAllTypes),
                 Attributes.Value,
-                boolToggle
-            );
+                boolToggle);
             var byteValue = new DataValue(new Variant((byte)10));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Byte", namespaceIndexAllTypes),
                 Attributes.Value,
-                byteValue
-            );
+                byteValue);
             var int16Value = new DataValue(new Variant((short)100));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Int16", namespaceIndexAllTypes),
                 Attributes.Value,
-                int16Value
-            );
+                int16Value);
             var int32Value = new DataValue(new Variant(1000));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Int32", namespaceIndexAllTypes),
                 Attributes.Value,
-                int32Value
-            );
+                int32Value);
             var int64Value = new DataValue(new Variant((long)10000));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Int64", namespaceIndexAllTypes),
                 Attributes.Value,
-                int64Value
-            );
+                int64Value);
             var sByteValue = new DataValue(new Variant((sbyte)11));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("SByte", namespaceIndexAllTypes),
                 Attributes.Value,
-                sByteValue
-            );
+                sByteValue);
             var uInt16Value = new DataValue(new Variant((ushort)110));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("UInt16", namespaceIndexAllTypes),
                 Attributes.Value,
-                uInt16Value
-            );
+                uInt16Value);
             var uInt32Value = new DataValue(new Variant((uint)1100));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("UInt32", namespaceIndexAllTypes),
                 Attributes.Value,
-                uInt32Value
-            );
+                uInt32Value);
             var uInt64Value = new DataValue(new Variant((ulong)11100));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("UInt64", namespaceIndexAllTypes),
                 Attributes.Value,
-                uInt64Value
-            );
+                uInt64Value);
             var floatValue = new DataValue(new Variant((float)1100.5));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Float", namespaceIndexAllTypes),
                 Attributes.Value,
-                floatValue
-            );
+                floatValue);
             var doubleValue = new DataValue(new Variant((double)1100));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Double", namespaceIndexAllTypes),
                 Attributes.Value,
-                doubleValue
-            );
+                doubleValue);
             var stringValue = new DataValue(new Variant("String info"));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("String", namespaceIndexAllTypes),
                 Attributes.Value,
-                stringValue
-            );
+                stringValue);
             var dateTimeVal = new DataValue(new Variant(DateTime.UtcNow));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("DateTime", namespaceIndexAllTypes),
                 Attributes.Value,
-                dateTimeVal
-            );
+                dateTimeVal);
             var guidValue = new DataValue(new Variant(new Guid()));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Guid", namespaceIndexAllTypes),
                 Attributes.Value,
-                guidValue
-            );
+                guidValue);
             var byteStringValue = new DataValue(new Variant(new byte[] { 1, 2, 3 }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ByteString", namespaceIndexAllTypes),
                 Attributes.Value,
-                byteStringValue
-            );
+                byteStringValue);
             var document = new XmlDocument();
             XmlElement xmlElement = document.CreateElement("test");
             xmlElement.InnerText = "Text";
@@ -2772,88 +2703,74 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("XmlElement", namespaceIndexAllTypes),
                 Attributes.Value,
-                xmlElementValue
-            );
+                xmlElementValue);
             var nodeIdValue = new DataValue(new Variant(new NodeId(30, 1)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("NodeId", namespaceIndexAllTypes),
                 Attributes.Value,
-                nodeIdValue
-            );
+                nodeIdValue);
             nodeIdValue = new DataValue(new Variant(new NodeId(30, 1)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("NodeIdNumeric", namespaceIndexAllTypes),
                 Attributes.Value,
-                nodeIdValue
-            );
+                nodeIdValue);
             nodeIdValue = new DataValue(new Variant(new NodeId(Guid.NewGuid(), 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("NodeIdGuid", namespaceIndexAllTypes),
                 Attributes.Value,
-                nodeIdValue
-            );
+                nodeIdValue);
             nodeIdValue = new DataValue(new Variant(new NodeId("NodeIdentifier", 3)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("NodeIdString", namespaceIndexAllTypes),
                 Attributes.Value,
-                nodeIdValue
-            );
+                nodeIdValue);
             nodeIdValue = new DataValue(new Variant(new NodeId([1, 2, 3], 0)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("NodeIdOpaque", namespaceIndexAllTypes),
                 Attributes.Value,
-                nodeIdValue
-            );
+                nodeIdValue);
             var expandedNodeId = new DataValue(new Variant(new ExpandedNodeId(30, 1)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ExpandedNodeId", namespaceIndexAllTypes),
                 Attributes.Value,
-                expandedNodeId
-            );
+                expandedNodeId);
             expandedNodeId = new DataValue(new Variant(new ExpandedNodeId(30, 1)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ExpandedNodeIdNumeric", namespaceIndexAllTypes),
                 Attributes.Value,
-                expandedNodeId
-            );
+                expandedNodeId);
             expandedNodeId = new DataValue(new Variant(new ExpandedNodeId(Guid.NewGuid(), 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ExpandedNodeIdGuid", namespaceIndexAllTypes),
                 Attributes.Value,
-                expandedNodeId
-            );
+                expandedNodeId);
             expandedNodeId = new DataValue(new Variant(new ExpandedNodeId("NodeIdGuid", 3)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ExpandedNodeIdString", namespaceIndexAllTypes),
                 Attributes.Value,
-                expandedNodeId
-            );
+                expandedNodeId);
             expandedNodeId = new DataValue(new Variant(new ExpandedNodeId([1, 2, 3], 0)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ExpandedNodeIdOpaque", namespaceIndexAllTypes),
                 Attributes.Value,
-                expandedNodeId
-            );
+                expandedNodeId);
             var statusCode = new DataValue(
                 new Variant(new StatusCode(StatusCodes.BadAggregateInvalidInputs)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("StatusCode", namespaceIndexAllTypes),
                 Attributes.Value,
-                statusCode
-            );
+                statusCode);
             statusCode = new DataValue(new Variant(new StatusCode(StatusCodes.Good)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("StatusCodeGood", namespaceIndexAllTypes),
                 Attributes.Value,
-                statusCode
-            );
+                statusCode);
             statusCode = new DataValue(
                 new Variant(new StatusCode(StatusCodes.BadAttributeIdInvalid)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("StatusCodeBad", namespaceIndexAllTypes),
                 Attributes.Value,
-                statusCode
-            );
+                statusCode);
 
             // the extension object cannot be encoded as RawData
             var publisherAddress = new NetworkAddressUrlDataType
@@ -2862,43 +2779,36 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             };
             var extensionObject = new DataValue(
                 new Variant(
-                    new ExtensionObject(DataTypeIds.NetworkAddressUrlDataType, publisherAddress))
-            );
+                    new ExtensionObject(DataTypeIds.NetworkAddressUrlDataType, publisherAddress)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ExtensionObject", namespaceIndexAllTypes),
                 Attributes.Value,
-                extensionObject
-            );
+                extensionObject);
 
             var qualifiedValue = new DataValue(new Variant(new QualifiedName("wererwerw", 3)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("QualifiedName", namespaceIndexAllTypes),
                 Attributes.Value,
-                qualifiedValue
-            );
+                qualifiedValue);
             var localizedTextValue = new DataValue(
                 new Variant(new LocalizedText("Localized_abcd")));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("LocalizedText", namespaceIndexAllTypes),
                 Attributes.Value,
-                localizedTextValue
-            );
+                localizedTextValue);
             var dataValue = new DataValue(
                 new Variant(
-                    new DataValue(new Variant("DataValue_info"), StatusCodes.BadBoundNotFound))
-            );
+                    new DataValue(new Variant("DataValue_info"), StatusCodes.BadBoundNotFound)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("DataValue", namespaceIndexAllTypes),
                 Attributes.Value,
-                dataValue
-            );
+                dataValue);
             var diagnosticInfoValue = new DataValue(
                 new Variant(new DiagnosticInfo(1, 1, 1, 1, "Diagnostic_info")));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("DiagnosticInfo", namespaceIndexAllTypes),
                 Attributes.Value,
-                diagnosticInfoValue
-            );
+                diagnosticInfoValue);
 
             // DataSet 'AllTypes' fill with data array
             var boolToggleArray = new DataValue(
@@ -2906,114 +2816,95 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("BoolToggleArray", namespaceIndexAllTypes),
                 Attributes.Value,
-                boolToggleArray
-            );
+                boolToggleArray);
             var byteValueArray = new DataValue(new Variant(new byte[] { 127, 101, 1 }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ByteArray", namespaceIndexAllTypes),
                 Attributes.Value,
-                byteValueArray
-            );
+                byteValueArray);
             var int16ValueArray = new DataValue(
                 new Variant(new Int16Collection { -100, -200, 300 }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Int16Array", namespaceIndexAllTypes),
                 Attributes.Value,
-                int16ValueArray
-            );
+                int16ValueArray);
             var int32ValueArray = new DataValue(
                 new Variant(new Int32Collection { -1000, -2000, 3000 }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Int32Array", namespaceIndexAllTypes),
                 Attributes.Value,
-                int32ValueArray
-            );
+                int32ValueArray);
             var int64ValueArray = new DataValue(
                 new Variant(new Int64Collection { -10000, -20000, 30000 }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Int64Array", namespaceIndexAllTypes),
                 Attributes.Value,
-                int64ValueArray
-            );
+                int64ValueArray);
             var sByteValueArray = new DataValue(new Variant(new SByteCollection { 1, -2, -3 }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("SByteArray", namespaceIndexAllTypes),
                 Attributes.Value,
-                sByteValueArray
-            );
+                sByteValueArray);
             var uInt16ValueArray = new DataValue(
                 new Variant(new UInt16Collection { 110, 120, 130 }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("UInt16Array", namespaceIndexAllTypes),
                 Attributes.Value,
-                uInt16ValueArray
-            );
+                uInt16ValueArray);
             var uInt32ValueArray = new DataValue(
                 new Variant(new UInt32Collection { 1100, 1200, 1300 }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("UInt32Array", namespaceIndexAllTypes),
                 Attributes.Value,
-                uInt32ValueArray
-            );
+                uInt32ValueArray);
             var uInt64ValueArray = new DataValue(
                 new Variant(new UInt64Collection { 11100, 11200, 11300 }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("UInt64Array", namespaceIndexAllTypes),
                 Attributes.Value,
-                uInt64ValueArray
-            );
+                uInt64ValueArray);
             var floatValueArray = new DataValue(
                 new Variant(new FloatCollection { 1100, 5, 1200, 5, 1300, 5 }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("FloatArray", namespaceIndexAllTypes),
                 Attributes.Value,
-                floatValueArray
-            );
+                floatValueArray);
             var doubleValueArray = new DataValue(
                 new Variant(new DoubleCollection { 11000.5, 12000.6, 13000.7 }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("DoubleArray", namespaceIndexAllTypes),
                 Attributes.Value,
-                doubleValueArray
-            );
+                doubleValueArray);
             var stringValueArray = new DataValue(
                 new Variant(new StringCollection { "1a", "2b", "3c" }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("StringArray", namespaceIndexAllTypes),
                 Attributes.Value,
-                stringValueArray
-            );
+                stringValueArray);
             var dateTimeValArray = new DataValue(
                 new Variant(
                     new DateTimeCollection
                     {
                         new DateTime(2020, 3, 11).ToUniversalTime(),
                         new DateTime(2021, 2, 17).ToUniversalTime()
-                    }
-                )
-            );
+                    }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("DateTimeArray", namespaceIndexAllTypes),
                 Attributes.Value,
-                dateTimeValArray
-            );
+                dateTimeValArray);
             var guidValueArray = new DataValue(
-                new Variant(new UuidCollection { new Uuid(new Guid()), new Uuid(new Guid()) })
-            );
+                new Variant(new UuidCollection { new Uuid(new Guid()), new Uuid(new Guid()) }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("GuidArray", namespaceIndexAllTypes),
                 Attributes.Value,
-                guidValueArray
-            );
+                guidValueArray);
             var byteStringValueArray = new DataValue(
                 new Variant(
-                    new ByteStringCollection { new byte[] { 1, 2, 3 }, new byte[] { 5, 6, 7 } })
-            );
+                    new ByteStringCollection { new byte[] { 1, 2, 3 }, new byte[] { 5, 6, 7 } }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ByteStringArray", namespaceIndexAllTypes),
                 Attributes.Value,
-                byteStringValueArray
-            );
+                byteStringValueArray);
 
             XmlElement xmlElement1 = document.CreateElement("test1");
             xmlElement1.InnerText = "Text_2";
@@ -3021,90 +2912,72 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             XmlElement xmlElement2 = document.CreateElement("test2");
             xmlElement2.InnerText = "Text_2";
             var xmlElementValueArray = new DataValue(
-                new Variant(new XmlElementCollection { xmlElement1, xmlElement2 })
-            );
+                new Variant(new XmlElementCollection { xmlElement1, xmlElement2 }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("XmlElementArray", namespaceIndexAllTypes),
                 Attributes.Value,
-                xmlElementValueArray
-            );
+                xmlElementValueArray);
             var nodeIdValueArray = new DataValue(
-                new Variant(new NodeIdCollection { new NodeId(30, 1), new NodeId(20, 3) })
-            );
+                new Variant(new NodeIdCollection { new NodeId(30, 1), new NodeId(20, 3) }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("NodeIdArray", namespaceIndexAllTypes),
                 Attributes.Value,
-                nodeIdValueArray
-            );
+                nodeIdValueArray);
             var expandedNodeIdArray = new DataValue(
                 new Variant(new ExpandedNodeIdCollection {
                     new ExpandedNodeId(50, 1),
-                    new ExpandedNodeId(70, 9) })
-            );
+                    new ExpandedNodeId(70, 9) }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ExpandedNodeIdArray", namespaceIndexAllTypes),
                 Attributes.Value,
-                expandedNodeIdArray
-            );
+                expandedNodeIdArray);
             var statusCodeArray = new DataValue(
                 new Variant(new StatusCodeCollection {
                     StatusCodes.Good,
                     StatusCodes.Bad,
-                    StatusCodes.Uncertain })
-            );
+                    StatusCodes.Uncertain }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("StatusCodeArray", namespaceIndexAllTypes),
                 Attributes.Value,
-                statusCodeArray
-            );
+                statusCodeArray);
             var qualifiedValueArray = new DataValue(
                 new Variant(new QualifiedNameCollection {
                     new QualifiedName("123"),
-                    new QualifiedName("abc") })
-            );
+                    new QualifiedName("abc") }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("QualifiedNameArray", namespaceIndexAllTypes),
                 Attributes.Value,
-                qualifiedValueArray
-            );
+                qualifiedValueArray);
             var localizedTextValueArray = new DataValue(
                 new Variant(new LocalizedTextCollection {
                     new LocalizedText("1234"),
-                    new LocalizedText("abcd") })
-            );
+                    new LocalizedText("abcd") }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("LocalizedTextArray", namespaceIndexAllTypes),
                 Attributes.Value,
-                localizedTextValueArray
-            );
+                localizedTextValueArray);
             var dataValueArray = new DataValue(
                 new Variant(
                     new DataValueCollection
                     {
                         new DataValue(new Variant("DataValue_info1"), StatusCodes.BadBoundNotFound),
                         new DataValue(new Variant("DataValue_info2"), StatusCodes.BadNoData)
-                    }
-                )
-            );
+                    }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("DataValueArray", namespaceIndexAllTypes),
                 Attributes.Value,
-                dataValueArray
-            );
+                dataValueArray);
             var diagnosticInfoValueArray = new DataValue(
                 new Variant(
                     new DiagnosticInfoCollection
                     {
                         new DiagnosticInfo(1, 1, 1, 1, "Diagnostic_info1"),
                         new DiagnosticInfo(2, 2, 2, 2, "Diagnostic_info2")
-                    }
-                )
-            );
+                    }));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("DiagnosticInfoArray", namespaceIndexAllTypes),
                 Attributes.Value,
-                diagnosticInfoValueArray
-            );
+                diagnosticInfoValueArray);
 
             // DataSet 'AllTypes' fill with matrix data
             var boolToggleMatrix = new DataValue(
@@ -3112,17 +2985,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("BoolToggleMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
-                boolToggleMatrix
-            );
+                boolToggleMatrix);
             var byteValueMatrix = new DataValue(
                 new Variant(
-                    new Matrix(new byte[] { 127, 128, 101, 102 }, BuiltInType.Byte, 2, 2, 1))
-            );
+                    new Matrix(new byte[] { 127, 128, 101, 102 }, BuiltInType.Byte, 2, 2, 1)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ByteMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
-                byteValueMatrix
-            );
+                byteValueMatrix);
             var int16ValueMatrix = new DataValue(
                 new Variant(
                     new Matrix(
@@ -3130,97 +3000,77 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         BuiltInType.Int16,
                         2,
                         2,
-                        2
-                    )
-                )
-            );
+                        2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Int16Matrix", namespaceIndexAllTypes),
                 Attributes.Value,
-                int16ValueMatrix
-            );
+                int16ValueMatrix);
             var int32ValueMatrix = new DataValue(
                 new Variant(
-                    new Matrix(new int[] { -1000, -1001, -2000, -2001 }, BuiltInType.Int32, 2, 2))
-            );
+                    new Matrix(new int[] { -1000, -1001, -2000, -2001 }, BuiltInType.Int32, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Int32Matrix", namespaceIndexAllTypes),
                 Attributes.Value,
-                int32ValueMatrix
-            );
+                int32ValueMatrix);
             var int64ValueMatrix = new DataValue(
                 new Variant(new Matrix(
                     new long[] { -10000, -10001, -20000, -20001 },
                     BuiltInType.Int64,
                     2,
-                    2))
-            );
+                    2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("Int64Matrix", namespaceIndexAllTypes),
                 Attributes.Value,
-                int64ValueMatrix
-            );
+                int64ValueMatrix);
             var sByteValueMatrix = new DataValue(
-                new Variant(new Matrix(new sbyte[] { 1, 2, -2, -3 }, BuiltInType.SByte, 2, 2))
-            );
+                new Variant(new Matrix(new sbyte[] { 1, 2, -2, -3 }, BuiltInType.SByte, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("SByteMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
-                sByteValueMatrix
-            );
+                sByteValueMatrix);
             var uInt16ValueMatrix = new DataValue(
                 new Variant(
-                    new Matrix(new ushort[] { 110, 120, 130, 140 }, BuiltInType.UInt16, 2, 2))
-            );
+                    new Matrix(new ushort[] { 110, 120, 130, 140 }, BuiltInType.UInt16, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("UInt16Matrix", namespaceIndexAllTypes),
                 Attributes.Value,
-                uInt16ValueMatrix
-            );
+                uInt16ValueMatrix);
             var uInt32ValueMatrix = new DataValue(
                 new Variant(
-                    new Matrix(new uint[] { 1100, 1200, 1300, 1400 }, BuiltInType.UInt32, 2, 2))
-            );
+                    new Matrix(new uint[] { 1100, 1200, 1300, 1400 }, BuiltInType.UInt32, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("UInt32Matrix", namespaceIndexAllTypes),
                 Attributes.Value,
-                uInt32ValueMatrix
-            );
+                uInt32ValueMatrix);
             var uInt64ValueMatrix = new DataValue(
                 new Variant(
                     new Matrix(
                         new ulong[] { 11100, 11200, 11300, 11400 },
                         BuiltInType.UInt64,
                         2,
-                        2))
-            );
+                        2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("UInt64Matrix", namespaceIndexAllTypes),
                 Attributes.Value,
-                uInt64ValueMatrix
-            );
+                uInt64ValueMatrix);
             var floatValueMatrix = new DataValue(
-                new Variant(new Matrix(new float[] { 1100, 5, 1200, 7 }, BuiltInType.Float, 2, 2))
-            );
+                new Variant(new Matrix(new float[] { 1100, 5, 1200, 7 }, BuiltInType.Float, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("FloatMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
-                floatValueMatrix
-            );
+                floatValueMatrix);
             var doubleValueMatrix = new DataValue(
                 new Variant(new Matrix(s_elementsArray, BuiltInType.Double, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("DoubleMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
-                doubleValueMatrix
-            );
+                doubleValueMatrix);
             var stringValueMatrix = new DataValue(
                 new Variant(new Matrix(s_elementsArray0, BuiltInType.String, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("StringMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
-                stringValueMatrix
-            );
+                stringValueMatrix);
             var dateTimeValMatrix = new DataValue(
                 new Variant(
                     new Matrix(
@@ -3233,15 +3083,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         },
                         BuiltInType.DateTime,
                         2,
-                        2
-                    )
-                )
-            );
+                        2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("DateTimeMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
-                dateTimeValMatrix
-            );
+                dateTimeValMatrix);
             var guidValueMatrix = new DataValue(
                 new Variant(
                     new Matrix(
@@ -3252,29 +3098,22 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                             new(new Guid()) },
                         BuiltInType.Guid,
                         2,
-                        2
-                    )
-                )
-            );
+                        2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("GuidMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
-                guidValueMatrix
-            );
+                guidValueMatrix);
             var byteStringValueMatrix = new DataValue(
                 new Variant(
                     new Matrix(
                         new byte[][] { [1, 2], [11, 12], [21, 22], [31, 32] },
                         BuiltInType.ByteString,
                         2,
-                        2)
-                )
-            );
+                        2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ByteStringMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
-                byteStringValueMatrix
-            );
+                byteStringValueMatrix);
 
             XmlElement xmlElement1m = document.CreateElement("test1m");
             xmlElement1m.InnerText = "Text_1m";
@@ -3294,45 +3133,33 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         new XmlElement[] { xmlElement1m, xmlElement2m, xmlElement3m, xmlElement4m },
                         BuiltInType.XmlElement,
                         2,
-                        2
-                    )
-                )
-            );
+                        2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("XmlElementMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
-                xmlElementValueMatrix
-            );
+                xmlElementValueMatrix);
             var nodeIdValueMatrix = new DataValue(
                 new Variant(
                     new Matrix(
                         new NodeId[] { new(30, 1), new(20, 3), new(10, 3), new(50, 7) },
                         BuiltInType.NodeId,
                         2,
-                        2
-                    )
-                )
-            );
+                        2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("NodeIdMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
-                nodeIdValueMatrix
-            );
+                nodeIdValueMatrix);
             var expandedNodeIdMatrix = new DataValue(
                 new Variant(
                     new Matrix(
                         new ExpandedNodeId[] { new(50, 1), new(70, 9), new(30, 2), new(80, 3) },
                         BuiltInType.ExpandedNodeId,
                         2,
-                        2
-                    )
-                )
-            );
+                        2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("ExpandedNodeIdMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
-                expandedNodeIdMatrix
-            );
+                expandedNodeIdMatrix);
             var statusCodeMatrix = new DataValue(
                 new Variant(
                     new Matrix(
@@ -3345,45 +3172,33 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         },
                         BuiltInType.StatusCode,
                         2,
-                        2
-                    )
-                )
-            );
+                        2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("StatusCodeMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
-                statusCodeMatrix
-            );
+                statusCodeMatrix);
             var qualifiedValueMatrix = new DataValue(
                 new Variant(
                     new Matrix(
                         new QualifiedName[] { new("123"), new("abc"), new("456"), new("xyz") },
                         BuiltInType.QualifiedName,
                         2,
-                        2
-                    )
-                )
-            );
+                        2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("QualifiedNameMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
-                qualifiedValueMatrix
-            );
+                qualifiedValueMatrix);
             var localizedTextValueMatrix = new DataValue(
                 new Variant(
                     new Matrix(
                         new LocalizedText[] { new("1234"), new("abcd"), new("5678"), new("efgh") },
                         BuiltInType.LocalizedText,
                         2,
-                        2
-                    )
-                )
-            );
+                        2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("LocalizedTextMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
-                localizedTextValueMatrix
-            );
+                localizedTextValueMatrix);
             var dataValueMatrix = new DataValue(
                 new Variant(
                     new Matrix(
@@ -3396,15 +3211,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         },
                         BuiltInType.DataValue,
                         2,
-                        2
-                    )
-                )
-            );
+                        2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("DataValueMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
-                dataValueMatrix
-            );
+                dataValueMatrix);
             var diagnosticInfoValueMatrix = new DataValue(
                 new Variant(
                     new Matrix(
@@ -3417,15 +3228,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         },
                         BuiltInType.DiagnosticInfo,
                         2,
-                        2
-                    )
-                )
-            );
+                        2)));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("DiagnosticInfoMatrix", namespaceIndexAllTypes),
                 Attributes.Value,
-                diagnosticInfoValueMatrix
-            );
+                diagnosticInfoValueMatrix);
         }
 
         /// <summary>
@@ -3434,8 +3241,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public static Dictionary<NodeId, DataValue> GetDataStoreData(
             UaPubSubApplication pubSubApplication,
             UaNetworkMessage uaDataNetworkMessage,
-            ushort namespaceIndexAllTypes
-        )
+            ushort namespaceIndexAllTypes)
         {
             var dataSetsData = new Dictionary<NodeId, DataValue>();
 
@@ -3446,8 +3252,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     var fieldNodeId = new NodeId(field.FieldMetaData.Name, namespaceIndexAllTypes);
                     DataValue fieldDataValue = pubSubApplication.DataStore.ReadPublishedDataItem(
                         fieldNodeId,
-                        Attributes.Value
-                    );
+                        Attributes.Value);
                     if (fieldDataValue != null && !dataSetsData.ContainsKey(fieldNodeId))
                     {
                         dataSetsData.Add(fieldNodeId, fieldDataValue);
@@ -3463,8 +3268,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         public static Dictionary<NodeId, DataValue> GetSnapshotData(
             UaPubSubApplication pubSubApplication,
-            ushort namespaceIndexAllTypes
-        )
+            ushort namespaceIndexAllTypes)
         {
             var snapshotData = new Dictionary<NodeId, DataValue>();
 
@@ -3499,8 +3303,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var dateTimeNodeId = new NodeId("DateTime", namespaceIndexAllTypes);
             DataValue dateTimeValue = pubSubApplication.DataStore.ReadPublishedDataItem(
                 dateTimeNodeId,
-                Attributes.Value
-            );
+                Attributes.Value);
             snapshotData.Add(dateTimeNodeId, (DataValue)dateTimeValue.MemberwiseClone());
 
             return snapshotData;
@@ -3516,8 +3319,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // DataSet update with primitive data
             DataValue boolToggle = pubSubApplication.DataStore.ReadPublishedDataItem(
                 new NodeId("BoolToggle", namespaceIndexAllTypes),
-                Attributes.Value
-            );
+                Attributes.Value);
             if (boolToggle.Value is bool)
             {
                 bool boolVal = Convert.ToBoolean(boolToggle.Value, CultureInfo.InvariantCulture);
@@ -3525,13 +3327,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("BoolToggle", namespaceIndexAllTypes),
                     Attributes.Value,
-                    boolToggle
-                );
+                    boolToggle);
             }
             DataValue byteValue = pubSubApplication.DataStore.ReadPublishedDataItem(
                 new NodeId("Byte", namespaceIndexAllTypes),
-                Attributes.Value
-            );
+                Attributes.Value);
             if (byteValue.Value is byte)
             {
                 byte byteVal = Convert.ToByte(byteValue.Value, CultureInfo.InvariantCulture);
@@ -3539,13 +3339,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("Byte", namespaceIndexAllTypes),
                     Attributes.Value,
-                    byteValue
-                );
+                    byteValue);
             }
             DataValue int16Value = pubSubApplication.DataStore.ReadPublishedDataItem(
                 new NodeId("Int16", namespaceIndexAllTypes),
-                Attributes.Value
-            );
+                Attributes.Value);
             if (int16Value.Value is short)
             {
                 int intIdentifier = Convert.ToInt16(int16Value.Value, CultureInfo.InvariantCulture);
@@ -3554,13 +3352,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("Int16", namespaceIndexAllTypes),
                     Attributes.Value,
-                    int16Value
-                );
+                    int16Value);
             }
             DataValue int32Value = pubSubApplication.DataStore.ReadPublishedDataItem(
                 new NodeId("Int32", namespaceIndexAllTypes),
-                Attributes.Value
-            );
+                Attributes.Value);
             if (int32Value.Value is int)
             {
                 int intIdentifier = Convert.ToInt32(int16Value.Value, CultureInfo.InvariantCulture);
@@ -3569,13 +3365,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("Int32", namespaceIndexAllTypes),
                     Attributes.Value,
-                    int32Value
-                );
+                    int32Value);
             }
             DataValue uInt16Value = pubSubApplication.DataStore.ReadPublishedDataItem(
                 new NodeId("UInt16", namespaceIndexAllTypes),
-                Attributes.Value
-            );
+                Attributes.Value);
             if (uInt16Value.Value is ushort)
             {
                 int intIdentifier = Convert.ToUInt16(
@@ -3586,13 +3380,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("UInt16", namespaceIndexAllTypes),
                     Attributes.Value,
-                    uInt16Value
-                );
+                    uInt16Value);
             }
             DataValue uInt32Value = pubSubApplication.DataStore.ReadPublishedDataItem(
                 new NodeId("UInt32", namespaceIndexAllTypes),
-                Attributes.Value
-            );
+                Attributes.Value);
             if (uInt32Value.Value is uint)
             {
                 long longIdentifier = Convert.ToUInt32(
@@ -3603,13 +3395,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("UInt32", namespaceIndexAllTypes),
                     Attributes.Value,
-                    uInt32Value
-                );
+                    uInt32Value);
             }
             DataValue doubleValue = pubSubApplication.DataStore.ReadPublishedDataItem(
                 new NodeId("Double", namespaceIndexAllTypes),
-                Attributes.Value
-            );
+                Attributes.Value);
             if (doubleValue.Value is double)
             {
                 double doubleVal = Convert.ToDouble(
@@ -3620,15 +3410,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("Double", namespaceIndexAllTypes),
                     Attributes.Value,
-                    doubleValue
-                );
+                    doubleValue);
             }
             var dateTimeValue = new DataValue(new Variant(DateTime.UtcNow));
             pubSubApplication.DataStore.WritePublishedDataItem(
                 new NodeId("DateTime", namespaceIndexAllTypes),
                 Attributes.Value,
-                dateTimeValue
-            );
+                dateTimeValue);
         }
 
         /// <summary>

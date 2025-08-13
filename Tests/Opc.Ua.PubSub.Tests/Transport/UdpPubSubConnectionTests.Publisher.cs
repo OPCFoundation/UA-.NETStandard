@@ -63,14 +63,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
-                    configurationFile
-                    );
+                    configurationFile);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
             Assert.Greater(
                 publisherConfiguration.Connections.Count,
                 1,
-                "publisherConfiguration.Connection should be > 0"
-            );
+                "publisherConfiguration.Connection should be > 0");
 
             IPAddress unicastIPAddress = localhost.Address;
             Assert.IsNotNull(unicastIPAddress, "unicastIPAddress is null");
@@ -107,8 +105,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(
                 writerGroup0,
-                new WriterGroupPublishState()
-            );
+                new WriterGroupPublishState());
             Assert.IsNotNull(
                 networkMessages,
                 "connection.CreateNetworkMessages shall not return null");
@@ -164,14 +161,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
-                    configurationFile
-                    );
+                    configurationFile);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
             Assert.Greater(
                 publisherConfiguration.Connections.Count,
                 1,
-                "publisherConfiguration.Connection should be > 0"
-            );
+                "publisherConfiguration.Connection should be > 0");
 
             IPAddress broadcastIPAddress = GetFirstNicLastIPByteChanged(255);
             Assert.IsNotNull(broadcastIPAddress, "broadcastIPAddress is null");
@@ -200,8 +195,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             UdpClient udpBroadcastClient = new UdpClientBroadcast(
                 localhost.Address,
                 kDiscoveryPortNo,
-                UsedInContext.Subscriber
-            );
+                UsedInContext.Subscriber);
             udpBroadcastClient.BeginReceive(new AsyncCallback(OnReceive), udpBroadcastClient);
 
             // prepare a network message
@@ -209,8 +203,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 .WriterGroups[0];
             IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(
                 writerGroup0,
-                new WriterGroupPublishState()
-            );
+                new WriterGroupPublishState());
             Assert.IsNotNull(
                 networkMessages,
                 "connection.CreateNetworkMessages shall not return null");
@@ -266,14 +259,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
-                    configurationFile
-                    );
+                    configurationFile);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
             Assert.Greater(
                 publisherConfiguration.Connections.Count,
                 1,
-                "publisherConfiguration.Connection should be > 0"
-            );
+                "publisherConfiguration.Connection should be > 0");
 
             IPAddress[] multicastIPAddresses = Dns.GetHostAddresses(kUdpMulticastIp);
             IPAddress multicastIPAddress = multicastIPAddresses[0];
@@ -303,8 +294,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             UdpClient udpMulticastClient = new UdpClientMulticast(
                 localhost.Address,
                 multicastIPAddress,
-                kDiscoveryPortNo
-            );
+                kDiscoveryPortNo);
             udpMulticastClient.BeginReceive(new AsyncCallback(OnReceive), udpMulticastClient);
 
             // prepare a network message
@@ -312,8 +302,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 .WriterGroups[0];
             IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(
                 writerGroup0,
-                new WriterGroupPublishState()
-            );
+                new WriterGroupPublishState());
             Assert.IsNotNull(
                 networkMessages,
                 "connection.CreateNetworkMessages shall not return null");
@@ -370,14 +359,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
-                    configurationFile
-                    );
+                    configurationFile);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
             Assert.Greater(
                 publisherConfiguration.Connections.Count,
                 1,
-                "publisherConfiguration.Connection should be > 0"
-            );
+                "publisherConfiguration.Connection should be > 0");
 
             //discovery IP address 224.0.2.14
             IPAddress[] multicastIPAddresses = Dns.GetHostAddresses(kUdpDiscoveryIp);
@@ -408,8 +395,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             UdpClient udpMulticastClient = new UdpClientMulticast(
                 localhost.Address,
                 multicastIPAddress,
-                kDiscoveryPortNo
-            );
+                kDiscoveryPortNo);
             udpMulticastClient.BeginReceive(new AsyncCallback(OnReceive), udpMulticastClient);
 
             // prepare a network message
@@ -422,8 +408,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             }
             IList<UaNetworkMessage> networkMessages = publisherConnection
                 .CreateDataSetMetaDataNetworkMessages(
-                    [.. dataSetWriterIds]
-                    );
+                    [.. dataSetWriterIds]);
             Assert.IsNotNull(
                 networkMessages,
                 "connection.CreateNetworkMessages shall not return null");
@@ -479,14 +464,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
-                    configurationFile
-                    );
+                    configurationFile);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
             Assert.Greater(
                 publisherConfiguration.Connections.Count,
                 1,
-                "publisherConfiguration.Connection should be > 0"
-            );
+                "publisherConfiguration.Connection should be > 0");
 
             //discovery IP address 224.0.2.14
             IPAddress[] multicastIPAddresses = Dns.GetHostAddresses(kUdpDiscoveryIp);
@@ -517,8 +500,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             UdpClient udpMulticastClient = new UdpClientMulticast(
                 localhost.Address,
                 multicastIPAddress,
-                kDiscoveryPortNo
-            );
+                kDiscoveryPortNo);
             udpMulticastClient.BeginReceive(new AsyncCallback(OnReceive), udpMulticastClient);
 
             // prepare a network message
@@ -534,8 +516,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 .First();
             Assert.IsNotNull(
                 networkMessage,
-                "connection.CreateDataSetWriterCofigurationMessages shall not return null"
-            );
+                "connection.CreateDataSetWriterCofigurationMessages shall not return null");
 
             //Act
             publisherConnection.Start();
@@ -583,14 +564,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper
                 .LoadConfiguration(
-                    configurationFile
-                    );
+                    configurationFile);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
             Assert.Greater(
                 publisherConfiguration.Connections.Count,
                 1,
-                "publisherConfiguration.Connection should be > 0"
-            );
+                "publisherConfiguration.Connection should be > 0");
 
             //discovery IP address 224.0.2.14
             IPAddress[] multicastIPAddresses = Dns.GetHostAddresses(kUdpDiscoveryIp);
@@ -621,8 +600,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             UdpClient udpMulticastClient = new UdpClientMulticast(
                 localhost.Address,
                 multicastIPAddress,
-                kDiscoveryPortNo
-            );
+                kDiscoveryPortNo);
             udpMulticastClient.BeginReceive(new AsyncCallback(OnReceive), udpMulticastClient);
 
             var endpointDescriptions = new List<EndpointDescription>
@@ -666,8 +644,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 .CreatePublisherEndpointsNetworkMessage(
                     [.. endpointDescriptions],
                     StatusCodes.Good,
-                    publisherConnection.PubSubConnectionConfiguration.PublisherId.Value
-                    );
+                    publisherConnection.PubSubConnectionConfiguration.PublisherId.Value);
             Assert.IsNotNull(uaNetworkMessage, "uaNetworkMessage shall not return null");
 
             //Act
@@ -719,8 +696,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             catch (Exception ex)
             {
                 NUnit.Framework.Assert.Warn(
-                    Utils.Format("OnReceive() failed due to the following reason: {0}", ex.Message)
-                );
+                    Utils.Format("OnReceive() failed due to the following reason: {0}", ex.Message));
             }
         }
     }

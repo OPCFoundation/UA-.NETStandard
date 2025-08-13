@@ -56,8 +56,7 @@ namespace Opc.Ua.Client.Tests
                 writer: null,
                 securityNone: false,
                 enableClientSideTracing: false,
-                enableServerSideTracing: false
-            );
+                enableServerSideTracing: false);
         }
 
         /// <summary>
@@ -99,8 +98,7 @@ namespace Opc.Ua.Client.Tests
                     Console.Out,
                     enableClientSideTracing: false,
                     enableServerSideTracing: false,
-                    disableActivityLogging: false
-                )
+                    disableActivityLogging: false)
                 .GetAwaiter()
                 .GetResult();
             Console.WriteLine("GlobalSetup: Connecting");

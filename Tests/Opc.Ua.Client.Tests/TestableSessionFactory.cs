@@ -60,8 +60,7 @@ namespace Opc.Ua.Client.Tests
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             return CreateAsync(
                 configuration,
@@ -72,8 +71,7 @@ namespace Opc.Ua.Client.Tests
                 sessionTimeout,
                 identity,
                 preferredLocales,
-                ct
-            );
+                ct);
         }
 
         /// <inheritdoc/>
@@ -86,8 +84,7 @@ namespace Opc.Ua.Client.Tests
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             return await Session
                 .CreateAsync(
@@ -101,8 +98,7 @@ namespace Opc.Ua.Client.Tests
                     sessionTimeout,
                     identity,
                     preferredLocales,
-                    ct
-                )
+                    ct)
                 .ConfigureAwait(false);
         }
 
@@ -117,8 +113,7 @@ namespace Opc.Ua.Client.Tests
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             return await Session
                 .CreateAsync(
@@ -132,8 +127,7 @@ namespace Opc.Ua.Client.Tests
                     sessionTimeout,
                     identity,
                     preferredLocales,
-                    ct
-                )
+                    ct)
                 .ConfigureAwait(false);
         }
 
@@ -148,8 +142,7 @@ namespace Opc.Ua.Client.Tests
             uint sessionTimeout,
             IUserIdentity userIdentity,
             IList<string> preferredLocales,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             if (reverseConnectManager == null)
             {
@@ -162,8 +155,7 @@ namespace Opc.Ua.Client.Tests
                         sessionTimeout,
                         userIdentity,
                         preferredLocales,
-                        ct
-                    )
+                        ct)
                     .ConfigureAwait(false);
             }
 
@@ -185,8 +177,7 @@ namespace Opc.Ua.Client.Tests
                             connection,
                             endpoint.Description.SecurityMode,
                             endpoint.Description.SecurityPolicyUri,
-                            ct
-                        )
+                            ct)
                         .ConfigureAwait(false);
                     updateBeforeConnect = false;
                     connection = null;
@@ -203,8 +194,7 @@ namespace Opc.Ua.Client.Tests
                     sessionTimeout,
                     userIdentity,
                     preferredLocales,
-                    ct
-                )
+                    ct)
                 .ConfigureAwait(false);
         }
 
@@ -215,8 +205,7 @@ namespace Opc.Ua.Client.Tests
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
             EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null
-        )
+            StringCollection discoveryProfileUris = null)
         {
             return Session.Create(
                 this,
@@ -225,16 +214,14 @@ namespace Opc.Ua.Client.Tests
                 endpoint,
                 clientCertificate,
                 availableEndpoints,
-                discoveryProfileUris
-            );
+                discoveryProfileUris);
         }
 
         /// <inheritdoc/>
         public override Session Create(
             ISessionChannel channel,
             ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint
-        )
+            ConfiguredEndpoint endpoint)
         {
             return new TestableSession(channel, configuration, endpoint);
         }
@@ -246,8 +233,7 @@ namespace Opc.Ua.Client.Tests
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
             EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null
-        )
+            StringCollection discoveryProfileUris = null)
         {
             return new TestableSession(
                 channel,
@@ -255,8 +241,7 @@ namespace Opc.Ua.Client.Tests
                 endpoint,
                 clientCertificate,
                 availableEndpoints,
-                discoveryProfileUris
-            );
+                discoveryProfileUris);
         }
     }
 }

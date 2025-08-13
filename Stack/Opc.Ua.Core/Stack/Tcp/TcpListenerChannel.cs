@@ -32,8 +32,7 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             ChannelQuotas quotas,
             CertificateTypesProvider serverCertificateTypeProvider,
-            EndpointDescriptionCollection endpoints
-        )
+            EndpointDescriptionCollection endpoints)
             : base(
                 contextId,
                 bufferManager,
@@ -41,8 +40,7 @@ namespace Opc.Ua.Bindings
                 serverCertificateTypeProvider,
                 endpoints,
                 MessageSecurityMode.None,
-                SecurityPolicies.None
-            )
+                SecurityPolicies.None)
         {
             Listener = listener;
         }
@@ -247,8 +245,7 @@ namespace Opc.Ua.Bindings
                             socketHandle,
                             CurrentToken != null ? CurrentToken.ChannelId : 0,
                             CurrentToken != null ? CurrentToken.TokenId : 0,
-                            reason
-                        );
+                            reason);
                     }
                 }
                 else
@@ -269,13 +266,10 @@ namespace Opc.Ua.Bindings
                 if (close)
                 {
                     // mark the RemoteAddress as potential problematic if Basic128Rsa15
-                    if (
-                        (SecurityPolicyUri == SecurityPolicies.Basic128Rsa15) &&
+                    if ((SecurityPolicyUri == SecurityPolicies.Basic128Rsa15) &&
                         (
                             reason.StatusCode == StatusCodes.BadSecurityChecksFailed ||
-                            reason.StatusCode == StatusCodes.BadTcpMessageTypeInvalid
-                        )
-                    )
+                            reason.StatusCode == StatusCodes.BadTcpMessageTypeInvalid))
                     {
                         var tcpTransportListener = Listener as TcpTransportListener;
                         tcpTransportListener?.MarkAsPotentialProblematic(
@@ -316,8 +310,7 @@ namespace Opc.Ua.Bindings
                     (Socket?.Handle) ?? 0,
                     CurrentToken != null ? CurrentToken.ChannelId : 0,
                     CurrentToken != null ? CurrentToken.TokenId : 0,
-                    reason.ToString()
-                );
+                    reason.ToString());
 
                 // close channel.
                 ChannelClosed();
@@ -423,8 +416,7 @@ namespace Opc.Ua.Bindings
                     fault,
                     DiagnosticsMasks.NoInnerStatus,
                     true,
-                    stringTable
-                );
+                    stringTable);
 
                 response.ResponseHeader.StringTable = stringTable.ToArray();
 
@@ -437,8 +429,7 @@ namespace Opc.Ua.Bindings
                     token,
                     response,
                     false,
-                    out bool limitsExceeded
-                );
+                    out bool limitsExceeded);
 
                 // send message.
                 BeginWriteMessage(buffers, null);
@@ -452,9 +443,7 @@ namespace Opc.Ua.Bindings
                     ServiceResult.Create(
                         e,
                         StatusCodes.BadTcpInternalError,
-                        "Unexpected error sending a service fault."
-                    )
-                );
+                        "Unexpected error sending a service fault."));
             }
         }
 
@@ -506,8 +495,7 @@ namespace Opc.Ua.Bindings
                     fault,
                     DiagnosticsMasks.NoInnerStatus,
                     true,
-                    stringTable
-                );
+                    stringTable);
 
                 response.ResponseHeader.StringTable = stringTable.ToArray();
 
@@ -520,8 +508,7 @@ namespace Opc.Ua.Bindings
                     requestId,
                     ServerCertificate,
                     ClientCertificate,
-                    new ArraySegment<byte>(buffer, 0, buffer.Length)
-                );
+                    new ArraySegment<byte>(buffer, 0, buffer.Length));
 
                 // write the message to the server.
                 BeginWriteMessage(chunksToSend, null);
@@ -535,9 +522,7 @@ namespace Opc.Ua.Bindings
                     ServiceResult.Create(
                         e,
                         StatusCodes.BadTcpInternalError,
-                        "Unexpected error sending a service fault."
-                    )
-                );
+                        "Unexpected error sending a service fault."));
             }
         }
 
@@ -551,8 +536,7 @@ namespace Opc.Ua.Bindings
             uint sequenceNumber,
             X509Certificate2 clientCertificate,
             ChannelToken token,
-            OpenSecureChannelRequest request
-        )
+            OpenSecureChannelRequest request)
         {
             throw new NotImplementedException();
         }
@@ -603,8 +587,7 @@ namespace Opc.Ua.Bindings
     public delegate void TcpChannelRequestEventHandler(
         TcpListenerChannel channel,
         uint requestId,
-        IServiceRequest request
-    );
+        IServiceRequest request);
 
     /// <summary>
     /// Used to report the status of the channel.
@@ -621,8 +604,7 @@ namespace Opc.Ua.Bindings
         TcpServerChannel channel,
         OpenSecureChannelRequest request,
         X509Certificate2 clientCertificate,
-        Exception exception
-    );
+        Exception exception);
 
     /// <summary>
     /// Used to report a close secure channel audit event

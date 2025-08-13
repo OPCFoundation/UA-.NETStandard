@@ -28,8 +28,7 @@ namespace Opc.Ua
         public SecureChannelContext(
             string secureChannelId,
             EndpointDescription endpointDescription,
-            RequestEncoding messageEncoding
-        )
+            RequestEncoding messageEncoding)
         {
             SecureChannelId = secureChannelId;
             EndpointDescription = endpointDescription;
@@ -79,7 +78,7 @@ namespace Opc.Ua
             set => s_dataslot.Value = value;
         }
 
-        private static readonly AsyncLocal<SecureChannelContext> s_dataslot = new AsyncLocal<SecureChannelContext>();
+        private static readonly AsyncLocal<SecureChannelContext> s_dataslot = new();
     }
 
     /// <summary>

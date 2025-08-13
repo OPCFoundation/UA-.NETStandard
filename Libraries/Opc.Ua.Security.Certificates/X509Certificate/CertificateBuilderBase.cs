@@ -144,8 +144,7 @@ namespace Opc.Ua.Security.Certificates
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(serialNumber),
-                    "SerialNumber array exceeds supported length."
-                );
+                    "SerialNumber array exceeds supported length.");
             }
             m_serialNumberLength = serialNumber.Length;
             m_serialNumber = new byte[serialNumber.Length];
@@ -221,8 +220,7 @@ namespace Opc.Ua.Security.Certificates
             {
                 throw new ArgumentException(
                     "KeySize must be a multiple of 1024 or is not in the allowed range.",
-                    nameof(keySize)
-                );
+                    nameof(keySize));
             }
 
             m_keySize = keySize;
@@ -292,24 +290,20 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private void SetHashAlgorithmSize(ECCurve curve)
         {
-            if (
-                curve.Oid.FriendlyName
+            if (curve.Oid.FriendlyName
                     .CompareTo(ECCurve.NamedCurves.nistP384.Oid.FriendlyName) == 0 ||
                 curve.Oid.FriendlyName
                     .CompareTo(ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName) == 0 ||
                 // special case for linux where friendly name could be ECDSA_P384 instead of nistP384
                 (curve.Oid?.Value != null &&
-                    curve.Oid.Value.CompareTo(ECCurve.NamedCurves.nistP384.Oid.Value) == 0)
-            )
+                    curve.Oid.Value.CompareTo(ECCurve.NamedCurves.nistP384.Oid.Value) == 0))
             {
                 SetHashAlgorithm(HashAlgorithmName.SHA384);
             }
-            if (
-                curve.Oid.FriendlyName
+            if (curve.Oid.FriendlyName
                     .CompareTo(ECCurve.NamedCurves.nistP521.Oid.FriendlyName) == 0 ||
                 (curve.Oid.FriendlyName
-                    .CompareTo(ECCurve.NamedCurves.brainpoolP512r1.Oid.FriendlyName) == 0)
-            )
+                    .CompareTo(ECCurve.NamedCurves.brainpoolP512r1.Oid.FriendlyName) == 0))
             {
                 SetHashAlgorithm(HashAlgorithmName.SHA512);
             }

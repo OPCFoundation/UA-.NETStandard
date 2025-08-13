@@ -119,20 +119,16 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
 
                 if (securityPolicyUri.Contains("ECC_", StringComparison.Ordinal))
                 {
-                    if (
-                        RuntimeInformation.IsOSPlatform(OSPlatform.OSX) &&
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) &&
                         (
                             securityPolicyUri == SecurityPolicies.ECC_nistP256 ||
-                            securityPolicyUri == SecurityPolicies.ECC_nistP384
-                        )
-                    )
+                            securityPolicyUri == SecurityPolicies.ECC_nistP384))
                     {
                         NUnit.Framework.Assert
                             .Ignore("No exception is thrown on OSX with NIST curves");
                     }
                     NUnit.Framework.Assert.Throws<ArgumentException>(() =>
-                        Ua.Nonce.CreateNonce(securityPolicyUri, randomValue)
-                    );
+                        Ua.Nonce.CreateNonce(securityPolicyUri, randomValue));
                 }
                 else
                 {

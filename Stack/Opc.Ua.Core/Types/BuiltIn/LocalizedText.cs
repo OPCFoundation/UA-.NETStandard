@@ -240,8 +240,7 @@ namespace Opc.Ua
                 if (m_translations == null && XmlEncodedLocale != null)
                 {
                     return new ReadOnlyDictionary<string, string>(
-                        new Dictionary<string, string> { { XmlEncodedLocale, XmlEncodedText } }
-                    );
+                        new Dictionary<string, string> { { XmlEncodedLocale, XmlEncodedText } });
                 }
                 return m_translations;
             }
@@ -330,11 +329,9 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (
-                ltext.XmlEncodedLocale != XmlEncodedLocale &&
+            if (ltext.XmlEncodedLocale != XmlEncodedLocale &&
                 !(string.IsNullOrEmpty(ltext.XmlEncodedLocale) &&
-                    string.IsNullOrEmpty(XmlEncodedLocale))
-            )
+                    string.IsNullOrEmpty(XmlEncodedLocale)))
             {
                 return false;
             }
@@ -517,8 +514,7 @@ namespace Opc.Ua
 
             var translations = new ReadOnlyDictionary<string, string>(
                 Translations.Where(t => preferredLocales.Contains(t.Key))
-                    .ToDictionary(s => s.Key, s => s.Value)
-            );
+                    .ToDictionary(s => s.Key, s => s.Value));
 
             // If matching locales are found return those
             if (translations.Count > 0)
@@ -576,13 +572,10 @@ namespace Opc.Ua
                 // The expected JSON structure is defined in https://reference.opcfoundation.org/Core/Part3/v105/docs/8.5
                 Dictionary<string, object> json = JsonConvert
                     .DeserializeObject<Dictionary<string, object>>(
-                        XmlEncodedText
-                        );
-                if (
-                    json != null &&
+                        XmlEncodedText);
+                if (json != null &&
                     json.TryGetValue(kMulLocaleDictionaryKey, out object tValue) &&
-                    tValue is Newtonsoft.Json.Linq.JArray tArray
-                )
+                    tValue is Newtonsoft.Json.Linq.JArray tArray)
                 {
                     foreach (Newtonsoft.Json.Linq.JToken pairToken in tArray)
                     {

@@ -45,8 +45,7 @@ namespace Opc.Ua
 
             // note: custom types must be added to the encodeable factory by the node manager to be found
             Type systemType = context.EncodeableFactory?.GetSystemType(
-                NodeId.ToExpandedNodeId(typeId, context.NamespaceUris)
-            );
+                NodeId.ToExpandedNodeId(typeId, context.NamespaceUris));
             if (systemType != null &&
                 Activator.CreateInstance(systemType) is IEncodeable encodeable)
             {

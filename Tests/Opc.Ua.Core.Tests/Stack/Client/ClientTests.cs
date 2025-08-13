@@ -103,8 +103,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 }
             };
             NUnit.Framework.Assert.DoesNotThrow(() =>
-                appConfig.ValidateAsync(ApplicationType.Client).GetAwaiter().GetResult()
-            );
+                appConfig.ValidateAsync(ApplicationType.Client).GetAwaiter().GetResult());
         }
     }
 }

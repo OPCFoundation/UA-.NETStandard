@@ -142,17 +142,14 @@ namespace Opc.Ua.X509StoreExtensions.Internal
                 //#define CERT_STORE_ADD_REPLACE_EXISTING_INHERIT_PROPERTIES  5
                 //#define CERT_STORE_ADD_NEWER                                6
                 //#define CERT_STORE_ADD_NEWER_INHERIT_PROPERTIES             7
-                if (
-                    PInvokeHelper.CertAddEncodedCRLToStore(
+                if (PInvokeHelper.CertAddEncodedCRLToStore(
                         (HCERTSTORE)storeHandle.ToPointer(),
                         CERT_QUERY_ENCODING_TYPE.X509_ASN_ENCODING |
                         CERT_QUERY_ENCODING_TYPE.PKCS_7_ASN_ENCODING,
                         (byte*)crlPointer,
                         (uint)crl.Length,
                         3,
-                        null
-                    )
-                )
+                        null))
                 {
                     //success
                     return;
@@ -162,22 +159,19 @@ namespace Opc.Ua.X509StoreExtensions.Internal
                 {
                     Utils.LogError(
                         "Error while adding Crl to X509Store, Win32Error-Code: {0}: ERROR_INVALID_PARAMETER, The parameter is incorrect. ",
-                        error
-                    );
+                        error);
                 }
                 if (error == -2146881269)
                 {
                     Utils.LogError(
                         "Error while adding Crl to X509Store, Win32Error-Code: {0}: CRYPT_E_ASN1_BADTAG, ASN1 bad tag value met. ",
-                        error
-                    );
+                        error);
                 }
                 if (error == -2147024891)
                 {
                     Utils.LogError(
                         "Error while adding Crl to X509Store, Win32Error-Code: {0}: ERROR_ACCESS_DENIED, Access is denied. ",
-                        error
-                    );
+                        error);
                 }
                 if (error != 0)
                 {
@@ -235,8 +229,7 @@ namespace Opc.Ua.X509StoreExtensions.Internal
                                 {
                                     Utils.LogError(
                                         "Error while deleting Crl from X509Store, Win32Error-Code: {0}",
-                                        error
-                                    );
+                                        error);
                                 }
                             }
                             else

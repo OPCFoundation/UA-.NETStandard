@@ -139,18 +139,15 @@ namespace Opc.Ua.PubSub.Encoding
                 // 01 RawData Field Encoding
                 fieldType = FieldTypeEncodingMask.RawData;
             }
-            else if (
-                (
+            else if ((
                     FieldContentMask &
                     (
                         DataSetFieldContentMask.StatusCode |
                         DataSetFieldContentMask.SourceTimestamp |
                         DataSetFieldContentMask.ServerTimestamp |
                         DataSetFieldContentMask.SourcePicoSeconds |
-                        DataSetFieldContentMask.ServerPicoSeconds
-                    )
-                ) != 0
-            )
+                        DataSetFieldContentMask.ServerPicoSeconds)
+                ) != 0)
             {
                 // 10 DataValue Field Encoding
                 fieldType = FieldTypeEncodingMask.DataValue;
@@ -252,10 +249,8 @@ namespace Opc.Ua.PubSub.Encoding
             BinaryDecoder binaryDecoder,
             DataSetReaderDataType dataSetReader)
         {
-            if (
-                ExtensionObject.ToEncodeable(dataSetReader.MessageSettings)
-                is UadpDataSetReaderMessageDataType messageSettings
-            )
+            if (ExtensionObject.ToEncodeable(dataSetReader.MessageSettings)
+                is UadpDataSetReaderMessageDataType messageSettings)
             {
                 //StartPositionInStream is calculated but different from reader configuration dataset cannot be decoded
                 if (StartPositionInStream != messageSettings.DataSetOffset)
@@ -288,10 +283,8 @@ namespace Opc.Ua.PubSub.Encoding
 
             if (!IsMetadataMajorVersionChange)
             {
-                if (
-                    (DataSetFlags2 & DataSetFlags2EncodingMask.DataDeltaFrame) ==
-                    DataSetFlags2EncodingMask.DataDeltaFrame
-                )
+                if ((DataSetFlags2 & DataSetFlags2EncodingMask.DataDeltaFrame) ==
+                    DataSetFlags2EncodingMask.DataDeltaFrame)
                 {
                     DataSet = DecodeMessageDataDeltaFrame(binaryDecoder, dataSetReader);
                 }
@@ -563,12 +556,10 @@ namespace Opc.Ua.PubSub.Encoding
                         Value = dataValues[i]
                     };
 
-                    if (
-                        ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet)
+                    if (ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet)
                             is TargetVariablesDataType targetVariablesData &&
                         targetVariablesData.TargetVariables != null &&
-                        i < targetVariablesData.TargetVariables.Count
-                    )
+                        i < targetVariablesData.TargetVariables.Count)
                     {
                         // remember the target Attribute and target nodeId
                         dataField.TargetAttribute = targetVariablesData.TargetVariables[i]
@@ -621,12 +612,10 @@ namespace Opc.Ua.PubSub.Encoding
                     {
                         var dataField = new Field { FieldMetaData = dataSetMetaData?.Fields[i] };
 
-                        if (
-                            ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet)
+                        if (ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet)
                                 is TargetVariablesDataType targetVariablesData &&
                             targetVariablesData.TargetVariables != null &&
-                            i < targetVariablesData.TargetVariables.Count
-                        )
+                            i < targetVariablesData.TargetVariables.Count)
                         {
                             // remember the target Attribute and target nodeId
                             dataField.TargetAttribute = targetVariablesData.TargetVariables[i]
@@ -695,8 +684,7 @@ namespace Opc.Ua.PubSub.Encoding
         private static void EncodeFieldAsRawData(
             BinaryEncoder binaryEncoder,
             Field field,
-            IFormatProvider formatProvider
-        )
+            IFormatProvider formatProvider)
         {
             try
             {
@@ -826,8 +814,7 @@ namespace Opc.Ua.PubSub.Encoding
                         null,
                         valueToEncode,
                         field.FieldMetaData.ValueRank,
-                        (BuiltInType)field.FieldMetaData.BuiltInType
-                    );
+                        (BuiltInType)field.FieldMetaData.BuiltInType);
                 }
             }
             catch (Exception ex)
@@ -856,8 +843,7 @@ namespace Opc.Ua.PubSub.Encoding
                             return binaryDecoder.ReadArray(
                                 null,
                                 fieldMetaData.ValueRank,
-                                (BuiltInType)fieldMetaData.BuiltInType
-                            );
+                                (BuiltInType)fieldMetaData.BuiltInType);
                         default:
                             Utils.Trace(
                                 "Decoding ValueRank = {0} not supported yet !!!",

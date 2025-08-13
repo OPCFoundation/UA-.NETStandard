@@ -520,8 +520,7 @@ namespace Opc.Ua
         public abstract IAsyncResult BeginInvokeService(
             InvokeServiceMessage request,
             AsyncCallback callback,
-            object asyncState
-        );
+            object asyncState);
 
         /// <summary>
         /// The client side implementation of the EndInvokeService service contract.
@@ -546,8 +545,7 @@ namespace Opc.Ua
                 IChannelBase channel,
                 AsyncCallback callback,
                 object callbackData,
-                int timeout
-            )
+                int timeout)
                 : base(callback, callbackData, timeout)
             {
                 m_channel = channel;
@@ -737,8 +735,7 @@ namespace Opc.Ua
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
-            IServiceMessageContext messageContext
-        )
+            IServiceMessageContext messageContext)
         {
             // initialize the channel which will be created with the server.
             string uriScheme = new Uri(description.EndpointUrl).Scheme;
@@ -747,8 +744,7 @@ namespace Opc.Ua
                 ?? throw ServiceResultException.Create(
                     StatusCodes.BadProtocolVersionUnsupported,
                     "Unsupported transport profile for scheme {0}.",
-                    uriScheme
-                );
+                    uriScheme);
 
             // create a UA channel.
             var settings = new TransportChannelSettings
@@ -793,8 +789,7 @@ namespace Opc.Ua
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
-            IServiceMessageContext messageContext
-        )
+            IServiceMessageContext messageContext)
         {
             return CreateUaBinaryChannel(
                 configuration,
@@ -802,8 +797,7 @@ namespace Opc.Ua
                 endpointConfiguration,
                 clientCertificate,
                 null,
-                messageContext
-            );
+                messageContext);
         }
 
         /// <summary>
@@ -822,8 +816,7 @@ namespace Opc.Ua
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
-            IServiceMessageContext messageContext
-        )
+            IServiceMessageContext messageContext)
         {
             string uriScheme = new Uri(description.EndpointUrl).Scheme;
 
@@ -846,8 +839,7 @@ namespace Opc.Ua
                 ?? throw ServiceResultException.Create(
                     StatusCodes.BadProtocolVersionUnsupported,
                     "Unsupported transport profile for scheme {0}.",
-                    uriScheme
-                );
+                    uriScheme);
 
             // create a UA-TCP channel.
             var settings = new TransportChannelSettings
@@ -935,8 +927,7 @@ namespace Opc.Ua
         public override IAsyncResult BeginInvokeService(
             InvokeServiceMessage request,
             AsyncCallback callback,
-            object asyncState
-        )
+            object asyncState)
         {
             var asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
 
@@ -945,8 +936,7 @@ namespace Opc.Ua
                 asyncResult.InnerResult = asyncResult.Channel.BeginInvokeService(
                     request,
                     asyncResult.OnOperationCompleted,
-                    null
-                );
+                    null);
             }
 
             return asyncResult;

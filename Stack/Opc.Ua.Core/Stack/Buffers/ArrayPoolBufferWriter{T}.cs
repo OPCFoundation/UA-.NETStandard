@@ -116,8 +116,7 @@ namespace Opc.Ua.Buffers
             if (m_offset + count > m_currentBuffer.Length)
             {
                 throw new InvalidOperationException(
-                    $"Cannot advance past the end of the buffer, which has a size of {m_currentBuffer.Length}."
-                );
+                    $"Cannot advance past the end of the buffer, which has a size of {m_currentBuffer.Length}.");
             }
 
             m_offset += count;

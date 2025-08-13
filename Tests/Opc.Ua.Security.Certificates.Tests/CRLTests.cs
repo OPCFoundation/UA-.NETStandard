@@ -99,8 +99,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             if (!Utils.IsSupportedCertificateType(certificateType))
             {
                 NUnit.Framework.Assert.Ignore(
-                    $"Certificate type {certificateTypeString} is not supported on this platform."
-                );
+                    $"Certificate type {certificateTypeString} is not supported on this platform.");
             }
 
             m_certificateType = certificateType;
@@ -390,8 +389,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             string serstring,
             HashAlgorithmName hash,
             CrlBuilder crlBuilder,
-            byte[] crlEncoded
-        )
+            byte[] crlEncoded)
         {
             Assert.NotNull(crlEncoded);
             var x509Crl = new X509CRL();
@@ -402,12 +400,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.AreEqual(crlBuilder.IssuerName.RawData, x509Crl.IssuerName.RawData);
             NUnit.Framework.Assert.That(
                 crlBuilder.ThisUpdate,
-                Is.EqualTo(x509Crl.ThisUpdate).Within(TimeSpan.FromSeconds(1))
-            );
+                Is.EqualTo(x509Crl.ThisUpdate).Within(TimeSpan.FromSeconds(1)));
             NUnit.Framework.Assert.That(
                 crlBuilder.NextUpdate,
-                Is.EqualTo(x509Crl.NextUpdate).Within(TimeSpan.FromSeconds(1))
-            );
+                Is.EqualTo(x509Crl.NextUpdate).Within(TimeSpan.FromSeconds(1)));
             Assert.AreEqual(2, x509Crl.RevokedCertificates.Count);
             Assert.AreEqual(serial, x509Crl.RevokedCertificates[0].UserCertificate);
             Assert.AreEqual(serstring, x509Crl.RevokedCertificates[1].SerialNumber);

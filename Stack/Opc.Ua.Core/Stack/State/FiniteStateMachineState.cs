@@ -300,8 +300,7 @@ namespace Opc.Ua
         protected void UpdateTransitionVariable(
             ISystemContext context,
             uint transitionId,
-            FiniteTransitionVariableState variable
-        )
+            FiniteTransitionVariableState variable)
         {
             if (variable == null)
             {
@@ -387,8 +386,7 @@ namespace Opc.Ua
             uint transitionId,
             uint causeId,
             IList<object> inputArguments,
-            IList<object> outputArguments
-        )
+            IList<object> outputArguments)
         {
             if (callback != null)
             {
@@ -435,8 +433,7 @@ namespace Opc.Ua
                     transitionId,
                     causeId,
                     null,
-                    null
-                );
+                    null);
 
                 if (ServiceResult.IsBad(result))
                 {
@@ -466,8 +463,7 @@ namespace Opc.Ua
             MethodState causeMethod,
             uint causeId,
             IList<object> inputArguments,
-            IList<object> outputArguments
-        )
+            IList<object> outputArguments)
         {
             ServiceResult result = null;
 
@@ -489,8 +485,7 @@ namespace Opc.Ua
                     transitionId,
                     causeId,
                     inputArguments,
-                    outputArguments
-                );
+                    outputArguments);
 
                 if (ServiceResult.IsBad(result))
                 {
@@ -544,8 +539,7 @@ namespace Opc.Ua
         protected virtual AuditUpdateStateEventState CreateAuditEvent(
             ISystemContext context,
             MethodState causeMethod,
-            uint causeId
-        )
+            uint causeId)
         {
             return new AuditUpdateStateEventState(null);
         }
@@ -559,16 +553,14 @@ namespace Opc.Ua
             IList<object> inputArguments,
             uint causeId,
             AuditUpdateStateEventState e,
-            ServiceResult result
-        )
+            ServiceResult result)
         {
             var info = new TranslationInfo(
                 "StateTransition",
                 "en-US",
                 "The {0} method called was on the {1} state machine.",
                 causeMethod.DisplayName,
-                GetDisplayPath(3, '.')
-            );
+                GetDisplayPath(3, '.'));
 
             e.Initialize(
                 context,
@@ -576,8 +568,7 @@ namespace Opc.Ua
                 EventSeverity.Medium,
                 new LocalizedText(info),
                 ServiceResult.IsGood(result),
-                DateTime.UtcNow
-            );
+                DateTime.UtcNow);
 
             e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
             e.SetChildValue(
@@ -604,8 +595,7 @@ namespace Opc.Ua
             MethodState causeMethod,
             uint causeId,
             IList<object> inputArguments,
-            ServiceResult result
-        )
+            ServiceResult result)
         {
             try
             {
@@ -670,8 +660,7 @@ namespace Opc.Ua
             uint transitionId,
             uint causeId,
             IList<object> inputArguments,
-            IList<object> outputArguments
-        )
+            IList<object> outputArguments)
         {
             // check for valid transition.
             uint newState = GetNewStateForTransition(context, transitionId);
@@ -695,8 +684,7 @@ namespace Opc.Ua
                 transitionId,
                 causeId,
                 inputArguments,
-                outputArguments
-            );
+                outputArguments);
 
             if (ServiceResult.IsBad(result))
             {
@@ -745,8 +733,7 @@ namespace Opc.Ua
         protected virtual TransitionEventState CreateTransitionEvent(
             ISystemContext context,
             uint transitionId,
-            uint causeId
-        )
+            uint causeId)
         {
             if (TransitionHasEffect(context, transitionId))
             {
@@ -763,16 +750,14 @@ namespace Opc.Ua
             ISystemContext context,
             uint transitionId,
             uint causeId,
-            TransitionEventState e
-        )
+            TransitionEventState e)
         {
             var info = new TranslationInfo(
                 "StateTransition",
                 "en-US",
                 "The {0} state machine moved to the {1} state.",
                 GetDisplayPath(3, '.'),
-                CurrentState.Value
-            );
+                CurrentState.Value);
 
             e.Initialize(context, this, EventSeverity.Medium, new LocalizedText(info));
 
@@ -793,6 +778,5 @@ namespace Opc.Ua
         uint transitionId,
         uint causeId,
         IList<object> inputArguments,
-        IList<object> outputArguments
-    );
+        IList<object> outputArguments);
 }

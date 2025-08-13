@@ -112,12 +112,10 @@ namespace Opc.Ua.Client.Tests
             {
                 // set the time offset to a value from -5 to +5 days
                 testableSession.TimestampOffset = TimeSpan.FromSeconds(
-                    (m_random.NextDouble() - 0.5) * 3600.0 * 24.0 * 10.0
-                );
+                    (m_random.NextDouble() - 0.5) * 3600.0 * 24.0 * 10.0);
                 TestContext.Out.WriteLine(
                     "The time offset for request headers has been set to {0} offset.",
-                    testableSession.TimestampOffset.ToString()
-                );
+                    testableSession.TimestampOffset.ToString());
             }
         }
 
@@ -147,8 +145,7 @@ namespace Opc.Ua.Client.Tests
                     requestHeader,
                     nodesToAdd,
                     out AddNodesResultCollection results,
-                    out DiagnosticInfoCollection diagnosticInfos
-                );
+                    out DiagnosticInfoCollection diagnosticInfos);
 
                 Assert.NotNull(responseHeader);
                 Assert.AreEqual(nodesToAdd.Count, results.Count);
@@ -211,8 +208,7 @@ namespace Opc.Ua.Client.Tests
                     requestHeader,
                     referencesToAdd,
                     out StatusCodeCollection results,
-                    out DiagnosticInfoCollection diagnosticInfos
-                );
+                    out DiagnosticInfoCollection diagnosticInfos);
 
                 Assert.NotNull(responseHeader);
                 Assert.AreEqual(referencesToAdd.Count, results.Count);
@@ -277,8 +273,7 @@ namespace Opc.Ua.Client.Tests
                     requestHeader,
                     nodesTDelete,
                     out StatusCodeCollection results,
-                    out DiagnosticInfoCollection diagnosticInfos
-                );
+                    out DiagnosticInfoCollection diagnosticInfos);
 
                 Assert.NotNull(responseHeader);
                 Assert.AreEqual(nodesTDelete.Count, results.Count);
@@ -340,8 +335,7 @@ namespace Opc.Ua.Client.Tests
                     requestHeader,
                     referencesToDelete,
                     out StatusCodeCollection results,
-                    out DiagnosticInfoCollection diagnosticInfos
-                );
+                    out DiagnosticInfoCollection diagnosticInfos);
 
                 Assert.NotNull(responseHeader);
                 Assert.AreEqual(referencesToDelete.Count, results.Count);
@@ -407,8 +401,7 @@ namespace Opc.Ua.Client.Tests
             BrowseDescriptionCollection browseDescriptionCollection =
                 ServerFixtureUtils.CreateBrowseDescriptionCollectionFromNodeId(
                     [.. new NodeId[] { Objects.RootFolder }],
-                    browseTemplate
-                );
+                    browseTemplate);
 
             ResponseHeader response;
             var requestHeader = new RequestHeader();
@@ -424,8 +417,7 @@ namespace Opc.Ua.Client.Tests
                     5,
                     browseDescriptionCollection,
                     out BrowseResultCollection results,
-                    out DiagnosticInfoCollection diagnosticInfos
-                );
+                    out DiagnosticInfoCollection diagnosticInfos);
 
                 ServerFixtureUtils.ValidateResponse(
                     responseHeader,
@@ -434,8 +426,7 @@ namespace Opc.Ua.Client.Tests
                 ServerFixtureUtils.ValidateDiagnosticInfos(
                     diagnosticInfos,
                     browseDescriptionCollection,
-                    responseHeader.StringTable
-                );
+                    responseHeader.StringTable);
 
                 allResults.AddRange(results);
 
@@ -449,8 +440,7 @@ namespace Opc.Ua.Client.Tests
                         false,
                         continuationPoints,
                         out BrowseResultCollection browseNextResultCollection,
-                        out diagnosticInfos
-                    );
+                        out diagnosticInfos);
                     ServerFixtureUtils.ValidateResponse(
                         responseHeader,
                         browseNextResultCollection,
@@ -458,8 +448,7 @@ namespace Opc.Ua.Client.Tests
                     ServerFixtureUtils.ValidateDiagnosticInfos(
                         diagnosticInfos,
                         continuationPoints,
-                        responseHeader.StringTable
-                    );
+                        responseHeader.StringTable);
                     allResults.AddRange(browseNextResultCollection);
                     continuationPoints = ServerFixtureUtils.PrepareBrowseNext(
                         browseNextResultCollection);
@@ -479,8 +468,7 @@ namespace Opc.Ua.Client.Tests
                 browseDescriptionCollection = ServerFixtureUtils
                     .CreateBrowseDescriptionCollectionFromNodeId(
                         browseTable,
-                        browseTemplate
-                        );
+                        browseTemplate);
             }
 
             referenceDescriptions.Sort((x, y) => x.NodeId.CompareTo(y.NodeId));
@@ -491,8 +479,7 @@ namespace Opc.Ua.Client.Tests
                 {
                     NodeId = ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris),
                     AttributeId = Attributes.Value
-                })
-            );
+                }));
 
             TestContext.Out.WriteLine("Test Read Nodes...");
             ResponseHeader readResponse = Session.Read(
@@ -501,8 +488,7 @@ namespace Opc.Ua.Client.Tests
                 TimestampsToReturn.Neither,
                 nodesToRead,
                 out DataValueCollection valueResults,
-                out _
-            );
+                out _);
 
             // test register
             TestContext.Out.WriteLine("Test Register Nodes...");
@@ -535,8 +521,7 @@ namespace Opc.Ua.Client.Tests
                 requestHeader,
                 nodesToWrite,
                 out StatusCodeCollection writeResults,
-                out DiagnosticInfoCollection writeDiagnostics
-            );
+                out DiagnosticInfoCollection writeDiagnostics);
 
             TestContext.Out
                 .WriteLine("Found {0} references on server.", referenceDescriptions.Count);
@@ -548,8 +533,7 @@ namespace Opc.Ua.Client.Tests
                     reference.NodeId,
                     reference.NodeClass,
                     reference.BrowseName,
-                    valueResults[ii++].WrappedValue
-                );
+                    valueResults[ii++].WrappedValue);
             }
         }
 
@@ -575,8 +559,7 @@ namespace Opc.Ua.Client.Tests
             BrowseDescriptionCollection browseDescriptionCollection =
                 ServerFixtureUtils.CreateBrowseDescriptionCollectionFromNodeId(
                     [.. new NodeId[] { Objects.RootFolder }],
-                    browseTemplate
-                );
+                    browseTemplate);
             while (browseDescriptionCollection.Count > 0)
             {
                 TestContext.Out.WriteLine("Browse {0} Nodes...", browseDescriptionCollection.Count);
@@ -612,13 +595,11 @@ namespace Opc.Ua.Client.Tests
                     ServerFixtureUtils.ValidateResponse(
                         response.ResponseHeader,
                         nextResponse.Results,
-                        continuationPoints
-                    );
+                        continuationPoints);
                     ServerFixtureUtils.ValidateDiagnosticInfos(
                         diagnosticInfos,
                         continuationPoints,
-                        nextResponse.ResponseHeader.StringTable
-                    );
+                        nextResponse.ResponseHeader.StringTable);
                     allResults.AddRange(browseNextResultCollection);
                     continuationPoints = ServerFixtureUtils.PrepareBrowseNext(
                         browseNextResultCollection);
@@ -638,8 +619,7 @@ namespace Opc.Ua.Client.Tests
                 browseDescriptionCollection = ServerFixtureUtils
                     .CreateBrowseDescriptionCollectionFromNodeId(
                         browseTable,
-                        browseTemplate
-                        );
+                        browseTemplate);
             }
 
             referenceDescriptions.Sort((x, y) => x.NodeId.CompareTo(y.NodeId));
@@ -650,8 +630,7 @@ namespace Opc.Ua.Client.Tests
                 {
                     NodeId = ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris),
                     AttributeId = Attributes.Value
-                })
-            );
+                }));
 
             // test reads
             TestContext.Out.WriteLine("Test Read Nodes...");
@@ -710,8 +689,7 @@ namespace Opc.Ua.Client.Tests
                     reference.NodeId,
                     reference.NodeClass,
                     reference.BrowseName,
-                    readResponse.Results[ii++].WrappedValue
-                );
+                    readResponse.Results[ii++].WrappedValue);
             }
         }
 #endif
@@ -736,8 +714,7 @@ namespace Opc.Ua.Client.Tests
                 requestHeader,
                 browsePaths,
                 out BrowsePathResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos
-            );
+                out DiagnosticInfoCollection diagnosticInfos);
 
             ServerFixtureUtils.ValidateResponse(responseHeader, results, browsePaths);
             ServerFixtureUtils.ValidateDiagnosticInfos(
@@ -777,8 +754,7 @@ namespace Opc.Ua.Client.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 browsePaths,
-                response.ResponseHeader.StringTable
-            );
+                response.ResponseHeader.StringTable);
             Assert.NotNull(response.ResponseHeader);
         }
 #endif
@@ -790,8 +766,7 @@ namespace Opc.Ua.Client.Tests
             System.Collections.Generic.IList<NodeId> testSet = GetTestSetSimulation(
                 Session.NamespaceUris);
             var nodesToRead = new HistoryReadValueIdCollection(
-                testSet.Select(nodeId => new HistoryReadValueId { NodeId = nodeId })
-            );
+                testSet.Select(nodeId => new HistoryReadValueId { NodeId = nodeId }));
 
             // add a some real history nodes
             testSet = GetTestSetHistory(Session.NamespaceUris);
@@ -808,8 +783,7 @@ namespace Opc.Ua.Client.Tests
                 false,
                 nodesToRead,
                 out HistoryReadResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos
-            );
+                out DiagnosticInfoCollection diagnosticInfos);
 
             ServerFixtureUtils.ValidateResponse(responseHeader, results, nodesToRead);
             ServerFixtureUtils.ValidateDiagnosticInfos(
@@ -825,8 +799,7 @@ namespace Opc.Ua.Client.Tests
             System.Collections.Generic.IList<NodeId> testSet = GetTestSetSimulation(
                 Session.NamespaceUris);
             var nodesToRead = new HistoryReadValueIdCollection(
-                testSet.Select(nodeId => new HistoryReadValueId { NodeId = nodeId })
-            );
+                testSet.Select(nodeId => new HistoryReadValueId { NodeId = nodeId }));
 
             // add a some real history nodes
             testSet = GetTestSetHistory(Session.NamespaceUris);
@@ -840,8 +813,7 @@ namespace Opc.Ua.Client.Tests
                     TimestampsToReturn.Source,
                     false,
                     nodesToRead,
-                    CancellationToken.None
-                )
+                    CancellationToken.None)
                 .ConfigureAwait(false);
 
             ServerFixtureUtils.ValidateResponse(
@@ -851,8 +823,7 @@ namespace Opc.Ua.Client.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 response.DiagnosticInfos,
                 nodesToRead,
-                response.ResponseHeader.StringTable
-            );
+                response.ResponseHeader.StringTable);
         }
 
         [Theory]
@@ -892,15 +863,13 @@ namespace Opc.Ua.Client.Tests
                 null,
                 historyUpdateDetails,
                 out HistoryUpdateResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos
-            );
+                out DiagnosticInfoCollection diagnosticInfos);
 
             ServerFixtureUtils.ValidateResponse(responseHeader, results, historyUpdateDetails);
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 diagnosticInfos,
                 historyUpdateDetails,
-                responseHeader.StringTable
-            );
+                responseHeader.StringTable);
         }
 
         [Theory]
@@ -947,8 +916,7 @@ namespace Opc.Ua.Client.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(
                 response.DiagnosticInfos,
                 historyUpdateDetails,
-                response.ResponseHeader.StringTable
-            );
+                response.ResponseHeader.StringTable);
         }
 
         private static ExtensionObject ReadRawModifiedDetails()

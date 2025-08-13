@@ -67,8 +67,7 @@ namespace Opc.Ua.Server
             DateTime endTime,
             double processingInterval,
             bool stepped,
-            AggregateConfiguration configuration
-        )
+            AggregateConfiguration configuration)
         {
             Initialize(aggregateId, startTime, endTime, processingInterval, stepped, configuration);
         }
@@ -89,8 +88,7 @@ namespace Opc.Ua.Server
             DateTime endTime,
             double processingInterval,
             bool stepped,
-            AggregateConfiguration configuration
-        )
+            AggregateConfiguration configuration)
         {
             AggregateId = aggregateId;
             StartTime = startTime;
@@ -224,8 +222,7 @@ namespace Opc.Ua.Server
                 if (m_startOfData > earlyTime && m_startOfData < lateTime)
                 {
                     value.StatusCode = value.StatusCode.SetAggregateBits(
-                        value.StatusCode.AggregateBits | AggregateBits.Partial
-                    );
+                        value.StatusCode.AggregateBits | AggregateBits.Partial);
                 }
 
                 if (!UsingExtrapolation &&
@@ -234,8 +231,7 @@ namespace Opc.Ua.Server
                     m_endOfData < lateTime)
                 {
                     value.StatusCode = value.StatusCode.SetAggregateBits(
-                        value.StatusCode.AggregateBits | AggregateBits.Partial
-                    );
+                        value.StatusCode.AggregateBits | AggregateBits.Partial);
                 }
             }
 
@@ -285,17 +281,14 @@ namespace Opc.Ua.Server
             if (Complete)
             {
                 // check if overlapping the end of data.
-                if (
-                    SetPartialBit &&
+                if (SetPartialBit &&
                     !UsingExtrapolation &&
                     !TimeFlowsBackward &&
                     m_endOfData >= earlyTime &&
-                    m_endOfData < lateTime
-                )
+                    m_endOfData < lateTime)
                 {
                     value.StatusCode = value.StatusCode.SetAggregateBits(
-                        value.StatusCode.AggregateBits | AggregateBits.Partial
-                    );
+                        value.StatusCode.AggregateBits | AggregateBits.Partial);
                 }
             }
             else
@@ -858,11 +851,9 @@ namespace Opc.Ua.Server
                 // check if extrapolation is possible.
                 if (slice.EarlyBound != null)
                 {
-                    if (
-                        Configuration.UseSlopedExtrapolation &&
+                    if (Configuration.UseSlopedExtrapolation &&
                         slice.EarlyBound != null &&
-                        slice.SecondEarlyBound != null
-                    )
+                        slice.SecondEarlyBound != null)
                     {
                         UsingExtrapolation = true;
                         dataValue = SlopedInterpolate(
@@ -1028,8 +1019,7 @@ namespace Opc.Ua.Server
             object castValue = TypeInfo.Cast(
                 value,
                 TypeInfo.Scalars.Double,
-                original.WrappedValue.TypeInfo.BuiltInType
-            );
+                original.WrappedValue.TypeInfo.BuiltInType);
             return new Variant(castValue, original.WrappedValue.TypeInfo);
         }
 
@@ -1119,10 +1109,8 @@ namespace Opc.Ua.Server
         protected List<DataValue> GetValuesWithSimpleBounds(TimeSlice slice)
         {
             // check if slice is beyond end of available data.
-            if (
-                CompareTimestamps(slice.StartTime, m_values.Last) > 0 ||
-                CompareTimestamps(slice.EndTime, m_values.First) < 0
-            )
+            if (CompareTimestamps(slice.StartTime, m_values.Last) > 0 ||
+                CompareTimestamps(slice.EndTime, m_values.First) < 0)
             {
                 return null;
             }
@@ -1168,10 +1156,8 @@ namespace Opc.Ua.Server
         protected List<DataValue> GetValues(TimeSlice slice)
         {
             // check if slice is beyond end of available data.
-            if (
-                CompareTimestamps(slice.StartTime, m_values.Last) > 0 ||
-                CompareTimestamps(slice.EndTime, m_values.First) < 0
-            )
+            if (CompareTimestamps(slice.StartTime, m_values.Last) > 0 ||
+                CompareTimestamps(slice.EndTime, m_values.First) < 0)
             {
                 return null;
             }
@@ -1298,8 +1284,7 @@ namespace Opc.Ua.Server
         protected List<SubRegion> GetRegionsInValueSet(
             List<DataValue> values,
             bool ignoreBadData,
-            bool useSteppedCalculations
-        )
+            bool useSteppedCalculations)
         {
             // nothing to do if no data.
             if (values == null)
@@ -1376,10 +1361,8 @@ namespace Opc.Ua.Server
                     else if (IsGood(values[ii]))
                     {
                         // handle case with uncertain end point.
-                        if (
-                            StatusCode.IsNotGood(values[ii].StatusCode) &&
-                            StatusCode.IsNotBad(currentRegion.StatusCode)
-                        )
+                        if (StatusCode.IsNotGood(values[ii].StatusCode) &&
+                            StatusCode.IsNotBad(currentRegion.StatusCode))
                         {
                             currentRegion.StatusCode = StatusCodes.UncertainDataSubNormal;
                         }
@@ -1401,13 +1384,11 @@ namespace Opc.Ua.Server
 
                     // if at end of data then duration is 1 tick.
                     // must be end of data if start of region is good yet end bound is bad.
-                    if (
-                        !ignoreBadData &&
+                    if (!ignoreBadData &&
                         currentRegion != null &&
                         IsGood(currentRegion.DataPoint) &&
                         currentStatus == StatusCodes.BadNoData &&
-                        ii == values.Count - 1
-                    )
+                        ii == values.Count - 1)
                     {
                         currentRegion.Duration = 1;
                     }
@@ -1535,11 +1516,9 @@ namespace Opc.Ua.Server
                 }
 
                 // Take into account the Uncertain status code
-                if (
-                    StatusCode.IsGood(region.StatusCode) ||
+                if (StatusCode.IsGood(region.StatusCode) ||
                     (!Configuration.TreatUncertainAsBad &&
-                        StatusCode.IsUncertain(region.StatusCode))
-                )
+                        StatusCode.IsUncertain(region.StatusCode)))
                 {
                     goodDuration += region.Duration;
                 }
