@@ -1,8 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<NodeSet
-  xmlns:i="http://www.w3.org/2001/XMLSchema-instance"
-  xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
->
+<NodeSet xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
   <NamespaceUris>
     <String>http://opcfoundation.org/UA/</String>
     <String>http://test.org/UA/Data/</String>
@@ -1097,9 +1094,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -1163,9 +1158,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -1893,9 +1886,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -2032,9 +2023,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -2171,9 +2160,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -3979,9 +3966,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -6030,9 +6015,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -8410,9 +8393,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -26736,9 +26717,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -26793,9 +26772,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -27442,9 +27419,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -27563,9 +27538,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -27684,9 +27657,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -28958,9 +28929,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -30794,9 +30763,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -30851,9 +30818,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -31500,9 +31465,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -31621,9 +31584,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -31742,9 +31703,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -33314,9 +33273,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -35420,9 +35377,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -35477,9 +35432,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -36126,9 +36079,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -36247,9 +36198,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -36368,9 +36317,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -39510,9 +39457,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -39567,9 +39512,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -40216,9 +40159,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -40337,9 +40278,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -40458,9 +40397,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -43214,9 +43151,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -43271,9 +43206,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -43920,9 +43853,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -44041,9 +43972,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -44162,9 +44091,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -46881,9 +46808,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -46938,9 +46863,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -47587,9 +47510,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -47708,9 +47629,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -47829,9 +47748,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -50841,9 +50758,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -50898,9 +50813,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -51547,9 +51460,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -51668,9 +51579,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -51789,9 +51698,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -59874,9 +59781,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -59931,9 +59836,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -60580,9 +60483,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -60701,9 +60602,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -60822,9 +60721,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -62096,9 +61993,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -63932,9 +63827,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -63989,9 +63882,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -64638,9 +64529,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -64759,9 +64648,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -64880,9 +64767,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -66452,9 +66337,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -68558,9 +68441,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -68615,9 +68496,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -69264,9 +69143,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -69385,9 +69262,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -69506,9 +69381,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -72648,9 +72521,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -72705,9 +72576,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -73354,9 +73223,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -73475,9 +73342,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -73596,9 +73461,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -76352,9 +76215,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -76409,9 +76270,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -77058,9 +76917,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -77179,9 +77036,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -77300,9 +77155,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -80019,9 +79872,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -80076,9 +79927,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -80725,9 +80574,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -80846,9 +80693,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -80967,9 +80812,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -83979,9 +83822,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -84036,9 +83877,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -84685,9 +84524,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -84806,9 +84643,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -84927,9 +84762,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -87645,9 +87478,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -87702,9 +87533,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -88333,9 +88162,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -88454,9 +88281,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -88575,9 +88400,7 @@
       </References>
       <Value>
         <Value>
-          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >0001-01-01T00:00:00</DateTime
-          >
+          <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0001-01-01T00:00:00</DateTime>
         </Value>
       </Value>
       <DataType>
@@ -89429,8 +89252,7 @@
       </References>
       <Value>
         <Value>
-          <ByteString xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >PG9wYzpUeXBlRGljdGlvbmFyeQ0KICB4bWxuczpvcGM9Imh0dHA6Ly9vcGNmb3VuZGF0aW9uLm9y
+          <ByteString xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">PG9wYzpUeXBlRGljdGlvbmFyeQ0KICB4bWxuczpvcGM9Imh0dHA6Ly9vcGNmb3VuZGF0aW9uLm9y
 Zy9CaW5hcnlTY2hlbWEvIg0KICB4bWxuczp4c2k9Imh0dHA6Ly93d3cudzMub3JnLzIwMDEvWE1M
 U2NoZW1hLWluc3RhbmNlIg0KICB4bWxuczp1YT0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VB
 LyINCiAgeG1sbnM6dG5zPSJodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS8iDQogIERlZmF1bHRCeXRl
@@ -89706,8 +89528,7 @@ bWUiIC8+DQogICAgPG9wYzpGaWVsZCBOYW1lPSJOb09mU3RhdHVzQ29tbWVudHMiIFR5cGVOYW1l
 PSJvcGM6SW50MzIiIC8+DQogICAgPG9wYzpGaWVsZCBOYW1lPSJTdGF0dXNDb21tZW50cyIgVHlw
 ZU5hbWU9InRuczpXb3JrT3JkZXJTdGF0dXNUeXBlIiBMZW5ndGhGaWVsZD0iTm9PZlN0YXR1c0Nv
 bW1lbnRzIiAvPg0KICA8L29wYzpTdHJ1Y3R1cmVkVHlwZT4NCg0KPC9vcGM6VHlwZURpY3Rpb25h
-cnk+</ByteString
-          >
+cnk+</ByteString>
         </Value>
       </Value>
       <DataType>
@@ -89762,9 +89583,7 @@ cnk+</ByteString
       </References>
       <Value>
         <Value>
-          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >http://test.org/UA/Data/</String
-          >
+          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">http://test.org/UA/Data/</String>
         </Value>
       </Value>
       <DataType>
@@ -89874,9 +89693,7 @@ cnk+</ByteString
       </References>
       <Value>
         <Value>
-          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >ScalarStructureDataType</String
-          >
+          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">ScalarStructureDataType</String>
         </Value>
       </Value>
       <DataType>
@@ -89986,9 +89803,7 @@ cnk+</ByteString
       </References>
       <Value>
         <Value>
-          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >UserScalarValueDataType</String
-          >
+          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">UserScalarValueDataType</String>
         </Value>
       </Value>
       <DataType>
@@ -90043,9 +89858,7 @@ cnk+</ByteString
       </References>
       <Value>
         <Value>
-          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >UserArrayValueDataType</String
-          >
+          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">UserArrayValueDataType</String>
         </Value>
       </Value>
       <DataType>
@@ -90723,8 +90536,7 @@ cnk+</ByteString
       </References>
       <Value>
         <Value>
-          <ByteString xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >PHhzOnNjaGVtYQ0KICB4bWxuczp4cz0iaHR0cDovL3d3dy53My5vcmcvMjAwMS9YTUxTY2hlbWEi
+          <ByteString xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">PHhzOnNjaGVtYQ0KICB4bWxuczp4cz0iaHR0cDovL3d3dy53My5vcmcvMjAwMS9YTUxTY2hlbWEi
 DQogIHhtbG5zOnVhPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvMjAwOC8wMi9UeXBlcy54
 c2QiDQogIHhtbG5zOnRucz0iaHR0cDovL3Rlc3Qub3JnL1VBL0RhdGEvIg0KICB0YXJnZXROYW1l
 c3BhY2U9Imh0dHA6Ly90ZXN0Lm9yZy9VQS9EYXRhLyINCiAgZWxlbWVudEZvcm1EZWZhdWx0PSJx
@@ -91044,8 +90856,7 @@ Y2U+DQogICAgICA8eHM6ZWxlbWVudCBuYW1lPSJXb3JrT3JkZXJUeXBlIiB0eXBlPSJ0bnM6V29y
 a09yZGVyVHlwZSIgbWluT2NjdXJzPSIwIiBtYXhPY2N1cnM9InVuYm91bmRlZCIgbmlsbGFibGU9
 InRydWUiIC8+DQogICAgPC94czpzZXF1ZW5jZT4NCiAgPC94czpjb21wbGV4VHlwZT4NCiAgPHhz
 OmVsZW1lbnQgbmFtZT0iTGlzdE9mV29ya09yZGVyVHlwZSIgdHlwZT0idG5zOkxpc3RPZldvcmtP
-cmRlclR5cGUiIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCjwveHM6c2NoZW1hPg==</ByteString
-          >
+cmRlclR5cGUiIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCjwveHM6c2NoZW1hPg==</ByteString>
         </Value>
       </Value>
       <DataType>
@@ -91100,9 +90911,7 @@ cmRlclR5cGUiIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCjwveHM6c2NoZW1hPg==</By
       </References>
       <Value>
         <Value>
-          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >http://test.org/UA/Data/</String
-          >
+          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">http://test.org/UA/Data/</String>
         </Value>
       </Value>
       <DataType>
@@ -91212,9 +91021,7 @@ cmRlclR5cGUiIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCjwveHM6c2NoZW1hPg==</By
       </References>
       <Value>
         <Value>
-          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >//xs:element[@name='ScalarStructureDataType']</String
-          >
+          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ScalarStructureDataType']</String>
         </Value>
       </Value>
       <DataType>
@@ -91269,9 +91076,7 @@ cmRlclR5cGUiIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCjwveHM6c2NoZW1hPg==</By
       </References>
       <Value>
         <Value>
-          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >//xs:element[@name='ArrayValueDataType']</String
-          >
+          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ArrayValueDataType']</String>
         </Value>
       </Value>
       <DataType>
@@ -91326,9 +91131,7 @@ cmRlclR5cGUiIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCjwveHM6c2NoZW1hPg==</By
       </References>
       <Value>
         <Value>
-          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >//xs:element[@name='UserScalarValueDataType']</String
-          >
+          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='UserScalarValueDataType']</String>
         </Value>
       </Value>
       <DataType>
@@ -91383,9 +91186,7 @@ cmRlclR5cGUiIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCjwveHM6c2NoZW1hPg==</By
       </References>
       <Value>
         <Value>
-          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >//xs:element[@name='UserArrayValueDataType']</String
-          >
+          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='UserArrayValueDataType']</String>
         </Value>
       </Value>
       <DataType>
@@ -91440,9 +91241,7 @@ cmRlclR5cGUiIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCjwveHM6c2NoZW1hPg==</By
       </References>
       <Value>
         <Value>
-          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >//xs:element[@name='Vector']</String
-          >
+          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='Vector']</String>
         </Value>
       </Value>
       <DataType>
@@ -91497,9 +91296,7 @@ cmRlclR5cGUiIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCjwveHM6c2NoZW1hPg==</By
       </References>
       <Value>
         <Value>
-          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >//xs:element[@name='WorkOrderStatusType']</String
-          >
+          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='WorkOrderStatusType']</String>
         </Value>
       </Value>
       <DataType>
@@ -91554,9 +91351,7 @@ cmRlclR5cGUiIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCjwveHM6c2NoZW1hPg==</By
       </References>
       <Value>
         <Value>
-          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >//xs:element[@name='WorkOrderType']</String
-          >
+          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='WorkOrderType']</String>
         </Value>
       </Value>
       <DataType>
@@ -92521,9 +92316,7 @@ cmRlclR5cGUiIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCjwveHM6c2NoZW1hPg==</By
       </References>
       <Value>
         <Value>
-          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >VectorWithOptionalFields</String
-          >
+          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">VectorWithOptionalFields</String>
         </Value>
       </Value>
       <DataType>
@@ -92678,9 +92471,7 @@ cmRlclR5cGUiIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCjwveHM6c2NoZW1hPg==</By
       </References>
       <Value>
         <Value>
-          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >//xs:element[@name='VectorUnion']</String
-          >
+          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='VectorUnion']</String>
         </Value>
       </Value>
       <DataType>
@@ -92735,9 +92526,7 @@ cmRlclR5cGUiIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCjwveHM6c2NoZW1hPg==</By
       </References>
       <Value>
         <Value>
-          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >//xs:element[@name='VectorWithOptionalFields']</String
-          >
+          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='VectorWithOptionalFields']</String>
         </Value>
       </Value>
       <DataType>
@@ -93623,9 +93412,7 @@ cmRlclR5cGUiIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCjwveHM6c2NoZW1hPg==</By
       </References>
       <Value>
         <Value>
-          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-            >//xs:element[@name='MultipleVectors']</String
-          >
+          <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='MultipleVectors']</String>
         </Value>
       </Value>
       <DataType>

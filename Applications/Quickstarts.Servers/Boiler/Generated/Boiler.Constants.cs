@@ -29,10 +29,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Reflection;
-using System.Runtime.Serialization;
 using System.Text;
+using System.Reflection;
 using System.Xml;
+using System.Runtime.Serialization;
 using Opc.Ua;
 
 namespace Boiler
@@ -678,94 +678,49 @@ namespace Boiler
     public static partial class MethodIds
     {
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_Start = new ExpandedNodeId(
-            Boiler.Methods.BoilerStateMachineType_Start,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerStateMachineType_Start = new ExpandedNodeId(Boiler.Methods.BoilerStateMachineType_Start, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_Suspend = new ExpandedNodeId(
-            Boiler.Methods.BoilerStateMachineType_Suspend,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerStateMachineType_Suspend = new ExpandedNodeId(Boiler.Methods.BoilerStateMachineType_Suspend, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_Resume = new ExpandedNodeId(
-            Boiler.Methods.BoilerStateMachineType_Resume,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerStateMachineType_Resume = new ExpandedNodeId(Boiler.Methods.BoilerStateMachineType_Resume, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_Halt = new ExpandedNodeId(
-            Boiler.Methods.BoilerStateMachineType_Halt,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerStateMachineType_Halt = new ExpandedNodeId(Boiler.Methods.BoilerStateMachineType_Halt, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_Reset = new ExpandedNodeId(
-            Boiler.Methods.BoilerStateMachineType_Reset,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerStateMachineType_Reset = new ExpandedNodeId(Boiler.Methods.BoilerStateMachineType_Reset, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_Start = new ExpandedNodeId(
-            Boiler.Methods.BoilerType_Simulation_Start,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_Simulation_Start = new ExpandedNodeId(Boiler.Methods.BoilerType_Simulation_Start, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_Suspend = new ExpandedNodeId(
-            Boiler.Methods.BoilerType_Simulation_Suspend,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_Simulation_Suspend = new ExpandedNodeId(Boiler.Methods.BoilerType_Simulation_Suspend, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_Resume = new ExpandedNodeId(
-            Boiler.Methods.BoilerType_Simulation_Resume,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_Simulation_Resume = new ExpandedNodeId(Boiler.Methods.BoilerType_Simulation_Resume, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_Halt = new ExpandedNodeId(
-            Boiler.Methods.BoilerType_Simulation_Halt,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_Simulation_Halt = new ExpandedNodeId(Boiler.Methods.BoilerType_Simulation_Halt, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_Reset = new ExpandedNodeId(
-            Boiler.Methods.BoilerType_Simulation_Reset,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_Simulation_Reset = new ExpandedNodeId(Boiler.Methods.BoilerType_Simulation_Reset, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_Start = new ExpandedNodeId(
-            Boiler.Methods.Boilers_Boiler1_Simulation_Start,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_Start = new ExpandedNodeId(Boiler.Methods.Boilers_Boiler1_Simulation_Start, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_Suspend = new ExpandedNodeId(
-            Boiler.Methods.Boilers_Boiler1_Simulation_Suspend,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_Suspend = new ExpandedNodeId(Boiler.Methods.Boilers_Boiler1_Simulation_Suspend, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_Resume = new ExpandedNodeId(
-            Boiler.Methods.Boilers_Boiler1_Simulation_Resume,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_Resume = new ExpandedNodeId(Boiler.Methods.Boilers_Boiler1_Simulation_Resume, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_Halt = new ExpandedNodeId(
-            Boiler.Methods.Boilers_Boiler1_Simulation_Halt,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_Halt = new ExpandedNodeId(Boiler.Methods.Boilers_Boiler1_Simulation_Halt, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_Reset = new ExpandedNodeId(
-            Boiler.Methods.Boilers_Boiler1_Simulation_Reset,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_Reset = new ExpandedNodeId(Boiler.Methods.Boilers_Boiler1_Simulation_Reset, Boiler.Namespaces.Boiler);
     }
     #endregion
 
@@ -776,172 +731,88 @@ namespace Boiler
     public static partial class ObjectIds
     {
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerInputPipeType_FlowTransmitter1 = new ExpandedNodeId(
-            Boiler.Objects.BoilerInputPipeType_FlowTransmitter1,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerInputPipeType_FlowTransmitter1 = new ExpandedNodeId(Boiler.Objects.BoilerInputPipeType_FlowTransmitter1, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerInputPipeType_Valve = new ExpandedNodeId(
-            Boiler.Objects.BoilerInputPipeType_Valve,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerInputPipeType_Valve = new ExpandedNodeId(Boiler.Objects.BoilerInputPipeType_Valve, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerDrumType_LevelIndicator = new ExpandedNodeId(
-            Boiler.Objects.BoilerDrumType_LevelIndicator,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerDrumType_LevelIndicator = new ExpandedNodeId(Boiler.Objects.BoilerDrumType_LevelIndicator, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerOutputPipeType_FlowTransmitter2 = new ExpandedNodeId(
-            Boiler.Objects.BoilerOutputPipeType_FlowTransmitter2,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerOutputPipeType_FlowTransmitter2 = new ExpandedNodeId(Boiler.Objects.BoilerOutputPipeType_FlowTransmitter2, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_InputPipe = new ExpandedNodeId(
-            Boiler.Objects.BoilerType_InputPipe,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_InputPipe = new ExpandedNodeId(Boiler.Objects.BoilerType_InputPipe, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_InputPipe_FlowTransmitter1 = new ExpandedNodeId(
-            Boiler.Objects.BoilerType_InputPipe_FlowTransmitter1,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_InputPipe_FlowTransmitter1 = new ExpandedNodeId(Boiler.Objects.BoilerType_InputPipe_FlowTransmitter1, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_InputPipe_Valve = new ExpandedNodeId(
-            Boiler.Objects.BoilerType_InputPipe_Valve,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_InputPipe_Valve = new ExpandedNodeId(Boiler.Objects.BoilerType_InputPipe_Valve, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Drum = new ExpandedNodeId(
-            Boiler.Objects.BoilerType_Drum,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_Drum = new ExpandedNodeId(Boiler.Objects.BoilerType_Drum, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Drum_LevelIndicator = new ExpandedNodeId(
-            Boiler.Objects.BoilerType_Drum_LevelIndicator,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_Drum_LevelIndicator = new ExpandedNodeId(Boiler.Objects.BoilerType_Drum_LevelIndicator, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_OutputPipe = new ExpandedNodeId(
-            Boiler.Objects.BoilerType_OutputPipe,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_OutputPipe = new ExpandedNodeId(Boiler.Objects.BoilerType_OutputPipe, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_OutputPipe_FlowTransmitter2 = new ExpandedNodeId(
-            Boiler.Objects.BoilerType_OutputPipe_FlowTransmitter2,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_OutputPipe_FlowTransmitter2 = new ExpandedNodeId(Boiler.Objects.BoilerType_OutputPipe_FlowTransmitter2, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_FlowController = new ExpandedNodeId(
-            Boiler.Objects.BoilerType_FlowController,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_FlowController = new ExpandedNodeId(Boiler.Objects.BoilerType_FlowController, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_LevelController = new ExpandedNodeId(
-            Boiler.Objects.BoilerType_LevelController,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_LevelController = new ExpandedNodeId(Boiler.Objects.BoilerType_LevelController, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_CustomController = new ExpandedNodeId(
-            Boiler.Objects.BoilerType_CustomController,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_CustomController = new ExpandedNodeId(Boiler.Objects.BoilerType_CustomController, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation = new ExpandedNodeId(
-            Boiler.Objects.BoilerType_Simulation,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_Simulation = new ExpandedNodeId(Boiler.Objects.BoilerType_Simulation, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers = new ExpandedNodeId(
-            Boiler.Objects.Boilers,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers = new ExpandedNodeId(Boiler.Objects.Boilers, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1 = new ExpandedNodeId(
-            Boiler.Objects.Boilers_Boiler1,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1 = new ExpandedNodeId(Boiler.Objects.Boilers_Boiler1, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_InputPipe = new ExpandedNodeId(
-            Boiler.Objects.Boilers_Boiler1_InputPipe,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_InputPipe = new ExpandedNodeId(Boiler.Objects.Boilers_Boiler1_InputPipe, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_InputPipe_FlowTransmitter1 = new ExpandedNodeId(
-            Boiler.Objects.Boilers_Boiler1_InputPipe_FlowTransmitter1,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_InputPipe_FlowTransmitter1 = new ExpandedNodeId(Boiler.Objects.Boilers_Boiler1_InputPipe_FlowTransmitter1, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_InputPipe_Valve = new ExpandedNodeId(
-            Boiler.Objects.Boilers_Boiler1_InputPipe_Valve,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_InputPipe_Valve = new ExpandedNodeId(Boiler.Objects.Boilers_Boiler1_InputPipe_Valve, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Drum = new ExpandedNodeId(
-            Boiler.Objects.Boilers_Boiler1_Drum,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Drum = new ExpandedNodeId(Boiler.Objects.Boilers_Boiler1_Drum, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Drum_LevelIndicator = new ExpandedNodeId(
-            Boiler.Objects.Boilers_Boiler1_Drum_LevelIndicator,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Drum_LevelIndicator = new ExpandedNodeId(Boiler.Objects.Boilers_Boiler1_Drum_LevelIndicator, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_OutputPipe = new ExpandedNodeId(
-            Boiler.Objects.Boilers_Boiler1_OutputPipe,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_OutputPipe = new ExpandedNodeId(Boiler.Objects.Boilers_Boiler1_OutputPipe, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_OutputPipe_FlowTransmitter2 = new ExpandedNodeId(
-            Boiler.Objects.Boilers_Boiler1_OutputPipe_FlowTransmitter2,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_OutputPipe_FlowTransmitter2 = new ExpandedNodeId(Boiler.Objects.Boilers_Boiler1_OutputPipe_FlowTransmitter2, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_FlowController = new ExpandedNodeId(
-            Boiler.Objects.Boilers_Boiler1_FlowController,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_FlowController = new ExpandedNodeId(Boiler.Objects.Boilers_Boiler1_FlowController, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_LevelController = new ExpandedNodeId(
-            Boiler.Objects.Boilers_Boiler1_LevelController,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_LevelController = new ExpandedNodeId(Boiler.Objects.Boilers_Boiler1_LevelController, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_CustomController = new ExpandedNodeId(
-            Boiler.Objects.Boilers_Boiler1_CustomController,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_CustomController = new ExpandedNodeId(Boiler.Objects.Boilers_Boiler1_CustomController, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation = new ExpandedNodeId(
-            Boiler.Objects.Boilers_Boiler1_Simulation,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation = new ExpandedNodeId(Boiler.Objects.Boilers_Boiler1_Simulation, Boiler.Namespaces.Boiler);
     }
     #endregion
 
@@ -952,88 +823,46 @@ namespace Boiler
     public static partial class ObjectTypeIds
     {
         /// <remarks />
-        public static readonly ExpandedNodeId GenericControllerType = new ExpandedNodeId(
-            Boiler.ObjectTypes.GenericControllerType,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId GenericControllerType = new ExpandedNodeId(Boiler.ObjectTypes.GenericControllerType, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId GenericSensorType = new ExpandedNodeId(
-            Boiler.ObjectTypes.GenericSensorType,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId GenericSensorType = new ExpandedNodeId(Boiler.ObjectTypes.GenericSensorType, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId GenericActuatorType = new ExpandedNodeId(
-            Boiler.ObjectTypes.GenericActuatorType,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId GenericActuatorType = new ExpandedNodeId(Boiler.ObjectTypes.GenericActuatorType, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId CustomControllerType = new ExpandedNodeId(
-            Boiler.ObjectTypes.CustomControllerType,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId CustomControllerType = new ExpandedNodeId(Boiler.ObjectTypes.CustomControllerType, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId ValveType = new ExpandedNodeId(
-            Boiler.ObjectTypes.ValveType,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId ValveType = new ExpandedNodeId(Boiler.ObjectTypes.ValveType, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId LevelControllerType = new ExpandedNodeId(
-            Boiler.ObjectTypes.LevelControllerType,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId LevelControllerType = new ExpandedNodeId(Boiler.ObjectTypes.LevelControllerType, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId FlowControllerType = new ExpandedNodeId(
-            Boiler.ObjectTypes.FlowControllerType,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId FlowControllerType = new ExpandedNodeId(Boiler.ObjectTypes.FlowControllerType, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId LevelIndicatorType = new ExpandedNodeId(
-            Boiler.ObjectTypes.LevelIndicatorType,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId LevelIndicatorType = new ExpandedNodeId(Boiler.ObjectTypes.LevelIndicatorType, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId FlowTransmitterType = new ExpandedNodeId(
-            Boiler.ObjectTypes.FlowTransmitterType,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId FlowTransmitterType = new ExpandedNodeId(Boiler.ObjectTypes.FlowTransmitterType, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType = new ExpandedNodeId(
-            Boiler.ObjectTypes.BoilerStateMachineType,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerStateMachineType = new ExpandedNodeId(Boiler.ObjectTypes.BoilerStateMachineType, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerInputPipeType = new ExpandedNodeId(
-            Boiler.ObjectTypes.BoilerInputPipeType,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerInputPipeType = new ExpandedNodeId(Boiler.ObjectTypes.BoilerInputPipeType, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerDrumType = new ExpandedNodeId(
-            Boiler.ObjectTypes.BoilerDrumType,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerDrumType = new ExpandedNodeId(Boiler.ObjectTypes.BoilerDrumType, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerOutputPipeType = new ExpandedNodeId(
-            Boiler.ObjectTypes.BoilerOutputPipeType,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerOutputPipeType = new ExpandedNodeId(Boiler.ObjectTypes.BoilerOutputPipeType, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType = new ExpandedNodeId(
-            Boiler.ObjectTypes.BoilerType,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType = new ExpandedNodeId(Boiler.ObjectTypes.BoilerType, Boiler.Namespaces.Boiler);
     }
     #endregion
 
@@ -1044,22 +873,13 @@ namespace Boiler
     public static partial class ReferenceTypeIds
     {
         /// <remarks />
-        public static readonly ExpandedNodeId FlowTo = new ExpandedNodeId(
-            Boiler.ReferenceTypes.FlowTo,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId FlowTo = new ExpandedNodeId(Boiler.ReferenceTypes.FlowTo, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId HotFlowTo = new ExpandedNodeId(
-            Boiler.ReferenceTypes.HotFlowTo,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId HotFlowTo = new ExpandedNodeId(Boiler.ReferenceTypes.HotFlowTo, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId SignalTo = new ExpandedNodeId(
-            Boiler.ReferenceTypes.SignalTo,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId SignalTo = new ExpandedNodeId(Boiler.ReferenceTypes.SignalTo, Boiler.Namespaces.Boiler);
     }
     #endregion
 
@@ -1070,881 +890,418 @@ namespace Boiler
     public static partial class VariableIds
     {
         /// <remarks />
-        public static readonly ExpandedNodeId GenericControllerType_Measurement = new ExpandedNodeId(
-            Boiler.Variables.GenericControllerType_Measurement,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId GenericControllerType_Measurement = new ExpandedNodeId(Boiler.Variables.GenericControllerType_Measurement, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId GenericControllerType_SetPoint = new ExpandedNodeId(
-            Boiler.Variables.GenericControllerType_SetPoint,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId GenericControllerType_SetPoint = new ExpandedNodeId(Boiler.Variables.GenericControllerType_SetPoint, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId GenericControllerType_ControlOut = new ExpandedNodeId(
-            Boiler.Variables.GenericControllerType_ControlOut,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId GenericControllerType_ControlOut = new ExpandedNodeId(Boiler.Variables.GenericControllerType_ControlOut, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId GenericSensorType_Output = new ExpandedNodeId(
-            Boiler.Variables.GenericSensorType_Output,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId GenericSensorType_Output = new ExpandedNodeId(Boiler.Variables.GenericSensorType_Output, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId GenericSensorType_Output_EURange = new ExpandedNodeId(
-            Boiler.Variables.GenericSensorType_Output_EURange,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId GenericSensorType_Output_EURange = new ExpandedNodeId(Boiler.Variables.GenericSensorType_Output_EURange, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId GenericActuatorType_Input = new ExpandedNodeId(
-            Boiler.Variables.GenericActuatorType_Input,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId GenericActuatorType_Input = new ExpandedNodeId(Boiler.Variables.GenericActuatorType_Input, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId GenericActuatorType_Input_EURange = new ExpandedNodeId(
-            Boiler.Variables.GenericActuatorType_Input_EURange,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId GenericActuatorType_Input_EURange = new ExpandedNodeId(Boiler.Variables.GenericActuatorType_Input_EURange, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId CustomControllerType_Input1 = new ExpandedNodeId(
-            Boiler.Variables.CustomControllerType_Input1,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId CustomControllerType_Input1 = new ExpandedNodeId(Boiler.Variables.CustomControllerType_Input1, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId CustomControllerType_Input2 = new ExpandedNodeId(
-            Boiler.Variables.CustomControllerType_Input2,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId CustomControllerType_Input2 = new ExpandedNodeId(Boiler.Variables.CustomControllerType_Input2, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId CustomControllerType_Input3 = new ExpandedNodeId(
-            Boiler.Variables.CustomControllerType_Input3,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId CustomControllerType_Input3 = new ExpandedNodeId(Boiler.Variables.CustomControllerType_Input3, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId CustomControllerType_ControlOut = new ExpandedNodeId(
-            Boiler.Variables.CustomControllerType_ControlOut,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId CustomControllerType_ControlOut = new ExpandedNodeId(Boiler.Variables.CustomControllerType_ControlOut, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId CustomControllerType_DescriptionX = new ExpandedNodeId(
-            Boiler.Variables.CustomControllerType_DescriptionX,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId CustomControllerType_DescriptionX = new ExpandedNodeId(Boiler.Variables.CustomControllerType_DescriptionX, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId ValveType_Input_EURange = new ExpandedNodeId(
-            Boiler.Variables.ValveType_Input_EURange,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId ValveType_Input_EURange = new ExpandedNodeId(Boiler.Variables.ValveType_Input_EURange, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId LevelIndicatorType_Output_EURange = new ExpandedNodeId(
-            Boiler.Variables.LevelIndicatorType_Output_EURange,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId LevelIndicatorType_Output_EURange = new ExpandedNodeId(Boiler.Variables.LevelIndicatorType_Output_EURange, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId FlowTransmitterType_Output_EURange = new ExpandedNodeId(
-            Boiler.Variables.FlowTransmitterType_Output_EURange,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId FlowTransmitterType_Output_EURange = new ExpandedNodeId(Boiler.Variables.FlowTransmitterType_Output_EURange, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_CurrentState_Id = new ExpandedNodeId(
-            Boiler.Variables.BoilerStateMachineType_CurrentState_Id,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerStateMachineType_CurrentState_Id = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_CurrentState_Id, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_CurrentState_Number = new ExpandedNodeId(
-            Boiler.Variables.BoilerStateMachineType_CurrentState_Number,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerStateMachineType_CurrentState_Number = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_CurrentState_Number, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_LastTransition_Id = new ExpandedNodeId(
-            Boiler.Variables.BoilerStateMachineType_LastTransition_Id,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerStateMachineType_LastTransition_Id = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_LastTransition_Id, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_LastTransition_Number = new ExpandedNodeId(
-            Boiler.Variables.BoilerStateMachineType_LastTransition_Number,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerStateMachineType_LastTransition_Number = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_LastTransition_Number, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_LastTransition_TransitionTime = new ExpandedNodeId(
-            Boiler.Variables.BoilerStateMachineType_LastTransition_TransitionTime,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerStateMachineType_LastTransition_TransitionTime = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_LastTransition_TransitionTime, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostic_CreateSessionId =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerStateMachineType_ProgramDiagnostic_CreateSessionId,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostic_CreateSessionId = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ProgramDiagnostic_CreateSessionId, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostic_CreateClientName =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerStateMachineType_ProgramDiagnostic_CreateClientName,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostic_CreateClientName = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ProgramDiagnostic_CreateClientName, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostic_InvocationCreationTime =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerStateMachineType_ProgramDiagnostic_InvocationCreationTime,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostic_InvocationCreationTime = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ProgramDiagnostic_InvocationCreationTime, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostic_LastTransitionTime =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerStateMachineType_ProgramDiagnostic_LastTransitionTime,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostic_LastTransitionTime = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ProgramDiagnostic_LastTransitionTime, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostic_LastMethodCall =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerStateMachineType_ProgramDiagnostic_LastMethodCall,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostic_LastMethodCall = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ProgramDiagnostic_LastMethodCall, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostic_LastMethodSessionId =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerStateMachineType_ProgramDiagnostic_LastMethodSessionId,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostic_LastMethodSessionId = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ProgramDiagnostic_LastMethodSessionId, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostic_LastMethodInputArguments =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerStateMachineType_ProgramDiagnostic_LastMethodInputArguments,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostic_LastMethodInputArguments = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ProgramDiagnostic_LastMethodInputArguments, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostic_LastMethodOutputArguments =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerStateMachineType_ProgramDiagnostic_LastMethodOutputArguments,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostic_LastMethodOutputArguments = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ProgramDiagnostic_LastMethodOutputArguments, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostic_LastMethodInputValues =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerStateMachineType_ProgramDiagnostic_LastMethodInputValues,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostic_LastMethodInputValues = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ProgramDiagnostic_LastMethodInputValues, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostic_LastMethodOutputValues =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerStateMachineType_ProgramDiagnostic_LastMethodOutputValues,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostic_LastMethodOutputValues = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ProgramDiagnostic_LastMethodOutputValues, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostic_LastMethodCallTime =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerStateMachineType_ProgramDiagnostic_LastMethodCallTime,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostic_LastMethodCallTime = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ProgramDiagnostic_LastMethodCallTime, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostic_LastMethodReturnStatus =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerStateMachineType_ProgramDiagnostic_LastMethodReturnStatus,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerStateMachineType_ProgramDiagnostic_LastMethodReturnStatus = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ProgramDiagnostic_LastMethodReturnStatus, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_Halted_StateNumber = new ExpandedNodeId(
-            Boiler.Variables.BoilerStateMachineType_Halted_StateNumber,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerStateMachineType_Halted_StateNumber = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_Halted_StateNumber, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_Ready_StateNumber = new ExpandedNodeId(
-            Boiler.Variables.BoilerStateMachineType_Ready_StateNumber,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerStateMachineType_Ready_StateNumber = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_Ready_StateNumber, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_Running_StateNumber = new ExpandedNodeId(
-            Boiler.Variables.BoilerStateMachineType_Running_StateNumber,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerStateMachineType_Running_StateNumber = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_Running_StateNumber, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_Suspended_StateNumber = new ExpandedNodeId(
-            Boiler.Variables.BoilerStateMachineType_Suspended_StateNumber,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerStateMachineType_Suspended_StateNumber = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_Suspended_StateNumber, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_HaltedToReady_TransitionNumber =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerStateMachineType_HaltedToReady_TransitionNumber,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerStateMachineType_HaltedToReady_TransitionNumber = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_HaltedToReady_TransitionNumber, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_ReadyToRunning_TransitionNumber =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerStateMachineType_ReadyToRunning_TransitionNumber,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerStateMachineType_ReadyToRunning_TransitionNumber = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ReadyToRunning_TransitionNumber, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_RunningToHalted_TransitionNumber =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerStateMachineType_RunningToHalted_TransitionNumber,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerStateMachineType_RunningToHalted_TransitionNumber = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_RunningToHalted_TransitionNumber, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_RunningToReady_TransitionNumber =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerStateMachineType_RunningToReady_TransitionNumber,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerStateMachineType_RunningToReady_TransitionNumber = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_RunningToReady_TransitionNumber, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_RunningToSuspended_TransitionNumber =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerStateMachineType_RunningToSuspended_TransitionNumber,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerStateMachineType_RunningToSuspended_TransitionNumber = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_RunningToSuspended_TransitionNumber, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_SuspendedToRunning_TransitionNumber =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerStateMachineType_SuspendedToRunning_TransitionNumber,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerStateMachineType_SuspendedToRunning_TransitionNumber = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_SuspendedToRunning_TransitionNumber, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_SuspendedToHalted_TransitionNumber =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerStateMachineType_SuspendedToHalted_TransitionNumber,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerStateMachineType_SuspendedToHalted_TransitionNumber = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_SuspendedToHalted_TransitionNumber, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_SuspendedToReady_TransitionNumber =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerStateMachineType_SuspendedToReady_TransitionNumber,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerStateMachineType_SuspendedToReady_TransitionNumber = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_SuspendedToReady_TransitionNumber, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_ReadyToHalted_TransitionNumber =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerStateMachineType_ReadyToHalted_TransitionNumber,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerStateMachineType_ReadyToHalted_TransitionNumber = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_ReadyToHalted_TransitionNumber, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerStateMachineType_UpdateRate = new ExpandedNodeId(
-            Boiler.Variables.BoilerStateMachineType_UpdateRate,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerStateMachineType_UpdateRate = new ExpandedNodeId(Boiler.Variables.BoilerStateMachineType_UpdateRate, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerInputPipeType_FlowTransmitter1_Output = new ExpandedNodeId(
-            Boiler.Variables.BoilerInputPipeType_FlowTransmitter1_Output,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerInputPipeType_FlowTransmitter1_Output = new ExpandedNodeId(Boiler.Variables.BoilerInputPipeType_FlowTransmitter1_Output, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerInputPipeType_FlowTransmitter1_Output_EURange = new ExpandedNodeId(
-            Boiler.Variables.BoilerInputPipeType_FlowTransmitter1_Output_EURange,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerInputPipeType_FlowTransmitter1_Output_EURange = new ExpandedNodeId(Boiler.Variables.BoilerInputPipeType_FlowTransmitter1_Output_EURange, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerInputPipeType_Valve_Input = new ExpandedNodeId(
-            Boiler.Variables.BoilerInputPipeType_Valve_Input,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerInputPipeType_Valve_Input = new ExpandedNodeId(Boiler.Variables.BoilerInputPipeType_Valve_Input, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerInputPipeType_Valve_Input_EURange = new ExpandedNodeId(
-            Boiler.Variables.BoilerInputPipeType_Valve_Input_EURange,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerInputPipeType_Valve_Input_EURange = new ExpandedNodeId(Boiler.Variables.BoilerInputPipeType_Valve_Input_EURange, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerDrumType_LevelIndicator_Output = new ExpandedNodeId(
-            Boiler.Variables.BoilerDrumType_LevelIndicator_Output,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerDrumType_LevelIndicator_Output = new ExpandedNodeId(Boiler.Variables.BoilerDrumType_LevelIndicator_Output, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerDrumType_LevelIndicator_Output_EURange = new ExpandedNodeId(
-            Boiler.Variables.BoilerDrumType_LevelIndicator_Output_EURange,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerDrumType_LevelIndicator_Output_EURange = new ExpandedNodeId(Boiler.Variables.BoilerDrumType_LevelIndicator_Output_EURange, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerOutputPipeType_FlowTransmitter2_Output = new ExpandedNodeId(
-            Boiler.Variables.BoilerOutputPipeType_FlowTransmitter2_Output,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerOutputPipeType_FlowTransmitter2_Output = new ExpandedNodeId(Boiler.Variables.BoilerOutputPipeType_FlowTransmitter2_Output, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerOutputPipeType_FlowTransmitter2_Output_EURange = new ExpandedNodeId(
-            Boiler.Variables.BoilerOutputPipeType_FlowTransmitter2_Output_EURange,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerOutputPipeType_FlowTransmitter2_Output_EURange = new ExpandedNodeId(Boiler.Variables.BoilerOutputPipeType_FlowTransmitter2_Output_EURange, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_InputPipe_FlowTransmitter1_Output = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_InputPipe_FlowTransmitter1_Output,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_InputPipe_FlowTransmitter1_Output = new ExpandedNodeId(Boiler.Variables.BoilerType_InputPipe_FlowTransmitter1_Output, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_InputPipe_FlowTransmitter1_Output_EURange = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_InputPipe_FlowTransmitter1_Output_EURange,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_InputPipe_FlowTransmitter1_Output_EURange = new ExpandedNodeId(Boiler.Variables.BoilerType_InputPipe_FlowTransmitter1_Output_EURange, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_InputPipe_Valve_Input = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_InputPipe_Valve_Input,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_InputPipe_Valve_Input = new ExpandedNodeId(Boiler.Variables.BoilerType_InputPipe_Valve_Input, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_InputPipe_Valve_Input_EURange = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_InputPipe_Valve_Input_EURange,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_InputPipe_Valve_Input_EURange = new ExpandedNodeId(Boiler.Variables.BoilerType_InputPipe_Valve_Input_EURange, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Drum_LevelIndicator_Output = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_Drum_LevelIndicator_Output,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_Drum_LevelIndicator_Output = new ExpandedNodeId(Boiler.Variables.BoilerType_Drum_LevelIndicator_Output, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Drum_LevelIndicator_Output_EURange = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_Drum_LevelIndicator_Output_EURange,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_Drum_LevelIndicator_Output_EURange = new ExpandedNodeId(Boiler.Variables.BoilerType_Drum_LevelIndicator_Output_EURange, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_OutputPipe_FlowTransmitter2_Output = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_OutputPipe_FlowTransmitter2_Output,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_OutputPipe_FlowTransmitter2_Output = new ExpandedNodeId(Boiler.Variables.BoilerType_OutputPipe_FlowTransmitter2_Output, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_OutputPipe_FlowTransmitter2_Output_EURange =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerType_OutputPipe_FlowTransmitter2_Output_EURange,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerType_OutputPipe_FlowTransmitter2_Output_EURange = new ExpandedNodeId(Boiler.Variables.BoilerType_OutputPipe_FlowTransmitter2_Output_EURange, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_FlowController_Measurement = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_FlowController_Measurement,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_FlowController_Measurement = new ExpandedNodeId(Boiler.Variables.BoilerType_FlowController_Measurement, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_FlowController_SetPoint = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_FlowController_SetPoint,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_FlowController_SetPoint = new ExpandedNodeId(Boiler.Variables.BoilerType_FlowController_SetPoint, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_FlowController_ControlOut = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_FlowController_ControlOut,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_FlowController_ControlOut = new ExpandedNodeId(Boiler.Variables.BoilerType_FlowController_ControlOut, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_LevelController_Measurement = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_LevelController_Measurement,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_LevelController_Measurement = new ExpandedNodeId(Boiler.Variables.BoilerType_LevelController_Measurement, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_LevelController_SetPoint = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_LevelController_SetPoint,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_LevelController_SetPoint = new ExpandedNodeId(Boiler.Variables.BoilerType_LevelController_SetPoint, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_LevelController_ControlOut = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_LevelController_ControlOut,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_LevelController_ControlOut = new ExpandedNodeId(Boiler.Variables.BoilerType_LevelController_ControlOut, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_CustomController_Input1 = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_CustomController_Input1,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_CustomController_Input1 = new ExpandedNodeId(Boiler.Variables.BoilerType_CustomController_Input1, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_CustomController_Input2 = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_CustomController_Input2,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_CustomController_Input2 = new ExpandedNodeId(Boiler.Variables.BoilerType_CustomController_Input2, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_CustomController_Input3 = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_CustomController_Input3,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_CustomController_Input3 = new ExpandedNodeId(Boiler.Variables.BoilerType_CustomController_Input3, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_CustomController_ControlOut = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_CustomController_ControlOut,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_CustomController_ControlOut = new ExpandedNodeId(Boiler.Variables.BoilerType_CustomController_ControlOut, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_CustomController_DescriptionX = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_CustomController_DescriptionX,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_CustomController_DescriptionX = new ExpandedNodeId(Boiler.Variables.BoilerType_CustomController_DescriptionX, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_CurrentState = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_Simulation_CurrentState,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_Simulation_CurrentState = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_CurrentState, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_CurrentState_Id = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_Simulation_CurrentState_Id,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_Simulation_CurrentState_Id = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_CurrentState_Id, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_CurrentState_Number = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_Simulation_CurrentState_Number,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_Simulation_CurrentState_Number = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_CurrentState_Number, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_LastTransition = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_Simulation_LastTransition,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_Simulation_LastTransition = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_LastTransition, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_LastTransition_Id = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_Simulation_LastTransition_Id,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_Simulation_LastTransition_Id = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_LastTransition_Id, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_LastTransition_Number = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_Simulation_LastTransition_Number,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_Simulation_LastTransition_Number = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_LastTransition_Number, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_LastTransition_TransitionTime = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_Simulation_LastTransition_TransitionTime,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_Simulation_LastTransition_TransitionTime = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_LastTransition_TransitionTime, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_Deletable = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_Simulation_Deletable,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_Simulation_Deletable = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_Deletable, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_AutoDelete = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_Simulation_AutoDelete,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_Simulation_AutoDelete = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_AutoDelete, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_RecycleCount = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_Simulation_RecycleCount,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_Simulation_RecycleCount = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_RecycleCount, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostic_CreateSessionId =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerType_Simulation_ProgramDiagnostic_CreateSessionId,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostic_CreateSessionId = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_ProgramDiagnostic_CreateSessionId, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostic_CreateClientName =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerType_Simulation_ProgramDiagnostic_CreateClientName,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostic_CreateClientName = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_ProgramDiagnostic_CreateClientName, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostic_InvocationCreationTime =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerType_Simulation_ProgramDiagnostic_InvocationCreationTime,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostic_InvocationCreationTime = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_ProgramDiagnostic_InvocationCreationTime, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostic_LastTransitionTime =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerType_Simulation_ProgramDiagnostic_LastTransitionTime,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostic_LastTransitionTime = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_ProgramDiagnostic_LastTransitionTime, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostic_LastMethodCall =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerType_Simulation_ProgramDiagnostic_LastMethodCall,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostic_LastMethodCall = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_ProgramDiagnostic_LastMethodCall, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostic_LastMethodSessionId =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerType_Simulation_ProgramDiagnostic_LastMethodSessionId,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostic_LastMethodSessionId = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_ProgramDiagnostic_LastMethodSessionId, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostic_LastMethodInputArguments =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerType_Simulation_ProgramDiagnostic_LastMethodInputArguments,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostic_LastMethodInputArguments = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_ProgramDiagnostic_LastMethodInputArguments, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostic_LastMethodOutputArguments =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerType_Simulation_ProgramDiagnostic_LastMethodOutputArguments,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostic_LastMethodOutputArguments = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_ProgramDiagnostic_LastMethodOutputArguments, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostic_LastMethodInputValues =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerType_Simulation_ProgramDiagnostic_LastMethodInputValues,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostic_LastMethodInputValues = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_ProgramDiagnostic_LastMethodInputValues, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostic_LastMethodOutputValues =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerType_Simulation_ProgramDiagnostic_LastMethodOutputValues,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostic_LastMethodOutputValues = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_ProgramDiagnostic_LastMethodOutputValues, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostic_LastMethodCallTime =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerType_Simulation_ProgramDiagnostic_LastMethodCallTime,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostic_LastMethodCallTime = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_ProgramDiagnostic_LastMethodCallTime, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostic_LastMethodReturnStatus =
-            new ExpandedNodeId(
-                Boiler.Variables.BoilerType_Simulation_ProgramDiagnostic_LastMethodReturnStatus,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId BoilerType_Simulation_ProgramDiagnostic_LastMethodReturnStatus = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_ProgramDiagnostic_LastMethodReturnStatus, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId BoilerType_Simulation_UpdateRate = new ExpandedNodeId(
-            Boiler.Variables.BoilerType_Simulation_UpdateRate,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId BoilerType_Simulation_UpdateRate = new ExpandedNodeId(Boiler.Variables.BoilerType_Simulation_UpdateRate, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_InputPipe_FlowTransmitter1_Output = new ExpandedNodeId(
-            Boiler.Variables.Boilers_Boiler1_InputPipe_FlowTransmitter1_Output,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_InputPipe_FlowTransmitter1_Output = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_InputPipe_FlowTransmitter1_Output, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_InputPipe_FlowTransmitter1_Output_EURange =
-            new ExpandedNodeId(
-                Boiler.Variables.Boilers_Boiler1_InputPipe_FlowTransmitter1_Output_EURange,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId Boilers_Boiler1_InputPipe_FlowTransmitter1_Output_EURange = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_InputPipe_FlowTransmitter1_Output_EURange, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_InputPipe_Valve_Input = new ExpandedNodeId(
-            Boiler.Variables.Boilers_Boiler1_InputPipe_Valve_Input,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_InputPipe_Valve_Input = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_InputPipe_Valve_Input, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_InputPipe_Valve_Input_EURange = new ExpandedNodeId(
-            Boiler.Variables.Boilers_Boiler1_InputPipe_Valve_Input_EURange,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_InputPipe_Valve_Input_EURange = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_InputPipe_Valve_Input_EURange, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Drum_LevelIndicator_Output = new ExpandedNodeId(
-            Boiler.Variables.Boilers_Boiler1_Drum_LevelIndicator_Output,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Drum_LevelIndicator_Output = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Drum_LevelIndicator_Output, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Drum_LevelIndicator_Output_EURange = new ExpandedNodeId(
-            Boiler.Variables.Boilers_Boiler1_Drum_LevelIndicator_Output_EURange,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Drum_LevelIndicator_Output_EURange = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Drum_LevelIndicator_Output_EURange, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_OutputPipe_FlowTransmitter2_Output = new ExpandedNodeId(
-            Boiler.Variables.Boilers_Boiler1_OutputPipe_FlowTransmitter2_Output,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_OutputPipe_FlowTransmitter2_Output = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_OutputPipe_FlowTransmitter2_Output, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_OutputPipe_FlowTransmitter2_Output_EURange =
-            new ExpandedNodeId(
-                Boiler.Variables.Boilers_Boiler1_OutputPipe_FlowTransmitter2_Output_EURange,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId Boilers_Boiler1_OutputPipe_FlowTransmitter2_Output_EURange = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_OutputPipe_FlowTransmitter2_Output_EURange, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_FlowController_Measurement = new ExpandedNodeId(
-            Boiler.Variables.Boilers_Boiler1_FlowController_Measurement,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_FlowController_Measurement = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_FlowController_Measurement, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_FlowController_SetPoint = new ExpandedNodeId(
-            Boiler.Variables.Boilers_Boiler1_FlowController_SetPoint,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_FlowController_SetPoint = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_FlowController_SetPoint, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_FlowController_ControlOut = new ExpandedNodeId(
-            Boiler.Variables.Boilers_Boiler1_FlowController_ControlOut,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_FlowController_ControlOut = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_FlowController_ControlOut, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_LevelController_Measurement = new ExpandedNodeId(
-            Boiler.Variables.Boilers_Boiler1_LevelController_Measurement,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_LevelController_Measurement = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_LevelController_Measurement, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_LevelController_SetPoint = new ExpandedNodeId(
-            Boiler.Variables.Boilers_Boiler1_LevelController_SetPoint,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_LevelController_SetPoint = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_LevelController_SetPoint, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_LevelController_ControlOut = new ExpandedNodeId(
-            Boiler.Variables.Boilers_Boiler1_LevelController_ControlOut,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_LevelController_ControlOut = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_LevelController_ControlOut, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_CustomController_Input1 = new ExpandedNodeId(
-            Boiler.Variables.Boilers_Boiler1_CustomController_Input1,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_CustomController_Input1 = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_CustomController_Input1, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_CustomController_Input2 = new ExpandedNodeId(
-            Boiler.Variables.Boilers_Boiler1_CustomController_Input2,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_CustomController_Input2 = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_CustomController_Input2, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_CustomController_Input3 = new ExpandedNodeId(
-            Boiler.Variables.Boilers_Boiler1_CustomController_Input3,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_CustomController_Input3 = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_CustomController_Input3, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_CustomController_ControlOut = new ExpandedNodeId(
-            Boiler.Variables.Boilers_Boiler1_CustomController_ControlOut,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_CustomController_ControlOut = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_CustomController_ControlOut, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_CustomController_DescriptionX = new ExpandedNodeId(
-            Boiler.Variables.Boilers_Boiler1_CustomController_DescriptionX,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_CustomController_DescriptionX = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_CustomController_DescriptionX, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_CurrentState = new ExpandedNodeId(
-            Boiler.Variables.Boilers_Boiler1_Simulation_CurrentState,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_CurrentState = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_CurrentState, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_CurrentState_Id = new ExpandedNodeId(
-            Boiler.Variables.Boilers_Boiler1_Simulation_CurrentState_Id,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_CurrentState_Id = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_CurrentState_Id, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_CurrentState_Number = new ExpandedNodeId(
-            Boiler.Variables.Boilers_Boiler1_Simulation_CurrentState_Number,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_CurrentState_Number = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_CurrentState_Number, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_LastTransition = new ExpandedNodeId(
-            Boiler.Variables.Boilers_Boiler1_Simulation_LastTransition,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_LastTransition = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_LastTransition, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_LastTransition_Id = new ExpandedNodeId(
-            Boiler.Variables.Boilers_Boiler1_Simulation_LastTransition_Id,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_LastTransition_Id = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_LastTransition_Id, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_LastTransition_Number = new ExpandedNodeId(
-            Boiler.Variables.Boilers_Boiler1_Simulation_LastTransition_Number,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_LastTransition_Number = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_LastTransition_Number, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_LastTransition_TransitionTime =
-            new ExpandedNodeId(
-                Boiler.Variables.Boilers_Boiler1_Simulation_LastTransition_TransitionTime,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_LastTransition_TransitionTime = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_LastTransition_TransitionTime, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_Deletable = new ExpandedNodeId(
-            Boiler.Variables.Boilers_Boiler1_Simulation_Deletable,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_Deletable = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_Deletable, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_AutoDelete = new ExpandedNodeId(
-            Boiler.Variables.Boilers_Boiler1_Simulation_AutoDelete,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_AutoDelete = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_AutoDelete, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_RecycleCount = new ExpandedNodeId(
-            Boiler.Variables.Boilers_Boiler1_Simulation_RecycleCount,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_RecycleCount = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_RecycleCount, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostic_CreateSessionId =
-            new ExpandedNodeId(
-                Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostic_CreateSessionId,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostic_CreateSessionId = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostic_CreateSessionId, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostic_CreateClientName =
-            new ExpandedNodeId(
-                Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostic_CreateClientName,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostic_CreateClientName = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostic_CreateClientName, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostic_InvocationCreationTime =
-            new ExpandedNodeId(
-                Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostic_InvocationCreationTime,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostic_InvocationCreationTime = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostic_InvocationCreationTime, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostic_LastTransitionTime =
-            new ExpandedNodeId(
-                Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostic_LastTransitionTime,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostic_LastTransitionTime = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostic_LastTransitionTime, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodCall =
-            new ExpandedNodeId(
-                Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodCall,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodCall = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodCall, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodSessionId =
-            new ExpandedNodeId(
-                Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodSessionId,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodSessionId = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodSessionId, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodInputArguments =
-            new ExpandedNodeId(
-                Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodInputArguments,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodInputArguments = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodInputArguments, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodOutputArguments =
-            new ExpandedNodeId(
-                Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodOutputArguments,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodOutputArguments = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodOutputArguments, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodInputValues =
-            new ExpandedNodeId(
-                Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodInputValues,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodInputValues = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodInputValues, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodOutputValues =
-            new ExpandedNodeId(
-                Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodOutputValues,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodOutputValues = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodOutputValues, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodCallTime =
-            new ExpandedNodeId(
-                Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodCallTime,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodCallTime = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodCallTime, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodReturnStatus =
-            new ExpandedNodeId(
-                Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodReturnStatus,
-                Boiler.Namespaces.Boiler
-            );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodReturnStatus = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_ProgramDiagnostic_LastMethodReturnStatus, Boiler.Namespaces.Boiler);
 
         /// <remarks />
-        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_UpdateRate = new ExpandedNodeId(
-            Boiler.Variables.Boilers_Boiler1_Simulation_UpdateRate,
-            Boiler.Namespaces.Boiler
-        );
+        public static readonly ExpandedNodeId Boilers_Boiler1_Simulation_UpdateRate = new ExpandedNodeId(Boiler.Variables.Boilers_Boiler1_Simulation_UpdateRate, Boiler.Namespaces.Boiler);
     }
     #endregion
 

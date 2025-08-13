@@ -29,15 +29,15 @@
 
 using System;
 using System.Collections.Generic;
-using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
+using System.Runtime.Serialization;
 using Opc.Ua;
 
 namespace MemoryBuffer
 {
     #region MemoryTagState Class
-#if (!OPCUA_EXCLUDE_MemoryTagState)
+    #if (!OPCUA_EXCLUDE_MemoryTagState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -45,17 +45,14 @@ namespace MemoryBuffer
     {
         #region Constructors
         /// <remarks />
-        public MemoryTagState(NodeState parent)
-            : base(parent) { }
+        public MemoryTagState(NodeState parent) : base(parent)
+        {
+        }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(
-                MemoryBuffer.VariableTypes.MemoryTagType,
-                MemoryBuffer.Namespaces.MemoryBuffer,
-                namespaceUris
-            );
+            return Opc.Ua.NodeId.Create(MemoryBuffer.VariableTypes.MemoryTagType, MemoryBuffer.Namespaces.MemoryBuffer, namespaceUris);
         }
 
         /// <remarks />
@@ -70,7 +67,7 @@ namespace MemoryBuffer
             return ValueRanks.Scalar;
         }
 
-#if (!OPCUA_EXCLUDE_InitializationStrings)
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -94,10 +91,10 @@ namespace MemoryBuffer
 
         #region Initialization String
         private const string InitializationString =
-            "AQAAACIAAABodHRwOi8vc2FtcGxlcy5vcmcvVUEvTWVtb3J5QnVmZmVy/////xVggQICAAAAAQAVAAAA"
-            + "TWVtb3J5VGFnVHlwZUluc3RhbmNlAQHpAwEB6QPpAwAAABgBAf////8AAAAA";
+           "AQAAACIAAABodHRwOi8vc2FtcGxlcy5vcmcvVUEvTWVtb3J5QnVmZmVy/////xVggQICAAAAAQAVAAAA" +
+           "TWVtb3J5VGFnVHlwZUluc3RhbmNlAQHpAwEB6QPpAwAAABgBAf////8AAAAA";
         #endregion
-#endif
+        #endif
         #endregion
 
         #region Public Properties
@@ -118,8 +115,7 @@ namespace MemoryBuffer
     {
         #region Constructors
         /// <remarks />
-        public MemoryTagState(NodeState parent)
-            : base(parent)
+        public MemoryTagState(NodeState parent) : base(parent)
         {
             Value = default(T);
         }
@@ -150,6 +146,7 @@ namespace MemoryBuffer
             {
                 return CheckTypeBeforeCast<T>(((BaseVariableState)this).Value, true);
             }
+
             set
             {
                 ((BaseVariableState)this).Value = value;
@@ -158,11 +155,11 @@ namespace MemoryBuffer
         #endregion
     }
     #endregion
-#endif
+    #endif
     #endregion
 
     #region MemoryBufferState Class
-#if (!OPCUA_EXCLUDE_MemoryBufferState)
+    #if (!OPCUA_EXCLUDE_MemoryBufferState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -170,20 +167,17 @@ namespace MemoryBuffer
     {
         #region Constructors
         /// <remarks />
-        public MemoryBufferState(NodeState parent)
-            : base(parent) { }
+        public MemoryBufferState(NodeState parent) : base(parent)
+        {
+        }
 
         /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return Opc.Ua.NodeId.Create(
-                MemoryBuffer.ObjectTypes.MemoryBufferType,
-                MemoryBuffer.Namespaces.MemoryBuffer,
-                namespaceUris
-            );
+            return Opc.Ua.NodeId.Create(MemoryBuffer.ObjectTypes.MemoryBufferType, MemoryBuffer.Namespaces.MemoryBuffer, namespaceUris);
         }
 
-#if (!OPCUA_EXCLUDE_InitializationStrings)
+        #if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -207,12 +201,12 @@ namespace MemoryBuffer
 
         #region Initialization String
         private const string InitializationString =
-            "AQAAACIAAABodHRwOi8vc2FtcGxlcy5vcmcvVUEvTWVtb3J5QnVmZmVy/////wRggAIBAAAAAQAYAAAA"
-            + "TWVtb3J5QnVmZmVyVHlwZUluc3RhbmNlAQHqAwEB6gPqAwAA/////wIAAAAVYKkKAgAAAAEADAAAAFN0"
-            + "YXJ0QWRkcmVzcwEB6wMALgBE6wMAAAcAAAAAAAf/////AQH/////AAAAABVgqQoCAAAAAQALAAAAU2l6"
-            + "ZUluQnl0ZXMBAewDAC4AROwDAAAHABAAAAAH/////wEB/////wAAAAA=";
+           "AQAAACIAAABodHRwOi8vc2FtcGxlcy5vcmcvVUEvTWVtb3J5QnVmZmVy/////wRggAIBAAAAAQAYAAAA" +
+           "TWVtb3J5QnVmZmVyVHlwZUluc3RhbmNlAQHqAwEB6gPqAwAA/////wIAAAAVYKkKAgAAAAEADAAAAFN0" +
+           "YXJ0QWRkcmVzcwEB6wMALgBE6wMAAAcAAAAAAAf/////AQH/////AAAAABVgqQoCAAAAAQALAAAAU2l6" +
+           "ZUluQnl0ZXMBAewDAC4AROwDAAAHABAAAAAH/////wEB/////wAAAAA=";
         #endregion
-#endif
+        #endif
         #endregion
 
         #region Public Properties
@@ -223,6 +217,7 @@ namespace MemoryBuffer
             {
                 return m_startAddress;
             }
+
             set
             {
                 if (!Object.ReferenceEquals(m_startAddress, value))
@@ -241,6 +236,7 @@ namespace MemoryBuffer
             {
                 return m_sizeInBytes;
             }
+
             set
             {
                 if (!Object.ReferenceEquals(m_sizeInBytes, value))
@@ -255,7 +251,9 @@ namespace MemoryBuffer
 
         #region Overridden Methods
         /// <remarks />
-        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
+        public override void GetChildren(
+            ISystemContext context,
+            IList<BaseInstanceState> children)
         {
             if (m_startAddress != null)
             {
@@ -269,14 +267,13 @@ namespace MemoryBuffer
 
             base.GetChildren(context, children);
         }
-
+            
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement
-        )
+            BaseInstanceState replacement)
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -344,6 +341,6 @@ namespace MemoryBuffer
         private PropertyState<uint> m_sizeInBytes;
         #endregion
     }
-#endif
+    #endif
     #endregion
 }

@@ -1,23 +1,11 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<UANodeSet
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-  LastModified="2023-10-06T12:57:31.2741539Z"
-  xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"
->
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2023-10-06T12:57:31.2741539Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <NamespaceUris>
     <Uri>http://opcfoundation.org/UA/Boiler/</Uri>
   </NamespaceUris>
   <Models>
-    <Model
-      ModelUri="http://opcfoundation.org/UA/Boiler/"
-      Version="1.0.0"
-      PublicationDate="2023-10-06T12:57:31.2741539Z"
-    >
-      <RequiredModel
-        ModelUri="http://opcfoundation.org/UA/"
-        XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd"
-      />
+    <Model ModelUri="http://opcfoundation.org/UA/Boiler/" Version="1.0.0" PublicationDate="2023-10-06T12:57:31.2741539Z">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" />
     </Model>
   </Models>
   <Aliases>
@@ -102,12 +90,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
     </References>
   </UAObjectType>
-  <UAVariable
-    NodeId="ns=1;i=1005"
-    BrowseName="1:Measurement"
-    ParentNodeId="ns=1;i=1004"
-    DataType="Double"
-  >
+  <UAVariable NodeId="ns=1;i=1005" BrowseName="1:Measurement" ParentNodeId="ns=1;i=1004" DataType="Double">
     <DisplayName>Measurement</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -115,13 +98,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1004</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1006"
-    BrowseName="1:SetPoint"
-    ParentNodeId="ns=1;i=1004"
-    DataType="Double"
-    AccessLevel="3"
-  >
+  <UAVariable NodeId="ns=1;i=1006" BrowseName="1:SetPoint" ParentNodeId="ns=1;i=1004" DataType="Double" AccessLevel="3">
     <DisplayName>SetPoint</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -129,12 +106,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1004</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1007"
-    BrowseName="1:ControlOut"
-    ParentNodeId="ns=1;i=1004"
-    DataType="Double"
-  >
+  <UAVariable NodeId="ns=1;i=1007" BrowseName="1:ControlOut" ParentNodeId="ns=1;i=1004" DataType="Double">
     <DisplayName>ControlOut</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -150,12 +122,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
     </References>
   </UAObjectType>
-  <UAVariable
-    NodeId="ns=1;i=1009"
-    BrowseName="1:Output"
-    ParentNodeId="ns=1;i=1008"
-    DataType="Double"
-  >
+  <UAVariable NodeId="ns=1;i=1009" BrowseName="1:Output" ParentNodeId="ns=1;i=1008" DataType="Double">
     <DisplayName>Output</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1013</Reference>
@@ -180,13 +147,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
     </References>
   </UAObjectType>
-  <UAVariable
-    NodeId="ns=1;i=1016"
-    BrowseName="1:Input"
-    ParentNodeId="ns=1;i=1015"
-    DataType="Double"
-    AccessLevel="2"
-  >
+  <UAVariable NodeId="ns=1;i=1016" BrowseName="1:Input" ParentNodeId="ns=1;i=1015" DataType="Double" AccessLevel="2">
     <DisplayName>Input</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1020</Reference>
@@ -215,13 +176,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
     </References>
   </UAObjectType>
-  <UAVariable
-    NodeId="ns=1;i=1023"
-    BrowseName="1:Input1"
-    ParentNodeId="ns=1;i=1022"
-    DataType="Double"
-    AccessLevel="2"
-  >
+  <UAVariable NodeId="ns=1;i=1023" BrowseName="1:Input1" ParentNodeId="ns=1;i=1022" DataType="Double" AccessLevel="2">
     <DisplayName>Input1</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -229,13 +184,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1022</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1024"
-    BrowseName="1:Input2"
-    ParentNodeId="ns=1;i=1022"
-    DataType="Double"
-    AccessLevel="2"
-  >
+  <UAVariable NodeId="ns=1;i=1024" BrowseName="1:Input2" ParentNodeId="ns=1;i=1022" DataType="Double" AccessLevel="2">
     <DisplayName>Input2</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -243,13 +192,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1022</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1025"
-    BrowseName="1:Input3"
-    ParentNodeId="ns=1;i=1022"
-    DataType="Double"
-    AccessLevel="2"
-  >
+  <UAVariable NodeId="ns=1;i=1025" BrowseName="1:Input3" ParentNodeId="ns=1;i=1022" DataType="Double" AccessLevel="2">
     <DisplayName>Input3</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -257,12 +200,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1022</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1026"
-    BrowseName="1:ControlOut"
-    ParentNodeId="ns=1;i=1022"
-    DataType="Double"
-  >
+  <UAVariable NodeId="ns=1;i=1026" BrowseName="1:ControlOut" ParentNodeId="ns=1;i=1022" DataType="Double">
     <DisplayName>ControlOut</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -270,13 +208,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1022</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1027"
-    BrowseName="1:Description"
-    SymbolicName="DescriptionX"
-    ParentNodeId="ns=1;i=1022"
-    DataType="LocalizedText"
-  >
+  <UAVariable NodeId="ns=1;i=1027" BrowseName="1:Description" SymbolicName="DescriptionX" ParentNodeId="ns=1;i=1022" DataType="LocalizedText">
     <DisplayName>Description</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -332,12 +264,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2391</Reference>
     </References>
   </UAObjectType>
-  <UAMethod
-    NodeId="ns=1;i=1118"
-    BrowseName="1:Start"
-    ParentNodeId="ns=1;i=1057"
-    MethodDeclarationId="i=2426"
-  >
+  <UAMethod NodeId="ns=1;i=1118" BrowseName="1:Start" ParentNodeId="ns=1;i=1057" MethodDeclarationId="i=2426">
     <DisplayName>Start</DisplayName>
     <Description>Causes the Program to transition from the Ready state to the Running state.</Description>
     <References>
@@ -345,12 +272,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1057</Reference>
     </References>
   </UAMethod>
-  <UAMethod
-    NodeId="ns=1;i=1119"
-    BrowseName="1:Suspend"
-    ParentNodeId="ns=1;i=1057"
-    MethodDeclarationId="i=2427"
-  >
+  <UAMethod NodeId="ns=1;i=1119" BrowseName="1:Suspend" ParentNodeId="ns=1;i=1057" MethodDeclarationId="i=2427">
     <DisplayName>Suspend</DisplayName>
     <Description>Causes the Program to transition from the Running state to the Suspended state.</Description>
     <References>
@@ -358,12 +280,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1057</Reference>
     </References>
   </UAMethod>
-  <UAMethod
-    NodeId="ns=1;i=1120"
-    BrowseName="1:Resume"
-    ParentNodeId="ns=1;i=1057"
-    MethodDeclarationId="i=2428"
-  >
+  <UAMethod NodeId="ns=1;i=1120" BrowseName="1:Resume" ParentNodeId="ns=1;i=1057" MethodDeclarationId="i=2428">
     <DisplayName>Resume</DisplayName>
     <Description>Causes the Program to transition from the Suspended state to the Running state.</Description>
     <References>
@@ -371,12 +288,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1057</Reference>
     </References>
   </UAMethod>
-  <UAMethod
-    NodeId="ns=1;i=1121"
-    BrowseName="1:Halt"
-    ParentNodeId="ns=1;i=1057"
-    MethodDeclarationId="i=2429"
-  >
+  <UAMethod NodeId="ns=1;i=1121" BrowseName="1:Halt" ParentNodeId="ns=1;i=1057" MethodDeclarationId="i=2429">
     <DisplayName>Halt</DisplayName>
     <Description>Causes the Program to transition from the Ready, Running or Suspended state to the Halted state.</Description>
     <References>
@@ -384,12 +296,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1057</Reference>
     </References>
   </UAMethod>
-  <UAMethod
-    NodeId="ns=1;i=1122"
-    BrowseName="1:Reset"
-    ParentNodeId="ns=1;i=1057"
-    MethodDeclarationId="i=2430"
-  >
+  <UAMethod NodeId="ns=1;i=1122" BrowseName="1:Reset" ParentNodeId="ns=1;i=1057" MethodDeclarationId="i=2430">
     <DisplayName>Reset</DisplayName>
     <Description>Causes the Program to transition from the Halted state to the Ready state.</Description>
     <References>
@@ -397,13 +304,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1057</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1123"
-    BrowseName="1:UpdateRate"
-    ParentNodeId="ns=1;i=1057"
-    DataType="UInt32"
-    AccessLevel="3"
-  >
+  <UAVariable NodeId="ns=1;i=1123" BrowseName="1:UpdateRate" ParentNodeId="ns=1;i=1057" DataType="UInt32" AccessLevel="3">
     <DisplayName>UpdateRate</DisplayName>
     <Description>The rate at which the simulation runs.</Description>
     <References>
@@ -421,13 +322,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=61</Reference>
     </References>
   </UAObjectType>
-  <UAObject
-    NodeId="ns=1;i=1125"
-    BrowseName="1:FTX001"
-    SymbolicName="FlowTransmitter1"
-    ParentNodeId="ns=1;i=1124"
-    EventNotifier="1"
-  >
+  <UAObject NodeId="ns=1;i=1125" BrowseName="1:FTX001" SymbolicName="FlowTransmitter1" ParentNodeId="ns=1;i=1124" EventNotifier="1">
     <DisplayName>FTX001</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=1126</Reference>
@@ -436,12 +331,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1124</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=1126"
-    BrowseName="1:Output"
-    ParentNodeId="ns=1;i=1125"
-    DataType="Double"
-  >
+  <UAVariable NodeId="ns=1;i=1126" BrowseName="1:Output" ParentNodeId="ns=1;i=1125" DataType="Double">
     <DisplayName>Output</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1130</Reference>
@@ -458,13 +348,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1126</Reference>
     </References>
   </UAVariable>
-  <UAObject
-    NodeId="ns=1;i=1132"
-    BrowseName="1:ValveX001"
-    SymbolicName="Valve"
-    ParentNodeId="ns=1;i=1124"
-    EventNotifier="1"
-  >
+  <UAObject NodeId="ns=1;i=1132" BrowseName="1:ValveX001" SymbolicName="Valve" ParentNodeId="ns=1;i=1124" EventNotifier="1">
     <DisplayName>ValveX001</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=1133</Reference>
@@ -473,13 +357,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1124</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=1133"
-    BrowseName="1:Input"
-    ParentNodeId="ns=1;i=1132"
-    DataType="Double"
-    AccessLevel="2"
-  >
+  <UAVariable NodeId="ns=1;i=1133" BrowseName="1:Input" ParentNodeId="ns=1;i=1132" DataType="Double" AccessLevel="2">
     <DisplayName>Input</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1137</Reference>
@@ -504,13 +382,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=61</Reference>
     </References>
   </UAObjectType>
-  <UAObject
-    NodeId="ns=1;i=1140"
-    BrowseName="1:LIX001"
-    SymbolicName="LevelIndicator"
-    ParentNodeId="ns=1;i=1139"
-    EventNotifier="1"
-  >
+  <UAObject NodeId="ns=1;i=1140" BrowseName="1:LIX001" SymbolicName="LevelIndicator" ParentNodeId="ns=1;i=1139" EventNotifier="1">
     <DisplayName>LIX001</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=1141</Reference>
@@ -519,12 +391,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1139</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=1141"
-    BrowseName="1:Output"
-    ParentNodeId="ns=1;i=1140"
-    DataType="Double"
-  >
+  <UAVariable NodeId="ns=1;i=1141" BrowseName="1:Output" ParentNodeId="ns=1;i=1140" DataType="Double">
     <DisplayName>Output</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1145</Reference>
@@ -549,13 +416,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=61</Reference>
     </References>
   </UAObjectType>
-  <UAObject
-    NodeId="ns=1;i=1148"
-    BrowseName="1:FTX002"
-    SymbolicName="FlowTransmitter2"
-    ParentNodeId="ns=1;i=1147"
-    EventNotifier="1"
-  >
+  <UAObject NodeId="ns=1;i=1148" BrowseName="1:FTX002" SymbolicName="FlowTransmitter2" ParentNodeId="ns=1;i=1147" EventNotifier="1">
     <DisplayName>FTX002</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=1149</Reference>
@@ -564,12 +425,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1147</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=1149"
-    BrowseName="1:Output"
-    ParentNodeId="ns=1;i=1148"
-    DataType="Double"
-  >
+  <UAVariable NodeId="ns=1;i=1149" BrowseName="1:Output" ParentNodeId="ns=1;i=1148" DataType="Double">
     <DisplayName>Output</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1153</Reference>
@@ -604,13 +460,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
     </References>
   </UAObjectType>
-  <UAObject
-    NodeId="ns=1;i=1156"
-    BrowseName="1:PipeX001"
-    SymbolicName="InputPipe"
-    ParentNodeId="ns=1;i=1155"
-    EventNotifier="1"
-  >
+  <UAObject NodeId="ns=1;i=1156" BrowseName="1:PipeX001" SymbolicName="InputPipe" ParentNodeId="ns=1;i=1155" EventNotifier="1">
     <DisplayName>PipeX001</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=1157</Reference>
@@ -622,13 +472,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1155</Reference>
     </References>
   </UAObject>
-  <UAObject
-    NodeId="ns=1;i=1157"
-    BrowseName="1:FTX001"
-    SymbolicName="FlowTransmitter1"
-    ParentNodeId="ns=1;i=1156"
-    EventNotifier="1"
-  >
+  <UAObject NodeId="ns=1;i=1157" BrowseName="1:FTX001" SymbolicName="FlowTransmitter1" ParentNodeId="ns=1;i=1156" EventNotifier="1">
     <DisplayName>FTX001</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=1158</Reference>
@@ -638,12 +482,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1156</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=1158"
-    BrowseName="1:Output"
-    ParentNodeId="ns=1;i=1157"
-    DataType="Double"
-  >
+  <UAVariable NodeId="ns=1;i=1158" BrowseName="1:Output" ParentNodeId="ns=1;i=1157" DataType="Double">
     <DisplayName>Output</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1162</Reference>
@@ -662,13 +501,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1158</Reference>
     </References>
   </UAVariable>
-  <UAObject
-    NodeId="ns=1;i=1164"
-    BrowseName="1:ValveX001"
-    SymbolicName="Valve"
-    ParentNodeId="ns=1;i=1156"
-    EventNotifier="1"
-  >
+  <UAObject NodeId="ns=1;i=1164" BrowseName="1:ValveX001" SymbolicName="Valve" ParentNodeId="ns=1;i=1156" EventNotifier="1">
     <DisplayName>ValveX001</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=1165</Reference>
@@ -677,13 +510,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1156</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=1165"
-    BrowseName="1:Input"
-    ParentNodeId="ns=1;i=1164"
-    DataType="Double"
-    AccessLevel="2"
-  >
+  <UAVariable NodeId="ns=1;i=1165" BrowseName="1:Input" ParentNodeId="ns=1;i=1164" DataType="Double" AccessLevel="2">
     <DisplayName>Input</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1169</Reference>
@@ -701,13 +528,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1165</Reference>
     </References>
   </UAVariable>
-  <UAObject
-    NodeId="ns=1;i=1171"
-    BrowseName="1:DrumX001"
-    SymbolicName="Drum"
-    ParentNodeId="ns=1;i=1155"
-    EventNotifier="1"
-  >
+  <UAObject NodeId="ns=1;i=1171" BrowseName="1:DrumX001" SymbolicName="Drum" ParentNodeId="ns=1;i=1155" EventNotifier="1">
     <DisplayName>DrumX001</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=1172</Reference>
@@ -719,13 +540,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1155</Reference>
     </References>
   </UAObject>
-  <UAObject
-    NodeId="ns=1;i=1172"
-    BrowseName="1:LIX001"
-    SymbolicName="LevelIndicator"
-    ParentNodeId="ns=1;i=1171"
-    EventNotifier="1"
-  >
+  <UAObject NodeId="ns=1;i=1172" BrowseName="1:LIX001" SymbolicName="LevelIndicator" ParentNodeId="ns=1;i=1171" EventNotifier="1">
     <DisplayName>LIX001</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=1173</Reference>
@@ -735,12 +550,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1171</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=1173"
-    BrowseName="1:Output"
-    ParentNodeId="ns=1;i=1172"
-    DataType="Number"
-  >
+  <UAVariable NodeId="ns=1;i=1173" BrowseName="1:Output" ParentNodeId="ns=1;i=1172" DataType="Number">
     <DisplayName>Output</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1177</Reference>
@@ -758,13 +568,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1173</Reference>
     </References>
   </UAVariable>
-  <UAObject
-    NodeId="ns=1;i=1179"
-    BrowseName="1:PipeX002"
-    SymbolicName="OutputPipe"
-    ParentNodeId="ns=1;i=1155"
-    EventNotifier="1"
-  >
+  <UAObject NodeId="ns=1;i=1179" BrowseName="1:PipeX002" SymbolicName="OutputPipe" ParentNodeId="ns=1;i=1155" EventNotifier="1">
     <DisplayName>PipeX002</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=1180</Reference>
@@ -775,13 +579,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1155</Reference>
     </References>
   </UAObject>
-  <UAObject
-    NodeId="ns=1;i=1180"
-    BrowseName="1:FTX002"
-    SymbolicName="FlowTransmitter2"
-    ParentNodeId="ns=1;i=1179"
-    EventNotifier="1"
-  >
+  <UAObject NodeId="ns=1;i=1180" BrowseName="1:FTX002" SymbolicName="FlowTransmitter2" ParentNodeId="ns=1;i=1179" EventNotifier="1">
     <DisplayName>FTX002</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=1181</Reference>
@@ -791,12 +589,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1179</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=1181"
-    BrowseName="1:Output"
-    ParentNodeId="ns=1;i=1180"
-    DataType="Double"
-  >
+  <UAVariable NodeId="ns=1;i=1181" BrowseName="1:Output" ParentNodeId="ns=1;i=1180" DataType="Double">
     <DisplayName>Output</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1185</Reference>
@@ -814,12 +607,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1181</Reference>
     </References>
   </UAVariable>
-  <UAObject
-    NodeId="ns=1;i=1187"
-    BrowseName="1:FCX001"
-    SymbolicName="FlowController"
-    ParentNodeId="ns=1;i=1155"
-  >
+  <UAObject NodeId="ns=1;i=1187" BrowseName="1:FCX001" SymbolicName="FlowController" ParentNodeId="ns=1;i=1155">
     <DisplayName>FCX001</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1188</Reference>
@@ -830,12 +618,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1155</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=1188"
-    BrowseName="1:Measurement"
-    ParentNodeId="ns=1;i=1187"
-    DataType="Double"
-  >
+  <UAVariable NodeId="ns=1;i=1188" BrowseName="1:Measurement" ParentNodeId="ns=1;i=1187" DataType="Double">
     <DisplayName>Measurement</DisplayName>
     <References>
       <Reference ReferenceType="ns=1;i=1003" IsForward="false">ns=1;i=1158</Reference>
@@ -844,13 +627,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1187</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1189"
-    BrowseName="1:SetPoint"
-    ParentNodeId="ns=1;i=1187"
-    DataType="Double"
-    AccessLevel="3"
-  >
+  <UAVariable NodeId="ns=1;i=1189" BrowseName="1:SetPoint" ParentNodeId="ns=1;i=1187" DataType="Double" AccessLevel="3">
     <DisplayName>SetPoint</DisplayName>
     <References>
       <Reference ReferenceType="ns=1;i=1003" IsForward="false">ns=1;i=1199</Reference>
@@ -859,12 +636,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1187</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1190"
-    BrowseName="1:ControlOut"
-    ParentNodeId="ns=1;i=1187"
-    DataType="Double"
-  >
+  <UAVariable NodeId="ns=1;i=1190" BrowseName="1:ControlOut" ParentNodeId="ns=1;i=1187" DataType="Double">
     <DisplayName>ControlOut</DisplayName>
     <References>
       <Reference ReferenceType="ns=1;i=1003">ns=1;i=1165</Reference>
@@ -873,12 +645,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1187</Reference>
     </References>
   </UAVariable>
-  <UAObject
-    NodeId="ns=1;i=1191"
-    BrowseName="1:LCX001"
-    SymbolicName="LevelController"
-    ParentNodeId="ns=1;i=1155"
-  >
+  <UAObject NodeId="ns=1;i=1191" BrowseName="1:LCX001" SymbolicName="LevelController" ParentNodeId="ns=1;i=1155">
     <DisplayName>LCX001</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1192</Reference>
@@ -889,12 +656,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1155</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=1192"
-    BrowseName="1:Measurement"
-    ParentNodeId="ns=1;i=1191"
-    DataType="Double"
-  >
+  <UAVariable NodeId="ns=1;i=1192" BrowseName="1:Measurement" ParentNodeId="ns=1;i=1191" DataType="Double">
     <DisplayName>Measurement</DisplayName>
     <References>
       <Reference ReferenceType="ns=1;i=1003" IsForward="false">ns=1;i=1173</Reference>
@@ -903,13 +665,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1191</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1193"
-    BrowseName="1:SetPoint"
-    ParentNodeId="ns=1;i=1191"
-    DataType="Double"
-    AccessLevel="3"
-  >
+  <UAVariable NodeId="ns=1;i=1193" BrowseName="1:SetPoint" ParentNodeId="ns=1;i=1191" DataType="Double" AccessLevel="3">
     <DisplayName>SetPoint</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -917,12 +673,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1191</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1194"
-    BrowseName="1:ControlOut"
-    ParentNodeId="ns=1;i=1191"
-    DataType="Double"
-  >
+  <UAVariable NodeId="ns=1;i=1194" BrowseName="1:ControlOut" ParentNodeId="ns=1;i=1191" DataType="Double">
     <DisplayName>ControlOut</DisplayName>
     <References>
       <Reference ReferenceType="ns=1;i=1003">ns=1;i=1196</Reference>
@@ -931,12 +682,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1191</Reference>
     </References>
   </UAVariable>
-  <UAObject
-    NodeId="ns=1;i=1195"
-    BrowseName="1:CCX001"
-    SymbolicName="CustomController"
-    ParentNodeId="ns=1;i=1155"
-  >
+  <UAObject NodeId="ns=1;i=1195" BrowseName="1:CCX001" SymbolicName="CustomController" ParentNodeId="ns=1;i=1155">
     <DisplayName>CCX001</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1196</Reference>
@@ -949,13 +695,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1155</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=1196"
-    BrowseName="1:Input1"
-    ParentNodeId="ns=1;i=1195"
-    DataType="Double"
-    AccessLevel="2"
-  >
+  <UAVariable NodeId="ns=1;i=1196" BrowseName="1:Input1" ParentNodeId="ns=1;i=1195" DataType="Double" AccessLevel="2">
     <DisplayName>Input1</DisplayName>
     <References>
       <Reference ReferenceType="ns=1;i=1003" IsForward="false">ns=1;i=1194</Reference>
@@ -964,13 +704,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1195</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1197"
-    BrowseName="1:Input2"
-    ParentNodeId="ns=1;i=1195"
-    DataType="Double"
-    AccessLevel="2"
-  >
+  <UAVariable NodeId="ns=1;i=1197" BrowseName="1:Input2" ParentNodeId="ns=1;i=1195" DataType="Double" AccessLevel="2">
     <DisplayName>Input2</DisplayName>
     <References>
       <Reference ReferenceType="ns=1;i=1003" IsForward="false">ns=1;i=1158</Reference>
@@ -979,13 +713,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1195</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1198"
-    BrowseName="1:Input3"
-    ParentNodeId="ns=1;i=1195"
-    DataType="Double"
-    AccessLevel="2"
-  >
+  <UAVariable NodeId="ns=1;i=1198" BrowseName="1:Input3" ParentNodeId="ns=1;i=1195" DataType="Double" AccessLevel="2">
     <DisplayName>Input3</DisplayName>
     <References>
       <Reference ReferenceType="ns=1;i=1003" IsForward="false">ns=1;i=1181</Reference>
@@ -994,12 +722,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1195</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1199"
-    BrowseName="1:ControlOut"
-    ParentNodeId="ns=1;i=1195"
-    DataType="Double"
-  >
+  <UAVariable NodeId="ns=1;i=1199" BrowseName="1:ControlOut" ParentNodeId="ns=1;i=1195" DataType="Double">
     <DisplayName>ControlOut</DisplayName>
     <References>
       <Reference ReferenceType="ns=1;i=1003">ns=1;i=1189</Reference>
@@ -1008,13 +731,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1195</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1200"
-    BrowseName="1:Description"
-    SymbolicName="DescriptionX"
-    ParentNodeId="ns=1;i=1195"
-    DataType="LocalizedText"
-  >
+  <UAVariable NodeId="ns=1;i=1200" BrowseName="1:Description" SymbolicName="DescriptionX" ParentNodeId="ns=1;i=1195" DataType="LocalizedText">
     <DisplayName>Description</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1022,12 +739,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1195</Reference>
     </References>
   </UAVariable>
-  <UAObject
-    NodeId="ns=1;i=1201"
-    BrowseName="1:Simulation"
-    ParentNodeId="ns=1;i=1155"
-    EventNotifier="1"
-  >
+  <UAObject NodeId="ns=1;i=1201" BrowseName="1:Simulation" ParentNodeId="ns=1;i=1155" EventNotifier="1">
     <DisplayName>Simulation</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=1202</Reference>
@@ -1046,12 +758,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1155</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=1202"
-    BrowseName="CurrentState"
-    ParentNodeId="ns=1;i=1201"
-    DataType="LocalizedText"
-  >
+  <UAVariable NodeId="ns=1;i=1202" BrowseName="CurrentState" ParentNodeId="ns=1;i=1201" DataType="LocalizedText">
     <DisplayName>CurrentState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1203</Reference>
@@ -1077,12 +784,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1202</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1207"
-    BrowseName="LastTransition"
-    ParentNodeId="ns=1;i=1201"
-    DataType="LocalizedText"
-  >
+  <UAVariable NodeId="ns=1;i=1207" BrowseName="LastTransition" ParentNodeId="ns=1;i=1201" DataType="LocalizedText">
     <DisplayName>LastTransition</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1208</Reference>
@@ -1109,12 +811,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1207</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1211"
-    BrowseName="TransitionTime"
-    ParentNodeId="ns=1;i=1207"
-    DataType="i=294"
-  >
+  <UAVariable NodeId="ns=1;i=1211" BrowseName="TransitionTime" ParentNodeId="ns=1;i=1207" DataType="i=294">
     <DisplayName>TransitionTime</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1122,12 +819,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1207</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1215"
-    BrowseName="Deletable"
-    ParentNodeId="ns=1;i=1201"
-    DataType="Boolean"
-  >
+  <UAVariable NodeId="ns=1;i=1215" BrowseName="Deletable" ParentNodeId="ns=1;i=1201" DataType="Boolean">
     <DisplayName>Deletable</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1135,12 +827,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1201</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1216"
-    BrowseName="AutoDelete"
-    ParentNodeId="ns=1;i=1201"
-    DataType="Boolean"
-  >
+  <UAVariable NodeId="ns=1;i=1216" BrowseName="AutoDelete" ParentNodeId="ns=1;i=1201" DataType="Boolean">
     <DisplayName>AutoDelete</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1148,12 +835,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1201</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1217"
-    BrowseName="RecycleCount"
-    ParentNodeId="ns=1;i=1201"
-    DataType="Int32"
-  >
+  <UAVariable NodeId="ns=1;i=1217" BrowseName="RecycleCount" ParentNodeId="ns=1;i=1201" DataType="Int32">
     <DisplayName>RecycleCount</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1161,13 +843,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1201</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1232"
-    BrowseName="1:UpdateRate"
-    ParentNodeId="ns=1;i=1201"
-    DataType="UInt32"
-    AccessLevel="3"
-  >
+  <UAVariable NodeId="ns=1;i=1232" BrowseName="1:UpdateRate" ParentNodeId="ns=1;i=1201" DataType="UInt32" AccessLevel="3">
     <DisplayName>UpdateRate</DisplayName>
     <Description>The rate at which the simulation runs.</Description>
     <References>
@@ -1176,12 +852,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1201</Reference>
     </References>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1233"
-    BrowseName="1:Start"
-    ParentNodeId="ns=1;i=1201"
-    MethodDeclarationId="ns=1;i=1118"
-  >
+  <UAMethod NodeId="ns=1;i=1233" BrowseName="1:Start" ParentNodeId="ns=1;i=1201" MethodDeclarationId="ns=1;i=1118">
     <DisplayName>Start</DisplayName>
     <Description>Causes the Program to transition from the Ready state to the Running state.</Description>
     <References>
@@ -1189,12 +860,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1201</Reference>
     </References>
   </UAMethod>
-  <UAMethod
-    NodeId="ns=1;i=1234"
-    BrowseName="1:Suspend"
-    ParentNodeId="ns=1;i=1201"
-    MethodDeclarationId="ns=1;i=1119"
-  >
+  <UAMethod NodeId="ns=1;i=1234" BrowseName="1:Suspend" ParentNodeId="ns=1;i=1201" MethodDeclarationId="ns=1;i=1119">
     <DisplayName>Suspend</DisplayName>
     <Description>Causes the Program to transition from the Running state to the Suspended state.</Description>
     <References>
@@ -1202,12 +868,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1201</Reference>
     </References>
   </UAMethod>
-  <UAMethod
-    NodeId="ns=1;i=1235"
-    BrowseName="1:Resume"
-    ParentNodeId="ns=1;i=1201"
-    MethodDeclarationId="ns=1;i=1120"
-  >
+  <UAMethod NodeId="ns=1;i=1235" BrowseName="1:Resume" ParentNodeId="ns=1;i=1201" MethodDeclarationId="ns=1;i=1120">
     <DisplayName>Resume</DisplayName>
     <Description>Causes the Program to transition from the Suspended state to the Running state.</Description>
     <References>
@@ -1215,12 +876,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1201</Reference>
     </References>
   </UAMethod>
-  <UAMethod
-    NodeId="ns=1;i=1236"
-    BrowseName="1:Halt"
-    ParentNodeId="ns=1;i=1201"
-    MethodDeclarationId="ns=1;i=1121"
-  >
+  <UAMethod NodeId="ns=1;i=1236" BrowseName="1:Halt" ParentNodeId="ns=1;i=1201" MethodDeclarationId="ns=1;i=1121">
     <DisplayName>Halt</DisplayName>
     <Description>Causes the Program to transition from the Ready, Running or Suspended state to the Halted state.</Description>
     <References>
@@ -1228,12 +884,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1201</Reference>
     </References>
   </UAMethod>
-  <UAMethod
-    NodeId="ns=1;i=1237"
-    BrowseName="1:Reset"
-    ParentNodeId="ns=1;i=1201"
-    MethodDeclarationId="ns=1;i=1122"
-  >
+  <UAMethod NodeId="ns=1;i=1237" BrowseName="1:Reset" ParentNodeId="ns=1;i=1201" MethodDeclarationId="ns=1;i=1122">
     <DisplayName>Reset</DisplayName>
     <Description>Causes the Program to transition from the Halted state to the Ready state.</Description>
     <References>
@@ -1251,12 +902,7 @@
       <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
     </References>
   </UAObject>
-  <UAObject
-    NodeId="ns=1;i=1239"
-    BrowseName="1:Boiler #1"
-    SymbolicName="Boiler1"
-    ParentNodeId="ns=1;i=1238"
-  >
+  <UAObject NodeId="ns=1;i=1239" BrowseName="1:Boiler #1" SymbolicName="Boiler1" ParentNodeId="ns=1;i=1238">
     <DisplayName>Boiler #1</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=1240</Reference>
@@ -1275,13 +921,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1238</Reference>
     </References>
   </UAObject>
-  <UAObject
-    NodeId="ns=1;i=1240"
-    BrowseName="1:PipeX001"
-    SymbolicName="InputPipe"
-    ParentNodeId="ns=1;i=1239"
-    EventNotifier="1"
-  >
+  <UAObject NodeId="ns=1;i=1240" BrowseName="1:PipeX001" SymbolicName="InputPipe" ParentNodeId="ns=1;i=1239" EventNotifier="1">
     <DisplayName>Pipe1001</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=1241</Reference>
@@ -1293,13 +933,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1239</Reference>
     </References>
   </UAObject>
-  <UAObject
-    NodeId="ns=1;i=1241"
-    BrowseName="1:FTX001"
-    SymbolicName="FlowTransmitter1"
-    ParentNodeId="ns=1;i=1240"
-    EventNotifier="1"
-  >
+  <UAObject NodeId="ns=1;i=1241" BrowseName="1:FTX001" SymbolicName="FlowTransmitter1" ParentNodeId="ns=1;i=1240" EventNotifier="1">
     <DisplayName>FTX001</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=1242</Reference>
@@ -1308,12 +942,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1240</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=1242"
-    BrowseName="1:Output"
-    ParentNodeId="ns=1;i=1241"
-    DataType="Double"
-  >
+  <UAVariable NodeId="ns=1;i=1242" BrowseName="1:Output" ParentNodeId="ns=1;i=1241" DataType="Double">
     <DisplayName>Output</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1246</Reference>
@@ -1330,13 +959,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1242</Reference>
     </References>
   </UAVariable>
-  <UAObject
-    NodeId="ns=1;i=1248"
-    BrowseName="1:ValveX001"
-    SymbolicName="Valve"
-    ParentNodeId="ns=1;i=1240"
-    EventNotifier="1"
-  >
+  <UAObject NodeId="ns=1;i=1248" BrowseName="1:ValveX001" SymbolicName="Valve" ParentNodeId="ns=1;i=1240" EventNotifier="1">
     <DisplayName>ValveX001</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=1249</Reference>
@@ -1344,13 +967,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1240</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=1249"
-    BrowseName="1:Input"
-    ParentNodeId="ns=1;i=1248"
-    DataType="Double"
-    AccessLevel="2"
-  >
+  <UAVariable NodeId="ns=1;i=1249" BrowseName="1:Input" ParentNodeId="ns=1;i=1248" DataType="Double" AccessLevel="2">
     <DisplayName>Input</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1253</Reference>
@@ -1366,13 +983,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1249</Reference>
     </References>
   </UAVariable>
-  <UAObject
-    NodeId="ns=1;i=1255"
-    BrowseName="1:DrumX001"
-    SymbolicName="Drum"
-    ParentNodeId="ns=1;i=1239"
-    EventNotifier="1"
-  >
+  <UAObject NodeId="ns=1;i=1255" BrowseName="1:DrumX001" SymbolicName="Drum" ParentNodeId="ns=1;i=1239" EventNotifier="1">
     <DisplayName>Drum1001</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=1256</Reference>
@@ -1384,13 +995,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1239</Reference>
     </References>
   </UAObject>
-  <UAObject
-    NodeId="ns=1;i=1256"
-    BrowseName="1:LIX001"
-    SymbolicName="LevelIndicator"
-    ParentNodeId="ns=1;i=1255"
-    EventNotifier="1"
-  >
+  <UAObject NodeId="ns=1;i=1256" BrowseName="1:LIX001" SymbolicName="LevelIndicator" ParentNodeId="ns=1;i=1255" EventNotifier="1">
     <DisplayName>LIX001</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=1257</Reference>
@@ -1399,12 +1004,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1255</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=1257"
-    BrowseName="1:Output"
-    ParentNodeId="ns=1;i=1256"
-    DataType="Number"
-  >
+  <UAVariable NodeId="ns=1;i=1257" BrowseName="1:Output" ParentNodeId="ns=1;i=1256" DataType="Number">
     <DisplayName>Output</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1261</Reference>
@@ -1420,13 +1020,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1257</Reference>
     </References>
   </UAVariable>
-  <UAObject
-    NodeId="ns=1;i=1263"
-    BrowseName="1:PipeX002"
-    SymbolicName="OutputPipe"
-    ParentNodeId="ns=1;i=1239"
-    EventNotifier="1"
-  >
+  <UAObject NodeId="ns=1;i=1263" BrowseName="1:PipeX002" SymbolicName="OutputPipe" ParentNodeId="ns=1;i=1239" EventNotifier="1">
     <DisplayName>Pipe1002</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=1264</Reference>
@@ -1437,13 +1031,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1239</Reference>
     </References>
   </UAObject>
-  <UAObject
-    NodeId="ns=1;i=1264"
-    BrowseName="1:FTX002"
-    SymbolicName="FlowTransmitter2"
-    ParentNodeId="ns=1;i=1263"
-    EventNotifier="1"
-  >
+  <UAObject NodeId="ns=1;i=1264" BrowseName="1:FTX002" SymbolicName="FlowTransmitter2" ParentNodeId="ns=1;i=1263" EventNotifier="1">
     <DisplayName>FTX002</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=1265</Reference>
@@ -1452,12 +1040,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1263</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=1265"
-    BrowseName="1:Output"
-    ParentNodeId="ns=1;i=1264"
-    DataType="Double"
-  >
+  <UAVariable NodeId="ns=1;i=1265" BrowseName="1:Output" ParentNodeId="ns=1;i=1264" DataType="Double">
     <DisplayName>Output</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1269</Reference>
@@ -1473,12 +1056,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1265</Reference>
     </References>
   </UAVariable>
-  <UAObject
-    NodeId="ns=1;i=1271"
-    BrowseName="1:FCX001"
-    SymbolicName="FlowController"
-    ParentNodeId="ns=1;i=1239"
-  >
+  <UAObject NodeId="ns=1;i=1271" BrowseName="1:FCX001" SymbolicName="FlowController" ParentNodeId="ns=1;i=1239">
     <DisplayName>FC1001</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1272</Reference>
@@ -1488,12 +1066,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1239</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=1272"
-    BrowseName="1:Measurement"
-    ParentNodeId="ns=1;i=1271"
-    DataType="Double"
-  >
+  <UAVariable NodeId="ns=1;i=1272" BrowseName="1:Measurement" ParentNodeId="ns=1;i=1271" DataType="Double">
     <DisplayName>Measurement</DisplayName>
     <References>
       <Reference ReferenceType="ns=1;i=1003" IsForward="false">ns=1;i=1242</Reference>
@@ -1501,13 +1074,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1271</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1273"
-    BrowseName="1:SetPoint"
-    ParentNodeId="ns=1;i=1271"
-    DataType="Double"
-    AccessLevel="3"
-  >
+  <UAVariable NodeId="ns=1;i=1273" BrowseName="1:SetPoint" ParentNodeId="ns=1;i=1271" DataType="Double" AccessLevel="3">
     <DisplayName>SetPoint</DisplayName>
     <References>
       <Reference ReferenceType="ns=1;i=1003" IsForward="false">ns=1;i=1283</Reference>
@@ -1515,12 +1082,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1271</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1274"
-    BrowseName="1:ControlOut"
-    ParentNodeId="ns=1;i=1271"
-    DataType="Double"
-  >
+  <UAVariable NodeId="ns=1;i=1274" BrowseName="1:ControlOut" ParentNodeId="ns=1;i=1271" DataType="Double">
     <DisplayName>ControlOut</DisplayName>
     <References>
       <Reference ReferenceType="ns=1;i=1003">ns=1;i=1249</Reference>
@@ -1528,12 +1090,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1271</Reference>
     </References>
   </UAVariable>
-  <UAObject
-    NodeId="ns=1;i=1275"
-    BrowseName="1:LCX001"
-    SymbolicName="LevelController"
-    ParentNodeId="ns=1;i=1239"
-  >
+  <UAObject NodeId="ns=1;i=1275" BrowseName="1:LCX001" SymbolicName="LevelController" ParentNodeId="ns=1;i=1239">
     <DisplayName>LC1001</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1276</Reference>
@@ -1543,12 +1100,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1239</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=1276"
-    BrowseName="1:Measurement"
-    ParentNodeId="ns=1;i=1275"
-    DataType="Double"
-  >
+  <UAVariable NodeId="ns=1;i=1276" BrowseName="1:Measurement" ParentNodeId="ns=1;i=1275" DataType="Double">
     <DisplayName>Measurement</DisplayName>
     <References>
       <Reference ReferenceType="ns=1;i=1003" IsForward="false">ns=1;i=1257</Reference>
@@ -1556,25 +1108,14 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1275</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1277"
-    BrowseName="1:SetPoint"
-    ParentNodeId="ns=1;i=1275"
-    DataType="Double"
-    AccessLevel="3"
-  >
+  <UAVariable NodeId="ns=1;i=1277" BrowseName="1:SetPoint" ParentNodeId="ns=1;i=1275" DataType="Double" AccessLevel="3">
     <DisplayName>SetPoint</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1275</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1278"
-    BrowseName="1:ControlOut"
-    ParentNodeId="ns=1;i=1275"
-    DataType="Double"
-  >
+  <UAVariable NodeId="ns=1;i=1278" BrowseName="1:ControlOut" ParentNodeId="ns=1;i=1275" DataType="Double">
     <DisplayName>ControlOut</DisplayName>
     <References>
       <Reference ReferenceType="ns=1;i=1003">ns=1;i=1280</Reference>
@@ -1582,12 +1123,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1275</Reference>
     </References>
   </UAVariable>
-  <UAObject
-    NodeId="ns=1;i=1279"
-    BrowseName="1:CCX001"
-    SymbolicName="CustomController"
-    ParentNodeId="ns=1;i=1239"
-  >
+  <UAObject NodeId="ns=1;i=1279" BrowseName="1:CCX001" SymbolicName="CustomController" ParentNodeId="ns=1;i=1239">
     <DisplayName>CC1001</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1280</Reference>
@@ -1599,13 +1135,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1239</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=1280"
-    BrowseName="1:Input1"
-    ParentNodeId="ns=1;i=1279"
-    DataType="Double"
-    AccessLevel="2"
-  >
+  <UAVariable NodeId="ns=1;i=1280" BrowseName="1:Input1" ParentNodeId="ns=1;i=1279" DataType="Double" AccessLevel="2">
     <DisplayName>Input1</DisplayName>
     <References>
       <Reference ReferenceType="ns=1;i=1003" IsForward="false">ns=1;i=1278</Reference>
@@ -1613,13 +1143,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1279</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1281"
-    BrowseName="1:Input2"
-    ParentNodeId="ns=1;i=1279"
-    DataType="Double"
-    AccessLevel="2"
-  >
+  <UAVariable NodeId="ns=1;i=1281" BrowseName="1:Input2" ParentNodeId="ns=1;i=1279" DataType="Double" AccessLevel="2">
     <DisplayName>Input2</DisplayName>
     <References>
       <Reference ReferenceType="ns=1;i=1003" IsForward="false">ns=1;i=1242</Reference>
@@ -1627,13 +1151,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1279</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1282"
-    BrowseName="1:Input3"
-    ParentNodeId="ns=1;i=1279"
-    DataType="Double"
-    AccessLevel="2"
-  >
+  <UAVariable NodeId="ns=1;i=1282" BrowseName="1:Input3" ParentNodeId="ns=1;i=1279" DataType="Double" AccessLevel="2">
     <DisplayName>Input3</DisplayName>
     <References>
       <Reference ReferenceType="ns=1;i=1003" IsForward="false">ns=1;i=1265</Reference>
@@ -1641,12 +1159,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1279</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1283"
-    BrowseName="1:ControlOut"
-    ParentNodeId="ns=1;i=1279"
-    DataType="Double"
-  >
+  <UAVariable NodeId="ns=1;i=1283" BrowseName="1:ControlOut" ParentNodeId="ns=1;i=1279" DataType="Double">
     <DisplayName>ControlOut</DisplayName>
     <References>
       <Reference ReferenceType="ns=1;i=1003">ns=1;i=1273</Reference>
@@ -1654,25 +1167,14 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1279</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1284"
-    BrowseName="1:Description"
-    SymbolicName="DescriptionX"
-    ParentNodeId="ns=1;i=1279"
-    DataType="LocalizedText"
-  >
+  <UAVariable NodeId="ns=1;i=1284" BrowseName="1:Description" SymbolicName="DescriptionX" ParentNodeId="ns=1;i=1279" DataType="LocalizedText">
     <DisplayName>Description</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1279</Reference>
     </References>
   </UAVariable>
-  <UAObject
-    NodeId="ns=1;i=1285"
-    BrowseName="1:Simulation"
-    ParentNodeId="ns=1;i=1239"
-    EventNotifier="1"
-  >
+  <UAObject NodeId="ns=1;i=1285" BrowseName="1:Simulation" ParentNodeId="ns=1;i=1239" EventNotifier="1">
     <DisplayName>Simulation</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=1286</Reference>
@@ -1691,12 +1193,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1239</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=1286"
-    BrowseName="CurrentState"
-    ParentNodeId="ns=1;i=1285"
-    DataType="LocalizedText"
-  >
+  <UAVariable NodeId="ns=1;i=1286" BrowseName="CurrentState" ParentNodeId="ns=1;i=1285" DataType="LocalizedText">
     <DisplayName>CurrentState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1287</Reference>
@@ -1719,12 +1216,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1286</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1291"
-    BrowseName="LastTransition"
-    ParentNodeId="ns=1;i=1285"
-    DataType="LocalizedText"
-  >
+  <UAVariable NodeId="ns=1;i=1291" BrowseName="LastTransition" ParentNodeId="ns=1;i=1285" DataType="LocalizedText">
     <DisplayName>LastTransition</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1292</Reference>
@@ -1748,61 +1240,35 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1291</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1295"
-    BrowseName="TransitionTime"
-    ParentNodeId="ns=1;i=1291"
-    DataType="i=294"
-  >
+  <UAVariable NodeId="ns=1;i=1295" BrowseName="TransitionTime" ParentNodeId="ns=1;i=1291" DataType="i=294">
     <DisplayName>TransitionTime</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1291</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1299"
-    BrowseName="Deletable"
-    ParentNodeId="ns=1;i=1285"
-    DataType="Boolean"
-  >
+  <UAVariable NodeId="ns=1;i=1299" BrowseName="Deletable" ParentNodeId="ns=1;i=1285" DataType="Boolean">
     <DisplayName>Deletable</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1285</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1300"
-    BrowseName="AutoDelete"
-    ParentNodeId="ns=1;i=1285"
-    DataType="Boolean"
-  >
+  <UAVariable NodeId="ns=1;i=1300" BrowseName="AutoDelete" ParentNodeId="ns=1;i=1285" DataType="Boolean">
     <DisplayName>AutoDelete</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1285</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1301"
-    BrowseName="RecycleCount"
-    ParentNodeId="ns=1;i=1285"
-    DataType="Int32"
-  >
+  <UAVariable NodeId="ns=1;i=1301" BrowseName="RecycleCount" ParentNodeId="ns=1;i=1285" DataType="Int32">
     <DisplayName>RecycleCount</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1285</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1316"
-    BrowseName="1:UpdateRate"
-    ParentNodeId="ns=1;i=1285"
-    DataType="UInt32"
-    AccessLevel="3"
-  >
+  <UAVariable NodeId="ns=1;i=1316" BrowseName="1:UpdateRate" ParentNodeId="ns=1;i=1285" DataType="UInt32" AccessLevel="3">
     <DisplayName>UpdateRate</DisplayName>
     <Description>The rate at which the simulation runs.</Description>
     <References>
@@ -1810,60 +1276,35 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1285</Reference>
     </References>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1317"
-    BrowseName="1:Start"
-    ParentNodeId="ns=1;i=1285"
-    MethodDeclarationId="ns=1;i=1118"
-  >
+  <UAMethod NodeId="ns=1;i=1317" BrowseName="1:Start" ParentNodeId="ns=1;i=1285" MethodDeclarationId="ns=1;i=1118">
     <DisplayName>Start</DisplayName>
     <Description>Causes the Program to transition from the Ready state to the Running state.</Description>
     <References>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1285</Reference>
     </References>
   </UAMethod>
-  <UAMethod
-    NodeId="ns=1;i=1318"
-    BrowseName="1:Suspend"
-    ParentNodeId="ns=1;i=1285"
-    MethodDeclarationId="ns=1;i=1119"
-  >
+  <UAMethod NodeId="ns=1;i=1318" BrowseName="1:Suspend" ParentNodeId="ns=1;i=1285" MethodDeclarationId="ns=1;i=1119">
     <DisplayName>Suspend</DisplayName>
     <Description>Causes the Program to transition from the Running state to the Suspended state.</Description>
     <References>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1285</Reference>
     </References>
   </UAMethod>
-  <UAMethod
-    NodeId="ns=1;i=1319"
-    BrowseName="1:Resume"
-    ParentNodeId="ns=1;i=1285"
-    MethodDeclarationId="ns=1;i=1120"
-  >
+  <UAMethod NodeId="ns=1;i=1319" BrowseName="1:Resume" ParentNodeId="ns=1;i=1285" MethodDeclarationId="ns=1;i=1120">
     <DisplayName>Resume</DisplayName>
     <Description>Causes the Program to transition from the Suspended state to the Running state.</Description>
     <References>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1285</Reference>
     </References>
   </UAMethod>
-  <UAMethod
-    NodeId="ns=1;i=1320"
-    BrowseName="1:Halt"
-    ParentNodeId="ns=1;i=1285"
-    MethodDeclarationId="ns=1;i=1121"
-  >
+  <UAMethod NodeId="ns=1;i=1320" BrowseName="1:Halt" ParentNodeId="ns=1;i=1285" MethodDeclarationId="ns=1;i=1121">
     <DisplayName>Halt</DisplayName>
     <Description>Causes the Program to transition from the Ready, Running or Suspended state to the Halted state.</Description>
     <References>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1285</Reference>
     </References>
   </UAMethod>
-  <UAMethod
-    NodeId="ns=1;i=1321"
-    BrowseName="1:Reset"
-    ParentNodeId="ns=1;i=1285"
-    MethodDeclarationId="ns=1;i=1122"
-  >
+  <UAMethod NodeId="ns=1;i=1321" BrowseName="1:Reset" ParentNodeId="ns=1;i=1285" MethodDeclarationId="ns=1;i=1122">
     <DisplayName>Reset</DisplayName>
     <Description>Causes the Program to transition from the Halted state to the Ready state.</Description>
     <References>
