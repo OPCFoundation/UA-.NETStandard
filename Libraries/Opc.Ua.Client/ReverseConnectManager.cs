@@ -729,8 +729,10 @@ namespace Opc.Ua.Client
                 foreach (Registration registration in m_registrations
                     .Where(r => (r.ReverseConnectStrategy & ReverseConnectStrategy.Any) == 0))
                 {
-                    if (registration.EndpointUrl.Scheme.Equals(e.EndpointUrl.Scheme, StringComparison.Ordinal) &&
-                        (registration.ServerUri?.Equals(e.ServerUri, StringComparison.Ordinal) == true ||
+                    if (registration.EndpointUrl.Scheme
+                        .Equals(e.EndpointUrl.Scheme, StringComparison.Ordinal) &&
+                        (registration.ServerUri?
+                            .Equals(e.ServerUri, StringComparison.Ordinal) == true ||
                             registration.EndpointUrl.Authority.Equals(e.EndpointUrl.Authority,
                                 StringComparison.OrdinalIgnoreCase)))
                     {
@@ -767,7 +769,8 @@ namespace Opc.Ua.Client
                 }
 
                 if (callbackRegistration != null &&
-                    (callbackRegistration.ReverseConnectStrategy & ReverseConnectStrategy.Once) != 0)
+                    (callbackRegistration.ReverseConnectStrategy &
+                        ReverseConnectStrategy.Once) != 0)
                 {
                     m_registrations.Remove(callbackRegistration);
                 }

@@ -663,7 +663,7 @@ namespace Opc.Ua.Bindings
                     }
 
                     if ((SecurityMode == MessageSecurityMode.SignAndEncrypt &&
-                            !AuthenticatedEncryption) ||
+                        !AuthenticatedEncryption) ||
                         (SecurityMode != MessageSecurityMode.None && AuthenticatedEncryption))
                     {
                         // encrypt the data.

@@ -919,7 +919,9 @@ namespace Opc.Ua
                     m_description.EndpointUrl,
                     m_description.SecurityMode,
                     SecurityPolicies.GetDisplayName(m_description.SecurityPolicyUri),
-                    m_configuration != null && m_configuration.UseBinaryEncoding ? "Binary" : "XML");
+                    m_configuration != null && m_configuration.UseBinaryEncoding
+                        ? "Binary"
+                        : "XML");
             }
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));

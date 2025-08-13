@@ -696,7 +696,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
             catch (Exception ex)
             {
                 NUnit.Framework.Assert.Warn(
-                    Utils.Format("OnReceive() failed due to the following reason: {0}", ex.Message));
+                    Utils.Format(
+                        "OnReceive() failed due to the following reason: {0}",
+                        ex.Message));
             }
         }
     }

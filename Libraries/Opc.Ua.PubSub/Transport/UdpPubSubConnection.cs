@@ -461,7 +461,8 @@ namespace Opc.Ua.PubSub.Transport
             object publisherId)
         {
             if (PubSubConnectionConfiguration != null &&
-                PubSubConnectionConfiguration.TransportProfileUri == Profiles.PubSubUdpUadpTransport)
+                PubSubConnectionConfiguration.TransportProfileUri == Profiles
+                    .PubSubUdpUadpTransport)
             {
                 return new UadpNetworkMessage(endpoints, publisherProvideEndpointsStatusCode)
                 {

@@ -1771,7 +1771,8 @@ namespace Opc.Ua.Client
                 }
                 OperationLimits = operationLimits;
 
-                if (values[maxBrowseContinuationPointIndex] is ushort serverMaxContinuationPointsPerBrowse &&
+                if (values[
+                    maxBrowseContinuationPointIndex] is ushort serverMaxContinuationPointsPerBrowse &&
                     ServiceResult.IsNotBad(errors[maxBrowseContinuationPointIndex]))
                 {
                     ServerMaxContinuationPointsPerBrowse = serverMaxContinuationPointsPerBrowse;

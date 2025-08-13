@@ -2347,7 +2347,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
                     // Checks just for DataValue type only
                     if ((jsonDataSetMessage.FieldContentMask &
-                            DataSetFieldContentMask.StatusCode) ==
+                        DataSetFieldContentMask.StatusCode) ==
                         DataSetFieldContentMask.StatusCode)
                     {
                         // check dataValues StatusCode
@@ -2361,7 +2361,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
                     // check dataValues SourceTimestamp
                     if ((jsonDataSetMessage.FieldContentMask &
-                            DataSetFieldContentMask.SourceTimestamp) ==
+                        DataSetFieldContentMask.SourceTimestamp) ==
                         DataSetFieldContentMask.SourceTimestamp)
                     {
                         Assert.AreEqual(
@@ -2374,7 +2374,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
                     // check dataValues ServerTimestamp
                     if ((jsonDataSetMessage.FieldContentMask &
-                            DataSetFieldContentMask.ServerTimestamp) ==
+                        DataSetFieldContentMask.ServerTimestamp) ==
                         DataSetFieldContentMask.ServerTimestamp)
                     {
                         // check dataValues ServerTimestamp
@@ -2388,7 +2388,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
                     // check dataValues SourcePicoseconds
                     if ((jsonDataSetMessage.FieldContentMask &
-                            DataSetFieldContentMask.SourcePicoSeconds) ==
+                        DataSetFieldContentMask.SourcePicoSeconds) ==
                         DataSetFieldContentMask.SourcePicoSeconds)
                     {
                         Assert.AreEqual(
@@ -2401,7 +2401,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
                     // check dataValues ServerPicoSeconds
                     if ((jsonDataSetMessage.FieldContentMask &
-                            DataSetFieldContentMask.ServerPicoSeconds) ==
+                        DataSetFieldContentMask.ServerPicoSeconds) ==
                         DataSetFieldContentMask.ServerPicoSeconds)
                     {
                         // check dataValues ServerPicoseconds
@@ -2944,7 +2944,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                 {
                                                     decodedFieldValue = new Matrix(
                                                         value,
-                                                        (BuiltInType)field.FieldMetaData.BuiltInType);
+                                                        (BuiltInType)field.FieldMetaData
+                                                            .BuiltInType);
                                                 }
                                                 Assert.IsTrue(
                                                     Utils.IsEqual(
@@ -3047,7 +3048,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                         "Decoded Field: {0} value should not be null",
                                                         field.FieldMetaData.Name);
                                                     // ExtendedNodeId namespaceIndex workaround issue
-                                                    if (dataValue.Value is ExpandedNodeId expandedNodeId2 &&
+                                                    if (dataValue
+                                                        .Value is ExpandedNodeId expandedNodeId2 &&
                                                         !string.IsNullOrEmpty(
                                                             expandedNodeId2.NamespaceUri))
                                                     {

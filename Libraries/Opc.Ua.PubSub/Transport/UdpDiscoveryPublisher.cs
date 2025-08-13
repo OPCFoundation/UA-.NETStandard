@@ -185,13 +185,15 @@ namespace Opc.Ua.PubSub.Transport
 
                 Task.Run(SendResponseDataSetMetaDataAsync).ConfigureAwait(false);
             }
-            else if (networkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest &&
+            else if (networkMessage
+                .UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest &&
                 networkMessage
                     .UADPDiscoveryType == UADPNetworkMessageDiscoveryType.PublisherEndpoint)
             {
                 Task.Run(SendResponsePublisherEndpointsAsync).ConfigureAwait(false);
             }
-            else if (networkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest &&
+            else if (networkMessage
+                .UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest &&
                 networkMessage.UADPDiscoveryType ==
                 UADPNetworkMessageDiscoveryType.DataSetWriterConfiguration &&
                 networkMessage.DataSetWriterIds != null)

@@ -209,7 +209,8 @@ namespace Opc.Ua.Server
                                 activeNode.DefaultHttpsGroup = null;
                             }
                             if (m_certificateGroups.All(group =>
-                                    group.BrowseName != activeNode.DefaultUserTokenGroup?.BrowseName))
+                                    group.BrowseName != activeNode.DefaultUserTokenGroup?
+                                        .BrowseName))
                             {
                                 activeNode.DefaultUserTokenGroup = null;
                             }

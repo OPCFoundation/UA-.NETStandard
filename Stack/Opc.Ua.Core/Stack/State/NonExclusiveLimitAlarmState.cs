@@ -27,7 +27,8 @@ namespace Opc.Ua
             {
                 UpdateState(
                     HighState,
-                    (limit & LimitAlarmStates.High) != 0 || (limit & LimitAlarmStates.HighHigh) != 0);
+                    (limit & LimitAlarmStates.High) != 0 ||
+                    (limit & LimitAlarmStates.HighHigh) != 0);
             }
 
             if (HighHighState != null)

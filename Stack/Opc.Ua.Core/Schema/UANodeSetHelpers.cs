@@ -988,7 +988,8 @@ namespace Opc.Ua.Export
 
             if (source.Body is StructureDefinition sd)
             {
-                if (sd.StructureType is StructureType.Union or StructureType.UnionWithSubtypedValues)
+                if (sd
+                    .StructureType is StructureType.Union or StructureType.UnionWithSubtypedValues)
                 {
                     definition.IsUnion = true;
                 }

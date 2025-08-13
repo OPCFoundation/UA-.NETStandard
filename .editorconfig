@@ -411,7 +411,7 @@ dotnet_analyzer_diagnostic.category-roslynator.severity = suggestion
 roslynator_refactorings.enabled = true
 roslynator_compiler_diagnostic_fixes.enabled = true
 roslynator_tab_length       = 4
-roslynator_max_line_length  = 100
+roslynator_max_line_length  = 160
 
 roslynator_blank_line_between_using_directives                                = never
 roslynator_blank_line_between_single_line_accessors                           = false

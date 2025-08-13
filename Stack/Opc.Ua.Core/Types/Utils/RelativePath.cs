@@ -793,7 +793,8 @@ namespace Opc.Ua
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadSyntaxError,
-                        Utils.Format("Missing closing '>' for reference type name in browse path."));
+                        Utils.Format(
+                            "Missing closing '>' for reference type name in browse path."));
                 }
 
                 if (buffer.Length == 0)

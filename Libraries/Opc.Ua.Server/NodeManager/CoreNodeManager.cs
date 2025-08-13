@@ -3021,9 +3021,9 @@ namespace Opc.Ua.Server
                 }
 
                 if (((int)targetNodeClass &
-                        ((int)NodeClass.Object |
-                            (int)NodeClass.Variable |
-                            (int)NodeClass.Method)) ==
+                    ((int)NodeClass.Object |
+                        (int)NodeClass.Variable |
+                        (int)NodeClass.Method)) ==
                     0)
                 {
                     throw ServiceResultException.Create(

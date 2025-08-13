@@ -260,8 +260,12 @@ namespace Opc.Ua.Client
                     selectedEndpoint ??= endpoint;
 
                     //Select endpoint if it has a higher calculated security level, than the previously selected one
-                    if (SecuredApplication.CalculateSecurityLevel(endpoint.SecurityMode, endpoint.SecurityPolicyUri) >
-                        SecuredApplication.CalculateSecurityLevel(selectedEndpoint.SecurityMode, selectedEndpoint.SecurityPolicyUri))
+                    if (SecuredApplication.CalculateSecurityLevel(
+                        endpoint.SecurityMode,
+                        endpoint.SecurityPolicyUri) >
+                        SecuredApplication.CalculateSecurityLevel(
+                            selectedEndpoint.SecurityMode,
+                            selectedEndpoint.SecurityPolicyUri))
                     {
                         selectedEndpoint = endpoint;
                     }
@@ -286,7 +290,9 @@ namespace Opc.Ua.Client
         {
             // needs to add the '/discovery' back onto non-UA TCP URLs.
             if (Utils.IsUriHttpRelatedScheme(discoveryUrl) &&
-                !discoveryUrl.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))
+                !discoveryUrl.EndsWith(
+                    ConfiguredEndpoint.DiscoverySuffix,
+                    StringComparison.OrdinalIgnoreCase))
             {
                 discoveryUrl += ConfiguredEndpoint.DiscoverySuffix;
             }

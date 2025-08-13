@@ -182,7 +182,8 @@ namespace Opc.Ua.Security
                 {
                     application.IssuerCertificateStore = SecuredApplication
                         .ToCertificateStoreIdentifier(
-                            applicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates);
+                            applicationConfiguration.SecurityConfiguration
+                                .TrustedIssuerCertificates);
 
                     if (applicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates
                             .TrustedCertificates !=
@@ -214,7 +215,8 @@ namespace Opc.Ua.Security
                 {
                     application.RejectedCertificatesStore = SecuredApplication
                         .ToCertificateStoreIdentifier(
-                            applicationConfiguration.SecurityConfiguration.RejectedCertificateStore);
+                            applicationConfiguration.SecurityConfiguration
+                                .RejectedCertificateStore);
                 }
             }
 

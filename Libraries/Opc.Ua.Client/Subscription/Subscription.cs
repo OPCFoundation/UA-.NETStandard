@@ -2490,7 +2490,8 @@ namespace Opc.Ua.Client
 
                                     eventCallback?.Invoke(this, events, message.StringTable);
                                 }
-                                else if (notificationData.Body is StatusChangeNotification statusChanged)
+                                else if (notificationData
+                                    .Body is StatusChangeNotification statusChanged)
                                 {
                                     statusChanged.PublishTime = message.PublishTime;
                                     statusChanged.SequenceNumber = message.SequenceNumber;

@@ -357,7 +357,8 @@ namespace Opc.Ua.Gds.Server
             m_userDatabase.CreateUser(
                 "appadmin",
                 "demo",
-                [Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin]);
+                [Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin, GdsRole
+                    .DiscoveryAdmin]);
             m_userDatabase.CreateUser("appuser", "demo", [Role.AuthenticatedUser]);
 
             m_userDatabase.CreateUser(

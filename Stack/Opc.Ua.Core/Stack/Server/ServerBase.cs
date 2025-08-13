@@ -1736,7 +1736,7 @@ namespace Opc.Ua
                 m_maxRequestCount = maxRequestCount;
                 m_queue = new ConcurrentQueue<IEndpointIncomingRequest>();
                 m_queueSignal = new SemaphoreSlim(0);
-                m_workers = new List<Task>();
+                m_workers = [];
                 m_cts = new CancellationTokenSource();
                 m_activeThreadCount = 0;
                 m_totalThreadCount = 0;

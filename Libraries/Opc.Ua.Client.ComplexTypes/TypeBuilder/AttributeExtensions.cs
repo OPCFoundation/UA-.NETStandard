@@ -128,7 +128,8 @@ namespace Opc.Ua.Client.ComplexTypes
                     attributeType.GetProperty("XmlEncodingId")
                 ],
                 // values to assign
-                [complexTypeId?.ToString(), binaryEncodingId?.ToString(), xmlEncodingId?.ToString()]);
+                [complexTypeId?.ToString(), binaryEncodingId?.ToString(), xmlEncodingId?
+                    .ToString()]);
             typeBuilder.SetCustomAttribute(builder);
         }
 

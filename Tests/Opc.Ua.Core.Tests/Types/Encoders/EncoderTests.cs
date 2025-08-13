@@ -295,7 +295,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("BuiltInType")]
         [Repeat(kRandomRepeats)]
         public void ReEncodeBuiltInTypeRandomVariantInDataValue(
-            [ValueSource(nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup)
+            [ValueSource(
+                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup)
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
@@ -464,7 +465,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         [Category("BuiltInType")]
         public void ReEncodeVariantCollectionInDataValue(
-            [ValueSource(nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup)
+            [ValueSource(
+                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup)
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;

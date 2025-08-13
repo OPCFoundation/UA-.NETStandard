@@ -550,7 +550,7 @@ namespace Opc.Ua
             IList<Variant> outputArguments,
             CancellationToken cancellationToken = default)
         {
-            return CallAsyncInternal(
+            return CallInternalSyncOrAsync(
                 context,
                 objectId,
                 inputArguments,
@@ -578,7 +578,7 @@ namespace Opc.Ua
         {
             // safe to access result directly as sync = true
 #pragma warning disable CA2012 // Use ValueTasks correctly
-            ValueTask<ServiceResult> syncResult = CallAsyncInternal(
+            ValueTask<ServiceResult> syncResult = CallInternalSyncOrAsync(
                 context,
                 objectId,
                 inputArguments,
@@ -604,7 +604,7 @@ namespace Opc.Ua
         /// <param name="sync">If the method shall execute synchronously.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The result of the method call.</returns>
-        protected virtual async ValueTask<ServiceResult> CallAsyncInternal(
+        protected virtual async ValueTask<ServiceResult> CallInternalSyncOrAsync(
             ISystemContext context,
             NodeId objectId,
             IList<Variant> inputArguments,

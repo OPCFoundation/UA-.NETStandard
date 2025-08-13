@@ -367,7 +367,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             X509Certificate2 appCertificate = GetTestCert();
             _ = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                appCertificate.AddToStore(CertificateStoreType.X509Store, "User\\UA_MachineDefault"));
+                appCertificate.AddToStore(
+                    CertificateStoreType.X509Store,
+                    "User\\UA_MachineDefault"));
             _ = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                 appCertificate.AddToStore(
                     CertificateStoreType.X509Store,

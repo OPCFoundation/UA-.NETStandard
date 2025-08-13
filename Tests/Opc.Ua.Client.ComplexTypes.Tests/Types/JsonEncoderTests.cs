@@ -472,7 +472,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                                     continue;
                                 }
                             }
-                            else if (property.Name is "NodeId" or "ExpandedNodeId" or "QualifiedName")
+                            else if (property
+                                .Name is "NodeId" or "ExpandedNodeId" or "QualifiedName")
                             {
                                 if (jsonEncoding == JsonEncodingType.Verbose)
                                 {

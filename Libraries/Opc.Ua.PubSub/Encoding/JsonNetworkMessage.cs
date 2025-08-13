@@ -289,7 +289,7 @@ namespace Opc.Ua.PubSub.Encoding
                 }
 
                 if ((NetworkMessageContentMask &
-                        JsonNetworkMessageContentMask.DataSetClassId) != 0 &&
+                    JsonNetworkMessageContentMask.DataSetClassId) != 0 &&
                     HasSingleDataSetMessage)
                 {
                     var jsonDataSetMessage = DataSetMessages[0] as JsonDataSetMessage;
@@ -492,7 +492,7 @@ namespace Opc.Ua.PubSub.Encoding
                     }
                     // publisher id
                     else if ((NetworkMessageContentMask &
-                            JsonNetworkMessageContentMask.PublisherId) != 0 &&
+                        JsonNetworkMessageContentMask.PublisherId) != 0 &&
                         PublisherId != null &&
                         PublisherId.Equals(
                             dataSetReader.PublisherId.Value.ToString(),
@@ -575,7 +575,8 @@ namespace Opc.Ua.PubSub.Encoding
                         {
                             m_uaDataSetMessages.Add(jsonDataSetMessage);
                         }
-                        else if (jsonDataSetMessage.DecodeErrorReason == DataSetDecodeErrorReason.MetadataMajorVersion)
+                        else if (jsonDataSetMessage
+                            .DecodeErrorReason == DataSetDecodeErrorReason.MetadataMajorVersion)
                         {
                             OnDataSetDecodeErrorOccurred(
                                 new DataSetDecodeErrorEventArgs(

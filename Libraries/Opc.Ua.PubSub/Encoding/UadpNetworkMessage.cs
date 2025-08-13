@@ -714,7 +714,8 @@ namespace Opc.Ua.PubSub.Encoding
                 {
                     //check Enabled & publisher id
                     if (dataSetReader.PublisherId.Value == null ||
-                        (PublisherId != null && PublisherId.Equals(dataSetReader.PublisherId.Value)))
+                        (PublisherId != null &&
+                            PublisherId.Equals(dataSetReader.PublisherId.Value)))
                     {
                         dataSetReadersFiltered.Add(dataSetReader);
                     }

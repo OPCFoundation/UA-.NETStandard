@@ -379,7 +379,11 @@ namespace Opc.Ua
                     {
                         result.OperandStatusCodes.Add(operandResult.StatusCode);
                         result.OperandDiagnosticInfos.Add(
-                            new DiagnosticInfo(operandResult, diagnosticsMasks, false, stringTable));
+                            new DiagnosticInfo(
+                                operandResult,
+                                diagnosticsMasks,
+                                false,
+                                stringTable));
                     }
                 }
 

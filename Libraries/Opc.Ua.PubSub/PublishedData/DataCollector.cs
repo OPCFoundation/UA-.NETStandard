@@ -216,7 +216,8 @@ namespace Opc.Ua.PubSub.PublishedData
                                         if (field.FieldMetaData.ValueRank == ValueRanks.Scalar)
                                         {
                                             if (variant.Value is string strFieldValue &&
-                                                ShouldBringToConstraints((uint)strFieldValue.Length))
+                                                ShouldBringToConstraints(
+                                                    (uint)strFieldValue.Length))
                                             {
                                                 variant.Value = strFieldValue[
                                                     ..(int)field.FieldMetaData.MaxStringLength
@@ -276,7 +277,8 @@ namespace Opc.Ua.PubSub.PublishedData
                                                             .Clone();
                                                         Array.Resize(
                                                             ref byteArray,
-                                                            (int)field.FieldMetaData.MaxStringLength);
+                                                            (int)field.FieldMetaData
+                                                                .MaxStringLength);
                                                         valueArray[idx] = byteArray;
                                                     }
                                                 }

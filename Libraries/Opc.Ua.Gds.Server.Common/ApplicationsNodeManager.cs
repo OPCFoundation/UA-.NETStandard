@@ -1195,7 +1195,7 @@ namespace Opc.Ua.Gds.Server
                 buffer.Append("CN=");
 
                 if ((NodeId.IsNull(certificateGroup.Id) ||
-                        (certificateGroup.Id == m_defaultApplicationGroupId)) &&
+                    (certificateGroup.Id == m_defaultApplicationGroupId)) &&
                     (application.ApplicationNames.Count > 0))
                 {
                     buffer.Append(application.ApplicationNames[0]);

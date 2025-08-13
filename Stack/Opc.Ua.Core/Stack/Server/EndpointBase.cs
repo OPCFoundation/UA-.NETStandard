@@ -287,10 +287,8 @@ namespace Opc.Ua
             {
                 SetRequestContext(RequestEncoding.Binary);
 
-                ServiceDefinition service = null;
-
                 // find service.
-                if (!SupportedServices.TryGetValue(incoming.TypeId, out service))
+                if (!SupportedServices.TryGetValue(incoming.TypeId, out ServiceDefinition service))
                 {
                     throw new ServiceResultException(StatusCodes.BadServiceUnsupported, Utils
                         .Format("'{0}' is an unrecognized service identifier.", incoming.TypeId));
@@ -714,9 +712,8 @@ namespace Opc.Ua
                 {
                     return await asyncHandler(request, cancellationToken).ConfigureAwait(false);
                 }
-                var syncHandler = m_invokeService;
 
-                return syncHandler?.Invoke(request);
+                return m_invokeService?.Invoke(request);
             }
 
             private readonly InvokeServiceEventHandler m_invokeService;
@@ -1044,17 +1041,15 @@ namespace Opc.Ua
                             .Body is AdditionalParametersType parameters &&
                             TryExtractActivityContextFromParameters(
                                 parameters,
-                                out var activityContext))
+                                out ActivityContext activityContext))
                         {
-                            using (var activity = ActivitySource.StartActivity(
+                            using Activity activity = ActivitySource.StartActivity(
                                 Request.GetType().Name,
                                 ActivityKind.Server,
-                                activityContext))
-                            {
-                                // call the service.
-                                m_response = await m_service.InvokeAsync(Request, cancellationToken)
-                                    .ConfigureAwait(false);
-                            }
+                                activityContext);
+                            // call the service.
+                            m_response = await m_service.InvokeAsync(Request, cancellationToken)
+                                .ConfigureAwait(false);
                         }
                         else
                         {

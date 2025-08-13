@@ -1116,7 +1116,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
                         // Checks just for DataValue type only
                         if ((uadpDataSetMessage.FieldContentMask &
-                                DataSetFieldContentMask.StatusCode) ==
+                            DataSetFieldContentMask.StatusCode) ==
                             DataSetFieldContentMask.StatusCode)
                         {
                             // check dataValues StatusCode
@@ -1130,7 +1130,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
                         // check dataValues SourceTimestamp
                         if ((uadpDataSetMessage.FieldContentMask &
-                                DataSetFieldContentMask.SourceTimestamp) ==
+                            DataSetFieldContentMask.SourceTimestamp) ==
                             DataSetFieldContentMask.SourceTimestamp)
                         {
                             Assert.AreEqual(
@@ -1143,7 +1143,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
                         // check dataValues ServerTimestamp
                         if ((uadpDataSetMessage.FieldContentMask &
-                                DataSetFieldContentMask.ServerTimestamp) ==
+                            DataSetFieldContentMask.ServerTimestamp) ==
                             DataSetFieldContentMask.ServerTimestamp)
                         {
                             // check dataValues ServerTimestamp
@@ -1157,7 +1157,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
                         // check dataValues SourcePicoseconds
                         if ((uadpDataSetMessage.FieldContentMask &
-                                DataSetFieldContentMask.SourcePicoSeconds) ==
+                            DataSetFieldContentMask.SourcePicoSeconds) ==
                             DataSetFieldContentMask.SourcePicoSeconds)
                         {
                             Assert.AreEqual(
@@ -1170,7 +1170,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
                         // check dataValues ServerPicoSeconds
                         if ((uadpDataSetMessage.FieldContentMask &
-                                DataSetFieldContentMask.ServerPicoSeconds) ==
+                            DataSetFieldContentMask.ServerPicoSeconds) ==
                             DataSetFieldContentMask.ServerPicoSeconds)
                         {
                             // check dataValues ServerPicoseconds

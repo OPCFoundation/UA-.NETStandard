@@ -617,7 +617,8 @@ namespace Quickstarts
                             {
                                 IReference hasTypeDefinition = variableNode.ReferenceTable
                                     .FirstOrDefault(r =>
-                                        r.ReferenceTypeId.Equals(ReferenceTypeIds.HasTypeDefinition));
+                                        r.ReferenceTypeId
+                                            .Equals(ReferenceTypeIds.HasTypeDefinition));
                                 if (hasTypeDefinition != null)
                                 {
                                     leafNode = hasTypeDefinition.TargetId == VariableTypeIds

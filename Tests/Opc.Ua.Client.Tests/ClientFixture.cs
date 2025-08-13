@@ -255,10 +255,9 @@ namespace Opc.Ua.Client.Tests
             bool serverHalted;
             do
             {
-                serverHalted = false;
                 try
                 {
-                    var endpoint = await GetEndpointAsync(
+                    ConfiguredEndpoint endpoint = await GetEndpointAsync(
                         getEndpointsUrl,
                         securityProfile,
                         endpoints
