@@ -308,10 +308,8 @@ namespace Quickstarts
             }
         }
 
-        #region Private Members
         private readonly TextWriter m_output;
         private Task m_status;
         private DateTime m_lastEventTime;
-        #endregion
     }
 }

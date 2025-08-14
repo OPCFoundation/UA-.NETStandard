@@ -71,8 +71,7 @@ namespace Opc.Ua.Client
             endpointConfiguration.OperationTimeout = discoverTimeout;
 
             // Connect to the local discovery server and find the available servers.
-            using (
-                var client = DiscoveryClient.Create(
+            using (var client = DiscoveryClient.Create(
                     new Uri(Utils.Format(Utils.DiscoveryUrls[0], "localhost")),
                     endpointConfiguration))
             {

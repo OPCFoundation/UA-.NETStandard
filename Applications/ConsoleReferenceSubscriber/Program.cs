@@ -206,7 +206,6 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             }
         }
 
-        #region Private Methods
         /// <summary>
         /// Handler for <see cref="UaPubSubApplication.RawDataReceived" /> event.
         /// </summary>
@@ -394,7 +393,6 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                 }
             };
 
-            #region Define ReaderGroup1
             var readerGroup1 = new ReaderGroupDataType
             {
                 Name = "ReaderGroup 1",
@@ -402,7 +400,6 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                 MaxNetworkMessageSize = 1500
             };
 
-            #region Define DataSetReader 'Simple' for PublisherId = (UInt16)1, DataSetWriterId = 1
             var dataSetReaderSimple = new DataSetReaderDataType
             {
                 Name = "Reader 1 UDP UADP",
@@ -456,11 +453,8 @@ namespace Quickstarts.ConsoleReferenceSubscriber
 
             dataSetReaderSimple.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
 
-            #endregion
-
             readerGroup1.DataSetReaders.Add(dataSetReaderSimple);
 
-            #region Define DataSetReader 'AllTypes' for PublisherId = (UInt16)1, DataSetWriterId = 2
             var dataSetReaderAllTypes = new DataSetReaderDataType
             {
                 Name = "Reader 2 UDP UADP",
@@ -514,11 +508,8 @@ namespace Quickstarts.ConsoleReferenceSubscriber
 
             dataSetReaderAllTypes.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
 
-            #endregion
-
             readerGroup1.DataSetReaders.Add(dataSetReaderAllTypes);
 
-            #endregion
             pubSubConnection1.ReaderGroups.Add(readerGroup1);
 
             //create  pub sub configuration root object
@@ -558,15 +549,12 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             const string brokerQueueName = "Json_WriterGroup_1";
             const string brokerMetaData = "$Metadata";
 
-            #region Define ReaderGroup1
             var readerGroup1 = new ReaderGroupDataType
             {
                 Name = "ReaderGroup 1",
                 Enabled = true,
                 MaxNetworkMessageSize = 1500
             };
-
-            #region Define DataSetReader1 'Simple' for PublisherId = (UInt16)2, DataSetWriterId = 1
 
             var dataSetReaderSimple = new DataSetReaderDataType
             {
@@ -629,11 +617,8 @@ namespace Quickstarts.ConsoleReferenceSubscriber
 
             dataSetReaderSimple.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
 
-            #endregion
-
             readerGroup1.DataSetReaders.Add(dataSetReaderSimple);
 
-            #region Define DataSetReader2 'AllTypes' for PublisherId = (UInt16)2, DataSetWriterId = 2
             var dataSetReaderAllTypes = new DataSetReaderDataType
             {
                 Name = "Reader 2 MQTT JSON RawData Encoding",
@@ -695,11 +680,8 @@ namespace Quickstarts.ConsoleReferenceSubscriber
 
             dataSetReaderAllTypes.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
 
-            #endregion
-
             readerGroup1.DataSetReaders.Add(dataSetReaderAllTypes);
 
-            #endregion
             pubSubConnection1.ReaderGroups.Add(readerGroup1);
 
             //create  pub sub configuration root object
@@ -739,7 +721,6 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             const string brokerQueueName = "Uadp_WriterGroup_1";
             const string brokerMetaData = "$Metadata";
 
-            #region Define ReaderGroup1
             var readerGroup1 = new ReaderGroupDataType
             {
                 Name = "ReaderGroup 1",
@@ -747,7 +728,6 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                 MaxNetworkMessageSize = 1500
             };
 
-            #region Define DataSetReader 'Simple' for PublisherId = (UInt16)1, DataSetWriterId = 1
             var dataSetReaderSimple = new DataSetReaderDataType
             {
                 Name = "Reader 1 MQTT UADP",
@@ -809,11 +789,8 @@ namespace Quickstarts.ConsoleReferenceSubscriber
 
             dataSetReaderSimple.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
 
-            #endregion
-
             readerGroup1.DataSetReaders.Add(dataSetReaderSimple);
 
-            #region Define DataSetReader 'AllTypes' for PublisherId = (UInt16)1, DataSetWriterId = 2
             var dataSetReaderAllTypes = new DataSetReaderDataType
             {
                 Name = "Reader 2 MQTT UADP",
@@ -870,11 +847,8 @@ namespace Quickstarts.ConsoleReferenceSubscriber
 
             dataSetReaderAllTypes.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
 
-            #endregion
-
             readerGroup1.DataSetReaders.Add(dataSetReaderAllTypes);
 
-            #endregion
             pubSubConnection1.ReaderGroups.Add(readerGroup1);
 
             //create  pub sub configuration root object
@@ -1094,6 +1068,5 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             Utils.SetTraceMask(Utils.TraceMasks.Error);
             Utils.SetTraceOutput(Utils.TraceOutput.DebugAndFile);
         }
-        #endregion
     }
 }

@@ -182,7 +182,6 @@ namespace Quickstarts.ConsoleReferencePublisher
             }
         }
 
-        #region Private Methods
         /// <summary>
         /// Creates a PubSubConfiguration object for UDP & UADP programmatically.
         /// </summary>
@@ -220,7 +219,6 @@ namespace Quickstarts.ConsoleReferencePublisher
                 }
             };
 
-            #region Define WriterGroup1
             var writerGroup1 = new WriterGroupDataType
             {
                 Name = "WriterGroup 1",
@@ -296,7 +294,6 @@ namespace Quickstarts.ConsoleReferencePublisher
             writerGroup1.DataSetWriters.Add(dataSetWriter2);
 
             pubSubConnection1.WriterGroups.Add(writerGroup1);
-            #endregion
 
             //  Define PublishedDataSet Simple
             PublishedDataSetDataType publishedDataSetSimple = CreatePublishedDataSetSimple();
@@ -344,8 +341,6 @@ namespace Quickstarts.ConsoleReferencePublisher
 
             const string brokerQueueName = "Json_WriterGroup_1";
             const string brokerMetaData = "$Metadata";
-
-            #region Define WriterGroup1 - Json
 
             var writerGroup1 = new WriterGroupDataType
             {
@@ -442,7 +437,6 @@ namespace Quickstarts.ConsoleReferencePublisher
             writerGroup1.DataSetWriters.Add(dataSetWriter2);
 
             pubSubConnection1.WriterGroups.Add(writerGroup1);
-            #endregion
 
             // Define PublishedDataSet Simple
             PublishedDataSetDataType publishedDataSetSimple = CreatePublishedDataSetSimple();
@@ -491,7 +485,6 @@ namespace Quickstarts.ConsoleReferencePublisher
             const string brokerQueueName = "Uadp_WriterGroup_1";
             const string brokerMetaData = "$Metadata";
 
-            #region Define WriterGroup1
             var writerGroup1 = new WriterGroupDataType
             {
                 Name = "WriterGroup 1",
@@ -582,7 +575,6 @@ namespace Quickstarts.ConsoleReferencePublisher
             writerGroup1.DataSetWriters.Add(dataSetWriter2);
 
             pubSubConnection1.WriterGroups.Add(writerGroup1);
-            #endregion
 
             //  Define PublishedDataSet Simple
             PublishedDataSetDataType publishedDataSetSimple = CreatePublishedDataSetSimple();
@@ -865,6 +857,5 @@ namespace Quickstarts.ConsoleReferencePublisher
             Utils.SetTraceMask(Utils.TraceMasks.Error);
             Utils.SetTraceOutput(Utils.TraceOutput.DebugAndFile);
         }
-        #endregion
     }
 }

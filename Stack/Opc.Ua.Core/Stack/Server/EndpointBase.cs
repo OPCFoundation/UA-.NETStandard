@@ -690,7 +690,8 @@ namespace Opc.Ua
             {
                 if (m_invokeService == null && m_invokeServiceAsync != null)
                 {
-                    Utils.LogWarning("Async Service invoced sychronously. Prefer using InvokeAsync for best performance.");
+                    Utils.LogWarning(
+                        "Async Service invoced sychronously. Prefer using InvokeAsync for best performance.");
                     return InvokeAsync(request).GetAwaiter().GetResult();
                 }
                 return m_invokeService?.Invoke(request);

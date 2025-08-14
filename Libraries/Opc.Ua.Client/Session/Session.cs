@@ -5654,7 +5654,8 @@ namespace Opc.Ua.Client
 
 #if UNUSED
         /// <summary>
-        /// Validates the ServerCertificate ApplicationUri to match the ApplicationUri of the Endpoint for an open call (Spec Part 4 5.4.1)
+        /// Validates the ServerCertificate ApplicationUri to match the ApplicationUri of the Endpoint
+        /// for an open call (Spec Part 4 5.4.1)
         /// </summary>
         private void ValidateServerCertificateApplicationUri(X509Certificate2 serverCertificate)
         {
@@ -6313,9 +6314,10 @@ namespace Opc.Ua.Client
                         if (m_latestAcknowledgementsSent.ContainsKey(subscriptionId))
                         {
                             lastSentSequenceNumber = m_latestAcknowledgementsSent[subscriptionId];
-                            // If the last sent sequence number is uint.Max do not display the warning; the counter rolled over
-                            // If the last sent sequence number is greater or equal to the available sequence number (returned by the publish),
-                            // a warning must be logged.
+                            // If the last sent sequence number is uint.Max do not display the warning;
+                            // the counter rolled over
+                            // If the last sent sequence number is greater or equal to the available
+                            // sequence number (returned by the publish), a warning must be logged.
                             if ((
                                     (lastSentSequenceNumber >= availableSequenceNumber)
                                     && (lastSentSequenceNumber != uint.MaxValue))

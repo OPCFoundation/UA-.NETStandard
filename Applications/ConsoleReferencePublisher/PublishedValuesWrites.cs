@@ -37,7 +37,6 @@ namespace Quickstarts.ConsoleReferencePublisher
 {
     internal class PublishedValuesWrites
     {
-        #region Fields
         /// <summary>
         /// It should match the namespace index from configuration file
         /// </summary>
@@ -94,9 +93,6 @@ namespace Quickstarts.ConsoleReferencePublisher
         private int m_aviationAlphabetIndex;
         private readonly Lock m_lock = new();
 
-        #endregion
-
-        #region Constructor
         /// <summary>
         /// Constructor
         /// </summary>
@@ -107,17 +103,11 @@ namespace Quickstarts.ConsoleReferencePublisher
                 .PublishedDataSets;
             m_dataStore = uaPubSubApplication.DataStore;
         }
-        #endregion
-
-        #region IDisposable
 
         public void Dispose()
         {
             m_updateValuesTimer.Dispose();
         }
-        #endregion
-
-        #region Public Methods
 
         /// <summary>
         /// Initialize PublisherData with information from configuration and start timer to update data
@@ -157,15 +147,11 @@ namespace Quickstarts.ConsoleReferencePublisher
             m_updateValuesTimer = new Timer(UpdateValues, null, 1000, 1000);
         }
 
-        #endregion
-
-        #region Private Methods
         /// <summary>
         /// Load initial demo data
         /// </summary>
         private void LoadInitialData()
         {
-            #region DataSet 'Simple' fill with data
             WriteFieldData(
                 "BoolToggle",
                 NamespaceIndexSimple,
@@ -186,9 +172,6 @@ namespace Quickstarts.ConsoleReferencePublisher
                 NamespaceIndexSimple,
                 new DataValue(new Variant(DateTime.UtcNow), StatusCodes.Good, DateTime.UtcNow)
             );
-            #endregion
-
-            #region DataSet 'AllTypes' fill with data
 
             WriteFieldData(
                 "BoolToggle",
@@ -271,8 +254,6 @@ namespace Quickstarts.ConsoleReferencePublisher
                     StatusCodes.Good,
                     DateTime.UtcNow)
             );
-
-            #endregion
         }
 
         /// <summary>
@@ -532,6 +513,5 @@ namespace Quickstarts.ConsoleReferencePublisher
                 WriteFieldData(variable.Name, namespaceIndex, dataValue);
             }
         }
-        #endregion
     }
 }

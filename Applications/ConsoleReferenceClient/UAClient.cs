@@ -43,7 +43,6 @@ namespace Quickstarts
     /// </summary>
     public class UAClient : IUAClient, IDisposable
     {
-        #region Constructors
         /// <summary>
         /// Initializes a new instance of the UAClient class.
         /// </summary>
@@ -76,9 +75,7 @@ namespace Quickstarts
             m_configuration.CertificateValidator.CertificateValidation += CertificateValidation;
             m_reverseConnectManager = reverseConnectManager;
         }
-        #endregion
 
-        #region IDisposable
         /// <summary>
         /// Dispose objects.
         /// </summary>
@@ -89,9 +86,7 @@ namespace Quickstarts
             m_configuration.CertificateValidator.CertificateValidation -= CertificateValidation;
             GC.SuppressFinalize(this);
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// Action used
         /// </summary>
@@ -136,9 +131,7 @@ namespace Quickstarts
         /// The file to use for log output.
         /// </summary>
         public string LogFile { get; set; }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Do a Durable Subscription Transfer
         /// </summary>
@@ -151,11 +144,9 @@ namespace Quickstarts
             bool success = false;
             SubscriptionCollection subscriptions = [.. Session.Subscriptions];
             Session = null;
-            if (
-                await ConnectAsync(serverUrl, useSecurity, ct).ConfigureAwait(false) &&
+            if (await ConnectAsync(serverUrl, useSecurity, ct).ConfigureAwait(false) &&
                 subscriptions != null &&
-                Session != null
-            )
+                Session != null)
             {
                 m_output.WriteLine(
                     "Transferring " +
@@ -448,9 +439,7 @@ namespace Quickstarts
                 }
             }
         }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Handles the certificate validation event.
         /// This event is triggered every time an untrusted certificate is received from the server.
@@ -488,15 +477,12 @@ namespace Quickstarts
                     e.Certificate.Subject);
             }
         }
-        #endregion
 
-        #region Private Fields
         private readonly Lock m_lock = new();
         private readonly ReverseConnectManager m_reverseConnectManager;
         private readonly ApplicationConfiguration m_configuration;
         private SessionReconnectHandler m_reconnectHandler;
         private readonly TextWriter m_output;
         private bool m_disposed;
-        #endregion
     }
 }

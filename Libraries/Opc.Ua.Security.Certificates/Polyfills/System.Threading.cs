@@ -102,24 +102,23 @@ namespace System.Threading
         }
 
         /// <summary>
-        /// Enters the lock and returns a <see cref="Scope"/> that may be disposed to exit the lock. Once the method returns,
-        /// the calling thread would be the only thread that holds the lock. This method is intended to be used along with a
-        /// language construct that would automatically dispose the <see cref="Scope"/>, such as with the C# using statement.
+        /// Enters the lock and returns a <see cref="Scope"/> that may be disposed to exit the lock.
+        /// Once the method returns, the calling thread would be the only thread that holds the lock.
         /// </summary>
         /// <returns>
         /// A <see cref="Scope"/> that may be disposed to exit the lock.
         /// </returns>
         /// <remarks>
-        /// If the lock cannot be entered immediately, the calling thread waits for the lock to be exited. If the lock is
-        /// already held by the calling thread, the lock is entered again. The calling thread should exit the lock, such as by
-        /// disposing the returned <see cref="Scope"/>, as many times as it had entered the lock to fully exit the lock and
+        /// If the lock cannot be entered immediately, the calling thread waits for the lock to be
+        /// exited. If the lock is already held by the calling thread, the lock is entered again.
+        /// The calling thread should exit the lock, such as by disposing the returned
+        /// <see cref="Scope"/>, as many times as it had entered the lock to fully exit the lock and
         /// allow other threads to enter the lock.
         /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
 #if !NET5_0_OR_GREATER
-        [Obsolete(
-            "This method is a best-effort at hardening against thread aborts, but can theoretically retain lock on pre-.NET 5.0. Use with caution."
-        )]
+        [Obsolete("This method is a best-effort at hardening against thread aborts, " +
+            "but can theoretically retain lock on pre-.NET 5.0. Use with caution.")]
         public Scope EnterScope()
         {
             bool lockTaken = false;
@@ -153,7 +152,8 @@ namespace System.Threading
 #endif
 
         /// <summary>
-        /// A disposable structure that is returned by <see cref="EnterScope()"/>, which when disposed, exits the lock.
+        /// A disposable structure that is returned by <see cref="EnterScope()"/>,
+        /// which when disposed, exits the lock.
         /// </summary>
         public ref struct Scope(Lock @lock)
         {
@@ -161,8 +161,9 @@ namespace System.Threading
             /// Exits the lock.
             /// </summary>
             /// <remarks>
-            /// If the calling thread holds the lock multiple times, such as recursively, the lock is exited only once. The
-            /// calling thread should ensure that each enter is matched with an exit.
+            /// If the calling thread holds the lock multiple times, such as recursively,
+            /// the lock is exited only once. The calling thread should ensure that each
+            /// enter is matched with an exit.
             /// </remarks>
             /// <exception cref="SynchronizationLockException">
             /// The calling thread does not hold the lock.

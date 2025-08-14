@@ -2194,7 +2194,8 @@ namespace Opc.Ua.Server
             out CallMethodResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            ValueTask<(CallMethodResultCollection results, DiagnosticInfoCollection diagnosticInfos)> syncResult = CallInternalAsync(context, methodsToCall, sync: true);
+            ValueTask<(CallMethodResultCollection results, DiagnosticInfoCollection diagnosticInfos)> syncResult
+                = CallInternalAsync(context, methodsToCall, sync: true);
             if (syncResult.IsCompletedSuccessfully)
             {
                 (results, diagnosticInfos) = syncResult.Result;
@@ -2280,7 +2281,9 @@ namespace Opc.Ua.Server
                         // call async node manager
                         if (sync)
                         {
-                            Utils.LogWarning("Async Method called sychronously. Prefer using CallAsync for best performance. NodeManager={0}", nodeManager);
+                            Utils.LogWarning(
+                                "Async Method called sychronously. Prefer using CallAsync for best performance. NodeManager={0}",
+                                nodeManager);
                             asyncNodeManager.CallAsync(
                                 context,
                                 methodsToCall,
