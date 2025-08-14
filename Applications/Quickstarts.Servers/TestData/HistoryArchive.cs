@@ -167,7 +167,7 @@ namespace TestData
             }
         }
 
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private Timer m_updateTimer;
         private Dictionary<NodeId, HistoryRecord> m_records;
     }

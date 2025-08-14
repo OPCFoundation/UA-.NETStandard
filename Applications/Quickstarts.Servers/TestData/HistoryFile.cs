@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using Opc.Ua;
 
 namespace TestData
@@ -41,7 +42,7 @@ namespace TestData
         /// <summary>
         /// Creates a new file.
         /// </summary>
-        internal HistoryFile(object dataLock, List<HistoryEntry> entries)
+        internal HistoryFile(Lock dataLock, List<HistoryEntry> entries)
         {
             m_lock = dataLock;
             m_entries = entries;
@@ -140,7 +141,7 @@ namespace TestData
             }
         }
 
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private readonly List<HistoryEntry> m_entries;
     }
 }
