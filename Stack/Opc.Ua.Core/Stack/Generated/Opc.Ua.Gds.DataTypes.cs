@@ -40,7 +40,7 @@ using Opc.Ua;
 namespace Opc.Ua.Gds
 {
     #region ApplicationRecordDataType Class
-#if (!OPCUA_EXCLUDE_ApplicationRecordDataType)
+    #if (!OPCUA_EXCLUDE_ApplicationRecordDataType)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -53,13 +53,13 @@ namespace Opc.Ua.Gds
         {
             Initialize();
         }
-
+            
         [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
         }
-
+            
         private void Initialize()
         {
             m_applicationId = null;
@@ -77,7 +77,7 @@ namespace Opc.Ua.Gds
         [DataMember(Name = "ApplicationId", IsRequired = false, Order = 1)]
         public NodeId ApplicationId
         {
-            get { return m_applicationId; }
+            get { return m_applicationId;  }
             set { m_applicationId = value; }
         }
 
@@ -85,7 +85,7 @@ namespace Opc.Ua.Gds
         [DataMember(Name = "ApplicationUri", IsRequired = false, Order = 2)]
         public string ApplicationUri
         {
-            get { return m_applicationUri; }
+            get { return m_applicationUri;  }
             set { m_applicationUri = value; }
         }
 
@@ -93,7 +93,7 @@ namespace Opc.Ua.Gds
         [DataMember(Name = "ApplicationType", IsRequired = false, Order = 3)]
         public ApplicationType ApplicationType
         {
-            get { return m_applicationType; }
+            get { return m_applicationType;  }
             set { m_applicationType = value; }
         }
 
@@ -121,7 +121,7 @@ namespace Opc.Ua.Gds
         [DataMember(Name = "ProductUri", IsRequired = false, Order = 5)]
         public string ProductUri
         {
-            get { return m_productUri; }
+            get { return m_productUri;  }
             set { m_productUri = value; }
         }
 
@@ -168,16 +168,16 @@ namespace Opc.Ua.Gds
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId => DataTypeIds.ApplicationRecordDataType;
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ApplicationRecordDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ApplicationRecordDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ApplicationRecordDataType_Encoding_DefaultXml;
-
+                    
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ApplicationRecordDataType_Encoding_DefaultJson;
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ApplicationRecordDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -226,20 +226,13 @@ namespace Opc.Ua.Gds
                 return false;
             }
 
-            if (!Utils.IsEqual(m_applicationId, value.m_applicationId))
-                return false;
-            if (!Utils.IsEqual(m_applicationUri, value.m_applicationUri))
-                return false;
-            if (!Utils.IsEqual(m_applicationType, value.m_applicationType))
-                return false;
-            if (!Utils.IsEqual(m_applicationNames, value.m_applicationNames))
-                return false;
-            if (!Utils.IsEqual(m_productUri, value.m_productUri))
-                return false;
-            if (!Utils.IsEqual(m_discoveryUrls, value.m_discoveryUrls))
-                return false;
-            if (!Utils.IsEqual(m_serverCapabilities, value.m_serverCapabilities))
-                return false;
+            if (!Utils.IsEqual(m_applicationId, value.m_applicationId)) return false;
+            if (!Utils.IsEqual(m_applicationUri, value.m_applicationUri)) return false;
+            if (!Utils.IsEqual(m_applicationType, value.m_applicationType)) return false;
+            if (!Utils.IsEqual(m_applicationNames, value.m_applicationNames)) return false;
+            if (!Utils.IsEqual(m_productUri, value.m_productUri)) return false;
+            if (!Utils.IsEqual(m_discoveryUrls, value.m_discoveryUrls)) return false;
+            if (!Utils.IsEqual(m_serverCapabilities, value.m_serverCapabilities)) return false;
 
             return true;
         }
@@ -287,13 +280,13 @@ namespace Opc.Ua.Gds
     {
         #region Constructors
         /// <remarks />
-        public ApplicationRecordDataTypeCollection() { }
+        public ApplicationRecordDataTypeCollection() {}
 
         /// <remarks />
-        public ApplicationRecordDataTypeCollection(int capacity) : base(capacity) { }
+        public ApplicationRecordDataTypeCollection(int capacity) : base(capacity) {}
 
         /// <remarks />
-        public ApplicationRecordDataTypeCollection(IEnumerable<ApplicationRecordDataType> collection) : base(collection) { }
+        public ApplicationRecordDataTypeCollection(IEnumerable<ApplicationRecordDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
@@ -342,6 +335,6 @@ namespace Opc.Ua.Gds
         }
     }
     #endregion
-#endif
+    #endif
     #endregion
 }
