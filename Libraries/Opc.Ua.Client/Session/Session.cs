@@ -5906,6 +5906,8 @@ namespace Opc.Ua.Client
                 }
             }
 
+            bool subscriptionCreationInProgress = false;
+
             lock (SyncRoot)
             {
                 // find the subscription.
@@ -5915,6 +5917,11 @@ namespace Opc.Ua.Client
                     {
                         subscription = current;
                         break;
+                    }
+                    if (current.Id == default)
+                    {
+                        // Subscription is being created, disable cleanup mechanism
+                        subscriptionCreationInProgress = true;
                     }
                 }
             }
@@ -5957,7 +5964,7 @@ namespace Opc.Ua.Client
             }
             else
             {
-                if (m_deleteSubscriptionsOnClose && !m_reconnecting)
+                if (m_deleteSubscriptionsOnClose && !m_reconnecting && !subscriptionCreationInProgress)
                 {
                     // Delete abandoned subscription from server.
                     Utils.LogWarning("Received Publish Response for Unknown SubscriptionId={0}. Deleting abandoned subscription from server.", subscriptionId);
@@ -6416,7 +6423,7 @@ namespace Opc.Ua.Client
                 }
             }
         }
-#endregion
+        #endregion
 
         #region Protected Fields
         /// <summary>

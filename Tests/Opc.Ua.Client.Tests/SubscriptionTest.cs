@@ -762,8 +762,6 @@ namespace Opc.Ua.Client.Tests
             const int subscriptions = 50;
             const int maxServerPublishRequest = 20;
 
-            Session.DeleteSubscriptionsOnClose = false;
-
             for (int i = 0; i < subscriptions; i++)
             {
                 var subscription = new TestableSubscription(Session.DefaultSubscription) {
@@ -808,7 +806,7 @@ namespace Opc.Ua.Client.Tests
             while (stopwatch.ElapsedMilliseconds < testWaitTime)
             {
                 // use the sample server default for max publish request count
-                Assert.GreaterOrEqual(Math.Max(maxServerPublishRequest, subscriptions), Session.GoodPublishRequestCount);
+                Assert.GreaterOrEqual(Math.Max(maxServerPublishRequest, subscriptions), Session.GoodPublishRequestCount, "No. of Good Publish Requests shall be at max count of subscriptions");
                 await Task.Delay(100).ConfigureAwait(false);
             }
 
@@ -817,8 +815,6 @@ namespace Opc.Ua.Client.Tests
                 var result = await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false);
                 Assert.True(result);
             }
-
-            Session.DeleteSubscriptionsOnClose = true;
         }
 
         public enum TransferType
