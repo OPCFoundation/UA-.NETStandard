@@ -573,7 +573,13 @@ dotnet_diagnostic.severity = none
 dotnet_analyzer.severity = none
 #dotnet_analyzer_diagnostic.category-roslynator.severity = none
 
-[*.{Classes,DataTypes,Constants}.cs]
+[**/*.{Classes,DataTypes,Constants,StatusCodes,Attributes}.cs]
+generated_code = true
+dotnet_diagnostic.severity = none
+dotnet_analyzer.severity = none
+#dotnet_analyzer_diagnostic.category-roslynator.severity = none
+
+[**/OPCBinarySchema.cs]
 generated_code = true
 dotnet_diagnostic.severity = none
 dotnet_analyzer.severity = none
