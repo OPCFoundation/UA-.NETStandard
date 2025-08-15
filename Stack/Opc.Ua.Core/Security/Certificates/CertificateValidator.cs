@@ -1889,30 +1889,32 @@ namespace Opc.Ua
                 case X509ChainStatusFlags.PartialChain:
                     goto case X509ChainStatusFlags.UntrustedRoot;
                 case X509ChainStatusFlags.UntrustedRoot:
+                    if (issuer != null ||
+                        id.Certificate == null ||
+                        !X509Utils.IsSelfSigned(id.Certificate))
+                    {
+                        return ServiceResult.Create(
+                            StatusCodes.BadCertificateChainIncomplete,
+                            "Certificate chain validation failed. {0}: {1}",
+                            status.Status,
+                            status.StatusInformation);
+                    }
                     // self signed cert signature validation
                     // .NET Core ChainStatus returns NotSignatureValid only on Windows,
                     // so we have to do the extra cert signature check on all platforms
-                    if (issuer == null &&
-                        id.Certificate != null &&
-                        X509Utils.IsSelfSigned(id.Certificate))
+                    if (!IsSignatureValid(id.Certificate))
                     {
-                        if (!IsSignatureValid(id.Certificate))
-                        {
-                            goto default;
-                        }
-                        break;
+                        return ServiceResult.Create(
+                            StatusCodes.BadCertificateInvalid,
+                            "Certificate validation failed. {0}: {1}",
+                            status.Status,
+                            status.StatusInformation);
                     }
-
-                    return ServiceResult.Create(
-                        StatusCodes.BadCertificateChainIncomplete,
-                        "Certificate chain validation failed. {0}: {1}",
-                        status.Status,
-                        status.StatusInformation);
+                    break;
                 case X509ChainStatusFlags.RevocationStatusUnknown:
                     if (issuer != null &&
                         (issuer.ValidationOptions &
-                            CertificateValidationOptions.SuppressRevocationStatusUnknown) !=
-                            0)
+                            CertificateValidationOptions.SuppressRevocationStatusUnknown) != 0)
                     {
                         Utils.LogWarning(
                             Utils.TraceMasks.Security,
@@ -1955,7 +1957,6 @@ namespace Opc.Ua
                             status.StatusInformation);
                         break;
                     }
-
                     return ServiceResult.Create(
                         StatusCodes.BadCertificateIssuerTimeInvalid,
                         "Issuer Certificate has expired or is not yet valid. {0}: {1}",
@@ -1973,7 +1974,6 @@ namespace Opc.Ua
                             status.StatusInformation);
                         break;
                     }
-
                     return ServiceResult.Create(
                         isIssuer
                             ? StatusCodes.BadCertificateIssuerTimeInvalid
