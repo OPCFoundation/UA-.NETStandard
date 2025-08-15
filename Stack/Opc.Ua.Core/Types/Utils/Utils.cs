@@ -298,7 +298,12 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the current trace mask settings.
         /// </summary>
-        public static int TraceMask { get; private set; } = TraceMasks.All;
+        public static int TraceMask { get; private set; }
+#if DEBUG
+            = TraceMasks.All;
+#else
+            = TraceMasks.None;
+#endif
 
         /// <summary>
         /// Sets the mask for tracing (thread safe).
