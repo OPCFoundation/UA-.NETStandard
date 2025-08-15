@@ -2194,18 +2194,7 @@ namespace Opc.Ua.Server
             out CallMethodResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            ValueTask<(CallMethodResultCollection results, DiagnosticInfoCollection diagnosticInfos)> syncResult
-                = CallInternalAsync(context, methodsToCall, sync: true);
-            if (syncResult.IsCompletedSuccessfully)
-            {
-                (results, diagnosticInfos) = syncResult.Result;
-            }
-            else
-            {
-                results = default;
-                diagnosticInfos = default;
-                syncResult.GetAwaiter().GetResult();
-            }
+            (results, diagnosticInfos) = CallInternalAsync(context, methodsToCall, sync: true).Result;
         }
 
         /// <summary>

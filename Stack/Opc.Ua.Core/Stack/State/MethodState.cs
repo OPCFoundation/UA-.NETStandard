@@ -577,7 +577,6 @@ namespace Opc.Ua
             IList<Variant> outputArguments)
         {
             // safe to access result directly as sync = true
-#pragma warning disable CA2012 // Use ValueTasks correctly
             ValueTask<ServiceResult> syncResult = CallInternalSyncOrAsync(
                 context,
                 objectId,
@@ -585,11 +584,6 @@ namespace Opc.Ua
                 argumentErrors,
                 outputArguments,
                 sync: true);
-#pragma warning restore CA2012 // Use ValueTasks correctly
-            if (!syncResult.IsCompletedSuccessfully)
-            {
-                return syncResult.GetAwaiter().GetResult();
-            }
             return syncResult.Result;
         }
 

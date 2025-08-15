@@ -84,12 +84,6 @@ namespace Opc.Ua.Fuzzing
                 );
             }
 
-            // adjust minimum level
-            // if (fileLevel < LogLevel.Information || consoleLogLevel < LogLevel.Information)
-            // {
-            //     loggerConfiguration.MinimumLevel.Verbose();
-            // }
-
             // create the serilog logger
             Serilog.Core.Logger serilogger = loggerConfiguration.CreateLogger();
 

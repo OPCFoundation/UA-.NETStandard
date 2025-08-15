@@ -49,8 +49,7 @@ namespace Quickstarts
         public UAClient(
             ApplicationConfiguration configuration,
             TextWriter writer,
-            Action<IList, IList> validateResponse
-        )
+            Action<IList, IList> validateResponse)
         {
             ValidateResponse = validateResponse;
             m_output = writer;
@@ -66,8 +65,7 @@ namespace Quickstarts
             ApplicationConfiguration configuration,
             ReverseConnectManager reverseConnectManager,
             TextWriter writer,
-            Action<IList, IList> validateResponse
-        )
+            Action<IList, IList> validateResponse)
         {
             ValidateResponse = validateResponse;
             m_output = writer;
@@ -138,8 +136,7 @@ namespace Quickstarts
         public async Task<bool> DurableSubscriptionTransferAsync(
             string serverUrl,
             bool useSecurity = true,
-            CancellationToken ct = default
-        )
+            CancellationToken ct = default)
         {
             bool success = false;
             SubscriptionCollection subscriptions = [.. Session.Subscriptions];
@@ -319,7 +316,8 @@ namespace Quickstarts
                     Session.Close(!leaveChannelOpen);
                     if (leaveChannelOpen)
                     {
-                        // detach the channel, so it doesn't get closed when the session is disposed.
+                        // detach the channel, so it doesn't get
+                        // closed when the session is disposed.
                         Session.DetachChannel();
                     }
                     Session.Dispose();

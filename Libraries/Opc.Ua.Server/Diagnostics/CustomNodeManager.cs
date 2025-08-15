@@ -2922,18 +2922,12 @@ namespace Opc.Ua.Server
             IList<CallMethodResult> results,
             IList<ServiceResult> errors)
         {
-#pragma warning disable CA2012 // Use ValueTasks correctly
-            ValueTask syncResult = CallInternalAsync(
+            CallInternalAsync(
                 context,
                 methodsToCall,
                 results,
                 errors,
                 sync: true);
-#pragma warning restore CA2012 // Use ValueTasks correctly
-            if (!syncResult.IsCompletedSuccessfully)
-            {
-                syncResult.GetAwaiter().GetResult();
-            }
         }
 
         /// <summary>
@@ -3173,19 +3167,13 @@ namespace Opc.Ua.Server
             MethodState method,
             CallMethodResult result)
         {
-#pragma warning disable CA2012 // Use ValueTasks correctly
             ValueTask<ServiceResult> syncResult = CallInternalAsync(
                 context,
                 methodToCall,
                 method,
                 result,
                 sync: true);
-#pragma warning restore CA2012 // Use ValueTasks correctly
-            if (syncResult.IsCompletedSuccessfully)
-            {
-                return syncResult.Result;
-            }
-            return syncResult.GetAwaiter().GetResult();
+            return syncResult.Result;
         }
 
         /// <summary>
