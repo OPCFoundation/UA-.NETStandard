@@ -6364,6 +6364,8 @@ namespace Opc.Ua.Client
                 }
             }
 
+            bool subscriptionCreationInProgress = false;
+
             lock (SyncRoot)
             {
                 // find the subscription.
@@ -6373,6 +6375,11 @@ namespace Opc.Ua.Client
                     {
                         subscription = current;
                         break;
+                    }
+                    if (current.Id == default)
+                    {
+                        // Subscription is being created, disable cleanup mechanism
+                        subscriptionCreationInProgress = true;
                     }
                 }
             }
@@ -6424,7 +6431,7 @@ namespace Opc.Ua.Client
                     Task.Run(() => OnRaisePublishNotification(publishEventHandler, args));
                 }
             }
-            else if (DeleteSubscriptionsOnClose && !m_reconnecting)
+            else if (DeleteSubscriptionsOnClose && !m_reconnecting && !subscriptionCreationInProgress)
             {
                 // Delete abandoned subscription from server.
                 Utils.LogWarning(

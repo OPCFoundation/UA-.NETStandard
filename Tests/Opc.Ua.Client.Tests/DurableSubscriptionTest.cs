@@ -209,8 +209,6 @@ namespace Opc.Ua.Client.Tests
 
             Dictionary<string, NodeId> desiredNodeIds = GetDesiredNodeIds(subscription.Id);
 
-            _ = GetValues(desiredNodeIds);
-
             Assert.True(
                 subscription.SetSubscriptionDurable(
                     requestedHours,

@@ -65,7 +65,7 @@ namespace Opc.Ua.Server
             m_publishingEnabled = publishingEnabled;
             Priority = priority;
             m_publishTimerExpiry = HiResClock.TickCount64 + (long)publishingInterval;
-            m_keepAliveCounter = maxKeepAliveCount;
+            m_keepAliveCounter = 0;
             m_lifetimeCounter = 0;
             m_waitingForPublish = false;
             m_maxMessageCount = maxMessageCount;
@@ -149,7 +149,7 @@ namespace Opc.Ua.Server
             Priority = storedSubscription.Priority;
             m_publishTimerExpiry = HiResClock.TickCount64 +
                 (long)storedSubscription.PublishingInterval;
-            m_keepAliveCounter = storedSubscription.MaxKeepaliveCount;
+            m_keepAliveCounter = 0;
             m_waitingForPublish = false;
             m_maxMessageCount = storedSubscription.MaxMessageCount;
             m_sentMessages = storedSubscription.SentMessages;

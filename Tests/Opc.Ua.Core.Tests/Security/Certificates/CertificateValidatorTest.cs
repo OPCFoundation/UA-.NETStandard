@@ -268,10 +268,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     serviceResultException.Message);
             }
 
-            Thread.Sleep(1000);
+            Thread.Sleep(1500);
             Assert.AreEqual(
                 m_appSelfSignedCerts.Count,
-                validator.RejectedStore.EnumerateAsync().GetAwaiter().GetResult().Count);
+                validator.RejectedStore.EnumerateAsync().GetAwaiter().GetResult().Count,
+                "All self signed certs shall be contained in the RejectedStore");
 
             // add auto approver
             var approver = new CertValidationApprover([StatusCodes.BadCertificateUntrusted]);
@@ -282,7 +283,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 certValidator.Validate(publicKey);
             }
             // count certs written to rejected store
-            Assert.AreEqual(m_appSelfSignedCerts.Count, approver.AcceptedCount);
+            Assert.AreEqual(m_appSelfSignedCerts.Count, approver.AcceptedCount,
+                "All self signed certs shall be accepted with StatusCode BadCertificateUntrusted");
         }
 
         /// <summary>
