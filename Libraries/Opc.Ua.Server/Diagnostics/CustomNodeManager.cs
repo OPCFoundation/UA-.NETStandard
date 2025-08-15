@@ -2922,7 +2922,7 @@ namespace Opc.Ua.Server
             IList<CallMethodResult> results,
             IList<ServiceResult> errors)
         {
-            CallInternalAsync(
+            _ = CallInternalAsync(
                 context,
                 methodsToCall,
                 results,
