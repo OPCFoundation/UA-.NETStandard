@@ -2090,9 +2090,6 @@ namespace Opc.Ua
             WriteUInt32("EncodingMask", encodingMask);
         }
 
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
-#endif
-
         /// <summary>
         /// Writes a DiagnosticInfo to the stream.
         /// Ignores InnerDiagnosticInfo field if the nesting level

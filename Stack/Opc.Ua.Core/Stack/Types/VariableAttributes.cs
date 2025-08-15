@@ -13,12 +13,12 @@
 namespace Opc.Ua
 {
     /// <summary>
-    /// Stores information about engineering units.
+    /// Variable attributes.
     /// </summary>
     public partial class VariableAttributes
     {
         /// <summary>
-        /// Initializes the object with the unitName and namespaceUri.
+        /// Initializes the object with value and access level.
         /// </summary>
         public VariableAttributes(object value, byte accessLevel)
         {

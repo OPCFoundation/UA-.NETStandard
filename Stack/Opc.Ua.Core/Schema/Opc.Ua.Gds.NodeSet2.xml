@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" ?>
 <!--
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
@@ -27,30 +27,14 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
 -->
-<UANodeSet
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-  LastModified="2025-06-30T00:00:00Z"
-  xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"
->
+
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2025-06-30T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <NamespaceUris>
     <Uri>http://opcfoundation.org/UA/GDS/</Uri>
   </NamespaceUris>
   <Models>
-    <Model
-      ModelUri="http://opcfoundation.org/UA/GDS/"
-      XmlSchemaUri="http://opcfoundation.org/UA/GDS/Types.xsd"
-      Version="1.05.05"
-      PublicationDate="2025-06-30T00:00:00Z"
-      ModelVersion="1.5.5"
-    >
-      <RequiredModel
-        ModelUri="http://opcfoundation.org/UA/"
-        XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd"
-        Version="1.05.05"
-        PublicationDate="2025-04-25T00:00:00Z"
-        ModelVersion="1.5.5"
-      />
+    <Model ModelUri="http://opcfoundation.org/UA/GDS/" XmlSchemaUri="http://opcfoundation.org/UA/GDS/Types.xsd" Version="1.05.05" PublicationDate="2025-06-30T00:00:00Z" ModelVersion="1.5.5">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" Version="1.05.05" PublicationDate="2025-04-25T00:00:00Z" ModelVersion="1.5.5" />
     </Model>
   </Models>
   <Aliases>
@@ -107,11 +91,7 @@
     <Alias Alias="AlarmGroupMember">i=16362</Alias>
     <Alias Alias="AlarmSuppressionGroupMember">i=32059</Alias>
   </Aliases>
-  <UAObject
-    NodeId="ns=1;i=721"
-    BrowseName="1:http://opcfoundation.org/UA/GDS/"
-    SymbolicName="OPCUAGDSNamespaceMetadata"
-  >
+  <UAObject NodeId="ns=1;i=721" BrowseName="1:http://opcfoundation.org/UA/GDS/" SymbolicName="OPCUAGDSNamespaceMetadata">
     <DisplayName>http://opcfoundation.org/UA/GDS/</DisplayName>
     <Documentation>https://reference.opcfoundation.org/GDS/docs/10.1</Documentation>
     <References>
@@ -130,29 +110,17 @@
       <Reference ReferenceType="HasTypeDefinition">i=11616</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=722"
-    BrowseName="NamespaceUri"
-    ParentNodeId="ns=1;i=721"
-    DataType="String"
-  >
+  <UAVariable NodeId="ns=1;i=722" BrowseName="NamespaceUri" ParentNodeId="ns=1;i=721" DataType="String">
     <DisplayName>NamespaceUri</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=721</Reference>
     </References>
     <Value>
-      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-        >http://opcfoundation.org/UA/GDS/</String
-      >
+      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/GDS/</String>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=723"
-    BrowseName="NamespaceVersion"
-    ParentNodeId="ns=1;i=721"
-    DataType="String"
-  >
+  <UAVariable NodeId="ns=1;i=723" BrowseName="NamespaceVersion" ParentNodeId="ns=1;i=721" DataType="String">
     <DisplayName>NamespaceVersion</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -162,29 +130,17 @@
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1.05.05</String>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=724"
-    BrowseName="NamespacePublicationDate"
-    ParentNodeId="ns=1;i=721"
-    DataType="DateTime"
-  >
+  <UAVariable NodeId="ns=1;i=724" BrowseName="NamespacePublicationDate" ParentNodeId="ns=1;i=721" DataType="DateTime">
     <DisplayName>NamespacePublicationDate</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=721</Reference>
     </References>
     <Value>
-      <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-        >2025-06-30T00:00:00Z</DateTime
-      >
+      <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2025-06-30T00:00:00Z</DateTime>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=725"
-    BrowseName="IsNamespaceSubset"
-    ParentNodeId="ns=1;i=721"
-    DataType="Boolean"
-  >
+  <UAVariable NodeId="ns=1;i=725" BrowseName="IsNamespaceSubset" ParentNodeId="ns=1;i=721" DataType="Boolean">
     <DisplayName>IsNamespaceSubset</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -194,14 +150,7 @@
       <Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">false</Boolean>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=726"
-    BrowseName="StaticNodeIdTypes"
-    ParentNodeId="ns=1;i=721"
-    DataType="i=256"
-    ValueRank="1"
-    ArrayDimensions="0"
-  >
+  <UAVariable NodeId="ns=1;i=726" BrowseName="StaticNodeIdTypes" ParentNodeId="ns=1;i=721" DataType="i=256" ValueRank="1" ArrayDimensions="0">
     <DisplayName>StaticNodeIdTypes</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -213,14 +162,7 @@
       </ListOfInt32>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=727"
-    BrowseName="StaticNumericNodeIdRange"
-    ParentNodeId="ns=1;i=721"
-    DataType="i=291"
-    ValueRank="1"
-    ArrayDimensions="0"
-  >
+  <UAVariable NodeId="ns=1;i=727" BrowseName="StaticNumericNodeIdRange" ParentNodeId="ns=1;i=721" DataType="i=291" ValueRank="1" ArrayDimensions="0">
     <DisplayName>StaticNumericNodeIdRange</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -232,12 +174,7 @@
       </ListOfString>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=728"
-    BrowseName="StaticStringNodeIdPattern"
-    ParentNodeId="ns=1;i=721"
-    DataType="String"
-  >
+  <UAVariable NodeId="ns=1;i=728" BrowseName="StaticStringNodeIdPattern" ParentNodeId="ns=1;i=721" DataType="String">
     <DisplayName>StaticStringNodeIdPattern</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -247,52 +184,28 @@
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd" />
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=862"
-    BrowseName="DefaultRolePermissions"
-    ParentNodeId="ns=1;i=721"
-    DataType="i=96"
-    ValueRank="1"
-    ArrayDimensions="0"
-  >
+  <UAVariable NodeId="ns=1;i=862" BrowseName="DefaultRolePermissions" ParentNodeId="ns=1;i=721" DataType="i=96" ValueRank="1" ArrayDimensions="0">
     <DisplayName>DefaultRolePermissions</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=721</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=863"
-    BrowseName="DefaultUserRolePermissions"
-    ParentNodeId="ns=1;i=721"
-    DataType="i=96"
-    ValueRank="1"
-    ArrayDimensions="0"
-  >
+  <UAVariable NodeId="ns=1;i=863" BrowseName="DefaultUserRolePermissions" ParentNodeId="ns=1;i=721" DataType="i=96" ValueRank="1" ArrayDimensions="0">
     <DisplayName>DefaultUserRolePermissions</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=721</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=864"
-    BrowseName="DefaultAccessRestrictions"
-    ParentNodeId="ns=1;i=721"
-    DataType="i=95"
-  >
+  <UAVariable NodeId="ns=1;i=864" BrowseName="DefaultAccessRestrictions" ParentNodeId="ns=1;i=721" DataType="i=95">
     <DisplayName>DefaultAccessRestrictions</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=721</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1756"
-    BrowseName="1:ModelVersion"
-    ParentNodeId="ns=1;i=721"
-    DataType="i=24263"
-  >
+  <UAVariable NodeId="ns=1;i=1756" BrowseName="1:ModelVersion" ParentNodeId="ns=1;i=721" DataType="i=24263">
     <DisplayName>ModelVersion</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -302,11 +215,7 @@
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1.5.5</String>
     </Value>
   </UAVariable>
-  <UAObject
-    NodeId="ns=1;i=1661"
-    BrowseName="1:DiscoveryAdmin"
-    SymbolicName="WellKnownRole_DiscoveryAdmin"
-  >
+  <UAObject NodeId="ns=1;i=1661" BrowseName="1:DiscoveryAdmin" SymbolicName="WellKnownRole_DiscoveryAdmin">
     <DisplayName>DiscoveryAdmin</DisplayName>
     <Description>This Role grants rights to register, update and unregister any OPC UA Application.</Description>
     <References>
@@ -325,15 +234,7 @@
       <Reference ReferenceType="HasTypeDefinition">i=15620</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=1662"
-    BrowseName="Identities"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1661"
-    DataType="i=15634"
-    ValueRank="1"
-    ArrayDimensions="0"
-  >
+  <UAVariable NodeId="ns=1;i=1662" BrowseName="Identities" AccessRestrictions="3" ParentNodeId="ns=1;i=1661" DataType="i=15634" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Identities</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -343,14 +244,7 @@
       <RolePermission Permissions="59391">i=15704</RolePermission>
     </RolePermissions>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1663"
-    BrowseName="ApplicationsExclude"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1661"
-    DataType="Boolean"
-    AccessLevel="3"
-  >
+  <UAVariable NodeId="ns=1;i=1663" BrowseName="ApplicationsExclude" AccessRestrictions="3" ParentNodeId="ns=1;i=1661" DataType="Boolean" AccessLevel="3">
     <DisplayName>ApplicationsExclude</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -360,15 +254,7 @@
       <RolePermission Permissions="59391">i=15704</RolePermission>
     </RolePermissions>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1664"
-    BrowseName="Applications"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1661"
-    DataType="String"
-    ValueRank="1"
-    ArrayDimensions="0"
-  >
+  <UAVariable NodeId="ns=1;i=1664" BrowseName="Applications" AccessRestrictions="3" ParentNodeId="ns=1;i=1661" DataType="String" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Applications</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -378,14 +264,7 @@
       <RolePermission Permissions="59391">i=15704</RolePermission>
     </RolePermissions>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1665"
-    BrowseName="EndpointsExclude"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1661"
-    DataType="Boolean"
-    AccessLevel="3"
-  >
+  <UAVariable NodeId="ns=1;i=1665" BrowseName="EndpointsExclude" AccessRestrictions="3" ParentNodeId="ns=1;i=1661" DataType="Boolean" AccessLevel="3">
     <DisplayName>EndpointsExclude</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -395,15 +274,7 @@
       <RolePermission Permissions="59391">i=15704</RolePermission>
     </RolePermissions>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1666"
-    BrowseName="Endpoints"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1661"
-    DataType="i=15528"
-    ValueRank="1"
-    ArrayDimensions="0"
-  >
+  <UAVariable NodeId="ns=1;i=1666" BrowseName="Endpoints" AccessRestrictions="3" ParentNodeId="ns=1;i=1661" DataType="i=15528" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Endpoints</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -413,13 +284,7 @@
       <RolePermission Permissions="59391">i=15704</RolePermission>
     </RolePermissions>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1668"
-    BrowseName="AddIdentity"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1661"
-    MethodDeclarationId="i=15624"
-  >
+  <UAMethod NodeId="ns=1;i=1668" BrowseName="AddIdentity" AccessRestrictions="3" ParentNodeId="ns=1;i=1661" MethodDeclarationId="i=15624">
     <DisplayName>AddIdentity</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1669</Reference>
@@ -429,15 +294,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1669"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1668"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1669" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1668" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -466,13 +323,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1670"
-    BrowseName="RemoveIdentity"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1661"
-    MethodDeclarationId="i=15626"
-  >
+  <UAMethod NodeId="ns=1;i=1670" BrowseName="RemoveIdentity" AccessRestrictions="3" ParentNodeId="ns=1;i=1661" MethodDeclarationId="i=15626">
     <DisplayName>RemoveIdentity</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1671</Reference>
@@ -482,15 +333,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1671"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1670"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1671" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1670" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -519,13 +362,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1672"
-    BrowseName="AddApplication"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1661"
-    MethodDeclarationId="i=16176"
-  >
+  <UAMethod NodeId="ns=1;i=1672" BrowseName="AddApplication" AccessRestrictions="3" ParentNodeId="ns=1;i=1661" MethodDeclarationId="i=16176">
     <DisplayName>AddApplication</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1673</Reference>
@@ -535,15 +372,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1673"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1672"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1673" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1672" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -572,13 +401,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1674"
-    BrowseName="RemoveApplication"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1661"
-    MethodDeclarationId="i=16178"
-  >
+  <UAMethod NodeId="ns=1;i=1674" BrowseName="RemoveApplication" AccessRestrictions="3" ParentNodeId="ns=1;i=1661" MethodDeclarationId="i=16178">
     <DisplayName>RemoveApplication</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1675</Reference>
@@ -588,15 +411,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1675"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1674"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1675" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1674" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -625,13 +440,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1676"
-    BrowseName="AddEndpoint"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1661"
-    MethodDeclarationId="i=16180"
-  >
+  <UAMethod NodeId="ns=1;i=1676" BrowseName="AddEndpoint" AccessRestrictions="3" ParentNodeId="ns=1;i=1661" MethodDeclarationId="i=16180">
     <DisplayName>AddEndpoint</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1677</Reference>
@@ -641,15 +450,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1677"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1676"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1677" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1676" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -678,13 +479,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1678"
-    BrowseName="RemoveEndpoint"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1661"
-    MethodDeclarationId="i=16182"
-  >
+  <UAMethod NodeId="ns=1;i=1678" BrowseName="RemoveEndpoint" AccessRestrictions="3" ParentNodeId="ns=1;i=1661" MethodDeclarationId="i=16182">
     <DisplayName>RemoveEndpoint</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1679</Reference>
@@ -694,15 +489,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1679"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1678"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1679" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1678" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -731,11 +518,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAObject
-    NodeId="ns=1;i=1680"
-    BrowseName="1:CertificateAuthorityAdmin"
-    SymbolicName="WellKnownRole_CertificateAuthorityAdmin"
-  >
+  <UAObject NodeId="ns=1;i=1680" BrowseName="1:CertificateAuthorityAdmin" SymbolicName="WellKnownRole_CertificateAuthorityAdmin">
     <DisplayName>CertificateAuthorityAdmin</DisplayName>
     <Description>This Role grants rights to request or revoke any Certificate, update any TrustList or assign CertificateGroups to OPC UA Applications.</Description>
     <References>
@@ -754,15 +537,7 @@
       <Reference ReferenceType="HasTypeDefinition">i=15620</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=1681"
-    BrowseName="Identities"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1680"
-    DataType="i=15634"
-    ValueRank="1"
-    ArrayDimensions="0"
-  >
+  <UAVariable NodeId="ns=1;i=1681" BrowseName="Identities" AccessRestrictions="3" ParentNodeId="ns=1;i=1680" DataType="i=15634" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Identities</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -772,14 +547,7 @@
       <RolePermission Permissions="59391">i=15704</RolePermission>
     </RolePermissions>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1682"
-    BrowseName="ApplicationsExclude"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1680"
-    DataType="Boolean"
-    AccessLevel="3"
-  >
+  <UAVariable NodeId="ns=1;i=1682" BrowseName="ApplicationsExclude" AccessRestrictions="3" ParentNodeId="ns=1;i=1680" DataType="Boolean" AccessLevel="3">
     <DisplayName>ApplicationsExclude</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -789,15 +557,7 @@
       <RolePermission Permissions="59391">i=15704</RolePermission>
     </RolePermissions>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1683"
-    BrowseName="Applications"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1680"
-    DataType="String"
-    ValueRank="1"
-    ArrayDimensions="0"
-  >
+  <UAVariable NodeId="ns=1;i=1683" BrowseName="Applications" AccessRestrictions="3" ParentNodeId="ns=1;i=1680" DataType="String" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Applications</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -807,14 +567,7 @@
       <RolePermission Permissions="59391">i=15704</RolePermission>
     </RolePermissions>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1684"
-    BrowseName="EndpointsExclude"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1680"
-    DataType="Boolean"
-    AccessLevel="3"
-  >
+  <UAVariable NodeId="ns=1;i=1684" BrowseName="EndpointsExclude" AccessRestrictions="3" ParentNodeId="ns=1;i=1680" DataType="Boolean" AccessLevel="3">
     <DisplayName>EndpointsExclude</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -824,15 +577,7 @@
       <RolePermission Permissions="59391">i=15704</RolePermission>
     </RolePermissions>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1685"
-    BrowseName="Endpoints"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1680"
-    DataType="i=15528"
-    ValueRank="1"
-    ArrayDimensions="0"
-  >
+  <UAVariable NodeId="ns=1;i=1685" BrowseName="Endpoints" AccessRestrictions="3" ParentNodeId="ns=1;i=1680" DataType="i=15528" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Endpoints</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -842,13 +587,7 @@
       <RolePermission Permissions="59391">i=15704</RolePermission>
     </RolePermissions>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1687"
-    BrowseName="AddIdentity"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1680"
-    MethodDeclarationId="i=15624"
-  >
+  <UAMethod NodeId="ns=1;i=1687" BrowseName="AddIdentity" AccessRestrictions="3" ParentNodeId="ns=1;i=1680" MethodDeclarationId="i=15624">
     <DisplayName>AddIdentity</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1688</Reference>
@@ -858,15 +597,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1688"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1687"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1688" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1687" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -895,13 +626,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1689"
-    BrowseName="RemoveIdentity"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1680"
-    MethodDeclarationId="i=15626"
-  >
+  <UAMethod NodeId="ns=1;i=1689" BrowseName="RemoveIdentity" AccessRestrictions="3" ParentNodeId="ns=1;i=1680" MethodDeclarationId="i=15626">
     <DisplayName>RemoveIdentity</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1690</Reference>
@@ -911,15 +636,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1690"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1689"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1690" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1689" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -948,13 +665,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1691"
-    BrowseName="AddApplication"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1680"
-    MethodDeclarationId="i=16176"
-  >
+  <UAMethod NodeId="ns=1;i=1691" BrowseName="AddApplication" AccessRestrictions="3" ParentNodeId="ns=1;i=1680" MethodDeclarationId="i=16176">
     <DisplayName>AddApplication</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1692</Reference>
@@ -964,15 +675,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1692"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1691"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1692" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1691" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1001,13 +704,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1693"
-    BrowseName="RemoveApplication"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1680"
-    MethodDeclarationId="i=16178"
-  >
+  <UAMethod NodeId="ns=1;i=1693" BrowseName="RemoveApplication" AccessRestrictions="3" ParentNodeId="ns=1;i=1680" MethodDeclarationId="i=16178">
     <DisplayName>RemoveApplication</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1694</Reference>
@@ -1017,15 +714,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1694"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1693"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1694" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1693" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1054,13 +743,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1695"
-    BrowseName="AddEndpoint"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1680"
-    MethodDeclarationId="i=16180"
-  >
+  <UAMethod NodeId="ns=1;i=1695" BrowseName="AddEndpoint" AccessRestrictions="3" ParentNodeId="ns=1;i=1680" MethodDeclarationId="i=16180">
     <DisplayName>AddEndpoint</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1696</Reference>
@@ -1070,15 +753,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1696"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1695"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1696" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1695" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1107,13 +782,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1697"
-    BrowseName="RemoveEndpoint"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1680"
-    MethodDeclarationId="i=16182"
-  >
+  <UAMethod NodeId="ns=1;i=1697" BrowseName="RemoveEndpoint" AccessRestrictions="3" ParentNodeId="ns=1;i=1680" MethodDeclarationId="i=16182">
     <DisplayName>RemoveEndpoint</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1698</Reference>
@@ -1123,15 +792,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1698"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1697"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1698" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1697" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1160,11 +821,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAObject
-    NodeId="ns=1;i=1699"
-    BrowseName="1:RegistrationAuthorityAdmin"
-    SymbolicName="WellKnownRole_RegistrationAuthorityAdmin"
-  >
+  <UAObject NodeId="ns=1;i=1699" BrowseName="1:RegistrationAuthorityAdmin" SymbolicName="WellKnownRole_RegistrationAuthorityAdmin">
     <DisplayName>RegistrationAuthorityAdmin</DisplayName>
     <Description>This Role grants rights to approve Certificate Signing requests or NewKeyPair requests.</Description>
     <References>
@@ -1183,15 +840,7 @@
       <Reference ReferenceType="HasTypeDefinition">i=15620</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=1700"
-    BrowseName="Identities"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1699"
-    DataType="i=15634"
-    ValueRank="1"
-    ArrayDimensions="0"
-  >
+  <UAVariable NodeId="ns=1;i=1700" BrowseName="Identities" AccessRestrictions="3" ParentNodeId="ns=1;i=1699" DataType="i=15634" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Identities</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1201,14 +850,7 @@
       <RolePermission Permissions="59391">i=15704</RolePermission>
     </RolePermissions>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1701"
-    BrowseName="ApplicationsExclude"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1699"
-    DataType="Boolean"
-    AccessLevel="3"
-  >
+  <UAVariable NodeId="ns=1;i=1701" BrowseName="ApplicationsExclude" AccessRestrictions="3" ParentNodeId="ns=1;i=1699" DataType="Boolean" AccessLevel="3">
     <DisplayName>ApplicationsExclude</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1218,15 +860,7 @@
       <RolePermission Permissions="59391">i=15704</RolePermission>
     </RolePermissions>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1702"
-    BrowseName="Applications"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1699"
-    DataType="String"
-    ValueRank="1"
-    ArrayDimensions="0"
-  >
+  <UAVariable NodeId="ns=1;i=1702" BrowseName="Applications" AccessRestrictions="3" ParentNodeId="ns=1;i=1699" DataType="String" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Applications</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1236,14 +870,7 @@
       <RolePermission Permissions="59391">i=15704</RolePermission>
     </RolePermissions>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1703"
-    BrowseName="EndpointsExclude"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1699"
-    DataType="Boolean"
-    AccessLevel="3"
-  >
+  <UAVariable NodeId="ns=1;i=1703" BrowseName="EndpointsExclude" AccessRestrictions="3" ParentNodeId="ns=1;i=1699" DataType="Boolean" AccessLevel="3">
     <DisplayName>EndpointsExclude</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1253,15 +880,7 @@
       <RolePermission Permissions="59391">i=15704</RolePermission>
     </RolePermissions>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1704"
-    BrowseName="Endpoints"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1699"
-    DataType="i=15528"
-    ValueRank="1"
-    ArrayDimensions="0"
-  >
+  <UAVariable NodeId="ns=1;i=1704" BrowseName="Endpoints" AccessRestrictions="3" ParentNodeId="ns=1;i=1699" DataType="i=15528" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Endpoints</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1271,13 +890,7 @@
       <RolePermission Permissions="59391">i=15704</RolePermission>
     </RolePermissions>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1706"
-    BrowseName="AddIdentity"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1699"
-    MethodDeclarationId="i=15624"
-  >
+  <UAMethod NodeId="ns=1;i=1706" BrowseName="AddIdentity" AccessRestrictions="3" ParentNodeId="ns=1;i=1699" MethodDeclarationId="i=15624">
     <DisplayName>AddIdentity</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1707</Reference>
@@ -1287,15 +900,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1707"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1706"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1707" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1706" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1324,13 +929,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1708"
-    BrowseName="RemoveIdentity"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1699"
-    MethodDeclarationId="i=15626"
-  >
+  <UAMethod NodeId="ns=1;i=1708" BrowseName="RemoveIdentity" AccessRestrictions="3" ParentNodeId="ns=1;i=1699" MethodDeclarationId="i=15626">
     <DisplayName>RemoveIdentity</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1709</Reference>
@@ -1340,15 +939,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1709"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1708"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1709" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1708" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1377,13 +968,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1710"
-    BrowseName="AddApplication"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1699"
-    MethodDeclarationId="i=16176"
-  >
+  <UAMethod NodeId="ns=1;i=1710" BrowseName="AddApplication" AccessRestrictions="3" ParentNodeId="ns=1;i=1699" MethodDeclarationId="i=16176">
     <DisplayName>AddApplication</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1711</Reference>
@@ -1393,15 +978,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1711"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1710"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1711" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1710" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1430,13 +1007,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1712"
-    BrowseName="RemoveApplication"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1699"
-    MethodDeclarationId="i=16178"
-  >
+  <UAMethod NodeId="ns=1;i=1712" BrowseName="RemoveApplication" AccessRestrictions="3" ParentNodeId="ns=1;i=1699" MethodDeclarationId="i=16178">
     <DisplayName>RemoveApplication</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1713</Reference>
@@ -1446,15 +1017,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1713"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1712"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1713" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1712" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1483,13 +1046,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1714"
-    BrowseName="AddEndpoint"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1699"
-    MethodDeclarationId="i=16180"
-  >
+  <UAMethod NodeId="ns=1;i=1714" BrowseName="AddEndpoint" AccessRestrictions="3" ParentNodeId="ns=1;i=1699" MethodDeclarationId="i=16180">
     <DisplayName>AddEndpoint</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1715</Reference>
@@ -1499,15 +1056,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1715"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1714"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1715" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1714" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1536,13 +1085,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1716"
-    BrowseName="RemoveEndpoint"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1699"
-    MethodDeclarationId="i=16182"
-  >
+  <UAMethod NodeId="ns=1;i=1716" BrowseName="RemoveEndpoint" AccessRestrictions="3" ParentNodeId="ns=1;i=1699" MethodDeclarationId="i=16182">
     <DisplayName>RemoveEndpoint</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1717</Reference>
@@ -1552,15 +1095,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1717"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1716"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1717" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1716" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1589,11 +1124,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAObject
-    NodeId="ns=1;i=1718"
-    BrowseName="1:KeyCredentialAdmin"
-    SymbolicName="WellKnownRole_KeyCredentialAdmin"
-  >
+  <UAObject NodeId="ns=1;i=1718" BrowseName="1:KeyCredentialAdmin" SymbolicName="WellKnownRole_KeyCredentialAdmin">
     <DisplayName>KeyCredentialAdmin</DisplayName>
     <Description>This Role grants rights to request or revoke any KeyCredential.</Description>
     <References>
@@ -1612,15 +1143,7 @@
       <Reference ReferenceType="HasTypeDefinition">i=15620</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=1719"
-    BrowseName="Identities"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1718"
-    DataType="i=15634"
-    ValueRank="1"
-    ArrayDimensions="0"
-  >
+  <UAVariable NodeId="ns=1;i=1719" BrowseName="Identities" AccessRestrictions="3" ParentNodeId="ns=1;i=1718" DataType="i=15634" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Identities</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1630,14 +1153,7 @@
       <RolePermission Permissions="59391">i=15704</RolePermission>
     </RolePermissions>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1720"
-    BrowseName="ApplicationsExclude"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1718"
-    DataType="Boolean"
-    AccessLevel="3"
-  >
+  <UAVariable NodeId="ns=1;i=1720" BrowseName="ApplicationsExclude" AccessRestrictions="3" ParentNodeId="ns=1;i=1718" DataType="Boolean" AccessLevel="3">
     <DisplayName>ApplicationsExclude</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1647,15 +1163,7 @@
       <RolePermission Permissions="59391">i=15704</RolePermission>
     </RolePermissions>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1721"
-    BrowseName="Applications"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1718"
-    DataType="String"
-    ValueRank="1"
-    ArrayDimensions="0"
-  >
+  <UAVariable NodeId="ns=1;i=1721" BrowseName="Applications" AccessRestrictions="3" ParentNodeId="ns=1;i=1718" DataType="String" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Applications</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1665,14 +1173,7 @@
       <RolePermission Permissions="59391">i=15704</RolePermission>
     </RolePermissions>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1722"
-    BrowseName="EndpointsExclude"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1718"
-    DataType="Boolean"
-    AccessLevel="3"
-  >
+  <UAVariable NodeId="ns=1;i=1722" BrowseName="EndpointsExclude" AccessRestrictions="3" ParentNodeId="ns=1;i=1718" DataType="Boolean" AccessLevel="3">
     <DisplayName>EndpointsExclude</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1682,15 +1183,7 @@
       <RolePermission Permissions="59391">i=15704</RolePermission>
     </RolePermissions>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1723"
-    BrowseName="Endpoints"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1718"
-    DataType="i=15528"
-    ValueRank="1"
-    ArrayDimensions="0"
-  >
+  <UAVariable NodeId="ns=1;i=1723" BrowseName="Endpoints" AccessRestrictions="3" ParentNodeId="ns=1;i=1718" DataType="i=15528" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Endpoints</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1700,13 +1193,7 @@
       <RolePermission Permissions="59391">i=15704</RolePermission>
     </RolePermissions>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1725"
-    BrowseName="AddIdentity"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1718"
-    MethodDeclarationId="i=15624"
-  >
+  <UAMethod NodeId="ns=1;i=1725" BrowseName="AddIdentity" AccessRestrictions="3" ParentNodeId="ns=1;i=1718" MethodDeclarationId="i=15624">
     <DisplayName>AddIdentity</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1726</Reference>
@@ -1716,15 +1203,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1726"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1725"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1726" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1725" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1753,13 +1232,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1727"
-    BrowseName="RemoveIdentity"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1718"
-    MethodDeclarationId="i=15626"
-  >
+  <UAMethod NodeId="ns=1;i=1727" BrowseName="RemoveIdentity" AccessRestrictions="3" ParentNodeId="ns=1;i=1718" MethodDeclarationId="i=15626">
     <DisplayName>RemoveIdentity</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1728</Reference>
@@ -1769,15 +1242,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1728"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1727"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1728" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1727" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1806,13 +1271,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1729"
-    BrowseName="AddApplication"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1718"
-    MethodDeclarationId="i=16176"
-  >
+  <UAMethod NodeId="ns=1;i=1729" BrowseName="AddApplication" AccessRestrictions="3" ParentNodeId="ns=1;i=1718" MethodDeclarationId="i=16176">
     <DisplayName>AddApplication</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1730</Reference>
@@ -1822,15 +1281,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1730"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1729"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1730" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1729" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1859,13 +1310,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1731"
-    BrowseName="RemoveApplication"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1718"
-    MethodDeclarationId="i=16178"
-  >
+  <UAMethod NodeId="ns=1;i=1731" BrowseName="RemoveApplication" AccessRestrictions="3" ParentNodeId="ns=1;i=1718" MethodDeclarationId="i=16178">
     <DisplayName>RemoveApplication</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1732</Reference>
@@ -1875,15 +1320,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1732"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1731"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1732" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1731" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1912,13 +1349,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1733"
-    BrowseName="AddEndpoint"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1718"
-    MethodDeclarationId="i=16180"
-  >
+  <UAMethod NodeId="ns=1;i=1733" BrowseName="AddEndpoint" AccessRestrictions="3" ParentNodeId="ns=1;i=1718" MethodDeclarationId="i=16180">
     <DisplayName>AddEndpoint</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1734</Reference>
@@ -1928,15 +1359,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1734"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1733"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1734" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1733" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1965,13 +1388,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1735"
-    BrowseName="RemoveEndpoint"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1718"
-    MethodDeclarationId="i=16182"
-  >
+  <UAMethod NodeId="ns=1;i=1735" BrowseName="RemoveEndpoint" AccessRestrictions="3" ParentNodeId="ns=1;i=1718" MethodDeclarationId="i=16182">
     <DisplayName>RemoveEndpoint</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1736</Reference>
@@ -1981,15 +1398,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1736"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1735"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1736" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1735" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2018,11 +1427,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAObject
-    NodeId="ns=1;i=1737"
-    BrowseName="1:AuthorizationServiceAdmin"
-    SymbolicName="WellKnownRole_AuthorizationServiceAdmin"
-  >
+  <UAObject NodeId="ns=1;i=1737" BrowseName="1:AuthorizationServiceAdmin" SymbolicName="WellKnownRole_AuthorizationServiceAdmin">
     <DisplayName>AuthorizationServiceAdmin</DisplayName>
     <Description>This Role grants rights to request or revoke any KeyCredential.</Description>
     <References>
@@ -2041,15 +1446,7 @@
       <Reference ReferenceType="HasTypeDefinition">i=15620</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=1738"
-    BrowseName="Identities"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1737"
-    DataType="i=15634"
-    ValueRank="1"
-    ArrayDimensions="0"
-  >
+  <UAVariable NodeId="ns=1;i=1738" BrowseName="Identities" AccessRestrictions="3" ParentNodeId="ns=1;i=1737" DataType="i=15634" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Identities</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2059,14 +1456,7 @@
       <RolePermission Permissions="59391">i=15704</RolePermission>
     </RolePermissions>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1739"
-    BrowseName="ApplicationsExclude"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1737"
-    DataType="Boolean"
-    AccessLevel="3"
-  >
+  <UAVariable NodeId="ns=1;i=1739" BrowseName="ApplicationsExclude" AccessRestrictions="3" ParentNodeId="ns=1;i=1737" DataType="Boolean" AccessLevel="3">
     <DisplayName>ApplicationsExclude</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2076,15 +1466,7 @@
       <RolePermission Permissions="59391">i=15704</RolePermission>
     </RolePermissions>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1740"
-    BrowseName="Applications"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1737"
-    DataType="String"
-    ValueRank="1"
-    ArrayDimensions="0"
-  >
+  <UAVariable NodeId="ns=1;i=1740" BrowseName="Applications" AccessRestrictions="3" ParentNodeId="ns=1;i=1737" DataType="String" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Applications</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2094,14 +1476,7 @@
       <RolePermission Permissions="59391">i=15704</RolePermission>
     </RolePermissions>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1741"
-    BrowseName="EndpointsExclude"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1737"
-    DataType="Boolean"
-    AccessLevel="3"
-  >
+  <UAVariable NodeId="ns=1;i=1741" BrowseName="EndpointsExclude" AccessRestrictions="3" ParentNodeId="ns=1;i=1737" DataType="Boolean" AccessLevel="3">
     <DisplayName>EndpointsExclude</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2111,15 +1486,7 @@
       <RolePermission Permissions="59391">i=15704</RolePermission>
     </RolePermissions>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1742"
-    BrowseName="Endpoints"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1737"
-    DataType="i=15528"
-    ValueRank="1"
-    ArrayDimensions="0"
-  >
+  <UAVariable NodeId="ns=1;i=1742" BrowseName="Endpoints" AccessRestrictions="3" ParentNodeId="ns=1;i=1737" DataType="i=15528" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Endpoints</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2129,13 +1496,7 @@
       <RolePermission Permissions="59391">i=15704</RolePermission>
     </RolePermissions>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1744"
-    BrowseName="AddIdentity"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1737"
-    MethodDeclarationId="i=15624"
-  >
+  <UAMethod NodeId="ns=1;i=1744" BrowseName="AddIdentity" AccessRestrictions="3" ParentNodeId="ns=1;i=1737" MethodDeclarationId="i=15624">
     <DisplayName>AddIdentity</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1745</Reference>
@@ -2145,15 +1506,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1745"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1744"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1745" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1744" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2182,13 +1535,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1746"
-    BrowseName="RemoveIdentity"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1737"
-    MethodDeclarationId="i=15626"
-  >
+  <UAMethod NodeId="ns=1;i=1746" BrowseName="RemoveIdentity" AccessRestrictions="3" ParentNodeId="ns=1;i=1737" MethodDeclarationId="i=15626">
     <DisplayName>RemoveIdentity</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1747</Reference>
@@ -2198,15 +1545,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1747"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1746"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1747" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1746" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2235,13 +1574,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1748"
-    BrowseName="AddApplication"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1737"
-    MethodDeclarationId="i=16176"
-  >
+  <UAMethod NodeId="ns=1;i=1748" BrowseName="AddApplication" AccessRestrictions="3" ParentNodeId="ns=1;i=1737" MethodDeclarationId="i=16176">
     <DisplayName>AddApplication</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1749</Reference>
@@ -2251,15 +1584,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1749"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1748"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1749" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1748" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2288,13 +1613,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1750"
-    BrowseName="RemoveApplication"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1737"
-    MethodDeclarationId="i=16178"
-  >
+  <UAMethod NodeId="ns=1;i=1750" BrowseName="RemoveApplication" AccessRestrictions="3" ParentNodeId="ns=1;i=1737" MethodDeclarationId="i=16178">
     <DisplayName>RemoveApplication</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1751</Reference>
@@ -2304,15 +1623,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1751"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1750"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1751" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1750" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2341,13 +1652,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1752"
-    BrowseName="AddEndpoint"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1737"
-    MethodDeclarationId="i=16180"
-  >
+  <UAMethod NodeId="ns=1;i=1752" BrowseName="AddEndpoint" AccessRestrictions="3" ParentNodeId="ns=1;i=1737" MethodDeclarationId="i=16180">
     <DisplayName>AddEndpoint</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1753</Reference>
@@ -2357,15 +1662,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1753"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1752"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1753" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1752" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2394,13 +1691,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=1754"
-    BrowseName="RemoveEndpoint"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1737"
-    MethodDeclarationId="i=16182"
-  >
+  <UAMethod NodeId="ns=1;i=1754" BrowseName="RemoveEndpoint" AccessRestrictions="3" ParentNodeId="ns=1;i=1737" MethodDeclarationId="i=16182">
     <DisplayName>RemoveEndpoint</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1755</Reference>
@@ -2410,15 +1701,7 @@
       <RolePermission Permissions="61455">i=15704</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1755"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=1754"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1755" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1754" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2498,14 +1781,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=13</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=16"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=15"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=16" BrowseName="InputArguments" ParentNodeId="ns=1;i=15" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2532,14 +1808,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=17"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=15"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=17" BrowseName="OutputArguments" ParentNodeId="ns=1;i=15" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2579,14 +1848,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=13</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=19"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=18"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=19" BrowseName="InputArguments" ParentNodeId="ns=1;i=18" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2613,14 +1875,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=20"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=18"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=20" BrowseName="OutputArguments" ParentNodeId="ns=1;i=18" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2656,14 +1911,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=13</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=189"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=188"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=189" BrowseName="InputArguments" ParentNodeId="ns=1;i=188" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2699,14 +1947,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=13</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=22"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=21"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=22" BrowseName="InputArguments" ParentNodeId="ns=1;i=21" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2743,14 +1984,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=13</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=211"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=210"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=211" BrowseName="InputArguments" ParentNodeId="ns=1;i=210" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2777,14 +2011,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=212"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=210"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=212" BrowseName="OutputArguments" ParentNodeId="ns=1;i=210" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2821,14 +2048,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=13</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=869"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=868"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="7"
-  >
+  <UAVariable NodeId="ns=1;i=869" BrowseName="InputArguments" ParentNodeId="ns=1;i=868" DataType="i=296" ValueRank="1" ArrayDimensions="7">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2947,14 +2167,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=870"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=868"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="3"
-  >
+  <UAVariable NodeId="ns=1;i=870" BrowseName="OutputArguments" ParentNodeId="ns=1;i=868" DataType="i=296" ValueRank="1" ArrayDimensions="3">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3023,14 +2236,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=13</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=24"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=23"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="6"
-  >
+  <UAVariable NodeId="ns=1;i=24" BrowseName="InputArguments" ParentNodeId="ns=1;i=23" DataType="i=296" ValueRank="1" ArrayDimensions="6">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3134,14 +2340,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=25"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=23"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=25" BrowseName="OutputArguments" ParentNodeId="ns=1;i=23" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3185,11 +2384,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAObjectType
-    NodeId="ns=1;i=26"
-    BrowseName="1:ApplicationRegistrationChangedAuditEventType"
-    IsAbstract="true"
-  >
+  <UAObjectType NodeId="ns=1;i=26" BrowseName="1:ApplicationRegistrationChangedAuditEventType" IsAbstract="true">
     <DisplayName>ApplicationRegistrationChangedAuditEventType</DisplayName>
     <Category>GDS Application Directory</Category>
     <Documentation>https://reference.opcfoundation.org/GDS/docs/6.5.12</Documentation>
@@ -3266,12 +2461,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=513</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=515"
-    BrowseName="Writable"
-    ParentNodeId="ns=1;i=513"
-    DataType="Boolean"
-  >
+  <UAVariable NodeId="ns=1;i=515" BrowseName="Writable" ParentNodeId="ns=1;i=513" DataType="Boolean">
     <DisplayName>Writable</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3279,12 +2469,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=513</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=516"
-    BrowseName="UserWritable"
-    ParentNodeId="ns=1;i=513"
-    DataType="Boolean"
-  >
+  <UAVariable NodeId="ns=1;i=516" BrowseName="UserWritable" ParentNodeId="ns=1;i=513" DataType="Boolean">
     <DisplayName>UserWritable</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3292,12 +2477,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=513</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=517"
-    BrowseName="OpenCount"
-    ParentNodeId="ns=1;i=513"
-    DataType="UInt16"
-  >
+  <UAVariable NodeId="ns=1;i=517" BrowseName="OpenCount" ParentNodeId="ns=1;i=513" DataType="UInt16">
     <DisplayName>OpenCount</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3305,12 +2485,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=513</Reference>
     </References>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=519"
-    BrowseName="Open"
-    ParentNodeId="ns=1;i=513"
-    MethodDeclarationId="i=11580"
-  >
+  <UAMethod NodeId="ns=1;i=519" BrowseName="Open" ParentNodeId="ns=1;i=513" MethodDeclarationId="i=11580">
     <DisplayName>Open</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=520</Reference>
@@ -3319,14 +2494,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=513</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=520"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=519"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=520" BrowseName="InputArguments" ParentNodeId="ns=1;i=519" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3353,14 +2521,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=521"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=519"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=521" BrowseName="OutputArguments" ParentNodeId="ns=1;i=519" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3387,12 +2548,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=522"
-    BrowseName="Close"
-    ParentNodeId="ns=1;i=513"
-    MethodDeclarationId="i=11583"
-  >
+  <UAMethod NodeId="ns=1;i=522" BrowseName="Close" ParentNodeId="ns=1;i=513" MethodDeclarationId="i=11583">
     <DisplayName>Close</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=523</Reference>
@@ -3400,14 +2556,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=513</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=523"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=522"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=523" BrowseName="InputArguments" ParentNodeId="ns=1;i=522" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3434,12 +2583,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=524"
-    BrowseName="Read"
-    ParentNodeId="ns=1;i=513"
-    MethodDeclarationId="i=11585"
-  >
+  <UAMethod NodeId="ns=1;i=524" BrowseName="Read" ParentNodeId="ns=1;i=513" MethodDeclarationId="i=11585">
     <DisplayName>Read</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=525</Reference>
@@ -3448,14 +2592,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=513</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=525"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=524"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=525" BrowseName="InputArguments" ParentNodeId="ns=1;i=524" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3497,14 +2634,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=526"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=524"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=526" BrowseName="OutputArguments" ParentNodeId="ns=1;i=524" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3531,12 +2661,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=527"
-    BrowseName="Write"
-    ParentNodeId="ns=1;i=513"
-    MethodDeclarationId="i=11588"
-  >
+  <UAMethod NodeId="ns=1;i=527" BrowseName="Write" ParentNodeId="ns=1;i=513" MethodDeclarationId="i=11588">
     <DisplayName>Write</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=528</Reference>
@@ -3544,14 +2669,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=513</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=528"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=527"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=528" BrowseName="InputArguments" ParentNodeId="ns=1;i=527" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3593,12 +2711,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=529"
-    BrowseName="GetPosition"
-    ParentNodeId="ns=1;i=513"
-    MethodDeclarationId="i=11590"
-  >
+  <UAMethod NodeId="ns=1;i=529" BrowseName="GetPosition" ParentNodeId="ns=1;i=513" MethodDeclarationId="i=11590">
     <DisplayName>GetPosition</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=530</Reference>
@@ -3607,14 +2720,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=513</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=530"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=529"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=530" BrowseName="InputArguments" ParentNodeId="ns=1;i=529" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3641,14 +2747,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=531"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=529"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=531" BrowseName="OutputArguments" ParentNodeId="ns=1;i=529" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3675,12 +2774,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=532"
-    BrowseName="SetPosition"
-    ParentNodeId="ns=1;i=513"
-    MethodDeclarationId="i=11593"
-  >
+  <UAMethod NodeId="ns=1;i=532" BrowseName="SetPosition" ParentNodeId="ns=1;i=513" MethodDeclarationId="i=11593">
     <DisplayName>SetPosition</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=533</Reference>
@@ -3688,14 +2782,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=513</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=533"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=532"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=533" BrowseName="InputArguments" ParentNodeId="ns=1;i=532" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3737,12 +2824,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=534"
-    BrowseName="LastUpdateTime"
-    ParentNodeId="ns=1;i=513"
-    DataType="i=294"
-  >
+  <UAVariable NodeId="ns=1;i=534" BrowseName="LastUpdateTime" ParentNodeId="ns=1;i=513" DataType="i=294">
     <DisplayName>LastUpdateTime</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3750,12 +2832,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=513</Reference>
     </References>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=535"
-    BrowseName="OpenWithMasks"
-    ParentNodeId="ns=1;i=513"
-    MethodDeclarationId="i=12543"
-  >
+  <UAMethod NodeId="ns=1;i=535" BrowseName="OpenWithMasks" ParentNodeId="ns=1;i=513" MethodDeclarationId="i=12543">
     <DisplayName>OpenWithMasks</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=536</Reference>
@@ -3764,14 +2841,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=513</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=536"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=535"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=536" BrowseName="InputArguments" ParentNodeId="ns=1;i=535" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3798,14 +2868,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=537"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=535"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=537" BrowseName="OutputArguments" ParentNodeId="ns=1;i=535" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3832,12 +2895,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=538"
-    BrowseName="CloseAndUpdate"
-    ParentNodeId="ns=1;i=513"
-    MethodDeclarationId="i=12546"
-  >
+  <UAMethod NodeId="ns=1;i=538" BrowseName="CloseAndUpdate" ParentNodeId="ns=1;i=513" MethodDeclarationId="i=12546">
     <DisplayName>CloseAndUpdate</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=539</Reference>
@@ -3846,14 +2904,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=513</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=539"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=538"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=539" BrowseName="InputArguments" ParentNodeId="ns=1;i=538" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3880,14 +2931,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=540"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=538"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=540" BrowseName="OutputArguments" ParentNodeId="ns=1;i=538" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3914,12 +2958,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=541"
-    BrowseName="AddCertificate"
-    ParentNodeId="ns=1;i=513"
-    MethodDeclarationId="i=12548"
-  >
+  <UAMethod NodeId="ns=1;i=541" BrowseName="AddCertificate" ParentNodeId="ns=1;i=513" MethodDeclarationId="i=12548">
     <DisplayName>AddCertificate</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=542</Reference>
@@ -3927,14 +2966,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=513</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=542"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=541"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=542" BrowseName="InputArguments" ParentNodeId="ns=1;i=541" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3976,12 +3008,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=543"
-    BrowseName="RemoveCertificate"
-    ParentNodeId="ns=1;i=513"
-    MethodDeclarationId="i=12550"
-  >
+  <UAMethod NodeId="ns=1;i=543" BrowseName="RemoveCertificate" ParentNodeId="ns=1;i=513" MethodDeclarationId="i=12550">
     <DisplayName>RemoveCertificate</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=544</Reference>
@@ -3989,14 +3016,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=513</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=544"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=543"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=544" BrowseName="InputArguments" ParentNodeId="ns=1;i=543" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -4038,14 +3058,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=545"
-    BrowseName="CertificateTypes"
-    ParentNodeId="ns=1;i=512"
-    DataType="NodeId"
-    ValueRank="1"
-    ArrayDimensions="0"
-  >
+  <UAVariable NodeId="ns=1;i=545" BrowseName="CertificateTypes" ParentNodeId="ns=1;i=512" DataType="NodeId" ValueRank="1" ArrayDimensions="0">
     <DisplayName>CertificateTypes</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -4063,14 +3076,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=63</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=80"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=79"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="4"
-  >
+  <UAVariable NodeId="ns=1;i=80" BrowseName="InputArguments" ParentNodeId="ns=1;i=79" DataType="i=296" ValueRank="1" ArrayDimensions="4">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -4142,14 +3148,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=81"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=79"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=81" BrowseName="OutputArguments" ParentNodeId="ns=1;i=79" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -4186,14 +3185,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=63</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=77"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=76"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="7"
-  >
+  <UAVariable NodeId="ns=1;i=77" BrowseName="InputArguments" ParentNodeId="ns=1;i=76" DataType="i=296" ValueRank="1" ArrayDimensions="7">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -4312,14 +3304,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=78"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=76"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=78" BrowseName="OutputArguments" ParentNodeId="ns=1;i=76" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -4356,14 +3341,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=63</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=86"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=85"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=86" BrowseName="InputArguments" ParentNodeId="ns=1;i=85" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -4405,14 +3383,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=87"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=85"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="3"
-  >
+  <UAVariable NodeId="ns=1;i=87" BrowseName="OutputArguments" ParentNodeId="ns=1;i=85" DataType="i=296" ValueRank="1" ArrayDimensions="3">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -4481,14 +3452,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=63</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=15004"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=15003"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=15004" BrowseName="InputArguments" ParentNodeId="ns=1;i=15003" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -4540,14 +3504,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=63</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=370"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=369"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=370" BrowseName="InputArguments" ParentNodeId="ns=1;i=369" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -4574,14 +3531,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=371"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=369"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=371" BrowseName="OutputArguments" ParentNodeId="ns=1;i=369" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -4621,14 +3571,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=63</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=90"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=89"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=90" BrowseName="InputArguments" ParentNodeId="ns=1;i=89" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -4670,14 +3613,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=108"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=89"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=108" BrowseName="OutputArguments" ParentNodeId="ns=1;i=89" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -4733,14 +3669,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=63</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=198"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=197"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=198" BrowseName="InputArguments" ParentNodeId="ns=1;i=197" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -4782,14 +3711,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=199"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=197"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=199" BrowseName="OutputArguments" ParentNodeId="ns=1;i=197" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -4826,14 +3748,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=63</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=223"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=222"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="3"
-  >
+  <UAVariable NodeId="ns=1;i=223" BrowseName="InputArguments" ParentNodeId="ns=1;i=222" DataType="i=296" ValueRank="1" ArrayDimensions="3">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -4890,14 +3805,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=224"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=222"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=224" BrowseName="OutputArguments" ParentNodeId="ns=1;i=222" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -4935,14 +3843,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=63</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=160"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=126"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=160" BrowseName="InputArguments" ParentNodeId="ns=1;i=126" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -4969,14 +3870,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=161"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=126"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=161" BrowseName="OutputArguments" ParentNodeId="ns=1;i=126" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -5018,11 +3912,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAObjectType
-    NodeId="ns=1;i=91"
-    BrowseName="1:CertificateRequestedAuditEventType"
-    IsAbstract="true"
-  >
+  <UAObjectType NodeId="ns=1;i=91" BrowseName="1:CertificateRequestedAuditEventType" IsAbstract="true">
     <DisplayName>CertificateRequestedAuditEventType</DisplayName>
     <Category>GDS Certificate Manager Pull Model</Category>
     <Documentation>https://reference.opcfoundation.org/GDS/docs/7.9.12</Documentation>
@@ -5032,12 +3922,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2127</Reference>
     </References>
   </UAObjectType>
-  <UAVariable
-    NodeId="ns=1;i=717"
-    BrowseName="1:CertificateGroup"
-    ParentNodeId="ns=1;i=91"
-    DataType="NodeId"
-  >
+  <UAVariable NodeId="ns=1;i=717" BrowseName="1:CertificateGroup" ParentNodeId="ns=1;i=91" DataType="NodeId">
     <DisplayName>CertificateGroup</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -5045,12 +3930,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=91</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=718"
-    BrowseName="1:CertificateType"
-    ParentNodeId="ns=1;i=91"
-    DataType="NodeId"
-  >
+  <UAVariable NodeId="ns=1;i=718" BrowseName="1:CertificateType" ParentNodeId="ns=1;i=91" DataType="NodeId">
     <DisplayName>CertificateType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -5058,11 +3938,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=91</Reference>
     </References>
   </UAVariable>
-  <UAObjectType
-    NodeId="ns=1;i=109"
-    BrowseName="1:CertificateDeliveredAuditEventType"
-    IsAbstract="true"
-  >
+  <UAObjectType NodeId="ns=1;i=109" BrowseName="1:CertificateDeliveredAuditEventType" IsAbstract="true">
     <DisplayName>CertificateDeliveredAuditEventType</DisplayName>
     <Category>GDS Certificate Manager Pull Model</Category>
     <Documentation>https://reference.opcfoundation.org/GDS/docs/7.9.13</Documentation>
@@ -5072,12 +3948,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2127</Reference>
     </References>
   </UAObjectType>
-  <UAVariable
-    NodeId="ns=1;i=719"
-    BrowseName="1:CertificateGroup"
-    ParentNodeId="ns=1;i=109"
-    DataType="NodeId"
-  >
+  <UAVariable NodeId="ns=1;i=719" BrowseName="1:CertificateGroup" ParentNodeId="ns=1;i=109" DataType="NodeId">
     <DisplayName>CertificateGroup</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -5085,12 +3956,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=109</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=720"
-    BrowseName="1:CertificateType"
-    ParentNodeId="ns=1;i=109"
-    DataType="NodeId"
-  >
+  <UAVariable NodeId="ns=1;i=720" BrowseName="1:CertificateType" ParentNodeId="ns=1;i=109" DataType="NodeId">
     <DisplayName>CertificateType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -5098,11 +3964,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=109</Reference>
     </References>
   </UAVariable>
-  <UAObjectType
-    NodeId="ns=1;i=27"
-    BrowseName="1:CertificateRevokedAuditEventType"
-    IsAbstract="true"
-  >
+  <UAObjectType NodeId="ns=1;i=27" BrowseName="1:CertificateRevokedAuditEventType" IsAbstract="true">
     <DisplayName>CertificateRevokedAuditEventType</DisplayName>
     <Category>GDS Certificate Manager Pull Model</Category>
     <Documentation>https://reference.opcfoundation.org/GDS/docs/7.9.14</Documentation>
@@ -5119,12 +3981,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=61</Reference>
     </References>
   </UAObjectType>
-  <UAObject
-    NodeId="ns=1;i=61"
-    BrowseName="1:&lt;ServiceName&gt;"
-    SymbolicName="ServiceName_Placeholder"
-    ParentNodeId="ns=1;i=55"
-  >
+  <UAObject NodeId="ns=1;i=61" BrowseName="1:&lt;ServiceName&gt;" SymbolicName="ServiceName_Placeholder" ParentNodeId="ns=1;i=55">
     <DisplayName>&lt;ServiceName&gt;</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=83</Reference>
@@ -5136,12 +3993,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=55</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=83"
-    BrowseName="1:ResourceUri"
-    ParentNodeId="ns=1;i=61"
-    DataType="String"
-  >
+  <UAVariable NodeId="ns=1;i=83" BrowseName="1:ResourceUri" ParentNodeId="ns=1;i=61" DataType="String">
     <DisplayName>ResourceUri</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -5149,14 +4001,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=61</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=162"
-    BrowseName="1:ProfileUris"
-    ParentNodeId="ns=1;i=61"
-    DataType="String"
-    ValueRank="1"
-    ArrayDimensions="0"
-  >
+  <UAVariable NodeId="ns=1;i=162" BrowseName="1:ProfileUris" ParentNodeId="ns=1;i=61" DataType="String" ValueRank="1" ArrayDimensions="0">
     <DisplayName>ProfileUris</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -5164,12 +4009,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=61</Reference>
     </References>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=168"
-    BrowseName="1:StartRequest"
-    ParentNodeId="ns=1;i=61"
-    MethodDeclarationId="ns=1;i=1023"
-  >
+  <UAMethod NodeId="ns=1;i=168" BrowseName="1:StartRequest" ParentNodeId="ns=1;i=61" MethodDeclarationId="ns=1;i=1023">
     <DisplayName>StartRequest</DisplayName>
     <Documentation>https://reference.opcfoundation.org/GDS/docs/8.5.5</Documentation>
     <References>
@@ -5179,14 +4019,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=61</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=171"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=168"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="4"
-  >
+  <UAVariable NodeId="ns=1;i=171" BrowseName="InputArguments" ParentNodeId="ns=1;i=168" DataType="i=296" ValueRank="1" ArrayDimensions="4">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -5260,14 +4093,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=195"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=168"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=195" BrowseName="OutputArguments" ParentNodeId="ns=1;i=168" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -5294,12 +4120,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=196"
-    BrowseName="1:FinishRequest"
-    ParentNodeId="ns=1;i=61"
-    MethodDeclarationId="ns=1;i=1026"
-  >
+  <UAMethod NodeId="ns=1;i=196" BrowseName="1:FinishRequest" ParentNodeId="ns=1;i=61" MethodDeclarationId="ns=1;i=1026">
     <DisplayName>FinishRequest</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=202</Reference>
@@ -5308,14 +4129,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=61</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=202"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=196"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=202" BrowseName="InputArguments" ParentNodeId="ns=1;i=196" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -5357,14 +4171,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=203"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=196"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="5"
-  >
+  <UAVariable NodeId="ns=1;i=203" BrowseName="OutputArguments" ParentNodeId="ns=1;i=196" DataType="i=296" ValueRank="1" ArrayDimensions="5">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -5476,12 +4283,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
     </References>
   </UAObjectType>
-  <UAVariable
-    NodeId="ns=1;i=1021"
-    BrowseName="1:ResourceUri"
-    ParentNodeId="ns=1;i=1020"
-    DataType="String"
-  >
+  <UAVariable NodeId="ns=1;i=1021" BrowseName="1:ResourceUri" ParentNodeId="ns=1;i=1020" DataType="String">
     <DisplayName>ResourceUri</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -5489,14 +4291,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1020</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1022"
-    BrowseName="1:ProfileUris"
-    ParentNodeId="ns=1;i=1020"
-    DataType="String"
-    ValueRank="1"
-    ArrayDimensions="0"
-  >
+  <UAVariable NodeId="ns=1;i=1022" BrowseName="1:ProfileUris" ParentNodeId="ns=1;i=1020" DataType="String" ValueRank="1" ArrayDimensions="0">
     <DisplayName>ProfileUris</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -5504,14 +4299,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1020</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=495"
-    BrowseName="1:SecurityPolicyUris"
-    ParentNodeId="ns=1;i=1020"
-    DataType="String"
-    ValueRank="1"
-    ArrayDimensions="0"
-  >
+  <UAVariable NodeId="ns=1;i=495" BrowseName="1:SecurityPolicyUris" ParentNodeId="ns=1;i=1020" DataType="String" ValueRank="1" ArrayDimensions="0">
     <DisplayName>SecurityPolicyUris</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -5529,14 +4317,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1020</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1024"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=1023"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="4"
-  >
+  <UAVariable NodeId="ns=1;i=1024" BrowseName="InputArguments" ParentNodeId="ns=1;i=1023" DataType="i=296" ValueRank="1" ArrayDimensions="4">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -5610,14 +4391,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1025"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=1023"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1025" BrowseName="OutputArguments" ParentNodeId="ns=1;i=1023" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -5654,14 +4428,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1020</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1027"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=1026"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=1027" BrowseName="InputArguments" ParentNodeId="ns=1;i=1026" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -5703,14 +4470,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=1028"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=1026"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="5"
-  >
+  <UAVariable NodeId="ns=1;i=1028" BrowseName="OutputArguments" ParentNodeId="ns=1;i=1026" DataType="i=296" ValueRank="1" ArrayDimensions="5">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -5808,14 +4568,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1020</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1030"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=1029"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=1030" BrowseName="InputArguments" ParentNodeId="ns=1;i=1029" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -5875,12 +4628,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=61</Reference>
     </References>
   </UAObjectType>
-  <UAObject
-    NodeId="ns=1;i=234"
-    BrowseName="1:&lt;ServiceName&gt;"
-    SymbolicName="ServiceName_Placeholder"
-    ParentNodeId="ns=1;i=233"
-  >
+  <UAObject NodeId="ns=1;i=234" BrowseName="1:&lt;ServiceName&gt;" SymbolicName="ServiceName_Placeholder" ParentNodeId="ns=1;i=233">
     <DisplayName>&lt;ServiceName&gt;</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=235</Reference>
@@ -5891,12 +4639,7 @@
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;i=233</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=235"
-    BrowseName="1:ServiceUri"
-    ParentNodeId="ns=1;i=234"
-    DataType="String"
-  >
+  <UAVariable NodeId="ns=1;i=235" BrowseName="1:ServiceUri" ParentNodeId="ns=1;i=234" DataType="String">
     <DisplayName>ServiceUri</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -5904,12 +4647,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=234</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=236"
-    BrowseName="1:ServiceCertificate"
-    ParentNodeId="ns=1;i=234"
-    DataType="ByteString"
-  >
+  <UAVariable NodeId="ns=1;i=236" BrowseName="1:ServiceCertificate" ParentNodeId="ns=1;i=234" DataType="ByteString">
     <DisplayName>ServiceCertificate</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -5917,12 +4655,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=234</Reference>
     </References>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=238"
-    BrowseName="1:GetServiceDescription"
-    ParentNodeId="ns=1;i=234"
-    MethodDeclarationId="ns=1;i=1004"
-  >
+  <UAMethod NodeId="ns=1;i=238" BrowseName="1:GetServiceDescription" ParentNodeId="ns=1;i=234" MethodDeclarationId="ns=1;i=1004">
     <DisplayName>GetServiceDescription</DisplayName>
     <Documentation>https://reference.opcfoundation.org/GDS/docs/9.6.6</Documentation>
     <References>
@@ -5931,14 +4664,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=234</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=239"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=238"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="3"
-  >
+  <UAVariable NodeId="ns=1;i=239" BrowseName="OutputArguments" ParentNodeId="ns=1;i=238" DataType="i=296" ValueRank="1" ArrayDimensions="3">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -6019,12 +4745,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
     </References>
   </UAObjectType>
-  <UAVariable
-    NodeId="ns=1;i=1003"
-    BrowseName="1:ServiceUri"
-    ParentNodeId="ns=1;i=966"
-    DataType="String"
-  >
+  <UAVariable NodeId="ns=1;i=1003" BrowseName="1:ServiceUri" ParentNodeId="ns=1;i=966" DataType="String">
     <DisplayName>ServiceUri</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -6032,12 +4753,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=966</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=968"
-    BrowseName="1:ServiceCertificate"
-    ParentNodeId="ns=1;i=966"
-    DataType="ByteString"
-  >
+  <UAVariable NodeId="ns=1;i=968" BrowseName="1:ServiceCertificate" ParentNodeId="ns=1;i=966" DataType="ByteString">
     <DisplayName>ServiceCertificate</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -6045,14 +4761,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=966</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=967"
-    BrowseName="1:UserTokenPolicies"
-    ParentNodeId="ns=1;i=966"
-    DataType="i=304"
-    ValueRank="1"
-    ArrayDimensions="0"
-  >
+  <UAVariable NodeId="ns=1;i=967" BrowseName="1:UserTokenPolicies" ParentNodeId="ns=1;i=966" DataType="i=304" ValueRank="1" ArrayDimensions="0">
     <DisplayName>UserTokenPolicies</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -6069,14 +4778,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=966</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=1005"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=1004"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="3"
-  >
+  <UAVariable NodeId="ns=1;i=1005" BrowseName="OutputArguments" ParentNodeId="ns=1;i=1004" DataType="i=296" ValueRank="1" ArrayDimensions="3">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -6145,14 +4847,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=966</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=970"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=969"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=970" BrowseName="InputArguments" ParentNodeId="ns=1;i=969" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -6194,14 +4889,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=971"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=969"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=971" BrowseName="OutputArguments" ParentNodeId="ns=1;i=969" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -6228,11 +4916,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAObjectType
-    NodeId="ns=1;i=975"
-    BrowseName="1:AccessTokenIssuedAuditEventType"
-    IsAbstract="true"
-  >
+  <UAObjectType NodeId="ns=1;i=975" BrowseName="1:AccessTokenIssuedAuditEventType" IsAbstract="true">
     <DisplayName>AccessTokenIssuedAuditEventType</DisplayName>
     <Category>GDS Authorization Service Server</Category>
     <Documentation>https://reference.opcfoundation.org/GDS/docs/9.6.7</Documentation>
@@ -6271,12 +4955,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=141</Reference>
     </References>
   </UAObject>
-  <UAMethod
-    NodeId="ns=1;i=143"
-    BrowseName="1:FindApplications"
-    ParentNodeId="ns=1;i=141"
-    MethodDeclarationId="ns=1;i=15"
-  >
+  <UAMethod NodeId="ns=1;i=143" BrowseName="1:FindApplications" ParentNodeId="ns=1;i=141" MethodDeclarationId="ns=1;i=15">
     <DisplayName>FindApplications</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=144</Reference>
@@ -6284,14 +4963,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=141</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=144"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=143"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=144" BrowseName="InputArguments" ParentNodeId="ns=1;i=143" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -6317,14 +4989,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=145"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=143"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=145" BrowseName="OutputArguments" ParentNodeId="ns=1;i=143" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -6352,13 +5017,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=146"
-    BrowseName="1:RegisterApplication"
-    AccessRestrictions="1"
-    ParentNodeId="ns=1;i=141"
-    MethodDeclarationId="ns=1;i=18"
-  >
+  <UAMethod NodeId="ns=1;i=146" BrowseName="1:RegisterApplication" AccessRestrictions="1" ParentNodeId="ns=1;i=141" MethodDeclarationId="ns=1;i=18">
     <DisplayName>RegisterApplication</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=147</Reference>
@@ -6371,15 +5030,7 @@
       <RolePermission Permissions="4097">ns=1;i=1661</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=147"
-    BrowseName="InputArguments"
-    AccessRestrictions="1"
-    ParentNodeId="ns=1;i=146"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=147" BrowseName="InputArguments" AccessRestrictions="1" ParentNodeId="ns=1;i=146" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -6409,15 +5060,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=148"
-    BrowseName="OutputArguments"
-    AccessRestrictions="1"
-    ParentNodeId="ns=1;i=146"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=148" BrowseName="OutputArguments" AccessRestrictions="1" ParentNodeId="ns=1;i=146" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -6447,13 +5090,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=200"
-    BrowseName="1:UpdateApplication"
-    AccessRestrictions="1"
-    ParentNodeId="ns=1;i=141"
-    MethodDeclarationId="ns=1;i=188"
-  >
+  <UAMethod NodeId="ns=1;i=200" BrowseName="1:UpdateApplication" AccessRestrictions="1" ParentNodeId="ns=1;i=141" MethodDeclarationId="ns=1;i=188">
     <DisplayName>UpdateApplication</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=201</Reference>
@@ -6464,15 +5101,7 @@
       <RolePermission Permissions="4097">ns=1;i=1661</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=201"
-    BrowseName="InputArguments"
-    AccessRestrictions="1"
-    ParentNodeId="ns=1;i=200"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=201" BrowseName="InputArguments" AccessRestrictions="1" ParentNodeId="ns=1;i=200" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -6502,13 +5131,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=149"
-    BrowseName="1:UnregisterApplication"
-    AccessRestrictions="1"
-    ParentNodeId="ns=1;i=141"
-    MethodDeclarationId="ns=1;i=21"
-  >
+  <UAMethod NodeId="ns=1;i=149" BrowseName="1:UnregisterApplication" AccessRestrictions="1" ParentNodeId="ns=1;i=141" MethodDeclarationId="ns=1;i=21">
     <DisplayName>UnregisterApplication</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=150</Reference>
@@ -6519,15 +5142,7 @@
       <RolePermission Permissions="4097">ns=1;i=1661</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=150"
-    BrowseName="InputArguments"
-    AccessRestrictions="1"
-    ParentNodeId="ns=1;i=149"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=150" BrowseName="InputArguments" AccessRestrictions="1" ParentNodeId="ns=1;i=149" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -6557,12 +5172,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=216"
-    BrowseName="1:GetApplication"
-    ParentNodeId="ns=1;i=141"
-    MethodDeclarationId="ns=1;i=210"
-  >
+  <UAMethod NodeId="ns=1;i=216" BrowseName="1:GetApplication" ParentNodeId="ns=1;i=141" MethodDeclarationId="ns=1;i=210">
     <DisplayName>GetApplication</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=217</Reference>
@@ -6570,14 +5180,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=141</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=217"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=216"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=217" BrowseName="InputArguments" ParentNodeId="ns=1;i=216" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -6603,14 +5206,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=218"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=216"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=218" BrowseName="OutputArguments" ParentNodeId="ns=1;i=216" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -6636,12 +5232,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=992"
-    BrowseName="1:QueryApplications"
-    ParentNodeId="ns=1;i=141"
-    MethodDeclarationId="ns=1;i=868"
-  >
+  <UAMethod NodeId="ns=1;i=992" BrowseName="1:QueryApplications" ParentNodeId="ns=1;i=141" MethodDeclarationId="ns=1;i=868">
     <DisplayName>QueryApplications</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=993</Reference>
@@ -6649,14 +5240,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=141</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=993"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=992"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="7"
-  >
+  <UAVariable NodeId="ns=1;i=993" BrowseName="InputArguments" ParentNodeId="ns=1;i=992" DataType="i=296" ValueRank="1" ArrayDimensions="7">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -6774,14 +5358,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=994"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=992"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="3"
-  >
+  <UAVariable NodeId="ns=1;i=994" BrowseName="OutputArguments" ParentNodeId="ns=1;i=992" DataType="i=296" ValueRank="1" ArrayDimensions="3">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -6839,12 +5416,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=151"
-    BrowseName="1:QueryServers"
-    ParentNodeId="ns=1;i=141"
-    MethodDeclarationId="ns=1;i=23"
-  >
+  <UAMethod NodeId="ns=1;i=151" BrowseName="1:QueryServers" ParentNodeId="ns=1;i=141" MethodDeclarationId="ns=1;i=23">
     <DisplayName>QueryServers</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=152</Reference>
@@ -6852,14 +5424,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=141</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=152"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=151"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="6"
-  >
+  <UAVariable NodeId="ns=1;i=152" BrowseName="InputArguments" ParentNodeId="ns=1;i=151" DataType="i=296" ValueRank="1" ArrayDimensions="6">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -6962,14 +5527,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=153"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=151"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=153" BrowseName="OutputArguments" ParentNodeId="ns=1;i=151" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -7061,48 +5619,28 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=616</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=618"
-    BrowseName="Writable"
-    ParentNodeId="ns=1;i=616"
-    DataType="Boolean"
-  >
+  <UAVariable NodeId="ns=1;i=618" BrowseName="Writable" ParentNodeId="ns=1;i=616" DataType="Boolean">
     <DisplayName>Writable</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=616</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=619"
-    BrowseName="UserWritable"
-    ParentNodeId="ns=1;i=616"
-    DataType="Boolean"
-  >
+  <UAVariable NodeId="ns=1;i=619" BrowseName="UserWritable" ParentNodeId="ns=1;i=616" DataType="Boolean">
     <DisplayName>UserWritable</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=616</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=620"
-    BrowseName="OpenCount"
-    ParentNodeId="ns=1;i=616"
-    DataType="UInt16"
-  >
+  <UAVariable NodeId="ns=1;i=620" BrowseName="OpenCount" ParentNodeId="ns=1;i=616" DataType="UInt16">
     <DisplayName>OpenCount</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=616</Reference>
     </References>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=622"
-    BrowseName="Open"
-    ParentNodeId="ns=1;i=616"
-    MethodDeclarationId="i=11580"
-  >
+  <UAMethod NodeId="ns=1;i=622" BrowseName="Open" ParentNodeId="ns=1;i=616" MethodDeclarationId="i=11580">
     <DisplayName>Open</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=623</Reference>
@@ -7110,14 +5648,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=616</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=623"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=622"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=623" BrowseName="InputArguments" ParentNodeId="ns=1;i=622" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -7143,14 +5674,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=624"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=622"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=624" BrowseName="OutputArguments" ParentNodeId="ns=1;i=622" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -7176,26 +5700,14 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=625"
-    BrowseName="Close"
-    ParentNodeId="ns=1;i=616"
-    MethodDeclarationId="i=11583"
-  >
+  <UAMethod NodeId="ns=1;i=625" BrowseName="Close" ParentNodeId="ns=1;i=616" MethodDeclarationId="i=11583">
     <DisplayName>Close</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=626</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=616</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=626"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=625"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=626" BrowseName="InputArguments" ParentNodeId="ns=1;i=625" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -7221,12 +5733,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=627"
-    BrowseName="Read"
-    ParentNodeId="ns=1;i=616"
-    MethodDeclarationId="i=11585"
-  >
+  <UAMethod NodeId="ns=1;i=627" BrowseName="Read" ParentNodeId="ns=1;i=616" MethodDeclarationId="i=11585">
     <DisplayName>Read</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=628</Reference>
@@ -7234,14 +5741,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=616</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=628"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=627"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=628" BrowseName="InputArguments" ParentNodeId="ns=1;i=627" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -7282,14 +5782,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=629"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=627"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=629" BrowseName="OutputArguments" ParentNodeId="ns=1;i=627" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -7315,26 +5808,14 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=630"
-    BrowseName="Write"
-    ParentNodeId="ns=1;i=616"
-    MethodDeclarationId="i=11588"
-  >
+  <UAMethod NodeId="ns=1;i=630" BrowseName="Write" ParentNodeId="ns=1;i=616" MethodDeclarationId="i=11588">
     <DisplayName>Write</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=631</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=616</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=631"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=630"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=631" BrowseName="InputArguments" ParentNodeId="ns=1;i=630" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -7375,12 +5856,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=632"
-    BrowseName="GetPosition"
-    ParentNodeId="ns=1;i=616"
-    MethodDeclarationId="i=11590"
-  >
+  <UAMethod NodeId="ns=1;i=632" BrowseName="GetPosition" ParentNodeId="ns=1;i=616" MethodDeclarationId="i=11590">
     <DisplayName>GetPosition</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=633</Reference>
@@ -7388,14 +5864,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=616</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=633"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=632"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=633" BrowseName="InputArguments" ParentNodeId="ns=1;i=632" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -7421,14 +5890,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=634"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=632"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=634" BrowseName="OutputArguments" ParentNodeId="ns=1;i=632" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -7454,26 +5916,14 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=635"
-    BrowseName="SetPosition"
-    ParentNodeId="ns=1;i=616"
-    MethodDeclarationId="i=11593"
-  >
+  <UAMethod NodeId="ns=1;i=635" BrowseName="SetPosition" ParentNodeId="ns=1;i=616" MethodDeclarationId="i=11593">
     <DisplayName>SetPosition</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=636</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=616</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=636"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=635"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=636" BrowseName="InputArguments" ParentNodeId="ns=1;i=635" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -7514,24 +5964,14 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=637"
-    BrowseName="LastUpdateTime"
-    ParentNodeId="ns=1;i=616"
-    DataType="i=294"
-  >
+  <UAVariable NodeId="ns=1;i=637" BrowseName="LastUpdateTime" ParentNodeId="ns=1;i=616" DataType="i=294">
     <DisplayName>LastUpdateTime</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=616</Reference>
     </References>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=638"
-    BrowseName="OpenWithMasks"
-    ParentNodeId="ns=1;i=616"
-    MethodDeclarationId="i=12543"
-  >
+  <UAMethod NodeId="ns=1;i=638" BrowseName="OpenWithMasks" ParentNodeId="ns=1;i=616" MethodDeclarationId="i=12543">
     <DisplayName>OpenWithMasks</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=639</Reference>
@@ -7539,14 +5979,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=616</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=639"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=638"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=639" BrowseName="InputArguments" ParentNodeId="ns=1;i=638" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -7572,14 +6005,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=640"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=638"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=640" BrowseName="OutputArguments" ParentNodeId="ns=1;i=638" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -7605,12 +6031,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=641"
-    BrowseName="CloseAndUpdate"
-    ParentNodeId="ns=1;i=616"
-    MethodDeclarationId="i=12546"
-  >
+  <UAMethod NodeId="ns=1;i=641" BrowseName="CloseAndUpdate" ParentNodeId="ns=1;i=616" MethodDeclarationId="i=12546">
     <DisplayName>CloseAndUpdate</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=642</Reference>
@@ -7618,14 +6039,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=616</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=642"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=641"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=642" BrowseName="InputArguments" ParentNodeId="ns=1;i=641" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -7651,14 +6065,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=643"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=641"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=643" BrowseName="OutputArguments" ParentNodeId="ns=1;i=641" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -7684,26 +6091,14 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=644"
-    BrowseName="AddCertificate"
-    ParentNodeId="ns=1;i=616"
-    MethodDeclarationId="i=12548"
-  >
+  <UAMethod NodeId="ns=1;i=644" BrowseName="AddCertificate" ParentNodeId="ns=1;i=616" MethodDeclarationId="i=12548">
     <DisplayName>AddCertificate</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=645</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=616</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=645"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=644"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=645" BrowseName="InputArguments" ParentNodeId="ns=1;i=644" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -7744,26 +6139,14 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=646"
-    BrowseName="RemoveCertificate"
-    ParentNodeId="ns=1;i=616"
-    MethodDeclarationId="i=12550"
-  >
+  <UAMethod NodeId="ns=1;i=646" BrowseName="RemoveCertificate" ParentNodeId="ns=1;i=616" MethodDeclarationId="i=12550">
     <DisplayName>RemoveCertificate</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=647</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=616</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=647"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=646"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=647" BrowseName="InputArguments" ParentNodeId="ns=1;i=646" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -7804,14 +6187,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=648"
-    BrowseName="CertificateTypes"
-    ParentNodeId="ns=1;i=615"
-    DataType="NodeId"
-    ValueRank="1"
-    ArrayDimensions="0"
-  >
+  <UAVariable NodeId="ns=1;i=648" BrowseName="CertificateTypes" ParentNodeId="ns=1;i=615" DataType="NodeId" ValueRank="1" ArrayDimensions="0">
     <DisplayName>CertificateTypes</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -7857,48 +6233,28 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=650</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=652"
-    BrowseName="Writable"
-    ParentNodeId="ns=1;i=650"
-    DataType="Boolean"
-  >
+  <UAVariable NodeId="ns=1;i=652" BrowseName="Writable" ParentNodeId="ns=1;i=650" DataType="Boolean">
     <DisplayName>Writable</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=650</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=653"
-    BrowseName="UserWritable"
-    ParentNodeId="ns=1;i=650"
-    DataType="Boolean"
-  >
+  <UAVariable NodeId="ns=1;i=653" BrowseName="UserWritable" ParentNodeId="ns=1;i=650" DataType="Boolean">
     <DisplayName>UserWritable</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=650</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=654"
-    BrowseName="OpenCount"
-    ParentNodeId="ns=1;i=650"
-    DataType="UInt16"
-  >
+  <UAVariable NodeId="ns=1;i=654" BrowseName="OpenCount" ParentNodeId="ns=1;i=650" DataType="UInt16">
     <DisplayName>OpenCount</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=650</Reference>
     </References>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=656"
-    BrowseName="Open"
-    ParentNodeId="ns=1;i=650"
-    MethodDeclarationId="i=11580"
-  >
+  <UAMethod NodeId="ns=1;i=656" BrowseName="Open" ParentNodeId="ns=1;i=650" MethodDeclarationId="i=11580">
     <DisplayName>Open</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=657</Reference>
@@ -7906,14 +6262,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=650</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=657"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=656"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=657" BrowseName="InputArguments" ParentNodeId="ns=1;i=656" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -7939,14 +6288,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=658"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=656"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=658" BrowseName="OutputArguments" ParentNodeId="ns=1;i=656" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -7972,26 +6314,14 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=659"
-    BrowseName="Close"
-    ParentNodeId="ns=1;i=650"
-    MethodDeclarationId="i=11583"
-  >
+  <UAMethod NodeId="ns=1;i=659" BrowseName="Close" ParentNodeId="ns=1;i=650" MethodDeclarationId="i=11583">
     <DisplayName>Close</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=660</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=650</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=660"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=659"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=660" BrowseName="InputArguments" ParentNodeId="ns=1;i=659" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -8017,12 +6347,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=661"
-    BrowseName="Read"
-    ParentNodeId="ns=1;i=650"
-    MethodDeclarationId="i=11585"
-  >
+  <UAMethod NodeId="ns=1;i=661" BrowseName="Read" ParentNodeId="ns=1;i=650" MethodDeclarationId="i=11585">
     <DisplayName>Read</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=662</Reference>
@@ -8030,14 +6355,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=650</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=662"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=661"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=662" BrowseName="InputArguments" ParentNodeId="ns=1;i=661" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -8078,14 +6396,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=663"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=661"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=663" BrowseName="OutputArguments" ParentNodeId="ns=1;i=661" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -8111,26 +6422,14 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=664"
-    BrowseName="Write"
-    ParentNodeId="ns=1;i=650"
-    MethodDeclarationId="i=11588"
-  >
+  <UAMethod NodeId="ns=1;i=664" BrowseName="Write" ParentNodeId="ns=1;i=650" MethodDeclarationId="i=11588">
     <DisplayName>Write</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=665</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=650</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=665"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=664"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=665" BrowseName="InputArguments" ParentNodeId="ns=1;i=664" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -8171,12 +6470,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=666"
-    BrowseName="GetPosition"
-    ParentNodeId="ns=1;i=650"
-    MethodDeclarationId="i=11590"
-  >
+  <UAMethod NodeId="ns=1;i=666" BrowseName="GetPosition" ParentNodeId="ns=1;i=650" MethodDeclarationId="i=11590">
     <DisplayName>GetPosition</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=667</Reference>
@@ -8184,14 +6478,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=650</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=667"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=666"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=667" BrowseName="InputArguments" ParentNodeId="ns=1;i=666" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -8217,14 +6504,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=668"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=666"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=668" BrowseName="OutputArguments" ParentNodeId="ns=1;i=666" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -8250,26 +6530,14 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=669"
-    BrowseName="SetPosition"
-    ParentNodeId="ns=1;i=650"
-    MethodDeclarationId="i=11593"
-  >
+  <UAMethod NodeId="ns=1;i=669" BrowseName="SetPosition" ParentNodeId="ns=1;i=650" MethodDeclarationId="i=11593">
     <DisplayName>SetPosition</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=670</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=650</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=670"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=669"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=670" BrowseName="InputArguments" ParentNodeId="ns=1;i=669" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -8310,24 +6578,14 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=671"
-    BrowseName="LastUpdateTime"
-    ParentNodeId="ns=1;i=650"
-    DataType="i=294"
-  >
+  <UAVariable NodeId="ns=1;i=671" BrowseName="LastUpdateTime" ParentNodeId="ns=1;i=650" DataType="i=294">
     <DisplayName>LastUpdateTime</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=650</Reference>
     </References>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=672"
-    BrowseName="OpenWithMasks"
-    ParentNodeId="ns=1;i=650"
-    MethodDeclarationId="i=12543"
-  >
+  <UAMethod NodeId="ns=1;i=672" BrowseName="OpenWithMasks" ParentNodeId="ns=1;i=650" MethodDeclarationId="i=12543">
     <DisplayName>OpenWithMasks</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=673</Reference>
@@ -8335,14 +6593,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=650</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=673"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=672"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=673" BrowseName="InputArguments" ParentNodeId="ns=1;i=672" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -8368,14 +6619,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=674"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=672"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=674" BrowseName="OutputArguments" ParentNodeId="ns=1;i=672" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -8401,12 +6645,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=675"
-    BrowseName="CloseAndUpdate"
-    ParentNodeId="ns=1;i=650"
-    MethodDeclarationId="i=12546"
-  >
+  <UAMethod NodeId="ns=1;i=675" BrowseName="CloseAndUpdate" ParentNodeId="ns=1;i=650" MethodDeclarationId="i=12546">
     <DisplayName>CloseAndUpdate</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=676</Reference>
@@ -8414,14 +6653,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=650</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=676"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=675"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=676" BrowseName="InputArguments" ParentNodeId="ns=1;i=675" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -8447,14 +6679,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=677"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=675"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=677" BrowseName="OutputArguments" ParentNodeId="ns=1;i=675" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -8480,26 +6705,14 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=678"
-    BrowseName="AddCertificate"
-    ParentNodeId="ns=1;i=650"
-    MethodDeclarationId="i=12548"
-  >
+  <UAMethod NodeId="ns=1;i=678" BrowseName="AddCertificate" ParentNodeId="ns=1;i=650" MethodDeclarationId="i=12548">
     <DisplayName>AddCertificate</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=679</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=650</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=679"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=678"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=679" BrowseName="InputArguments" ParentNodeId="ns=1;i=678" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -8540,26 +6753,14 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=680"
-    BrowseName="RemoveCertificate"
-    ParentNodeId="ns=1;i=650"
-    MethodDeclarationId="i=12550"
-  >
+  <UAMethod NodeId="ns=1;i=680" BrowseName="RemoveCertificate" ParentNodeId="ns=1;i=650" MethodDeclarationId="i=12550">
     <DisplayName>RemoveCertificate</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=681</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=650</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=681"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=680"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=681" BrowseName="InputArguments" ParentNodeId="ns=1;i=680" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -8600,14 +6801,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=682"
-    BrowseName="CertificateTypes"
-    ParentNodeId="ns=1;i=649"
-    DataType="NodeId"
-    ValueRank="1"
-    ArrayDimensions="0"
-  >
+  <UAVariable NodeId="ns=1;i=682" BrowseName="CertificateTypes" ParentNodeId="ns=1;i=649" DataType="NodeId" ValueRank="1" ArrayDimensions="0">
     <DisplayName>CertificateTypes</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -8653,48 +6847,28 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=684</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=686"
-    BrowseName="Writable"
-    ParentNodeId="ns=1;i=684"
-    DataType="Boolean"
-  >
+  <UAVariable NodeId="ns=1;i=686" BrowseName="Writable" ParentNodeId="ns=1;i=684" DataType="Boolean">
     <DisplayName>Writable</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=684</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=687"
-    BrowseName="UserWritable"
-    ParentNodeId="ns=1;i=684"
-    DataType="Boolean"
-  >
+  <UAVariable NodeId="ns=1;i=687" BrowseName="UserWritable" ParentNodeId="ns=1;i=684" DataType="Boolean">
     <DisplayName>UserWritable</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=684</Reference>
     </References>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=688"
-    BrowseName="OpenCount"
-    ParentNodeId="ns=1;i=684"
-    DataType="UInt16"
-  >
+  <UAVariable NodeId="ns=1;i=688" BrowseName="OpenCount" ParentNodeId="ns=1;i=684" DataType="UInt16">
     <DisplayName>OpenCount</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=684</Reference>
     </References>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=690"
-    BrowseName="Open"
-    ParentNodeId="ns=1;i=684"
-    MethodDeclarationId="i=11580"
-  >
+  <UAMethod NodeId="ns=1;i=690" BrowseName="Open" ParentNodeId="ns=1;i=684" MethodDeclarationId="i=11580">
     <DisplayName>Open</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=691</Reference>
@@ -8702,14 +6876,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=684</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=691"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=690"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=691" BrowseName="InputArguments" ParentNodeId="ns=1;i=690" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -8735,14 +6902,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=692"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=690"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=692" BrowseName="OutputArguments" ParentNodeId="ns=1;i=690" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -8768,26 +6928,14 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=693"
-    BrowseName="Close"
-    ParentNodeId="ns=1;i=684"
-    MethodDeclarationId="i=11583"
-  >
+  <UAMethod NodeId="ns=1;i=693" BrowseName="Close" ParentNodeId="ns=1;i=684" MethodDeclarationId="i=11583">
     <DisplayName>Close</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=694</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=684</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=694"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=693"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=694" BrowseName="InputArguments" ParentNodeId="ns=1;i=693" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -8813,12 +6961,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=695"
-    BrowseName="Read"
-    ParentNodeId="ns=1;i=684"
-    MethodDeclarationId="i=11585"
-  >
+  <UAMethod NodeId="ns=1;i=695" BrowseName="Read" ParentNodeId="ns=1;i=684" MethodDeclarationId="i=11585">
     <DisplayName>Read</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=696</Reference>
@@ -8826,14 +6969,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=684</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=696"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=695"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=696" BrowseName="InputArguments" ParentNodeId="ns=1;i=695" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -8874,14 +7010,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=697"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=695"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=697" BrowseName="OutputArguments" ParentNodeId="ns=1;i=695" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -8907,26 +7036,14 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=698"
-    BrowseName="Write"
-    ParentNodeId="ns=1;i=684"
-    MethodDeclarationId="i=11588"
-  >
+  <UAMethod NodeId="ns=1;i=698" BrowseName="Write" ParentNodeId="ns=1;i=684" MethodDeclarationId="i=11588">
     <DisplayName>Write</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=699</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=684</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=699"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=698"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=699" BrowseName="InputArguments" ParentNodeId="ns=1;i=698" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -8967,12 +7084,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=700"
-    BrowseName="GetPosition"
-    ParentNodeId="ns=1;i=684"
-    MethodDeclarationId="i=11590"
-  >
+  <UAMethod NodeId="ns=1;i=700" BrowseName="GetPosition" ParentNodeId="ns=1;i=684" MethodDeclarationId="i=11590">
     <DisplayName>GetPosition</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=701</Reference>
@@ -8980,14 +7092,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=684</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=701"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=700"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=701" BrowseName="InputArguments" ParentNodeId="ns=1;i=700" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -9013,14 +7118,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=702"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=700"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=702" BrowseName="OutputArguments" ParentNodeId="ns=1;i=700" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -9046,26 +7144,14 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=703"
-    BrowseName="SetPosition"
-    ParentNodeId="ns=1;i=684"
-    MethodDeclarationId="i=11593"
-  >
+  <UAMethod NodeId="ns=1;i=703" BrowseName="SetPosition" ParentNodeId="ns=1;i=684" MethodDeclarationId="i=11593">
     <DisplayName>SetPosition</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=704</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=684</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=704"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=703"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=704" BrowseName="InputArguments" ParentNodeId="ns=1;i=703" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -9106,24 +7192,14 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=705"
-    BrowseName="LastUpdateTime"
-    ParentNodeId="ns=1;i=684"
-    DataType="i=294"
-  >
+  <UAVariable NodeId="ns=1;i=705" BrowseName="LastUpdateTime" ParentNodeId="ns=1;i=684" DataType="i=294">
     <DisplayName>LastUpdateTime</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=684</Reference>
     </References>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=706"
-    BrowseName="OpenWithMasks"
-    ParentNodeId="ns=1;i=684"
-    MethodDeclarationId="i=12543"
-  >
+  <UAMethod NodeId="ns=1;i=706" BrowseName="OpenWithMasks" ParentNodeId="ns=1;i=684" MethodDeclarationId="i=12543">
     <DisplayName>OpenWithMasks</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=707</Reference>
@@ -9131,14 +7207,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=684</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=707"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=706"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=707" BrowseName="InputArguments" ParentNodeId="ns=1;i=706" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -9164,14 +7233,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=708"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=706"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=708" BrowseName="OutputArguments" ParentNodeId="ns=1;i=706" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -9197,12 +7259,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=709"
-    BrowseName="CloseAndUpdate"
-    ParentNodeId="ns=1;i=684"
-    MethodDeclarationId="i=12546"
-  >
+  <UAMethod NodeId="ns=1;i=709" BrowseName="CloseAndUpdate" ParentNodeId="ns=1;i=684" MethodDeclarationId="i=12546">
     <DisplayName>CloseAndUpdate</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=710</Reference>
@@ -9210,14 +7267,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=684</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=710"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=709"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=710" BrowseName="InputArguments" ParentNodeId="ns=1;i=709" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -9243,14 +7293,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=711"
-    BrowseName="OutputArguments"
-    ParentNodeId="ns=1;i=709"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=711" BrowseName="OutputArguments" ParentNodeId="ns=1;i=709" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -9276,26 +7319,14 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=712"
-    BrowseName="AddCertificate"
-    ParentNodeId="ns=1;i=684"
-    MethodDeclarationId="i=12548"
-  >
+  <UAMethod NodeId="ns=1;i=712" BrowseName="AddCertificate" ParentNodeId="ns=1;i=684" MethodDeclarationId="i=12548">
     <DisplayName>AddCertificate</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=713</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=684</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=713"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=712"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=713" BrowseName="InputArguments" ParentNodeId="ns=1;i=712" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -9336,26 +7367,14 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=714"
-    BrowseName="RemoveCertificate"
-    ParentNodeId="ns=1;i=684"
-    MethodDeclarationId="i=12550"
-  >
+  <UAMethod NodeId="ns=1;i=714" BrowseName="RemoveCertificate" ParentNodeId="ns=1;i=684" MethodDeclarationId="i=12550">
     <DisplayName>RemoveCertificate</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=715</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=684</Reference>
     </References>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=715"
-    BrowseName="InputArguments"
-    ParentNodeId="ns=1;i=714"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=715" BrowseName="InputArguments" ParentNodeId="ns=1;i=714" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -9396,27 +7415,14 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=716"
-    BrowseName="CertificateTypes"
-    ParentNodeId="ns=1;i=683"
-    DataType="NodeId"
-    ValueRank="1"
-    ArrayDimensions="0"
-  >
+  <UAVariable NodeId="ns=1;i=716" BrowseName="CertificateTypes" ParentNodeId="ns=1;i=683" DataType="NodeId" ValueRank="1" ArrayDimensions="0">
     <DisplayName>CertificateTypes</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=683</Reference>
     </References>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=157"
-    BrowseName="1:StartSigningRequest"
-    AccessRestrictions="1"
-    ParentNodeId="ns=1;i=141"
-    MethodDeclarationId="ns=1;i=79"
-  >
+  <UAMethod NodeId="ns=1;i=157" BrowseName="1:StartSigningRequest" AccessRestrictions="1" ParentNodeId="ns=1;i=141" MethodDeclarationId="ns=1;i=79">
     <DisplayName>StartSigningRequest</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=158</Reference>
@@ -9428,15 +7434,7 @@
       <RolePermission Permissions="4097">ns=1;i=1680</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=158"
-    BrowseName="InputArguments"
-    AccessRestrictions="1"
-    ParentNodeId="ns=1;i=157"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="4"
-  >
+  <UAVariable NodeId="ns=1;i=158" BrowseName="InputArguments" AccessRestrictions="1" ParentNodeId="ns=1;i=157" DataType="i=296" ValueRank="1" ArrayDimensions="4">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -9511,15 +7509,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=159"
-    BrowseName="OutputArguments"
-    AccessRestrictions="1"
-    ParentNodeId="ns=1;i=157"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=159" BrowseName="OutputArguments" AccessRestrictions="1" ParentNodeId="ns=1;i=157" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -9549,13 +7539,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=154"
-    BrowseName="1:StartNewKeyPairRequest"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=141"
-    MethodDeclarationId="ns=1;i=76"
-  >
+  <UAMethod NodeId="ns=1;i=154" BrowseName="1:StartNewKeyPairRequest" AccessRestrictions="3" ParentNodeId="ns=1;i=141" MethodDeclarationId="ns=1;i=76">
     <DisplayName>StartNewKeyPairRequest</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=155</Reference>
@@ -9567,15 +7551,7 @@
       <RolePermission Permissions="4097">ns=1;i=1680</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=155"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=154"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="7"
-  >
+  <UAVariable NodeId="ns=1;i=155" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=154" DataType="i=296" ValueRank="1" ArrayDimensions="7">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -9697,15 +7673,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=156"
-    BrowseName="OutputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=154"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=156" BrowseName="OutputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=154" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -9735,13 +7703,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=163"
-    BrowseName="1:FinishRequest"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=141"
-    MethodDeclarationId="ns=1;i=85"
-  >
+  <UAMethod NodeId="ns=1;i=163" BrowseName="1:FinishRequest" AccessRestrictions="3" ParentNodeId="ns=1;i=141" MethodDeclarationId="ns=1;i=85">
     <DisplayName>FinishRequest</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=164</Reference>
@@ -9753,15 +7715,7 @@
       <RolePermission Permissions="4097">ns=1;i=1680</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=164"
-    BrowseName="InputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=163"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=164" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=163" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -9806,15 +7760,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=165"
-    BrowseName="OutputArguments"
-    AccessRestrictions="3"
-    ParentNodeId="ns=1;i=163"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="3"
-  >
+  <UAVariable NodeId="ns=1;i=165" BrowseName="OutputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=163" DataType="i=296" ValueRank="1" ArrayDimensions="3">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -9876,13 +7822,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=508"
-    BrowseName="1:GetCertificateGroups"
-    AccessRestrictions="1"
-    ParentNodeId="ns=1;i=141"
-    MethodDeclarationId="ns=1;i=369"
-  >
+  <UAMethod NodeId="ns=1;i=508" BrowseName="1:GetCertificateGroups" AccessRestrictions="1" ParentNodeId="ns=1;i=141" MethodDeclarationId="ns=1;i=369">
     <DisplayName>GetCertificateGroups</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=509</Reference>
@@ -9894,15 +7834,7 @@
       <RolePermission Permissions="4097">ns=1;i=1680</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=509"
-    BrowseName="InputArguments"
-    AccessRestrictions="1"
-    ParentNodeId="ns=1;i=508"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=509" BrowseName="InputArguments" AccessRestrictions="1" ParentNodeId="ns=1;i=508" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -9932,15 +7864,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=510"
-    BrowseName="OutputArguments"
-    AccessRestrictions="1"
-    ParentNodeId="ns=1;i=508"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=510" BrowseName="OutputArguments" AccessRestrictions="1" ParentNodeId="ns=1;i=508" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -9972,13 +7896,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=204"
-    BrowseName="1:GetTrustList"
-    AccessRestrictions="1"
-    ParentNodeId="ns=1;i=141"
-    MethodDeclarationId="ns=1;i=197"
-  >
+  <UAMethod NodeId="ns=1;i=204" BrowseName="1:GetTrustList" AccessRestrictions="1" ParentNodeId="ns=1;i=141" MethodDeclarationId="ns=1;i=197">
     <DisplayName>GetTrustList</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=205</Reference>
@@ -9990,15 +7908,7 @@
       <RolePermission Permissions="4097">ns=1;i=1680</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=205"
-    BrowseName="InputArguments"
-    AccessRestrictions="1"
-    ParentNodeId="ns=1;i=204"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="2"
-  >
+  <UAVariable NodeId="ns=1;i=205" BrowseName="InputArguments" AccessRestrictions="1" ParentNodeId="ns=1;i=204" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -10043,15 +7953,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=206"
-    BrowseName="OutputArguments"
-    AccessRestrictions="1"
-    ParentNodeId="ns=1;i=204"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=206" BrowseName="OutputArguments" AccessRestrictions="1" ParentNodeId="ns=1;i=204" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -10081,13 +7983,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod
-    NodeId="ns=1;i=225"
-    BrowseName="1:GetCertificateStatus"
-    AccessRestrictions="1"
-    ParentNodeId="ns=1;i=141"
-    MethodDeclarationId="ns=1;i=222"
-  >
+  <UAMethod NodeId="ns=1;i=225" BrowseName="1:GetCertificateStatus" AccessRestrictions="1" ParentNodeId="ns=1;i=141" MethodDeclarationId="ns=1;i=222">
     <DisplayName>GetCertificateStatus</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=226</Reference>
@@ -10099,15 +7995,7 @@
       <RolePermission Permissions="4097">ns=1;i=1680</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable
-    NodeId="ns=1;i=226"
-    BrowseName="InputArguments"
-    AccessRestrictions="1"
-    ParentNodeId="ns=1;i=225"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="3"
-  >
+  <UAVariable NodeId="ns=1;i=226" BrowseName="InputArguments" AccessRestrictions="1" ParentNodeId="ns=1;i=225" DataType="i=296" ValueRank="1" ArrayDimensions="3">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -10167,15 +8055,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=227"
-    BrowseName="OutputArguments"
-    AccessRestrictions="1"
-    ParentNodeId="ns=1;i=225"
-    DataType="i=296"
-    ValueRank="1"
-    ArrayDimensions="1"
-  >
+  <UAVariable NodeId="ns=1;i=227" BrowseName="OutputArguments" AccessRestrictions="1" ParentNodeId="ns=1;i=225" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -10213,13 +8093,7 @@
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=135"
-    BrowseName="1:Opc.Ua.Gds"
-    SymbolicName="OpcUaGds_BinarySchema"
-    ReleaseStatus="Deprecated"
-    DataType="ByteString"
-  >
+  <UAVariable NodeId="ns=1;i=135" BrowseName="1:Opc.Ua.Gds" SymbolicName="OpcUaGds_BinarySchema" ReleaseStatus="Deprecated" DataType="ByteString">
     <DisplayName>Opc.Ua.Gds</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=137</Reference>
@@ -10229,8 +8103,7 @@
       <Reference ReferenceType="HasTypeDefinition">i=72</Reference>
     </References>
     <Value>
-      <ByteString xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-        >PG9wYzpUeXBlRGljdGlvbmFyeQ0KICB4bWxuczpvcGM9Imh0dHA6Ly9vcGNmb3VuZGF0aW9uLm9y
+      <ByteString xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">PG9wYzpUeXBlRGljdGlvbmFyeQ0KICB4bWxuczpvcGM9Imh0dHA6Ly9vcGNmb3VuZGF0aW9uLm9y
 Zy9CaW5hcnlTY2hlbWEvIg0KICB4bWxuczp4c2k9Imh0dHA6Ly93d3cudzMub3JnLzIwMDEvWE1M
 U2NoZW1hLWluc3RhbmNlIg0KICB4bWxuczp1YT0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VB
 LyINCiAgeG1sbnM6dG5zPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvR0RTLyINCiAgRGVm
@@ -10252,35 +8125,20 @@ IFR5cGVOYW1lPSJvcGM6U3RyaW5nIiBMZW5ndGhGaWVsZD0iTm9PZkRpc2NvdmVyeVVybHMiIC8+
 DQogICAgPG9wYzpGaWVsZCBOYW1lPSJOb09mU2VydmVyQ2FwYWJpbGl0aWVzIiBUeXBlTmFtZT0i
 b3BjOkludDMyIiAvPg0KICAgIDxvcGM6RmllbGQgTmFtZT0iU2VydmVyQ2FwYWJpbGl0aWVzIiBU
 eXBlTmFtZT0ib3BjOlN0cmluZyIgTGVuZ3RoRmllbGQ9Ik5vT2ZTZXJ2ZXJDYXBhYmlsaXRpZXMi
-IC8+DQogIDwvb3BjOlN0cnVjdHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</ByteString
-      >
+IC8+DQogIDwvb3BjOlN0cnVjdHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</ByteString>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=137"
-    BrowseName="NamespaceUri"
-    ReleaseStatus="Deprecated"
-    ParentNodeId="ns=1;i=135"
-    DataType="String"
-  >
+  <UAVariable NodeId="ns=1;i=137" BrowseName="NamespaceUri" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=135" DataType="String">
     <DisplayName>NamespaceUri</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=135</Reference>
     </References>
     <Value>
-      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-        >http://opcfoundation.org/UA/GDS/</String
-      >
+      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/GDS/</String>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=8002"
-    BrowseName="Deprecated"
-    ReleaseStatus="Deprecated"
-    ParentNodeId="ns=1;i=135"
-    DataType="Boolean"
-  >
+  <UAVariable NodeId="ns=1;i=8002" BrowseName="Deprecated" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=135" DataType="Boolean">
     <DisplayName>Deprecated</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -10290,22 +8148,14 @@ IC8+DQogIDwvb3BjOlN0cnVjdHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</ByteSt
       <Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">true</Boolean>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=138"
-    BrowseName="1:ApplicationRecordDataType"
-    ReleaseStatus="Deprecated"
-    ParentNodeId="ns=1;i=135"
-    DataType="String"
-  >
+  <UAVariable NodeId="ns=1;i=138" BrowseName="1:ApplicationRecordDataType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=135" DataType="String">
     <DisplayName>ApplicationRecordDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=135</Reference>
     </References>
     <Value>
-      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-        >ApplicationRecordDataType</String
-      >
+      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">ApplicationRecordDataType</String>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=127" BrowseName="Default XML" SymbolicName="DefaultXml">
@@ -10316,13 +8166,7 @@ IC8+DQogIDwvb3BjOlN0cnVjdHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</ByteSt
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAVariable
-    NodeId="ns=1;i=128"
-    BrowseName="1:Opc.Ua.Gds"
-    SymbolicName="OpcUaGds_XmlSchema"
-    ReleaseStatus="Deprecated"
-    DataType="ByteString"
-  >
+  <UAVariable NodeId="ns=1;i=128" BrowseName="1:Opc.Ua.Gds" SymbolicName="OpcUaGds_XmlSchema" ReleaseStatus="Deprecated" DataType="ByteString">
     <DisplayName>Opc.Ua.Gds</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=130</Reference>
@@ -10332,8 +8176,7 @@ IC8+DQogIDwvb3BjOlN0cnVjdHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</ByteSt
       <Reference ReferenceType="HasTypeDefinition">i=72</Reference>
     </References>
     <Value>
-      <ByteString xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-        >PHhzOnNjaGVtYQ0KICB4bWxuczp4cz0iaHR0cDovL3d3dy53My5vcmcvMjAwMS9YTUxTY2hlbWEi
+      <ByteString xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">PHhzOnNjaGVtYQ0KICB4bWxuczp4cz0iaHR0cDovL3d3dy53My5vcmcvMjAwMS9YTUxTY2hlbWEi
 DQogIHhtbG5zOnVhPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvMjAwOC8wMi9UeXBlcy54
 c2QiDQogIHhtbG5zOnRucz0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy9UeXBlcy54
 c2QiDQogIHRhcmdldE5hbWVzcGFjZT0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy9U
@@ -10364,35 +8207,20 @@ ZSIgdHlwZT0idG5zOkFwcGxpY2F0aW9uUmVjb3JkRGF0YVR5cGUiIG1pbk9jY3Vycz0iMCIgbWF4
 T2NjdXJzPSJ1bmJvdW5kZWQiIG5pbGxhYmxlPSJ0cnVlIiAvPg0KICAgIDwveHM6c2VxdWVuY2U+
 DQogIDwveHM6Y29tcGxleFR5cGU+DQogIDx4czplbGVtZW50IG5hbWU9Ikxpc3RPZkFwcGxpY2F0
 aW9uUmVjb3JkRGF0YVR5cGUiIHR5cGU9InRuczpMaXN0T2ZBcHBsaWNhdGlvblJlY29yZERhdGFU
-eXBlIiBuaWxsYWJsZT0idHJ1ZSI+PC94czplbGVtZW50Pg0KDQo8L3hzOnNjaGVtYT4=</ByteString
-      >
+eXBlIiBuaWxsYWJsZT0idHJ1ZSI+PC94czplbGVtZW50Pg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=130"
-    BrowseName="NamespaceUri"
-    ReleaseStatus="Deprecated"
-    ParentNodeId="ns=1;i=128"
-    DataType="String"
-  >
+  <UAVariable NodeId="ns=1;i=130" BrowseName="NamespaceUri" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=128" DataType="String">
     <DisplayName>NamespaceUri</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=128</Reference>
     </References>
     <Value>
-      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-        >http://opcfoundation.org/UA/GDS/Types.xsd</String
-      >
+      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/GDS/Types.xsd</String>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=8004"
-    BrowseName="Deprecated"
-    ReleaseStatus="Deprecated"
-    ParentNodeId="ns=1;i=128"
-    DataType="Boolean"
-  >
+  <UAVariable NodeId="ns=1;i=8004" BrowseName="Deprecated" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=128" DataType="Boolean">
     <DisplayName>Deprecated</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -10402,22 +8230,14 @@ eXBlIiBuaWxsYWJsZT0idHJ1ZSI+PC94czplbGVtZW50Pg0KDQo8L3hzOnNjaGVtYT4=</ByteString
       <Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">true</Boolean>
     </Value>
   </UAVariable>
-  <UAVariable
-    NodeId="ns=1;i=131"
-    BrowseName="1:ApplicationRecordDataType"
-    ReleaseStatus="Deprecated"
-    ParentNodeId="ns=1;i=128"
-    DataType="String"
-  >
+  <UAVariable NodeId="ns=1;i=131" BrowseName="1:ApplicationRecordDataType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=128" DataType="String">
     <DisplayName>ApplicationRecordDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=128</Reference>
     </References>
     <Value>
-      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
-        >//xs:element[@name='ApplicationRecordDataType']</String
-      >
+      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ApplicationRecordDataType']</String>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=8001" BrowseName="Default JSON" SymbolicName="DefaultJson">
