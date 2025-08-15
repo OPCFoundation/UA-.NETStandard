@@ -524,8 +524,7 @@ namespace Opc.Ua.Server
             double sessionTimeout,
             uint maxResponseMessageSize,
             int maxRequestAge, // TBD - Remove unused parameter.
-            int maxContinuationPoints
-        ) // TBD - Remove unused parameter.
+            int maxContinuationPoints) // TBD - Remove unused parameter.
         {
             return new Session(
                 context,

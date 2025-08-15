@@ -20,7 +20,7 @@ using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
-#if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
+#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
 using System.Security.Cryptography;
 #endif
 
@@ -180,7 +180,7 @@ namespace Opc.Ua.Bindings
                 {
                     // prepare the server TLS certificate
                     X509Certificate2 clientCertificate = m_settings.ClientCertificate;
-#if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
+#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
                     try
                     {
                         // Create a copy of the certificate with the private key on platforms

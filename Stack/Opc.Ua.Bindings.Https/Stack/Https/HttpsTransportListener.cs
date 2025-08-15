@@ -24,7 +24,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Hosting;
 using Opc.Ua.Security.Certificates;
-#if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
+#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
 using System.Security.Cryptography;
 #endif
 
@@ -262,7 +262,7 @@ namespace Opc.Ua.Bindings
             // prepare the server TLS certificate
             X509Certificate2 serverCertificate = m_serverCertProvider.GetInstanceCertificate(
                 SecurityPolicies.Https);
-#if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
+#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
             try
             {
                 // Create a copy of the certificate with the private key on platforms
@@ -530,7 +530,7 @@ namespace Opc.Ua.Bindings
             context.Response.ContentLength = encodedResponse.Length;
             context.Response.ContentType = context.Request.ContentType;
             context.Response.StatusCode = (int)HttpStatusCode.OK;
-#if NETSTANDARD2_1 || NET5_0_OR_GREATER || NETCOREAPP3_1_OR_GREATER
+#if NETSTANDARD2_1 || NET5_0_OR_GREATER
             await context
                 .Response.Body.WriteAsync(encodedResponse.AsMemory(0, encodedResponse.Length), ct)
                 .ConfigureAwait(false);

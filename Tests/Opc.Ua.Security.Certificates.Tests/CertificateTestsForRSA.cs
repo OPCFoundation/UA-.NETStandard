@@ -377,7 +377,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             CheckPEMWriter(appCert);
         }
 
-#if NETFRAMEWORK || NETCOREAPP3_1_OR_GREATER
+#if NETFRAMEWORK || NET5_0_OR_GREATER
         [Test]
         public void CreateIssuerRSACngWithSuppliedKeyPair()
         {
@@ -540,7 +540,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 password = null;
 #endif
                 PEMWriter.ExportPrivateKeyAsPEM(certificate, password);
-#if NETCOREAPP3_1_OR_GREATER && ECC_SUPPORT
+#if NET5_0_OR_GREATER && ECC_SUPPORT
                 PEMWriter.ExportRSAPrivateKeyAsPEM(certificate);
 #endif
             }

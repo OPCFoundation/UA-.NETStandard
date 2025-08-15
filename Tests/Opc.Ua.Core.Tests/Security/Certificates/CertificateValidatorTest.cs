@@ -1029,7 +1029,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 byte[] pemDataBlob = PEMWriter.ExportCertificateAsPEM(appCert);
                 string pemString = Encoding.UTF8.GetString(pemDataBlob);
                 TestContext.Out.WriteLine(pemString);
-#if NETCOREAPP3_1_OR_GREATER && ECC_SUPPORT
+#if NET5_0_OR_GREATER && ECC_SUPPORT
                 ArgumentException exception = NUnit.Framework.Assert.Throws<ArgumentException>(() =>
                     CertificateFactory.CreateCertificateWithPEMPrivateKey(
                         new X509Certificate2(appCert),
@@ -1038,7 +1038,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
-#if NETCOREAPP3_1_OR_GREATER && ECC_SUPPORT
+#if NET5_0_OR_GREATER && ECC_SUPPORT
         /// <summary>
         /// Verify the PEM Writer, no password.
         /// </summary>
@@ -1270,7 +1270,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Theory]
         public async Task TestSHA1RejectedAsync(bool trusted, bool rejectSHA1)
         {
-#if NET472_OR_GREATER || NETCOREAPP3_1_OR_GREATER
+#if NET472_OR_GREATER || NET5_0_OR_GREATER
             NUnit.Framework.Assert
                 .Ignore("To create SHA1 certificates is unsupported on this .NET version");
 #endif
