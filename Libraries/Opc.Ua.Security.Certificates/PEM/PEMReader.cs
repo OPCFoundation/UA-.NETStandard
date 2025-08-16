@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -30,7 +30,6 @@
 #if NETSTANDARD2_1 || NET5_0_OR_GREATER
 
 using System;
-using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -43,7 +42,6 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public static class PEMReader
     {
-        #region Public Methods
         /// <summary>
         /// Checks if the PEM data contains a private key.
         /// </summary>
@@ -55,21 +53,23 @@ namespace Opc.Ua.Security.Certificates
             {
                 string pemText = Encoding.UTF8.GetString(pemDataBlob);
 
-
-                string[] valuesToCheck = {
+                string[] valuesToCheck =
+                [
                     "-----BEGIN PRIVATE KEY-----",
                     "-----BEGIN RSA PRIVATE KEY-----",
                     "-----BEGIN ENCRYPTED PRIVATE KEY-----",
                     "-----BEGIN EC PRIVATE KEY-----"
-                };
+                ];
 
-                return valuesToCheck.Any(value => pemText.Contains(value, StringComparison.Ordinal));
+                return valuesToCheck.Any(
+                    value => pemText.Contains(value, StringComparison.Ordinal));
             }
             catch
             {
                 return false;
             }
         }
+
         /// <summary>
         /// Import multiple X509 certificates from PEM data.
         /// Supports a maximum of 99 certificates in the PEM data.
@@ -80,7 +80,7 @@ namespace Opc.Ua.Security.Certificates
             ReadOnlySpan<byte> pemDataBlob)
         {
             var certificates = new X509Certificate2Collection();
-            string label = "CERTIFICATE";
+            const string label = "CERTIFICATE";
             string beginlabel = $"-----BEGIN {label}-----";
             string endlabel = $"-----END {label}-----";
             try
@@ -102,18 +102,24 @@ namespace Opc.Ua.Security.Certificates
                     {
                         return certificates;
                     }
-                    var pemCertificateContent = pemText.Slice(beginIndex, endIndex - beginIndex);
-                    Span<byte> pemCertificateDecoded = new Span<byte>(new byte[pemCertificateContent.Length]);
-                    if (Convert.TryFromBase64Chars(pemCertificateContent, pemCertificateDecoded, out var bytesWritten))
+                    ReadOnlySpan<char> pemCertificateContent = pemText[beginIndex..endIndex];
+                    var pemCertificateDecoded = new Span<byte>(
+                        new byte[pemCertificateContent.Length]);
+                    if (Convert.TryFromBase64Chars(
+                        pemCertificateContent,
+                        pemCertificateDecoded,
+                        out int bytesWritten))
                     {
 #if NET6_0_OR_GREATER
-                        certificates.Add(X509CertificateLoader.LoadCertificate(pemCertificateDecoded));
+                        certificates.Add(
+                            X509CertificateLoader.LoadCertificate(pemCertificateDecoded));
 #else
-                        certificates.Add(X509CertificateLoader.LoadCertificate(pemCertificateDecoded.ToArray()));
+                        certificates.Add(
+                            X509CertificateLoader.LoadCertificate(pemCertificateDecoded.ToArray()));
 #endif
                     }
 
-                    pemText = pemText.Slice(endIndex + endlabel.Length);
+                    pemText = pemText[(endIndex + endlabel.Length)..];
                 }
             }
             catch (CryptographicException)
@@ -122,7 +128,9 @@ namespace Opc.Ua.Security.Certificates
             }
             catch (Exception ex)
             {
-                throw new CryptographicException("Failed to decode the PEM encoded Certificates.", ex);
+                throw new CryptographicException(
+                    "Failed to decode the PEM encoded Certificates.",
+                    ex);
             }
             return certificates;
         }
@@ -134,18 +142,16 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="pemDataBlob">The PEM datablob as byte array.</param>
         /// <param name="password">The password to use (optional).</param>
         /// <returns>The RSA private key.</returns>
-        public static RSA ImportRsaPrivateKeyFromPEM(
-            byte[] pemDataBlob,
-            string password = null)
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="CryptographicException"></exception>
+        public static RSA ImportRsaPrivateKeyFromPEM(byte[] pemDataBlob, string password = null)
         {
-            string[] labels = {
-                "ENCRYPTED PRIVATE KEY", "PRIVATE KEY", "RSA PRIVATE KEY"
-                };
+            string[] labels = ["ENCRYPTED PRIVATE KEY", "PRIVATE KEY", "RSA PRIVATE KEY"];
             try
             {
                 string pemText = Encoding.UTF8.GetString(pemDataBlob);
                 int count = 0;
-                foreach (var label in labels)
+                foreach (string label in labels)
                 {
                     count++;
                     string beginlabel = $"-----BEGIN {label}-----";
@@ -161,24 +167,31 @@ namespace Opc.Ua.Security.Certificates
                     {
                         continue;
                     }
-                    var pemData = pemText.Substring(beginIndex, endIndex - beginIndex);
+                    string pemData = pemText[beginIndex..endIndex];
                     byte[] pemDecoded = new byte[pemData.Length];
-                    int bytesDecoded;
-                    if (Convert.TryFromBase64Chars(pemData, pemDecoded, out bytesDecoded))
+                    if (Convert.TryFromBase64Chars(pemData, pemDecoded, out int bytesDecoded))
                     {
-                        RSA rsaPrivateKey = RSA.Create();
+                        var rsaPrivateKey = RSA.Create();
                         int bytesRead;
                         switch (count)
                         {
                             case 1:
-                                if (String.IsNullOrEmpty(password))
+                                if (string.IsNullOrEmpty(password))
                                 {
-                                    throw new ArgumentException("Need password for encrypted private key.");
+                                    throw new ArgumentException(
+                                        "Need password for encrypted private key.");
                                 }
-                                rsaPrivateKey.ImportEncryptedPkcs8PrivateKey(password.ToCharArray(), pemDecoded, out bytesRead);
+                                rsaPrivateKey.ImportEncryptedPkcs8PrivateKey(
+                                    password.ToCharArray(),
+                                    pemDecoded,
+                                    out bytesRead);
                                 break;
-                            case 2: rsaPrivateKey.ImportPkcs8PrivateKey(pemDecoded, out bytesRead); break;
-                            case 3: rsaPrivateKey.ImportRSAPrivateKey(pemDecoded, out bytesRead); break;
+                            case 2:
+                                rsaPrivateKey.ImportPkcs8PrivateKey(pemDecoded, out bytesRead);
+                                break;
+                            case 3:
+                                rsaPrivateKey.ImportRSAPrivateKey(pemDecoded, out bytesRead);
+                                break;
                         }
                         return rsaPrivateKey;
                     }
@@ -202,17 +215,12 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="pemDataBlob">The PEM data as byte array.</param>
         /// <param name="password">The password to use if the key is encrypted (optional)</param>
         /// <returns>ECDsa instance containing the private key</returns>
-        public static ECDsa ImportECDsaPrivateKeyFromPEM(
-            byte[] pemDataBlob,
-            string password = null)
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="CryptographicException"></exception>
+        public static ECDsa ImportECDsaPrivateKeyFromPEM(byte[] pemDataBlob, string password = null)
         {
             // PEM labels for EC keys. Probably need adjustment
-            string[] labels =
-            {
-                "ENCRYPTED PRIVATE KEY",
-                "PRIVATE KEY",
-                "EC PRIVATE KEY"
-            };
+            string[] labels = ["ENCRYPTED PRIVATE KEY", "PRIVATE KEY", "EC PRIVATE KEY"];
 
             try
             {
@@ -220,7 +228,7 @@ namespace Opc.Ua.Security.Certificates
                 string pemText = Encoding.UTF8.GetString(pemDataBlob);
 
                 int labelIndex = 0;
-                foreach (var label in labels)
+                foreach (string label in labels)
                 {
                     labelIndex++;
                     string beginLabel = $"-----BEGIN {label}-----";
@@ -239,7 +247,7 @@ namespace Opc.Ua.Security.Certificates
                     }
 
                     // Extract the base64-encoded section
-                    string pemData = pemText.Substring(beginIndex, endIndex - beginIndex).Trim();
+                    string pemData = pemText[beginIndex..endIndex].Trim();
                     byte[] decodedBytes = new byte[pemData.Length];
                     if (Convert.TryFromBase64Chars(pemData, decodedBytes, out int bytesDecoded))
                     {
@@ -247,23 +255,25 @@ namespace Opc.Ua.Security.Certificates
                         Array.Resize(ref decodedBytes, bytesDecoded);
 
                         // Create an ECDsa object
-                        ECDsa ecdsaKey = ECDsa.Create();
+                        var ecdsaKey = ECDsa.Create();
                         switch (labelIndex)
                         {
                             case 1:
                                 // ENCRYPTED PRIVATE KEY
                                 if (string.IsNullOrEmpty(password))
                                 {
-                                    throw new ArgumentException("A password is required for an encrypted private key.");
+                                    throw new ArgumentException(
+                                        "A password is required for an encrypted private key.");
                                 }
-                                ecdsaKey.ImportEncryptedPkcs8PrivateKey(password.ToCharArray(), decodedBytes, out _);
+                                ecdsaKey.ImportEncryptedPkcs8PrivateKey(
+                                    password.ToCharArray(),
+                                    decodedBytes,
+                                    out _);
                                 break;
-
                             case 2:
                                 // PRIVATE KEY (Unencrypted PKCS#8)
                                 ecdsaKey.ImportPkcs8PrivateKey(decodedBytes, out _);
                                 break;
-
                             case 3:
                                 // EC PRIVATE KEY
                                 ecdsaKey.ImportECPrivateKey(decodedBytes, out _);
@@ -286,10 +296,6 @@ namespace Opc.Ua.Security.Certificates
             // If no recognized PEM label was found
             throw new ArgumentException("No ECDSA private PEM key found.");
         }
-        #endregion
-
-        #region Private Methods
-        #endregion
     }
 }
 #endif

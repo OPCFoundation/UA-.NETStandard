@@ -45,12 +45,13 @@ namespace Opc.Ua.Types.Redaction
         private readonly int m_minLength;
         private readonly int m_maxLength;
 
-
         /// <summary>
         /// Creates a new instance of the <see cref="SimpleRedactionStrategy"/> with default lengths.
         /// </summary>
-        public SimpleRedactionStrategy() : this(kDefaultMinLength, kDefaultMaxLength)
-        { }
+        public SimpleRedactionStrategy()
+            : this(kDefaultMinLength, kDefaultMaxLength)
+        {
+        }
 
         /// <summary>
         /// Creates a new instance of the <see cref="SimpleRedactionStrategy"/> with default lengths.
@@ -59,12 +60,16 @@ namespace Opc.Ua.Types.Redaction
         {
             if (minLength < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(minLength), "Must be a non-negative number");
+                throw new ArgumentOutOfRangeException(
+                    nameof(minLength),
+                    "Must be a non-negative number");
             }
 
             if (maxLength < -1)
             {
-                throw new ArgumentOutOfRangeException(nameof(maxLength), "Must be a non-negative number, or -1");
+                throw new ArgumentOutOfRangeException(
+                    nameof(maxLength),
+                    "Must be a non-negative number, or -1");
             }
 
             m_minLength = minLength;
@@ -109,23 +114,25 @@ namespace Opc.Ua.Types.Redaction
             return new string(kReplacementChar, m_maxLength);
         }
 
-        private string RedactException(Exception exception)
+        private static string RedactException(Exception exception)
         {
-            return "An exception of type " + exception.GetType() + " was redacted because it may contain sensitive information.";
+            return "An exception of type " +
+                exception.GetType() +
+                " was redacted because it may contain sensitive information.";
         }
 
         private string RedactUri(Uri uri)
         {
-            if (!uri.IsWellFormedOriginalString() || !uri.IsAbsoluteUri || string.IsNullOrEmpty(uri.Host))
+            if (!uri.IsWellFormedOriginalString() ||
+                !uri.IsAbsoluteUri ||
+                string.IsNullOrEmpty(uri.Host))
             {
                 return Redact(uri.ToString());
             }
 
             string redactedHost = Redact(uri.Host);
 
-            StringBuilder sb = new StringBuilder()
-                .Append(uri.Scheme)
-                .Append(Uri.SchemeDelimiter)
+            StringBuilder sb = new StringBuilder().Append(uri.Scheme).Append(Uri.SchemeDelimiter)
                 .Append(redactedHost);
 
             if (!uri.IsDefaultPort)
@@ -133,7 +140,8 @@ namespace Opc.Ua.Types.Redaction
                 sb.Append(':').Append(uri.Port);
             }
 
-            if (uri.LocalPath != null && !string.Equals(uri.LocalPath, "/", StringComparison.Ordinal))
+            if (uri.LocalPath != null &&
+                !string.Equals(uri.LocalPath, "/", StringComparison.Ordinal))
             {
                 sb.Append(uri.LocalPath);
             }

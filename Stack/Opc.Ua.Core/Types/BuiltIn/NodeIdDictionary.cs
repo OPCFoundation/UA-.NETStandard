@@ -28,21 +28,24 @@ namespace Opc.Ua
     /// <summary>
     /// A dictionary designed to provide efficient lookups for objects identified by a NodeId
     /// </summary>
+    /// <typeparam name="T"></typeparam>
     public sealed class NodeIdDictionary<T> : ConcurrentDictionary<NodeId, T>
     {
-        private static readonly NodeIdComparer s_comparer = new NodeIdComparer();
+        private static readonly NodeIdComparer s_comparer = new();
 
         /// <summary>
         /// Creates an empty dictionary.
         /// </summary>
-        public NodeIdDictionary() : base(s_comparer)
+        public NodeIdDictionary()
+            : base(s_comparer)
         {
         }
 
         /// <summary>
         /// Creates an empty dictionary with capacity.
         /// </summary>
-        public NodeIdDictionary(int capacity) : base(Environment.ProcessorCount, capacity, s_comparer)
+        public NodeIdDictionary(int capacity)
+            : base(Environment.ProcessorCount, capacity, s_comparer)
         {
         }
 
@@ -84,7 +87,6 @@ namespace Opc.Ua
     /// </summary>
     public class NodeIdDictionary<T> : IDictionary<NodeId, T>
     {
-        #region Constructors
         /// <summary>
         /// Creates an empty dictionary.
         /// </summary>
@@ -93,10 +95,8 @@ namespace Opc.Ua
             m_version = 0;
             m_numericIds = new SortedDictionary<ulong, T>();
         }
-        #endregion
 
-        #region IDictionary<NodeId,T> Members
-        /// <summary cref="IDictionary.Add" />
+        /// <inheritdoc/>
         public void Add(NodeId key, T value)
         {
             if (key == null)
@@ -141,7 +141,7 @@ namespace Opc.Ua
             throw new ArgumentOutOfRangeException(nameof(key), "key.IdType");
         }
 
-        /// <summary cref="IDictionary{TKey,TValue}.ContainsKey" />
+        /// <inheritdoc/>
         public bool ContainsKey(NodeId key)
         {
             if (key == null)
@@ -198,7 +198,7 @@ namespace Opc.Ua
             return false;
         }
 
-        /// <summary cref="IDictionary{TKey,TValue}.Keys" />
+        /// <inheritdoc/>
         public ICollection<NodeId> Keys
         {
             get
@@ -253,7 +253,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary cref="IDictionary.Remove" />
+        /// <inheritdoc/>
         public bool Remove(NodeId key)
         {
             if (key == null)
@@ -312,7 +312,7 @@ namespace Opc.Ua
             return false;
         }
 
-        /// <summary cref="IDictionary{TKey,TValue}.TryGetValue" />
+        /// <inheritdoc/>
         public bool TryGetValue(NodeId key, out T value)
         {
             value = default;
@@ -371,7 +371,7 @@ namespace Opc.Ua
             return false;
         }
 
-        /// <summary cref="IDictionary{TKey,TValue}.Values" />
+        /// <inheritdoc/>
         public ICollection<T> Values
         {
             get
@@ -416,7 +416,10 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the value with the specified NodeId.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1065:DoNotRaiseExceptionsInUnexpectedLocations")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Design",
+            "CA1065:DoNotRaiseExceptionsInUnexpectedLocations"
+        )]
         public T this[NodeId key]
         {
             get
@@ -474,7 +477,6 @@ namespace Opc.Ua
 
                 throw new KeyNotFoundException();
             }
-
             set
             {
                 if (key == null)
@@ -519,16 +521,14 @@ namespace Opc.Ua
                 throw new ArgumentOutOfRangeException(nameof(key), "key.IdType");
             }
         }
-        #endregion
 
-        #region ICollection<KeyValuePair<NodeId,T>> Members
-        /// <summary cref="ICollection{T}.Add" />
+        /// <inheritdoc/>
         public void Add(KeyValuePair<NodeId, T> item)
         {
             Add(item.Key, item.Value);
         }
 
-        /// <summary cref="ICollection{T}.Clear" />
+        /// <inheritdoc/>
         public void Clear()
         {
             m_version++;
@@ -536,7 +536,7 @@ namespace Opc.Ua
             m_dictionarySets = null;
         }
 
-        /// <summary cref="ICollection{T}.Contains" />
+        /// <inheritdoc/>
         public bool Contains(KeyValuePair<NodeId, T> item)
         {
             T value;
@@ -549,7 +549,7 @@ namespace Opc.Ua
             return Object.Equals(value, item.Value);
         }
 
-        /// <summary cref="ICollection{T}.CopyTo" />
+        /// <inheritdoc/>
         public void CopyTo(KeyValuePair<NodeId, T>[] array, int arrayIndex)
         {
             if (array == null)
@@ -559,7 +559,9 @@ namespace Opc.Ua
 
             if (arrayIndex < 0 || array.Length <= arrayIndex)
             {
-                throw new ArgumentOutOfRangeException(nameof(arrayIndex), "arrayIndex < 0 || array.Length <= arrayIndex");
+                throw new ArgumentOutOfRangeException(
+                    nameof(arrayIndex),
+                    "arrayIndex < 0 || array.Length <= arrayIndex");
             }
 
             foreach (KeyValuePair<ulong, T> entry in m_numericIds)
@@ -590,7 +592,9 @@ namespace Opc.Ua
                     foreach (KeyValuePair<string, T> entry in dictionarySet.String)
                     {
                         CheckCopyTo(array, arrayIndex);
-                        array[arrayIndex++] = new KeyValuePair<NodeId, T>(new NodeId(entry.Key, (ushort)ii), entry.Value);
+                        array[arrayIndex++] = new KeyValuePair<NodeId, T>(
+                            new NodeId(entry.Key, (ushort)ii),
+                            entry.Value);
                     }
                 }
 
@@ -599,7 +603,9 @@ namespace Opc.Ua
                     foreach (KeyValuePair<Guid, T> entry in dictionarySet.Guid)
                     {
                         CheckCopyTo(array, arrayIndex);
-                        array[arrayIndex++] = new KeyValuePair<NodeId, T>(new NodeId(entry.Key, (ushort)ii), entry.Value);
+                        array[arrayIndex++] = new KeyValuePair<NodeId, T>(
+                            new NodeId(entry.Key, (ushort)ii),
+                            entry.Value);
                     }
                 }
 
@@ -608,7 +614,9 @@ namespace Opc.Ua
                     foreach (KeyValuePair<ByteKey, T> entry in dictionarySet.Opaque)
                     {
                         CheckCopyTo(array, arrayIndex);
-                        array[arrayIndex++] = new KeyValuePair<NodeId, T>(new NodeId(entry.Key.Bytes, (ushort)ii), entry.Value);
+                        array[arrayIndex++] = new KeyValuePair<NodeId, T>(
+                            new NodeId(entry.Key.Bytes, (ushort)ii),
+                            entry.Value);
                     }
                 }
             }
@@ -625,7 +633,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary cref="ICollection{T}.Count" />
+        /// <inheritdoc/>
         public int Count
         {
             get
@@ -666,33 +674,27 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary cref="ICollection{T}.IsReadOnly" />
+        /// <inheritdoc/>
         public bool IsReadOnly => false;
 
-        /// <summary cref="ICollection{T}.Remove" />
+        /// <inheritdoc/>
         public bool Remove(KeyValuePair<NodeId, T> item)
         {
             return Remove(item.Key);
         }
-        #endregion
 
-        #region IEnumerable<KeyValuePair<NodeId,T>> Members
-        /// <summary cref="System.Collections.IEnumerable.GetEnumerator()" />
+        /// <inheritdoc/>
         public IEnumerator<KeyValuePair<NodeId, T>> GetEnumerator()
         {
             return new Enumerator(this);
         }
-        #endregion
 
-        #region IEnumerable Members
-        /// <summary cref="System.Collections.IEnumerable.GetEnumerator()" />
+        /// <inheritdoc/>
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Returns the dictionary set for the specified namespace.
         /// </summary>
@@ -810,9 +812,7 @@ namespace Opc.Ua
 
             return dictionary;
         }
-        #endregion
 
-        #region DictionarySet Class
         /// <summary>
         /// Stores the dictionaries for a single namespace index.
         /// </summary>
@@ -822,15 +822,12 @@ namespace Opc.Ua
             public SortedDictionary<Guid, T> Guid;
             public SortedDictionary<ByteKey, T> Opaque;
         }
-        #endregion
 
-        #region ByteKey Class
         /// <summary>
         /// Wraps a byte array for use as a key in a dictionary.
         /// </summary>
         private struct ByteKey : IEquatable<ByteKey>, IComparable<ByteKey>
         {
-            #region Public Interface
             /// <summary>
             /// Initializes the key with an array of bytes.
             /// </summary>
@@ -843,9 +840,7 @@ namespace Opc.Ua
             /// The array of bytes.
             /// </summary>
             public byte[] Bytes;
-            #endregion
 
-            #region IEquatable<ByteKey> Members
             /// <summary cref="IEquatable{T}"></summary>
             public bool Equals(ByteKey other)
             {
@@ -869,9 +864,7 @@ namespace Opc.Ua
 
                 return false;
             }
-            #endregion
 
-            #region IComparable<ByteKey> Members
             /// <summary cref="IComparable{T}.CompareTo"></summary>
             public int CompareTo(ByteKey other)
             {
@@ -895,17 +888,13 @@ namespace Opc.Ua
 
                 return 0;
             }
-            #endregion
         }
-        #endregion
 
-        #region Enumerator Class
         /// <summary>
         /// The enumerator for the node dictionary.
         /// </summary>
         private class Enumerator : IEnumerator<KeyValuePair<NodeId, T>>
         {
-            #region Constructors
             /// <summary>
             /// Constructs the enumerator for the specified dictionary.
             /// </summary>
@@ -916,10 +905,8 @@ namespace Opc.Ua
                 m_idType = 0;
                 m_namespaceIndex = 0;
             }
-            #endregion
 
-            #region IEnumerator<KeyValuePair<NodeId,T>> Members
-            /// <summary cref="IEnumerator{T}.Current" />
+            /// <inheritdoc/>
             public KeyValuePair<NodeId, T> Current
             {
                 get
@@ -928,7 +915,8 @@ namespace Opc.Ua
 
                     if (m_enumerator == null)
                     {
-                        throw new InvalidOperationException("The enumerator is positioned before the first element of the collection or after the last element.");
+                        throw new InvalidOperationException(
+                            "The enumerator is positioned before the first element of the collection or after the last element.");
                     }
 
                     NodeId id = null;
@@ -964,9 +952,7 @@ namespace Opc.Ua
                     return new KeyValuePair<NodeId, T>(id, (T)m_enumerator.Value);
                 }
             }
-            #endregion
 
-            #region IDisposable Members
             /// <summary>
             /// Frees any unmanaged resources.
             /// </summary>
@@ -985,13 +971,11 @@ namespace Opc.Ua
                     // do to nothing.
                 }
             }
-            #endregion
 
-            #region IEnumerator Members
-            /// <summary cref="IEnumerator.Current" />
+            /// <inheritdoc/>
             object System.Collections.IEnumerator.Current => this.Current;
 
-            /// <summary cref="IEnumerator.MoveNext" />
+            /// <inheritdoc/>
             public bool MoveNext()
             {
                 CheckVersion();
@@ -1074,7 +1058,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            /// <summary cref="IEnumerator.Reset" />
+            /// <inheritdoc/>
             public void Reset()
             {
                 CheckVersion();
@@ -1082,9 +1066,7 @@ namespace Opc.Ua
                 m_idType = 0;
                 m_namespaceIndex = 0;
             }
-            #endregion
 
-            #region Private Methods
             /// <summary>
             /// Releases and disposes the current enumerator.
             /// </summary>
@@ -1108,26 +1090,21 @@ namespace Opc.Ua
             {
                 if (m_version != m_dictionary.m_version)
                 {
-                    throw new InvalidOperationException("The dictionary was modified after the enumerator was created.");
+                    throw new InvalidOperationException(
+                        "The dictionary was modified after the enumerator was created.");
                 }
             }
-            #endregion
 
-            #region Private Fields
             private NodeIdDictionary<T> m_dictionary;
             private ushort m_namespaceIndex;
             private IdType m_idType;
             private IDictionaryEnumerator m_enumerator;
             private ulong m_version;
-            #endregion
         }
-        #endregion
 
-        #region Private Fields
         private DictionarySet[] m_dictionarySets;
         private SortedDictionary<ulong, T> m_numericIds;
         private ulong m_version;
-        #endregion
     }
 #endif
 }

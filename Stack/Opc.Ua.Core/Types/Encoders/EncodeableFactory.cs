@@ -13,7 +13,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Threading;
@@ -33,19 +32,18 @@ namespace Opc.Ua
     /// Once the types exist within the factory, these types can be then easily queried.
     /// <br/></para>
     /// </remarks>
-    public class EncodeableFactory : IEncodeableFactory
+    public class EncodeableFactory : IEncodeableFactory, IDisposable
     {
-        #region Constructors
         /// <summary>
         /// Creates a factory initialized with the types in the core library.
         /// </summary>
         public EncodeableFactory()
         {
-            m_encodeableTypes = new Dictionary<ExpandedNodeId, Type>();
-            AddEncodeableTypes(this.GetType().GetTypeInfo().Assembly);
+            m_encodeableTypes = [];
+            AddEncodeableTypes(GetType().GetTypeInfo().Assembly);
 
 #if DEBUG
-            m_instanceId = Interlocked.Increment(ref m_globalInstanceCount);
+            InstanceId = Interlocked.Increment(ref s_globalInstanceCount);
 #endif
         }
 
@@ -54,11 +52,11 @@ namespace Opc.Ua
         /// </summary>
         public EncodeableFactory(bool shared)
         {
-            m_encodeableTypes = new Dictionary<ExpandedNodeId, Type>();
+            m_encodeableTypes = [];
             AddEncodeableTypes(Utils.DefaultOpcUaCoreAssemblyFullName);
 
 #if DEBUG
-            m_instanceId = Interlocked.Increment(ref m_globalInstanceCount);
+            InstanceId = Interlocked.Increment(ref s_globalInstanceCount);
             m_shared = true;
 #endif
         }
@@ -68,19 +66,17 @@ namespace Opc.Ua
         /// </summary>
         public EncodeableFactory(IEncodeableFactory factory)
         {
-            m_encodeableTypes = new Dictionary<ExpandedNodeId, Type>();
+            m_encodeableTypes = [];
 
 #if DEBUG
-            m_instanceId = Interlocked.Increment(ref m_globalInstanceCount);
+            InstanceId = Interlocked.Increment(ref s_globalInstanceCount);
 #endif
             if (factory != null)
             {
                 m_encodeableTypes = ((EncodeableFactory)factory.Clone()).m_encodeableTypes;
             }
         }
-        #endregion
 
-        #region IDisposable
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
@@ -98,9 +94,7 @@ namespace Opc.Ua
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
-        #endregion
 
-        #region Private Members
         /// <summary>
         /// Loads the types from an assembly.
         /// </summary>
@@ -108,8 +102,8 @@ namespace Opc.Ua
         {
             try
             {
-                AssemblyName an = new AssemblyName(assemblyName);
-                Assembly assembly = Assembly.Load(an);
+                var an = new AssemblyName(assemblyName);
+                var assembly = Assembly.Load(an);
                 AddEncodeableTypes(assembly);
             }
             catch (Exception)
@@ -123,7 +117,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="systemType">The underlying system type to add to the factory</param>
         /// <param name="unboundTypeIds">A dictionary of unbound typeIds, e.g. JSON type ids referenced by object name.</param>
-        private void AddEncodeableType(Type systemType, Dictionary<string, ExpandedNodeId> unboundTypeIds)
+        private void AddEncodeableType(
+            Type systemType,
+            Dictionary<string, ExpandedNodeId> unboundTypeIds)
         {
             if (systemType == null)
             {
@@ -135,8 +131,7 @@ namespace Opc.Ua
                 return;
             }
 
-
-            if (!(Activator.CreateInstance(systemType) is IEncodeable encodeable))
+            if (Activator.CreateInstance(systemType) is not IEncodeable encodeable)
             {
                 return;
             }
@@ -144,7 +139,10 @@ namespace Opc.Ua
 #if DEBUG
             if (m_shared)
             {
-                Utils.LogTrace("WARNING: Adding type '{0}' to shared Factory #{1}.", systemType.Name, m_instanceId);
+                Utils.LogTrace(
+                    "WARNING: Adding type '{0}' to shared Factory #{1}.",
+                    systemType.Name,
+                    InstanceId);
             }
 #endif
 
@@ -220,24 +218,19 @@ namespace Opc.Ua
                 }
             }
             else if (unboundTypeIds != null &&
-                unboundTypeIds.TryGetValue(systemType.Name, out var jsonEncodingId))
+                unboundTypeIds.TryGetValue(systemType.Name, out ExpandedNodeId jsonEncodingId))
             {
                 m_encodeableTypes[jsonEncodingId] = systemType;
             }
         }
-        #endregion
 
-        #region Static Members
         /// <summary>
         /// The default factory for the process.
         /// </summary>
         /// <remarks>
         /// The default factory for the process.
         /// </remarks>
-        public static EncodeableFactory GlobalFactory
-        {
-            get { return s_globalFactory; }
-        }
+        public static EncodeableFactory GlobalFactory { get; } = new EncodeableFactory();
 
         /// <summary>
         /// Returns the xml qualified name for the specified system type id.
@@ -253,7 +246,10 @@ namespace Opc.Ua
                 return null;
             }
 
-            object[] attributes = systemType.GetTypeInfo().GetCustomAttributes(typeof(DataContractAttribute), true).ToArray();
+            object[] attributes =
+            [
+                .. systemType.GetTypeInfo().GetCustomAttributes(typeof(DataContractAttribute), true)
+            ];
 
             if (attributes != null)
             {
@@ -261,7 +257,7 @@ namespace Opc.Ua
                 {
                     if (attributes[ii] is DataContractAttribute contract)
                     {
-                        if (String.IsNullOrEmpty(contract.Name))
+                        if (string.IsNullOrEmpty(contract.Name))
                         {
                             return new XmlQualifiedName(systemType.Name, contract.Namespace);
                         }
@@ -271,7 +267,11 @@ namespace Opc.Ua
                 }
             }
 
-            attributes = systemType.GetTypeInfo().GetCustomAttributes(typeof(CollectionDataContractAttribute), true).ToArray();
+            attributes =
+            [
+                .. systemType.GetTypeInfo()
+                    .GetCustomAttributes(typeof(CollectionDataContractAttribute), true)
+            ];
 
             if (attributes != null)
             {
@@ -279,7 +279,7 @@ namespace Opc.Ua
                 {
                     if (attributes[ii] is CollectionDataContractAttribute contract)
                     {
-                        if (String.IsNullOrEmpty(contract.Name))
+                        if (string.IsNullOrEmpty(contract.Name))
                         {
                             return new XmlQualifiedName(systemType.Name, contract.Namespace);
                         }
@@ -289,7 +289,7 @@ namespace Opc.Ua
                 }
             }
 
-            if (systemType == typeof(System.Byte[]))
+            if (systemType == typeof(byte[]))
             {
                 return new XmlQualifiedName("ByteString");
             }
@@ -304,12 +304,12 @@ namespace Opc.Ua
         /// Returns the xml qualified name for the specified object.
         /// </remarks>
         /// <param name="value">The object to query and return the Xml qualified name of</param>
-        /// <param name="context"></param>
+        /// <param name="context">Context</param>
         public static XmlQualifiedName GetXmlName(object value, IServiceMessageContext context)
         {
             if (value is IDynamicComplexTypeInstance xmlEncodeable)
             {
-                var xmlName = xmlEncodeable.GetXmlName(context);
+                XmlQualifiedName xmlName = xmlEncodeable.GetXmlName(context);
                 if (xmlName != null)
                 {
                     return xmlName;
@@ -318,18 +318,15 @@ namespace Opc.Ua
             return GetXmlName(value?.GetType());
         }
 
-        #endregion
-
-        #region Public Members
         /// <summary>
         /// Returns a unique identifier for the table instance. Used to debug problems with shared tables.
         /// </summary>
         public int InstanceId
         {
 #if DEBUG
-            get { return m_instanceId; }
+            get;
 #else
-            get { return 0; }
+            get => 0;
 #endif
         }
 
@@ -362,7 +359,10 @@ namespace Opc.Ua
 #if DEBUG
                 if (m_shared)
                 {
-                    Utils.LogWarning("WARNING: Adding type '{0}' to shared Factory #{1}.", systemType.Name, m_instanceId);
+                    Utils.LogWarning(
+                        "WARNING: Adding type '{0}' to shared Factory #{1}.",
+                        systemType.Name,
+                        InstanceId);
                 }
 #endif
                 m_readerWriterLockSlim.EnterWriteLock();
@@ -398,7 +398,10 @@ namespace Opc.Ua
 #if DEBUG
                 if (m_shared)
                 {
-                    Utils.LogWarning("WARNING: Adding types from assembly '{0}' to shared Factory #{1}.", assembly.FullName, m_instanceId);
+                    Utils.LogWarning(
+                        "WARNING: Adding types from assembly '{0}' to shared Factory #{1}.",
+                        assembly.FullName,
+                        InstanceId);
                 }
 #endif
 
@@ -417,25 +420,27 @@ namespace Opc.Ua
                             continue;
                         }
 
-                        foreach (var field in systemTypes[ii].GetFields(BindingFlags.Static | BindingFlags.Public))
+                        foreach (
+                            FieldInfo field in systemTypes[ii].GetFields(
+                                BindingFlags.Static | BindingFlags.Public))
                         {
                             if (field.Name.EndsWith(jsonEncodingSuffix, StringComparison.Ordinal))
                             {
                                 try
                                 {
-                                    var name = field.Name.Substring(0, field.Name.Length - jsonEncodingSuffix.Length);
-                                    var value = field.GetValue(null);
+                                    string name = field.Name[..^jsonEncodingSuffix.Length];
+                                    object value = field.GetValue(null);
 
-                                    if (value is NodeId)
+                                    if (value is NodeId nodeId)
                                     {
-                                        unboundTypeIds[name] = new ExpandedNodeId((NodeId)value);
+                                        unboundTypeIds[name] = new ExpandedNodeId(nodeId);
                                     }
                                     else
                                     {
                                         unboundTypeIds[name] = (ExpandedNodeId)value;
                                     }
                                 }
-                                catch (Exception)
+                                catch
                                 {
                                     // ignore errors.
                                 }
@@ -472,7 +477,7 @@ namespace Opc.Ua
             m_readerWriterLockSlim.EnterWriteLock();
             try
             {
-                foreach (var type in systemTypes)
+                foreach (Type type in systemTypes)
                 {
                     if (type.GetTypeInfo().IsAbstract)
                     {
@@ -500,9 +505,8 @@ namespace Opc.Ua
             m_readerWriterLockSlim.EnterReadLock();
             try
             {
-                Type systemType = null;
-
-                if (NodeId.IsNull(typeId) || !m_encodeableTypes.TryGetValue(typeId, out systemType))
+                if (NodeId.IsNull(typeId) ||
+                    !m_encodeableTypes.TryGetValue(typeId, out Type systemType))
                 {
                     return null;
                 }
@@ -519,19 +523,17 @@ namespace Opc.Ua
         /// The dictionary of encodeabe types.
         /// </summary>
         public IReadOnlyDictionary<ExpandedNodeId, Type> EncodeableTypes => m_encodeableTypes;
-        #endregion
 
-        #region ICloneable Methods
-        /// <remarks />
+        /// <inheritdoc/>
         public object Clone()
         {
             return MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
-            EncodeableFactory clone = new EncodeableFactory(null);
+            var clone = new EncodeableFactory(null);
 
             m_readerWriterLockSlim.EnterReadLock();
             try
@@ -548,19 +550,12 @@ namespace Opc.Ua
 
             return clone;
         }
-        #endregion
 
-        #region Private Fields
-        private readonly ReaderWriterLockSlim m_readerWriterLockSlim = new ReaderWriterLockSlim();
-        private Dictionary<ExpandedNodeId, Type> m_encodeableTypes;
-        private static EncodeableFactory s_globalFactory = new EncodeableFactory();
-
+        private readonly ReaderWriterLockSlim m_readerWriterLockSlim = new();
+        private readonly Dictionary<ExpandedNodeId, Type> m_encodeableTypes;
 #if DEBUG
-        private bool m_shared;
-        private int m_instanceId;
-        private static int m_globalInstanceCount;
+        private readonly bool m_shared;
+        private static int s_globalInstanceCount;
 #endif
-        #endregion
-
-    }//class
-}//namespace
+    }
+}

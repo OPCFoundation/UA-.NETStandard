@@ -32,8 +32,6 @@ using System.Collections.Generic;
 
 namespace Opc.Ua.Server
 {
-
-
     /// <summary>
     /// Manages a monitored item created by a client.
     /// Disposable to dispose unmanaged resources of durable queues
@@ -198,7 +196,10 @@ namespace Opc.Ua.Server
         /// Publishes all available event notifications.
         /// </summary>
         /// <returns>True if the caller should re-queue the item for publishing after the next interval elaspses.</returns>
-        bool Publish(OperationContext context, Queue<EventFieldList> notifications, uint maxNotificationsPerPublish);
+        bool Publish(
+            OperationContext context,
+            Queue<EventFieldList> notifications,
+            uint maxNotificationsPerPublish);
 
         /// <summary>
         /// Modifies the attributes for monitored item.

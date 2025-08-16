@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -29,16 +29,14 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Calculates the value of an aggregate. 
+    /// Calculates the value of an aggregate.
     /// </summary>
     public class CountAggregateCalculator : AggregateCalculator
     {
-        #region Constructors
         /// <summary>
         /// Initializes the aggregate calculator.
         /// </summary>
@@ -55,14 +53,11 @@ namespace Opc.Ua.Server
             double processingInterval,
             bool stepped,
             AggregateConfiguration configuration)
-        : 
-            base(aggregateId, startTime, endTime, processingInterval, stepped, configuration)
+            : base(aggregateId, startTime, endTime, processingInterval, stepped, configuration)
         {
             SetPartialBit = true;
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Computes the value for the timeslice.
         /// </summary>
@@ -75,37 +70,21 @@ namespace Opc.Ua.Server
                 switch (id.Value)
                 {
                     case Objects.AggregateFunction_Count:
-                    {
                         return ComputeCount(slice);
-                    }
-
                     case Objects.AggregateFunction_AnnotationCount:
-                    {
                         return ComputeAnnotationCount(slice);
-                    }
-
                     case Objects.AggregateFunction_DurationInStateZero:
-                    {
                         return ComputeDurationInState(slice, false);
-                    }
-
                     case Objects.AggregateFunction_DurationInStateNonZero:
-                    {
                         return ComputeDurationInState(slice, true);
-                    }
-
                     case Objects.AggregateFunction_NumberOfTransitions:
-                    {
                         return ComputeNumberOfTransitions(slice);
-                    }
                 }
             }
 
             return base.ComputeValue(slice);
         }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Calculates the Count aggregate for the timeslice.
         /// </summary>
@@ -132,10 +111,12 @@ namespace Opc.Ua.Server
             }
 
             // set the timestamp and status.
-            DataValue value = new DataValue();
-            value.WrappedValue = new Variant(count, TypeInfo.Scalars.Int32);
-            value.SourceTimestamp = GetTimestamp(slice);
-            value.ServerTimestamp = GetTimestamp(slice);     
+            var value = new DataValue
+            {
+                WrappedValue = new Variant(count, TypeInfo.Scalars.Int32),
+                SourceTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
+            };
             value.StatusCode = GetValueBasedStatusCode(slice, values, value.StatusCode);
 
             if (!StatusCode.IsBad(value.StatusCode))
@@ -170,10 +151,12 @@ namespace Opc.Ua.Server
             }
 
             // set the timestamp and status.
-            DataValue value = new DataValue();
-            value.WrappedValue = new Variant(count, TypeInfo.Scalars.Int32);
-            value.SourceTimestamp = GetTimestamp(slice);
-            value.ServerTimestamp = GetTimestamp(slice);
+            var value = new DataValue
+            {
+                WrappedValue = new Variant(count, TypeInfo.Scalars.Int32),
+                SourceTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
+            };
             value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
 
             // return result.
@@ -213,20 +196,19 @@ namespace Opc.Ua.Server
                         duration += regions[ii].Duration;
                     }
                 }
-                else
+                else if (regions[ii].StartValue == 0)
                 {
-                    if (regions[ii].StartValue == 0)
-                    {
-                        duration += regions[ii].Duration;
-                    }
+                    duration += regions[ii].Duration;
                 }
             }
 
             // set the timestamp and status.
-            DataValue value = new DataValue();
-            value.WrappedValue = new Variant(duration, TypeInfo.Scalars.Double);
-            value.SourceTimestamp = GetTimestamp(slice);
-            value.ServerTimestamp = GetTimestamp(slice);            
+            var value = new DataValue
+            {
+                WrappedValue = new Variant(duration, TypeInfo.Scalars.Double),
+                SourceTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
+            };
             value.StatusCode = GetTimeBasedStatusCode(regions, value.StatusCode);
             value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
 
@@ -249,20 +231,17 @@ namespace Opc.Ua.Server
             }
 
             // determine whether a transition occurs at the StartTime
-            double lastValue = Double.NaN;
+            double lastValue = double.NaN;
 
-            if (slice.EarlyBound != null)
+            if (slice.EarlyBound != null && StatusCode.IsGood(slice.EarlyBound.Value.StatusCode))
             {
-                if (StatusCode.IsGood(slice.EarlyBound.Value.StatusCode))
+                try
                 {
-                    try
-                    {
-                        lastValue = CastToDouble(slice.EarlyBound.Value);
-                    }
-                    catch (Exception)
-                    {
-                        lastValue = Double.NaN;
-                    }
+                    lastValue = CastToDouble(slice.EarlyBound.Value);
+                }
+                catch (Exception)
+                {
+                    lastValue = double.NaN;
                 }
             }
 
@@ -276,8 +255,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                double nextValue = 0;
-
+                double nextValue;
                 try
                 {
                     nextValue = CastToDouble(values[ii]);
@@ -287,28 +265,26 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (!Double.IsNaN(lastValue))
+                if (!double.IsNaN(lastValue) && lastValue != nextValue)
                 {
-                    if (lastValue != nextValue)
-                    {
-                        count++;
-                    }
+                    count++;
                 }
 
                 lastValue = nextValue;
             }
 
             // set the timestamp and status.
-            DataValue value = new DataValue();
-            value.WrappedValue = new Variant(count, TypeInfo.Scalars.Int32);
-            value.SourceTimestamp = GetTimestamp(slice);
-            value.ServerTimestamp = GetTimestamp(slice);
+            var value = new DataValue
+            {
+                WrappedValue = new Variant(count, TypeInfo.Scalars.Int32),
+                SourceTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
+            };
             value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
             value.StatusCode = GetValueBasedStatusCode(slice, values, value.StatusCode);
 
             // return result.
             return value;
         }
-        #endregion
     }
 }

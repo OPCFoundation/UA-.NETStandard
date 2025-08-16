@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -40,34 +40,26 @@ namespace Quickstarts.ReferenceServer
     /// Implements the Quickstart Reference Server.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Each server instance must have one instance of a StandardServer object which is
     /// responsible for reading the configuration file, creating the endpoints and dispatching
     /// incoming requests to the appropriate handler.
-    /// 
+    /// </para>
+    /// <para>
     /// This sub-class specifies non-configurable metadata such as Product Name and initializes
     /// the EmptyNodeManager which provides access to the data exposed by the Server.
+    /// </para>
     /// </remarks>
-    public partial class ReferenceServer : ReverseConnectServer
+    public class ReferenceServer : ReverseConnectServer
     {
-        #region Properties
         public ITokenValidator TokenValidator { get; set; }
 
         /// <summary>
         /// If true the ReferenceNodeManager is set to work with a sampling group mechanism
         /// for managing monitored items instead of a Monitored Node mechanism
         /// </summary>
-        public bool UseSamplingGroupsInReferenceNodeManager
-        {
-            get => m_useSamplingGroups;
-            set
-            {
-                m_useSamplingGroups = value;
-            }
-        }
+        public bool UseSamplingGroupsInReferenceNodeManager { get; set; }
 
-        #endregion
-
-        #region Overridden Methods
         /// <summary>
         /// Creates the node managers for the server.
         /// </summary>
@@ -76,25 +68,35 @@ namespace Quickstarts.ReferenceServer
         /// always creates a CoreNodeManager which handles the built-in nodes defined by the specification.
         /// Any additional NodeManagers are expected to handle application specific nodes.
         /// </remarks>
-        protected override MasterNodeManager CreateMasterNodeManager(IServerInternal server, ApplicationConfiguration configuration)
+        protected override MasterNodeManager CreateMasterNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
         {
-            Utils.LogInfo(Utils.TraceMasks.StartStop, "Creating the Reference Server Node Manager.");
+            Utils.LogInfo(
+                Utils.TraceMasks.StartStop,
+                "Creating the Reference Server Node Manager.");
 
-            IList<INodeManager> nodeManagers = new List<INodeManager>();
+            IList<INodeManager> nodeManagers =
+            [
+                // create the custom node manager.
+                new ReferenceNodeManager(
+                    server,
+                    configuration,
+                    UseSamplingGroupsInReferenceNodeManager)
+            ];
 
-            // create the custom node manager.
-            nodeManagers.Add(new ReferenceNodeManager(server, configuration, UseSamplingGroupsInReferenceNodeManager));
-
-            foreach (var nodeManagerFactory in NodeManagerFactories)
+            foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)
             {
                 nodeManagers.Add(nodeManagerFactory.Create(server, configuration));
             }
 
             // create master node manager.
-            return new MasterNodeManager(server, configuration, null, nodeManagers.ToArray());
+            return new MasterNodeManager(server, configuration, null, [.. nodeManagers]);
         }
 
-        protected override IMonitoredItemQueueFactory CreateMonitoredItemQueueFactory(IServerInternal server, ApplicationConfiguration configuration)
+        protected override IMonitoredItemQueueFactory CreateMonitoredItemQueueFactory(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
         {
             if (configuration?.ServerConfiguration?.DurableSubscriptionsEnabled == true)
             {
@@ -109,7 +111,9 @@ namespace Quickstarts.ReferenceServer
         /// <param name="server">The server.</param>
         /// <param name="configuration">The configuration.</param>
         /// <returns>Returns a subscriptionStore for a server, the return type is <seealso cref="ISubscriptionStore"/>.</returns>
-        protected override ISubscriptionStore CreateSubscriptionStore(IServerInternal server, ApplicationConfiguration configuration)
+        protected override ISubscriptionStore CreateSubscriptionStore(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
         {
             if (configuration?.ServerConfiguration?.DurableSubscriptionsEnabled == true)
             {
@@ -126,7 +130,8 @@ namespace Quickstarts.ReferenceServer
         /// </remarks>
         protected override ServerProperties LoadServerProperties()
         {
-            ServerProperties properties = new ServerProperties {
+            return new ServerProperties
+            {
                 ManufacturerName = "OPC Foundation",
                 ProductName = "Quickstart Reference Server",
                 ProductUri = "http://opcfoundation.org/Quickstart/ReferenceServer/v1.04",
@@ -134,20 +139,20 @@ namespace Quickstarts.ReferenceServer
                 BuildNumber = Utils.GetAssemblyBuildNumber(),
                 BuildDate = Utils.GetAssemblyTimestamp()
             };
-
-            return properties;
         }
 
         /// <summary>
         /// Creates the resource manager for the server.
         /// </summary>
-        protected override ResourceManager CreateResourceManager(IServerInternal server, ApplicationConfiguration configuration)
+        protected override ResourceManager CreateResourceManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
         {
-            ResourceManager resourceManager = new ResourceManager(server, configuration);
+            var resourceManager = new ResourceManager(configuration);
 
-            System.Reflection.FieldInfo[] fields = typeof(StatusCodes).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
-
-            foreach (System.Reflection.FieldInfo field in fields)
+            foreach (
+                System.Reflection.FieldInfo field in typeof(StatusCodes).GetFields(
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static))
             {
                 uint? id = field.GetValue(typeof(StatusCodes)) as uint?;
 
@@ -164,7 +169,7 @@ namespace Quickstarts.ReferenceServer
         /// Initializes the server before it starts up.
         /// </summary>
         /// <remarks>
-        /// This method is called before any startup processing occurs. The sub-class may update the 
+        /// This method is called before any startup processing occurs. The sub-class may update the
         /// configuration object or do any other application specific startup tasks.
         /// </remarks>
         protected override void OnServerStarting(ApplicationConfiguration configuration)
@@ -186,18 +191,19 @@ namespace Quickstarts.ReferenceServer
             base.OnServerStarted(server);
 
             // request notifications when the user identity is changed. all valid users are accepted by default.
-            server.SessionManager.ImpersonateUser += new ImpersonateEventHandler(SessionManager_ImpersonateUser);
+            server.SessionManager.ImpersonateUser
+                += new ImpersonateEventHandler(SessionManager_ImpersonateUser);
 
             try
             {
-                ServerInternal.UpdateServerStatus((status) => {
-                    // allow a faster sampling interval for CurrentTime node.
-                    status.Variable.CurrentTime.MinimumSamplingInterval = 250;
-                });
+                ServerInternal.UpdateServerStatus(
+                    status =>
+                        // allow a faster sampling interval for CurrentTime node.
+                        status.Variable.CurrentTime.MinimumSamplingInterval = 250);
             }
             catch
-            { }
-
+            {
+            }
         }
 
         /// <summary>
@@ -206,31 +212,33 @@ namespace Quickstarts.ReferenceServer
         /// <remarks>
         /// Sample to show how to override default user token policies.
         /// </remarks>
-        public override UserTokenPolicyCollection GetUserTokenPolicies(ApplicationConfiguration configuration, EndpointDescription description)
+        public override UserTokenPolicyCollection GetUserTokenPolicies(
+            ApplicationConfiguration configuration,
+            EndpointDescription description)
         {
-            var policies = base.GetUserTokenPolicies(configuration, description);
+            UserTokenPolicyCollection policies = base.GetUserTokenPolicies(
+                configuration,
+                description);
 
             // sample how to modify default user token policies
             if (description.SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss &&
                 description.SecurityMode == MessageSecurityMode.SignAndEncrypt)
             {
-                policies = new UserTokenPolicyCollection(policies.Where(u => u.TokenType != UserTokenType.Certificate));
+                return [.. policies.Where(u => u.TokenType != UserTokenType.Certificate)];
             }
             else if (description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep &&
                 description.SecurityMode == MessageSecurityMode.Sign)
             {
-                policies = new UserTokenPolicyCollection(policies.Where(u => u.TokenType != UserTokenType.Anonymous));
+                return [.. policies.Where(u => u.TokenType != UserTokenType.Anonymous)];
             }
             else if (description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep &&
                 description.SecurityMode == MessageSecurityMode.SignAndEncrypt)
             {
-                policies = new UserTokenPolicyCollection(policies.Where(u => u.TokenType != UserTokenType.UserName));
+                return [.. policies.Where(u => u.TokenType != UserTokenType.UserName)];
             }
             return policies;
         }
-        #endregion
 
-        #region User Validation Functions
         /// <summary>
         /// Creates the objects used to validate the user identity tokens supported by the server.
         /// </summary>
@@ -247,9 +255,11 @@ namespace Quickstarts.ReferenceServer
                     if (configuration.SecurityConfiguration.TrustedUserCertificates != null &&
                         configuration.SecurityConfiguration.UserIssuerCertificates != null)
                     {
-                        CertificateValidator certificateValidator = new CertificateValidator();
-                        certificateValidator.UpdateAsync(configuration.SecurityConfiguration).Wait();
-                        certificateValidator.Update(configuration.SecurityConfiguration.UserIssuerCertificates,
+                        var certificateValidator = new CertificateValidator();
+                        certificateValidator.UpdateAsync(configuration.SecurityConfiguration)
+                            .Wait();
+                        certificateValidator.Update(
+                            configuration.SecurityConfiguration.UserIssuerCertificates,
                             configuration.SecurityConfiguration.TrustedUserCertificates,
                             configuration.SecurityConfiguration.RejectedCertificateStore);
 
@@ -263,30 +273,36 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Called when a client tries to change its user identity.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void SessionManager_ImpersonateUser(ISession session, ImpersonateEventArgs args)
         {
             // check for a user name token.
-            UserNameIdentityToken userNameToken = args.NewIdentity as UserNameIdentityToken;
 
-            if (userNameToken != null)
+            if (args.NewIdentity is UserNameIdentityToken userNameToken)
             {
                 args.Identity = VerifyPassword(userNameToken);
 
-                Utils.LogInfo(Utils.TraceMasks.Security, "Username Token Accepted: {0}", args.Identity?.DisplayName);
+                Utils.LogInfo(
+                    Utils.TraceMasks.Security,
+                    "Username Token Accepted: {0}",
+                    args.Identity?.DisplayName);
 
                 return;
             }
 
             // check for x509 user token.
-            X509IdentityToken x509Token = args.NewIdentity as X509IdentityToken;
 
-            if (x509Token != null)
+            if (args.NewIdentity is X509IdentityToken x509Token)
             {
                 VerifyUserTokenCertificate(x509Token.Certificate);
                 // set AuthenticatedUser role for accepted certificate authentication
-                args.Identity = new RoleBasedIdentity(new UserIdentity(x509Token),
-                    new List<Role>() { Role.AuthenticatedUser });
-                Utils.LogInfo(Utils.TraceMasks.Security, "X509 Token Accepted: {0}", args.Identity?.DisplayName);
+                args.Identity = new RoleBasedIdentity(
+                    new UserIdentity(x509Token),
+                    [Role.AuthenticatedUser]);
+                Utils.LogInfo(
+                    Utils.TraceMasks.Security,
+                    "X509 Token Accepted: {0}",
+                    args.Identity?.DisplayName);
 
                 return;
             }
@@ -294,7 +310,7 @@ namespace Quickstarts.ReferenceServer
             // check for issued identity token.
             if (args.NewIdentity is IssuedIdentityToken issuedToken)
             {
-                args.Identity = this.VerifyIssuedToken(issuedToken);
+                args.Identity = VerifyIssuedToken(issuedToken);
 
                 // set AuthenticatedUser role for accepted identity token
                 args.Identity.GrantedRoleIds.Add(ObjectIds.WellKnownRole_AuthenticatedUser);
@@ -303,37 +319,41 @@ namespace Quickstarts.ReferenceServer
             }
 
             // check for anonymous token.
-            if (args.NewIdentity is AnonymousIdentityToken || args.NewIdentity == null)
+            if (args.NewIdentity is AnonymousIdentityToken or null)
             {
                 // allow anonymous authentication and set Anonymous role for this authentication
-                args.Identity = new RoleBasedIdentity(new UserIdentity(),
-                    new List<Role>() { Role.Anonymous });
+                args.Identity = new RoleBasedIdentity(new UserIdentity(), [Role.Anonymous]);
                 return;
             }
 
             // unsupported identity token type.
-            throw ServiceResultException.Create(StatusCodes.BadIdentityTokenInvalid,
-                   "Not supported user token type: {0}.", args.NewIdentity);
+            throw ServiceResultException.Create(
+                StatusCodes.BadIdentityTokenInvalid,
+                "Not supported user token type: {0}.",
+                args.NewIdentity);
         }
 
         /// <summary>
         /// Validates the password for a username token.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private IUserIdentity VerifyPassword(UserNameIdentityToken userNameToken)
         {
-            var userName = userNameToken.UserName;
-            var password = userNameToken.DecryptedPassword;
-            if (String.IsNullOrEmpty(userName))
+            string userName = userNameToken.UserName;
+            string password = userNameToken.DecryptedPassword;
+            if (string.IsNullOrEmpty(userName))
             {
                 // an empty username is not accepted.
-                throw ServiceResultException.Create(StatusCodes.BadIdentityTokenInvalid,
+                throw ServiceResultException.Create(
+                    StatusCodes.BadIdentityTokenInvalid,
                     "Security token is not a valid username token. An empty username is not accepted.");
             }
 
-            if (String.IsNullOrEmpty(password))
+            if (string.IsNullOrEmpty(password))
             {
                 // an empty password is not accepted.
-                throw ServiceResultException.Create(StatusCodes.BadIdentityTokenRejected,
+                throw ServiceResultException.Create(
+                    StatusCodes.BadIdentityTokenRejected,
                     "Security token is not a valid username token. An empty password is not accepted.");
             }
 
@@ -348,26 +368,27 @@ namespace Quickstarts.ReferenceServer
                 (userName == "user2" && password == "password1")))
             {
                 // construct translation object with default text.
-                TranslationInfo info = new TranslationInfo(
+                var info = new TranslationInfo(
                     "InvalidPassword",
                     "en-US",
                     "Invalid username or password.",
                     userName);
 
                 // create an exception with a vendor defined sub-code.
-                throw new ServiceResultException(new ServiceResult(
-                    StatusCodes.BadUserAccessDenied,
-                    "InvalidPassword",
-                    LoadServerProperties().ProductUri,
-                    new LocalizedText(info)));
+                throw new ServiceResultException(
+                    new ServiceResult(
+                        StatusCodes.BadUserAccessDenied,
+                        "InvalidPassword",
+                        LoadServerProperties().ProductUri,
+                        new LocalizedText(info)));
             }
-            return new RoleBasedIdentity(new UserIdentity(userNameToken),
-                   new List<Role>() { Role.AuthenticatedUser });
+            return new RoleBasedIdentity(new UserIdentity(userNameToken), [Role.AuthenticatedUser]);
         }
 
         /// <summary>
         /// Verifies that a certificate user token is trusted.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void VerifyUserTokenCertificate(X509Certificate2 certificate)
         {
             try
@@ -385,8 +406,8 @@ namespace Quickstarts.ReferenceServer
             {
                 TranslationInfo info;
                 StatusCode result = StatusCodes.BadIdentityTokenRejected;
-                ServiceResultException se = e as ServiceResultException;
-                if (se != null && se.StatusCode == StatusCodes.BadCertificateUseNotAllowed)
+                if (e is ServiceResultException se &&
+                    se.StatusCode == StatusCodes.BadCertificateUseNotAllowed)
                 {
                     info = new TranslationInfo(
                         "InvalidCertificate",
@@ -407,17 +428,18 @@ namespace Quickstarts.ReferenceServer
                 }
 
                 // create an exception with a vendor defined sub-code.
-                throw new ServiceResultException(new ServiceResult(
-                    result,
-                    info.Key,
-                    LoadServerProperties().ProductUri,
-                    new LocalizedText(info)));
+                throw new ServiceResultException(
+                    new ServiceResult(
+                        result,
+                        info.Key,
+                        LoadServerProperties().ProductUri,
+                        new LocalizedText(info)));
             }
         }
 
         private IUserIdentity VerifyIssuedToken(IssuedIdentityToken issuedToken)
         {
-            if (this.TokenValidator == null)
+            if (TokenValidator == null)
             {
                 Utils.LogWarning(Utils.TraceMasks.Security, "No TokenValidator is specified.");
                 return null;
@@ -427,41 +449,45 @@ namespace Quickstarts.ReferenceServer
                 if (issuedToken.IssuedTokenType == IssuedTokenType.JWT)
                 {
                     Utils.LogDebug(Utils.TraceMasks.Security, "VerifyIssuedToken: ValidateToken");
-                    return this.TokenValidator.ValidateToken(issuedToken);
+                    return TokenValidator.ValidateToken(issuedToken);
                 }
-                else
-                {
-                    return null;
-                }
+
+                return null;
             }
             catch (Exception e)
             {
                 TranslationInfo info;
                 StatusCode result = StatusCodes.BadIdentityTokenRejected;
-                if (e is ServiceResultException se && se.StatusCode == StatusCodes.BadIdentityTokenInvalid)
+                if (e is ServiceResultException se &&
+                    se.StatusCode == StatusCodes.BadIdentityTokenInvalid)
                 {
-                    info = new TranslationInfo("IssuedTokenInvalid", "en-US", "token is an invalid issued token.");
+                    info = new TranslationInfo(
+                        "IssuedTokenInvalid",
+                        "en-US",
+                        "token is an invalid issued token.");
                     result = StatusCodes.BadIdentityTokenInvalid;
                 }
-                else // Rejected                
+                else // Rejected
                 {
                     // construct translation object with default text.
-                    info = new TranslationInfo("IssuedTokenRejected", "en-US", "token is rejected.");
+                    info = new TranslationInfo(
+                        "IssuedTokenRejected",
+                        "en-US",
+                        "token is rejected.");
                 }
 
-                Utils.LogWarning(Utils.TraceMasks.Security, "VerifyIssuedToken: Throw ServiceResultException 0x{result:x}");
-                throw new ServiceResultException(new ServiceResult(
-                    result,
-                    info.Key,
-                    this.LoadServerProperties().ProductUri,
-                    new LocalizedText(info)));
+                Utils.LogWarning(
+                    Utils.TraceMasks.Security,
+                    "VerifyIssuedToken: Throw ServiceResultException 0x{result:x}");
+                throw new ServiceResultException(
+                    new ServiceResult(
+                        result,
+                        info.Key,
+                        LoadServerProperties().ProductUri,
+                        new LocalizedText(info)));
             }
         }
-        #endregion
 
-        #region Private Fields
         private ICertificateValidator m_userCertificateValidator;
-        private bool m_useSamplingGroups;
-        #endregion
     }
 }

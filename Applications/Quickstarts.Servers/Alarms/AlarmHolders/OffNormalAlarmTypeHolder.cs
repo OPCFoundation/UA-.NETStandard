@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -28,10 +28,7 @@
  * ======================================================================*/
 
 using System;
-
 using Opc.Ua;
-
-#pragma warning disable CS1591
 
 namespace Alarms
 {
@@ -47,12 +44,22 @@ namespace Alarms
             int interval,
             bool optional = true,
             double maxShelveTime = AlarmDefines.NORMAL_MAX_TIME_SHELVED,
-            bool create = true) :
-            base(alarmNodeManager, parent, trigger, name, alarmConditionType, controllerType, interval, optional, maxShelveTime, false)
+            bool create = true)
+            : base(
+                alarmNodeManager,
+                parent,
+                trigger,
+                name,
+                alarmConditionType,
+                controllerType,
+                interval,
+                optional,
+                maxShelveTime,
+                false)
         {
             if (create)
             {
-                Initialize(Opc.Ua.ObjectTypes.OffNormalAlarmType, name, maxShelveTime);
+                Initialize(ObjectTypes.OffNormalAlarmType, name, maxShelveTime);
             }
         }
 
@@ -61,10 +68,7 @@ namespace Alarms
             string name,
             double maxTimeShelved = AlarmDefines.NORMAL_MAX_TIME_SHELVED)
         {
-            if (m_alarm == null)
-            {
-                m_alarm = new OffNormalAlarmState(m_parent);
-            }
+            m_alarm ??= new OffNormalAlarmState(m_parent);
 
             OffNormalAlarmState alarm = GetAlarm();
 
@@ -73,14 +77,9 @@ namespace Alarms
             alarm.NormalState.Value = new NodeId();
         }
 
-        #region Helpers
-
         private OffNormalAlarmState GetAlarm()
         {
             return (OffNormalAlarmState)m_alarm;
         }
-
-        #endregion
-
     }
 }

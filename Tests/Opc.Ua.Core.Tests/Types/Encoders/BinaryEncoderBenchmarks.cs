@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -37,8 +37,10 @@ using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
-    [TestFixture, Category("BinaryEncoder")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("BinaryEncoder")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [NonParallelizable]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
@@ -50,14 +52,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void BinaryEncoderInternalMemoryStreamTest()
         {
-            using (var binaryEncoder = new BinaryEncoder(m_context))
-            {
-                TestEncoding(binaryEncoder);
-                var result = binaryEncoder.CloseAndReturnBuffer();
-                Assert.NotNull(result);
-            }
+            using var binaryEncoder = new BinaryEncoder(m_context);
+            TestEncoding(binaryEncoder);
+            byte[] result = binaryEncoder.CloseAndReturnBuffer();
+            Assert.NotNull(result);
         }
-
 
         /// <summary>
         /// Test encoding with internal memory stream,
@@ -66,13 +65,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void BinaryEncoderConstructorStreamwriterReflection2()
         {
-            using (var memoryStream = new MemoryStream(StreamBufferSize))
-            using (var binaryEncoder = new BinaryEncoder(memoryStream, m_context, true))
-            {
-                TestEncoding(binaryEncoder);
-                var result = binaryEncoder.CloseAndReturnBuffer();
-                Assert.NotNull(result);
-            }
+            using var memoryStream = new MemoryStream(StreamBufferSize);
+            using var binaryEncoder = new BinaryEncoder(memoryStream, m_context, true);
+            TestEncoding(binaryEncoder);
+            byte[] result = binaryEncoder.CloseAndReturnBuffer();
+            Assert.NotNull(result);
         }
 
         /// <summary>
@@ -81,10 +78,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         public void BinaryEncoderArraySegmentStreamTest(bool toArray)
         {
-            using (var memoryStream = new ArraySegmentStream(m_bufferManager))
-            {
-                TestStreamEncode(memoryStream, toArray);
-            }
+            using var memoryStream = new ArraySegmentStream(m_bufferManager);
+            TestStreamEncode(memoryStream, toArray);
         }
 
         /// <summary>
@@ -93,10 +88,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         public void BinaryEncoderMemoryStreamTest(bool toArray)
         {
-            using (var memoryStream = new MemoryStream(StreamBufferSize))
-            {
-                TestStreamEncode(memoryStream, toArray);
-            }
+            using var memoryStream = new MemoryStream(StreamBufferSize);
+            TestStreamEncode(memoryStream, toArray);
         }
 
         /// <summary>
@@ -105,10 +98,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         public void BinaryEncoderRecyclableMemoryStream(bool toArray)
         {
-            using (var memoryStream = new RecyclableMemoryStream(m_memoryManager))
-            {
-                TestStreamEncode(memoryStream, toArray);
-            }
+            using var memoryStream = new RecyclableMemoryStream(m_memoryManager);
+            TestStreamEncode(memoryStream, toArray);
         }
 
         /// <summary>
@@ -118,12 +109,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void BinaryEncoderMemoryStream()
         {
-            using (var memoryStream = new MemoryStream(StreamBufferSize))
-            {
-                BinaryEncoder_StreamLeaveOpen(memoryStream);
-                // get buffer for write
-                _ = memoryStream.ToArray();
-            }
+            using var memoryStream = new MemoryStream(StreamBufferSize);
+            BinaryEncoder_StreamLeaveOpen(memoryStream);
+            // get buffer for write
+            _ = memoryStream.ToArray();
         }
 
         /// <summary>
@@ -133,12 +122,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void BinaryEncoderRecyclableMemoryStream()
         {
-            using (var recyclableMemoryStream = new RecyclableMemoryStream(m_memoryManager))
-            {
-                BinaryEncoder_StreamLeaveOpen(recyclableMemoryStream);
-                // get buffers for write
-                _ = recyclableMemoryStream.GetReadOnlySequence();
-            }
+            using var recyclableMemoryStream = new RecyclableMemoryStream(m_memoryManager);
+            BinaryEncoder_StreamLeaveOpen(recyclableMemoryStream);
+            // get buffers for write
+            _ = recyclableMemoryStream.GetReadOnlySequence();
         }
 
         /// <summary>
@@ -148,15 +135,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void BinaryEncoderArraySegmentStream()
         {
-            using (var arraySegmentStream = new ArraySegmentStream(m_bufferManager))
+            using var arraySegmentStream = new ArraySegmentStream(m_bufferManager);
+            BinaryEncoder_StreamLeaveOpen(arraySegmentStream);
+            // get buffers and return them to buffer manager
+            foreach (System.ArraySegment<byte> buffer in arraySegmentStream.GetBuffers("writer"))
             {
-                BinaryEncoder_StreamLeaveOpen(arraySegmentStream);
-                // get buffers and return them to buffer manager
-                var buffers = arraySegmentStream.GetBuffers("writer");
-                foreach (var buffer in buffers)
-                {
-                    m_bufferManager.ReturnBuffer(buffer.Array, "testreturn");
-                }
+                m_bufferManager.ReturnBuffer(buffer.Array, "testreturn");
             }
         }
 
@@ -169,22 +153,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void BinaryEncoderArraySegmentStreamNoSpan()
         {
 #if NET6_0_OR_GREATER && ECC_SUPPORT
-            using (var arraySegmentStream = new ArraySegmentStreamNoSpan(m_bufferManager))
+            using var arraySegmentStream = new ArraySegmentStreamNoSpan(m_bufferManager);
 #else
-            using (var arraySegmentStream = new ArraySegmentStream(m_bufferManager))
+            using var arraySegmentStream = new ArraySegmentStream(m_bufferManager);
 #endif
+            BinaryEncoder_StreamLeaveOpen(arraySegmentStream);
+            // get buffers and return them to buffer manager
+            foreach (System.ArraySegment<byte> buffer in arraySegmentStream.GetBuffers("writer"))
             {
-                BinaryEncoder_StreamLeaveOpen(arraySegmentStream);
-                // get buffers and return them to buffer manager
-                var buffers = arraySegmentStream.GetBuffers("writer");
-                foreach (var buffer in buffers)
-                {
-                    m_bufferManager.ReturnBuffer(buffer.Array, "testreturn");
-                }
+                m_bufferManager.ReturnBuffer(buffer.Array, "testreturn");
             }
         }
 
-        #region Private Methods
         private void TestStreamEncode(MemoryStream memoryStream, bool toArray)
         {
             using (var binaryEncoder = new BinaryEncoder(memoryStream, m_context, true))
@@ -199,19 +179,21 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     int length = binaryEncoder.Close();
                     Assert.AreEqual(length, memoryStream.Position);
-                    var result = memoryStream.ToArray();
+                    byte[] result = memoryStream.ToArray();
                     Assert.NotNull(result);
                     Assert.AreEqual(length, result.Length);
                 }
                 else
                 {
-                    var result = binaryEncoder.CloseAndReturnBuffer();
+                    byte[] result = binaryEncoder.CloseAndReturnBuffer();
                     Assert.NotNull(result);
                 }
             }
         }
 
-        private int BinaryEncoder_StreamLeaveOpen(MemoryStream memoryStream, bool testResult = false)
+        private int BinaryEncoder_StreamLeaveOpen(
+            MemoryStream memoryStream,
+            bool testResult = false)
         {
             int length1;
             int length2;
@@ -228,34 +210,41 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             if (testResult)
             {
                 Assert.AreEqual(length1 * 2, length2);
-                var result = Encoding.UTF8.GetString(memoryStream.ToArray());
+                string result = Encoding.UTF8.GetString(memoryStream.ToArray());
                 Assert.NotNull(result);
                 Assert.AreEqual(length2, memoryStream.Position);
             }
             return length1 + length2;
         }
-        #endregion
 
-        #region Test Setup
         [OneTimeSetUp]
-        public new void OneTimeSetUp() => base.OneTimeSetUp();
+        public override void OneTimeSetUp()
+        {
+            base.OneTimeSetUp();
+        }
 
         [OneTimeTearDown]
-        public new void OneTimeTearDown() => base.OneTimeTearDown();
-        #endregion
+        public override void OneTimeTearDown()
+        {
+            base.OneTimeTearDown();
+        }
 
-        #region Benchmark Setup
         /// <summary>
         /// Set up some variables for benchmarks.
         /// </summary>
         [GlobalSetup]
-        public new void GlobalSetup() => base.GlobalSetup();
+        public override void GlobalSetup()
+        {
+            base.GlobalSetup();
+        }
 
         /// <summary>
         /// Tear down benchmark variables.
         /// </summary>
         [GlobalCleanup]
-        public new void GlobalCleanup() => base.GlobalCleanup();
-        #endregion
+        public override void GlobalCleanup()
+        {
+            base.GlobalCleanup();
+        }
     }
 }

@@ -14,8 +14,8 @@
     <IsPackable>false</IsPackable>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <!-- Highest language version supported by Visual Studio 2019 -->
-    <LangVersion>12</LangVersion>
+    <ProduceReferenceAssembly>true</ProduceReferenceAssembly>
+    <LangVersion>13.0</LangVersion>
     <EnablePackageValidation>true</EnablePackageValidation>
     <!-- to check the package validation on a release build, uncomment here -->
     <!--<PackageValidationBaselineVersion>1.5.374.27</PackageValidationBaselineVersion>-->
@@ -24,13 +24,18 @@
     <NuGetAuditMode>all</NuGetAuditMode>
     <NuGetAudit>true</NuGetAudit>
   </PropertyGroup>
-
   <PropertyGroup>
     <AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <CodeAnalysisTreatWarningsAsErrors>false</CodeAnalysisTreatWarningsAsErrors>
+    <AnalysisLevel>preview</AnalysisLevel>
+    <AnalysisMode>all</AnalysisMode>
+    <AnalysisModeStyle>default</AnalysisModeStyle>
   </PropertyGroup>
-
+  <ItemGroup Condition="$(NO_RCS) == ''">
+    <PackageReference Include="Roslynator.Analyzers" PrivateAssets="All" />
+    <PackageReference Include="Roslynator.Formatting.Analyzers" PrivateAssets="All" />
+  </ItemGroup>
   <PropertyGroup>
     <PackageIcon>images/logo.jpg</PackageIcon>
     <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
@@ -41,32 +46,49 @@
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <PackageTags>OPCFoundation OPC UA netstandard ios linux dotnet net netcore uwp</PackageTags>
   </PropertyGroup>
-
+  <Choose>
+    <When Condition="'$(TargetFramework)' == 'net8.0' OR '$(TargetFramework)' == 'net9.0'">
+      <PropertyGroup>
+        <!-- Disable strongname warning as that's not been enforced since .net 5.-->
+        <NoWarn>$(NoWarn);CS8002</NoWarn>
+      </PropertyGroup>
+    </When>
+  </Choose>
   <ItemGroup Condition="'$(IsPackable)' != 'false' AND '$(PackageLicenseExpression)' == 'MIT'">
-    <None Include="$(MSBuildThisFileDirectory)/licenses/OPC Foundation MIT license.txt" Pack="true" PackagePath="$(PackageLicenseFile)"/>
+    <None
+      Include="$(MSBuildThisFileDirectory)/licenses/OPC Foundation MIT license.txt"
+      Pack="true"
+      PackagePath="$(PackageLicenseFile)"
+    />
   </ItemGroup>
-
   <ItemGroup Condition="'$(IsPackable)' != 'false' AND '$(PackageLicenseExpression)' == ''">
-    <None Include="$(MSBuildThisFileDirectory)/LICENSE.txt" Pack="true" PackagePath="$(PackageLicenseFile)"/>
+    <None
+      Include="$(MSBuildThisFileDirectory)/LICENSE.txt"
+      Pack="true"
+      PackagePath="$(PackageLicenseFile)"
+    />
   </ItemGroup>
-
   <ItemGroup Condition="'$(IsPackable)' != 'false'">
-    <None Include="$(MSBuildThisFileDirectory)/nuget/logo.jpg" Pack="true" PackagePath="$(PackageIcon)"/>
+    <None
+      Include="$(MSBuildThisFileDirectory)/nuget/logo.jpg"
+      Pack="true"
+      PackagePath="$(PackageIcon)"
+    />
   </ItemGroup>
-
   <ItemGroup Condition="'$(IsPackable)' != 'false'">
-    <None Include="$(MSBuildThisFileDirectory)/Docs/NugetREADME.md" Pack="true" PackagePath="$(PackageReadmeFile)"/>
+    <None
+      Include="$(MSBuildThisFileDirectory)/Docs/NugetREADME.md"
+      Pack="true"
+      PackagePath="$(PackageReadmeFile)"
+    />
   </ItemGroup>
-
   <ItemGroup Condition="'$(NBGV_PublicRelease)' != ''">
-    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All"/>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
   </ItemGroup>
-
   <!-- Deterministic build is currently not supported for code coverage tests. -->
   <PropertyGroup Condition="'$(CollectCoverage)' != 'true' AND ('$(TF_BUILD)' == 'true' OR '$(GITHUB_ACTIONS)' == 'true')">
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
   </PropertyGroup>
-
   <PropertyGroup>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>

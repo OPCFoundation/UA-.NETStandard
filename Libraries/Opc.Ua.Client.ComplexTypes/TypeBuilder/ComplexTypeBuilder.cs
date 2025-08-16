@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 
@@ -42,7 +41,6 @@ namespace Opc.Ua.Client.ComplexTypes
     /// </summary>
     public class ComplexTypeBuilder : IComplexTypeBuilder
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
@@ -57,9 +55,7 @@ namespace Opc.Ua.Client.ComplexTypes
             m_moduleName = FindModuleName(moduleName, targetNamespace);
             m_moduleBuilder = moduleFactory.GetModuleBuilder();
         }
-        #endregion Constructors
 
-        #region Public Members
         /// <summary>
         /// The target namespace of the type builder.
         /// </summary>
@@ -74,6 +70,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Create an enum type from an EnumDefinition in an ExtensionObject.
         /// Available since OPC UA V1.04 in the DataTypeDefinition attribute.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="enumDefinition"/> is <c>null</c>.</exception>
         public Type AddEnumType(QualifiedName typeName, EnumDefinition enumDefinition)
         {
             if (enumDefinition == null)
@@ -112,7 +109,9 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                     if (fieldNames.Add(fieldName))
                     {
-                        FieldBuilder newEnum = enumBuilder.DefineLiteral(fieldName, (int)enumValue.Value);
+                        FieldBuilder newEnum = enumBuilder.DefineLiteral(
+                            fieldName,
+                            (int)enumValue.Value);
                         newEnum.EnumMemberAttribute(fieldName, (int)enumValue.Value);
                     }
                 }
@@ -124,6 +123,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Create a complex type from a StructureDefinition.
         /// Available since OPC UA V1.04 in the DataTypeDefinition attribute.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="structureDefinition"/> is <c>null</c>.</exception>
+        /// <exception cref="DataTypeNotSupportedException"></exception>
         public IComplexTypeFieldBuilder AddStructuredType(
             QualifiedName name,
             StructureDefinition structureDefinition)
@@ -133,11 +134,12 @@ namespace Opc.Ua.Client.ComplexTypes
                 throw new ArgumentNullException(nameof(structureDefinition));
             }
 
-            Type baseType = structureDefinition.StructureType switch {
+            Type baseType = structureDefinition.StructureType switch
+            {
                 StructureType.StructureWithOptionalFields => typeof(OptionalFieldsComplexType),
                 StructureType.UnionWithSubtypedValues or StructureType.Union => typeof(UnionComplexType),
                 StructureType.StructureWithSubtypedValues or StructureType.Structure => typeof(BaseComplexType),
-                _ => throw new DataTypeNotSupportedException("Unsupported structure type"),
+                _ => throw new DataTypeNotSupportedException("Unsupported structure type")
             };
             TypeBuilder structureBuilder = m_moduleBuilder.DefineType(
                 GetFullQualifiedTypeName(name),
@@ -147,9 +149,7 @@ namespace Opc.Ua.Client.ComplexTypes
             structureBuilder.StructureDefinitionAttribute(structureDefinition);
             return new ComplexTypeFieldBuilder(structureBuilder, structureDefinition.StructureType);
         }
-        #endregion Public Members
 
-        #region Private Members
         /// <summary>
         /// Create a unique namespace module name for the type.
         /// </summary>
@@ -158,13 +158,16 @@ namespace Opc.Ua.Client.ComplexTypes
             if (string.IsNullOrWhiteSpace(moduleName))
             {
                 // remove space chars in malformed namespace url
-                string tempNamespace = targetNamespace.Replace(" ", "");
+                string tempNamespace = targetNamespace.Replace(
+                    " ",
+                    string.Empty,
+                    StringComparison.Ordinal);
                 var uri = new Uri(tempNamespace, UriKind.RelativeOrAbsolute);
                 string tempName = uri.IsAbsoluteUri ? uri.AbsolutePath : uri.ToString();
 
-                tempName = tempName.Replace("/", "");
+                tempName = tempName.Replace("/", string.Empty, StringComparison.Ordinal);
                 string[] splitName = tempName.Split(':');
-                moduleName = splitName.Last();
+                moduleName = splitName[^1];
             }
             return moduleName;
         }
@@ -182,11 +185,8 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             return result + browseName.Name;
         }
-        #endregion Private Members
 
-        #region Private Fields
         private readonly ModuleBuilder m_moduleBuilder;
         private readonly string m_moduleName;
-        #endregion Private Fields
     }
-}//namespace
+}

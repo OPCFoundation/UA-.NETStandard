@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -143,8 +143,9 @@ namespace Opc.Ua.Server
         /// </remarks>
         OperationContext ValidateRequest(RequestHeader requestHeader, RequestType requestType);
     }
+
     /// <summary>
-    /// The possible reasons for a session related event. 
+    /// The possible reasons for a session related event.
     /// </summary>
     public enum SessionEventReason
     {
@@ -180,120 +181,85 @@ namespace Opc.Ua.Server
     /// </summary>
     public delegate void SessionEventHandler(ISession session, SessionEventReason reason);
 
-    #region ImpersonateEventArgs Class
     /// <summary>
     /// A class which provides the event arguments for session related event.
     /// </summary>
     public class ImpersonateEventArgs : EventArgs
     {
-        #region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        public ImpersonateEventArgs(UserIdentityToken newIdentity, UserTokenPolicy userTokenPolicy, EndpointDescription endpointDescription = null)
+        public ImpersonateEventArgs(
+            UserIdentityToken newIdentity,
+            UserTokenPolicy userTokenPolicy,
+            EndpointDescription endpointDescription = null)
         {
-            m_newIdentity = newIdentity;
-            m_userTokenPolicy = userTokenPolicy;
-            m_endpointDescription = endpointDescription;
+            NewIdentity = newIdentity;
+            UserTokenPolicy = userTokenPolicy;
+            EndpointDescription = endpointDescription;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The new user identity for the session.
         /// </summary>
-        public UserIdentityToken NewIdentity
-        {
-            get { return m_newIdentity; }
-        }
+        public UserIdentityToken NewIdentity { get; }
 
         /// <summary>
         /// The user token policy selected by the client.
         /// </summary>
-        public UserTokenPolicy UserTokenPolicy
-        {
-            get { return m_userTokenPolicy; }
-        }
+        public UserTokenPolicy UserTokenPolicy { get; }
 
         /// <summary>
         /// An application defined handle that can be used for access control operations.
         /// </summary>
-        public IUserIdentity Identity
-        {
-            get { return m_identity; }
-            set { m_identity = value; }
-        }
+        public IUserIdentity Identity { get; set; }
 
         /// <summary>
         /// An application defined handle that can be used for access control operations.
         /// </summary>
-        public IUserIdentity EffectiveIdentity
-        {
-            get { return m_effectiveIdentity; }
-            set { m_effectiveIdentity = value; }
-        }
+        public IUserIdentity EffectiveIdentity { get; set; }
 
         /// <summary>
         /// Set to indicate that an error occurred validating the identity and that it should be rejected.
         /// </summary>
-        public ServiceResult IdentityValidationError
-        {
-            get { return m_identityValidationError; }
-            set { m_identityValidationError = value; }
-        }
+        public ServiceResult IdentityValidationError { get; set; }
 
         /// <summary>
-        /// Get the EndpointDescription  
+        /// Get the EndpointDescription
         /// </summary>
-        public EndpointDescription EndpointDescription
-        {
-            get { return m_endpointDescription; }
-        }
-        #endregion
-
-        #region Private Fields
-        private UserIdentityToken m_newIdentity;
-        private UserTokenPolicy m_userTokenPolicy;
-        private ServiceResult m_identityValidationError;
-        private IUserIdentity m_identity;
-        private IUserIdentity m_effectiveIdentity;
-        private EndpointDescription m_endpointDescription;
-        #endregion
+        public EndpointDescription EndpointDescription { get; }
     }
 
     /// <summary>
     /// The delegate for functions used to receive impersonation events.
     /// </summary>
     public delegate void ImpersonateEventHandler(ISession session, ImpersonateEventArgs args);
-    #endregion
 
-    #region ValidateSessionLessRequestEventArgs Class
     /// <summary>
     /// A class which provides the event arguments for session related event.
     /// </summary>
     public class ValidateSessionLessRequestEventArgs : EventArgs
     {
-        #region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        public ValidateSessionLessRequestEventArgs(NodeId authenticationToken, RequestType requestType)
+        public ValidateSessionLessRequestEventArgs(
+            NodeId authenticationToken,
+            RequestType requestType)
         {
             AuthenticationToken = authenticationToken;
             RequestType = requestType;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The request type for the request.
         /// </summary>
-        public RequestType RequestType { get; private set; }
+        public RequestType RequestType { get; }
 
         /// <summary>
         /// The new user identity for the session.
         /// </summary>
-        public NodeId AuthenticationToken { get; private set; }
+        public NodeId AuthenticationToken { get; }
 
         /// <summary>
         /// The identity to associate with the session-less request.
@@ -304,7 +270,5 @@ namespace Opc.Ua.Server
         /// Set to indicate that an error occurred validating the session-less request and that it should be rejected.
         /// </summary>
         public ServiceResult Error { get; set; }
-        #endregion
     }
-    #endregion
 }

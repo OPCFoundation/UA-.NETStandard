@@ -46,103 +46,78 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Get node from cache
         /// </summary>
-        /// <param name="nodeId"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
         ValueTask<INode> GetNodeAsync(NodeId nodeId, CancellationToken ct = default);
 
         /// <summary>
         /// Get nodes from cache
         /// </summary>
-        /// <param name="nodeIds"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
-        ValueTask<IReadOnlyList<INode>> GetNodesAsync(IReadOnlyList<NodeId> nodeIds,
+        ValueTask<IReadOnlyList<INode>> GetNodesAsync(
+            IReadOnlyList<NodeId> nodeIds,
             CancellationToken ct = default);
 
         /// <summary>
         /// Get node using browse path
         /// </summary>
-        /// <param name="nodeId"></param>
-        /// <param name="browsePath"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
-        ValueTask<INode> GetNodeWithBrowsePathAsync(NodeId nodeId,
-            QualifiedNameCollection browsePath, CancellationToken ct = default);
+        ValueTask<INode> GetNodeWithBrowsePathAsync(
+            NodeId nodeId,
+            QualifiedNameCollection browsePath,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Get list of references for a node
         /// </summary>
-        /// <param name="nodeIds"></param>
-        /// <param name="referenceTypeIds"></param>
-        /// <param name="isInverse"></param>
-        /// <param name="includeSubtypes"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
-        ValueTask<IReadOnlyList<INode>> GetReferencesAsync(IReadOnlyList<NodeId> nodeIds,
-            IReadOnlyList<NodeId> referenceTypeIds, bool isInverse, bool includeSubtypes = true,
+        ValueTask<IReadOnlyList<INode>> GetReferencesAsync(
+            IReadOnlyList<NodeId> nodeIds,
+            IReadOnlyList<NodeId> referenceTypeIds,
+            bool isInverse,
+            bool includeSubtypes = true,
             CancellationToken ct = default);
 
         /// <summary>
         /// Get references for a node
         /// </summary>
-        /// <param name="nodeId"></param>
-        /// <param name="referenceTypeId"></param>
-        /// <param name="isInverse"></param>
-        /// <param name="includeSubtypes"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
-        ValueTask<IReadOnlyList<INode>> GetReferencesAsync(NodeId nodeId, NodeId referenceTypeId,
-            bool isInverse, bool includeSubtypes = true, CancellationToken ct = default);
+        ValueTask<IReadOnlyList<INode>> GetReferencesAsync(
+            NodeId nodeId,
+            NodeId referenceTypeId,
+            bool isInverse,
+            bool includeSubtypes = true,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Get super type of a type node.
         /// </summary>
-        /// <param name="typeId"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
         ValueTask<NodeId> GetSuperTypeAsync(NodeId typeId, CancellationToken ct = default);
 
         /// <summary>
         /// Get value of a node from cache
         /// </summary>
-        /// <param name="nodeId"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
         ValueTask<DataValue> GetValueAsync(NodeId nodeId, CancellationToken ct = default);
 
         /// <summary>
         /// Get values of nodes from cache
         /// </summary>
-        /// <param name="nodeIds"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
-        ValueTask<IReadOnlyList<DataValue>> GetValuesAsync(IReadOnlyList<NodeId> nodeIds,
+        ValueTask<IReadOnlyList<DataValue>> GetValuesAsync(
+            IReadOnlyList<NodeId> nodeIds,
             CancellationToken ct = default);
 
         /// <summary>
         /// Get built in type for a datatype id.
         /// </summary>
-        /// <param name="datatypeId"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
-        ValueTask<BuiltInType> GetBuiltInTypeAsync(NodeId datatypeId, CancellationToken ct = default);
+        ValueTask<BuiltInType> GetBuiltInTypeAsync(
+            NodeId datatypeId,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Load the type hierarchy for a list of type ids.
         /// </summary>
-        /// <param name="typeIds"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
-        ValueTask LoadTypeHierarchyAsync(IReadOnlyList<NodeId> typeIds, CancellationToken ct = default);
+        ValueTask LoadTypeHierarchyAsync(
+            IReadOnlyList<NodeId> typeIds,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Check if node is type of a type using the cache.
         /// Best to load the type hierarchy first.
         /// </summary>
-        /// <param name="subTypeId"></param>
-        /// <param name="superTypeId"></param>
-        /// <returns></returns>
         bool IsTypeOf(NodeId subTypeId, NodeId superTypeId);
 
         /// <summary>

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -29,37 +29,34 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
+using System.Threading;
 
 namespace Opc.Ua.PubSub.Configuration
 {
     /// <summary>
-    /// Entity responsible to configure a PubSub Application
-    /// 
+    /// <para>Entity responsible to configure a PubSub Application</para>
+    /// <para>
     /// It has methods for adding/removing configuration objects to a root <see cref="PubSubConfigurationDataType"/> object.
     /// When the root <see cref="PubSubConfigurationDataType"/> object is modified there are various events raised to allow reaction to configuration changes.
-    /// Each child object from parent <see cref="PubSubConfigurationDataType"/> object has a configurationId associated to it and it can be used to alter configuration. 
-    /// The configurationId can be obtained using the <see cref="UaPubSubConfigurator.FindIdForObject(object)"/> method.
+    /// Each child object from parent <see cref="PubSubConfigurationDataType"/> object has a configurationId associated to it and it can be used to alter configuration.
+    /// The configurationId can be obtained using the <see cref="FindIdForObject(object)"/> method.
+    /// </para>
     /// </summary>
     public class UaPubSubConfigurator
     {
-        #region Private Fields
         /// <summary>
         /// Value of an uninitialized identifier.
         /// </summary>
-        internal static uint InvalidId = 0;
+        internal static uint InvalidId;
 
-        private readonly object m_lock = new object();
-        private PubSubConfigurationDataType m_pubSubConfiguration;
-        private Dictionary<uint, object> m_idsToObjects;
-        private Dictionary<object, uint> m_objectsToIds;
-        private Dictionary<uint, PubSubState> m_idsToPubSubState;
-        private Dictionary<uint, uint> m_idsToParentId;
+        private readonly Lock m_lock = new();
+        private readonly Dictionary<uint, object> m_idsToObjects;
+        private readonly Dictionary<object, uint> m_objectsToIds;
+        private readonly Dictionary<uint, PubSubState> m_idsToPubSubState;
+        private readonly Dictionary<uint, uint> m_idsToParentId;
         private uint m_nextId = 1;
-        #endregion
 
-        #region Public Events
         /// <summary>
         /// Event that is triggered when a published data set is added to the configurator
         /// </summary>
@@ -135,49 +132,43 @@ namespace Opc.Ua.PubSub.Configuration
         /// </summary>
         public event EventHandler<PubSubStateChangedEventArgs> PubSubStateChanged;
 
-        #endregion
-
-        #region Constructor
         /// <summary>
         /// Create new instance of <see cref="UaPubSubConfigurator"/>.
         /// </summary>
         public UaPubSubConfigurator()
         {
-            m_idsToObjects = new Dictionary<uint, object>();
-            m_objectsToIds = new Dictionary<object, uint>();
-            m_idsToPubSubState = new Dictionary<uint, PubSubState>();
-            m_idsToParentId = new Dictionary<uint, uint>();
+            m_idsToObjects = [];
+            m_objectsToIds = [];
+            m_idsToPubSubState = [];
+            m_idsToParentId = [];
 
-            m_pubSubConfiguration = new PubSubConfigurationDataType();
-            m_pubSubConfiguration.Connections = new PubSubConnectionDataTypeCollection();
-            m_pubSubConfiguration.PublishedDataSets = new PublishedDataSetDataTypeCollection();
+            PubSubConfiguration = new PubSubConfigurationDataType
+            {
+                Connections = [],
+                PublishedDataSets = []
+            };
 
-            //remember configuration id 
+            //remember configuration id
             uint id = m_nextId++;
-            m_objectsToIds.Add(m_pubSubConfiguration, id);
-            m_idsToObjects.Add(id, m_pubSubConfiguration);
-            m_idsToPubSubState.Add(id, GetInitialPubSubState(m_pubSubConfiguration));
+            m_objectsToIds.Add(PubSubConfiguration, id);
+            m_idsToObjects.Add(id, PubSubConfiguration);
+            m_idsToPubSubState.Add(id, GetInitialPubSubState(PubSubConfiguration));
         }
-        #endregion
 
-        #region Properties
         /// <summary>
         /// Get reference to <see cref="PubSubConfigurationDataType"/> instance that maintains the configuration for this <see cref="UaPubSubConfigurator"/>.
         /// </summary>
-        public PubSubConfigurationDataType PubSubConfiguration { get { return m_pubSubConfiguration; } }
-        #endregion
-
-        #region Public Methods - Find
+        public PubSubConfigurationDataType PubSubConfiguration { get; }
 
         /// <summary>
         /// Search a configured <see cref="PublishedDataSetDataType"/> with the specified name and return it
         /// </summary>
         /// <param name="name">Name of the object to be found.
         /// Returns null if name was not found.</param>
-        /// <returns></returns>
         public PublishedDataSetDataType FindPublishedDataSetByName(string name)
         {
-            foreach (PublishedDataSetDataType publishedDataSet in m_pubSubConfiguration.PublishedDataSets)
+            foreach (PublishedDataSetDataType publishedDataSet in PubSubConfiguration
+                .PublishedDataSets)
             {
                 if (name == publishedDataSet.Name)
                 {
@@ -187,13 +178,11 @@ namespace Opc.Ua.PubSub.Configuration
             return null;
         }
 
-
         /// <summary>
         /// Search objects in current configuration and return them
         /// </summary>
         /// <param name="id">Id of the object to be found.
         /// Returns null if id was not found.</param>
-        /// <returns></returns>
         public object FindObjectById(uint id)
         {
             if (m_idsToObjects.TryGetValue(id, out object objectById))
@@ -207,7 +196,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// Search id for specified configuration object.
         /// </summary>
         /// <param name="configurationObject">The object whose id is searched.</param>
-        /// <returns>Returns <see cref="UaPubSubConfigurator.InvalidId"/> if object was not found.</returns>
+        /// <returns>Returns <see cref="InvalidId"/> if object was not found.</returns>
         public uint FindIdForObject(object configurationObject)
         {
             if (m_objectsToIds.TryGetValue(configurationObject, out uint id))
@@ -245,11 +234,10 @@ namespace Opc.Ua.PubSub.Configuration
             }
             return PubSubState.Error;
         }
+
         /// <summary>
         /// Find the parent configuration object for a configuration object
         /// </summary>
-        /// <param name="configurationObject"></param>
-        /// <returns></returns>
         public object FindParentForObject(object configurationObject)
         {
             uint id = FindIdForObject(configurationObject);
@@ -263,13 +251,11 @@ namespace Opc.Ua.PubSub.Configuration
         /// <summary>
         /// Find children ids for specified object
         /// </summary>
-        /// <param name="configurationObject"></param>
-        /// <returns></returns>
         public List<uint> FindChildrenIdsForObject(object configurationObject)
         {
             uint parentId = FindIdForObject(configurationObject);
 
-            List<uint> childrenIds = new List<uint>();
+            var childrenIds = new List<uint>();
             if (parentId != InvalidId && m_idsToParentId.ContainsValue(parentId))
             {
                 foreach (uint key in m_idsToParentId.Keys)
@@ -282,102 +268,114 @@ namespace Opc.Ua.PubSub.Configuration
             }
             return childrenIds;
         }
-        #endregion
 
-        #region Public Methods - LoadConfiguration
         /// <summary>
-        /// Load the specified configuration 
+        /// Load the specified configuration
         /// </summary>
-        /// <param name="configFilePath"></param>
+        /// <param name="configFilePath">From where to load configuration</param>
         /// <param name="replaceExisting"> flag that indicates if current configuration is overwritten</param>
+        /// <exception cref="ArgumentNullException"><paramref name="configFilePath"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         public void LoadConfiguration(string configFilePath, bool replaceExisting = true)
         {
-            // validate input argument 
+            // validate input argument
             if (configFilePath == null)
             {
                 throw new ArgumentNullException(nameof(configFilePath));
             }
             if (!File.Exists(configFilePath))
             {
-                throw new ArgumentException("The specified file {0} does not exist", configFilePath);
+                throw new ArgumentException(
+                    "The specified file {0} does not exist",
+                    configFilePath);
             }
-            PubSubConfigurationDataType pubSubConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(configFilePath);
+            PubSubConfigurationDataType pubSubConfiguration = UaPubSubConfigurationHelper
+                .LoadConfiguration(
+                    configFilePath);
 
             LoadConfiguration(pubSubConfiguration, replaceExisting);
         }
 
         /// <summary>
-        /// Load the specified configuration 
+        /// Load the specified configuration
         /// </summary>
-        /// <param name="pubSubConfiguration"></param>
+        /// <param name="pubSubConfiguration">The configuration</param>
         /// <param name="replaceExisting"> flag that indicates if current configuration is overwritten</param>
-        public void LoadConfiguration(PubSubConfigurationDataType pubSubConfiguration, bool replaceExisting = true)
+        public void LoadConfiguration(
+            PubSubConfigurationDataType pubSubConfiguration,
+            bool replaceExisting = true)
         {
             lock (m_lock)
             {
                 if (replaceExisting)
                 {
                     //remove previous configured published data sets
-                    if (m_pubSubConfiguration != null && m_pubSubConfiguration.PublishedDataSets.Count > 0)
+                    if (PubSubConfiguration != null &&
+                        PubSubConfiguration.PublishedDataSets.Count > 0)
                     {
-                        foreach (PublishedDataSetDataType publishedDataSet in pubSubConfiguration.PublishedDataSets)
+                        foreach (PublishedDataSetDataType publishedDataSet in pubSubConfiguration
+                            .PublishedDataSets)
                         {
                             RemovePublishedDataSet(publishedDataSet);
                         }
                     }
 
                     //remove previous configured connections
-                    if (m_pubSubConfiguration != null && m_pubSubConfiguration.Connections.Count > 0)
+                    if (PubSubConfiguration != null && PubSubConfiguration.Connections.Count > 0)
                     {
-                        foreach (var connection in m_pubSubConfiguration.Connections.ToArray())
+                        foreach (PubSubConnectionDataType connection in PubSubConfiguration
+                            .Connections
+                            .ToArray())
                         {
                             RemoveConnection(connection);
                         }
                     }
 
-                    m_pubSubConfiguration?.Connections.Clear();
-                    m_pubSubConfiguration?.PublishedDataSets.Clear();
+                    PubSubConfiguration?.Connections.Clear();
+                    PubSubConfiguration?.PublishedDataSets.Clear();
                 }
 
                 //first load Published DataSet information
-                foreach (PublishedDataSetDataType publishedDataSet in pubSubConfiguration.PublishedDataSets)
+                foreach (PublishedDataSetDataType publishedDataSet in pubSubConfiguration
+                    .PublishedDataSets)
                 {
                     AddPublishedDataSet(publishedDataSet);
                 }
 
-                foreach (PubSubConnectionDataType pubSubConnectionDataType in pubSubConfiguration.Connections)
+                foreach (PubSubConnectionDataType pubSubConnectionDataType in pubSubConfiguration
+                    .Connections)
                 {
-                    // handle empty names 
+                    // handle empty names
                     if (string.IsNullOrEmpty(pubSubConnectionDataType.Name))
                     {
-                        //set default name 
+                        //set default name
                         pubSubConnectionDataType.Name = "Connection_" + (m_nextId + 1);
                     }
                     AddConnection(pubSubConnectionDataType);
                 }
             }
         }
-        #endregion
 
-        #region Public Methods - PublishedDataSet
         /// <summary>
         /// Add a published data set to current configuration.
         /// </summary>
         /// <param name="publishedDataSetDataType">The <see cref="PublishedDataSetDataType"/> object to be added to configuration.</param>
-        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
         public StatusCode AddPublishedDataSet(PublishedDataSetDataType publishedDataSetDataType)
         {
             if (m_objectsToIds.ContainsKey(publishedDataSetDataType))
             {
-                throw new ArgumentException("This PublishedDataSetDataType instance is already added to the configuration.");
+                throw new ArgumentException(
+                    "This PublishedDataSetDataType instance is already added to the configuration.");
             }
             try
             {
                 lock (m_lock)
                 {
-                    //validate duplicate name 
+                    //validate duplicate name
                     bool duplicateName = false;
-                    foreach (var publishedDataSet in m_pubSubConfiguration.PublishedDataSets)
+                    foreach (PublishedDataSetDataType publishedDataSet in PubSubConfiguration
+                        .PublishedDataSets)
                     {
                         if (publishedDataSetDataType.Name == publishedDataSet.Name)
                         {
@@ -387,24 +385,31 @@ namespace Opc.Ua.PubSub.Configuration
                     }
                     if (duplicateName)
                     {
-                        Utils.Trace(Utils.TraceMasks.Error, "Attempted to add PublishedDataSetDataType with duplicate name = {0}", publishedDataSetDataType.Name);
+                        Utils.Trace(
+                            Utils.TraceMasks.Error,
+                            "Attempted to add PublishedDataSetDataType with duplicate name = {0}",
+                            publishedDataSetDataType.Name);
                         return StatusCodes.BadBrowseNameDuplicated;
                     }
 
                     uint newPublishedDataSetId = m_nextId++;
-                    //remember connection 
+                    //remember connection
                     m_idsToObjects.Add(newPublishedDataSetId, publishedDataSetDataType);
                     m_objectsToIds.Add(publishedDataSetDataType, newPublishedDataSetId);
-                    m_pubSubConfiguration.PublishedDataSets.Add(publishedDataSetDataType);
+                    PubSubConfiguration.PublishedDataSets.Add(publishedDataSetDataType);
 
                     // raise PublishedDataSetAdded event
-                    PublishedDataSetAdded?.Invoke(this, new PublishedDataSetEventArgs() { PublishedDataSetId = newPublishedDataSetId, PublishedDataSetDataType = publishedDataSetDataType });
+                    PublishedDataSetAdded?.Invoke(
+                        this,
+                        new PublishedDataSetEventArgs
+                        {
+                            PublishedDataSetId = newPublishedDataSetId,
+                            PublishedDataSetDataType = publishedDataSetDataType
+                        });
 
-                    if (publishedDataSetDataType.ExtensionFields == null)
-                    {
-                        publishedDataSetDataType.ExtensionFields = new KeyValuePairCollection();
-                    }
-                    KeyValuePairCollection extensionFields = new KeyValuePairCollection(publishedDataSetDataType.ExtensionFields);
+                    publishedDataSetDataType.ExtensionFields ??= [];
+                    var extensionFields = new KeyValuePairCollection(
+                        publishedDataSetDataType.ExtensionFields);
                     publishedDataSetDataType.ExtensionFields.Clear();
                     foreach (KeyValuePair extensionField in extensionFields)
                     {
@@ -415,7 +420,7 @@ namespace Opc.Ua.PubSub.Configuration
             }
             catch (Exception ex)
             {
-                // Unexpected exception 
+                // Unexpected exception
                 Utils.Trace(ex, "UaPubSubConfigurator.AddPublishedDataSet: Exception");
             }
 
@@ -427,18 +432,22 @@ namespace Opc.Ua.PubSub.Configuration
         /// Removes a published data set from current configuration.
         /// </summary>
         /// <param name="publishedDataSetId">Id of the published data set to be removed.</param>
-        /// <returns> 
-        /// - <see cref="StatusCodes.Good"/> if operation is successful, 
+        /// <returns>
+        /// - <see cref="StatusCodes.Good"/> if operation is successful,
         /// - <see cref="StatusCodes.BadNodeIdUnknown"/> otherwise.
         /// </returns>
         public StatusCode RemovePublishedDataSet(uint publishedDataSetId)
         {
             lock (m_lock)
             {
-                if (!(FindObjectById(publishedDataSetId) is PublishedDataSetDataType publishedDataSetDataType))
+                if (FindObjectById(
+                    publishedDataSetId) is not PublishedDataSetDataType publishedDataSetDataType)
                 {
-                    // Unexpected exception 
-                    Utils.Trace(Utils.TraceMasks.Information, "Current configuration does not contain PublishedDataSetDataType with ConfigId = {0}", publishedDataSetId);
+                    // Unexpected exception
+                    Utils.Trace(
+                        Utils.TraceMasks.Information,
+                        "Current configuration does not contain PublishedDataSetDataType with ConfigId = {0}",
+                        publishedDataSetId);
                     return StatusCodes.Good;
                 }
                 return RemovePublishedDataSet(publishedDataSetDataType);
@@ -449,8 +458,8 @@ namespace Opc.Ua.PubSub.Configuration
         /// Removes a published data set from current configuration.
         /// </summary>
         /// <param name="publishedDataSetDataType">The published data set to be removed.</param>
-        /// <returns> 
-        /// - <see cref="StatusCodes.Good"/> if operation is successful, 
+        /// <returns>
+        /// - <see cref="StatusCodes.Good"/> if operation is successful,
         /// - <see cref="StatusCodes.BadNodeIdUnknown"/> otherwise.
         /// </returns>
         public StatusCode RemovePublishedDataSet(PublishedDataSetDataType publishedDataSetDataType)
@@ -462,15 +471,18 @@ namespace Opc.Ua.PubSub.Configuration
                     uint publishedDataSetId = FindIdForObject(publishedDataSetDataType);
                     if (publishedDataSetDataType != null && publishedDataSetId != InvalidId)
                     {
-                        /*A successful removal of the PublishedDataSetType Object removes all associated DataSetWriter Objects. 
+                        /*A successful removal of the PublishedDataSetType Object removes all associated DataSetWriter Objects.
                          * Before the Objects are removed, their state is changed to Disabled_0*/
 
                         // Find all associated DataSetWriter objects
-                        foreach (var connection in m_pubSubConfiguration.Connections)
+                        foreach (PubSubConnectionDataType connection in PubSubConfiguration
+                            .Connections)
                         {
-                            foreach (var writerGroup in connection.WriterGroups)
+                            foreach (WriterGroupDataType writerGroup in connection.WriterGroups)
                             {
-                                foreach (var dataSetWriter in writerGroup.DataSetWriters.ToArray())
+                                foreach (DataSetWriterDataType dataSetWriter in writerGroup
+                                    .DataSetWriters
+                                    .ToArray())
                                 {
                                     if (dataSetWriter.DataSetName == publishedDataSetDataType.Name)
                                     {
@@ -480,7 +492,7 @@ namespace Opc.Ua.PubSub.Configuration
                             }
                         }
 
-                        m_pubSubConfiguration.PublishedDataSets.Remove(publishedDataSetDataType);
+                        PubSubConfiguration.PublishedDataSets.Remove(publishedDataSetDataType);
 
                         //remove all references from dictionaries
                         m_idsToObjects.Remove(publishedDataSetId);
@@ -488,17 +500,20 @@ namespace Opc.Ua.PubSub.Configuration
                         m_idsToParentId.Remove(publishedDataSetId);
                         m_idsToPubSubState.Remove(publishedDataSetId);
 
-                        PublishedDataSetRemoved?.Invoke(this, new PublishedDataSetEventArgs() {
-                            PublishedDataSetId = publishedDataSetId,
-                            PublishedDataSetDataType = publishedDataSetDataType
-                        });
+                        PublishedDataSetRemoved?.Invoke(
+                            this,
+                            new PublishedDataSetEventArgs
+                            {
+                                PublishedDataSetId = publishedDataSetId,
+                                PublishedDataSetDataType = publishedDataSetDataType
+                            });
                         return StatusCodes.Good;
                     }
                 }
             }
             catch (Exception ex)
             {
-                // Unexpected exception 
+                // Unexpected exception
                 Utils.Trace(ex, "UaPubSubConfigurator.RemovePublishedDataSet: Exception");
             }
 
@@ -508,24 +523,24 @@ namespace Opc.Ua.PubSub.Configuration
         /// <summary>
         /// Add Extension field to the specified publishedDataSet
         /// </summary>
-        /// <param name="publishedDataSetConfigId"></param>
-        /// <param name="extensionField"></param>
-        /// <returns></returns>
-        public StatusCode AddExtensionField(uint publishedDataSetConfigId, KeyValuePair extensionField)
+        public StatusCode AddExtensionField(
+            uint publishedDataSetConfigId,
+            KeyValuePair extensionField)
         {
             lock (m_lock)
             {
-                if (!(FindObjectById(publishedDataSetConfigId) is PublishedDataSetDataType publishedDataSetDataType))
+                if (FindObjectById(
+                    publishedDataSetConfigId) is not PublishedDataSetDataType publishedDataSetDataType)
                 {
                     return StatusCodes.BadNodeIdInvalid;
                 }
                 if (publishedDataSetDataType.ExtensionFields == null)
                 {
-                    publishedDataSetDataType.ExtensionFields = new KeyValuePairCollection();
+                    publishedDataSetDataType.ExtensionFields = [];
                 }
                 else
                 {
-                    //validate duplicate name 
+                    //validate duplicate name
                     bool duplicateName = false;
                     foreach (KeyValuePair element in publishedDataSetDataType.ExtensionFields)
                     {
@@ -537,18 +552,28 @@ namespace Opc.Ua.PubSub.Configuration
                     }
                     if (duplicateName)
                     {
-                        Utils.Trace(Utils.TraceMasks.Error, "AddExtensionField -  A field with the name already exists. Duplicate name = {0}", extensionField.Key);
+                        Utils.Trace(
+                            Utils.TraceMasks.Error,
+                            "AddExtensionField -  A field with the name already exists. Duplicate name = {0}",
+                            extensionField.Key);
                         return StatusCodes.BadNodeIdExists;
                     }
                 }
                 uint newextensionFieldId = m_nextId++;
-                //remember connection 
+                //remember connection
                 m_idsToObjects.Add(newextensionFieldId, extensionField);
                 m_objectsToIds.Add(extensionField, newextensionFieldId);
                 publishedDataSetDataType.ExtensionFields.Add(extensionField);
 
                 // raise ExtensionFieldAdded event
-                ExtensionFieldAdded?.Invoke(this, new ExtensionFieldEventArgs() { PublishedDataSetId = publishedDataSetConfigId, ExtensionFieldId = newextensionFieldId, ExtensionField = extensionField });
+                ExtensionFieldAdded?.Invoke(
+                    this,
+                    new ExtensionFieldEventArgs
+                    {
+                        PublishedDataSetId = publishedDataSetConfigId,
+                        ExtensionFieldId = newextensionFieldId,
+                        ExtensionField = extensionField
+                    });
 
                 return StatusCodes.Good;
             }
@@ -557,40 +582,48 @@ namespace Opc.Ua.PubSub.Configuration
         /// <summary>
         /// Removes an extension field from a published data set
         /// </summary>
-        /// <param name="publishedDataSetConfigId"></param>
-        /// <param name="extensionFieldConfigId"></param>
-        /// <returns></returns>
-        public StatusCode RemoveExtensionField(uint publishedDataSetConfigId, uint extensionFieldConfigId)
+        public StatusCode RemoveExtensionField(
+            uint publishedDataSetConfigId,
+            uint extensionFieldConfigId)
         {
             lock (m_lock)
             {
-                if (!(FindObjectById(publishedDataSetConfigId) is PublishedDataSetDataType publishedDataSetDataType) || !(FindObjectById(extensionFieldConfigId) is KeyValuePair extensionFieldToRemove))
+                if ((FindObjectById(
+                        publishedDataSetConfigId) is not PublishedDataSetDataType publishedDataSetDataType) ||
+                    (FindObjectById(
+                        extensionFieldConfigId) is not KeyValuePair extensionFieldToRemove))
                 {
                     return StatusCodes.BadNodeIdInvalid;
                 }
                 if (publishedDataSetDataType.ExtensionFields == null)
                 {
-                    publishedDataSetDataType.ExtensionFields = new KeyValuePairCollection();
+                    publishedDataSetDataType.ExtensionFields = [];
                     return StatusCodes.BadNodeIdInvalid;
                 }
-                // locate the extension field 
-                foreach (KeyValuePair extensionField in publishedDataSetDataType.ExtensionFields.ToArray())
+                // locate the extension field
+                foreach (KeyValuePair extensionField in publishedDataSetDataType.ExtensionFields
+                    .ToArray())
                 {
                     if (extensionField.Equals(extensionFieldToRemove))
                     {
                         publishedDataSetDataType.ExtensionFields.Remove(extensionFieldToRemove);
 
                         // raise ExtensionFieldRemoved event
-                        ExtensionFieldRemoved?.Invoke(this, new ExtensionFieldEventArgs() { PublishedDataSetId = publishedDataSetConfigId, ExtensionFieldId = extensionFieldConfigId, ExtensionField = extensionField });
+                        ExtensionFieldRemoved?.Invoke(
+                            this,
+                            new ExtensionFieldEventArgs
+                            {
+                                PublishedDataSetId = publishedDataSetConfigId,
+                                ExtensionFieldId = extensionFieldConfigId,
+                                ExtensionField = extensionField
+                            });
                         return StatusCodes.Good;
                     }
                 }
             }
             return StatusCodes.BadNodeIdInvalid;
         }
-        #endregion
 
-        #region Public Methods - Connection
         /// <summary>
         /// Add a connection to current configuration.
         /// </summary>
@@ -600,19 +633,21 @@ namespace Opc.Ua.PubSub.Configuration
         /// - <see cref="StatusCodes.BadBrowseNameDuplicated"/> An Object with the name already exists.
         /// - <see cref="StatusCodes.BadInvalidArgument"/> There was an error adding the connection.
         /// </returns>
+        /// <exception cref="ArgumentException"></exception>
         public StatusCode AddConnection(PubSubConnectionDataType pubSubConnectionDataType)
         {
             if (m_objectsToIds.ContainsKey(pubSubConnectionDataType))
             {
-                throw new ArgumentException("This PubSubConnectionDataType instance is already added to the configuration.");
+                throw new ArgumentException(
+                    "This PubSubConnectionDataType instance is already added to the configuration.");
             }
             try
             {
                 lock (m_lock)
                 {
-                    //validate connection name 
+                    //validate connection name
                     bool duplicateName = false;
-                    foreach (var connection in m_pubSubConfiguration.Connections)
+                    foreach (PubSubConnectionDataType connection in PubSubConfiguration.Connections)
                     {
                         if (connection.Name == pubSubConnectionDataType.Name)
                         {
@@ -622,46 +657,59 @@ namespace Opc.Ua.PubSub.Configuration
                     }
                     if (duplicateName)
                     {
-                        Utils.Trace(Utils.TraceMasks.Error, "Attempted to add PubSubConnectionDataType with duplicate name = {0}", pubSubConnectionDataType.Name);
+                        Utils.Trace(
+                            Utils.TraceMasks.Error,
+                            "Attempted to add PubSubConnectionDataType with duplicate name = {0}",
+                            pubSubConnectionDataType.Name);
                         return StatusCodes.BadBrowseNameDuplicated;
                     }
 
-                    // remember collections 
-                    WriterGroupDataTypeCollection writerGroups = new WriterGroupDataTypeCollection(pubSubConnectionDataType.WriterGroups);
+                    // remember collections
+                    var writerGroups = new WriterGroupDataTypeCollection(
+                        pubSubConnectionDataType.WriterGroups);
                     pubSubConnectionDataType.WriterGroups.Clear();
-                    ReaderGroupDataTypeCollection readerGroups = new ReaderGroupDataTypeCollection(pubSubConnectionDataType.ReaderGroups);
+                    var readerGroups = new ReaderGroupDataTypeCollection(
+                        pubSubConnectionDataType.ReaderGroups);
                     pubSubConnectionDataType.ReaderGroups.Clear();
 
                     uint newConnectionId = m_nextId++;
-                    //remember connection 
+                    //remember connection
                     m_idsToObjects.Add(newConnectionId, pubSubConnectionDataType);
                     m_objectsToIds.Add(pubSubConnectionDataType, newConnectionId);
                     // remember parent id
-                    m_idsToParentId.Add(newConnectionId, FindIdForObject(m_pubSubConfiguration));
+                    m_idsToParentId.Add(newConnectionId, FindIdForObject(PubSubConfiguration));
                     //remember initial state
-                    m_idsToPubSubState.Add(newConnectionId, GetInitialPubSubState(pubSubConnectionDataType));
+                    m_idsToPubSubState.Add(
+                        newConnectionId,
+                        GetInitialPubSubState(pubSubConnectionDataType));
 
-                    m_pubSubConfiguration.Connections.Add(pubSubConnectionDataType);
+                    PubSubConfiguration.Connections.Add(pubSubConnectionDataType);
 
                     // raise ConnectionAdded event
-                    ConnectionAdded?.Invoke(this, new ConnectionEventArgs() { ConnectionId = newConnectionId, PubSubConnectionDataType = pubSubConnectionDataType });
-                    //handler reader & writer groups 
+                    ConnectionAdded?.Invoke(
+                        this,
+                        new ConnectionEventArgs
+                        {
+                            ConnectionId = newConnectionId,
+                            PubSubConnectionDataType = pubSubConnectionDataType
+                        });
+                    //handler reader & writer groups
                     foreach (WriterGroupDataType writerGroup in writerGroups)
                     {
-                        // handle empty names 
+                        // handle empty names
                         if (string.IsNullOrEmpty(writerGroup.Name))
                         {
-                            //set default name 
+                            //set default name
                             writerGroup.Name = "WriterGroup_" + (m_nextId + 1);
                         }
                         AddWriterGroup(newConnectionId, writerGroup);
                     }
                     foreach (ReaderGroupDataType readerGroup in readerGroups)
                     {
-                        // handle empty names 
+                        // handle empty names
                         if (string.IsNullOrEmpty(readerGroup.Name))
                         {
-                            //set default name 
+                            //set default name
                             readerGroup.Name = "ReaderGroup_" + (m_nextId + 1);
                         }
                         AddReaderGroup(newConnectionId, readerGroup);
@@ -672,7 +720,7 @@ namespace Opc.Ua.PubSub.Configuration
             }
             catch (Exception ex)
             {
-                // Unexpected exception 
+                // Unexpected exception
                 Utils.Trace(ex, "UaPubSubConfigurator.AddConnection: Exception");
             }
             return StatusCodes.BadInvalidArgument;
@@ -691,10 +739,14 @@ namespace Opc.Ua.PubSub.Configuration
         {
             lock (m_lock)
             {
-                if (!(FindObjectById(connectionId) is PubSubConnectionDataType pubSubConnectionDataType))
+                if (FindObjectById(
+                    connectionId) is not PubSubConnectionDataType pubSubConnectionDataType)
                 {
-                    // Unexpected exception 
-                    Utils.Trace(Utils.TraceMasks.Information, "Current configuration does not contain PubSubConnectionDataType with ConfigId = {0}", connectionId);
+                    // Unexpected exception
+                    Utils.Trace(
+                        Utils.TraceMasks.Information,
+                        "Current configuration does not contain PubSubConnectionDataType with ConfigId = {0}",
+                        connectionId);
                     return StatusCodes.BadNodeIdUnknown;
                 }
                 return RemoveConnection(pubSubConnectionDataType);
@@ -720,17 +772,19 @@ namespace Opc.Ua.PubSub.Configuration
                     if (pubSubConnectionDataType != null && connectionId != InvalidId)
                     {
                         // remove children
-                        WriterGroupDataTypeCollection writerGroups = new WriterGroupDataTypeCollection(pubSubConnectionDataType.WriterGroups);
-                        foreach (var writerGroup in writerGroups)
+                        foreach (
+                            WriterGroupDataType writerGroup in new WriterGroupDataTypeCollection(
+                                pubSubConnectionDataType.WriterGroups))
                         {
                             RemoveWriterGroup(writerGroup);
                         }
-                        ReaderGroupDataTypeCollection readerGroups = new ReaderGroupDataTypeCollection(pubSubConnectionDataType.ReaderGroups);
-                        foreach (var readerGroup in readerGroups)
+                        foreach (
+                            ReaderGroupDataType readerGroup in new ReaderGroupDataTypeCollection(
+                                pubSubConnectionDataType.ReaderGroups))
                         {
                             RemoveReaderGroup(readerGroup);
                         }
-                        m_pubSubConfiguration.Connections.Remove(pubSubConnectionDataType);
+                        PubSubConfiguration.Connections.Remove(pubSubConnectionDataType);
 
                         //remove all references from dictionaries
                         m_idsToObjects.Remove(connectionId);
@@ -738,10 +792,13 @@ namespace Opc.Ua.PubSub.Configuration
                         m_idsToParentId.Remove(connectionId);
                         m_idsToPubSubState.Remove(connectionId);
 
-                        ConnectionRemoved?.Invoke(this, new ConnectionEventArgs() {
-                            ConnectionId = connectionId,
-                            PubSubConnectionDataType = pubSubConnectionDataType
-                        });
+                        ConnectionRemoved?.Invoke(
+                            this,
+                            new ConnectionEventArgs
+                            {
+                                ConnectionId = connectionId,
+                                PubSubConnectionDataType = pubSubConnectionDataType
+                            });
                         return StatusCodes.Good;
                     }
                     return StatusCodes.BadNodeIdUnknown;
@@ -749,47 +806,51 @@ namespace Opc.Ua.PubSub.Configuration
             }
             catch (Exception ex)
             {
-                // Unexpected exception 
+                // Unexpected exception
                 Utils.Trace(ex, "UaPubSubConfigurator.RemoveConnection: Exception");
             }
 
             return StatusCodes.BadInvalidArgument;
         }
-        #endregion
 
-        #region Public Methods - WriterGroup
         /// <summary>
         /// Adds a writerGroup to the specified connection
         /// </summary>
-        /// <param name="parentConnectionId"></param>
-        /// <param name="writerGroupDataType"></param>
         /// <returns>
         /// - <see cref="StatusCodes.Good"/> The WriterGroup was added with success.
         /// - <see cref="StatusCodes.BadBrowseNameDuplicated"/> An Object with the name already exists.
         /// - <see cref="StatusCodes.BadInvalidArgument"/> There was an error adding the WriterGroup.
         /// </returns>
-        public StatusCode AddWriterGroup(uint parentConnectionId, WriterGroupDataType writerGroupDataType)
+        /// <exception cref="ArgumentException"></exception>
+        public StatusCode AddWriterGroup(
+            uint parentConnectionId,
+            WriterGroupDataType writerGroupDataType)
         {
             if (m_objectsToIds.ContainsKey(writerGroupDataType))
             {
-                throw new ArgumentException("This WriterGroupDataType instance is already added to the configuration.");
+                throw new ArgumentException(
+                    "This WriterGroupDataType instance is already added to the configuration.");
             }
             if (!m_idsToObjects.TryGetValue(parentConnectionId, out object value))
             {
-                throw new ArgumentException(Utils.Format("There is no connection with configurationId = {0} in current configuration.", parentConnectionId));
+                throw new ArgumentException(
+                    Utils.Format(
+                        "There is no connection with configurationId = {0} in current configuration.",
+                        parentConnectionId));
             }
             try
             {
                 lock (m_lock)
                 {
-                    // remember collections 
-                    DataSetWriterDataTypeCollection dataSetWriters = new DataSetWriterDataTypeCollection(writerGroupDataType.DataSetWriters);
+                    // remember collections
+                    var dataSetWriters = new DataSetWriterDataTypeCollection(
+                        writerGroupDataType.DataSetWriters);
                     writerGroupDataType.DataSetWriters.Clear();
                     if (value is PubSubConnectionDataType parentConnection)
                     {
-                        //validate duplicate name 
+                        //validate duplicate name
                         bool duplicateName = false;
-                        foreach (var writerGroup in parentConnection.WriterGroups)
+                        foreach (WriterGroupDataType writerGroup in parentConnection.WriterGroups)
                         {
                             if (writerGroup.Name == writerGroupDataType.Name)
                             {
@@ -799,12 +860,15 @@ namespace Opc.Ua.PubSub.Configuration
                         }
                         if (duplicateName)
                         {
-                            Utils.Trace(Utils.TraceMasks.Error, "Attempted to add WriterGroupDataType with duplicate name = {0}", writerGroupDataType.Name);
+                            Utils.Trace(
+                                Utils.TraceMasks.Error,
+                                "Attempted to add WriterGroupDataType with duplicate name = {0}",
+                                writerGroupDataType.Name);
                             return StatusCodes.BadBrowseNameDuplicated;
                         }
 
                         uint newWriterGroupId = m_nextId++;
-                        //remember writer group 
+                        //remember writer group
                         m_idsToObjects.Add(newWriterGroupId, writerGroupDataType);
                         m_objectsToIds.Add(writerGroupDataType, newWriterGroupId);
                         parentConnection.WriterGroups.Add(writerGroupDataType);
@@ -812,18 +876,27 @@ namespace Opc.Ua.PubSub.Configuration
                         // remember parent id
                         m_idsToParentId.Add(newWriterGroupId, parentConnectionId);
                         //remember initial state
-                        m_idsToPubSubState.Add(newWriterGroupId, GetInitialPubSubState(writerGroupDataType));
+                        m_idsToPubSubState.Add(
+                            newWriterGroupId,
+                            GetInitialPubSubState(writerGroupDataType));
 
                         // raise WriterGroupAdded event
-                        WriterGroupAdded?.Invoke(this, new WriterGroupEventArgs() { ConnectionId = parentConnectionId, WriterGroupId = newWriterGroupId, WriterGroupDataType = writerGroupDataType });
+                        WriterGroupAdded?.Invoke(
+                            this,
+                            new WriterGroupEventArgs
+                            {
+                                ConnectionId = parentConnectionId,
+                                WriterGroupId = newWriterGroupId,
+                                WriterGroupDataType = writerGroupDataType
+                            });
 
                         //handler datasetWriters
                         foreach (DataSetWriterDataType datasetWriter in dataSetWriters)
                         {
-                            // handle empty names 
+                            // handle empty names
                             if (string.IsNullOrEmpty(datasetWriter.Name))
                             {
-                                //set default name 
+                                //set default name
                                 datasetWriter.Name = "DataSetWriter_" + (m_nextId + 1);
                             }
                             AddDataSetWriter(newWriterGroupId, datasetWriter);
@@ -835,7 +908,7 @@ namespace Opc.Ua.PubSub.Configuration
             }
             catch (Exception ex)
             {
-                // Unexpected exception 
+                // Unexpected exception
                 Utils.Trace(ex, "UaPubSubConfigurator.AddWriterGroup: Exception");
             }
             return StatusCodes.BadInvalidArgument;
@@ -844,7 +917,6 @@ namespace Opc.Ua.PubSub.Configuration
         /// <summary>
         /// Removes a WriterGroupDataType instance from current configuration specified by configId
         /// </summary>
-        /// <param name="writerGroupId"></param>
         /// <returns>
         /// - <see cref="StatusCodes.Good"/> The WriterGroup was removed with success.
         /// - <see cref="StatusCodes.BadNodeIdUnknown"/> The GroupId is unknown.
@@ -854,10 +926,13 @@ namespace Opc.Ua.PubSub.Configuration
         {
             lock (m_lock)
             {
-                if (!(FindObjectById(writerGroupId) is WriterGroupDataType writerGroupDataType))
+                if (FindObjectById(writerGroupId) is not WriterGroupDataType writerGroupDataType)
                 {
-                    // Unexpected exception 
-                    Utils.Trace(Utils.TraceMasks.Information, "Current configuration does not contain WriterGroupDataType with ConfigId = {0}", writerGroupId);
+                    // Unexpected exception
+                    Utils.Trace(
+                        Utils.TraceMasks.Information,
+                        "Current configuration does not contain WriterGroupDataType with ConfigId = {0}",
+                        writerGroupId);
                     return StatusCodes.BadNodeIdUnknown;
                 }
                 return RemoveWriterGroup(writerGroupDataType);
@@ -883,13 +958,15 @@ namespace Opc.Ua.PubSub.Configuration
                     if (writerGroupDataType != null && writerGroupId != InvalidId)
                     {
                         // remove children
-                        DataSetWriterDataTypeCollection dataSetWriters = new DataSetWriterDataTypeCollection(writerGroupDataType.DataSetWriters);
-                        foreach (var dataSetWriter in dataSetWriters)
+                        foreach (
+                            DataSetWriterDataType dataSetWriter in new DataSetWriterDataTypeCollection(
+                                writerGroupDataType.DataSetWriters))
                         {
                             RemoveDataSetWriter(dataSetWriter);
                         }
                         // find parent connection
-                        PubSubConnectionDataType parentConnection = FindParentForObject(writerGroupDataType) as PubSubConnectionDataType;
+                        var parentConnection = FindParentForObject(
+                            writerGroupDataType) as PubSubConnectionDataType;
                         uint parentConnectionId = FindIdForObject(parentConnection);
                         if (parentConnection != null && parentConnectionId != InvalidId)
                         {
@@ -901,11 +978,14 @@ namespace Opc.Ua.PubSub.Configuration
                             m_idsToParentId.Remove(writerGroupId);
                             m_idsToPubSubState.Remove(writerGroupId);
 
-                            WriterGroupRemoved?.Invoke(this, new WriterGroupEventArgs() {
-                                WriterGroupId = writerGroupId,
-                                WriterGroupDataType = writerGroupDataType,
-                                ConnectionId = parentConnectionId
-                            });
+                            WriterGroupRemoved?.Invoke(
+                                this,
+                                new WriterGroupEventArgs
+                                {
+                                    WriterGroupId = writerGroupId,
+                                    WriterGroupDataType = writerGroupDataType,
+                                    ConnectionId = parentConnectionId
+                                });
                             return StatusCodes.Good;
                         }
                     }
@@ -915,34 +995,37 @@ namespace Opc.Ua.PubSub.Configuration
             }
             catch (Exception ex)
             {
-                // Unexpected exception 
+                // Unexpected exception
                 Utils.Trace(ex, "UaPubSubConfigurator.RemoveWriterGroup: Exception");
             }
 
             return StatusCodes.BadInvalidArgument;
         }
-        #endregion
 
-        #region Public Methods - DataSetWriter
         /// <summary>
         /// Adds a DataSetWriter to the specified writer group
         /// </summary>
-        /// <param name="parentWriterGroupId"></param>
-        /// <param name="dataSetWriterDataType"></param>
         /// <returns>
         /// - <see cref="StatusCodes.Good"/> The DataSetWriter was added with success.
         /// - <see cref="StatusCodes.BadBrowseNameDuplicated"/> An Object with the name already exists.
         /// - <see cref="StatusCodes.BadInvalidArgument"/> There was an error adding the DataSetWriter.
         /// </returns>
-        public StatusCode AddDataSetWriter(uint parentWriterGroupId, DataSetWriterDataType dataSetWriterDataType)
+        /// <exception cref="ArgumentException"></exception>
+        public StatusCode AddDataSetWriter(
+            uint parentWriterGroupId,
+            DataSetWriterDataType dataSetWriterDataType)
         {
             if (m_objectsToIds.ContainsKey(dataSetWriterDataType))
             {
-                throw new ArgumentException("This DataSetWriterDataType instance is already added to the configuration.");
+                throw new ArgumentException(
+                    "This DataSetWriterDataType instance is already added to the configuration.");
             }
             if (!m_idsToObjects.TryGetValue(parentWriterGroupId, out object value))
             {
-                throw new ArgumentException(Utils.Format("There is no WriterGroup with configurationId = {0} in current configuration.", parentWriterGroupId));
+                throw new ArgumentException(
+                    Utils.Format(
+                        "There is no WriterGroup with configurationId = {0} in current configuration.",
+                        parentWriterGroupId));
             }
             try
             {
@@ -950,9 +1033,9 @@ namespace Opc.Ua.PubSub.Configuration
                 {
                     if (value is WriterGroupDataType parentWriterGroup)
                     {
-                        //validate duplicate name 
+                        //validate duplicate name
                         bool duplicateName = false;
-                        foreach (var writer in parentWriterGroup.DataSetWriters)
+                        foreach (DataSetWriterDataType writer in parentWriterGroup.DataSetWriters)
                         {
                             if (writer.Name == dataSetWriterDataType.Name)
                             {
@@ -962,12 +1045,15 @@ namespace Opc.Ua.PubSub.Configuration
                         }
                         if (duplicateName)
                         {
-                            Utils.Trace(Utils.TraceMasks.Error, "Attempted to add DataSetWriterDataType with duplicate name = {0}", dataSetWriterDataType.Name);
+                            Utils.Trace(
+                                Utils.TraceMasks.Error,
+                                "Attempted to add DataSetWriterDataType with duplicate name = {0}",
+                                dataSetWriterDataType.Name);
                             return StatusCodes.BadBrowseNameDuplicated;
                         }
 
                         uint newDataSetWriterId = m_nextId++;
-                        //remember connection 
+                        //remember connection
                         m_idsToObjects.Add(newDataSetWriterId, dataSetWriterDataType);
                         m_objectsToIds.Add(dataSetWriterDataType, newDataSetWriterId);
                         parentWriterGroup.DataSetWriters.Add(dataSetWriterDataType);
@@ -976,10 +1062,19 @@ namespace Opc.Ua.PubSub.Configuration
                         m_idsToParentId.Add(newDataSetWriterId, parentWriterGroupId);
 
                         //remember initial state
-                        m_idsToPubSubState.Add(newDataSetWriterId, GetInitialPubSubState(dataSetWriterDataType));
+                        m_idsToPubSubState.Add(
+                            newDataSetWriterId,
+                            GetInitialPubSubState(dataSetWriterDataType));
 
                         // raise DataSetWriterAdded event
-                        DataSetWriterAdded?.Invoke(this, new DataSetWriterEventArgs() { WriterGroupId = parentWriterGroupId, DataSetWriterId = newDataSetWriterId, DataSetWriterDataType = dataSetWriterDataType });
+                        DataSetWriterAdded?.Invoke(
+                            this,
+                            new DataSetWriterEventArgs
+                            {
+                                WriterGroupId = parentWriterGroupId,
+                                DataSetWriterId = newDataSetWriterId,
+                                DataSetWriterDataType = dataSetWriterDataType
+                            });
 
                         return StatusCodes.Good;
                     }
@@ -987,7 +1082,7 @@ namespace Opc.Ua.PubSub.Configuration
             }
             catch (Exception ex)
             {
-                // Unexpected exception 
+                // Unexpected exception
                 Utils.Trace(ex, "UaPubSubConfigurator.AddDataSetWriter: Exception");
             }
             return StatusCodes.BadInvalidArgument;
@@ -996,7 +1091,6 @@ namespace Opc.Ua.PubSub.Configuration
         /// <summary>
         /// Removes a DataSetWriterDataType instance from current configuration specified by configId
         /// </summary>
-        /// <param name="dataSetWriterId"></param>
         /// <returns>
         /// - <see cref="StatusCodes.Good"/> The DataSetWriter was removed with success.
         /// - <see cref="StatusCodes.BadNodeIdUnknown"/> The GroupId is unknown.
@@ -1006,10 +1100,14 @@ namespace Opc.Ua.PubSub.Configuration
         {
             lock (m_lock)
             {
-                if (!(FindObjectById(dataSetWriterId) is DataSetWriterDataType dataSetWriterDataType))
+                if (FindObjectById(
+                    dataSetWriterId) is not DataSetWriterDataType dataSetWriterDataType)
                 {
-                    // Unexpected exception 
-                    Utils.Trace(Utils.TraceMasks.Information, "Current configuration does not contain DataSetWriterDataType with ConfigId = {0}", dataSetWriterId);
+                    // Unexpected exception
+                    Utils.Trace(
+                        Utils.TraceMasks.Information,
+                        "Current configuration does not contain DataSetWriterDataType with ConfigId = {0}",
+                        dataSetWriterId);
                     return StatusCodes.BadNodeIdUnknown;
                 }
                 return RemoveDataSetWriter(dataSetWriterDataType);
@@ -1035,7 +1133,8 @@ namespace Opc.Ua.PubSub.Configuration
                     if (dataSetWriterDataType != null && dataSetWriterId != InvalidId)
                     {
                         // find parent writerGroup
-                        WriterGroupDataType parentWriterGroup = FindParentForObject(dataSetWriterDataType) as WriterGroupDataType;
+                        var parentWriterGroup = FindParentForObject(
+                            dataSetWriterDataType) as WriterGroupDataType;
                         uint parentWriterGroupId = FindIdForObject(parentWriterGroup);
                         if (parentWriterGroup != null && parentWriterGroupId != InvalidId)
                         {
@@ -1047,11 +1146,14 @@ namespace Opc.Ua.PubSub.Configuration
                             m_idsToParentId.Remove(dataSetWriterId);
                             m_idsToPubSubState.Remove(dataSetWriterId);
 
-                            DataSetWriterRemoved?.Invoke(this, new DataSetWriterEventArgs() {
-                                WriterGroupId = parentWriterGroupId,
-                                DataSetWriterDataType = dataSetWriterDataType,
-                                DataSetWriterId = dataSetWriterId
-                            });
+                            DataSetWriterRemoved?.Invoke(
+                                this,
+                                new DataSetWriterEventArgs
+                                {
+                                    WriterGroupId = parentWriterGroupId,
+                                    DataSetWriterDataType = dataSetWriterDataType,
+                                    DataSetWriterId = dataSetWriterId
+                                });
                             return StatusCodes.Good;
                         }
                     }
@@ -1060,47 +1162,51 @@ namespace Opc.Ua.PubSub.Configuration
             }
             catch (Exception ex)
             {
-                // Unexpected exception 
+                // Unexpected exception
                 Utils.Trace(ex, "UaPubSubConfigurator.RemoveDataSetWriter: Exception");
             }
 
             return StatusCodes.BadInvalidArgument;
         }
-        #endregion
 
-        #region Public Methods - ReaderGroup
         /// <summary>
         /// Adds a readerGroup to the specified connection
         /// </summary>
-        /// <param name="parentConnectionId"></param>
-        /// <param name="readerGroupDataType"></param>
         /// <returns>
         /// - <see cref="StatusCodes.Good"/> The ReaderGroup was added with success.
         /// - <see cref="StatusCodes.BadBrowseNameDuplicated"/> An Object with the name already exists.
         /// - <see cref="StatusCodes.BadInvalidArgument"/> There was an error adding the ReaderGroup.
         /// </returns>
-        public StatusCode AddReaderGroup(uint parentConnectionId, ReaderGroupDataType readerGroupDataType)
+        /// <exception cref="ArgumentException"></exception>
+        public StatusCode AddReaderGroup(
+            uint parentConnectionId,
+            ReaderGroupDataType readerGroupDataType)
         {
             if (m_objectsToIds.ContainsKey(readerGroupDataType))
             {
-                throw new ArgumentException("This ReaderGroupDataType instance is already added to the configuration.");
+                throw new ArgumentException(
+                    "This ReaderGroupDataType instance is already added to the configuration.");
             }
             if (!m_idsToObjects.TryGetValue(parentConnectionId, out object value))
             {
-                throw new ArgumentException(Utils.Format("There is no connection with configurationId = {0} in current configuration.", parentConnectionId));
+                throw new ArgumentException(
+                    Utils.Format(
+                        "There is no connection with configurationId = {0} in current configuration.",
+                        parentConnectionId));
             }
             try
             {
                 lock (m_lock)
                 {
-                    // remember collections 
-                    DataSetReaderDataTypeCollection dataSetReaders = new DataSetReaderDataTypeCollection(readerGroupDataType.DataSetReaders);
+                    // remember collections
+                    var dataSetReaders = new DataSetReaderDataTypeCollection(
+                        readerGroupDataType.DataSetReaders);
                     readerGroupDataType.DataSetReaders.Clear();
                     if (value is PubSubConnectionDataType parentConnection)
                     {
-                        //validate duplicate name 
+                        //validate duplicate name
                         bool duplicateName = false;
-                        foreach (var readerGroup in parentConnection.ReaderGroups)
+                        foreach (ReaderGroupDataType readerGroup in parentConnection.ReaderGroups)
                         {
                             if (readerGroup.Name == readerGroupDataType.Name)
                             {
@@ -1110,12 +1216,15 @@ namespace Opc.Ua.PubSub.Configuration
                         }
                         if (duplicateName)
                         {
-                            Utils.Trace(Utils.TraceMasks.Error, "Attempted to add ReaderGroupDataType with duplicate name = {0}", readerGroupDataType.Name);
+                            Utils.Trace(
+                                Utils.TraceMasks.Error,
+                                "Attempted to add ReaderGroupDataType with duplicate name = {0}",
+                                readerGroupDataType.Name);
                             return StatusCodes.BadBrowseNameDuplicated;
                         }
 
                         uint newReaderGroupId = m_nextId++;
-                        //remember reader group 
+                        //remember reader group
                         m_idsToObjects.Add(newReaderGroupId, readerGroupDataType);
                         m_objectsToIds.Add(readerGroupDataType, newReaderGroupId);
                         parentConnection.ReaderGroups.Add(readerGroupDataType);
@@ -1124,18 +1233,27 @@ namespace Opc.Ua.PubSub.Configuration
                         m_idsToParentId.Add(newReaderGroupId, parentConnectionId);
 
                         //remember initial state
-                        m_idsToPubSubState.Add(newReaderGroupId, GetInitialPubSubState(readerGroupDataType));
+                        m_idsToPubSubState.Add(
+                            newReaderGroupId,
+                            GetInitialPubSubState(readerGroupDataType));
 
                         // raise ReaderGroupAdded event
-                        ReaderGroupAdded?.Invoke(this, new ReaderGroupEventArgs() { ConnectionId = parentConnectionId, ReaderGroupId = newReaderGroupId, ReaderGroupDataType = readerGroupDataType });
+                        ReaderGroupAdded?.Invoke(
+                            this,
+                            new ReaderGroupEventArgs
+                            {
+                                ConnectionId = parentConnectionId,
+                                ReaderGroupId = newReaderGroupId,
+                                ReaderGroupDataType = readerGroupDataType
+                            });
 
                         //handler datasetWriters
                         foreach (DataSetReaderDataType datasetReader in dataSetReaders)
                         {
-                            // handle empty names 
+                            // handle empty names
                             if (string.IsNullOrEmpty(datasetReader.Name))
                             {
-                                //set default name 
+                                //set default name
                                 datasetReader.Name = "DataSetReader_" + (m_nextId + 1);
                             }
                             AddDataSetReader(newReaderGroupId, datasetReader);
@@ -1143,12 +1261,11 @@ namespace Opc.Ua.PubSub.Configuration
 
                         return StatusCodes.Good;
                     }
-
                 }
             }
             catch (Exception ex)
             {
-                // Unexpected exception 
+                // Unexpected exception
                 Utils.Trace(ex, "UaPubSubConfigurator.AddReaderGroup: Exception");
             }
             return StatusCodes.BadInvalidArgument;
@@ -1157,7 +1274,6 @@ namespace Opc.Ua.PubSub.Configuration
         /// <summary>
         /// Removes a ReaderGroupDataType instance from current configuration specified by configId
         /// </summary>
-        /// <param name="readerGroupId"></param>
         /// <returns>
         /// - <see cref="StatusCodes.Good"/> The ReaderGroup was removed with success.
         /// - <see cref="StatusCodes.BadNodeIdUnknown"/> The GroupId is unknown.
@@ -1167,9 +1283,12 @@ namespace Opc.Ua.PubSub.Configuration
         {
             lock (m_lock)
             {
-                if (!(FindObjectById(readerGroupId) is ReaderGroupDataType readerGroupDataType))
+                if (FindObjectById(readerGroupId) is not ReaderGroupDataType readerGroupDataType)
                 {
-                    Utils.Trace(Utils.TraceMasks.Information, "Current configuration does not contain ReaderGroupDataType with ConfigId = {0}", readerGroupId);
+                    Utils.Trace(
+                        Utils.TraceMasks.Information,
+                        "Current configuration does not contain ReaderGroupDataType with ConfigId = {0}",
+                        readerGroupId);
                     return StatusCodes.BadInvalidArgument;
                 }
                 return RemoveReaderGroup(readerGroupDataType);
@@ -1195,13 +1314,15 @@ namespace Opc.Ua.PubSub.Configuration
                     if (readerGroupDataType != null && readerGroupId != InvalidId)
                     {
                         // remove children
-                        DataSetReaderDataTypeCollection dataSetReaders = new DataSetReaderDataTypeCollection(readerGroupDataType.DataSetReaders);
-                        foreach (var dataSetReader in dataSetReaders)
+                        foreach (
+                            DataSetReaderDataType dataSetReader in new DataSetReaderDataTypeCollection(
+                                readerGroupDataType.DataSetReaders))
                         {
                             RemoveDataSetReader(dataSetReader);
                         }
                         // find parent connection
-                        PubSubConnectionDataType parentConnection = FindParentForObject(readerGroupDataType) as PubSubConnectionDataType;
+                        var parentConnection = FindParentForObject(
+                            readerGroupDataType) as PubSubConnectionDataType;
                         uint parentConnectionId = FindIdForObject(parentConnection);
                         if (parentConnection != null && parentConnectionId != InvalidId)
                         {
@@ -1213,11 +1334,14 @@ namespace Opc.Ua.PubSub.Configuration
                             m_idsToParentId.Remove(readerGroupId);
                             m_idsToPubSubState.Remove(readerGroupId);
 
-                            ReaderGroupRemoved?.Invoke(this, new ReaderGroupEventArgs() {
-                                ReaderGroupId = readerGroupId,
-                                ReaderGroupDataType = readerGroupDataType,
-                                ConnectionId = parentConnectionId
-                            });
+                            ReaderGroupRemoved?.Invoke(
+                                this,
+                                new ReaderGroupEventArgs
+                                {
+                                    ReaderGroupId = readerGroupId,
+                                    ReaderGroupDataType = readerGroupDataType,
+                                    ConnectionId = parentConnectionId
+                                });
                             return StatusCodes.Good;
                         }
                     }
@@ -1227,34 +1351,37 @@ namespace Opc.Ua.PubSub.Configuration
             }
             catch (Exception ex)
             {
-                // Unexpected exception 
+                // Unexpected exception
                 Utils.Trace(ex, "UaPubSubConfigurator.RemoveReaderGroup: Exception");
             }
 
             return StatusCodes.BadInvalidArgument;
         }
-        #endregion
 
-        #region Public Methods - DataSetReader
         /// <summary>
         /// Adds a DataSetReader to the specified reader group
         /// </summary>
-        /// <param name="parentReaderGroupId"></param>
-        /// <param name="dataSetReaderDataType"></param>
         /// <returns>
         /// - <see cref="StatusCodes.Good"/> The DataSetReader was added with success.
         /// - <see cref="StatusCodes.BadBrowseNameDuplicated"/> An Object with the name already exists.
         /// - <see cref="StatusCodes.BadInvalidArgument"/> There was an error adding the DataSetReader.
         /// </returns>
-        public StatusCode AddDataSetReader(uint parentReaderGroupId, DataSetReaderDataType dataSetReaderDataType)
+        /// <exception cref="ArgumentException"></exception>
+        public StatusCode AddDataSetReader(
+            uint parentReaderGroupId,
+            DataSetReaderDataType dataSetReaderDataType)
         {
             if (m_objectsToIds.ContainsKey(dataSetReaderDataType))
             {
-                throw new ArgumentException("This DataSetReaderDataType instance is already added to the configuration.");
+                throw new ArgumentException(
+                    "This DataSetReaderDataType instance is already added to the configuration.");
             }
             if (!m_idsToObjects.TryGetValue(parentReaderGroupId, out object value))
             {
-                throw new ArgumentException(Utils.Format("There is no ReaderGroup with configurationId = {0} in current configuration.", parentReaderGroupId));
+                throw new ArgumentException(
+                    Utils.Format(
+                        "There is no ReaderGroup with configurationId = {0} in current configuration.",
+                        parentReaderGroupId));
             }
             try
             {
@@ -1262,9 +1389,9 @@ namespace Opc.Ua.PubSub.Configuration
                 {
                     if (value is ReaderGroupDataType parentReaderGroup)
                     {
-                        //validate duplicate name 
+                        //validate duplicate name
                         bool duplicateName = false;
-                        foreach (var reader in parentReaderGroup.DataSetReaders)
+                        foreach (DataSetReaderDataType reader in parentReaderGroup.DataSetReaders)
                         {
                             if (reader.Name == dataSetReaderDataType.Name)
                             {
@@ -1274,12 +1401,15 @@ namespace Opc.Ua.PubSub.Configuration
                         }
                         if (duplicateName)
                         {
-                            Utils.Trace(Utils.TraceMasks.Error, "Attempted to add DataSetReaderDataType with duplicate name = {0}", dataSetReaderDataType.Name);
+                            Utils.Trace(
+                                Utils.TraceMasks.Error,
+                                "Attempted to add DataSetReaderDataType with duplicate name = {0}",
+                                dataSetReaderDataType.Name);
                             return StatusCodes.BadBrowseNameDuplicated;
                         }
 
                         uint newDataSetReaderId = m_nextId++;
-                        //remember connection 
+                        //remember connection
                         m_idsToObjects.Add(newDataSetReaderId, dataSetReaderDataType);
                         m_objectsToIds.Add(dataSetReaderDataType, newDataSetReaderId);
                         parentReaderGroup.DataSetReaders.Add(dataSetReaderDataType);
@@ -1288,10 +1418,19 @@ namespace Opc.Ua.PubSub.Configuration
                         m_idsToParentId.Add(newDataSetReaderId, parentReaderGroupId);
 
                         //remember initial state
-                        m_idsToPubSubState.Add(newDataSetReaderId, GetInitialPubSubState(dataSetReaderDataType));
+                        m_idsToPubSubState.Add(
+                            newDataSetReaderId,
+                            GetInitialPubSubState(dataSetReaderDataType));
 
                         // raise WriterGroupAdded event
-                        DataSetReaderAdded?.Invoke(this, new DataSetReaderEventArgs() { ReaderGroupId = parentReaderGroupId, DataSetReaderId = newDataSetReaderId, DataSetReaderDataType = dataSetReaderDataType });
+                        DataSetReaderAdded?.Invoke(
+                            this,
+                            new DataSetReaderEventArgs
+                            {
+                                ReaderGroupId = parentReaderGroupId,
+                                DataSetReaderId = newDataSetReaderId,
+                                DataSetReaderDataType = dataSetReaderDataType
+                            });
 
                         return StatusCodes.Good;
                     }
@@ -1299,7 +1438,7 @@ namespace Opc.Ua.PubSub.Configuration
             }
             catch (Exception ex)
             {
-                // Unexpected exception 
+                // Unexpected exception
                 Utils.Trace(ex, "UaPubSubConfigurator.AddDataSetReader: Exception");
             }
             return StatusCodes.BadInvalidArgument;
@@ -1308,7 +1447,6 @@ namespace Opc.Ua.PubSub.Configuration
         /// <summary>
         /// Removes a DataSetReaderDataType instance from current configuration specified by configId
         /// </summary>
-        /// <param name="dataSetReaderId"></param>
         /// <returns>
         /// - <see cref="StatusCodes.Good"/> The DataSetWriter was removed with success.
         /// - <see cref="StatusCodes.BadNodeIdUnknown"/> The GroupId is unknown.
@@ -1318,10 +1456,14 @@ namespace Opc.Ua.PubSub.Configuration
         {
             lock (m_lock)
             {
-                if (!(FindObjectById(dataSetReaderId) is DataSetReaderDataType dataSetReaderDataType))
+                if (FindObjectById(
+                    dataSetReaderId) is not DataSetReaderDataType dataSetReaderDataType)
                 {
-                    // Unexpected exception 
-                    Utils.Trace(Utils.TraceMasks.Information, "Current configuration does not contain DataSetReaderDataType with ConfigId = {0}", dataSetReaderId);
+                    // Unexpected exception
+                    Utils.Trace(
+                        Utils.TraceMasks.Information,
+                        "Current configuration does not contain DataSetReaderDataType with ConfigId = {0}",
+                        dataSetReaderId);
                     return StatusCodes.BadNodeIdUnknown;
                 }
                 return RemoveDataSetReader(dataSetReaderDataType);
@@ -1347,7 +1489,8 @@ namespace Opc.Ua.PubSub.Configuration
                     if (dataSetReaderDataType != null && dataSetReaderId != InvalidId)
                     {
                         // find parent readerGroup
-                        ReaderGroupDataType parentWriterGroup = FindParentForObject(dataSetReaderDataType) as ReaderGroupDataType;
+                        var parentWriterGroup = FindParentForObject(
+                            dataSetReaderDataType) as ReaderGroupDataType;
                         uint parenReaderGroupId = FindIdForObject(parentWriterGroup);
                         if (parentWriterGroup != null && parenReaderGroupId != InvalidId)
                         {
@@ -1359,11 +1502,14 @@ namespace Opc.Ua.PubSub.Configuration
                             m_idsToParentId.Remove(dataSetReaderId);
                             m_idsToPubSubState.Remove(dataSetReaderId);
 
-                            DataSetReaderRemoved?.Invoke(this, new DataSetReaderEventArgs() {
-                                ReaderGroupId = parenReaderGroupId,
-                                DataSetReaderDataType = dataSetReaderDataType,
-                                DataSetReaderId = dataSetReaderId
-                            });
+                            DataSetReaderRemoved?.Invoke(
+                                this,
+                                new DataSetReaderEventArgs
+                                {
+                                    ReaderGroupId = parenReaderGroupId,
+                                    DataSetReaderDataType = dataSetReaderDataType,
+                                    DataSetReaderId = dataSetReaderId
+                                });
                             return StatusCodes.Good;
                         }
                     }
@@ -1372,20 +1518,16 @@ namespace Opc.Ua.PubSub.Configuration
             }
             catch (Exception ex)
             {
-                // Unexpected exception 
+                // Unexpected exception
                 Utils.Trace(ex, "UaPubSubConfigurator.RemoveDataSetReader: Exception");
             }
 
             return StatusCodes.BadInvalidArgument;
         }
-        #endregion
 
-        #region Public Methods - Enable/Disable
-        /// <summary> 
+        /// <summary>
         /// Enable the specified configuration object specified by Id
         /// </summary>
-        /// <param name="configurationId"></param>
-        /// <returns></returns>
         public StatusCode Enable(uint configurationId)
         {
             return Enable(FindObjectById(configurationId));
@@ -1394,26 +1536,31 @@ namespace Opc.Ua.PubSub.Configuration
         /// <summary>
         /// Enable the specified configuration object
         /// </summary>
-        /// <param name="configurationObject"></param>
-        /// <returns></returns>
+        /// <exception cref="ArgumentException"><paramref name="configurationObject"/></exception>
         public StatusCode Enable(object configurationObject)
         {
             if (configurationObject == null)
             {
-                throw new ArgumentException("The parameter cannot be null.", nameof(configurationObject));
+                throw new ArgumentException(
+                    "The parameter cannot be null.",
+                    nameof(configurationObject));
             }
             if (!m_objectsToIds.ContainsKey(configurationObject))
             {
-                throw new ArgumentException("This {0} instance is not part of current configuration.", configurationObject.GetType().Name);
+                throw new ArgumentException(
+                    "This {0} instance is not part of current configuration.",
+                    configurationObject.GetType().Name);
             }
             PubSubState currentState = FindStateForObject(configurationObject);
             if (currentState != PubSubState.Disabled)
             {
-                Utils.Trace(Utils.TraceMasks.Information, "Attempted to call Enable() on an object that is not in Disabled state");
+                Utils.Trace(
+                    Utils.TraceMasks.Information,
+                    "Attempted to call Enable() on an object that is not in Disabled state");
                 return StatusCodes.BadInvalidState;
             }
             PubSubState parentState = PubSubState.Operational;
-            if (configurationObject != m_pubSubConfiguration)
+            if (configurationObject != PubSubConfiguration)
             {
                 parentState = FindStateForObject(FindParentForObject(configurationObject));
             }
@@ -1432,12 +1579,9 @@ namespace Opc.Ua.PubSub.Configuration
             return StatusCodes.Good;
         }
 
-
-        /// <summary> 
+        /// <summary>
         /// Disable the specified configuration object specified by Id
         /// </summary>
-        /// <param name="configurationId"></param>
-        /// <returns></returns>
         public StatusCode Disable(uint configurationId)
         {
             return Disable(FindObjectById(configurationId));
@@ -1446,22 +1590,27 @@ namespace Opc.Ua.PubSub.Configuration
         /// <summary>
         /// Disable the specified configuration object
         /// </summary>
-        /// <param name="configurationObject"></param>
-        /// <returns></returns>
+        /// <exception cref="ArgumentException"><paramref name="configurationObject"/></exception>
         public StatusCode Disable(object configurationObject)
         {
             if (configurationObject == null)
             {
-                throw new ArgumentException("The parameter cannot be null.", nameof(configurationObject));
+                throw new ArgumentException(
+                    "The parameter cannot be null.",
+                    nameof(configurationObject));
             }
             if (!m_objectsToIds.ContainsKey(configurationObject))
             {
-                throw new ArgumentException("This {0} instance is not part of current configuration.", configurationObject.GetType().Name);
+                throw new ArgumentException(
+                    "This {0} instance is not part of current configuration.",
+                    configurationObject.GetType().Name);
             }
             PubSubState currentState = FindStateForObject(configurationObject);
             if (currentState == PubSubState.Disabled)
             {
-                Utils.Trace(Utils.TraceMasks.Information, "Attempted to call Disable() on an object that is already in Disabled state");
+                Utils.Trace(
+                    Utils.TraceMasks.Information,
+                    "Attempted to call Disable() on an object that is already in Disabled state");
                 return StatusCodes.BadInvalidState;
             }
 
@@ -1470,52 +1619,54 @@ namespace Opc.Ua.PubSub.Configuration
             UpdateChildrenState(configurationObject);
             return StatusCodes.Good;
         }
-        #endregion
-
-        #region Private Methods
 
         /// <summary>
         /// Change state for the specified configuration object
         /// </summary>
-        /// <param name="configurationObject"></param>
-        /// <param name="newState"></param>
         private void SetStateForObject(object configurationObject, PubSubState newState)
         {
             uint id = FindIdForObject(configurationObject);
             if (id != InvalidId && m_idsToPubSubState.TryGetValue(id, out PubSubState oldState))
             {
                 m_idsToPubSubState[id] = newState;
-                PubSubStateChanged?.Invoke(this, new PubSubStateChangedEventArgs() {
-                    ConfigurationObject = configurationObject,
-                    ConfigurationObjectId = id,
-                    NewState = newState,
-                    OldState = oldState
-                });
-                bool configurationObjectEnabled = (newState == PubSubState.Operational || newState == PubSubState.Paused);
+                PubSubStateChanged?.Invoke(
+                    this,
+                    new PubSubStateChangedEventArgs
+                    {
+                        ConfigurationObject = configurationObject,
+                        ConfigurationObjectId = id,
+                        NewState = newState,
+                        OldState = oldState
+                    });
+                bool configurationObjectEnabled
+                    = newState is PubSubState.Operational or PubSubState.Paused;
                 //update the Enabled flag in config object
-                if (configurationObject is PubSubConfigurationDataType)
+                switch (configurationObject)
                 {
-                    ((PubSubConfigurationDataType)configurationObject).Enabled = configurationObjectEnabled;
-                }
-                else if (configurationObject is PubSubConnectionDataType)
-                {
-                    ((PubSubConnectionDataType)configurationObject).Enabled = configurationObjectEnabled;
-                }
-                else if (configurationObject is WriterGroupDataType)
-                {
-                    ((WriterGroupDataType)configurationObject).Enabled = configurationObjectEnabled;
-                }
-                else if (configurationObject is DataSetWriterDataType)
-                {
-                    ((DataSetWriterDataType)configurationObject).Enabled = configurationObjectEnabled;
-                }
-                else if (configurationObject is ReaderGroupDataType)
-                {
-                    ((ReaderGroupDataType)configurationObject).Enabled = configurationObjectEnabled;
-                }
-                else if (configurationObject is DataSetReaderDataType)
-                {
-                    ((DataSetReaderDataType)configurationObject).Enabled = configurationObjectEnabled;
+                    case PubSubConfigurationDataType:
+                        ((PubSubConfigurationDataType)configurationObject).Enabled
+                            = configurationObjectEnabled;
+                        break;
+                    case PubSubConnectionDataType:
+                        ((PubSubConnectionDataType)configurationObject).Enabled
+                            = configurationObjectEnabled;
+                        break;
+                    case WriterGroupDataType:
+                        ((WriterGroupDataType)configurationObject).Enabled
+                            = configurationObjectEnabled;
+                        break;
+                    case DataSetWriterDataType:
+                        ((DataSetWriterDataType)configurationObject).Enabled
+                            = configurationObjectEnabled;
+                        break;
+                    case ReaderGroupDataType:
+                        ((ReaderGroupDataType)configurationObject).Enabled
+                            = configurationObjectEnabled;
+                        break;
+                    case DataSetReaderDataType:
+                        ((DataSetReaderDataType)configurationObject).Enabled
+                            = configurationObjectEnabled;
+                        break;
                 }
             }
         }
@@ -1523,12 +1674,11 @@ namespace Opc.Ua.PubSub.Configuration
         /// <summary>
         /// Calculate and update the state for child objects of a configuration object (StATE MACHINE)
         /// </summary>
-        /// <param name="configurationObject"></param>
         private void UpdateChildrenState(object configurationObject)
         {
             PubSubState parentState = FindStateForObject(configurationObject);
             //find child ids
-            var childrenIds = FindChildrenIdsForObject(configurationObject);
+            List<uint> childrenIds = FindChildrenIdsForObject(configurationObject);
             if (parentState == PubSubState.Operational)
             {
                 // Enabled and parent Operational
@@ -1545,13 +1695,13 @@ namespace Opc.Ua.PubSub.Configuration
                     }
                 }
             }
-            else if (parentState == PubSubState.Disabled || parentState == PubSubState.Paused)
+            else if (parentState is PubSubState.Disabled or PubSubState.Paused)
             {
                 // Parent changed to Disabled or Paused
                 foreach (uint childId in childrenIds)
                 {
                     PubSubState childState = FindStateForId(childId);
-                    if (childState == PubSubState.Operational || childState == PubSubState.Error)
+                    if (childState is PubSubState.Operational or PubSubState.Error)
                     {
                         // become Operational if Parent changed to Operational
                         object childObject = FindObjectById(childId);
@@ -1568,8 +1718,9 @@ namespace Opc.Ua.PubSub.Configuration
         /// </summary>
         /// <param name="enabled">Configured Enabled flag. </param>
         /// <param name="parentPubSubState"><see cref="PubSubState"/> of the parent configured object.</param>
-        /// <returns></returns>
-        private static PubSubState GetInitialPubSubState(bool enabled, PubSubState parentPubSubState)
+        private static PubSubState GetInitialPubSubState(
+            bool enabled,
+            PubSubState parentPubSubState)
         {
             if (enabled)
             {
@@ -1578,78 +1729,72 @@ namespace Opc.Ua.PubSub.Configuration
                     // The PubSub component is operational.
                     return PubSubState.Operational;
                 }
-                else
-                {
-                    // The PubSub component is enabled but currently paused by a parent component. The
-                    // parent component is either Disabled_0 or Paused_1.
-                    return PubSubState.Paused;
-                }
+                // The PubSub component is enabled but currently paused by a parent component. The
+                // parent component is either Disabled_0 or Paused_1.
+                return PubSubState.Paused;
             }
-            else
-            {
-                // PubSub component is configured but currently disabled.
-                return PubSubState.Disabled;
-            }
+            // PubSub component is configured but currently disabled.
+            return PubSubState.Disabled;
         }
 
         /// <summary>
         /// Calculate and return the initial state of a pub sub data type configuration object
         /// </summary>
-        /// <param name="configurationObject"></param>
-        /// <returns></returns>
         private PubSubState GetInitialPubSubState(object configurationObject)
         {
-            bool configurationObjectEnabled = false;
             PubSubState parentPubSubState = PubSubState.Operational;
 
-            if (configurationObject is PubSubConfigurationDataType)
+            bool configurationObjectEnabled;
+            switch (configurationObject)
             {
-                configurationObjectEnabled = ((PubSubConfigurationDataType)configurationObject).Enabled;
-            }
-            else if (configurationObject is PubSubConnectionDataType)
-            {
-                configurationObjectEnabled = ((PubSubConnectionDataType)configurationObject).Enabled;
-                //find parent state 
-                parentPubSubState = FindStateForObject(m_pubSubConfiguration);
-            }
-            else if (configurationObject is WriterGroupDataType)
-            {
-                configurationObjectEnabled = ((WriterGroupDataType)configurationObject).Enabled;
-                //find parent connection
-                object parentConnection = FindParentForObject(configurationObject);
-                //find parent state 
-                parentPubSubState = FindStateForObject(parentConnection);
-            }
-            else if (configurationObject is DataSetWriterDataType)
-            {
-                configurationObjectEnabled = ((DataSetWriterDataType)configurationObject).Enabled;
-                //find parent 
-                object parentWriterGroup = FindParentForObject(configurationObject);
-                //find parent state 
-                parentPubSubState = FindStateForObject(parentWriterGroup);
-            }
-            else if (configurationObject is ReaderGroupDataType)
-            {
-                configurationObjectEnabled = ((ReaderGroupDataType)configurationObject).Enabled;
-                //find parent connection
-                object parentConnection = FindParentForObject(configurationObject);
-                //find parent state 
-                parentPubSubState = FindStateForObject(parentConnection);
-            }
-            else if (configurationObject is DataSetReaderDataType)
-            {
-                configurationObjectEnabled = ((DataSetReaderDataType)configurationObject).Enabled;
-                //find parent 
-                object parentReaderGroup = FindParentForObject(configurationObject);
-                //find parent state 
-                parentPubSubState = FindStateForObject(parentReaderGroup);
-            }
-            else
-            {
-                return PubSubState.Error;
+                case PubSubConfigurationDataType:
+                    configurationObjectEnabled = ((PubSubConfigurationDataType)configurationObject)
+                        .Enabled;
+                    break;
+                case PubSubConnectionDataType:
+                    configurationObjectEnabled = ((PubSubConnectionDataType)configurationObject)
+                        .Enabled;
+                    //find parent state
+                    parentPubSubState = FindStateForObject(PubSubConfiguration);
+                    break;
+                case WriterGroupDataType:
+                {
+                    configurationObjectEnabled = ((WriterGroupDataType)configurationObject).Enabled;
+                    //find parent connection
+                    object parentConnection = FindParentForObject(configurationObject);
+                    //find parent state
+                    parentPubSubState = FindStateForObject(parentConnection);
+                    break;
+                }
+                case DataSetWriterDataType:
+                    configurationObjectEnabled = ((DataSetWriterDataType)configurationObject)
+                        .Enabled;
+                    //find parent
+                    object parentWriterGroup = FindParentForObject(configurationObject);
+                    //find parent state
+                    parentPubSubState = FindStateForObject(parentWriterGroup);
+                    break;
+                case ReaderGroupDataType:
+                {
+                    configurationObjectEnabled = ((ReaderGroupDataType)configurationObject).Enabled;
+                    //find parent connection
+                    object parentConnection = FindParentForObject(configurationObject);
+                    //find parent state
+                    parentPubSubState = FindStateForObject(parentConnection);
+                    break;
+                }
+                case DataSetReaderDataType:
+                    configurationObjectEnabled = ((DataSetReaderDataType)configurationObject)
+                        .Enabled;
+                    //find parent
+                    object parentReaderGroup = FindParentForObject(configurationObject);
+                    //find parent state
+                    parentPubSubState = FindStateForObject(parentReaderGroup);
+                    break;
+                default:
+                    return PubSubState.Error;
             }
             return GetInitialPubSubState(configurationObjectEnabled, parentPubSubState);
         }
-        #endregion
     }
 }

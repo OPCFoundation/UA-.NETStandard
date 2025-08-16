@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 
 namespace Opc.Ua.PubSub
@@ -40,38 +39,31 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Set GetPublisherEndpoints callback used by the subscriber to receive PublisherEndpoints data from publisher
         /// </summary>
-        /// <param name="eventHandler"></param>
         void GetPublisherEndpointsCallback(GetPublisherEndpointsEventHandler eventHandler);
 
         /// <summary>
         /// Set GetDataSetWriterIds callback used by the subscriber to receive DataSetWriter ids from publisher
         /// </summary>
-        /// <param name="eventHandler"></param>
         void GetDataSetWriterConfigurationCallback(GetDataSetWriterIdsEventHandler eventHandler);
 
         /// <summary>
         /// Create and return the list of EndpointDescription to be used only by UADP Discovery response messages
         /// </summary>
-        /// <param name="endpoints"></param>
-        /// <param name="publisherProvideEndpointsStatusCode"></param>
-        /// <param name="publisherId"></param>
-        /// <returns></returns>
-        UaNetworkMessage CreatePublisherEndpointsNetworkMessage(EndpointDescription[] endpoints,
-            StatusCode publisherProvideEndpointsStatusCode, object publisherId);
+        UaNetworkMessage CreatePublisherEndpointsNetworkMessage(
+            EndpointDescription[] endpoints,
+            StatusCode publisherProvideEndpointsStatusCode,
+            object publisherId);
 
         /// <summary>
-        /// Create and return the list of DataSetMetaData response messages 
+        /// Create and return the list of DataSetMetaData response messages
         /// </summary>
-        /// <param name="dataSetWriterIds"></param>
-        /// <returns></returns>
-        IList<UaNetworkMessage> CreateDataSetMetaDataNetworkMessages(UInt16[] dataSetWriterIds);
+        IList<UaNetworkMessage> CreateDataSetMetaDataNetworkMessages(ushort[] dataSetWriterIds);
 
         /// <summary>
         /// Create and return the list of DataSetWriterConfiguration response message
         /// </summary>
         /// <param name="dataSetWriterIds">DataSetWriter ids</param>
-        /// <returns></returns>
-        IList<UaNetworkMessage> CreateDataSetWriterCofigurationMessage(UInt16[] dataSetWriterIds);
+        IList<UaNetworkMessage> CreateDataSetWriterCofigurationMessage(ushort[] dataSetWriterIds);
 
         /// <summary>
         /// Request UADP Discovery DataSetWriterConfiguration messages
@@ -92,12 +84,11 @@ namespace Opc.Ua.PubSub
     /// <summary>
     /// Get PublisherEndpoints event handler
     /// </summary>
-    /// <returns></returns>
     public delegate IList<EndpointDescription> GetPublisherEndpointsEventHandler();
 
     /// <summary>
     /// Get DataSetWriterConfiguration ids event handler
     /// </summary>
-    /// <returns></returns>
-    public delegate IList<UInt16> GetDataSetWriterIdsEventHandler(UaPubSubApplication uaPubSubApplication);
+    public delegate IList<ushort> GetDataSetWriterIdsEventHandler(
+        UaPubSubApplication uaPubSubApplication);
 }

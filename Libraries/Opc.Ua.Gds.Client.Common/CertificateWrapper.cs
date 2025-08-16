@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Client
 {
@@ -52,7 +51,6 @@ namespace Opc.Ua.Gds.Client
 
                 return null;
             }
-
             private set { }
         }
 
@@ -68,7 +66,6 @@ namespace Opc.Ua.Gds.Client
 
                 return null;
             }
-
             private set { }
         }
 
@@ -84,7 +81,6 @@ namespace Opc.Ua.Gds.Client
 
                 return DateTime.MinValue;
             }
-
             private set { }
         }
 
@@ -100,7 +96,6 @@ namespace Opc.Ua.Gds.Client
 
                 return DateTime.MinValue;
             }
-
             private set { }
         }
 
@@ -116,7 +111,6 @@ namespace Opc.Ua.Gds.Client
 
                 return null;
             }
-
             private set { }
         }
 
@@ -132,7 +126,6 @@ namespace Opc.Ua.Gds.Client
 
                 return null;
             }
-
             private set { }
         }
 
@@ -148,7 +141,6 @@ namespace Opc.Ua.Gds.Client
 
                 return null;
             }
-
             private set { }
         }
 
@@ -164,7 +156,6 @@ namespace Opc.Ua.Gds.Client
 
                 return null;
             }
-
             private set { }
         }
 
@@ -180,10 +171,8 @@ namespace Opc.Ua.Gds.Client
 
                 return null;
             }
-
             private set { }
         }
-
 
         [DataMember(Order = 10)]
         public int KeySize
@@ -194,14 +183,13 @@ namespace Opc.Ua.Gds.Client
                 {
 #if ECC_SUPPORT
                     // TODO  use X509Utils.GetPublicKeySize(Certificate); everywhere
-                                
+
 #endif
                     return X509Utils.GetRSAPublicKeySize(Certificate);
                 }
 
                 return 0;
             }
-
             private set { }
         }
 
@@ -224,7 +212,6 @@ namespace Opc.Ua.Gds.Client
 
                 return null;
             }
-
             private set { }
         }
 
@@ -241,13 +228,12 @@ namespace Opc.Ua.Gds.Client
                     }
                     catch (Exception e)
                     {
-                        return new string[] { e.Message };
+                        return [e.Message];
                     }
                 }
 
                 return null;
             }
-
             private set { }
         }
 
@@ -258,25 +244,19 @@ namespace Opc.Ua.Gds.Client
 
         public string ToString(string format, IFormatProvider formatProvider)
         {
-            if (format != null) throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+            if (format != null)
+            {
+                throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+            }
+
             return SubjectName;
         }
 
-        #region IEncodeable Members
-        public ExpandedNodeId TypeId
-        {
-            get { return NodeId.Null; }
-        }
+        public ExpandedNodeId TypeId => NodeId.Null;
 
-        public ExpandedNodeId BinaryEncodingId
-        {
-            get { return NodeId.Null; }
-        }
+        public ExpandedNodeId BinaryEncodingId => NodeId.Null;
 
-        public ExpandedNodeId XmlEncodingId
-        {
-            get { return NodeId.Null; }
-        }
+        public ExpandedNodeId XmlEncodingId => NodeId.Null;
 
         public void Encode(IEncoder encoder)
         {
@@ -295,8 +275,7 @@ namespace Opc.Ua.Gds.Client
 
         public object Clone()
         {
-            return new CertificateWrapper() { Certificate = this.Certificate };
+            return new CertificateWrapper { Certificate = Certificate };
         }
-        #endregion
     }
 }

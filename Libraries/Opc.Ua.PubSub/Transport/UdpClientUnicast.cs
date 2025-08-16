@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -38,14 +38,13 @@ namespace Opc.Ua.PubSub.Transport
     /// </summary>
     internal class UdpClientUnicast : UdpClient
     {
-        #region Constructor
         /// <summary>
-        /// Initializes a new instance of the <see cref="UdpClient"/> class and binds it to the specified local endpoint 
+        /// Initializes a new instance of the <see cref="UdpClient"/> class and binds it to the specified local endpoint
         /// </summary>
         /// <param name="localAddress">An <see cref="IPAddress"/> that represents the local address.</param>
-        /// <param name="port">The port.</param>       
+        /// <param name="port">The port.</param>
         /// <exception cref="SocketException">An error occurred when accessing the socket.</exception>
-        public UdpClientUnicast(IPAddress localAddress, int port) : base()
+        public UdpClientUnicast(IPAddress localAddress, int port)
         {
             Address = localAddress;
             Port = port;
@@ -53,7 +52,10 @@ namespace Opc.Ua.PubSub.Transport
             try
             {
                 // this might throw exception on some platforms
-                Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                Client.SetSocketOption(
+                    SocketOptionLevel.Socket,
+                    SocketOptionName.ReuseAddress,
+                    true);
             }
             catch (Exception ex)
             {
@@ -71,11 +73,12 @@ namespace Opc.Ua.PubSub.Transport
 
             Client.Bind(new IPEndPoint(localAddress, port));
 
-            Utils.Trace("UdpClientUnicast was created for local Address: {0}:{1}.", localAddress, port);
+            Utils.Trace(
+                "UdpClientUnicast was created for local Address: {0}:{1}.",
+                localAddress,
+                port);
         }
-        #endregion
 
-        #region Properties
         /// <summary>
         /// The Unicast Ip Address
         /// </summary>
@@ -85,6 +88,5 @@ namespace Opc.Ua.PubSub.Transport
         /// The Port
         /// </summary>
         internal int Port { get; }
-        #endregion
     }
 }

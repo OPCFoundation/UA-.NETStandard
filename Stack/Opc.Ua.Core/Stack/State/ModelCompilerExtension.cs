@@ -11,11 +11,8 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.IO;
-using System.Threading.Tasks;
+using System.Linq;
 
 namespace Opc.Ua
 {
@@ -65,7 +62,7 @@ namespace Opc.Ua
             DateTime lastModified,
             bool outputRedundantNames)
         {
-            Opc.Ua.Export.UANodeSet nodeSet = new Opc.Ua.Export.UANodeSet();
+            var nodeSet = new Export.UANodeSet();
 
             if (lastModified != DateTime.MinValue)
             {
@@ -73,23 +70,32 @@ namespace Opc.Ua
                 nodeSet.LastModifiedSpecified = true;
             }
 
-            nodeSet.NamespaceUris = (context.NamespaceUris != null) ? context.NamespaceUris.ToArray().Where(x => x != Namespaces.OpcUa).ToArray() : null;
-            nodeSet.ServerUris = (context.ServerUris != null) ? context.ServerUris.ToArray() : null;
+            nodeSet.NamespaceUris = (context.NamespaceUris?.ToArray()
+                .Where(x => x != Namespaces.OpcUa)
+                .ToArray());
+            nodeSet.ServerUris = (context.ServerUris?.ToArray());
 
-            if (nodeSet.NamespaceUris != null && nodeSet.NamespaceUris.Length == 0) nodeSet.NamespaceUris = null;
-            if (nodeSet.ServerUris != null && nodeSet.ServerUris.Length == 0) nodeSet.ServerUris = null;
+            if (nodeSet.NamespaceUris != null && nodeSet.NamespaceUris.Length == 0)
+            {
+                nodeSet.NamespaceUris = null;
+            }
+
+            if (nodeSet.ServerUris != null && nodeSet.ServerUris.Length == 0)
+            {
+                nodeSet.ServerUris = null;
+            }
 
             if (model != null)
             {
-                nodeSet.Models = new Export.ModelTableEntry[] { model };
+                nodeSet.Models = [model];
             }
 
-            for (int ii = 0; ii < s_AliasesToUse.Length; ii++)
+            for (int ii = 0; ii < s_aliasesToUse.Length; ii++)
             {
-                nodeSet.AddAlias(context, s_AliasesToUse[ii].Alias, s_AliasesToUse[ii].NodeId);
+                nodeSet.AddAlias(context, s_aliasesToUse[ii].Alias, s_aliasesToUse[ii].NodeId);
             }
 
-            for (int ii = 0; ii < this.Count; ii++)
+            for (int ii = 0; ii < Count; ii++)
             {
                 nodeSet.Export(context, this[ii], outputRedundantNames);
             }

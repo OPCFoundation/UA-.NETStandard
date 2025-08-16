@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -36,30 +36,33 @@ namespace Opc.Ua.PubSub.Transport
     /// </summary>
     public class MqttMetadataPublisher
     {
-        #region Private Fields
         private readonly IMqttPubSubConnection m_parentConnection;
         private readonly WriterGroupDataType m_writerGroup;
         private readonly DataSetWriterDataType m_dataSetWriter;
 
-        // the component that triggers the publish messages
+        /// <summary>
+        /// the component that triggers the publish messages
+        /// </summary>
         private readonly IntervalRunner m_intervalRunner;
-        #endregion
 
-        #region Constructor
         /// <summary>
         /// Create new instance of <see cref="MqttMetadataPublisher"/>.
         /// </summary>
-        internal MqttMetadataPublisher(IMqttPubSubConnection parentConnection, WriterGroupDataType writerGroup, DataSetWriterDataType dataSetWriter,
+        internal MqttMetadataPublisher(
+            IMqttPubSubConnection parentConnection,
+            WriterGroupDataType writerGroup,
+            DataSetWriterDataType dataSetWriter,
             double metaDataUpdateTime)
         {
             m_parentConnection = parentConnection;
             m_writerGroup = writerGroup;
             m_dataSetWriter = dataSetWriter;
-            m_intervalRunner = new IntervalRunner(dataSetWriter.DataSetWriterId, metaDataUpdateTime, CanPublish, PublishMessage);
+            m_intervalRunner = new IntervalRunner(
+                dataSetWriter.DataSetWriterId,
+                metaDataUpdateTime,
+                CanPublish,
+                PublishMessage);
         }
-        #endregion
-
-        #region Public Methods
 
         /// <summary>
         /// Starts the publisher and makes it ready to send data.
@@ -67,7 +70,8 @@ namespace Opc.Ua.PubSub.Transport
         public void Start()
         {
             m_intervalRunner.Start();
-            Utils.Trace("The MqttMetadataPublisher for DataSetWriterId '{0}' was started.",
+            Utils.Trace(
+                "The MqttMetadataPublisher for DataSetWriterId '{0}' was started.",
                 m_dataSetWriter.DataSetWriterId);
         }
 
@@ -78,17 +82,14 @@ namespace Opc.Ua.PubSub.Transport
         {
             m_intervalRunner.Stop();
 
-            Utils.Trace("The MqttMetadataPublisher for DataSetWriterId '{0}' was stopped.",
+            Utils.Trace(
+                "The MqttMetadataPublisher for DataSetWriterId '{0}' was stopped.",
                 m_dataSetWriter.DataSetWriterId);
         }
 
-        #endregion
-
-        #region Private Methods
         /// <summary>
         /// Decide if the DataSetWriter can publish metadata
         /// </summary>
-        /// <returns></returns>
         private bool CanPublish()
         {
             return m_parentConnection.CanPublishMetaData(m_writerGroup, m_dataSetWriter);
@@ -101,13 +102,17 @@ namespace Opc.Ua.PubSub.Transport
         {
             try
             {
-                UaNetworkMessage metaDataNetworkMessage = m_parentConnection.CreateDataSetMetaDataNetworkMessage(m_writerGroup, m_dataSetWriter);
+                UaNetworkMessage metaDataNetworkMessage = m_parentConnection
+                    .CreateDataSetMetaDataNetworkMessage(
+                        m_writerGroup,
+                        m_dataSetWriter);
                 if (metaDataNetworkMessage != null)
                 {
                     bool success = m_parentConnection.PublishNetworkMessage(metaDataNetworkMessage);
                     Utils.Trace(
                         "MqttMetadataPublisher Publish DataSetMetaData, DataSetWriterId:{0}; success = {1}",
-                        m_dataSetWriter.DataSetWriterId, success);
+                        m_dataSetWriter.DataSetWriterId,
+                        success);
                 }
             }
             catch (Exception e)
@@ -116,34 +121,26 @@ namespace Opc.Ua.PubSub.Transport
                 Utils.Trace(e, "MqttMetadataPublisher.PublishMessages");
             }
         }
-        #endregion
 
         /// <summary>
         /// Holds state of MetaData
         /// </summary>
         public class MetaDataState
         {
-            #region Constructor
-
             /// <summary>
             /// Create new instance of <see cref="MetaDataState"/>
             /// </summary>
-            /// <param name="dataSetWriter"></param>
             public MetaDataState(DataSetWriterDataType dataSetWriter)
             {
                 DataSetWriter = dataSetWriter;
                 LastSendTime = DateTime.MinValue;
 
-                BrokerDataSetWriterTransportDataType transport =
-                    ExtensionObject.ToEncodeable(DataSetWriter.TransportSettings)
-                        as BrokerDataSetWriterTransportDataType;
+                var transport =
+                    ExtensionObject.ToEncodeable(DataSetWriter.TransportSettings) as
+                    BrokerDataSetWriterTransportDataType;
 
                 MetaDataUpdateTime = transport?.MetaDataUpdateTime ?? 0;
             }
-
-            #endregion
-
-            #region Properties
 
             /// <summary>
             /// The DataSetWriter associated with this MetadataState object
@@ -165,15 +162,14 @@ namespace Opc.Ua.PubSub.Transport
             /// </summary>
             public double MetaDataUpdateTime { get; set; }
 
-            #endregion
-
             /// <summary>
             /// Get the next publish interval
             /// </summary>
-            /// <returns></returns>
             public double GetNextPublishInterval()
             {
-                return Math.Max(0, MetaDataUpdateTime - DateTime.UtcNow.Subtract(LastSendTime).TotalMilliseconds);
+                return Math.Max(
+                    0,
+                    MetaDataUpdateTime - DateTime.UtcNow.Subtract(LastSendTime).TotalMilliseconds);
             }
         }
     }

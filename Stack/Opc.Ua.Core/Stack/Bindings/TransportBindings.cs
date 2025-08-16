@@ -21,36 +21,37 @@ namespace Opc.Ua.Bindings
     {
         static TransportBindings()
         {
-            Channels = new TransportChannelBindings(new Type[] {
-                typeof(TcpTransportChannelFactory),
-                typeof(HttpsTransportChannelFactory),
-                typeof(OpcHttpsTransportChannelFactory) });
-            Listeners = new TransportListenerBindings(new Type[] {
-                typeof(TcpTransportListenerFactory) });
+            Channels = new TransportChannelBindings(
+                [
+                    typeof(TcpTransportChannelFactory),
+                    typeof(HttpsTransportChannelFactory),
+                    typeof(OpcHttpsTransportChannelFactory)
+                ]);
+            Listeners = new TransportListenerBindings([typeof(TcpTransportListenerFactory)]);
         }
 
         /// <summary>
         /// The bindings for transport channels (client).
         /// </summary>
-        public static TransportChannelBindings Channels { get; private set; }
+        public static TransportChannelBindings Channels { get; }
 
         /// <summary>
         /// The bindings for transport listeners (server).
         /// </summary>
-        public static TransportListenerBindings Listeners { get; private set; }
+        public static TransportListenerBindings Listeners { get; }
     }
 
     /// <summary>
     /// The bindings for the transport channels.
     /// </summary>
-    public class TransportChannelBindings :
-        TransportBindingsBase<ITransportChannelFactory>
+    public class TransportChannelBindings : TransportBindingsBase<ITransportChannelFactory>
     {
         /// <summary>
         /// Initialize the transport listener.
         /// </summary>
         /// <param name="defaultBindings">List of known default bindings.</param>
-        public TransportChannelBindings(Type[] defaultBindings) : base(defaultBindings)
+        public TransportChannelBindings(Type[] defaultBindings)
+            : base(defaultBindings)
         {
         }
 
@@ -60,7 +61,7 @@ namespace Opc.Ua.Bindings
         /// <param name="uriScheme">The uri scheme of the transport.</param>
         public ITransportChannel GetChannel(string uriScheme)
         {
-            var binding = GetBinding(uriScheme);
+            ITransportChannelFactory binding = GetBinding(uriScheme);
             return binding?.Create();
         }
     }
@@ -68,14 +69,14 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// The bindings for the transport listeners.
     /// </summary>
-    public class TransportListenerBindings :
-        TransportBindingsBase<ITransportListenerFactory>
+    public class TransportListenerBindings : TransportBindingsBase<ITransportListenerFactory>
     {
         /// <summary>
         /// Initialize the transport listener.
         /// </summary>
         /// <param name="defaultBindings">List of known default bindings.</param>
-        public TransportListenerBindings(Type[] defaultBindings) : base(defaultBindings)
+        public TransportListenerBindings(Type[] defaultBindings)
+            : base(defaultBindings)
         {
         }
 
@@ -85,7 +86,7 @@ namespace Opc.Ua.Bindings
         /// <param name="uriScheme">The uri scheme of the transport.</param>
         public ITransportListener GetListener(string uriScheme)
         {
-            var binding = GetBinding(uriScheme);
+            ITransportListenerFactory binding = GetBinding(uriScheme);
             return binding?.Create();
         }
     }

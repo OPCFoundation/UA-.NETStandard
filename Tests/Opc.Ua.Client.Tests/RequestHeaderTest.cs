@@ -29,8 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
@@ -38,28 +36,34 @@ using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
-    [TestFixture, Category("Client"), Category("SessionClient")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("Client")]
+    [Category("SessionClient")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
     [Parallelizable]
     public class RequestHeaderTest : ClientTestFramework
     {
-        #region Test Setup
         /// <summary>
         /// Setup a server and client fixture.
         /// </summary>
         [OneTimeSetUp]
-        public Task OneTimeSetUpAsync()
+        public override Task OneTimeSetUpAsync()
         {
-            return base.OneTimeSetUpAsync(writer: null, securityNone: false, enableClientSideTracing: false ,enableServerSideTracing: false);
+            return OneTimeSetUpAsync(
+                writer: null,
+                securityNone: false,
+                enableClientSideTracing: false,
+                enableServerSideTracing: false);
         }
 
         /// <summary>
         /// Tear down the Server and the Client.
         /// </summary>
         [OneTimeTearDown]
-        public new Task OneTimeTearDownAsync()
+        public override Task OneTimeTearDownAsync()
         {
             Utils.SilentDispose(ClientFixture);
             return base.OneTimeTearDownAsync();
@@ -69,32 +73,37 @@ namespace Opc.Ua.Client.Tests
         /// Test setup.
         /// </summary>
         [SetUp]
-        public new Task SetUp()
+        public override Task SetUpAsync()
         {
-            return base.SetUp();
+            return base.SetUpAsync();
         }
 
         /// <summary>
         /// Test teardown.
         /// </summary>
         [TearDown]
-        public new Task TearDown()
+        public override Task TearDownAsync()
         {
-            return base.TearDown();
+            return base.TearDownAsync();
         }
-        #endregion
 
-        #region Benchmark Setup
         /// <summary>
         /// Global Setup for benchmarks.
         /// </summary>
         [GlobalSetup]
-        public new void GlobalSetup()
+        public override void GlobalSetup()
         {
             Console.WriteLine("GlobalSetup: Start Server");
-            OneTimeSetUpAsync(Console.Out, enableServerSideTracing: false, enableClientSideTracing: false, disableActivityLogging: false).GetAwaiter().GetResult();
+            OneTimeSetUpAsync(
+                    Console.Out,
+                    enableClientSideTracing: false,
+                    enableServerSideTracing: false,
+                    disableActivityLogging: false)
+                .GetAwaiter()
+                .GetResult();
             Console.WriteLine("GlobalSetup: Connecting");
-            InitializeSession(ClientFixture.ConnectAsync(ServerUrl, SecurityPolicy).GetAwaiter().GetResult());
+            InitializeSession(
+                ClientFixture.ConnectAsync(ServerUrl, SecurityPolicy).GetAwaiter().GetResult());
             Console.WriteLine("GlobalSetup: Ready");
         }
 
@@ -102,25 +111,24 @@ namespace Opc.Ua.Client.Tests
         /// Global cleanup for benchmarks.
         /// </summary>
         [GlobalCleanup]
-        public new void GlobalCleanup()
+        public override void GlobalCleanup()
         {
             base.GlobalCleanup();
         }
-        #endregion
-
-        #region Test Methods
 
         [Test]
         [Benchmark]
         public void ReadValuesWithoutTracing()
         {
-            var namespaceUris = Session.NamespaceUris;
+            NamespaceTable namespaceUris = Session.NamespaceUris;
             var testSet = new NodeIdCollection(GetTestSetStatic(namespaceUris));
             testSet.AddRange(GetTestSetFullSimulation(namespaceUris));
-            Session.ReadValues(testSet, out DataValueCollection values, out IList<ServiceResult> errors);
+            Session.ReadValues(
+                testSet,
+                out DataValueCollection values,
+                out IList<ServiceResult> errors);
             Assert.AreEqual(testSet.Count, values.Count);
             Assert.AreEqual(testSet.Count, errors.Count);
         }
-        #endregion
     }
 }

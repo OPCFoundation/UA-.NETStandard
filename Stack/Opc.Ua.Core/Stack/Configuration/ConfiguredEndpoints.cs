@@ -12,10 +12,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -27,7 +25,6 @@ namespace Opc.Ua
     /// </summary>
     public partial class ConfiguredEndpointCollection : ICloneable
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with its default endpoint configuration.
         /// </summary>
@@ -35,7 +32,7 @@ namespace Opc.Ua
         {
             Initialize();
 
-            m_defaultConfiguration = (EndpointConfiguration)configuration.Clone();
+            DefaultConfiguration = (EndpointConfiguration)configuration.Clone();
         }
 
         /// <summary>
@@ -45,20 +42,20 @@ namespace Opc.Ua
         {
             Initialize();
 
-            m_defaultConfiguration = EndpointConfiguration.Create(configuration);
+            DefaultConfiguration = EndpointConfiguration.Create(configuration);
 
             if (configuration.ClientConfiguration != null)
             {
-                m_discoveryUrls = new StringCollection(configuration.ClientConfiguration.WellKnownDiscoveryUrls);
+                m_discoveryUrls = [.. configuration.ClientConfiguration.WellKnownDiscoveryUrls];
             }
         }
-        #endregion
 
-        #region Static Methods
         /// <summary>
         /// Loads a collection of endpoints from a file and overrides the endpoint configuration.
         /// </summary>
-        public static ConfiguredEndpointCollection Load(ApplicationConfiguration configuration, string filePath)
+        public static ConfiguredEndpointCollection Load(
+            ApplicationConfiguration configuration,
+            string filePath)
         {
             return Load(configuration, filePath, false);
         }
@@ -66,11 +63,14 @@ namespace Opc.Ua
         /// <summary>
         /// Loads a collection of endpoints from a file and overrides the endpoint configuration.
         /// </summary>
-        public static ConfiguredEndpointCollection Load(ApplicationConfiguration configuration, string filePath, bool overrideConfiguration)
+        public static ConfiguredEndpointCollection Load(
+            ApplicationConfiguration configuration,
+            string filePath,
+            bool overrideConfiguration)
         {
             ConfiguredEndpointCollection endpoints = Load(filePath);
 
-            endpoints.m_defaultConfiguration = EndpointConfiguration.Create(configuration);
+            endpoints.DefaultConfiguration = EndpointConfiguration.Create(configuration);
 
             // override the settings in the configuration.
             foreach (ConfiguredEndpoint endpoint in endpoints.Endpoints)
@@ -98,8 +98,8 @@ namespace Opc.Ua
             endpoints.m_filepath = filePath;
 
             // remove invalid endpoints and ensure server descriptions are consistent.
-            List<ConfiguredEndpoint> endpointsToRemove = new List<ConfiguredEndpoint>();
-            Dictionary<string, ApplicationDescription> servers = new Dictionary<string, ApplicationDescription>();
+            var endpointsToRemove = new List<ConfiguredEndpoint>();
+            var servers = new Dictionary<string, ApplicationDescription>();
 
             foreach (ConfiguredEndpoint endpoint in endpoints.m_endpoints)
             {
@@ -112,19 +112,21 @@ namespace Opc.Ua
                 // set a default value for the server.
                 if (endpoint.Description.Server == null)
                 {
-                    endpoint.Description.Server = new ApplicationDescription();
-                    endpoint.Description.Server.ApplicationType = ApplicationType.Server;
+                    endpoint.Description.Server = new ApplicationDescription
+                    {
+                        ApplicationType = ApplicationType.Server
+                    };
                 }
 
                 // set a default for application uri.
-                if (String.IsNullOrEmpty(endpoint.Description.Server.ApplicationUri))
+                if (string.IsNullOrEmpty(endpoint.Description.Server.ApplicationUri))
                 {
                     endpoint.Description.Server.ApplicationUri = endpoint.Description.EndpointUrl;
                 }
 
                 if (endpoint.Description.Server.DiscoveryUrls == null)
                 {
-                    endpoint.Description.Server.DiscoveryUrls = new StringCollection();
+                    endpoint.Description.Server.DiscoveryUrls = [];
                 }
 
                 if (endpoint.Description.Server.DiscoveryUrls.Count == 0)
@@ -142,12 +144,13 @@ namespace Opc.Ua
                 // normalize transport profile uri.
                 if (endpoint.Description.TransportProfileUri != null)
                 {
-                    endpoint.Description.TransportProfileUri = Profiles.NormalizeUri(endpoint.Description.TransportProfileUri);
+                    endpoint.Description.TransportProfileUri = Profiles.NormalizeUri(
+                        endpoint.Description.TransportProfileUri);
                 }
 
-                ApplicationDescription server = null;
-
-                if (!servers.TryGetValue(endpoint.Description.Server.ApplicationUri, out server))
+                if (!servers.TryGetValue(
+                    endpoint.Description.Server.ApplicationUri,
+                    out ApplicationDescription server))
                 {
                     // use the first description in the file as the correct master.
                     server = endpoint.Description.Server;
@@ -161,7 +164,6 @@ namespace Opc.Ua
                 }
 
                 endpoint.Description.Server = (ApplicationDescription)server.Clone();
-
             }
 
             // remove invalid endpoints.
@@ -181,8 +183,8 @@ namespace Opc.Ua
         {
             try
             {
-                DataContractSerializer serializer = new DataContractSerializer(typeof(ConfiguredEndpointCollection));
-                ConfiguredEndpointCollection endpoints = serializer.ReadObject(istrm) as ConfiguredEndpointCollection;
+                var serializer = new DataContractSerializer(typeof(ConfiguredEndpointCollection));
+                var endpoints = serializer.ReadObject(istrm) as ConfiguredEndpointCollection;
 
                 if (endpoints != null)
                 {
@@ -190,7 +192,8 @@ namespace Opc.Ua
                     {
                         if (endpoint.Description != null)
                         {
-                            endpoint.Description.TransportProfileUri = Profiles.NormalizeUri(endpoint.Description.TransportProfileUri);
+                            endpoint.Description.TransportProfileUri = Profiles.NormalizeUri(
+                                endpoint.Description.TransportProfileUri);
                         }
                     }
                 }
@@ -199,7 +202,9 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.LogError("Unexpected error loading ConfiguredEndpoints: {0}", Redaction.Redact.Create(e));
+                Utils.LogError(
+                    "Unexpected error loading ConfiguredEndpoints: {0}",
+                    Redaction.Redact.Create(e));
                 throw;
             }
         }
@@ -229,16 +234,14 @@ namespace Opc.Ua
         /// </summary>
         public void Save(Stream ostrm)
         {
-            DataContractSerializer serializer = new DataContractSerializer(typeof(ConfiguredEndpointCollection));
+            var serializer = new DataContractSerializer(typeof(ConfiguredEndpointCollection));
             serializer.WriteObject(ostrm, this);
         }
-        #endregion
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -246,24 +249,23 @@ namespace Opc.Ua
         /// </summary>
         public new object MemberwiseClone()
         {
-            ConfiguredEndpointCollection clone = new ConfiguredEndpointCollection();
-
-            clone.m_filepath = m_filepath;
-            clone.m_knownHosts = new StringCollection(m_knownHosts);
-            clone.m_defaultConfiguration = (EndpointConfiguration)m_defaultConfiguration.MemberwiseClone();
+            var clone = new ConfiguredEndpointCollection
+            {
+                m_filepath = m_filepath,
+                m_knownHosts = [.. m_knownHosts],
+                DefaultConfiguration = (EndpointConfiguration)DefaultConfiguration.MemberwiseClone()
+            };
 
             foreach (ConfiguredEndpoint endpoint in m_endpoints)
             {
-                ConfiguredEndpoint clonedEndpoint = (ConfiguredEndpoint)endpoint.MemberwiseClone();
+                var clonedEndpoint = (ConfiguredEndpoint)endpoint.MemberwiseClone();
                 clonedEndpoint.Collection = clone;
                 clone.m_endpoints.Add(clonedEndpoint);
             }
 
             return clone;
         }
-        #endregion
 
-        #region IList<ConfiguredEndpoint> Members
         /// <summary>
         /// Determines the index of a specific item in the <see cref="T:System.Collections.Generic.IList`1"/>.
         /// </summary>
@@ -275,7 +277,7 @@ namespace Opc.Ua
         {
             for (int ii = 0; ii < m_endpoints.Count; ii++)
             {
-                if (object.ReferenceEquals(item, m_endpoints[ii]))
+                if (ReferenceEquals(item, m_endpoints[ii]))
                 {
                     return ii;
                 }
@@ -289,9 +291,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="index">The zero-based index at which <paramref name="item"/> should be inserted.</param>
         /// <param name="item">The object to insert into the <see cref="System.Collections.IList"/>.</param>
-        /// <exception cref="System.ArgumentOutOfRangeException">
+        /// <exception cref="ArgumentOutOfRangeException">
         /// 	<paramref name="index"/> is not a valid index in the <see cref="System.Collections.IList"/>.</exception>
-        /// <exception cref="System.NotSupportedException">The <see cref="System.Collections.IList"/> is read-only.</exception>
+        /// <exception cref="NotSupportedException">The <see cref="System.Collections.IList"/> is read-only.</exception>
         public void Insert(int index, ConfiguredEndpoint item)
         {
             Insert(item, index);
@@ -301,41 +303,37 @@ namespace Opc.Ua
         /// Removes the <see cref="System.Collections.IList"/> item at the specified index.
         /// </summary>
         /// <param name="index">The zero-based index of the item to remove.</param>
-        /// <exception cref="System.ArgumentOutOfRangeException">
+        /// <exception cref="ArgumentOutOfRangeException">
         /// 	<paramref name="index"/> is not a valid index in the <see cref="System.Collections.IList"/>.</exception>
-        /// <exception cref="System.NotSupportedException">The <see cref="System.Collections.IList"/> is read-only.</exception>
+        /// <exception cref="NotSupportedException">The <see cref="System.Collections.IList"/> is read-only.</exception>
         public void RemoveAt(int index)
         {
-            if (index < 0 || index >= m_endpoints.Count) throw new ArgumentOutOfRangeException(nameof(index));
+            if (index < 0 || index >= m_endpoints.Count)
+            {
+                throw new ArgumentOutOfRangeException(nameof(index));
+            }
+
             Remove(m_endpoints[index]);
         }
 
         /// <summary>
-        /// Gets or sets the <see cref="Opc.Ua.ConfiguredEndpoint"/> at the specified index.
+        /// Gets or sets the <see cref="ConfiguredEndpoint"/> at the specified index.
         /// </summary>
-        /// <value>The <see cref="Opc.Ua.ConfiguredEndpoint"/> at the index</value>
+        /// <value>The <see cref="ConfiguredEndpoint"/> at the index</value>
+        /// <exception cref="NotImplementedException"></exception>
         public ConfiguredEndpoint this[int index]
         {
-            get
-            {
-                return m_endpoints[index];
-            }
-
-            set
-            {
-                throw new NotImplementedException();
-            }
+            get => m_endpoints[index];
+            set => throw new NotImplementedException();
         }
-        #endregion
 
-        #region ICollection<ConfiguredEndpoint> Members
         /// <summary>
         /// Removes all items from the <see cref="T:System.Collections.Generic.ICollection`1"/>.
         /// </summary>
         /// <exception cref="T:System.NotSupportedException">The <see cref="T:System.Collections.Generic.ICollection`1"/> is read-only. </exception>
         public void Clear()
         {
-            this.m_endpoints.Clear();
+            m_endpoints.Clear();
         }
 
         /// <summary>
@@ -349,7 +347,7 @@ namespace Opc.Ua
         {
             for (int ii = 0; ii < m_endpoints.Count; ii++)
             {
-                if (object.ReferenceEquals(item, m_endpoints[ii]))
+                if (ReferenceEquals(item, m_endpoints[ii]))
                 {
                     return true;
                 }
@@ -383,12 +381,9 @@ namespace Opc.Ua
         /// <summary>
         /// Gets a value indicating whether the <see cref="T:System.Collections.Generic.ICollection`1"/> is read-only.
         /// </summary>
-        /// <value></value>
         /// <returns>true if the <see cref="T:System.Collections.Generic.ICollection`1"/> is read-only; otherwise, false.</returns>
         public bool IsReadOnly => false;
-        #endregion
 
-        #region IEnumerable<ConfiguredEndpoint> Members
         /// <summary>
         /// Returns an enumerator that iterates through the collection.
         /// </summary>
@@ -399,9 +394,7 @@ namespace Opc.Ua
         {
             return m_endpoints.GetEnumerator();
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Add the endpoint description to the cache.
         /// </summary>
@@ -413,19 +406,22 @@ namespace Opc.Ua
         /// <summary>
         /// Add the endpoint description and configuration to the cache.
         /// </summary>
-        public ConfiguredEndpoint Add(EndpointDescription endpoint, EndpointConfiguration configuration)
+        /// <exception cref="ArgumentException"></exception>
+        public ConfiguredEndpoint Add(
+            EndpointDescription endpoint,
+            EndpointConfiguration configuration)
         {
             ValidateEndpoint(endpoint);
 
             foreach (ConfiguredEndpoint item in m_endpoints)
             {
-                if (Object.ReferenceEquals(item.Description, endpoint))
+                if (ReferenceEquals(item.Description, endpoint))
                 {
                     throw new ArgumentException("Endpoint already exists in the collection.");
                 }
             }
 
-            ConfiguredEndpoint configuredEndpoint = new ConfiguredEndpoint(this, endpoint, configuration);
+            var configuredEndpoint = new ConfiguredEndpoint(this, endpoint, configuration);
             m_endpoints.Add(configuredEndpoint);
             return configuredEndpoint;
         }
@@ -441,21 +437,23 @@ namespace Opc.Ua
         /// <summary>
         /// Adds a previous created endpoint to the collection.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         private void Insert(ConfiguredEndpoint endpoint, int index)
         {
-            if (endpoint == null) throw new ArgumentNullException(nameof(endpoint));
+            if (endpoint == null)
+            {
+                throw new ArgumentNullException(nameof(endpoint));
+            }
 
             ValidateEndpoint(endpoint.Description);
 
             // update collection.
-            if (endpoint.Collection != null)
-            {
-                endpoint.Collection.Remove(endpoint);
-            }
+            endpoint.Collection?.Remove(endpoint);
 
             endpoint.Collection = this;
 
-            if (!Object.ReferenceEquals(endpoint.Collection, this))
+            if (!ReferenceEquals(endpoint.Collection, this))
             {
                 throw new ArgumentException("Cannot add an endpoint from another collection.");
             }
@@ -478,18 +476,27 @@ namespace Opc.Ua
         /// <summary>
         /// Removes the configured endpoint.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="item"/> is <c>null</c>.</exception>
         public bool Remove(ConfiguredEndpoint item)
         {
-            if (item == null) throw new ArgumentNullException(nameof(item));
+            if (item == null)
+            {
+                throw new ArgumentNullException(nameof(item));
+            }
+
             return m_endpoints.Remove(item);
         }
 
         /// <summary>
         /// Removes all endpoints for the specified server.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="serverUri"/> is <c>null</c>.</exception>
         public void RemoveServer(string serverUri)
         {
-            if (serverUri == null) throw new ArgumentNullException(nameof(serverUri));
+            if (serverUri == null)
+            {
+                throw new ArgumentNullException(nameof(serverUri));
+            }
 
             foreach (ConfiguredEndpoint endpointToRemove in GetEndpoints(serverUri))
             {
@@ -500,18 +507,25 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the server descrption for the endpoints.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="server"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         public void SetApplicationDescription(string serverUri, ApplicationDescription server)
         {
-            if (server == null) throw new ArgumentNullException(nameof(server));
+            if (server == null)
+            {
+                throw new ArgumentNullException(nameof(server));
+            }
 
-            if (String.IsNullOrEmpty(server.ApplicationUri))
+            if (string.IsNullOrEmpty(server.ApplicationUri))
             {
                 throw new ArgumentException("A ServerUri must provided.", nameof(server));
             }
 
             if (server.DiscoveryUrls.Count == 0)
             {
-                throw new ArgumentException("At least one DiscoveryUrl must be provided.", nameof(server));
+                throw new ArgumentException(
+                    "At least one DiscoveryUrl must be provided.",
+                    nameof(server));
             }
 
             List<ConfiguredEndpoint> endpoints = GetEndpoints(server.ApplicationUri);
@@ -523,7 +537,7 @@ namespace Opc.Ua
 
                 for (int ii = 0; ii < server.DiscoveryUrls.Count; ii++)
                 {
-                    if (!String.IsNullOrEmpty(server.DiscoveryUrls[ii]))
+                    if (!string.IsNullOrEmpty(server.DiscoveryUrls[ii]))
                     {
                         endpointUrl = server.DiscoveryUrls[ii];
                         break;
@@ -532,9 +546,11 @@ namespace Opc.Ua
 
                 if (endpointUrl != null &&
                     Utils.IsUriHttpRelatedScheme(endpointUrl) &&
-                    endpointUrl.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))
+                    endpointUrl.EndsWith(
+                        ConfiguredEndpoint.DiscoverySuffix,
+                        StringComparison.OrdinalIgnoreCase))
                 {
-                    endpointUrl = endpointUrl.Substring(0, endpointUrl.Length - ConfiguredEndpoint.DiscoverySuffix.Length);
+                    endpointUrl = endpointUrl[..^ConfiguredEndpoint.DiscoverySuffix.Length];
                 }
 
                 if (endpointUrl != null)
@@ -544,13 +560,13 @@ namespace Opc.Ua
                     Add(endpoint);
                 }
             }
-
             // update all endpoints with the same server uri.
             else
             {
                 foreach (ConfiguredEndpoint endpointToUpdate in GetEndpoints(serverUri))
                 {
-                    endpointToUpdate.Description.Server = (ApplicationDescription)server.MemberwiseClone();
+                    endpointToUpdate.Description.Server = (ApplicationDescription)server
+                        .MemberwiseClone();
                 }
             }
         }
@@ -570,26 +586,31 @@ namespace Opc.Ua
 
             if (index != -1)
             {
-                parameters = url.Substring(index + 3);
-                url = url.Substring(0, index).Trim();
+                parameters = url[(index + 3)..];
+                url = url[..index].Trim();
             }
 
             MessageSecurityMode securityMode = MessageSecurityMode.SignAndEncrypt;
             string securityPolicyUri = SecurityPolicies.Basic256Sha256;
             bool useBinaryEncoding = true;
 
-            if (!String.IsNullOrEmpty(parameters))
+            if (!string.IsNullOrEmpty(parameters))
             {
-                string[] fields = parameters.Split(new char[] { '-', '[', ':', ']' }, StringSplitOptions.RemoveEmptyEntries);
+                string[] fields = parameters.Split(
+                    s_separator,
+                    StringSplitOptions.RemoveEmptyEntries);
 
                 try
                 {
                     if (fields.Length > 0)
                     {
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
                         securityMode = Enum.Parse<MessageSecurityMode>(fields[0], false);
 #else
-                        securityMode = (MessageSecurityMode)Enum.Parse(typeof(MessageSecurityMode), fields[0], false);
+                        securityMode = (MessageSecurityMode)Enum.Parse(
+                            typeof(MessageSecurityMode),
+                            fields[0],
+                            false);
 #endif
                     }
                     else
@@ -635,13 +656,14 @@ namespace Opc.Ua
                 }
             }
 
-            Uri uri = new Uri(url);
+            var uri = new Uri(url);
 
-            EndpointDescription description = new EndpointDescription();
-
-            description.EndpointUrl = uri.ToString();
-            description.SecurityMode = securityMode;
-            description.SecurityPolicyUri = securityPolicyUri;
+            var description = new EndpointDescription
+            {
+                EndpointUrl = uri.ToString(),
+                SecurityMode = securityMode,
+                SecurityPolicyUri = securityPolicyUri
+            };
             description.Server.ApplicationUri = Utils.UpdateInstanceUri(uri.ToString());
             description.Server.ApplicationName = uri.AbsolutePath;
 
@@ -655,13 +677,14 @@ namespace Opc.Ua
                 description.TransportProfileUri = Profiles.HttpsBinaryTransport;
                 description.Server.DiscoveryUrls.Add(description.EndpointUrl);
             }
-            else if (description.EndpointUrl.StartsWith(Utils.UriSchemeOpcWss, StringComparison.Ordinal))
+            else if (description.EndpointUrl
+                .StartsWith(Utils.UriSchemeOpcWss, StringComparison.Ordinal))
             {
                 description.TransportProfileUri = Profiles.UaTcpTransport;
                 description.Server.DiscoveryUrls.Add(description.EndpointUrl);
             }
 
-            ConfiguredEndpoint endpoint = new ConfiguredEndpoint(this, description, null);
+            var endpoint = new ConfiguredEndpoint(this, description, null);
             endpoint.Configuration.UseBinaryEncoding = useBinaryEncoding;
             endpoint.UpdateBeforeConnect = true;
             return endpoint;
@@ -672,7 +695,7 @@ namespace Opc.Ua
         /// </summary>
         public List<ConfiguredEndpoint> GetEndpoints(string serverUri)
         {
-            List<ConfiguredEndpoint> endpoints = new List<ConfiguredEndpoint>();
+            var endpoints = new List<ConfiguredEndpoint>();
 
             foreach (ConfiguredEndpoint endpoint in m_endpoints)
             {
@@ -690,63 +713,45 @@ namespace Opc.Ua
         /// </summary>
         public ApplicationDescriptionCollection GetServers()
         {
-            Dictionary<string, ApplicationDescription> servers = new Dictionary<string, ApplicationDescription>();
+            var servers = new Dictionary<string, ApplicationDescription>();
 
             foreach (ConfiguredEndpoint endpoint in m_endpoints)
             {
                 ApplicationDescription server = endpoint.Description.Server;
 
-                if (!String.IsNullOrEmpty(server.ApplicationUri))
+                if (!string.IsNullOrEmpty(server.ApplicationUri))
                 {
 #if NET6_0_OR_GREATER
                     servers.TryAdd(server.ApplicationUri, server);
 #else
-                    if (!servers.ContainsKey(server.ApplicationUri))
-                    {
-                        servers.Add(server.ApplicationUri, server);
-                    }
+                    servers.TryAdd(server.ApplicationUri, server);
 #endif
                 }
             }
 
-            return new ApplicationDescriptionCollection(servers.Values);
+            return [.. servers.Values];
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// A list of well known urls that can be used for discovery.
         /// </summary>
         public StringCollection DiscoveryUrls
         {
-            get
-            {
-                return m_discoveryUrls;
-            }
-
-            set
-            {
-                if (value == null)
-                {
-                    m_discoveryUrls = new StringCollection(Utils.DiscoveryUrls);
-                }
-                else
-                {
-                    m_discoveryUrls = value;
-                }
-            }
+            get => m_discoveryUrls;
+            set => m_discoveryUrls = value ?? [.. Utils.DiscoveryUrls];
         }
 
         /// <summary>
         /// The default configuration for new ConfiguredEndpoints.
         /// </summary>
-        public EndpointConfiguration DefaultConfiguration => m_defaultConfiguration;
-        #endregion
+        public EndpointConfiguration DefaultConfiguration { get; private set; }
 
-        #region Private Methods
+        private static readonly char[] s_separator = ['-', '[', ':', ']'];
+
         /// <summary>
         /// Throws exceptions if the endpoint is not valid.
         /// </summary>
+        /// <exception cref="ArgumentException"><paramref name="endpoint"/></exception>
         private static void ValidateEndpoint(EndpointDescription endpoint)
         {
             if (endpoint == null)
@@ -754,26 +759,23 @@ namespace Opc.Ua
                 throw new ArgumentException("Endpoint must not be null.");
             }
 
-            if (String.IsNullOrEmpty(endpoint.EndpointUrl))
+            if (string.IsNullOrEmpty(endpoint.EndpointUrl))
             {
                 throw new ArgumentException("Endpoint must have a valid URL.");
             }
 
-            if (endpoint.Server == null)
+            endpoint.Server ??= new ApplicationDescription
             {
-                endpoint.Server = new ApplicationDescription();
-                endpoint.Server.ApplicationType = ApplicationType.Server;
-            }
+                ApplicationType = ApplicationType.Server
+            };
 
-            if (String.IsNullOrEmpty(endpoint.Server.ApplicationUri))
+            if (string.IsNullOrEmpty(endpoint.Server.ApplicationUri))
             {
                 endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
             }
         }
-        #endregion
     }
 
-    #region ConfiguredEndpoint Class
     /// <summary>
     /// Stores the configuration information for an endpoint.
     /// </summary>
@@ -784,7 +786,6 @@ namespace Opc.Ua
         /// </summary>
         public static readonly string DiscoverySuffix = "/discovery";
 
-        #region Constructors
         /// <summary>
         /// Creates a configured endpoint from the server description.
         /// </summary>
@@ -792,24 +793,20 @@ namespace Opc.Ua
             ApplicationDescription server,
             EndpointConfiguration configuration)
         {
-            if (server == null) throw new ArgumentNullException(nameof(server));
-
             m_description = new EndpointDescription();
-            m_updateBeforeConnect = true;
+            UpdateBeforeConnect = true;
 
-            m_description.Server = server;
+            m_description.Server = server ?? throw new ArgumentNullException(nameof(server));
 
             foreach (string discoveryUrl in server.DiscoveryUrls)
             {
                 string baseUrl = discoveryUrl;
 
-                if (baseUrl != null)
+                if (baseUrl != null &&
+                    Utils.IsUriHttpRelatedScheme(baseUrl) &&
+                    baseUrl.EndsWith(DiscoverySuffix, StringComparison.Ordinal))
                 {
-                    if (Utils.IsUriHttpRelatedScheme(baseUrl) &&
-                        baseUrl.EndsWith(DiscoverySuffix, StringComparison.Ordinal))
-                    {
-                        baseUrl = baseUrl.Substring(0, baseUrl.Length - DiscoverySuffix.Length);
-                    }
+                    baseUrl = baseUrl[..^DiscoverySuffix.Length];
                 }
 
                 Uri url = Utils.ParseUri(baseUrl);
@@ -819,7 +816,8 @@ namespace Opc.Ua
                     m_description.EndpointUrl = url.ToString();
                     m_description.SecurityMode = MessageSecurityMode.SignAndEncrypt;
                     m_description.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
-                    m_description.UserIdentityTokens.Add(new UserTokenPolicy(UserTokenType.Anonymous));
+                    m_description.UserIdentityTokens
+                        .Add(new UserTokenPolicy(UserTokenType.Anonymous));
 
                     if (url.Scheme == Utils.UriSchemeOpcTcp)
                     {
@@ -839,10 +837,7 @@ namespace Opc.Ua
             }
 
             // ensure a default configuration.
-            if (configuration == null)
-            {
-                configuration = EndpointConfiguration.Create();
-            }
+            configuration ??= EndpointConfiguration.Create();
 
             Update(configuration);
         }
@@ -853,8 +848,7 @@ namespace Opc.Ua
         public ConfiguredEndpoint(
             ConfiguredEndpointCollection collection,
             EndpointDescription description)
-        :
-            this(collection, description, null)
+            : this(collection, description, null)
         {
         }
 
@@ -866,11 +860,9 @@ namespace Opc.Ua
             EndpointDescription description,
             EndpointConfiguration configuration)
         {
-            if (description == null) throw new ArgumentNullException(nameof(description));
-
             m_collection = collection;
-            m_description = description;
-            m_updateBeforeConnect = true;
+            m_description = description ?? throw new ArgumentNullException(nameof(description));
+            UpdateBeforeConnect = true;
 
             // ensure a default configuration.
             if (configuration == null)
@@ -887,13 +879,11 @@ namespace Opc.Ua
 
             Update(configuration);
         }
-        #endregion
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -901,14 +891,11 @@ namespace Opc.Ua
         /// </summary>
         public new object MemberwiseClone()
         {
-            ConfiguredEndpoint clone = new ConfiguredEndpoint();
-            clone.Collection = this.Collection;
+            var clone = new ConfiguredEndpoint { Collection = Collection };
             clone.Update(this);
             return clone;
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
@@ -916,9 +903,7 @@ namespace Opc.Ua
         {
             return ToString(null, null);
         }
-        #endregion
 
-        #region IFormattable Members
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
@@ -934,23 +919,25 @@ namespace Opc.Ua
                     m_description.EndpointUrl,
                     m_description.SecurityMode,
                     SecurityPolicies.GetDisplayName(m_description.SecurityPolicyUri),
-                    (m_configuration != null && m_configuration.UseBinaryEncoding) ? "Binary" : "XML");
+                    m_configuration != null && m_configuration.UseBinaryEncoding
+                        ? "Binary"
+                        : "XML");
             }
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Determine if an update of the endpoint from the server is needed.
         /// </summary>
         public bool NeedUpdateFromServer()
         {
-            bool hasCertificate = (Description.ServerCertificate != null && Description.ServerCertificate.Length > 0);
+            bool hasCertificate = Description.ServerCertificate != null &&
+                Description.ServerCertificate.Length > 0;
             bool usingUserTokenSecurity =
                 (SelectedUserTokenPolicy.TokenType != UserTokenType.Anonymous) &&
-                (SelectedUserTokenPolicy.SecurityPolicyUri ?? SecurityPolicies.None) != SecurityPolicies.None;
+                (SelectedUserTokenPolicy.SecurityPolicyUri ??
+                    SecurityPolicies.None) != SecurityPolicies.None;
             bool usingTransportSecurity = Description.SecurityPolicyUri != SecurityPolicies.None;
             return (usingUserTokenSecurity || usingTransportSecurity) && !hasCertificate;
         }
@@ -958,9 +945,13 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the endpoint description.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <c>null</c>.</exception>
         public void Update(ConfiguredEndpoint endpoint)
         {
-            if (endpoint == null) throw new ArgumentNullException(nameof(endpoint));
+            if (endpoint == null)
+            {
+                throw new ArgumentNullException(nameof(endpoint));
+            }
 
             m_description = (EndpointDescription)endpoint.Description.MemberwiseClone();
             m_configuration = (EndpointConfiguration)endpoint.Configuration.MemberwiseClone();
@@ -968,50 +959,60 @@ namespace Opc.Ua
             // normalize transport profile uri.
             if (m_description.TransportProfileUri != null)
             {
-                m_description.TransportProfileUri = Profiles.NormalizeUri(m_description.TransportProfileUri);
+                m_description.TransportProfileUri = Profiles.NormalizeUri(
+                    m_description.TransportProfileUri);
             }
 
-            m_updateBeforeConnect = endpoint.m_updateBeforeConnect;
-            m_selectedUserTokenPolicyIndex = endpoint.m_selectedUserTokenPolicyIndex;
-            m_binaryEncodingSupport = endpoint.m_binaryEncodingSupport;
+            UpdateBeforeConnect = endpoint.UpdateBeforeConnect;
+            SelectedUserTokenPolicyIndex = endpoint.SelectedUserTokenPolicyIndex;
+            BinaryEncodingSupport = endpoint.BinaryEncodingSupport;
 
-            if (endpoint.m_userIdentity != null)
+            if (endpoint.UserIdentity != null)
             {
-                m_userIdentity = (UserIdentityToken)endpoint.m_userIdentity.MemberwiseClone();
+                UserIdentity = (UserIdentityToken)endpoint.UserIdentity.MemberwiseClone();
             }
         }
 
         /// <summary>
         /// Updates the endpoint description.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="description"/> is <c>null</c>.</exception>
         public void Update(EndpointDescription description)
         {
-            if (description == null) throw new ArgumentNullException(nameof(description));
+            if (description == null)
+            {
+                throw new ArgumentNullException(nameof(description));
+            }
 
             m_description = (EndpointDescription)description.MemberwiseClone();
 
             // normalize transport profile uri.
             if (m_description.TransportProfileUri != null)
             {
-                m_description.TransportProfileUri = Profiles.NormalizeUri(m_description.TransportProfileUri);
+                m_description.TransportProfileUri = Profiles.NormalizeUri(
+                    m_description.TransportProfileUri);
             }
 
             // set the proxy url.
-            if (m_collection != null && m_description.EndpointUrl != null)
+            if (m_collection != null &&
+                m_description.EndpointUrl != null &&
+                m_description.EndpointUrl
+                    .StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
             {
-                if (m_description.EndpointUrl.StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
-                {
-                    m_description.ProxyUrl = m_collection.TcpProxyUrl;
-                }
+                m_description.ProxyUrl = m_collection.TcpProxyUrl;
             }
         }
 
         /// <summary>
         /// Updates the endpoint configuration.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
         public void Update(EndpointConfiguration configuration)
         {
-            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
+            if (configuration == null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
 
             m_configuration = (EndpointConfiguration)configuration.MemberwiseClone();
 
@@ -1020,7 +1021,7 @@ namespace Opc.Ua
             // check if the configuration restricts the encoding if the endpoint supports both.
             if (binaryEncodingSupport == BinaryEncodingSupport.Optional)
             {
-                binaryEncodingSupport = m_binaryEncodingSupport;
+                binaryEncodingSupport = BinaryEncodingSupport;
             }
 
             if (binaryEncodingSupport == BinaryEncodingSupport.None)
@@ -1039,7 +1040,10 @@ namespace Opc.Ua
         /// </summary>
         public void UpdateFromServer()
         {
-            UpdateFromServer(EndpointUrl, m_description.SecurityMode, m_description.SecurityPolicyUri);
+            UpdateFromServer(
+                EndpointUrl,
+                m_description.SecurityMode,
+                m_description.SecurityPolicyUri);
         }
 
         /// <summary>
@@ -1082,17 +1086,16 @@ namespace Opc.Ua
                 EndpointDescriptionCollection collection = client.GetEndpoints(null);
 
                 // find list of matching endpoints.
-                var matches = MatchEndpoints(
+                EndpointDescriptionCollection matches = MatchEndpoints(
                     collection,
                     endpointUrl,
                     securityMode,
-                    securityPolicyUri
-                    );
+                    securityPolicyUri);
 
                 // select best match
-                var match = SelectBestMatch(matches, discoveryUrl);
+                EndpointDescription match = SelectBestMatch(matches, discoveryUrl);
 
-                // update the endpoint.                        
+                // update the endpoint.
                 Update(match);
             }
             finally
@@ -1107,7 +1110,11 @@ namespace Opc.Ua
         /// </summary>
         public Task UpdateFromServerAsync(CancellationToken ct = default)
         {
-            return UpdateFromServerAsync(EndpointUrl, m_description.SecurityMode, m_description.SecurityPolicyUri, ct);
+            return UpdateFromServerAsync(
+                EndpointUrl,
+                m_description.SecurityMode,
+                m_description.SecurityPolicyUri,
+                ct);
         }
 
         /// <summary>
@@ -1149,20 +1156,21 @@ namespace Opc.Ua
             try
             {
                 // get the endpoints.
-                EndpointDescriptionCollection collection = await client.GetEndpointsAsync(null, ct).ConfigureAwait(false);
+                EndpointDescriptionCollection collection = await client
+                    .GetEndpointsAsync(null, ct)
+                    .ConfigureAwait(false);
 
                 // find list of matching endpoints.
-                var matches = MatchEndpoints(
+                EndpointDescriptionCollection matches = MatchEndpoints(
                     collection,
                     endpointUrl,
                     securityMode,
-                    securityPolicyUri
-                    );
+                    securityPolicyUri);
 
                 // select best match
-                var match = SelectBestMatch(matches, discoveryUrl);
+                EndpointDescription match = SelectBestMatch(matches, discoveryUrl);
 
-                // update the endpoint.                        
+                // update the endpoint.
                 Update(match);
             }
             finally
@@ -1202,10 +1210,8 @@ namespace Opc.Ua
                 {
                     return new Uri(Utils.Format("{0}{1}", endpointUrl, DiscoverySuffix));
                 }
-                else
-                {
-                    return endpointUrl;
-                }
+
+                return endpointUrl;
             }
 
             // choose the URL that uses the same protocol if one exists.
@@ -1242,24 +1248,15 @@ namespace Opc.Ua
         {
             Utils.UpdateExtension<T>(ref m_extensions, elementName, value);
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
-        /// The collection that the endpoint belongs to. 
+        /// The collection that the endpoint belongs to.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public ConfiguredEndpointCollection Collection
         {
-            get
-            {
-                return m_collection;
-            }
-
-            internal set
-            {
-                if (value == null) throw new ArgumentNullException(nameof(value));
-                m_collection = value;
-            }
+            get => m_collection;
+            internal set => m_collection = value ?? throw new ArgumentNullException(nameof(value));
         }
 
         /// <summary>
@@ -1269,14 +1266,13 @@ namespace Opc.Ua
         {
             get
             {
-                if (String.IsNullOrEmpty(m_description.EndpointUrl))
+                if (string.IsNullOrEmpty(m_description.EndpointUrl))
                 {
                     return null;
                 }
 
                 return Utils.ParseUri(m_description.EndpointUrl);
             }
-
             set
             {
                 if (value == null)
@@ -1299,15 +1295,15 @@ namespace Opc.Ua
                 {
                     UserTokenPolicyCollection policies = m_description.UserIdentityTokens;
 
-                    if (m_selectedUserTokenPolicyIndex >= 0 && policies.Count > m_selectedUserTokenPolicyIndex)
+                    if (SelectedUserTokenPolicyIndex >= 0 &&
+                        policies.Count > SelectedUserTokenPolicyIndex)
                     {
-                        return policies[m_selectedUserTokenPolicyIndex];
+                        return policies[SelectedUserTokenPolicyIndex];
                     }
                 }
 
                 return null;
             }
-
             set
             {
                 if (m_description != null && m_description.UserIdentityTokens != null)
@@ -1316,21 +1312,19 @@ namespace Opc.Ua
 
                     for (int ii = 0; ii < policies.Count; ii++)
                     {
-                        if (Object.ReferenceEquals(policies[ii], value))
+                        if (ReferenceEquals(policies[ii], value))
                         {
-                            m_selectedUserTokenPolicyIndex = ii;
+                            SelectedUserTokenPolicyIndex = ii;
                             break;
                         }
                     }
                 }
 
-                m_selectedUserTokenPolicyIndex = -1;
+                SelectedUserTokenPolicyIndex = -1;
             }
         }
-        #endregion
 
-        #region Private Methods
-        private EndpointDescriptionCollection MatchEndpoints(
+        private static EndpointDescriptionCollection MatchEndpoints(
             EndpointDescriptionCollection collection,
             Uri endpointUrl,
             MessageSecurityMode securityMode,
@@ -1344,27 +1338,23 @@ namespace Opc.Ua
             }
 
             // find list of matching endpoints.
-            EndpointDescriptionCollection matches = new EndpointDescriptionCollection();
+            var matches = new EndpointDescriptionCollection();
 
             // first pass - match on the requested security parameters.
             foreach (EndpointDescription description in collection)
             {
                 // check for match on security policy.
-                if (!String.IsNullOrEmpty(securityPolicyUri))
+                if (!string.IsNullOrEmpty(securityPolicyUri) &&
+                    securityPolicyUri != description.SecurityPolicyUri)
                 {
-                    if (securityPolicyUri != description.SecurityPolicyUri)
-                    {
-                        continue;
-                    }
+                    continue;
                 }
 
                 // check for match on security mode.
-                if (securityMode != MessageSecurityMode.Invalid)
+                if (securityMode != MessageSecurityMode.Invalid &&
+                    securityMode != description.SecurityMode)
                 {
-                    if (securityMode != description.SecurityMode)
-                    {
-                        continue;
-                    }
+                    continue;
                 }
 
                 // add to list of matches.
@@ -1378,12 +1368,12 @@ namespace Opc.Ua
             }
 
             // check if list has to be narrowed down further.
-            // first narrows down on scheme, then again on ports 
+            // first narrows down on scheme, then again on ports
             bool checkWithPorts = false;
             while (matches.Count > 1)
             {
                 collection = matches;
-                matches = new EndpointDescriptionCollection();
+                matches = [];
 
                 // second pass - match on the url scheme.
                 foreach (EndpointDescription description in collection)
@@ -1431,10 +1421,9 @@ namespace Opc.Ua
         /// <summary>
         /// Select the best match from a security description.
         /// </summary>
-        private EndpointDescription SelectBestMatch(
+        private static EndpointDescription SelectBestMatch(
             EndpointDescriptionCollection matches,
-            Uri discoveryUrl
-            )
+            Uri discoveryUrl)
         {
             // choose first in list by default.
             EndpointDescription match = matches[0];
@@ -1456,11 +1445,17 @@ namespace Opc.Ua
             if (discoveryUrl != null)
             {
                 Uri matchUrl = Utils.ParseUri(match.EndpointUrl);
-                if (matchUrl == null || !String.Equals(discoveryUrl.DnsSafeHost, matchUrl.DnsSafeHost, StringComparison.OrdinalIgnoreCase))
+                if (matchUrl == null ||
+                    !string.Equals(
+                        discoveryUrl.DnsSafeHost,
+                        matchUrl.DnsSafeHost,
+                        StringComparison.OrdinalIgnoreCase))
                 {
-                    UriBuilder uri = new UriBuilder(matchUrl);
-                    uri.Host = discoveryUrl.DnsSafeHost;
-                    uri.Port = discoveryUrl.Port;
+                    var uri = new UriBuilder(matchUrl)
+                    {
+                        Host = discoveryUrl.DnsSafeHost,
+                        Port = discoveryUrl.Port
+                    };
                     match.EndpointUrl = uri.ToString();
 
                     // need to update the discovery urls.
@@ -1471,7 +1466,5 @@ namespace Opc.Ua
 
             return match;
         }
-        #endregion
     }
-    #endregion
 }

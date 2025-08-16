@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2023 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -34,7 +34,6 @@ namespace TestData
 {
     public partial class VectorVariableState : ITestDataSystemValuesGenerator
     {
-        #region Initialization
         /// <summary>
         /// Initializes the object as a collection of counters which change value on read.
         /// </summary>
@@ -46,39 +45,38 @@ namespace TestData
             InitializeVariable(context, Y);
             InitializeVariable(context, Z);
         }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Initializes the variable.
         /// </summary>
         protected void InitializeVariable(ISystemContext context, BaseVariableState variable)
         {
             // set a valid initial value.
-            TestDataSystem system = context.SystemHandle as TestDataSystem;
+            _ = context.SystemHandle as TestDataSystem;
 
             // copy access level to childs
             variable.AccessLevel = AccessLevel;
             variable.UserAccessLevel = UserAccessLevel;
         }
-        #endregion
 
-        #region Public Methods
         public virtual StatusCode OnGenerateValues(ISystemContext context)
         {
-            TestDataSystem system = context.SystemHandle as TestDataSystem;
-
-            if (system == null)
+            if (context.SystemHandle is not TestDataSystem system)
             {
                 return StatusCodes.BadOutOfService;
             }
 
-            var accessLevel = AccessLevel;
-            var userAccessLevel = UserAccessLevel;
+            byte accessLevel = AccessLevel;
+            byte userAccessLevel = UserAccessLevel;
             AccessLevel = UserAccessLevel = AccessLevels.CurrentReadOrWrite;
 
             // generate structure values here
-            ServiceResult result = WriteValueAttribute(context, NumericRange.Empty, system.ReadValue(this), StatusCodes.Good, DateTime.UtcNow);
+            ServiceResult result = WriteValueAttribute(
+                context,
+                NumericRange.Empty,
+                system.ReadValue(this),
+                StatusCodes.Good,
+                DateTime.UtcNow);
 
             AccessLevel = accessLevel;
             UserAccessLevel = userAccessLevel;
@@ -87,6 +85,5 @@ namespace TestData
 
             return result.StatusCode;
         }
-        #endregion
     }
 }

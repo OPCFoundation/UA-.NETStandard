@@ -10,8 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-
 namespace Opc.Ua.Bindings
 {
     /// <summary>
@@ -94,7 +92,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public static bool IsType(uint actualType, uint expectedType)
         {
-            return ((actualType & MessageTypeMask) == expectedType);
+            return (actualType & MessageTypeMask) == expectedType;
         }
 
         /// <summary>
@@ -102,7 +100,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public static bool IsFinal(uint messageType)
         {
-            return ((messageType & ChunkTypeMask) == Final);
+            return (messageType & ChunkTypeMask) == Final;
         }
 
         /// <summary>
@@ -110,7 +108,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public static bool IsAbort(uint messageType)
         {
-            return ((messageType & ChunkTypeMask) == Abort);
+            return (messageType & ChunkTypeMask) == Abort;
         }
 
         /// <summary>
@@ -124,13 +122,11 @@ namespace Opc.Ua.Bindings
                 case ReverseHello:
                 case Acknowledge:
                 case Error:
-                {
                     return true;
-                }
             }
 
             uint chunkTypeMask = messageType & ChunkTypeMask;
-            if ((chunkTypeMask != Final) && (chunkTypeMask != Intermediate) && (chunkTypeMask != Abort))
+            if (chunkTypeMask is not Final and not Intermediate and not Abort)
             {
                 return false;
             }
@@ -140,14 +136,9 @@ namespace Opc.Ua.Bindings
                 case Message:
                 case Open:
                 case Close:
-                {
                     break;
-                }
-
                 default:
-                {
                     return false;
-                }
             }
 
             return true;
@@ -232,7 +223,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Sequence numbers may only rollover if they are larger than this value.
         /// </summary>
-        public const uint MinSequenceNumber = UInt32.MaxValue - 1024;
+        public const uint MinSequenceNumber = uint.MaxValue - 1024;
 
         /// <summary>
         /// The first sequence number after a rollover must be less than this value.
@@ -242,7 +233,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The default buffer size to use for communication.
         /// </summary>
-        public const int DefaultMaxBufferSize = UInt16.MaxValue;
+        public const int DefaultMaxBufferSize = ushort.MaxValue;
 
         /// <summary>
         /// The default maximum chunk count for Request and Response messages.
@@ -321,7 +312,7 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         public static int AlignRoundMaxMessageSize(int value)
         {
-            int alignmentMask = MinBufferSize - 1;
+            const int alignmentMask = MinBufferSize - 1;
             return (value + alignmentMask) & ~alignmentMask;
         }
     }

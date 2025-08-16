@@ -3,21 +3,23 @@
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
 
-using Moq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
+using Moq;
 using NUnit.Framework;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
-    [TestFixture, Category("Client")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("Client")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     public sealed class LruCacheTests
     {
         [Test]
@@ -28,17 +30,20 @@ namespace Opc.Ua.Client.Tests
             var context = new Mock<ISession>();
 
             context
-                .Setup(c => c.ReadNodesAsync(
-                    It.IsAny<IList<NodeId>>(),
-                    NodeClass.Unspecified,
-                    false,
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync((new List<Node> { new() }, new[] { new ServiceResult(StatusCodes.BadUnexpectedError) }))
+                .Setup(c =>
+                    c.ReadNodesAsync(
+                        It.IsAny<IList<NodeId>>(),
+                        NodeClass.Unspecified,
+                        false,
+                        It.IsAny<CancellationToken>()))
+                .ReturnsAsync((new List<Node> { new() }, new[] {
+                    new ServiceResult(StatusCodes.BadUnexpectedError) }))
                 .Verifiable(Times.Once);
             var nodeCache = new LruNodeCache(context.Object);
 
             // Act
-            IReadOnlyList<INode> result = await nodeCache.GetNodesAsync([id], default).ConfigureAwait(false);
+            IReadOnlyList<INode> result = await nodeCache.GetNodesAsync([id], default)
+                .ConfigureAwait(false);
 
             // Assert
             Assert.AreEqual(1, result.Count);
@@ -61,7 +66,8 @@ namespace Opc.Ua.Client.Tests
                 .Verifiable(Times.Once);
 
             // Act
-            BuiltInType result = await nodeCache.GetBuiltInTypeAsync(datatypeId, default).ConfigureAwait(false);
+            BuiltInType result = await nodeCache.GetBuiltInTypeAsync(datatypeId, default)
+                .ConfigureAwait(false);
 
             // Assert
             Assert.AreEqual(BuiltInType.Null, result);
@@ -77,7 +83,8 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object);
 
             // Act
-            BuiltInType result = await nodeCache.GetBuiltInTypeAsync(datatypeId, default).ConfigureAwait(false);
+            BuiltInType result = await nodeCache.GetBuiltInTypeAsync(datatypeId, default)
+                .ConfigureAwait(false);
 
             // Assert
             Assert.AreEqual(BuiltInType.Int32, result);
@@ -91,7 +98,8 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object);
 
             // Act
-            IReadOnlyList<INode> result = await nodeCache.GetNodesAsync([], default).ConfigureAwait(false);
+            IReadOnlyList<INode> result = await nodeCache.GetNodesAsync([], default)
+                .ConfigureAwait(false);
 
             // Assert
             Assert.IsEmpty(result);
@@ -106,9 +114,10 @@ namespace Opc.Ua.Client.Tests
             var context = new Mock<ISession>();
 
             context
-                .Setup(c => c.ReadNodeAsync(
-                    It.Is<NodeId>(i => i == id),
-                    It.IsAny<CancellationToken>()))
+                .Setup(
+                    c => c.ReadNodeAsync(
+                        It.Is<NodeId>(i => i == id),
+                        It.IsAny<CancellationToken>()))
                 .ReturnsAsync(expected)
                 .Verifiable(Times.Once);
             var nodeCache = new LruNodeCache(context.Object);
@@ -131,11 +140,11 @@ namespace Opc.Ua.Client.Tests
             var context = new Mock<ISession>();
 
             context
-                .Setup(c => c.ReadNodeAsync(
-                    It.Is<NodeId>(i => i == id),
-                    It.IsAny<CancellationToken>()))
-                .Returns<NodeId, CancellationToken>((nodeId, ct)
-                    => Task.FromResult(expected))
+                .Setup(
+                    c => c.ReadNodeAsync(
+                        It.Is<NodeId>(i => i == id),
+                        It.IsAny<CancellationToken>()))
+                .Returns<NodeId, CancellationToken>((nodeId, _) => Task.FromResult(expected))
                 .Verifiable(Times.Once);
             var nodeCache = new LruNodeCache(context.Object);
 
@@ -156,20 +165,21 @@ namespace Opc.Ua.Client.Tests
             var context = new Mock<ISession>();
 
             context
-                .Setup(c => c.ReadNodeAsync(
-                    It.Is<NodeId>(i => i == id),
-                    It.IsAny<CancellationToken>()))
-                .Returns<NodeId, CancellationToken>((nodeId, ct)
-                    => Task.FromException<Node>(new ServiceResultException()))
+                .Setup(
+                    c => c.ReadNodeAsync(
+                        It.Is<NodeId>(i => i == id),
+                        It.IsAny<CancellationToken>()))
+                .Returns<NodeId, CancellationToken>(
+                    (nodeId, ct) => Task.FromException<Node>(new ServiceResultException()))
                 .Verifiable(Times.Exactly(3));
             var nodeCache = new LruNodeCache(context.Object);
 
-            _ = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false));
-            _ = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false));
-            _ = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false));
+            _ = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false));
+            _ = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false));
+            _ = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false));
             context.Verify();
         }
 
@@ -182,9 +192,10 @@ namespace Opc.Ua.Client.Tests
             var context = new Mock<ISession>();
 
             context
-                .Setup(c => c.FetchReferencesAsync(
-                    It.Is<NodeId>(i => i == ReferenceTypeIds.HierarchicalReferences),
-                    It.IsAny<CancellationToken>()))
+                .Setup(c =>
+                    c.FetchReferencesAsync(
+                        It.Is<NodeId>(i => i == ReferenceTypeIds.HierarchicalReferences),
+                        It.IsAny<CancellationToken>()))
                 .ReturnsAsync([])
                 .Verifiable(Times.Once);
             context
@@ -196,7 +207,8 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object);
 
             // Act
-            INode result = await nodeCache.GetNodeWithBrowsePathAsync(id, browsePath, default).ConfigureAwait(false);
+            INode result = await nodeCache.GetNodeWithBrowsePathAsync(id, browsePath, default)
+                .ConfigureAwait(false);
 
             // Assert
             Assert.Null(result);
@@ -208,7 +220,8 @@ namespace Opc.Ua.Client.Tests
         {
             // Arrange
             var id = new NodeId("test", 0);
-            var expected = new VariableNode {
+            var expected = new VariableNode
+            {
                 BrowseName = new QualifiedName("child"),
                 NodeId = id,
                 NodeClass = NodeClass.Variable
@@ -216,7 +229,7 @@ namespace Opc.Ua.Client.Tests
             var browsePath = new QualifiedNameCollection { new QualifiedName("child") };
             var references = new List<ReferenceDescription>
             {
-                new ()
+                new()
                 {
                     NodeId = new ExpandedNodeId(id),
                     BrowseName = new QualifiedName("child"),
@@ -226,9 +239,10 @@ namespace Opc.Ua.Client.Tests
             };
             var context = new Mock<ISession>();
             context
-                .Setup(c => c.FetchReferencesAsync(
-                    It.Is<NodeId>(i => i == ReferenceTypeIds.HierarchicalReferences),
-                    It.IsAny<CancellationToken>()))
+                .Setup(c =>
+                    c.FetchReferencesAsync(
+                        It.Is<NodeId>(i => i == ReferenceTypeIds.HierarchicalReferences),
+                        It.IsAny<CancellationToken>()))
                 .ReturnsAsync([])
                 .Verifiable(Times.Once);
             context
@@ -238,26 +252,27 @@ namespace Opc.Ua.Client.Tests
                 .ReturnsAsync([.. references])
                 .Verifiable(Times.Once);
             context
-                .Setup(c => c.ReadNodesAsync(
-                    It.Is<IList<NodeId>>(n => n.Count == 1 && n[0] == id),
-                    NodeClass.Unspecified,
-                    false,
-                    It.IsAny<CancellationToken>()))
+                .Setup(c =>
+                    c.ReadNodesAsync(
+                        It.Is<IList<NodeId>>(n => n.Count == 1 && n[0] == id),
+                        NodeClass.Unspecified,
+                        false,
+                        It.IsAny<CancellationToken>()))
                 .ReturnsAsync((new List<Node> { expected }, new[] { ServiceResult.Good }))
                 .Verifiable(Times.Once);
 
             var nodeCache = new LruNodeCache(context.Object);
 
             // Act
-            INode result = await nodeCache.GetNodeWithBrowsePathAsync(id,
-                browsePath, default).ConfigureAwait(false);
+            INode result = await nodeCache.GetNodeWithBrowsePathAsync(id, browsePath, default)
+                .ConfigureAwait(false);
 
             // Assert
             Assert.AreEqual(expected, result);
 
             // Act
-            result = await nodeCache.GetNodeWithBrowsePathAsync(id,
-                browsePath, default).ConfigureAwait(false);
+            result = await nodeCache.GetNodeWithBrowsePathAsync(id, browsePath, default)
+                .ConfigureAwait(false);
 
             // Assert
             Assert.AreEqual(expected, result);
@@ -279,7 +294,7 @@ namespace Opc.Ua.Client.Tests
 
             var rootReferences = new List<ReferenceDescription>
             {
-                new  ()
+                new()
                 {
                     NodeId = new ExpandedNodeId(childId),
                     BrowseName = new QualifiedName("child"),
@@ -287,14 +302,15 @@ namespace Opc.Ua.Client.Tests
                     IsForward = true
                 }
             };
-            var childNode = new VariableNode {
+            var childNode = new VariableNode
+            {
                 BrowseName = new QualifiedName("child"),
                 NodeId = childId,
                 NodeClass = NodeClass.Variable
             };
             var childReferences = new List<ReferenceDescription>
             {
-                new ()
+                new()
                 {
                     NodeId = new ExpandedNodeId(grandChildId),
                     BrowseName = new QualifiedName("grandChild"),
@@ -302,7 +318,8 @@ namespace Opc.Ua.Client.Tests
                     IsForward = true
                 }
             };
-            var expected = new VariableNode {
+            var expected = new VariableNode
+            {
                 BrowseName = new QualifiedName("grandChild"),
                 NodeId = grandChildId,
                 NodeClass = NodeClass.Variable
@@ -311,9 +328,10 @@ namespace Opc.Ua.Client.Tests
             var context = new Mock<ISession>();
 
             context
-                .Setup(c => c.FetchReferencesAsync(
-                    It.Is<NodeId>(i => i == ReferenceTypeIds.HierarchicalReferences),
-                    It.IsAny<CancellationToken>()))
+                .Setup(c =>
+                    c.FetchReferencesAsync(
+                        It.Is<NodeId>(i => i == ReferenceTypeIds.HierarchicalReferences),
+                        It.IsAny<CancellationToken>()))
                 .ReturnsAsync([])
                 .Verifiable(Times.Once);
             context
@@ -329,32 +347,37 @@ namespace Opc.Ua.Client.Tests
                 .ReturnsAsync([.. childReferences])
                 .Verifiable(Times.Once);
             context
-                .Setup(c => c.ReadNodesAsync(
-                    It.Is<IList<NodeId>>(n => n.Count == 1 && n[0] == childId),
-                    NodeClass.Unspecified,
-                    false,
-                    It.IsAny<CancellationToken>()))
+                .Setup(c =>
+                    c.ReadNodesAsync(
+                        It.Is<IList<NodeId>>(n => n.Count == 1 && n[0] == childId),
+                        NodeClass.Unspecified,
+                        false,
+                        It.IsAny<CancellationToken>()))
                 .ReturnsAsync((new List<Node> { childNode }, new[] { ServiceResult.Good }))
                 .Verifiable(Times.Once);
             context
-                .Setup(c => c.ReadNodesAsync(
-                    It.Is<IList<NodeId>>(n => n.Count == 1 && n[0] == grandChildId),
-                    NodeClass.Unspecified,
-                    false,
-                    It.IsAny<CancellationToken>()))
+                .Setup(c =>
+                    c.ReadNodesAsync(
+                        It.Is<IList<NodeId>>(n => n.Count == 1 && n[0] == grandChildId),
+                        NodeClass.Unspecified,
+                        false,
+                        It.IsAny<CancellationToken>()))
                 .ReturnsAsync((new List<Node> { expected }, new[] { ServiceResult.Good }))
                 .Verifiable(Times.Once);
 
             var nodeCache = new LruNodeCache(context.Object);
 
             // Act
-            INode result = await nodeCache.GetNodeWithBrowsePathAsync(rootId, browsePath, default).ConfigureAwait(false);
+            INode result = await nodeCache
+                .GetNodeWithBrowsePathAsync(rootId, browsePath, default)
+                .ConfigureAwait(false);
 
             // Assert
             Assert.AreEqual(expected, result);
 
             // Act
-            result = await nodeCache.GetNodeWithBrowsePathAsync(rootId, browsePath, default).ConfigureAwait(false);
+            result = await nodeCache.GetNodeWithBrowsePathAsync(rootId, browsePath, default)
+                .ConfigureAwait(false);
 
             // Assert
             Assert.AreEqual(expected, result);
@@ -369,7 +392,9 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object);
 
             // Act
-            IReadOnlyList<INode> result = await nodeCache.GetReferencesAsync([], [], false, false, default).ConfigureAwait(false);
+            IReadOnlyList<INode> result = await nodeCache
+                .GetReferencesAsync([], [], false, false, default)
+                .ConfigureAwait(false);
 
             // Assert
             Assert.IsEmpty(result);
@@ -384,7 +409,7 @@ namespace Opc.Ua.Client.Tests
             var targetNodeId = new NodeId("target", 0);
             var expected = new List<ReferenceDescription>
             {
-                new ()
+                new()
                 {
                     NodeId = targetExpandedNodeId,
                     ReferenceTypeId = referenceTypeId,
@@ -401,38 +426,43 @@ namespace Opc.Ua.Client.Tests
                 .ReturnsAsync([.. expected])
                 .Verifiable(Times.Once);
             context
-                .Setup(c => c.ReadNodesAsync(
-                    It.Is<IList<NodeId>>(n => n.Count == 1 && n[0] == targetNodeId),
-                    NodeClass.Unspecified,
-                    false,
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync((new List<Node>
-                    {
-                        new VariableNode
+                .Setup(c =>
+                    c.ReadNodesAsync(
+                        It.Is<IList<NodeId>>(n => n.Count == 1 && n[0] == targetNodeId),
+                        NodeClass.Unspecified,
+                        false,
+                        It.IsAny<CancellationToken>()))
+                .ReturnsAsync(
+                    (
+                        new List<Node>
                         {
-                            NodeId = targetNodeId,
-                            NodeClass = NodeClass.Variable
-                        }
-                    },
-                    new[] { ServiceResult.Good }))
+                            new VariableNode {
+                                NodeId = targetNodeId,
+                                NodeClass = NodeClass.Variable }
+                        },
+                        new[] { ServiceResult.Good }))
                 .Verifiable(Times.Once);
 
             var nodeCache = new LruNodeCache(context.Object);
 
             // Act
-            IReadOnlyList<INode> result1 = await nodeCache.GetReferencesAsync(id,
-                referenceTypeId, true, false, default).ConfigureAwait(false);
-            IReadOnlyList<INode> result2 = await nodeCache.GetReferencesAsync(id,
-                referenceTypeId, false, false, default).ConfigureAwait(false);
+            IReadOnlyList<INode> result1 = await nodeCache
+                .GetReferencesAsync(id, referenceTypeId, true, false, default)
+                .ConfigureAwait(false);
+            IReadOnlyList<INode> result2 = await nodeCache
+                .GetReferencesAsync(id, referenceTypeId, false, false, default)
+                .ConfigureAwait(false);
 
             // Assert
             Assert.AreEqual(1, result1.Count);
             Assert.IsEmpty(result2);
             // Act
-            result1 = await nodeCache.GetReferencesAsync(id,
-                referenceTypeId, true, false, default).ConfigureAwait(false);
-            result2 = await nodeCache.GetReferencesAsync(id,
-                referenceTypeId, false, false, default).ConfigureAwait(false);
+            result1 = await nodeCache
+                .GetReferencesAsync(id, referenceTypeId, true, false, default)
+                .ConfigureAwait(false);
+            result2 = await nodeCache
+                .GetReferencesAsync(id, referenceTypeId, false, false, default)
+                .ConfigureAwait(false);
 
             // Assert
             Assert.AreEqual(1, result1.Count);
@@ -450,7 +480,7 @@ namespace Opc.Ua.Client.Tests
             var targetNodeId = new NodeId("target", 0);
             var expected = new List<ReferenceDescription>
             {
-                new ()
+                new()
                 {
                     NodeId = targetExpandedNodeId,
                     ReferenceTypeId = referenceSubTypeId,
@@ -461,49 +491,52 @@ namespace Opc.Ua.Client.Tests
             var context = new Mock<ISession>();
 
             context
-                .Setup(c => c.FetchReferencesAsync(
-                    It.Is<NodeId>(i => i == referenceTypeId),
-                    It.IsAny<CancellationToken>()))
+                .Setup(c =>
+                    c.FetchReferencesAsync(
+                        It.Is<NodeId>(i => i == referenceTypeId),
+                        It.IsAny<CancellationToken>()))
                 .ReturnsAsync(
-                [
-                    new ()
-                    {
-                        ReferenceTypeId = ReferenceTypeIds.HasSubtype,
-                        BrowseName = new QualifiedName("HasSubtype"),
-                        NodeId = new ExpandedNodeId(referenceSubTypeId)
-                    }
-                ])
-                .Verifiable(Times.Once);
-            context
-                .Setup(c => c.ReadNodesAsync(
-                    It.Is<IList<NodeId>>(n => n.Count == 1 && n[0] == referenceSubTypeId),
-                    NodeClass.Unspecified,
-                    false,
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync((new List<Node>
-                    {
-                        new ReferenceTypeNode
+                    [
+                        new()
                         {
-                            NodeId = referenceSubTypeId,
-                            NodeClass = NodeClass.ReferenceType
+                            ReferenceTypeId = ReferenceTypeIds.HasSubtype,
+                            BrowseName = new QualifiedName("HasSubtype"),
+                            NodeId = new ExpandedNodeId(referenceSubTypeId)
                         }
-                    },
-                    new[] { ServiceResult.Good }))
+                    ])
                 .Verifiable(Times.Once);
             context
-                .Setup(c => c.FetchReferencesAsync(
-                    It.Is<NodeId>(i => i == referenceSubTypeId),
-                    It.IsAny<CancellationToken>()))
+                .Setup(c =>
+                    c.ReadNodesAsync(
+                        It.Is<IList<NodeId>>(n => n.Count == 1 && n[0] == referenceSubTypeId),
+                        NodeClass.Unspecified,
+                        false,
+                        It.IsAny<CancellationToken>()))
                 .ReturnsAsync(
-                [
-                    new ()
-                    {
-                        ReferenceTypeId = ReferenceTypeIds.HasSubtype,
-                        IsForward = false,
-                        BrowseName = new QualifiedName("HasSuperType"),
-                        NodeId = new ExpandedNodeId(referenceTypeId)
-                    }
-                ])
+                    (
+                        new List<Node>
+                        {
+                            new ReferenceTypeNode {
+                                NodeId = referenceSubTypeId,
+                                NodeClass = NodeClass.ReferenceType }
+                        },
+                        new[] { ServiceResult.Good }))
+                .Verifiable(Times.Once);
+            context
+                .Setup(c =>
+                    c.FetchReferencesAsync(
+                        It.Is<NodeId>(i => i == referenceSubTypeId),
+                        It.IsAny<CancellationToken>()))
+                .ReturnsAsync(
+                    [
+                        new()
+                        {
+                            ReferenceTypeId = ReferenceTypeIds.HasSubtype,
+                            IsForward = false,
+                            BrowseName = new QualifiedName("HasSuperType"),
+                            NodeId = new ExpandedNodeId(referenceTypeId)
+                        }
+                    ])
                 .Verifiable(Times.Once);
             context
                 .Setup(c => c.FetchReferencesAsync(
@@ -512,38 +545,43 @@ namespace Opc.Ua.Client.Tests
                 .ReturnsAsync([.. expected])
                 .Verifiable(Times.Once);
             context
-                .Setup(c => c.ReadNodesAsync(
-                    It.Is<IList<NodeId>>(n => n.Count == 1 && n[0] == targetNodeId),
-                    NodeClass.Unspecified,
-                    false,
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync((new List<Node>
-                    {
-                        new VariableNode
+                .Setup(c =>
+                    c.ReadNodesAsync(
+                        It.Is<IList<NodeId>>(n => n.Count == 1 && n[0] == targetNodeId),
+                        NodeClass.Unspecified,
+                        false,
+                        It.IsAny<CancellationToken>()))
+                .ReturnsAsync(
+                    (
+                        new List<Node>
                         {
-                            NodeId = targetNodeId,
-                            NodeClass = NodeClass.Variable
-                        }
-                    },
-                    new[] { ServiceResult.Good }))
+                            new VariableNode {
+                                NodeId = targetNodeId,
+                                NodeClass = NodeClass.Variable }
+                        },
+                        new[] { ServiceResult.Good }))
                 .Verifiable(Times.Once);
 
             var nodeCache = new LruNodeCache(context.Object);
 
             // Act
-            IReadOnlyList<INode> result1 = await nodeCache.GetReferencesAsync(id,
-                referenceTypeId, true, true, default).ConfigureAwait(false);
-            IReadOnlyList<INode> result2 = await nodeCache.GetReferencesAsync(id,
-                referenceTypeId, false, true, default).ConfigureAwait(false);
+            IReadOnlyList<INode> result1 = await nodeCache
+                .GetReferencesAsync(id, referenceTypeId, true, true, default)
+                .ConfigureAwait(false);
+            IReadOnlyList<INode> result2 = await nodeCache
+                .GetReferencesAsync(id, referenceTypeId, false, true, default)
+                .ConfigureAwait(false);
 
             // Assert
             Assert.AreEqual(1, result1.Count);
             Assert.IsEmpty(result2);
             // Act
-            result1 = await nodeCache.GetReferencesAsync(id,
-                referenceTypeId, true, true, default).ConfigureAwait(false);
-            result2 = await nodeCache.GetReferencesAsync(id,
-                referenceTypeId, false, true, default).ConfigureAwait(false);
+            result1 = await nodeCache
+                .GetReferencesAsync(id, referenceTypeId, true, true, default)
+                .ConfigureAwait(false);
+            result2 = await nodeCache
+                .GetReferencesAsync(id, referenceTypeId, false, true, default)
+                .ConfigureAwait(false);
 
             // Assert
             Assert.AreEqual(1, result1.Count);
@@ -560,7 +598,7 @@ namespace Opc.Ua.Client.Tests
             var targetNodeId = new NodeId("target", 0);
             var expected = new List<ReferenceDescription>
             {
-                new ()
+                new()
                 {
                     NodeId = targetExpandedNodeId,
                     ReferenceTypeId = referenceTypeId,
@@ -571,9 +609,10 @@ namespace Opc.Ua.Client.Tests
             var context = new Mock<ISession>();
 
             context
-                .Setup(c => c.FetchReferencesAsync(
-                    It.Is<NodeId>(i => i == referenceTypeId),
-                    It.IsAny<CancellationToken>()))
+                .Setup(c =>
+                    c.FetchReferencesAsync(
+                        It.Is<NodeId>(i => i == referenceTypeId),
+                        It.IsAny<CancellationToken>()))
                 .ReturnsAsync([])
                 .Verifiable(Times.Once);
             context
@@ -583,38 +622,43 @@ namespace Opc.Ua.Client.Tests
                 .ReturnsAsync([.. expected])
                 .Verifiable(Times.Once);
             context
-                .Setup(c => c.ReadNodesAsync(
-                    It.Is<IList<NodeId>>(n => n.Count == 1 && n[0] == targetNodeId),
-                    NodeClass.Unspecified,
-                    false,
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync((new List<Node>
-                    {
-                        new VariableNode
+                .Setup(c =>
+                    c.ReadNodesAsync(
+                        It.Is<IList<NodeId>>(n => n.Count == 1 && n[0] == targetNodeId),
+                        NodeClass.Unspecified,
+                        false,
+                        It.IsAny<CancellationToken>()))
+                .ReturnsAsync(
+                    (
+                        new List<Node>
                         {
-                            NodeId = targetNodeId,
-                            NodeClass = NodeClass.Variable
-                        }
-                    },
-                    new[] { ServiceResult.Good }))
+                            new VariableNode {
+                                NodeId = targetNodeId,
+                                NodeClass = NodeClass.Variable }
+                        },
+                        new[] { ServiceResult.Good }))
                 .Verifiable(Times.Once);
 
             var nodeCache = new LruNodeCache(context.Object);
 
             // Act
-            IReadOnlyList<INode> result1 = await nodeCache.GetReferencesAsync(id,
-                referenceTypeId, true, true, default).ConfigureAwait(false);
-            IReadOnlyList<INode> result2 = await nodeCache.GetReferencesAsync(id,
-                referenceTypeId, false, true, default).ConfigureAwait(false);
+            IReadOnlyList<INode> result1 = await nodeCache
+                .GetReferencesAsync(id, referenceTypeId, true, true, default)
+                .ConfigureAwait(false);
+            IReadOnlyList<INode> result2 = await nodeCache
+                .GetReferencesAsync(id, referenceTypeId, false, true, default)
+                .ConfigureAwait(false);
 
             // Assert
             Assert.AreEqual(1, result1.Count);
             Assert.IsEmpty(result2);
             // Act
-            result1 = await nodeCache.GetReferencesAsync(id,
-                referenceTypeId, true, true, default).ConfigureAwait(false);
-            result2 = await nodeCache.GetReferencesAsync(id,
-                referenceTypeId, false, true, default).ConfigureAwait(false);
+            result1 = await nodeCache
+                .GetReferencesAsync(id, referenceTypeId, true, true, default)
+                .ConfigureAwait(false);
+            result2 = await nodeCache
+                .GetReferencesAsync(id, referenceTypeId, false, true, default)
+                .ConfigureAwait(false);
 
             // Assert
             Assert.AreEqual(1, result1.Count);
@@ -638,7 +682,8 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object);
 
             // Act
-            NodeId result = await nodeCache.GetSuperTypeAsync(typeId, default).ConfigureAwait(false);
+            NodeId result = await nodeCache.GetSuperTypeAsync(typeId, default)
+                .ConfigureAwait(false);
 
             // Assert
             Assert.AreEqual(NodeId.Null, result);
@@ -653,7 +698,7 @@ namespace Opc.Ua.Client.Tests
             var subTypeId = new NodeId("subType", 0);
             var references = new List<ReferenceDescription>
             {
-                new ()
+                new()
                 {
                     NodeId = new ExpandedNodeId(superTypeId),
                     ReferenceTypeId = ReferenceTypeIds.HasSubtype,
@@ -671,7 +716,8 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object);
 
             // Act
-            NodeId result = await nodeCache.GetSuperTypeAsync(subTypeId, default).ConfigureAwait(false);
+            NodeId result = await nodeCache.GetSuperTypeAsync(subTypeId, default)
+                .ConfigureAwait(false);
 
             // Assert
             Assert.AreEqual(superTypeId, result);
@@ -692,15 +738,14 @@ namespace Opc.Ua.Client.Tests
             var context = new Mock<ISession>();
 
             context
-                .Setup(c => c.ReadValueAsync(
-                    It.IsAny<NodeId>(),
-                    It.IsAny<CancellationToken>()))
+                .Setup(c => c.ReadValueAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new ServiceResultException(StatusCodes.BadUnexpectedError))
                 .Verifiable(Times.Once);
             var nodeCache = new LruNodeCache(context.Object);
 
             // Act && Assert
-            _ = Assert.ThrowsAsync<ServiceResultException>(async () => await nodeCache.GetValueAsync(id, default).ConfigureAwait(false));
+            _ = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await nodeCache.GetValueAsync(id, default).ConfigureAwait(false));
             context.Verify();
         }
 
@@ -729,6 +774,7 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(expected, result);
             context.Verify();
         }
+
         [Test]
         public async Task GetValuesAsyncShouldHandleErrorsAsync()
         {
@@ -737,15 +783,22 @@ namespace Opc.Ua.Client.Tests
             var context = new Mock<ISession>();
 
             context
-                .Setup(c => c.ReadValuesAsync(
-                    It.IsAny<IList<NodeId>>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync((new DataValueCollection { new(), new() }, new[] { new ServiceResult(StatusCodes.BadUnexpectedError), ServiceResult.Good }))
+                .Setup(
+                    c => c.ReadValuesAsync(
+                        It.IsAny<IList<NodeId>>(),
+                        It.IsAny<CancellationToken>()))
+                .ReturnsAsync(
+                    (
+                        new DataValueCollection { new(), new() },
+                        new[] {
+                            new ServiceResult(StatusCodes.BadUnexpectedError),
+                            ServiceResult.Good }))
                 .Verifiable(Times.Once);
             var nodeCache = new LruNodeCache(context.Object);
 
             // Act
-            IReadOnlyList<DataValue> result = await nodeCache.GetValuesAsync(ids, default).ConfigureAwait(false);
+            IReadOnlyList<DataValue> result = await nodeCache.GetValuesAsync(ids, default)
+                .ConfigureAwait(false);
 
             // Assert
             Assert.AreEqual(2, result.Count);
@@ -760,22 +813,26 @@ namespace Opc.Ua.Client.Tests
             // Arrange
             var expected = new List<DataValue>
             {
-                new (new Variant(123), StatusCodes.Good, DateTime.UtcNow),
-                new (new Variant(456), StatusCodes.Good, DateTime.UtcNow)
+                new(new Variant(123), StatusCodes.Good, DateTime.UtcNow),
+                new(new Variant(456), StatusCodes.Good, DateTime.UtcNow)
             };
             var ids = new List<NodeId> { new("test1", 0), new("test2", 0) };
             var context = new Mock<ISession>();
 
             context
-                .Setup(c => c.ReadValuesAsync(
-                    It.Is<IList<NodeId>>(i => i.ToHashSet().SetEquals(ids)),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync((new DataValueCollection(expected), new[] { ServiceResult.Good, ServiceResult.Good }))
+                .Setup(c =>
+                    c.ReadValuesAsync(
+                        It.Is<IList<NodeId>>(i => i.ToHashSet().SetEquals(ids)),
+                        It.IsAny<CancellationToken>()))
+                .ReturnsAsync((new DataValueCollection(expected), new[] {
+                    ServiceResult.Good,
+                    ServiceResult.Good }))
                 .Verifiable(Times.Once);
             var nodeCache = new LruNodeCache(context.Object);
 
             // Act
-            IReadOnlyList<DataValue> result = await nodeCache.GetValuesAsync(ids, default).ConfigureAwait(false);
+            IReadOnlyList<DataValue> result = await nodeCache.GetValuesAsync(ids, default)
+                .ConfigureAwait(false);
 
             // Assert
             Assert.AreEqual(expected, result);
@@ -791,22 +848,27 @@ namespace Opc.Ua.Client.Tests
             // Arrange
             var expected = new List<DataValue>
             {
-                new (new Variant(123), StatusCodes.Good, DateTime.UtcNow),
-                new (new Variant(456), StatusCodes.Good, DateTime.UtcNow)
+                new(new Variant(123), StatusCodes.Good, DateTime.UtcNow),
+                new(new Variant(456), StatusCodes.Good, DateTime.UtcNow)
             };
             var ids = new List<NodeId> { new("test1", 0), new("test2", 0) };
             var context = new Mock<ISession>();
 
             context
-                .Setup(c => c.ReadValuesAsync(
-                    It.Is<IList<NodeId>>(i => i.ToHashSet().SetEquals(ids)),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync((new DataValueCollection(expected), new[] { ServiceResult.Good, new ServiceResult(StatusCodes.Bad) }))
+                .Setup(c =>
+                    c.ReadValuesAsync(
+                        It.Is<IList<NodeId>>(i => i.ToHashSet().SetEquals(ids)),
+                        It.IsAny<CancellationToken>()))
+                .ReturnsAsync(
+                    (
+                        new DataValueCollection(expected),
+                        new[] { ServiceResult.Good, new ServiceResult(StatusCodes.Bad) }))
                 .Verifiable(Times.Once);
             var nodeCache = new LruNodeCache(context.Object);
 
             // Act
-            IReadOnlyList<DataValue> result = await nodeCache.GetValuesAsync(ids, default).ConfigureAwait(false);
+            IReadOnlyList<DataValue> result = await nodeCache.GetValuesAsync(ids, default)
+                .ConfigureAwait(false);
 
             // Assert
             Assert.AreEqual(expected[0], result[0]);
@@ -814,10 +876,12 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(expected[1].Value, result[1].Value);
 
             context
-                .Setup(c => c.ReadValuesAsync(
-                    It.Is<IList<NodeId>>(i => i.Count == 1 && i[0] == ids[1]),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync((new DataValueCollection { expected[1] }, new[] { ServiceResult.Good }))
+                .Setup(c =>
+                    c.ReadValuesAsync(
+                        It.Is<IList<NodeId>>(i => i.Count == 1 && i[0] == ids[1]),
+                        It.IsAny<CancellationToken>()))
+                .ReturnsAsync(
+                    (new DataValueCollection { expected[1] }, new[] { ServiceResult.Good }))
                 .Verifiable(Times.Once);
             result = await nodeCache.GetValuesAsync(ids, default).ConfigureAwait(false);
             context.Verify();
@@ -855,7 +919,7 @@ namespace Opc.Ua.Client.Tests
             var subTypeId = new NodeId("subType", 0);
             var references = new List<ReferenceDescription>
             {
-                new ()
+                new()
                 {
                     NodeId = new ExpandedNodeId(superTypeId),
                     ReferenceTypeId = ReferenceTypeIds.HasSubtype,
@@ -915,7 +979,7 @@ namespace Opc.Ua.Client.Tests
             var subTypeId = new NodeId("subType", 0);
             var references = new ReferenceDescriptionCollection
             {
-                new ()
+                new()
                 {
                     NodeId = new ExpandedNodeId(subTypeId),
                     ReferenceTypeId = ReferenceTypeIds.HasSubtype,
@@ -936,19 +1000,19 @@ namespace Opc.Ua.Client.Tests
                 .ReturnsAsync([])
                 .Verifiable(Times.Once);
             context
-                .Setup(c => c.ReadNodesAsync(
-                    It.Is<IList<NodeId>>(n => n.Count == 1 && n[0] == subTypeId),
-                    NodeClass.Unspecified,
-                    false,
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync((new List<Node>
-                    {
-                        new DataTypeNode
+                .Setup(c =>
+                    c.ReadNodesAsync(
+                        It.Is<IList<NodeId>>(n => n.Count == 1 && n[0] == subTypeId),
+                        NodeClass.Unspecified,
+                        false,
+                        It.IsAny<CancellationToken>()))
+                .ReturnsAsync(
+                    (
+                        new List<Node>
                         {
-                            NodeId = subTypeId,
-                            NodeClass = NodeClass.DataType
-                        }
-                    }, new[] { ServiceResult.Good }))
+                            new DataTypeNode { NodeId = subTypeId, NodeClass = NodeClass.DataType }
+                        },
+                        new[] { ServiceResult.Good }))
                 .Verifiable(Times.Once);
             var nodeCache = new LruNodeCache(context.Object);
 
@@ -963,4 +1027,3 @@ namespace Opc.Ua.Client.Tests
     }
 }
 #endif
-

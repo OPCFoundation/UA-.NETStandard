@@ -32,7 +32,8 @@ using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {
-    [TestFixture, Category("Utils")]
+    [TestFixture]
+    [Category("Utils")]
     public class RedactionTests
     {
         [Test]
@@ -40,7 +41,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             RedactionStrategies.ResetStrategy();
 
-            string original = "Original test string";
+            const string original = "Original test string";
 
             string result = Redact.Create(original).ToString();
 
@@ -52,7 +53,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             RedactionStrategies.ResetStrategy();
 
-            string original = null;
+            const string original = null;
 
             string result = Redact.Create(original).ToString();
 
@@ -66,7 +67,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
             RedactionStrategies.SetStrategy(new TestRedactionStrategy("int_"));
 
-            int original = 123;
+            const int original = 123;
 
             string result = Redact.Create(original).ToString();
 
@@ -81,13 +82,13 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             RedactionStrategies.SetStrategy(new TestRedactionStrategy("first_"));
             RedactionStrategies.SetStrategy(new TestRedactionStrategy("second_"));
 
-            int originalNumber = 456;
+            const int originalNumber = 456;
 
             string resultNumber = Redact.Create(originalNumber).ToString();
 
             Assert.That(resultNumber, Is.EqualTo("second_456"));
 
-            string originalString = "test string 890";
+            const string originalString = "test string 890";
 
             string resultString = Redact.Create(originalString).ToString();
 

@@ -1,18 +1,19 @@
 using System;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
-
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
     /// <summary>
     /// Tests for the CertificateFactory class.
     /// </summary>
-    [TestFixture, Category("CertificateStore")]
+    [TestFixture]
+    [Category("CertificateStore")]
     [SetCulture("en-us")]
     public class CertificateStoreTypeTest
     {
@@ -22,30 +23,34 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             CertificateStoreType.RegisterCertificateStoreType("testStoreType", new TestStoreType());
         }
 
-        #region Test Methods
         [Test]
-        public async Task CertificateStoreTypeConfigTest()
+        public async Task CertificateStoreTypeConfigTestAsync()
         {
-            var fileInfo = new FileInfo(Path.Combine(TestContext.CurrentContext.TestDirectory, "Security", "Certificates", "CertificateStoreTypeTestConfig.xml"));
-            var appConfig = await ApplicationConfiguration.LoadAsync(fileInfo, ApplicationType.Client, null).ConfigureAwait(false);
+            var fileInfo = new FileInfo(
+                Path.Combine(
+                    TestContext.CurrentContext.TestDirectory,
+                    "Security",
+                    "Certificates",
+                    "CertificateStoreTypeTestConfig.xml"));
+            ApplicationConfiguration appConfig = await ApplicationConfiguration
+                .LoadAsync(fileInfo, ApplicationType.Client, null)
+                .ConfigureAwait(false);
             int instancesCreatedWhileLoadingConfig = TestCertStore.InstancesCreated;
             Assert.IsTrue(instancesCreatedWhileLoadingConfig > 0);
-            var trustedIssuers = appConfig.SecurityConfiguration.TrustedIssuerCertificates;
-            using (var trustedIssuersStore = trustedIssuers.OpenStore())
-            {
-                trustedIssuersStore.Close();
-                int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
-                Assert.IsTrue(instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore);
+            CertificateTrustList trustedIssuers = appConfig.SecurityConfiguration
+                .TrustedIssuerCertificates;
+            using ICertificateStore trustedIssuersStore = trustedIssuers.OpenStore();
+            trustedIssuersStore.Close();
+            int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
+            Assert.IsTrue(
+                instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore);
 
-                var certificateStoreIdentifier = new CertificateStoreIdentifier(TestCertStore.StoreTypePrefix + @"CurrentUser\Disallowed");
-                using (var store = certificateStoreIdentifier.OpenStore())
-                {
-
-                    Assert.IsTrue(instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
-                }
-            }
+            var certificateStoreIdentifier = new CertificateStoreIdentifier(
+                TestCertStore.StoreTypePrefix + @"CurrentUser\Disallowed");
+            using ICertificateStore store = certificateStoreIdentifier.OpenStore();
+            Assert.IsTrue(
+                instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
         }
-        #endregion Test Methods
     }
 
     internal sealed class TestStoreType : ICertificateStoreType
@@ -84,9 +89,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             if (!location.StartsWith(StoreTypePrefix, StringComparison.Ordinal))
             {
-                throw new ArgumentException($"Expected argument {nameof(location)} starting with {StoreTypePrefix}");
+                throw new ArgumentException(
+                    $"Expected argument {nameof(location)} starting with {StoreTypePrefix}");
             }
-            m_innerStore.Open(location.Substring(StoreTypePrefix.Length), noPrivateKeys);
+            m_innerStore.Open(location[StoreTypePrefix.Length..], noPrivateKeys);
         }
 
         /// <inheritdoc/>
@@ -96,7 +102,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <inheritdoc/>
-        public string StoreType => StoreTypePrefix.Substring(0, StoreTypePrefix.Length - 1);
+        public string StoreType => StoreTypePrefix[..^1];
 
         /// <inheritdoc/>
         public string StorePath => m_innerStore.StorePath;
@@ -111,9 +117,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <inheritdoc/>
-        public Task AddAsync(X509Certificate2 certificate, string password = null)
+        public Task AddAsync(
+            X509Certificate2 certificate,
+            string password = null,
+            CancellationToken ct = default)
         {
-            return m_innerStore.AddAsync(certificate, password);
+            return m_innerStore.AddAsync(certificate, password, ct);
         }
 
         /// <inheritdoc/>
@@ -124,9 +133,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <inheritdoc/>
-        public Task<bool> DeleteAsync(string thumbprint)
+        public Task<bool> DeleteAsync(string thumbprint, CancellationToken ct = default)
         {
-            return m_innerStore.DeleteAsync(thumbprint);
+            return m_innerStore.DeleteAsync(thumbprint, ct);
         }
 
         /// <inheritdoc/>
@@ -136,9 +145,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <inheritdoc/>
-        public Task<X509Certificate2Collection> EnumerateAsync()
+        public Task<X509Certificate2Collection> EnumerateAsync(CancellationToken ct = default)
         {
-            return m_innerStore.EnumerateAsync();
+            return m_innerStore.EnumerateAsync(ct);
         }
 
         /// <inheritdoc/>
@@ -149,23 +158,28 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <inheritdoc/>
-        public Task<X509Certificate2Collection> FindByThumbprintAsync(string thumbprint)
+        public Task<X509Certificate2Collection> FindByThumbprintAsync(
+            string thumbprint,
+            CancellationToken ct = default)
         {
-            return m_innerStore.FindByThumbprintAsync(thumbprint);
+            return m_innerStore.FindByThumbprintAsync(thumbprint, ct);
         }
 
         /// <inheritdoc/>
-        public bool SupportsCRLs
-            => m_innerStore.SupportsCRLs;
+        public bool SupportsCRLs => m_innerStore.SupportsCRLs;
 
         /// <inheritdoc/>
         [Obsolete("Use AddCRLAsync instead.")]
         public Task AddCRL(X509CRL crl)
-            => m_innerStore.AddCRLAsync(crl);
+        {
+            return m_innerStore.AddCRLAsync(crl);
+        }
 
         /// <inheritdoc/>
-        public Task AddCRLAsync(X509CRL crl)
-            => m_innerStore.AddCRLAsync(crl);
+        public Task AddCRLAsync(X509CRL crl, CancellationToken ct = default)
+        {
+            return m_innerStore.AddCRLAsync(crl, ct);
+        }
 
         /// <inheritdoc/>
         [Obsolete("Use DeleteCRLAsync instead.")]
@@ -175,8 +189,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <inheritdoc/>
-        public Task<bool> DeleteCRLAsync(X509CRL crl)
-            => m_innerStore.DeleteCRLAsync(crl);
+        public Task<bool> DeleteCRLAsync(X509CRL crl, CancellationToken ct = default)
+        {
+            return m_innerStore.DeleteCRLAsync(crl, ct);
+        }
 
         /// <inheritdoc/>
         [Obsolete("Use EnumerateCRLsAsync instead.")]
@@ -186,19 +202,28 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <inheritdoc/>
-        public Task<X509CRLCollection> EnumerateCRLsAsync()
-            => m_innerStore.EnumerateCRLsAsync();
+        public Task<X509CRLCollection> EnumerateCRLsAsync(CancellationToken ct = default)
+        {
+            return m_innerStore.EnumerateCRLsAsync(ct);
+        }
 
         /// <inheritdoc/>
         [Obsolete("Use EnumerateCRLsAsync instead.")]
-        public Task<X509CRLCollection> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
+        public Task<X509CRLCollection> EnumerateCRLs(
+            X509Certificate2 issuer,
+            bool validateUpdateTime = true)
         {
             return EnumerateCRLsAsync(issuer, validateUpdateTime);
         }
 
         /// <inheritdoc/>
-        public Task<X509CRLCollection> EnumerateCRLsAsync(X509Certificate2 issuer, bool validateUpdateTime = true)
-            => m_innerStore.EnumerateCRLsAsync(issuer, validateUpdateTime);
+        public Task<X509CRLCollection> EnumerateCRLsAsync(
+            X509Certificate2 issuer,
+            bool validateUpdateTime = true,
+            CancellationToken ct = default)
+        {
+            return m_innerStore.EnumerateCRLsAsync(issuer, validateUpdateTime, ct);
+        }
 
         /// <inheritdoc/>
         [Obsolete("Use IsRevokedAsync instead.")]
@@ -208,21 +233,51 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <inheritdoc/>
-        public Task<StatusCode> IsRevokedAsync(X509Certificate2 issuer, X509Certificate2 certificate)
-            => m_innerStore.IsRevokedAsync(issuer, certificate);
+        public Task<StatusCode> IsRevokedAsync(
+            X509Certificate2 issuer,
+            X509Certificate2 certificate,
+            CancellationToken ct = default)
+        {
+            return m_innerStore.IsRevokedAsync(issuer, certificate, ct);
+        }
 
         /// <inheritdoc/>
         public bool SupportsLoadPrivateKey => m_innerStore.SupportsLoadPrivateKey;
 
         /// <inheritdoc/>
         [Obsolete("Use LoadPrivateKeyAsync instead.")]
-        public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string applicationUri, NodeId certificateType, string password)
+        public Task<X509Certificate2> LoadPrivateKey(
+            string thumbprint,
+            string subjectName,
+            string applicationUri,
+            NodeId certificateType,
+            string password)
         {
-            return LoadPrivateKeyAsync(thumbprint, subjectName, applicationUri, certificateType, password);
+            return LoadPrivateKeyAsync(
+                thumbprint,
+                subjectName,
+                applicationUri,
+                certificateType,
+                password);
         }
+
         /// <inheritdoc/>
-        public Task<X509Certificate2> LoadPrivateKeyAsync(string thumbprint, string subjectName, string applicationUri, NodeId certificateType, string password)
-            => m_innerStore.LoadPrivateKeyAsync(thumbprint, subjectName, applicationUri, certificateType, password);
+        public Task<X509Certificate2> LoadPrivateKeyAsync(
+            string thumbprint,
+            string subjectName,
+            string applicationUri,
+            NodeId certificateType,
+            string password,
+            CancellationToken ct = default)
+        {
+            return m_innerStore.LoadPrivateKeyAsync(
+                thumbprint,
+                subjectName,
+                applicationUri,
+                certificateType,
+                password,
+                ct);
+        }
 
         /// <inheritdoc/>
         [Obsolete("Use AddRejectedAsync instead.")]
@@ -232,15 +287,18 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <inheritdoc/>
-        public Task AddRejectedAsync(X509Certificate2Collection certificates, int maxCertificates)
-            => m_innerStore.AddRejectedAsync(certificates, maxCertificates);
+        public Task AddRejectedAsync(
+            X509Certificate2Collection certificates,
+            int maxCertificates,
+            CancellationToken ct = default)
+        {
+            return m_innerStore.AddRejectedAsync(certificates, maxCertificates, ct);
+        }
 
         public static int InstancesCreated => s_instancesCreated;
 
-        #region data members
         internal const string StoreTypePrefix = "testStoreType:";
-        private static int s_instancesCreated = 0;
         private readonly X509CertificateStore m_innerStore;
-        #endregion data members
+        private static volatile int s_instancesCreated;
     }
 }

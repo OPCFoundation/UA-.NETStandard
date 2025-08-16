@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Globalization;
 using System.IO;
 
@@ -36,18 +35,15 @@ namespace Opc.Ua.Server.Tests
     /// <summary>
     /// A NUnit trace logger replacement.
     /// </summary>
-    public class NUnitTraceLogger
+    public sealed class NUnitTraceLogger
     {
         private TextWriter m_writer;
-        private int m_traceMasks;
+        private readonly int m_traceMasks;
 
         /// <summary>
         /// Create a nunit trace logger which replaces the default logging.
         /// </summary>
-        public static NUnitTraceLogger Create(
-            TextWriter writer,
-            ApplicationConfiguration config,
-            int traceMasks)
+        public static NUnitTraceLogger Create(TextWriter writer, int traceMasks)
         {
             var traceLogger = new NUnitTraceLogger(writer, traceMasks);
 
@@ -86,7 +82,8 @@ namespace Opc.Ua.Server.Tests
                 {
                     m_writer.WriteLine(e.Exception);
                 }
-                m_writer.WriteLine(string.Format(CultureInfo.InvariantCulture, e.Format, e.Arguments ?? Array.Empty<object>()));
+                m_writer.WriteLine(
+                    string.Format(CultureInfo.InvariantCulture, e.Format, e.Arguments ?? []));
             }
         }
     }

@@ -10,7 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System.Runtime.Serialization;
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua
@@ -20,13 +19,13 @@ namespace Opc.Ua
     /// </summary>
     public partial class EndpointConfiguration
     {
-        #region Constructors
         /// <summary>
         /// Creates an instance of a configuration with reasonable default values.
         /// </summary>
         public static EndpointConfiguration Create()
         {
-            EndpointConfiguration configuration = new EndpointConfiguration {
+            return new EndpointConfiguration
+            {
                 // message defaults
                 OperationTimeout = TcpMessageLimits.DefaultOperationTimeout,
                 UseBinaryEncoding = true,
@@ -40,23 +39,24 @@ namespace Opc.Ua
                 MaxByteStringLength = DefaultEncodingLimits.MaxByteStringLength,
                 MaxStringLength = DefaultEncodingLimits.MaxStringLength,
                 MaxEncodingNestingLevels = DefaultEncodingLimits.MaxEncodingNestingLevels,
-                MaxDecoderRecoveries = DefaultEncodingLimits.MaxDecoderRecoveries,
+                MaxDecoderRecoveries = DefaultEncodingLimits.MaxDecoderRecoveries
             };
-
-            return configuration;
         }
 
         /// <summary>
         /// Creates an instance of a configuration with reasonable default values.
         /// </summary>
-        public static EndpointConfiguration Create(ApplicationConfiguration applicationConfiguration)
+        public static EndpointConfiguration Create(
+            ApplicationConfiguration applicationConfiguration)
         {
-            if (applicationConfiguration == null || applicationConfiguration.TransportQuotas == null)
+            if (applicationConfiguration == null ||
+                applicationConfiguration.TransportQuotas == null)
             {
                 return Create();
             }
 
-            EndpointConfiguration configuration = new EndpointConfiguration {
+            return new EndpointConfiguration
+            {
                 OperationTimeout = applicationConfiguration.TransportQuotas.OperationTimeout,
                 UseBinaryEncoding = true,
                 MaxArrayLength = applicationConfiguration.TransportQuotas.MaxArrayLength,
@@ -64,55 +64,34 @@ namespace Opc.Ua
                 MaxMessageSize = applicationConfiguration.TransportQuotas.MaxMessageSize,
                 MaxStringLength = applicationConfiguration.TransportQuotas.MaxStringLength,
                 MaxBufferSize = applicationConfiguration.TransportQuotas.MaxBufferSize,
-                MaxEncodingNestingLevels = applicationConfiguration.TransportQuotas.MaxEncodingNestingLevels,
-                MaxDecoderRecoveries = applicationConfiguration.TransportQuotas.MaxDecoderRecoveries,
+                MaxEncodingNestingLevels = applicationConfiguration.TransportQuotas
+                    .MaxEncodingNestingLevels,
+                MaxDecoderRecoveries = applicationConfiguration.TransportQuotas
+                    .MaxDecoderRecoveries,
                 ChannelLifetime = applicationConfiguration.TransportQuotas.ChannelLifetime,
-                SecurityTokenLifetime = applicationConfiguration.TransportQuotas.SecurityTokenLifetime
+                SecurityTokenLifetime = applicationConfiguration.TransportQuotas
+                    .SecurityTokenLifetime
             };
-
-            return configuration;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The maximum nesting level accepted while encoding or decoding objects.
         /// </summary>
         public int MaxEncodingNestingLevels
         {
-            get
-            {
-                return m_maxEncodingNestingLevels <= 0 ? DefaultEncodingLimits.MaxEncodingNestingLevels : m_maxEncodingNestingLevels;
-            }
-
-            set
-            {
-                m_maxEncodingNestingLevels = value;
-            }
+            get =>
+                m_maxEncodingNestingLevels <= 0
+                    ? DefaultEncodingLimits.MaxEncodingNestingLevels
+                    : m_maxEncodingNestingLevels;
+            set => m_maxEncodingNestingLevels = value;
         }
 
         /// <summary>
-        /// The number of times the decoder can recover from an error 
+        /// The number of times the decoder can recover from an error
         /// caused by an encoded ExtensionObject before throwing a decoder error.
         /// </summary>
-        public int MaxDecoderRecoveries
-        {
-            get
-            {
-                return m_maxDecoderRecoveries;
-            }
+        public int MaxDecoderRecoveries { get; set; }
 
-            set
-            {
-                m_maxDecoderRecoveries = value;
-            }
-        }
-        #endregion
-
-        #region Private Fields
-        int m_maxEncodingNestingLevels;
-        int m_maxDecoderRecoveries;
-        #endregion
-
+        private int m_maxEncodingNestingLevels;
     }
 }

@@ -92,8 +92,7 @@ namespace Opc.Ua.Client.ComplexTypes
         void AddTypeIdAttribute(
             ExpandedNodeId complexTypeId,
             ExpandedNodeId binaryEncodingId,
-            ExpandedNodeId xmlEncodingId
-            );
+            ExpandedNodeId xmlEncodingId);
 
         /// <summary>
         /// Create a property field of a class with get and set.
@@ -110,4 +109,4 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         Type CreateType();
     }
-}//namespace
+}

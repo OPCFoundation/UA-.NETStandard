@@ -38,7 +38,6 @@ namespace Opc.Ua.Client.ComplexTypes
     /// </summary>
     public class AssemblyModule
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
@@ -49,9 +48,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 AssemblyBuilderAccess.Run);
             m_moduleBuilder = m_assemblyBuilder.DefineDynamicModule(kOpcTypesModuleName);
         }
-        #endregion Constructors
 
-        #region Public Members
         /// <summary>
         /// Get the module builder instance.
         /// </summary>
@@ -67,12 +64,9 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             return m_assemblyBuilder.GetTypes();
         }
-        #endregion Public Members
 
-        #region Private Fields
         private readonly AssemblyBuilder m_assemblyBuilder;
         private readonly ModuleBuilder m_moduleBuilder;
         private const string kOpcTypesModuleName = "Opc.Ua.ComplexTypes.Module";
-        #endregion Private Fields
     }
-}//namespace
+}

@@ -25,7 +25,6 @@ namespace Opc.Ua
     /// </summary>
     public class XmlEncoder : IEncoder
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
@@ -34,7 +33,7 @@ namespace Opc.Ua
             Initialize();
 
             m_destination = new StringBuilder();
-            m_context = context;
+            Context = context;
             m_nestingLevel = 0;
 
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
@@ -49,9 +48,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a system type to encode and a XML writer.
         /// </summary>
-        public XmlEncoder(System.Type systemType, XmlWriter writer, IServiceMessageContext context)
-        :
-            this(EncodeableFactory.GetXmlName(systemType), writer, context)
+        public XmlEncoder(Type systemType, XmlWriter writer, IServiceMessageContext context)
+            : this(EncodeableFactory.GetXmlName(systemType), writer, context)
         {
         }
 
@@ -74,7 +72,7 @@ namespace Opc.Ua
             }
 
             Initialize(root.Name, root.Namespace);
-            m_context = context;
+            Context = context;
             m_nestingLevel = 0;
         }
 
@@ -125,9 +123,7 @@ namespace Opc.Ua
 
             PushNamespace(namespaceUri);
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Initializes the tables used to map namespace and server uris during encoding.
         /// </summary>
@@ -137,16 +133,16 @@ namespace Opc.Ua
         {
             m_namespaceMappings = null;
 
-            if (namespaceUris != null && m_context.NamespaceUris != null)
+            if (namespaceUris != null && Context.NamespaceUris != null)
             {
-                m_namespaceMappings = namespaceUris.CreateMapping(m_context.NamespaceUris, false);
+                m_namespaceMappings = namespaceUris.CreateMapping(Context.NamespaceUris, false);
             }
 
             m_serverMappings = null;
 
-            if (serverUris != null && m_context.ServerUris != null)
+            if (serverUris != null && Context.ServerUris != null)
             {
-                m_serverMappings = serverUris.CreateMapping(m_context.ServerUris, false);
+                m_serverMappings = serverUris.CreateMapping(Context.ServerUris, false);
             }
         }
 
@@ -233,9 +229,7 @@ namespace Opc.Ua
 
             return null;
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -250,19 +244,14 @@ namespace Opc.Ua
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && m_writer != null)
             {
-                if (m_writer != null)
-                {
-                    m_writer.Flush();
-                    m_writer.Dispose();
-                    m_writer = null;
-                }
+                m_writer.Flush();
+                m_writer.Dispose();
+                m_writer = null;
             }
         }
-        #endregion
 
-        #region IEncoder Members
         /// <summary>
         /// The type of encoding being used.
         /// </summary>
@@ -271,7 +260,7 @@ namespace Opc.Ua
         /// <summary>
         /// The message context associated with the encoder.
         /// </summary>
-        public IServiceMessageContext Context => m_context;
+        public IServiceMessageContext Context { get; }
 
         /// <summary>
         /// Xml Encoder always produces reversible encoding.
@@ -297,9 +286,13 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes a message with its header.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="message"/> is <c>null</c>.</exception>
         public void EncodeMessage(IEncodeable message)
         {
-            if (message == null) throw new ArgumentNullException(nameof(message));
+            if (message == null)
+            {
+                throw new ArgumentNullException(nameof(message));
+            }
 
             PushNamespace(Namespaces.OpcUaXsd);
 
@@ -454,7 +447,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, value == null, true, isArrayElement))
             {
                 // check the length.
-                if (m_context.MaxStringLength > 0 && m_context.MaxStringLength < value.Length)
+                if (Context.MaxStringLength > 0 && Context.MaxStringLength < value.Length)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -531,35 +524,48 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a byte string to the stream.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2265:Do not compare Span<T> to 'null' or 'default'", Justification = "Null compare works with ReadOnlySpan<byte>")]
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteByteString(string fieldName, ReadOnlySpan<byte> value)
         {
-            if (BeginField(fieldName, value == null, true, false))
+            // == compares memory reference, comparing to empty means we compare to the default
+            // If null array is converted to span the span is default
+            if (BeginField(fieldName, value == ReadOnlySpan<byte>.Empty, true, false))
             {
                 // check the length.
-                if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < value.Length)
+                if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < value.Length)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
-                m_writer.WriteValue(Convert.ToBase64String(value, Base64FormattingOptions.InsertLineBreaks));
+                m_writer.WriteValue(
+                    Convert.ToBase64String(value, Base64FormattingOptions.InsertLineBreaks));
                 EndField(fieldName);
             }
         }
 #endif
 
-        private void WriteByteString(string fieldName, byte[] value, int index, int count, bool isArrayElement)
+        private void WriteByteString(
+            string fieldName,
+            byte[] value,
+            int index,
+            int count,
+            bool isArrayElement)
         {
             Debug.Assert(value == null || value.Length >= count - index);
             if (BeginField(fieldName, value == null, true, isArrayElement))
             {
                 // check the length.
-                if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < count)
+                if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
-                m_writer.WriteValue(Convert.ToBase64String(value, index, count, Base64FormattingOptions.InsertLineBreaks));
+                m_writer.WriteValue(
+                    Convert.ToBase64String(
+                        value,
+                        index,
+                        count,
+                        Base64FormattingOptions.InsertLineBreaks));
                 EndField(fieldName);
             }
         }
@@ -599,8 +605,13 @@ namespace Opc.Ua
                         namespaceIndex = m_namespaceMappings[namespaceIndex];
                     }
 
-                    StringBuilder buffer = new StringBuilder();
-                    NodeId.Format(CultureInfo.InvariantCulture, buffer, value.Identifier, value.IdType, namespaceIndex);
+                    var buffer = new StringBuilder();
+                    NodeId.Format(
+                        CultureInfo.InvariantCulture,
+                        buffer,
+                        value.Identifier,
+                        value.IdType,
+                        namespaceIndex);
                     WriteString("Identifier", buffer.ToString());
                 }
 
@@ -635,8 +646,15 @@ namespace Opc.Ua
                         serverIndex = m_serverMappings[serverIndex];
                     }
 
-                    StringBuilder buffer = new StringBuilder();
-                    ExpandedNodeId.Format(CultureInfo.InvariantCulture, buffer, value.Identifier, value.IdType, namespaceIndex, value.NamespaceUri, serverIndex);
+                    var buffer = new StringBuilder();
+                    ExpandedNodeId.Format(
+                        CultureInfo.InvariantCulture,
+                        buffer,
+                        value.Identifier,
+                        value.IdType,
+                        namespaceIndex,
+                        value.NamespaceUri,
+                        serverIndex);
                     WriteString("Identifier", buffer.ToString());
                 }
 
@@ -692,11 +710,15 @@ namespace Opc.Ua
                     WriteStatusCode("InnerStatusCode", value.InnerStatusCode);
                     if (depth < DiagnosticInfo.MaxInnerDepth)
                     {
-                        WriteDiagnosticInfo("InnerDiagnosticInfo", value.InnerDiagnosticInfo, depth + 1);
+                        WriteDiagnosticInfo(
+                            "InnerDiagnosticInfo",
+                            value.InnerDiagnosticInfo,
+                            depth + 1);
                     }
                     else
                     {
-                        Utils.LogWarning("InnerDiagnosticInfo dropped because nesting exceeds maximum of {0}.",
+                        Utils.LogWarning(
+                            "InnerDiagnosticInfo dropped because nesting exceeds maximum of {0}.",
                             DiagnosticInfo.MaxInnerDepth);
                     }
                 }
@@ -778,9 +800,9 @@ namespace Opc.Ua
                 {
                     PushNamespace(Namespaces.OpcUaXsd);
 
-                        m_writer.WriteStartElement("Value", Namespaces.OpcUaXsd);
-                        WriteVariantContents(value.Value, value.TypeInfo);
-                        m_writer.WriteEndElement();
+                    m_writer.WriteStartElement("Value", Namespaces.OpcUaXsd);
+                    WriteVariantContents(value.Value, value.TypeInfo);
+                    m_writer.WriteEndElement();
 
                     PopNamespace();
 
@@ -821,6 +843,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an ExtensionObject to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteExtensionObject(string fieldName, ExtensionObject value)
         {
             if (BeginField(fieldName, value == null, true))
@@ -835,7 +858,7 @@ namespace Opc.Ua
                     return;
                 }
 
-                IEncodeable encodeable = value.Body as IEncodeable;
+                var encodeable = value.Body as IEncodeable;
 
                 // write the type id.
                 ExpandedNodeId typeId = value.TypeId;
@@ -852,7 +875,7 @@ namespace Opc.Ua
                     }
                 }
 
-                NodeId localTypeId = ExpandedNodeId.ToNodeId(typeId, m_context.NamespaceUris);
+                var localTypeId = ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris);
 
                 if (NodeId.IsNull(localTypeId) && !NodeId.IsNull(typeId))
                 {
@@ -895,16 +918,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an encodeable object to the stream.
         /// </summary>
-        public void WriteEncodeable(string fieldName, IEncodeable value, System.Type systemType)
+        public void WriteEncodeable(string fieldName, IEncodeable value, Type systemType)
         {
             CheckAndIncrementNestingLevel();
 
             if (BeginField(fieldName, value == null, true))
             {
-                if (value != null)
-                {
-                    value.Encode(this);
-                }
+                value?.Encode(this);
 
                 EndField(fieldName);
             }
@@ -921,8 +941,10 @@ namespace Opc.Ua
             {
                 if (value != null)
                 {
-                    var valueSymbol = value.ToString();
-                    var valueInt32 = Convert.ToInt32(value, CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture);
+                    string valueSymbol = value.ToString();
+                    string valueInt32 = Convert
+                        .ToInt32(value, CultureInfo.InvariantCulture)
+                        .ToString(CultureInfo.InvariantCulture);
                     if (valueSymbol != valueInt32)
                     {
                         m_writer.WriteString(Utils.Format("{0}_{1}", valueSymbol, valueInt32));
@@ -940,12 +962,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a boolean array to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteBooleanArray(string fieldName, IList<bool> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -969,12 +992,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a sbyte array to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteSByteArray(string fieldName, IList<sbyte> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -998,12 +1022,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a byte array to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteByteArray(string fieldName, IList<byte> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1027,12 +1052,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a short array to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteInt16Array(string fieldName, IList<short> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1056,12 +1082,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a ushort array to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteUInt16Array(string fieldName, IList<ushort> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1085,12 +1112,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a int array to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteInt32Array(string fieldName, IList<int> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1114,12 +1142,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a uint array to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteUInt32Array(string fieldName, IList<uint> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1143,12 +1172,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a long array to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteInt64Array(string fieldName, IList<long> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1172,12 +1202,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a ulong array to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteUInt64Array(string fieldName, IList<ulong> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1201,12 +1232,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a float array to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteFloatArray(string fieldName, IList<float> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1230,12 +1262,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a double array to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteDoubleArray(string fieldName, IList<double> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1259,12 +1292,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a string array to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteStringArray(string fieldName, IList<string> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1288,12 +1322,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a UTC date/time array to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteDateTimeArray(string fieldName, IList<DateTime> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1317,12 +1352,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a GUID array to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteGuidArray(string fieldName, IList<Uuid> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1346,12 +1382,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a GUID array to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteGuidArray(string fieldName, IList<Guid> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1375,12 +1412,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a byte string array to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteByteStringArray(string fieldName, IList<byte[]> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1404,12 +1442,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an XmlElement array to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteXmlElementArray(string fieldName, IList<XmlElement> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1433,12 +1472,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an NodeId array to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteNodeIdArray(string fieldName, IList<NodeId> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1462,12 +1502,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an ExpandedNodeId array to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteExpandedNodeIdArray(string fieldName, IList<ExpandedNodeId> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1491,12 +1532,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an StatusCode array to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteStatusCodeArray(string fieldName, IList<StatusCode> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1520,12 +1562,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an DiagnosticInfo array to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteDiagnosticInfoArray(string fieldName, IList<DiagnosticInfo> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1549,12 +1592,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an QualifiedName array to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteQualifiedNameArray(string fieldName, IList<QualifiedName> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1578,12 +1622,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an LocalizedText array to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteLocalizedTextArray(string fieldName, IList<LocalizedText> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1607,12 +1652,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an Variant array to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteVariantArray(string fieldName, IList<Variant> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1636,12 +1682,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an DataValue array to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteDataValueArray(string fieldName, IList<DataValue> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1665,12 +1712,13 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an extension object array to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteExtensionObjectArray(string fieldName, IList<ExtensionObject> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1694,23 +1742,27 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an encodeable object array to the stream.
         /// </summary>
-        public void WriteEncodeableArray(string fieldName, IList<IEncodeable> values, System.Type systemType)
+        /// <exception cref="ServiceResultException"></exception>
+        public void WriteEncodeableArray(
+            string fieldName,
+            IList<IEncodeable> values,
+            Type systemType)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded, "Encodeable Array length={0}", values.Count);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "Encodeable Array length={0}",
+                        values.Count);
                 }
 
                 // get name for type being encoded.
-                XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(systemType);
-
-                if (xmlName == null)
-                {
-                    xmlName = new XmlQualifiedName("IEncodeable", Namespaces.OpcUaXsd);
-                }
+                XmlQualifiedName xmlName =
+                    EncodeableFactory.GetXmlName(systemType)
+                    ?? new XmlQualifiedName("IEncodeable", Namespaces.OpcUaXsd);
 
                 PushNamespace(xmlName.Namespace);
 
@@ -1725,7 +1777,9 @@ namespace Opc.Ua
                         {
                             throw new ServiceResultException(
                                 StatusCodes.BadEncodingError,
-                                Utils.Format("Objects with type '{0}' are not allowed in the array being serialized.", systemType.FullName));
+                                Utils.Format(
+                                    "Objects with type '{0}' are not allowed in the array being serialized.",
+                                    systemType.FullName));
                         }
 
                         WriteEncodeable(xmlName.Name, value, systemType);
@@ -1741,23 +1795,24 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an enumerated value array to the stream.
         /// </summary>
-        public void WriteEnumeratedArray(string fieldName, Array values, System.Type systemType)
+        /// <exception cref="ServiceResultException"></exception>
+        public void WriteEnumeratedArray(string fieldName, Array values, Type systemType)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Length)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Length)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded, "Enumerated Array length={0}", values.Length);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "Enumerated Array length={0}",
+                        values.Length);
                 }
 
                 // get name for type being encoded.
-                XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(systemType);
-
-                if (xmlName == null)
-                {
-                    xmlName = new XmlQualifiedName("Enumerated", Namespaces.OpcUaXsd);
-                }
+                XmlQualifiedName xmlName =
+                    EncodeableFactory.GetXmlName(systemType) ??
+                    new XmlQualifiedName("Enumerated", Namespaces.OpcUaXsd);
 
                 PushNamespace(xmlName.Namespace);
 
@@ -1784,14 +1839,15 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEncodingMask(uint encodingMask) => WriteUInt32("EncodingMask", encodingMask);
-        #endregion
+        public void WriteEncodingMask(uint encodingMask)
+        {
+            WriteUInt32("EncodingMask", encodingMask);
+        }
 
-        #region Public Methods
         /// <summary>
         /// Writes the contents of an Variant to the stream.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteVariantContents(object value, TypeInfo typeInfo)
         {
             // check for null.
@@ -1810,71 +1866,167 @@ namespace Opc.Ua
                 {
                     switch (typeInfo.BuiltInType)
                     {
-                        case BuiltInType.Boolean: { WriteBoolean("Boolean", (bool)value); return; }
-                        case BuiltInType.SByte: { WriteSByte("SByte", (sbyte)value); return; }
-                        case BuiltInType.Byte: { WriteByte("Byte", (byte)value); return; }
-                        case BuiltInType.Int16: { WriteInt16("Int16", (short)value); return; }
-                        case BuiltInType.UInt16: { WriteUInt16("UInt16", (ushort)value); return; }
-                        case BuiltInType.Int32: { WriteInt32("Int32", (int)value); return; }
-                        case BuiltInType.UInt32: { WriteUInt32("UInt32", (uint)value); return; }
-                        case BuiltInType.Int64: { WriteInt64("Int64", (long)value); return; }
-                        case BuiltInType.UInt64: { WriteUInt64("UInt64", (ulong)value); return; }
-                        case BuiltInType.Float: { WriteFloat("Float", (float)value); return; }
-                        case BuiltInType.Double: { WriteDouble("Double", (double)value); return; }
-                        case BuiltInType.String: { WriteString("String", (string)value); return; }
-                        case BuiltInType.DateTime: { WriteDateTime("DateTime", (DateTime)value); return; }
-                        case BuiltInType.Guid: { WriteGuid("Guid", (Uuid)value); return; }
-                        case BuiltInType.ByteString: { WriteByteString("ByteString", (byte[])value); return; }
-                        case BuiltInType.XmlElement: { WriteXmlElement("XmlElement", (XmlElement)value); return; }
-                        case BuiltInType.NodeId: { WriteNodeId("NodeId", (NodeId)value); return; }
-                        case BuiltInType.ExpandedNodeId: { WriteExpandedNodeId("ExpandedNodeId", (ExpandedNodeId)value); return; }
-                        case BuiltInType.StatusCode: { WriteStatusCode("StatusCode", (StatusCode)value); return; }
-                        case BuiltInType.QualifiedName: { WriteQualifiedName("QualifiedName", (QualifiedName)value); return; }
-                        case BuiltInType.LocalizedText: { WriteLocalizedText("LocalizedText", (LocalizedText)value); return; }
-                        case BuiltInType.ExtensionObject: { WriteExtensionObject("ExtensionObject", (ExtensionObject)value); return; }
-                        case BuiltInType.DataValue: { WriteDataValue("DataValue", (DataValue)value); return; }
-                        case BuiltInType.Enumeration: { WriteInt32("Int32", (int)value); return; }
+                        case BuiltInType.Boolean:
+                            WriteBoolean("Boolean", (bool)value);
+                            return;
+                        case BuiltInType.SByte:
+                            WriteSByte("SByte", (sbyte)value);
+                            return;
+                        case BuiltInType.Byte:
+                            WriteByte("Byte", (byte)value);
+                            return;
+                        case BuiltInType.Int16:
+                            WriteInt16("Int16", (short)value);
+                            return;
+                        case BuiltInType.UInt16:
+                            WriteUInt16("UInt16", (ushort)value);
+                            return;
+                        case BuiltInType.Int32:
+                            WriteInt32("Int32", (int)value);
+                            return;
+                        case BuiltInType.UInt32:
+                            WriteUInt32("UInt32", (uint)value);
+                            return;
+                        case BuiltInType.Int64:
+                            WriteInt64("Int64", (long)value);
+                            return;
+                        case BuiltInType.UInt64:
+                            WriteUInt64("UInt64", (ulong)value);
+                            return;
+                        case BuiltInType.Float:
+                            WriteFloat("Float", (float)value);
+                            return;
+                        case BuiltInType.Double:
+                            WriteDouble("Double", (double)value);
+                            return;
+                        case BuiltInType.String:
+                            WriteString("String", (string)value);
+                            return;
+                        case BuiltInType.DateTime:
+                            WriteDateTime("DateTime", (DateTime)value);
+                            return;
+                        case BuiltInType.Guid:
+                            WriteGuid("Guid", (Uuid)value);
+                            return;
+                        case BuiltInType.ByteString:
+                            WriteByteString("ByteString", (byte[])value);
+                            return;
+                        case BuiltInType.XmlElement:
+                            WriteXmlElement("XmlElement", (XmlElement)value);
+                            return;
+                        case BuiltInType.NodeId:
+                            WriteNodeId("NodeId", (NodeId)value);
+                            return;
+                        case BuiltInType.ExpandedNodeId:
+                            WriteExpandedNodeId("ExpandedNodeId", (ExpandedNodeId)value);
+                            return;
+                        case BuiltInType.StatusCode:
+                            WriteStatusCode("StatusCode", (StatusCode)value);
+                            return;
+                        case BuiltInType.QualifiedName:
+                            WriteQualifiedName("QualifiedName", (QualifiedName)value);
+                            return;
+                        case BuiltInType.LocalizedText:
+                            WriteLocalizedText("LocalizedText", (LocalizedText)value);
+                            return;
+                        case BuiltInType.ExtensionObject:
+                            WriteExtensionObject("ExtensionObject", (ExtensionObject)value);
+                            return;
+                        case BuiltInType.DataValue:
+                            WriteDataValue("DataValue", (DataValue)value);
+                            return;
+                        case BuiltInType.Enumeration:
+                            WriteInt32("Int32", (int)value);
+                            return;
                     }
                 }
-
                 // write array.
                 else if (typeInfo.ValueRank <= 1)
                 {
                     switch (typeInfo.BuiltInType)
                     {
-                        case BuiltInType.Boolean: { WriteBooleanArray("ListOfBoolean", (bool[])value); return; }
-                        case BuiltInType.SByte: { WriteSByteArray("ListOfSByte", (sbyte[])value); return; }
-                        case BuiltInType.Byte: { WriteByteArray("ListOfByte", (byte[])value); return; }
-                        case BuiltInType.Int16: { WriteInt16Array("ListOfInt16", (short[])value); return; }
-                        case BuiltInType.UInt16: { WriteUInt16Array("ListOfUInt16", (ushort[])value); return; }
-                        case BuiltInType.Int32: { WriteInt32Array("ListOfInt32", (int[])value); return; }
-                        case BuiltInType.UInt32: { WriteUInt32Array("ListOfUInt32", (uint[])value); return; }
-                        case BuiltInType.Int64: { WriteInt64Array("ListOfInt64", (long[])value); return; }
-                        case BuiltInType.UInt64: { WriteUInt64Array("ListOfUInt64", (ulong[])value); return; }
-                        case BuiltInType.Float: { WriteFloatArray("ListOfFloat", (float[])value); return; }
-                        case BuiltInType.Double: { WriteDoubleArray("ListOfDouble", (double[])value); return; }
-                        case BuiltInType.String: { WriteStringArray("ListOfString", (string[])value); return; }
-                        case BuiltInType.DateTime: { WriteDateTimeArray("ListOfDateTime", (DateTime[])value); return; }
-                        case BuiltInType.Guid: { WriteGuidArray("ListOfGuid", (Uuid[])value); return; }
-                        case BuiltInType.ByteString: { WriteByteStringArray("ListOfByteString", (byte[][])value); return; }
-                        case BuiltInType.XmlElement: { WriteXmlElementArray("ListOfXmlElement", (XmlElement[])value); return; }
-                        case BuiltInType.NodeId: { WriteNodeIdArray("ListOfNodeId", (NodeId[])value); return; }
-                        case BuiltInType.ExpandedNodeId: { WriteExpandedNodeIdArray("ListOfExpandedNodeId", (ExpandedNodeId[])value); return; }
-                        case BuiltInType.StatusCode: { WriteStatusCodeArray("ListOfStatusCode", (StatusCode[])value); return; }
-                        case BuiltInType.QualifiedName: { WriteQualifiedNameArray("ListOfQualifiedName", (QualifiedName[])value); return; }
-                        case BuiltInType.LocalizedText: { WriteLocalizedTextArray("ListOfLocalizedText", (LocalizedText[])value); return; }
-                        case BuiltInType.ExtensionObject: { WriteExtensionObjectArray("ListOfExtensionObject", (ExtensionObject[])value); return; }
-                        case BuiltInType.DataValue: { WriteDataValueArray("ListOfDataValue", (DataValue[])value); return; }
-
+                        case BuiltInType.Boolean:
+                            WriteBooleanArray("ListOfBoolean", (bool[])value);
+                            return;
+                        case BuiltInType.SByte:
+                            WriteSByteArray("ListOfSByte", (sbyte[])value);
+                            return;
+                        case BuiltInType.Byte:
+                            WriteByteArray("ListOfByte", (byte[])value);
+                            return;
+                        case BuiltInType.Int16:
+                            WriteInt16Array("ListOfInt16", (short[])value);
+                            return;
+                        case BuiltInType.UInt16:
+                            WriteUInt16Array("ListOfUInt16", (ushort[])value);
+                            return;
+                        case BuiltInType.Int32:
+                            WriteInt32Array("ListOfInt32", (int[])value);
+                            return;
+                        case BuiltInType.UInt32:
+                            WriteUInt32Array("ListOfUInt32", (uint[])value);
+                            return;
+                        case BuiltInType.Int64:
+                            WriteInt64Array("ListOfInt64", (long[])value);
+                            return;
+                        case BuiltInType.UInt64:
+                            WriteUInt64Array("ListOfUInt64", (ulong[])value);
+                            return;
+                        case BuiltInType.Float:
+                            WriteFloatArray("ListOfFloat", (float[])value);
+                            return;
+                        case BuiltInType.Double:
+                            WriteDoubleArray("ListOfDouble", (double[])value);
+                            return;
+                        case BuiltInType.String:
+                            WriteStringArray("ListOfString", (string[])value);
+                            return;
+                        case BuiltInType.DateTime:
+                            WriteDateTimeArray("ListOfDateTime", (DateTime[])value);
+                            return;
+                        case BuiltInType.Guid:
+                            WriteGuidArray("ListOfGuid", (Uuid[])value);
+                            return;
+                        case BuiltInType.ByteString:
+                            WriteByteStringArray("ListOfByteString", (byte[][])value);
+                            return;
+                        case BuiltInType.XmlElement:
+                            WriteXmlElementArray("ListOfXmlElement", (XmlElement[])value);
+                            return;
+                        case BuiltInType.NodeId:
+                            WriteNodeIdArray("ListOfNodeId", (NodeId[])value);
+                            return;
+                        case BuiltInType.ExpandedNodeId:
+                            WriteExpandedNodeIdArray(
+                                "ListOfExpandedNodeId",
+                                (ExpandedNodeId[])value);
+                            return;
+                        case BuiltInType.StatusCode:
+                            WriteStatusCodeArray("ListOfStatusCode", (StatusCode[])value);
+                            return;
+                        case BuiltInType.QualifiedName:
+                            WriteQualifiedNameArray("ListOfQualifiedName", (QualifiedName[])value);
+                            return;
+                        case BuiltInType.LocalizedText:
+                            WriteLocalizedTextArray("ListOfLocalizedText", (LocalizedText[])value);
+                            return;
+                        case BuiltInType.ExtensionObject:
+                            WriteExtensionObjectArray(
+                                "ListOfExtensionObject",
+                                (ExtensionObject[])value);
+                            return;
+                        case BuiltInType.DataValue:
+                            WriteDataValueArray("ListOfDataValue", (DataValue[])value);
+                            return;
                         case BuiltInType.Enumeration:
-                        {
                             if (value is not int[] ints)
                             {
                                 if (value is not Enum[] enums)
                                 {
                                     throw ServiceResultException.Create(
                                         StatusCodes.BadEncodingError,
-                                        "Type '{0}' is not allowed in an Enumeration.", value.GetType().FullName);
+                                        "Type '{0}' is not allowed in an Enumeration.",
+                                        value.GetType().FullName);
                                 }
                                 ints = new int[enums.Length];
                                 for (int ii = 0; ii < enums.Length; ii++)
@@ -1885,10 +2037,7 @@ namespace Opc.Ua
 
                             WriteInt32Array("ListOfInt32", ints);
                             return;
-                        }
-
                         case BuiltInType.Variant:
-                        {
                             if (value is Variant[] variants)
                             {
                                 WriteVariantArray("ListOfVariant", variants);
@@ -1905,10 +2054,8 @@ namespace Opc.Ua
                                 StatusCodes.BadEncodingError,
                                 "Unexpected type encountered while encoding an array of Variants: {0}",
                                 value.GetType());
-                        }
                     }
                 }
-
                 // write matrix.
                 else if (typeInfo.ValueRank > 1)
                 {
@@ -1919,7 +2066,9 @@ namespace Opc.Ua
                 // oops - should never happen.
                 throw new ServiceResultException(
                     StatusCodes.BadEncodingError,
-                    Utils.Format("Type '{0}' is not allowed in an Variant.", value.GetType().FullName));
+                    Utils.Format(
+                        "Type '{0}' is not allowed in an Variant.",
+                        value.GetType().FullName));
             }
             finally
             {
@@ -1930,6 +2079,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes the body of an ExtensionObject to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteExtensionObjectBody(object body)
         {
             // nothing to do for null bodies.
@@ -1943,7 +2093,8 @@ namespace Opc.Ua
             if (body is byte[] bytes)
             {
                 m_writer.WriteStartElement("ByteString", Namespaces.OpcUaXsd);
-                m_writer.WriteString(Convert.ToBase64String(bytes, Base64FormattingOptions.InsertLineBreaks));
+                m_writer.WriteString(
+                    Convert.ToBase64String(bytes, Base64FormattingOptions.InsertLineBreaks));
                 m_writer.WriteEndElement();
                 return;
             }
@@ -1951,22 +2102,24 @@ namespace Opc.Ua
             // encode xml body.
             if (body is XmlElement xml)
             {
-                using (XmlReader reader = XmlReader.Create(new StringReader(xml.OuterXml), Utils.DefaultXmlReaderSettings()))
-                {
-                    m_writer.WriteNode(reader, false);
-                    return;
-                }
+                using var reader = XmlReader.Create(
+                    new StringReader(xml.OuterXml),
+                    Utils.DefaultXmlReaderSettings());
+                m_writer.WriteNode(reader, false);
+                return;
             }
 
             if (body is not IEncodeable encodeable)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadEncodingError,
-                    Utils.Format("Don't know how to encode extension object body with type '{0}'.", body.GetType().FullName));
+                    Utils.Format(
+                        "Don't know how to encode extension object body with type '{0}'.",
+                        body.GetType().FullName));
             }
 
             // encode extension object in xml.
-            XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(encodeable, this.Context);
+            XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(encodeable, Context);
             m_writer.WriteStartElement(xmlName.Name, xmlName.Namespace);
             encodeable.Encode(this);
             m_writer.WriteEndElement();
@@ -1975,12 +2128,15 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an Variant array to the stream.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void WriteObjectArray(string fieldName, IList<object> values)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (values != null && m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (values != null &&
+                    Context.MaxArrayLength > 0 &&
+                    Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -2004,7 +2160,12 @@ namespace Opc.Ua
         /// <summary>
         /// Encode an array according to its valueRank and BuiltInType
         /// </summary>
-        public void WriteArray(string fieldName, object array, int valueRank, BuiltInType builtInType)
+        /// <exception cref="ServiceResultException"></exception>
+        public void WriteArray(
+            string fieldName,
+            object array,
+            int valueRank,
+            BuiltInType builtInType)
         {
             CheckAndIncrementNestingLevel();
 
@@ -2018,51 +2179,100 @@ namespace Opc.Ua
                     * The name of the element in the array shall be the type name.*/
                     switch (builtInType)
                     {
-                        case BuiltInType.Boolean: { WriteBooleanArray(fieldName, (bool[])array); return; }
-                        case BuiltInType.SByte: { WriteSByteArray(fieldName, (sbyte[])array); return; }
-                        case BuiltInType.Byte: { WriteByteArray(fieldName, (byte[])array); return; }
-                        case BuiltInType.Int16: { WriteInt16Array(fieldName, (short[])array); return; }
-                        case BuiltInType.UInt16: { WriteUInt16Array(fieldName, (ushort[])array); return; }
-                        case BuiltInType.Int32: { WriteInt32Array(fieldName, (int[])array); return; }
-                        case BuiltInType.UInt32: { WriteUInt32Array(fieldName, (uint[])array); return; }
-                        case BuiltInType.Int64: { WriteInt64Array(fieldName, (long[])array); return; }
-                        case BuiltInType.UInt64: { WriteUInt64Array(fieldName, (ulong[])array); return; }
-                        case BuiltInType.Float: { WriteFloatArray(fieldName, (float[])array); return; }
-                        case BuiltInType.Double: { WriteDoubleArray(fieldName, (double[])array); return; }
-                        case BuiltInType.String: { WriteStringArray(fieldName, (string[])array); return; }
-                        case BuiltInType.DateTime: { WriteDateTimeArray(fieldName, (DateTime[])array); return; }
-                        case BuiltInType.Guid: { WriteGuidArray(fieldName, (Uuid[])array); return; }
-                        case BuiltInType.ByteString: { WriteByteStringArray(fieldName, (byte[][])array); return; }
-                        case BuiltInType.XmlElement: { WriteXmlElementArray(fieldName, (XmlElement[])array); return; }
-                        case BuiltInType.NodeId: { WriteNodeIdArray(fieldName, (NodeId[])array); return; }
-                        case BuiltInType.ExpandedNodeId: { WriteExpandedNodeIdArray(fieldName, (ExpandedNodeId[])array); return; }
-                        case BuiltInType.StatusCode: { WriteStatusCodeArray(fieldName, (StatusCode[])array); return; }
-                        case BuiltInType.QualifiedName: { WriteQualifiedNameArray(fieldName, (QualifiedName[])array); return; }
-                        case BuiltInType.LocalizedText: { WriteLocalizedTextArray(fieldName, (LocalizedText[])array); return; }
-                        case BuiltInType.ExtensionObject: { WriteExtensionObjectArray(fieldName, (ExtensionObject[])array); return; }
-                        case BuiltInType.DataValue: { WriteDataValueArray(fieldName, (DataValue[])array); return; }
-                        case BuiltInType.DiagnosticInfo: { WriteDiagnosticInfoArray(fieldName, (DiagnosticInfo[])array); return; }
+                        case BuiltInType.Boolean:
+                            WriteBooleanArray(fieldName, (bool[])array);
+                            return;
+                        case BuiltInType.SByte:
+                            WriteSByteArray(fieldName, (sbyte[])array);
+                            return;
+                        case BuiltInType.Byte:
+                            WriteByteArray(fieldName, (byte[])array);
+                            return;
+                        case BuiltInType.Int16:
+                            WriteInt16Array(fieldName, (short[])array);
+                            return;
+                        case BuiltInType.UInt16:
+                            WriteUInt16Array(fieldName, (ushort[])array);
+                            return;
+                        case BuiltInType.Int32:
+                            WriteInt32Array(fieldName, (int[])array);
+                            return;
+                        case BuiltInType.UInt32:
+                            WriteUInt32Array(fieldName, (uint[])array);
+                            return;
+                        case BuiltInType.Int64:
+                            WriteInt64Array(fieldName, (long[])array);
+                            return;
+                        case BuiltInType.UInt64:
+                            WriteUInt64Array(fieldName, (ulong[])array);
+                            return;
+                        case BuiltInType.Float:
+                            WriteFloatArray(fieldName, (float[])array);
+                            return;
+                        case BuiltInType.Double:
+                            WriteDoubleArray(fieldName, (double[])array);
+                            return;
+                        case BuiltInType.String:
+                            WriteStringArray(fieldName, (string[])array);
+                            return;
+                        case BuiltInType.DateTime:
+                            WriteDateTimeArray(fieldName, (DateTime[])array);
+                            return;
+                        case BuiltInType.Guid:
+                            WriteGuidArray(fieldName, (Uuid[])array);
+                            return;
+                        case BuiltInType.ByteString:
+                            WriteByteStringArray(fieldName, (byte[][])array);
+                            return;
+                        case BuiltInType.XmlElement:
+                            WriteXmlElementArray(fieldName, (XmlElement[])array);
+                            return;
+                        case BuiltInType.NodeId:
+                            WriteNodeIdArray(fieldName, (NodeId[])array);
+                            return;
+                        case BuiltInType.ExpandedNodeId:
+                            WriteExpandedNodeIdArray(fieldName, (ExpandedNodeId[])array);
+                            return;
+                        case BuiltInType.StatusCode:
+                            WriteStatusCodeArray(fieldName, (StatusCode[])array);
+                            return;
+                        case BuiltInType.QualifiedName:
+                            WriteQualifiedNameArray(fieldName, (QualifiedName[])array);
+                            return;
+                        case BuiltInType.LocalizedText:
+                            WriteLocalizedTextArray(fieldName, (LocalizedText[])array);
+                            return;
+                        case BuiltInType.ExtensionObject:
+                            WriteExtensionObjectArray(fieldName, (ExtensionObject[])array);
+                            return;
+                        case BuiltInType.DataValue:
+                            WriteDataValueArray(fieldName, (DataValue[])array);
+                            return;
+                        case BuiltInType.DiagnosticInfo:
+                            WriteDiagnosticInfoArray(fieldName, (DiagnosticInfo[])array);
+                            return;
                         case BuiltInType.Enumeration:
-                        {
                             if (array is not int[] ints)
                             {
                                 if (array is not Enum[] enums)
                                 {
                                     throw new ServiceResultException(
                                         StatusCodes.BadEncodingError,
-                                        Utils.Format("Type '{0}' is not allowed in an Enumeration.", array.GetType().FullName));
+                                        Utils.Format(
+                                            "Type '{0}' is not allowed in an Enumeration.",
+                                            array.GetType().FullName));
                                 }
                                 ints = new int[enums.Length];
                                 for (int ii = 0; ii < enums.Length; ii++)
                                 {
-                                    ints[ii] = Convert.ToInt32(enums[ii], CultureInfo.InvariantCulture);
+                                    ints[ii] = Convert.ToInt32(
+                                        enums[ii],
+                                        CultureInfo.InvariantCulture);
                                 }
                             }
 
                             WriteInt32Array(fieldName, ints);
                             return;
-                        }
-
                         case BuiltInType.Variant:
                         {
                             if (array is Variant[] variants)
@@ -2074,7 +2284,10 @@ namespace Opc.Ua
                             // try to write IEncodeable Array
                             if (array is IEncodeable[] encodeableArray)
                             {
-                                WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
+                                WriteEncodeableArray(
+                                    fieldName,
+                                    encodeableArray,
+                                    array.GetType().GetElementType());
                                 return;
                             }
 
@@ -2089,13 +2302,15 @@ namespace Opc.Ua
                                 "Unexpected type encountered while encoding an array of Variants: {0}",
                                 array.GetType());
                         }
-
                         default:
                         {
                             // try to write IEncodeable Array
                             if (array is IEncodeable[] encodeableArray)
                             {
-                                WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
+                                WriteEncodeableArray(
+                                    fieldName,
+                                    encodeableArray,
+                                    array.GetType().GetElementType());
                                 return;
                             }
 
@@ -2106,7 +2321,6 @@ namespace Opc.Ua
                         }
                     }
                 }
-
                 // write matrix.
                 else if (valueRank > ValueRanks.OneDimension)
                 {
@@ -2139,7 +2353,11 @@ namespace Opc.Ua
                             // dimensions element is written first
                             WriteInt32Array("Dimensions", matrix.Dimensions);
 
-                            WriteArray("Elements", matrix.Elements, ValueRanks.OneDimension, builtInType);
+                            WriteArray(
+                                "Elements",
+                                matrix.Elements,
+                                ValueRanks.OneDimension,
+                                builtInType);
                         }
 
                         PopNamespace();
@@ -2153,9 +2371,7 @@ namespace Opc.Ua
                 m_nestingLevel--;
             }
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Writes a DataValue array to the stream.
         /// </summary>
@@ -2171,7 +2387,11 @@ namespace Opc.Ua
                 {
                     WriteInt32Array("Dimensions", value.Dimensions);
 
-                    WriteArray("Elements", value.Elements, ValueRanks.OneDimension, value.TypeInfo.BuiltInType);
+                    WriteArray(
+                        "Elements",
+                        value.Elements,
+                        ValueRanks.OneDimension,
+                        value.TypeInfo.BuiltInType);
                 }
 
                 PopNamespace();
@@ -2185,7 +2405,11 @@ namespace Opc.Ua
         /// <summary>
         /// Writes the start element for a field.
         /// </summary>
-        private bool BeginField(string fieldName, bool isDefault, bool isNillable, bool isArrayElement = false)
+        private bool BeginField(
+            string fieldName,
+            bool isDefault,
+            bool isNillable,
+            bool isArrayElement = false)
         {
             // specifying a null field name means the start/end tags should not be written.
             if (!string.IsNullOrEmpty(fieldName))
@@ -2226,28 +2450,25 @@ namespace Opc.Ua
         /// <summary>
         /// Test and increment the nesting level.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void CheckAndIncrementNestingLevel()
         {
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            if (m_nestingLevel > Context.MaxEncodingNestingLevels)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
+                    Context.MaxEncodingNestingLevels);
             }
             m_nestingLevel++;
         }
-        #endregion
 
-        #region Private Fields
         private StringBuilder m_destination;
         private XmlWriter m_writer;
         private Stack<string> m_namespaces;
         private XmlQualifiedName m_root;
-        private IServiceMessageContext m_context;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
-        #endregion
     }
 }

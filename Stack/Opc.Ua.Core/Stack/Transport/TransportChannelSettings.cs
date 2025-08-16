@@ -19,35 +19,22 @@ namespace Opc.Ua
     /// </summary>
     public class TransportChannelSettings
     {
-        #region Public Properties
         /// <summary>
         /// Gets or sets the description for the endpoint.
         /// </summary>
         /// <remarks>May be null if no security is used.</remarks>
-        public EndpointDescription Description
-        {
-            get { return m_description; }
-            set { m_description = value; }
-        }
+        public EndpointDescription Description { get; set; }
 
         /// <summary>
         /// Gets or sets the configuration for the endpoint.
         /// </summary>
-        public EndpointConfiguration Configuration
-        {
-            get { return m_configuration; }
-            set { m_configuration = value; }
-        }
+        public EndpointConfiguration Configuration { get; set; }
 
         /// <summary>
         /// Gets or sets the client certificate.
         /// </summary>
         /// <remarks>May be null if no security is used.</remarks>
-        public X509Certificate2 ClientCertificate
-        {
-            get { return m_clientCertificate; }
-            set { m_clientCertificate = value; }
-        }
+        public X509Certificate2 ClientCertificate { get; set; }
 
         /// <summary>
         /// Gets or sets the client certificate chain.
@@ -55,21 +42,13 @@ namespace Opc.Ua
         /// <value>
         /// The client certificate chain.
         /// </value>
-        public X509Certificate2Collection ClientCertificateChain
-        {
-            get { return m_clientCertificateChain; }
-            set { m_clientCertificateChain = value; }
-        }
+        public X509Certificate2Collection ClientCertificateChain { get; set; }
 
         /// <summary>
         /// Gets or Sets the server certificate.
         /// </summary>
         /// <remarks>May be null if no security is used.</remarks>
-        public X509Certificate2 ServerCertificate
-        {
-            get { return m_serverCertificate; }
-            set { m_serverCertificate = value; }
-        }
+        public X509Certificate2 ServerCertificate { get; set; }
 
         /// <summary>
         /// Gets or sets the certificate validator for the application.
@@ -79,11 +58,7 @@ namespace Opc.Ua
         /// This is the object used by the channel to validate received certificates.
         /// Validatation errors are reported to the application via this object.
         /// </remarks>
-        public ICertificateValidator CertificateValidator
-        {
-            get { return m_certificateValidator; }
-            set { m_certificateValidator = value; }
-        }
+        public ICertificateValidator CertificateValidator { get; set; }
 
         /// <summary>
         /// Gets or sets a reference to the table of namespaces for the server.
@@ -92,15 +67,11 @@ namespace Opc.Ua
         /// This is a thread safe object that may be updated by the application at any time.
         /// This table is used to lookup the NamespaceURI for the DataTypeEncodingId when decoding ExtensionObjects.
         /// If the NamespaceURI can be found the decoder will use the Factory to create an instance of a .NET object.
-        /// The raw data is passed to application if the NamespaceURI cannot be found or there is no .NET class 
+        /// The raw data is passed to application if the NamespaceURI cannot be found or there is no .NET class
         /// associated with the DataTypeEncodingId then.
         /// </remarks>
         /// <seealso cref="Factory" />
-        public NamespaceTable NamespaceUris
-        {
-            get { return m_namespaceUris; }
-            set { m_namespaceUris = value; }
-        }
+        public NamespaceTable NamespaceUris { get; set; }
 
         /// <summary>
         /// Gets or sets the table of known encodeable objects.
@@ -116,22 +87,6 @@ namespace Opc.Ua
         /// in the encoded message.
         /// </remarks>
         /// <seealso cref="NamespaceUris" />
-        public IEncodeableFactory Factory
-        {
-            get { return m_channelFactory; }
-            set { m_channelFactory = value; }
-        }
-        #endregion
-
-        #region Private Fields
-        private EndpointDescription m_description;
-        private EndpointConfiguration m_configuration;
-        private X509Certificate2 m_clientCertificate;
-        private X509Certificate2Collection m_clientCertificateChain;
-        private X509Certificate2 m_serverCertificate;
-        private ICertificateValidator m_certificateValidator;
-        private NamespaceTable m_namespaceUris;
-        private IEncodeableFactory m_channelFactory;
-        #endregion
+        public IEncodeableFactory Factory { get; set; }
     }
 }

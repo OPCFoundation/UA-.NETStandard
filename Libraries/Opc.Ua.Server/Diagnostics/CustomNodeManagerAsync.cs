@@ -27,10 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -53,7 +50,13 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
-            return CallInternalAsync(context, methodsToCall, results, errors, sync: false, cancellationToken);
+            return CallInternalAsync(
+                context,
+                methodsToCall,
+                results,
+                errors,
+                sync: false,
+                cancellationToken);
         }
     }
 }

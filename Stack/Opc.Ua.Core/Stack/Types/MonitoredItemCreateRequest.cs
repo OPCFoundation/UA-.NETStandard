@@ -10,11 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-using System.Collections.Generic;
-using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
-
 namespace Opc.Ua
 {
     /// <summary>
@@ -22,29 +17,14 @@ namespace Opc.Ua
     /// </summary>
     public partial class MonitoredItemCreateRequest
     {
-        #region Supporting Properties and Methods
         /// <summary>
         /// A handle assigned to the item during processing.
         /// </summary>
-        public object Handle
-        {
-            get { return m_handle; }
-            set { m_handle = value; }
-        }
+        public object Handle { get; set; }
 
         /// <summary>
         /// Whether the value has been processed.
         /// </summary>
-        public bool Processed
-        {
-            get { return m_processed; }
-            set { m_processed = value; }
-        }
-        #endregion
-
-        #region Private Fields
-        private object m_handle;
-        private bool m_processed;
-        #endregion
+        public bool Processed { get; set; }
     }
 }

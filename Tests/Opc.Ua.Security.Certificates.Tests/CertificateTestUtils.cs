@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -38,7 +37,6 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Security.Certificates.Tests
 {
-    #region KeyHashPair Helper
     public class KeyHashPair : IFormattable
     {
         public KeyHashPair(ushort keySize, HashAlgorithmName hashAlgorithmName)
@@ -75,12 +73,23 @@ namespace Opc.Ua.Security.Certificates.Tests
 
     public class KeyHashPairCollection : List<KeyHashPair>
     {
-        public KeyHashPairCollection() { }
-        public KeyHashPairCollection(IEnumerable<KeyHashPair> collection) : base(collection) { }
-        public KeyHashPairCollection(int capacity) : base(capacity) { }
+        public KeyHashPairCollection()
+        {
+        }
+
+        public KeyHashPairCollection(IEnumerable<KeyHashPair> collection)
+            : base(collection)
+        {
+        }
+
+        public KeyHashPairCollection(int capacity)
+            : base(capacity)
+        {
+        }
+
         public static KeyHashPairCollection ToJsonValidationDataCollection(KeyHashPair[] values)
         {
-            return values != null ? new KeyHashPairCollection(values) : new KeyHashPairCollection();
+            return values != null ? [.. values] : [];
         }
 
         public void Add(ushort keySize, HashAlgorithmName hashAlgorithmName)
@@ -88,10 +97,9 @@ namespace Opc.Ua.Security.Certificates.Tests
             Add(new KeyHashPair(keySize, hashAlgorithmName));
         }
     }
-    #endregion
 
 #if ECC_SUPPORT
-    #region ECCurveHashPair Helper
+
     public class ECCurveHashPair : IFormattable
     {
         public ECCurveHashPair(ECCurve curve, HashAlgorithmName hashAlgorithmName)
@@ -117,14 +125,14 @@ namespace Opc.Ua.Security.Certificates.Tests
         }
 
         public ECCurve Curve { get; private set; }
-        public ushort HashSize { get; private set; }
-        public HashAlgorithmName HashAlgorithmName { get; private set; }
+        public ushort HashSize { get; }
+        public HashAlgorithmName HashAlgorithmName { get; }
 
         public string ToString(string format, IFormatProvider formatProvider)
         {
             try
             {
-                var friendlyName = Curve.Oid?.FriendlyName ?? "Unknown";
+                string friendlyName = Curve.Oid?.FriendlyName ?? "Unknown";
                 return $"{friendlyName}-{HashAlgorithmName}";
             }
             catch
@@ -136,12 +144,24 @@ namespace Opc.Ua.Security.Certificates.Tests
 
     public class ECCurveHashPairCollection : List<ECCurveHashPair>
     {
-        public ECCurveHashPairCollection() { }
-        public ECCurveHashPairCollection(IEnumerable<ECCurveHashPair> collection) : base(collection) { }
-        public ECCurveHashPairCollection(int capacity) : base(capacity) { }
-        public static ECCurveHashPairCollection ToJsonValidationDataCollection(ECCurveHashPair[] values)
+        public ECCurveHashPairCollection()
         {
-            return values != null ? new ECCurveHashPairCollection(values) : new ECCurveHashPairCollection();
+        }
+
+        public ECCurveHashPairCollection(IEnumerable<ECCurveHashPair> collection)
+            : base(collection)
+        {
+        }
+
+        public ECCurveHashPairCollection(int capacity)
+            : base(capacity)
+        {
+        }
+
+        public static ECCurveHashPairCollection ToJsonValidationDataCollection(
+            ECCurveHashPair[] values)
+        {
+            return values != null ? [.. values] : [];
         }
 
         public void Add(ECCurve curve, HashAlgorithmName hashAlgorithmName)
@@ -149,17 +169,13 @@ namespace Opc.Ua.Security.Certificates.Tests
             Add(new ECCurveHashPair(curve, hashAlgorithmName));
         }
     }
-    #endregion
 #endif
 
-    #region CRL Asset Helpers
     /// <summary>
     /// A CRL as test asset.
     /// </summary>
     public class CRLAsset : IAsset, IFormattable
     {
-        public CRLAsset() { }
-
         public string Path { get; private set; }
         public byte[] Crl { get; private set; }
 
@@ -171,7 +187,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
         public string ToString(string format, IFormatProvider formatProvider)
         {
-            var file = System.IO.Path.GetFileName(Path);
+            string file = System.IO.Path.GetFileName(Path);
             return $"{file}";
         }
     }
@@ -181,8 +197,6 @@ namespace Opc.Ua.Security.Certificates.Tests
     /// </summary>
     public class CertificateAsset : IAsset, IFormattable
     {
-        public CertificateAsset() { }
-
         public string Path { get; private set; }
         public byte[] Cert { get; private set; }
         public X509Certificate2 X509Certificate { get; private set; }
@@ -196,18 +210,17 @@ namespace Opc.Ua.Security.Certificates.Tests
                 X509Certificate = X509CertificateLoader.LoadCertificateFromFile(path);
             }
             catch
-            { }
+            {
+            }
         }
 
         public string ToString(string format, IFormatProvider formatProvider)
         {
-            var file = System.IO.Path.GetFileName(Path);
+            string file = System.IO.Path.GetFileName(Path);
             return $"{file}";
         }
     }
-    #endregion
 
-    #region TestUtils
     /// <summary>
     /// Test helpers.
     /// </summary>
@@ -216,26 +229,31 @@ namespace Opc.Ua.Security.Certificates.Tests
         public static string WriteCRL(X509CRL x509Crl)
         {
             var stringBuilder = new StringBuilder();
-            stringBuilder.Append("Issuer:     ").AppendLine(x509Crl.Issuer);
-            stringBuilder.Append("ThisUpdate: ").Append(x509Crl.ThisUpdate).AppendLine();
-            stringBuilder.Append("NextUpdate: ").Append(x509Crl.NextUpdate).AppendLine();
-            stringBuilder.AppendLine("RevokedCertificates:");
-            foreach (var revokedCert in x509Crl.RevokedCertificates)
+            stringBuilder.Append("Issuer:     ").AppendLine(x509Crl.Issuer)
+                .Append("ThisUpdate: ").Append(x509Crl.ThisUpdate).AppendLine()
+                .Append("NextUpdate: ").Append(x509Crl.NextUpdate).AppendLine()
+                .AppendLine("RevokedCertificates:");
+            foreach (RevokedCertificate revokedCert in x509Crl.RevokedCertificates)
             {
-                stringBuilder.AppendFormat(CultureInfo.InvariantCulture, "{0:20}", revokedCert.SerialNumber).Append(", ").Append(revokedCert.RevocationDate).Append(", ");
-                foreach (var entryExt in revokedCert.CrlEntryExtensions)
+                stringBuilder
+                    .AppendFormat(
+                        CultureInfo.InvariantCulture,
+                        "{0:20}, ",
+                        revokedCert.SerialNumber)
+                    .Append(revokedCert.RevocationDate)
+                    .Append(", ");
+                foreach (X509Extension entryExt in revokedCert.CrlEntryExtensions)
                 {
                     stringBuilder.Append(entryExt.Format(false)).Append(' ');
                 }
-                stringBuilder.AppendLine("");
+                stringBuilder.AppendLine(string.Empty);
             }
             stringBuilder.AppendLine("Extensions:");
-            foreach (var extension in x509Crl.CrlExtensions)
+            foreach (X509Extension extension in x509Crl.CrlExtensions)
             {
                 stringBuilder.AppendLine(extension.Format(false));
             }
             return stringBuilder.ToString();
         }
     }
-    #endregion
 }

@@ -22,29 +22,20 @@ namespace Opc.Ua.Test
     /// </summary>
     public class DataComparer
     {
-        #region Constructors
         /// <summary>
         /// Constructs an instance of the data comparer.
         /// </summary>
         public DataComparer(IServiceMessageContext context)
         {
             m_context = context;
-            m_throwOnError = true;
+            ThrowOnError = true;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// Gets or set a flag indicating whether an exception should be thrown on error.
         /// </summary>
-        public bool ThrowOnError
-        {
-            get { return m_throwOnError; }
-            set { m_throwOnError = value; }
-        }
-        #endregion
+        public bool ThrowOnError { get; set; }
 
-        #region Boolean Functions
         /// <summary>
         /// This method compares two Boolean values.
         /// </summary>
@@ -60,9 +51,7 @@ namespace Opc.Ua.Test
             }
             return true;
         }
-        #endregion
 
-        #region SByte Functions
         /// <summary>
         /// This method compares two SByte values.
         /// </summary>
@@ -79,9 +68,7 @@ namespace Opc.Ua.Test
 
             return true;
         }
-        #endregion
 
-        #region Byte Functions
         /// <summary>
         /// This method compares two Byte values.
         /// </summary>
@@ -98,9 +85,7 @@ namespace Opc.Ua.Test
 
             return true;
         }
-        #endregion
 
-        #region Int16 Functions
         /// <summary>
         /// This method compares two Int16 values.
         /// </summary>
@@ -117,9 +102,7 @@ namespace Opc.Ua.Test
 
             return true;
         }
-        #endregion
 
-        #region UInt16 Functions
         /// <summary>
         /// This method compares two UInt16 values.
         /// </summary>
@@ -136,9 +119,7 @@ namespace Opc.Ua.Test
 
             return true;
         }
-        #endregion
 
-        #region Int32 Functions
         /// <summary>
         /// This method compares two Int32 values.
         /// </summary>
@@ -155,9 +136,7 @@ namespace Opc.Ua.Test
 
             return true;
         }
-        #endregion
 
-        #region UInt32 Functions
         /// <summary>
         /// This method compares two UInt32 values.
         /// </summary>
@@ -174,9 +153,7 @@ namespace Opc.Ua.Test
 
             return true;
         }
-        #endregion
 
-        #region Int64 Functions
         /// <summary>
         /// This method compares two Int64 values.
         /// </summary>
@@ -193,9 +170,7 @@ namespace Opc.Ua.Test
 
             return true;
         }
-        #endregion
 
-        #region UInt64 Functions
         /// <summary>
         /// This method compares two UInt64 values.
         /// </summary>
@@ -212,9 +187,7 @@ namespace Opc.Ua.Test
 
             return true;
         }
-        #endregion
 
-        #region Float Functions
         /// <summary>
         /// This method compares two Float values.
         /// </summary>
@@ -226,7 +199,7 @@ namespace Opc.Ua.Test
         {
             if (value1 != value2)
             {
-                if (Single.IsNaN(value1) && Single.IsNaN(value2))
+                if (float.IsNaN(value1) && float.IsNaN(value2))
                 {
                     return true;
                 }
@@ -236,9 +209,7 @@ namespace Opc.Ua.Test
 
             return true;
         }
-        #endregion
 
-        #region Double Functions
         /// <summary>
         /// This method compares two Double values.
         /// </summary>
@@ -250,7 +221,7 @@ namespace Opc.Ua.Test
         {
             if (value1 != value2)
             {
-                if (Double.IsNaN(value1) && Double.IsNaN(value2))
+                if (double.IsNaN(value1) && double.IsNaN(value2))
                 {
                     return true;
                 }
@@ -267,9 +238,7 @@ namespace Opc.Ua.Test
 
             return true;
         }
-        #endregion
 
-        #region String Functions
         /// <summary>
         /// This method compares two String values.
         /// </summary>
@@ -286,9 +255,7 @@ namespace Opc.Ua.Test
 
             return true;
         }
-        #endregion
 
-        #region DateTime Functions
         /// <summary>
         /// This method compares two DateTime values.
         /// </summary>
@@ -322,9 +289,7 @@ namespace Opc.Ua.Test
             // allow milliseconds to be truncated.
             return Math.Abs((value1 - value2).Ticks) < 10000;
         }
-        #endregion
 
-        #region Guid Functions
         /// <summary>
         /// This method compares two Guid values.
         /// </summary>
@@ -341,9 +306,7 @@ namespace Opc.Ua.Test
 
             return true;
         }
-        #endregion
 
-        #region ByteString Functions
         /// <summary>
         /// This method compares two ByteString values.
         /// </summary>
@@ -378,9 +341,7 @@ namespace Opc.Ua.Test
 
             return true;
         }
-        #endregion
 
-        #region XmlElement Functions
         /// <summary>
         /// This method compares two XmlElement values.
         /// </summary>
@@ -421,19 +382,18 @@ namespace Opc.Ua.Test
                         return ReportError(attribute1, attribute2);
                     }
 
-                    string prefix = (attribute1.Name.Length > 5) ? attribute1.Name.Substring(6) : String.Empty;
+                    string prefix = attribute1.Name.Length > 5
+                        ? attribute1.Name[6..]
+                        : string.Empty;
 
                     if (attribute1.Value != value2.GetNamespaceOfPrefix(prefix))
                     {
                         return ReportError(attribute1.Value, value2.GetNamespaceOfPrefix(prefix));
                     }
                 }
-                else
+                else if (attribute2.Value != attribute1.Value)
                 {
-                    if (attribute2.Value != attribute1.Value)
-                    {
-                        return ReportError(attribute2.Value, attribute1.Value);
-                    }
+                    return ReportError(attribute2.Value, attribute1.Value);
                 }
             }
 
@@ -485,9 +445,7 @@ namespace Opc.Ua.Test
 
             return true;
         }
-        #endregion
 
-        #region NodeId Functions
         /// <summary>
         /// This method compares two NodeId values.
         /// </summary>
@@ -519,9 +477,7 @@ namespace Opc.Ua.Test
 
             return true;
         }
-        #endregion
 
-        #region ExpandedNodeId Functions
         /// <summary>
         /// This method compares two ExpandedNodeId values.
         /// </summary>
@@ -538,18 +494,13 @@ namespace Opc.Ua.Test
 
             if (value1 == null || value2 == null)
             {
-                if (value1 != value2)
-                {
-                    return false;
-                }
-
-                return true;
+                return value1 == value2;
             }
 
             if (value1 != value2)
             {
-                NodeId nodeId1 = ExpandedNodeId.ToNodeId(value1, m_context.NamespaceUris);
-                NodeId nodeId2 = ExpandedNodeId.ToNodeId(value2, m_context.NamespaceUris);
+                var nodeId1 = ExpandedNodeId.ToNodeId(value1, m_context.NamespaceUris);
+                var nodeId2 = ExpandedNodeId.ToNodeId(value2, m_context.NamespaceUris);
 
                 if (nodeId1 != nodeId2)
                 {
@@ -559,9 +510,7 @@ namespace Opc.Ua.Test
 
             return true;
         }
-        #endregion
 
-        #region StatusCode Functions
         /// <summary>
         /// This method compares two StatusCode values.
         /// </summary>
@@ -578,9 +527,7 @@ namespace Opc.Ua.Test
 
             return true;
         }
-        #endregion
 
-        #region DiagnosticInfo Functions
         /// <summary>
         /// This method compares two DiagnosticInfo values.
         /// </summary>
@@ -595,15 +542,9 @@ namespace Opc.Ua.Test
                 return true;
             }
 
-            if (value1 == null)
-            {
-                value1 = new DiagnosticInfo();
-            }
+            value1 ??= new DiagnosticInfo();
 
-            if (value2 == null)
-            {
-                value2 = new DiagnosticInfo();
-            }
+            value2 ??= new DiagnosticInfo();
 
             if (!CompareInt32(value1.SymbolicId, value2.SymbolicId))
             {
@@ -642,9 +583,7 @@ namespace Opc.Ua.Test
 
             return true;
         }
-        #endregion
 
-        #region QualifiedName Functions
         /// <summary>
         /// This method compares two QualifiedName values.
         /// </summary>
@@ -656,26 +595,12 @@ namespace Opc.Ua.Test
         {
             if (value1 == null)
             {
-                if (value2 == null || value2 == QualifiedName.Null)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                return value2 == null || value2 == QualifiedName.Null;
             }
 
             if (value2 == null)
             {
-                if (value1 == null || value1 == QualifiedName.Null)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                return value1 == null || value1 == QualifiedName.Null;
             }
 
             if (!value1.Equals(value2))
@@ -684,9 +609,7 @@ namespace Opc.Ua.Test
             }
             return true;
         }
-        #endregion
 
-        #region LocalizedText Functions
         /// <summary>
         /// This method compares two LocalizedText values.
         /// </summary>
@@ -698,26 +621,12 @@ namespace Opc.Ua.Test
         {
             if (value1 == null)
             {
-                if (value2 == null || value2 == LocalizedText.Null)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                return value2 == null || value2 == LocalizedText.Null;
             }
 
             if (value2 == null)
             {
-                if (value1 == null || value1 == LocalizedText.Null)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                return value1 == null || value1 == LocalizedText.Null;
             }
 
             if (!value1.Equals(value2))
@@ -726,9 +635,7 @@ namespace Opc.Ua.Test
             }
             return true;
         }
-        #endregion
 
-        #region Variant Functions
         /// <summary>
         /// This method compares two Variant values.
         /// </summary>
@@ -736,7 +643,6 @@ namespace Opc.Ua.Test
         /// <param name="value2">Second Value.</param>
         /// <returns>True in case of equal values.
         /// False or ServiceResultException in case of unequal values.</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
         public bool CompareVariant(Variant value1, Variant value2)
         {
             if (value1.Value == null || value2.Value == null)
@@ -749,7 +655,7 @@ namespace Opc.Ua.Test
                 return true;
             }
 
-            System.Type systemType = value1.Value.GetType();
+            Type systemType = value1.Value.GetType();
 
             if (systemType != value2.Value.GetType())
             {
@@ -758,73 +664,279 @@ namespace Opc.Ua.Test
 
             if (!systemType.IsArray || systemType == typeof(byte[]))
             {
-                if (systemType == typeof(bool)) { return CompareBoolean((bool)value1.Value, (bool)value2.Value); }
-                if (systemType == typeof(sbyte)) { return CompareSByte((sbyte)value1.Value, (sbyte)value2.Value); }
-                if (systemType == typeof(byte)) { return CompareByte((byte)value1.Value, (byte)value2.Value); }
-                if (systemType == typeof(short)) { return CompareInt16((short)value1.Value, (short)value2.Value); }
-                if (systemType == typeof(ushort)) { return CompareUInt16((ushort)value1.Value, (ushort)value2.Value); }
-                if (systemType == typeof(int)) { return CompareInt32((int)value1.Value, (int)value2.Value); }
-                if (systemType == typeof(uint)) { return CompareUInt32((uint)value1.Value, (uint)value2.Value); }
-                if (systemType == typeof(long)) { return CompareInt64((long)value1.Value, (long)value2.Value); }
-                if (systemType == typeof(ulong)) { return CompareUInt64((ulong)value1.Value, (ulong)value2.Value); }
-                if (systemType == typeof(float)) { return CompareFloat((float)value1.Value, (float)value2.Value); }
-                if (systemType == typeof(double)) { return CompareDouble((double)value1.Value, (double)value2.Value); }
-                if (systemType == typeof(string)) { return CompareString((string)value1.Value, (string)value2.Value); }
-                if (systemType == typeof(DateTime)) { return CompareDateTime((DateTime)value1.Value, (DateTime)value2.Value); }
-                if (systemType == typeof(Uuid)) { return CompareUuid((Uuid)value1.Value, (Uuid)value2.Value); }
-                if (systemType == typeof(byte[])) { return CompareByteString((byte[])value1.Value, (byte[])value2.Value); }
-                if (systemType == typeof(XmlElement)) { return CompareXmlElement((XmlElement)value1.Value, (XmlElement)value2.Value); }
-                if (systemType == typeof(NodeId)) { return CompareNodeId((NodeId)value1.Value, (NodeId)value2.Value); }
-                if (systemType == typeof(ExpandedNodeId)) { return CompareExpandedNodeId((ExpandedNodeId)value1.Value, (ExpandedNodeId)value2.Value); }
-                if (systemType == typeof(StatusCode)) { return CompareStatusCode((StatusCode)value1.Value, (StatusCode)value2.Value); }
-                if (systemType == typeof(DiagnosticInfo)) { return CompareDiagnosticInfo((DiagnosticInfo)value1.Value, (DiagnosticInfo)value2.Value); }
-                if (systemType == typeof(QualifiedName)) { return CompareQualifiedName((QualifiedName)value1.Value, (QualifiedName)value2.Value); }
-                if (systemType == typeof(LocalizedText)) { return CompareLocalizedText((LocalizedText)value1.Value, (LocalizedText)value2.Value); }
-                if (systemType == typeof(ExtensionObject)) { return CompareExtensionObject((ExtensionObject)value1.Value, (ExtensionObject)value2.Value); }
-                if (systemType == typeof(DataValue)) { return CompareDataValue((DataValue)value1.Value, (DataValue)value2.Value); }
-                if (systemType == typeof(Variant)) { return CompareVariant((Variant)value1.Value, (Variant)value2.Value); }
-                if (systemType == typeof(Matrix)) { return CompareMatrix((Matrix)value1.Value, (Matrix)value2.Value); }
+                if (systemType == typeof(bool))
+                {
+                    return CompareBoolean((bool)value1.Value, (bool)value2.Value);
+                }
+                if (systemType == typeof(sbyte))
+                {
+                    return CompareSByte((sbyte)value1.Value, (sbyte)value2.Value);
+                }
+                if (systemType == typeof(byte))
+                {
+                    return CompareByte((byte)value1.Value, (byte)value2.Value);
+                }
+                if (systemType == typeof(short))
+                {
+                    return CompareInt16((short)value1.Value, (short)value2.Value);
+                }
+                if (systemType == typeof(ushort))
+                {
+                    return CompareUInt16((ushort)value1.Value, (ushort)value2.Value);
+                }
+                if (systemType == typeof(int))
+                {
+                    return CompareInt32((int)value1.Value, (int)value2.Value);
+                }
+                if (systemType == typeof(uint))
+                {
+                    return CompareUInt32((uint)value1.Value, (uint)value2.Value);
+                }
+                if (systemType == typeof(long))
+                {
+                    return CompareInt64((long)value1.Value, (long)value2.Value);
+                }
+                if (systemType == typeof(ulong))
+                {
+                    return CompareUInt64((ulong)value1.Value, (ulong)value2.Value);
+                }
+                if (systemType == typeof(float))
+                {
+                    return CompareFloat((float)value1.Value, (float)value2.Value);
+                }
+                if (systemType == typeof(double))
+                {
+                    return CompareDouble((double)value1.Value, (double)value2.Value);
+                }
+                if (systemType == typeof(string))
+                {
+                    return CompareString((string)value1.Value, (string)value2.Value);
+                }
+                if (systemType == typeof(DateTime))
+                {
+                    return CompareDateTime((DateTime)value1.Value, (DateTime)value2.Value);
+                }
+                if (systemType == typeof(Uuid))
+                {
+                    return CompareUuid((Uuid)value1.Value, (Uuid)value2.Value);
+                }
+                if (systemType == typeof(byte[]))
+                {
+                    return CompareByteString((byte[])value1.Value, (byte[])value2.Value);
+                }
+                if (systemType == typeof(XmlElement))
+                {
+                    return CompareXmlElement((XmlElement)value1.Value, (XmlElement)value2.Value);
+                }
+                if (systemType == typeof(NodeId))
+                {
+                    return CompareNodeId((NodeId)value1.Value, (NodeId)value2.Value);
+                }
+                if (systemType == typeof(ExpandedNodeId))
+                {
+                    return CompareExpandedNodeId(
+                        (ExpandedNodeId)value1.Value,
+                        (ExpandedNodeId)value2.Value);
+                }
+                if (systemType == typeof(StatusCode))
+                {
+                    return CompareStatusCode((StatusCode)value1.Value, (StatusCode)value2.Value);
+                }
+                if (systemType == typeof(DiagnosticInfo))
+                {
+                    return CompareDiagnosticInfo(
+                        (DiagnosticInfo)value1.Value,
+                        (DiagnosticInfo)value2.Value);
+                }
+                if (systemType == typeof(QualifiedName))
+                {
+                    return CompareQualifiedName(
+                        (QualifiedName)value1.Value,
+                        (QualifiedName)value2.Value);
+                }
+                if (systemType == typeof(LocalizedText))
+                {
+                    return CompareLocalizedText(
+                        (LocalizedText)value1.Value,
+                        (LocalizedText)value2.Value);
+                }
+                if (systemType == typeof(ExtensionObject))
+                {
+                    return CompareExtensionObject(
+                        (ExtensionObject)value1.Value,
+                        (ExtensionObject)value2.Value);
+                }
+                if (systemType == typeof(DataValue))
+                {
+                    return CompareDataValue((DataValue)value1.Value, (DataValue)value2.Value);
+                }
+                if (systemType == typeof(Variant))
+                {
+                    return CompareVariant((Variant)value1.Value, (Variant)value2.Value);
+                }
+                if (systemType == typeof(Matrix))
+                {
+                    return CompareMatrix((Matrix)value1.Value, (Matrix)value2.Value);
+                }
             }
             else
             {
-                if (systemType == typeof(bool[])) { return CompareArray<bool>((bool[])value1.Value, (bool[])value2.Value, CompareBoolean); }
-                if (systemType == typeof(sbyte[])) { return CompareArray<sbyte>((sbyte[])value1.Value, (sbyte[])value2.Value, CompareSByte); }
-                if (systemType == typeof(short[])) { return CompareArray<short>((short[])value1.Value, (short[])value2.Value, CompareInt16); }
-                if (systemType == typeof(ushort[])) { return CompareArray<ushort>((ushort[])value1.Value, (ushort[])value2.Value, CompareUInt16); }
-                if (systemType == typeof(int[])) { return CompareArray<int>((int[])value1.Value, (int[])value2.Value, CompareInt32); }
-                if (systemType == typeof(uint[])) { return CompareArray<uint>((uint[])value1.Value, (uint[])value2.Value, CompareUInt32); }
-                if (systemType == typeof(long[])) { return CompareArray<long>((long[])value1.Value, (long[])value2.Value, CompareInt64); }
-                if (systemType == typeof(ulong[])) { return CompareArray<ulong>((ulong[])value1.Value, (ulong[])value2.Value, CompareUInt64); }
-                if (systemType == typeof(float[])) { return CompareArray<float>((float[])value1.Value, (float[])value2.Value, CompareFloat); }
-                if (systemType == typeof(double[])) { return CompareArray<double>((double[])value1.Value, (double[])value2.Value, CompareDouble); }
-                if (systemType == typeof(string[])) { return CompareArray<string>((string[])value1.Value, (string[])value2.Value, CompareString); }
-                if (systemType == typeof(DateTime[])) { return CompareArray<DateTime>((DateTime[])value1.Value, (DateTime[])value2.Value, CompareDateTime); }
-                if (systemType == typeof(Uuid[])) { return CompareArray<Uuid>((Uuid[])value1.Value, (Uuid[])value2.Value, CompareUuid); }
-                if (systemType == typeof(byte[][])) { return CompareArray<byte[]>((byte[][])value1.Value, (byte[][])value2.Value, CompareByteString); }
-                if (systemType == typeof(XmlElement[])) { return CompareArray<XmlElement>((XmlElement[])value1.Value, (XmlElement[])value2.Value, CompareXmlElement); }
-                if (systemType == typeof(NodeId[])) { return CompareArray<NodeId>((NodeId[])value1.Value, (NodeId[])value2.Value, CompareNodeId); }
-                if (systemType == typeof(ExpandedNodeId[])) { return CompareArray<ExpandedNodeId>((ExpandedNodeId[])value1.Value, (ExpandedNodeId[])value2.Value, CompareExpandedNodeId); }
-                if (systemType == typeof(StatusCode[])) { return CompareArray<StatusCode>((StatusCode[])value1.Value, (StatusCode[])value2.Value, CompareStatusCode); }
-                if (systemType == typeof(DiagnosticInfo[])) { return CompareArray<DiagnosticInfo>((DiagnosticInfo[])value1.Value, (DiagnosticInfo[])value2.Value, CompareDiagnosticInfo); }
-                if (systemType == typeof(QualifiedName[])) { return CompareArray<QualifiedName>((QualifiedName[])value1.Value, (QualifiedName[])value2.Value, CompareQualifiedName); }
-                if (systemType == typeof(LocalizedText[])) { return CompareArray<LocalizedText>((LocalizedText[])value1.Value, (LocalizedText[])value2.Value, CompareLocalizedText); }
-                if (systemType == typeof(ExtensionObject[])) { return CompareArray<ExtensionObject>((ExtensionObject[])value1.Value, (ExtensionObject[])value2.Value, CompareExtensionObject); }
-                if (systemType == typeof(DataValue[])) { return CompareArray<DataValue>((DataValue[])value1.Value, (DataValue[])value2.Value, CompareDataValue); }
-                if (systemType == typeof(Variant[])) { return CompareArray<Variant>((Variant[])value1.Value, (Variant[])value2.Value, CompareVariant); }
+                if (systemType == typeof(bool[]))
+                {
+                    return CompareArray((bool[])value1.Value, (bool[])value2.Value, CompareBoolean);
+                }
+                if (systemType == typeof(sbyte[]))
+                {
+                    return CompareArray((sbyte[])value1.Value, (sbyte[])value2.Value, CompareSByte);
+                }
+                if (systemType == typeof(short[]))
+                {
+                    return CompareArray((short[])value1.Value, (short[])value2.Value, CompareInt16);
+                }
+                if (systemType == typeof(ushort[]))
+                {
+                    return CompareArray(
+                        (ushort[])value1.Value,
+                        (ushort[])value2.Value,
+                        CompareUInt16);
+                }
+                if (systemType == typeof(int[]))
+                {
+                    return CompareArray((int[])value1.Value, (int[])value2.Value, CompareInt32);
+                }
+                if (systemType == typeof(uint[]))
+                {
+                    return CompareArray((uint[])value1.Value, (uint[])value2.Value, CompareUInt32);
+                }
+                if (systemType == typeof(long[]))
+                {
+                    return CompareArray((long[])value1.Value, (long[])value2.Value, CompareInt64);
+                }
+                if (systemType == typeof(ulong[]))
+                {
+                    return CompareArray(
+                        (ulong[])value1.Value,
+                        (ulong[])value2.Value,
+                        CompareUInt64);
+                }
+                if (systemType == typeof(float[]))
+                {
+                    return CompareArray((float[])value1.Value, (float[])value2.Value, CompareFloat);
+                }
+                if (systemType == typeof(double[]))
+                {
+                    return CompareArray(
+                        (double[])value1.Value,
+                        (double[])value2.Value,
+                        CompareDouble);
+                }
+                if (systemType == typeof(string[]))
+                {
+                    return CompareArray(
+                        (string[])value1.Value,
+                        (string[])value2.Value,
+                        CompareString);
+                }
+                if (systemType == typeof(DateTime[]))
+                {
+                    return CompareArray(
+                        (DateTime[])value1.Value,
+                        (DateTime[])value2.Value,
+                        CompareDateTime);
+                }
+                if (systemType == typeof(Uuid[]))
+                {
+                    return CompareArray((Uuid[])value1.Value, (Uuid[])value2.Value, CompareUuid);
+                }
+                if (systemType == typeof(byte[][]))
+                {
+                    return CompareArray(
+                        (byte[][])value1.Value,
+                        (byte[][])value2.Value,
+                        CompareByteString);
+                }
+                if (systemType == typeof(XmlElement[]))
+                {
+                    return CompareArray(
+                        (XmlElement[])value1.Value,
+                        (XmlElement[])value2.Value,
+                        CompareXmlElement);
+                }
+                if (systemType == typeof(NodeId[]))
+                {
+                    return CompareArray(
+                        (NodeId[])value1.Value,
+                        (NodeId[])value2.Value,
+                        CompareNodeId);
+                }
+                if (systemType == typeof(ExpandedNodeId[]))
+                {
+                    return CompareArray(
+                        (ExpandedNodeId[])value1.Value,
+                        (ExpandedNodeId[])value2.Value,
+                        CompareExpandedNodeId);
+                }
+                if (systemType == typeof(StatusCode[]))
+                {
+                    return CompareArray(
+                        (StatusCode[])value1.Value,
+                        (StatusCode[])value2.Value,
+                        CompareStatusCode);
+                }
+                if (systemType == typeof(DiagnosticInfo[]))
+                {
+                    return CompareArray(
+                        (DiagnosticInfo[])value1.Value,
+                        (DiagnosticInfo[])value2.Value,
+                        CompareDiagnosticInfo);
+                }
+                if (systemType == typeof(QualifiedName[]))
+                {
+                    return CompareArray(
+                        (QualifiedName[])value1.Value,
+                        (QualifiedName[])value2.Value,
+                        CompareQualifiedName);
+                }
+                if (systemType == typeof(LocalizedText[]))
+                {
+                    return CompareArray(
+                        (LocalizedText[])value1.Value,
+                        (LocalizedText[])value2.Value,
+                        CompareLocalizedText);
+                }
+                if (systemType == typeof(ExtensionObject[]))
+                {
+                    return CompareArray(
+                        (ExtensionObject[])value1.Value,
+                        (ExtensionObject[])value2.Value,
+                        CompareExtensionObject);
+                }
+                if (systemType == typeof(DataValue[]))
+                {
+                    return CompareArray(
+                        (DataValue[])value1.Value,
+                        (DataValue[])value2.Value,
+                        CompareDataValue);
+                }
+                if (systemType == typeof(Variant[]))
+                {
+                    return CompareArray(
+                        (Variant[])value1.Value,
+                        (Variant[])value2.Value,
+                        CompareVariant);
+                }
             }
 
             return ReportError(value1.Value, value2.Value);
         }
-        #endregion
 
-        #region DataValue Functions
         /// <summary>
         /// This method compares two DataValues.
         /// </summary>
         /// <param name="value1">First Value.</param>
         /// <param name="value2">Second Value.</param>
         /// <returns>True in case of equal values.
-        /// False or ServiceResultException in case of unequal values.</returns> 
+        /// False or ServiceResultException in case of unequal values.</returns>
         public bool CompareDataValue(DataValue value1, DataValue value2)
         {
             if (value1 == null || value2 == null)
@@ -869,16 +981,14 @@ namespace Opc.Ua.Test
 
             return true;
         }
-        #endregion
 
-        #region Matrix Functions
         /// <summary>
         /// This method compares two DataValues.
         /// </summary>
         /// <param name="value1">First Value.</param>
         /// <param name="value2">Second Value.</param>
         /// <returns>True in case of equal values.
-        /// False or ServiceResultException in case of unequal values.</returns> 
+        /// False or ServiceResultException in case of unequal values.</returns>
         public bool CompareMatrix(Matrix value1, Matrix value2)
         {
             if (value1 == null || value2 == null)
@@ -896,35 +1006,35 @@ namespace Opc.Ua.Test
                 return false;
             }
 
-            if (!CompareArray<Int32>(value1.Dimensions, value2.Dimensions, CompareInt32))
+            if (!CompareArray(value1.Dimensions, value2.Dimensions, CompareInt32))
             {
                 return false;
             }
 
             return true;
         }
-        #endregion
 
-        #region ExtensionObject Functions
         /// <summary>
         /// The factory to use when decoding extension objects.
-        /// </summary>        
+        /// </summary>
         public static IEncodeableFactory EncodeableFactory
         {
             get
             {
-                if (s_Factory == null)
+                if (s_factory == null)
                 {
-                    s_Factory = new EncodeableFactory();
-                    s_Factory.AddEncodeableTypes(typeof(DataComparer).GetTypeInfo().Assembly);
+                    s_factory = new EncodeableFactory();
+                    s_factory.AddEncodeableTypes(typeof(DataComparer).GetTypeInfo().Assembly);
                 }
 
-                return s_Factory;
+                return s_factory;
             }
         }
 
-        // It stores encodeable types of the executing assembly.       
-        private static IEncodeableFactory s_Factory = new EncodeableFactory();
+        /// <summary>
+        /// It stores encodeable types of the executing assembly.
+        /// </summary>
+        private static EncodeableFactory s_factory = new();
 
         /// <summary>
         /// Extracts the extension object body.
@@ -934,7 +1044,6 @@ namespace Opc.Ua.Test
         public static object GetExtensionObjectBody(ExtensionObject value)
         {
             object body = value.Body;
-
 
             if (body is IEncodeable encodeable)
             {
@@ -948,32 +1057,29 @@ namespace Opc.Ua.Test
                 return body;
             }
 
-            IServiceMessageContext context = new ServiceMessageContext() {
+            IServiceMessageContext context = new ServiceMessageContext
+            {
                 Factory = EncodeableFactory
             };
 
-
             if (body is XmlElement xml)
             {
-                XmlQualifiedName xmlName = Opc.Ua.EncodeableFactory.GetXmlName(expectedType);
-                using (XmlDecoder decoder = new XmlDecoder(xml, context))
+                XmlQualifiedName xmlName = Ua.EncodeableFactory.GetXmlName(expectedType);
+                using (var decoder = new XmlDecoder(xml, context))
                 {
                     decoder.PushNamespace(xmlName.Namespace);
                     body = decoder.ReadEncodeable(xmlName.Name, expectedType);
                     decoder.PopNamespace();
-                    decoder.Close();
                 }
 
                 return (IEncodeable)body;
             }
 
-
             if (body is byte[] bytes)
             {
-                using (BinaryDecoder decoder = new BinaryDecoder(bytes, context))
+                using (var decoder = new BinaryDecoder(bytes, context))
                 {
                     body = decoder.ReadEncodeable(null, expectedType);
-                    decoder.Close();
                 }
 
                 return (IEncodeable)body;
@@ -1045,61 +1151,49 @@ namespace Opc.Ua.Test
         /// </summary>
         protected virtual bool CompareExtensionObjectBody(object value1, object value2)
         {
-            if (Object.ReferenceEquals(value1, value2))
+            if (ReferenceEquals(value1, value2))
             {
                 return true;
             }
 
-            if (value1 is IEncodeable encodeable1 && value2 is IEncodeable encodeable2)
+            if (value1 is IEncodeable encodeable1 &&
+                value2 is IEncodeable encodeable2 &&
+                encodeable1.IsEqual(encodeable2))
             {
-                if (encodeable1.IsEqual(encodeable2))
-                {
-                    return true;
-                }
+                return true;
             }
 
             return false;
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
-        /// The delegate used to compare two values.   
-        /// </summary> 
+        /// The delegate used to compare two values.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
         private delegate bool Comparator<T>(T value1, T value2);
 
         /// <summary>
         /// This method compares two arrays.
-        /// </summary>      
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
         /// <param name="value1">IEnumerable object of type T</param>
         /// <param name="value2">IEnumerable object of type T</param>
         /// <param name="comparator">Method name to compare the arrays.</param>
         /// <returns>True in case of equal values.
         /// False or ServiceResultException in case of unequal values.</returns>
-        private bool CompareArray<T>(IEnumerable<T> value1, IEnumerable<T> value2, Comparator<T> comparator)
+        private bool CompareArray<T>(
+            IEnumerable<T> value1,
+            IEnumerable<T> value2,
+            Comparator<T> comparator)
         {
             if (value1 == null)
             {
-                if (value2 == null || value2.GetEnumerator().MoveNext() == false)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                return value2 == null || !value2.GetEnumerator().MoveNext();
             }
 
             if (value2 == null)
             {
-                if (value1 == null || value1.GetEnumerator().MoveNext() == false)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                return value1 == null || !value1.GetEnumerator().MoveNext();
             }
 
             IEnumerator<T> enumerator1 = value1.GetEnumerator();
@@ -1132,9 +1226,10 @@ namespace Opc.Ua.Test
         /// <param name="value1">First Value.</param>
         /// <param name="value2">Second Value.</param>
         /// <returns>Throws ServiceResultException in case of unequal values.</returns>
+        /// <exception cref="ServiceResultException"></exception>
         private bool ReportError(object value1, object value2)
         {
-            if (m_throwOnError)
+            if (ThrowOnError)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadUnexpectedError,
@@ -1145,11 +1240,7 @@ namespace Opc.Ua.Test
 
             return false;
         }
-        #endregion
 
-        #region Private Fields
-        private IServiceMessageContext m_context;
-        private bool m_throwOnError;
-        #endregion
+        private readonly IServiceMessageContext m_context;
     }
 }

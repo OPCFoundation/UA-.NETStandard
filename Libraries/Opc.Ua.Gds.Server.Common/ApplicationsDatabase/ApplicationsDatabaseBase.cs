@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -29,26 +29,20 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-
-
 
 namespace Opc.Ua.Gds.Server.Database
 {
     [Serializable]
     public abstract class ApplicationsDatabaseBase : IApplicationsDatabase
     {
-        #region IApplicationsDatabase Members
         public virtual void Initialize()
         {
         }
 
         public ushort NamespaceIndex { get; set; }
 
-        public virtual NodeId RegisterApplication(
-            ApplicationRecordDataType application
-            )
+        public virtual NodeId RegisterApplication(ApplicationRecordDataType application)
         {
             if (application == null)
             {
@@ -57,46 +51,59 @@ namespace Opc.Ua.Gds.Server.Database
 
             if (application.ApplicationUri == null)
             {
-                throw new ArgumentNullException("ApplicationUri");
+                throw new ArgumentNullException(nameof(application), "ApplicationUri is null");
             }
 
             if (!Uri.IsWellFormedUriString(application.ApplicationUri, UriKind.Absolute))
             {
-                throw new ArgumentException(application.ApplicationUri + " is not a valid URI.", "ApplicationUri");
+                throw new ArgumentException(
+                    application.ApplicationUri + " is not a valid URI.",
+                    nameof(application));
             }
 
-            if (application.ApplicationType < ApplicationType.Server || application.ApplicationType > ApplicationType.DiscoveryServer)
+            if (application
+                .ApplicationType is < ApplicationType.Server or > ApplicationType.DiscoveryServer)
             {
-                throw new ArgumentException(application.ApplicationType.ToString() + " is not a valid ApplicationType.", "ApplicationType");
+                throw new ArgumentException(
+                    application.ApplicationType.ToString() + " is not a valid ApplicationType.",
+                    nameof(application));
             }
 
-            if (application.ApplicationNames == null || application.ApplicationNames.Count == 0 || LocalizedText.IsNullOrEmpty(application.ApplicationNames[0]))
+            if (application.ApplicationNames == null ||
+                application.ApplicationNames.Count == 0 ||
+                LocalizedText.IsNullOrEmpty(application.ApplicationNames[0]))
             {
-                throw new ArgumentException("At least one ApplicationName must be provided.", "ApplicationNames");
+                throw new ArgumentException(
+                    "At least one ApplicationName must be provided.",
+                    nameof(application));
             }
 
-            if (String.IsNullOrEmpty(application.ProductUri))
+            if (string.IsNullOrEmpty(application.ProductUri))
             {
-                throw new ArgumentException("A ProductUri must be provided.", "ProductUri");
+                throw new ArgumentException("A ProductUri must be provided.", nameof(application));
             }
 
             if (!Uri.IsWellFormedUriString(application.ProductUri, UriKind.Absolute))
             {
-                throw new ArgumentException(application.ProductUri + " is not a valid URI.", "ProductUri");
+                throw new ArgumentException(
+                    application.ProductUri + " is not a valid URI.",
+                    nameof(application));
             }
 
             if (application.DiscoveryUrls != null)
             {
-                foreach (var discoveryUrl in application.DiscoveryUrls)
+                foreach (string discoveryUrl in application.DiscoveryUrls)
                 {
-                    if (String.IsNullOrEmpty(discoveryUrl))
+                    if (string.IsNullOrEmpty(discoveryUrl))
                     {
                         continue;
                     }
 
                     if (!Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
                     {
-                        throw new ArgumentException(discoveryUrl + " is not a valid URL.", "DiscoveryUrls");
+                        throw new ArgumentException(
+                            discoveryUrl + " is not a valid URL.",
+                            nameof(application));
                     }
                 }
             }
@@ -105,20 +112,22 @@ namespace Opc.Ua.Gds.Server.Database
             {
                 if (application.DiscoveryUrls == null || application.DiscoveryUrls.Count == 0)
                 {
-                    throw new ArgumentException("At least one DiscoveryUrl must be provided.", "DiscoveryUrls");
+                    throw new ArgumentException(
+                        "At least one DiscoveryUrl must be provided.",
+                        nameof(application));
                 }
 
-                if (application.ServerCapabilities == null || application.ServerCapabilities.Count == 0)
+                if (application.ServerCapabilities == null ||
+                    application.ServerCapabilities.Count == 0)
                 {
-                    application.ServerCapabilities = new StringCollection() { "NA" };
+                    application.ServerCapabilities = ["NA"];
                 }
             }
-            else
+            else if (application.DiscoveryUrls != null && application.DiscoveryUrls.Count > 0)
             {
-                if (application.DiscoveryUrls != null && application.DiscoveryUrls.Count > 0)
-                {
-                    throw new ArgumentException("DiscoveryUrls must not be specified for clients.", "DiscoveryUrls");
-                }
+                throw new ArgumentException(
+                    "DiscoveryUrls must not be specified for clients.",
+                    nameof(application));
             }
 
             NodeId nodeId = NodeId.Null;
@@ -128,13 +137,19 @@ namespace Opc.Ua.Gds.Server.Database
                 switch (application.ApplicationId.IdType)
                 {
                     case IdType.Guid:
-                        nodeId = new NodeId((Guid)application.ApplicationId.Identifier, NamespaceIndex);
+                        nodeId = new NodeId(
+                            (Guid)application.ApplicationId.Identifier,
+                            NamespaceIndex);
                         break;
                     case IdType.String:
-                        nodeId = new NodeId((string)application.ApplicationId.Identifier, NamespaceIndex);
+                        nodeId = new NodeId(
+                            (string)application.ApplicationId.Identifier,
+                            NamespaceIndex);
                         break;
                     default:
-                        throw new ArgumentException("The ApplicationId has invalid type {0}", application.ApplicationId.ToString());
+                        throw new ArgumentException(
+                            "The ApplicationId has invalid type {0}",
+                            nameof(application));
                 }
             }
 
@@ -146,17 +161,13 @@ namespace Opc.Ua.Gds.Server.Database
             ValidateApplicationNodeId(applicationId);
         }
 
-        public virtual ApplicationRecordDataType GetApplication(
-            NodeId applicationId
-            )
+        public virtual ApplicationRecordDataType GetApplication(NodeId applicationId)
         {
             ValidateApplicationNodeId(applicationId);
             return null;
         }
 
-        public virtual ApplicationRecordDataType[] FindApplications(
-            string applicationUri
-            )
+        public virtual ApplicationRecordDataType[] FindApplications(string applicationUri)
         {
             return null;
         }
@@ -183,8 +194,7 @@ namespace Opc.Ua.Gds.Server.Database
             string productUri,
             string[] serverCapabilities,
             out DateTime lastCounterResetTime,
-            out uint nextRecordId
-            )
+            out uint nextRecordId)
         {
             lastCounterResetTime = DateTime.MinValue;
             nextRecordId = 0;
@@ -194,8 +204,7 @@ namespace Opc.Ua.Gds.Server.Database
         public virtual bool SetApplicationCertificate(
             NodeId applicationId,
             string certificateType,
-            byte[] certificate
-            )
+            byte[] certificate)
         {
             ValidateApplicationNodeId(applicationId);
             return false;
@@ -219,6 +228,7 @@ namespace Opc.Ua.Gds.Server.Database
             ValidateApplicationNodeId(applicationId);
             return false;
         }
+
         public virtual bool GetApplicationTrustLists(
             NodeId applicationId,
             string certificateTypeId,
@@ -228,10 +238,9 @@ namespace Opc.Ua.Gds.Server.Database
             ValidateApplicationNodeId(applicationId);
             return false;
         }
-        #endregion
-        #region Public Menbers
+
         /// <summary>
-        /// Returns true if the target string matches the UA pattern string. 
+        /// Returns true if the target string matches the UA pattern string.
         /// The pattern string may include UA wildcards %_\[]!
         /// </summary>
         /// <param name="target">String to check for a pattern match.</param>
@@ -239,17 +248,17 @@ namespace Opc.Ua.Gds.Server.Database
         /// <returns>true if the target string matches the pattern, otherwise false.</returns>
         public static bool Match(string target, string pattern)
         {
-            if (String.IsNullOrEmpty(target))
+            if (string.IsNullOrEmpty(target))
             {
                 return false;
             }
 
-            if (String.IsNullOrEmpty(pattern))
+            if (string.IsNullOrEmpty(pattern))
             {
                 return true;
             }
 
-            var tokens = Parse(pattern);
+            List<string> tokens = Parse(pattern);
 
             int targetIndex = 0;
 
@@ -263,30 +272,24 @@ namespace Opc.Ua.Gds.Server.Database
                 }
             }
 
-            if (targetIndex < target.Length)
-            {
-                return false;
-            }
-
-            return true;
+            return targetIndex >= target.Length;
         }
 
         /// <summary>
-        /// Returns true if the pattern string contains a UA pattern. 
+        /// Returns true if the pattern string contains a UA pattern.
         /// The pattern string may include UA wildcards %_\[]!
         /// </summary>
-
         public static bool IsMatchPattern(string pattern)
         {
-            var patternChars = new char[] { '%', '_', '\\', '[', ']', '!' };
-            if (String.IsNullOrEmpty(pattern))
+            char[] patternChars = ['%', '_', '\\', '[', ']', '!'];
+            if (string.IsNullOrEmpty(pattern))
             {
                 return false;
             }
 
-            foreach (var patternChar in patternChars)
+            foreach (char patternChar in patternChars)
             {
-                if (pattern.Contains(patternChar))
+                if (pattern.Contains(patternChar, StringComparison.Ordinal))
                 {
                     return true;
                 }
@@ -298,19 +301,22 @@ namespace Opc.Ua.Gds.Server.Database
         {
             if (application.ApplicationType != ApplicationType.Client)
             {
-                if (application.ServerCapabilities == null || application.ServerCapabilities.Count == 0)
+                if (application.ServerCapabilities == null ||
+                    application.ServerCapabilities.Count == 0)
                 {
-                    throw new ArgumentException("At least one Server Capability must be provided.", "ServerCapabilities");
+                    throw new ArgumentException(
+                        "At least one Server Capability must be provided.",
+                        nameof(application));
                 }
             }
 
-            StringBuilder capabilities = new StringBuilder();
+            var capabilities = new StringBuilder();
             if (application.ServerCapabilities != null)
             {
                 application.ServerCapabilities.Sort();
-                foreach (var capability in application.ServerCapabilities)
+                foreach (string capability in application.ServerCapabilities)
                 {
-                    if (String.IsNullOrEmpty(capability))
+                    if (string.IsNullOrEmpty(capability))
                     {
                         continue;
                     }
@@ -327,9 +333,7 @@ namespace Opc.Ua.Gds.Server.Database
             return capabilities.ToString();
         }
 
-        protected Guid GetNodeIdGuid(
-            NodeId nodeId
-            )
+        protected Guid GetNodeIdGuid(NodeId nodeId)
         {
             if (NodeId.IsNull(nodeId))
             {
@@ -341,18 +345,14 @@ namespace Opc.Ua.Gds.Server.Database
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
             }
 
-            Guid? id = nodeId.Identifier as Guid?;
-
-            if (id == null)
+            if (nodeId.Identifier is not Guid id)
             {
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
             }
-            return (Guid)id;
+            return id;
         }
 
-        protected string GetNodeIdString(
-            NodeId nodeId
-            )
+        protected string GetNodeIdString(NodeId nodeId)
         {
             if (NodeId.IsNull(nodeId))
             {
@@ -364,18 +364,14 @@ namespace Opc.Ua.Gds.Server.Database
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
             }
 
-            string id = nodeId.Identifier as string;
-
-            if (id == null)
+            if (nodeId.Identifier is not string id)
             {
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
             }
             return id;
         }
 
-        protected void ValidateApplicationNodeId(
-            NodeId nodeId
-            )
+        protected void ValidateApplicationNodeId(NodeId nodeId)
         {
             if (NodeId.IsNull(nodeId))
             {
@@ -390,24 +386,20 @@ namespace Opc.Ua.Gds.Server.Database
 
             if (nodeId.IdType == IdType.Guid)
             {
-                // test if identifier is a valid Guid
-                Guid? id = nodeId.Identifier as Guid?;
-
-                if (id == null)
+                // test if identifier is a valid Guid - if null we already threw earlier
+                if (nodeId.Identifier is not Guid)
                 {
                     throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
                 }
             }
         }
 
-        #endregion
-        #region Private Members
         private static List<string> Parse(string pattern)
         {
-            List<string> tokens = new List<string>();
+            var tokens = new List<string>();
 
             int ii = 0;
-            var buffer = new System.Text.StringBuilder();
+            var buffer = new StringBuilder();
 
             while (ii < pattern.Length)
             {
@@ -469,15 +461,12 @@ namespace Opc.Ua.Gds.Server.Database
 
                     buffer.Append(ch);
                     ii++;
-
-                    int start = 0;
-                    int end = 0;
                     while (ii < pattern.Length && pattern[ii] != ']')
                     {
                         if (pattern[ii] == '-' && ii > 0 && ii < pattern.Length - 1)
                         {
-                            start = Convert.ToInt32(pattern[ii - 1]) + 1;
-                            end = Convert.ToInt32(pattern[ii + 1]);
+                            int start = Convert.ToInt32(pattern[ii - 1]) + 1;
+                            int end = Convert.ToInt32(pattern[ii + 1]);
 
                             while (start < end)
                             {
@@ -515,7 +504,11 @@ namespace Opc.Ua.Gds.Server.Database
             return tokens;
         }
 
-        private static int SkipToNext(string target, int targetIndex, IList<string> tokens, ref int tokenIndex)
+        private static int SkipToNext(
+            string target,
+            int targetIndex,
+            IList<string> tokens,
+            ref int tokenIndex)
         {
             if (targetIndex >= target.Length - 1)
             {
@@ -527,13 +520,13 @@ namespace Opc.Ua.Gds.Server.Database
                 return target.Length + 1;
             }
 
-
             if (!tokens[tokenIndex + 1].StartsWith("[^", StringComparison.Ordinal))
             {
                 int nextTokenIndex = tokenIndex + 1;
 
                 // skip over unmatched chars.
-                while (targetIndex < target.Length && Match(target, targetIndex, tokens, ref nextTokenIndex) < 0)
+                while (targetIndex < target.Length &&
+                    Match(target, targetIndex, tokens, ref nextTokenIndex) < 0)
                 {
                     targetIndex++;
                     nextTokenIndex = tokenIndex + 1;
@@ -542,7 +535,8 @@ namespace Opc.Ua.Gds.Server.Database
                 nextTokenIndex = tokenIndex + 1;
 
                 // skip over duplicate matches.
-                while (targetIndex < target.Length && Match(target, targetIndex, tokens, ref nextTokenIndex) >= 0)
+                while (targetIndex < target.Length &&
+                    Match(target, targetIndex, tokens, ref nextTokenIndex) >= 0)
                 {
                     targetIndex++;
                     nextTokenIndex = tokenIndex + 1;
@@ -560,7 +554,8 @@ namespace Opc.Ua.Gds.Server.Database
                 int nextTokenIndex = tokenIndex + 1;
 
                 // skip over matches.
-                while (targetIndex < target.Length && Match(target, targetIndex, tokens, ref nextTokenIndex) >= 0)
+                while (targetIndex < target.Length &&
+                    Match(target, targetIndex, tokens, ref nextTokenIndex) >= 0)
                 {
                     targetIndex++;
                     nextTokenIndex = tokenIndex + 1;
@@ -586,7 +581,11 @@ namespace Opc.Ua.Gds.Server.Database
             return -1;
         }
 
-        private static int Match(string target, int targetIndex, IList<string> tokens, ref int tokenIndex)
+        private static int Match(
+            string target,
+            int targetIndex,
+            IList<string> tokens,
+            ref int tokenIndex)
         {
             if (tokens == null || tokenIndex < 0 || tokenIndex >= tokens.Count)
             {
@@ -620,7 +619,7 @@ namespace Opc.Ua.Gds.Server.Database
                 return SkipToNext(target, targetIndex, tokens, ref tokenIndex);
             }
 
-            if (token.StartsWith("[", StringComparison.Ordinal))
+            if (token.StartsWith('['))
             {
                 bool inverse = false;
                 bool match = false;
@@ -638,7 +637,7 @@ namespace Opc.Ua.Gds.Server.Database
                         return targetIndex + 1;
                     }
 
-                    match |= (inverse && target[targetIndex] == token[ii]);
+                    match |= inverse && target[targetIndex] == token[ii];
                 }
 
                 if (inverse && !match)
@@ -649,13 +648,12 @@ namespace Opc.Ua.Gds.Server.Database
                 return -1;
             }
 
-            if (target.Substring(targetIndex).StartsWith(token, StringComparison.Ordinal))
+            if (target[targetIndex..].StartsWith(token, StringComparison.Ordinal))
             {
                 return targetIndex + token.Length;
             }
 
             return -1;
         }
-        #endregion
     }
 }

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -31,21 +31,22 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Security.Cryptography;
 using Newtonsoft.Json;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace Opc.Ua.Server.UserDatabase
 {
     [Serializable]
-    class User
+    internal class User
     {
         [JsonRequired]
         public Guid ID { get; set; }
+
         public string UserName { get; set; }
+
         public string Hash { get; set; }
+
         public IEnumerable<Role> Roles { get; set; }
     }
 
@@ -55,7 +56,6 @@ namespace Opc.Ua.Server.UserDatabase
     [Serializable]
     public class LinqUserDatabase : IUserDatabase
     {
-        #region IUsersDatabase
         /// <summary>
         /// initializes the collection the users database is working with
         /// </summary>
@@ -74,7 +74,7 @@ namespace Opc.Ua.Server.UserDatabase
             {
                 throw new ArgumentException("Password cannot be empty.", nameof(password));
             }
-            if (//User Exists
+            if ( //User Exists
                 Users.SingleOrDefault(x => x.UserName == userName) != null)
             {
                 return false;
@@ -82,7 +82,12 @@ namespace Opc.Ua.Server.UserDatabase
 
             string hash = Hash(password);
 
-            var user = new User { UserName = userName, Hash = hash, Roles = roles };
+            var user = new User
+            {
+                UserName = userName,
+                Hash = hash,
+                Roles = roles
+            };
 
             Users.Add(user);
 
@@ -90,6 +95,7 @@ namespace Opc.Ua.Server.UserDatabase
 
             return true;
         }
+
         /// <inheritdoc/>
         public bool DeleteUser(string userName)
         {
@@ -98,7 +104,7 @@ namespace Opc.Ua.Server.UserDatabase
                 throw new ArgumentException("UserName cannot be empty.", nameof(userName));
             }
 
-            var user = Users.SingleOrDefault(x => x.UserName == userName);
+            User user = Users.SingleOrDefault(x => x.UserName == userName);
 
             if (user == null)
             {
@@ -107,6 +113,7 @@ namespace Opc.Ua.Server.UserDatabase
             Users.Remove(user);
             return true;
         }
+
         /// <inheritdoc/>
         public bool CheckCredentials(string userName, string password)
         {
@@ -119,7 +126,7 @@ namespace Opc.Ua.Server.UserDatabase
                 throw new ArgumentException("Password cannot be empty.", nameof(password));
             }
 
-            var user = Users.SingleOrDefault(x => x.UserName == userName);
+            User user = Users.SingleOrDefault(x => x.UserName == userName);
 
             if (user == null)
             {
@@ -128,6 +135,7 @@ namespace Opc.Ua.Server.UserDatabase
 
             return Check(user.Hash, password);
         }
+
         /// <inheritdoc/>
         public IEnumerable<Role> GetUserRoles(string userName)
         {
@@ -135,15 +143,13 @@ namespace Opc.Ua.Server.UserDatabase
             {
                 throw new ArgumentException("UserName cannot be empty.", nameof(userName));
             }
-            var user = Users.SingleOrDefault(x => x.UserName == userName);
-
-            if (user == null)
-            {
-                throw new ArgumentException("No user found with the UserName " + userName);
-            }
+            User user =
+                Users.SingleOrDefault(x => x.UserName == userName)
+                ?? throw new ArgumentException("No user found with the UserName " + userName);
 
             return user.Roles;
         }
+
         /// <inheritdoc/>
         public bool ChangePassword(string userName, string oldPassword, string newPassword)
         {
@@ -153,14 +159,16 @@ namespace Opc.Ua.Server.UserDatabase
             }
             if (string.IsNullOrEmpty(oldPassword))
             {
-                throw new ArgumentException("Current Password cannot be empty.", nameof(oldPassword));
+                throw new ArgumentException(
+                    "Current Password cannot be empty.",
+                    nameof(oldPassword));
             }
             if (string.IsNullOrEmpty(newPassword))
             {
                 throw new ArgumentException("New Password cannot be empty.", nameof(newPassword));
             }
 
-            var user = Users.SingleOrDefault(x => x.UserName == userName);
+            User user = Users.SingleOrDefault(x => x.UserName == userName);
 
             if (user == null)
             {
@@ -169,36 +177,29 @@ namespace Opc.Ua.Server.UserDatabase
 
             if (Check(user.Hash, oldPassword))
             {
-                var newHash = Hash(newPassword);
-                user.Hash = newHash;
+                user.Hash = Hash(newPassword);
                 return true;
             }
             return false;
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// Persists the changes to the users database
         /// </summary>
         public virtual void Save()
         {
         }
-        #endregion
 
-        #region Private Members
         private void SaveChanges()
         {
             lock (Lock)
             {
-                queryCounterResetTime = DateTime.UtcNow;
+                QueryCounterResetTime = DateTime.UtcNow;
                 // assign IDs to new users
-                var queryNewUsers = from x in Users
-                                    where x.ID == Guid.Empty
-                                    select x;
+                IEnumerable<User> queryNewUsers = from x in Users where x.ID == Guid.Empty select x;
                 if (Users.Count > 0)
                 {
-                    foreach (var user in queryNewUsers)
+                    foreach (User user in queryNewUsers)
                     {
                         user.ID = Guid.NewGuid();
                     }
@@ -206,100 +207,85 @@ namespace Opc.Ua.Server.UserDatabase
                 Save();
             }
         }
-        #endregion
 
-        #region IPasswordHasher
-        private string Hash(string password)
+        private static string Hash(string password)
         {
 #if NETSTANDARD2_0 || NET462
-#pragma warning disable CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
-            using (var algorithm = new Rfc2898DeriveBytes(
-                password,
-                kSaltSize,
-                kIterations))
-            {
-#pragma warning restore CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
+            using var algorithm = new Rfc2898DeriveBytes(password, kSaltSize, kIterations);
 #else
-            using (var algorithm = new Rfc2898DeriveBytes(
+            using var algorithm = new Rfc2898DeriveBytes(
                 password,
                 kSaltSize,
                 kIterations,
-                HashAlgorithmName.SHA512))
-            {
+                HashAlgorithmName.SHA512);
 #endif
-                var key = Convert.ToBase64String(algorithm.GetBytes(kKeySize));
-                var salt = Convert.ToBase64String(algorithm.Salt);
+            string key = Convert.ToBase64String(algorithm.GetBytes(kKeySize));
+            string salt = Convert.ToBase64String(algorithm.Salt);
 
-                return $"{kIterations}.{salt}.{key}";
-            }
+            return $"{kIterations}.{salt}.{key}";
         }
 
-        private bool Check(string hash, string password)
+        private static bool Check(string hash, string password)
         {
-            var separator = new Char[] { '.' };
-            var parts = hash.Split(separator, 3);
+            char[] separator = ['.'];
+            string[] parts = hash.Split(separator, 3);
 
             if (parts.Length != 3)
             {
-                throw new FormatException("Unexpected hash format. " +
-                  "Should be formatted as `{iterations}.{salt}.{hash}`");
+                throw new FormatException(
+                    "Unexpected hash format. Should be formatted as `{iterations}.{salt}.{hash}`");
             }
 
-            var iterations = Convert.ToInt32(parts[0], CultureInfo.InvariantCulture.NumberFormat);
-            var salt = Convert.FromBase64String(parts[1]);
-            var key = Convert.FromBase64String(parts[2]);
+            int iterations = Convert.ToInt32(parts[0], CultureInfo.InvariantCulture.NumberFormat);
+            byte[] salt = Convert.FromBase64String(parts[1]);
+            byte[] key = Convert.FromBase64String(parts[2]);
 
 #if NETSTANDARD2_0 || NET462
-#pragma warning disable CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
-            using (var algorithm = new Rfc2898DeriveBytes(
-                password,
-                salt,
-                iterations))
-            {
-#pragma warning restore CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
+            using var algorithm = new Rfc2898DeriveBytes(password, salt, iterations);
 #else
-            using (var algorithm = new Rfc2898DeriveBytes(
+            using var algorithm = new Rfc2898DeriveBytes(
                 password,
                 salt,
                 iterations,
-                HashAlgorithmName.SHA512))
-            {
+                HashAlgorithmName.SHA512);
 #endif
-                var keyToCheck = algorithm.GetBytes(kKeySize);
+            byte[] keyToCheck = algorithm.GetBytes(kKeySize);
 
-                var verified = keyToCheck.SequenceEqual(key);
-
-                return verified;
-            }
+            return keyToCheck.SequenceEqual(key);
         }
 
-        #endregion
-
-        #region Internal Members
         [OnDeserialized]
         internal void OnDeserializedMethod(StreamingContext context)
         {
             Lock = new object();
-            queryCounterResetTime = DateTime.UtcNow;
+            QueryCounterResetTime = DateTime.UtcNow;
         }
-        #endregion
 
-        #region Internal Fields
         [NonSerialized]
-        internal object Lock = new object();
+        internal object Lock = new();
+
         [NonSerialized]
-        internal DateTime queryCounterResetTime = DateTime.UtcNow;
+        internal DateTime QueryCounterResetTime = DateTime.UtcNow;
+
+        /// <summary>
+        /// 128 bit
+        /// </summary>
         [NonSerialized]
-        private const int kSaltSize = 16; // 128 bit
+        private const int kSaltSize = 16;
+
+        /// <summary>
+        /// 10k
+        /// </summary>
         [NonSerialized]
-        private const int kIterations = 10000; // 10k
+        private const int kIterations = 10000;
+
+        /// <summary>
+        /// 256 bit
+        /// </summary>
         [NonSerialized]
-        private const int kKeySize = 32; // 256 bit
+        private const int kKeySize = 32;
+
         [JsonProperty]
         internal ICollection<User> Users = new HashSet<User>();
-        #endregion
     }
-
-
 }
-

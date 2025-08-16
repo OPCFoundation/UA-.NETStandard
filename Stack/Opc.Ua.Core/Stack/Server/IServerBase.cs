@@ -11,11 +11,8 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua
 {
@@ -80,7 +77,9 @@ namespace Opc.Ua
         /// <param name="authenticationToken">The AuthenticationToken from the RequestHeader</param>
         /// <param name="channelId">The Channel id</param>
         /// <returns>returns true if a channelId was found for the provided AuthenticationToken</returns>
-        bool TryGetSecureChannelIdForAuthenticationToken(NodeId authenticationToken, out uint channelId);
+        bool TryGetSecureChannelIdForAuthenticationToken(
+            NodeId authenticationToken,
+            out uint channelId);
     }
 
     /// <summary>
@@ -111,7 +110,7 @@ namespace Opc.Ua
         /// </summary>
         /// <remarks>
         /// This method may block the current thread so the caller must not call in the
-        /// thread that calls IServerBase.ScheduleIncomingRequest(). 
+        /// thread that calls IServerBase.ScheduleIncomingRequest().
         /// This method always traps any exceptions and reports them to the client as a fault.
         /// </remarks>
         void CallSynchronously();

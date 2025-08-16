@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -28,36 +28,28 @@
  * ======================================================================*/
 
 using System;
-
 using Opc.Ua;
-
-#pragma warning disable CS1591
 
 namespace Alarms
 {
     /// <summary>
-    /// 
+    /// Alarm controller
     /// </summary>
     public class AlarmController
     {
-        #region Variables
-        const int kDefaultCycleTime = 180;
-        protected BaseDataVariableState m_variable = null;
-        protected int m_value = 0;
+        private const int kDefaultCycleTime = 180;
+        protected BaseDataVariableState m_variable;
+        protected int m_value;
         protected bool m_increment = true;
         protected DateTime m_nextTime = DateTime.Now;
         protected DateTime m_stopTime = DateTime.Now;
-        protected int m_interval = 0;
-        protected bool m_isBoolean = false;
-        protected bool m_allowChanges = false;
-        protected bool m_reset = false;
-        protected DateTime m_lastMaxValue = new DateTime();
-        protected bool m_validLastMaxValue = false;
-        private int m_branchCount = 0;
-        private bool m_supportsBranching = false;
+        protected int m_interval;
+        protected bool m_isBoolean;
+        protected bool m_allowChanges;
+        protected bool m_reset;
+        protected DateTime m_lastMaxValue;
+        protected bool m_validLastMaxValue;
         protected int m_midpoint = AlarmDefines.NORMAL_START_VALUE;
-        #endregion
-
 
         public AlarmController(BaseDataVariableState variable, int interval, bool isBoolean)
         {
@@ -75,7 +67,7 @@ namespace Alarms
         /// <summary>
         /// Start the Alarm cycles for n seconds.
         /// </summary>
-        public virtual void Start(UInt32 seconds = 0)
+        public virtual void Start(uint seconds = 0)
         {
             Stop();
 
@@ -83,8 +75,7 @@ namespace Alarms
 
             m_validLastMaxValue = false;
 
-            m_nextTime = 
-            m_stopTime = DateTime.Now;
+            m_nextTime = m_stopTime = DateTime.Now;
             m_stopTime = m_stopTime.AddSeconds(seconds == 0 ? kDefaultCycleTime : seconds);
 
             m_allowChanges = true;
@@ -140,27 +131,26 @@ namespace Alarms
             if (value.GetType().Name == "Int32")
             {
                 // Don't let anyone write a value out of range
-                Int32 potentialWrite = (Int32)value;
-                if (potentialWrite >= AlarmDefines.MIN_VALUE && potentialWrite <= AlarmDefines.MAX_VALUE)
+                int potentialWrite = (int)value;
+                if (potentialWrite is >= AlarmDefines.MIN_VALUE and <= AlarmDefines.MAX_VALUE)
                 {
                     m_value = potentialWrite;
                 }
                 else
                 {
-                    Utils.LogError("AlarmController Received out of range manual write of {0}", value);
+                    Utils.LogError(
+                        "AlarmController Received out of range manual write of {0}",
+                        value);
                 }
+            }
+            else if ((bool)value)
+            {
+                m_value = 70;
+                m_increment = true;
             }
             else
             {
-                if ((bool)value)
-                {
-                    m_value = 70;
-                    m_increment = true;
-                }
-                else
-                {
-                    m_value = m_midpoint;
-                }
+                m_value = m_midpoint;
             }
         }
 
@@ -189,24 +179,23 @@ namespace Alarms
 
         protected virtual void GetValue(ref int intValue, ref bool boolValue)
         {
-            int maxValue = 100;
-            int minValue = 0;
+            const int maxValue = 100;
+            const int minValue = 0;
 
             TypicalGetValue(minValue, maxValue, ref intValue, ref boolValue);
         }
 
-        public bool SupportsBranching
-        {
-            get { return m_supportsBranching; }
-            set { m_supportsBranching = value; }
-        }
+        public bool SupportsBranching { get; set; }
 
         public virtual void SetBranchCount(int count)
         {
-            m_branchCount = count;
         }
 
-        protected void TypicalGetValue(int minValue, int maxValue, ref int intValue, ref bool boolValue)
+        protected void TypicalGetValue(
+            int minValue,
+            int maxValue,
+            ref int intValue,
+            ref bool boolValue)
         {
             int incrementValue = 5;
             if (m_isBoolean)
@@ -221,7 +210,9 @@ namespace Alarms
                     if (m_validLastMaxValue)
                     {
                         Utils.LogInfo(
-                            "Cycle Time {0} Interval {1}", (DateTime.Now - m_lastMaxValue), m_interval);
+                            "Cycle Time {0} Interval {1}",
+                            DateTime.Now - m_lastMaxValue,
+                            m_interval);
                     }
                     m_lastMaxValue = DateTime.Now;
                     m_validLastMaxValue = true;
@@ -245,7 +236,7 @@ namespace Alarms
         public bool IsBooleanActive()
         {
             bool isActive = false;
-            if (m_value >= AlarmDefines.BOOL_HIGH_ALARM || m_value <= AlarmDefines.BOOL_LOW_ALARM)
+            if (m_value is >= AlarmDefines.BOOL_HIGH_ALARM or <= AlarmDefines.BOOL_LOW_ALARM)
             {
                 isActive = true;
             }
@@ -281,10 +272,10 @@ namespace Alarms
              * B - relates to period - This should extend the time period
              * C - Phase Shift
              * D - Vertical Shift
-             * 
+             *
              */
 
-            double twoPi = Math.PI * 2;
+            const double twoPi = Math.PI * 2;
 
             double normalSpan = maxValue - minValue;
             double amplitude = normalSpan / 2;
@@ -295,17 +286,23 @@ namespace Alarms
 
             double reducedPeriod = percentageOfRange / 2;
 
-            double period = twoPi; // this would relate to the interval.  Ignore for now.
-            double phase = -0.25; // phaseShift;
+            const double period = twoPi; // this would relate to the interval.  Ignore for now.
+            const double phase = -0.25; // phaseShift;
             double verticalShift = median; // amplitude
 
-            double calculated = (amplitude * Math.Sin(period * (reducedPeriod + phase))) + verticalShift;
+            double calculated = (amplitude * Math.Sin(period * (reducedPeriod + phase))) +
+                verticalShift;
 
             Utils.LogTrace(
                 " Phase {0:0.00} Value {1} Sine {2:0.00}" +
                 " Offset Value {3:0.00} Span {4:0.00}" +
                 " Percentage of Range {5:0.00}",
-                phase, value, calculated, offsetValue, normalSpan, percentageOfRange);
+                phase,
+                value,
+                calculated,
+                offsetValue,
+                normalSpan,
+                percentageOfRange);
 
             return (int)calculated;
         }
@@ -322,17 +319,14 @@ namespace Alarms
 
         public virtual void OnAddComment()
         {
-
         }
 
         public virtual void OnAcknowledge()
         {
-
         }
 
         public virtual void OnConfirm()
         {
-
         }
     }
 }

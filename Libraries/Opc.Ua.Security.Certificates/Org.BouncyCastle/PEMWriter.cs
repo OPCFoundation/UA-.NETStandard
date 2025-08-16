@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -28,15 +28,14 @@
  * ======================================================================*/
 
 #if !NETSTANDARD2_1 && !NET5_0_OR_GREATER
-
 using System;
-using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Opc.Ua.Security.Certificates.BouncyCastle;
 using Org.BouncyCastle.Asn1.Pkcs;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Pkcs;
+#endif
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -45,39 +44,56 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public static partial class PEMWriter
     {
-        #region Public Methods
+#if !NETSTANDARD2_1 && !NET5_0_OR_GREATER
+
         /// <summary>
         /// Returns a byte array containing the private key in PEM format.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         public static byte[] ExportPrivateKeyAsPEM(
             X509Certificate2 certificate,
-            string password = null
-            )
+            string password = null)
         {
             bool isECDsaSignature = X509PfxUtils.IsECDsaSignature(certificate);
             // check if certificate is valid for use as app/sw or user cert
             if (!isECDsaSignature)
             {
-                if (!String.IsNullOrEmpty(password)) throw new ArgumentException("Export with password not supported on this platform.", nameof(password));
-                RsaPrivateCrtKeyParameters privateKeyParameter = X509Utils.GetRsaPrivateKeyParameter(certificate);
+                if (!string.IsNullOrEmpty(password))
+                {
+                    throw new ArgumentException(
+                        "Export with password not supported on this platform.",
+                        nameof(password));
+                }
+
+                RsaPrivateCrtKeyParameters privateKeyParameter = X509Utils
+                    .GetRsaPrivateKeyParameter(certificate);
                 // write private key as PKCS#8
-                PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKeyParameter);
+                PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(
+                    privateKeyParameter);
                 byte[] serializedPrivateBytes = privateKeyInfo.ToAsn1Object().GetDerEncoded();
                 return EncodeAsPEM(serializedPrivateBytes, "PRIVATE KEY");
             }
 #if ECC_SUPPORT
             else
             {
-                if (!String.IsNullOrEmpty(password)) throw new ArgumentException("Export with password not supported on this platform.", nameof(password));
-                ECPrivateKeyParameters privateKeyParameter = X509Utils.GetECDsaPrivateKeyParameter(certificate.GetECDsaPrivateKey());
+                if (!string.IsNullOrEmpty(password))
+                {
+                    throw new ArgumentException(
+                        "Export with password not supported on this platform.",
+                        nameof(password));
+                }
+
+                ECPrivateKeyParameters privateKeyParameter = X509Utils.GetECDsaPrivateKeyParameter(
+                    certificate.GetECDsaPrivateKey());
                 // write private key as PKCS#8
-                PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKeyParameter);
+                PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(
+                    privateKeyParameter);
                 byte[] serializedPrivateBytes = privateKeyInfo.ToAsn1Object().GetDerEncoded();
                 return EncodeAsPEM(serializedPrivateBytes, "PRIVATE KEY");
             }
 #else
             throw new ArgumentException("ExportPrivateKeyAsPEM not supported on this platform."); // Only on NETSTANDARD2_0
-#endif            
+#endif
         }
 
         /// <summary>
@@ -86,11 +102,10 @@ namespace Opc.Ua.Security.Certificates
         public static bool TryRemovePublicKeyFromPEM(
             string thumbprint,
             byte[] pemDataBlob,
-            out byte[] modifiedPemDataBlob
-            )
+            out byte[] modifiedPemDataBlob)
         {
             modifiedPemDataBlob = null;
-            string label = "CERTIFICATE";
+            const string label = "CERTIFICATE";
             string beginlabel = $"-----BEGIN {label}-----";
             string endlabel = $"-----END {label}-----";
             try
@@ -102,7 +117,10 @@ namespace Opc.Ua.Security.Certificates
                 while (endIndex > -1 && count < 99)
                 {
                     count++;
-                    int beginIndex = pemText.IndexOf(beginlabel, searchPosition, StringComparison.Ordinal);
+                    int beginIndex = pemText.IndexOf(
+                        beginlabel,
+                        searchPosition,
+                        StringComparison.Ordinal);
                     if (beginIndex < 0)
                     {
                         return false;
@@ -113,16 +131,26 @@ namespace Opc.Ua.Security.Certificates
                     {
                         return false;
                     }
-                    var pemCertificateContent = pemText.Substring(beginIndex, endIndex - beginIndex);
-                    var pemCertificateDecoded = Convert.FromBase64CharArray(pemCertificateContent.ToCharArray(), 0, pemCertificateContent.Length);
+                    string pemCertificateContent = pemText[beginIndex..endIndex];
+                    byte[] pemCertificateDecoded = Convert.FromBase64CharArray(
+                        pemCertificateContent.ToCharArray(),
+                        0,
+                        pemCertificateContent.Length);
 
-                    var certificate = X509CertificateLoader.LoadCertificate(pemCertificateDecoded);
-                    if (thumbprint.Equals(certificate.Thumbprint, StringComparison.OrdinalIgnoreCase))
+                    X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(
+                        pemCertificateDecoded);
+                    if (thumbprint.Equals(
+                        certificate.Thumbprint,
+                        StringComparison.OrdinalIgnoreCase))
                     {
-                        modifiedPemDataBlob = Encoding.ASCII.GetBytes(pemText.Replace(pemText.Substring(beginIndex -= beginlabel.Length, endIndex + endlabel.Length), string.Empty));
+                        modifiedPemDataBlob = Encoding.ASCII.GetBytes(
+                            pemText.Replace(
+                                pemText.Substring(
+                                    beginIndex -= beginlabel.Length,
+                                    endIndex + endlabel.Length),
+                                string.Empty));
                         return true;
                     }
-
 
                     searchPosition = endIndex + endlabel.Length;
                 }
@@ -133,7 +161,7 @@ namespace Opc.Ua.Security.Certificates
             }
             return false;
         }
-        #endregion
+
+#endif
     }
 }
-#endif

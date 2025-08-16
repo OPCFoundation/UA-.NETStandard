@@ -10,7 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -20,34 +19,20 @@ namespace Opc.Ua
     /// </summary>
     public class TransportListenerSettings
     {
-        #region Public Properties
         /// <summary>
         /// Gets or sets the descriptions for the endpoints supported by the listener.
         /// </summary>
-        public EndpointDescriptionCollection Descriptions
-        {
-            get { return m_descriptions; }
-            set { m_descriptions = value; }
-        }
+        public EndpointDescriptionCollection Descriptions { get; set; }
 
         /// <summary>
         /// Gets or sets the configuration for the endpoints.
         /// </summary>
-        public EndpointConfiguration Configuration
-        {
-            get { return m_configuration; }
-            set { m_configuration = value; }
-        }
+        public EndpointConfiguration Configuration { get; set; }
 
         /// <summary>
         /// Gets or sets the server certificate type provider.
         /// </summary>
-        public CertificateTypesProvider ServerCertificateTypesProvider
-        {
-            get { return m_serverCertificateTypes; }
-            set { m_serverCertificateTypes = value; }
-        }
-
+        public CertificateTypesProvider ServerCertificateTypesProvider { get; set; }
 
         /// <summary>
         /// Gets or Sets the certificate validator.
@@ -56,11 +41,7 @@ namespace Opc.Ua
         /// This is the object used by the channel to validate received certificates.
         /// Validatation errors are reported to the application via this object.
         /// </remarks>
-        public ICertificateValidator CertificateValidator
-        {
-            get { return m_certificateValidator; }
-            set { m_certificateValidator = value; }
-        }
+        public ICertificateValidator CertificateValidator { get; set; }
 
         /// <summary>
         /// Gets or sets a reference to the table of namespaces for the server.
@@ -69,15 +50,11 @@ namespace Opc.Ua
         /// This is a thread safe object that may be updated by the application at any time.
         /// This table is used to lookup the NamespaceURI for the DataTypeEncodingId when decoding ExtensionObjects.
         /// If the NamespaceURI can be found the decoder will use the Factory to create an instance of a .NET object.
-        /// The raw data is passed to application if the NamespaceURI cannot be found or there is no .NET class 
+        /// The raw data is passed to application if the NamespaceURI cannot be found or there is no .NET class
         /// associated with the DataTypeEncodingId then.
         /// </remarks>
         /// <seealso cref="Factory" />
-        public NamespaceTable NamespaceUris
-        {
-            get { return m_namespaceUris; }
-            set { m_namespaceUris = value; }
-        }
+        public NamespaceTable NamespaceUris { get; set; }
 
         /// <summary>
         /// Gets or sets the table of known encodeable objects.
@@ -93,53 +70,24 @@ namespace Opc.Ua
         /// in the encoded message.
         /// </remarks>
         /// <seealso cref="NamespaceUris" />
-        public IEncodeableFactory Factory
-        {
-            get { return m_channelFactory; }
-            set { m_channelFactory = value; }
-        }
+        public IEncodeableFactory Factory { get; set; }
 
         /// <summary>
         /// Indicates if the transport listener is used as an endpoint for a reverse connection.
         /// </summary>
-        public bool ReverseConnectListener
-        {
-            get { return m_reverseConnectListener; }
-            set { m_reverseConnectListener = value; }
-        }
+        public bool ReverseConnectListener { get; set; }
 
         /// <summary>
         /// Indicates the max number of channels that can be created by the listener.
         /// 0 indicates no limit.
         /// </summary>
-        public int MaxChannelCount
-        {
-            get { return m_maxChannelCount; }
-            set { m_maxChannelCount = value; }
-        }
+        public int MaxChannelCount { get; set; }
 
         /// <summary>
         /// Indicates if Http listener requires mutual TLS
         /// Handled only by HttpsTransportListener
         /// In case true, the client should provide it's own valid TLS certificate to the TLS layer for the connection to succeed.
         /// </summary>
-        public bool HttpsMutualTls
-        {
-            get { return m_httpMutualTls; }
-            set { m_httpMutualTls = value; }
-        }
-        #endregion
-
-        #region Private Fields
-        private EndpointDescriptionCollection m_descriptions;
-        private EndpointConfiguration m_configuration;
-        private CertificateTypesProvider m_serverCertificateTypes;
-        private ICertificateValidator m_certificateValidator;
-        private NamespaceTable m_namespaceUris;
-        private IEncodeableFactory m_channelFactory;
-        private bool m_reverseConnectListener;
-        private int m_maxChannelCount;
-        private bool m_httpMutualTls;
-        #endregion
+        public bool HttpsMutualTls { get; set; }
     }
 }

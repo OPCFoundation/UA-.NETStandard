@@ -6,8 +6,9 @@
 // This source code is intentionally copied from the .NET core runtime to close
 // a gap in the .NET 4.6 and the .NET Core 2.x runtime implementations.
 // original code is located here:
-// https://github.com/dotnet/runtime/blob/master/src/libraries/System.Security.Cryptography.X509Certificates/src/System/Security/Cryptography/X509Certificates/RSAPkcs1X509SignatureGenerator.cs
-#pragma warning disable CS1591 // Suppress missing XML comments to preserve original code
+// https://github.com/dotnet/runtime/blob/master/src/libraries/
+// System.Security.Cryptography.X509Certificates/src/System/Security/
+// Cryptography/X509Certificates/RSAPkcs1X509SignatureGenerator.cs
 
 using System;
 using System.Diagnostics;
@@ -19,28 +20,28 @@ namespace Opc.Ua.Security.Certificates
 {
     internal sealed class RSAPkcs1X509SignatureGenerator : X509SignatureGenerator
     {
-        private readonly RSA _key;
+        private readonly RSA m_key;
 
         internal RSAPkcs1X509SignatureGenerator(RSA key)
         {
             Debug.Assert(key != null);
 
-            _key = key;
+            m_key = key;
         }
 
         public override byte[] SignData(byte[] data, HashAlgorithmName hashAlgorithm)
         {
-            return _key.SignData(data, hashAlgorithm, RSASignaturePadding.Pkcs1);
+            return m_key.SignData(data, hashAlgorithm, RSASignaturePadding.Pkcs1);
         }
 
         protected override PublicKey BuildPublicKey()
         {
-            return BuildPublicKey(_key);
+            return BuildPublicKey(m_key);
         }
 
         internal static PublicKey BuildPublicKey(RSA rsa)
         {
-            Oid oid = new Oid(Oids.Rsa);
+            var oid = new Oid(Oids.Rsa);
 
             // The OID is being passed to everything here because that's what
             // X509Certificate2.PublicKey does.
@@ -50,7 +51,7 @@ namespace Opc.Ua.Security.Certificates
                 //
                 // This is due to one version of the ASN.1 not including OPTIONAL, and that was
                 // the version that got predominately implemented for RSA. Now it's convention.
-                new AsnEncodedData(oid, new byte[] { 0x05, 0x00 }),
+                new AsnEncodedData(oid, [0x05, 0x00]),
                 new AsnEncodedData(oid, ExportRSAPublicKey(rsa)));
         }
 
@@ -78,7 +79,7 @@ namespace Opc.Ua.Security.Certificates
                     $"'{hashAlgorithm.Name}' is not a known hash algorithm.");
             }
 
-            AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
+            var writer = new AsnWriter(AsnEncodingRules.DER);
             writer.PushSequence();
             writer.WriteObjectIdentifier(oid);
             writer.WriteNull();
@@ -95,7 +96,7 @@ namespace Opc.Ua.Security.Certificates
                 throw new CryptographicException("Invalid RSA Parameters.");
             }
 
-            AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
+            var writer = new AsnWriter(AsnEncodingRules.DER);
             writer.PushSequence();
             writer.WriteKeyParameterInteger(rsaParameters.Modulus);
             writer.WriteKeyParameterInteger(rsaParameters.Exponent);

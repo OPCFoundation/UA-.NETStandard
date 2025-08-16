@@ -50,6 +50,7 @@ namespace Opc.Ua.Server
         /// The identifier for the item that is unique within the server.
         /// </summary>
         uint Id { get; }
+
         /// <summary>
         /// The identifier for the session that owns the subscription.
         /// </summary>
@@ -88,7 +89,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the current diagnostics for the subscription.
         /// </summary>
-        public SubscriptionDiagnosticsDataType Diagnostics { get; }
+        SubscriptionDiagnosticsDataType Diagnostics { get; }
 
         /// <summary>
         /// Called when a monitored item is ready to publish.
@@ -114,13 +115,12 @@ namespace Opc.Ua.Server
         /// Returns the available sequence numbers for retransmission
         /// For example used in Transfer Subscription
         /// </summary>
-        public UInt32Collection AvailableSequenceNumbersForRetransmission();
+        UInt32Collection AvailableSequenceNumbersForRetransmission();
 
         /// <summary>
         /// Refreshes the conditions.
         /// </summary>
         void ConditionRefresh2(uint monitoredItemId);
-
 
         /// <summary>
         /// Refreshes the conditions.
@@ -148,13 +148,10 @@ namespace Opc.Ua.Server
             out StatusCodeCollection results,
             out DiagnosticInfoCollection diagnosticInfos);
 
-
         /// <summary>
         /// Enables/disables publishing for the subscription.
         /// </summary>
-        void SetPublishingMode(
-            OperationContext context,
-            bool publishingEnabled);
+        void SetPublishingMode(OperationContext context, bool publishingEnabled);
 
         /// <summary>
         /// Deletes the monitored items in a subscription.
@@ -193,7 +190,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Sets the subscription to durable mode.
         /// </summary>
-        public ServiceResult SetSubscriptionDurable(uint maxLifetimeCount);
+        ServiceResult SetSubscriptionDurable(uint maxLifetimeCount);
 
         /// <summary>
         /// Initiates resending of all data monitored items in a Subscription
@@ -228,9 +225,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns a cached notification message.
         /// </summary>
-        NotificationMessage Republish(
-            OperationContext context,
-            uint retransmitSequenceNumber);
+        NotificationMessage Republish(OperationContext context, uint retransmitSequenceNumber);
 
         /// <summary>
         /// Publishes a timeout status message.
@@ -254,13 +249,13 @@ namespace Opc.Ua.Server
         /// Transfers the subscription to a new session.
         /// </summary>
         /// <param name="context">The session to which the subscription is transferred.</param>
-        /// <param name="sendInitialValues">Whether the first Publish response shall contain current values.</param> 
+        /// <param name="sendInitialValues">Whether the first Publish response shall contain current values.</param>
         void TransferSession(OperationContext context, bool sendInitialValues);
 
         /// <summary>
         /// Updates the triggers for the monitored item.
         /// </summary>
-        public void SetTriggering(
+        void SetTriggering(
             OperationContext context,
             uint triggeringItemId,
             UInt32Collection linksToAdd,
@@ -273,6 +268,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Return a StorableSubscription for restore after a server restart
         /// </summary>
-        public IStoredSubscription ToStorableSubscription();
+        IStoredSubscription ToStorableSubscription();
     }
 }

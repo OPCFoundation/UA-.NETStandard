@@ -23,13 +23,7 @@ namespace Opc.Ua.Schema.Binary
         /// <summary>
         /// The qualifed name for the type.
         /// </summary>
-        [XmlIgnore()]
-        public XmlQualifiedName QName
-        {
-            get { return m_qname; }
-            set { m_qname = value; }
-        }
-
-        private XmlQualifiedName m_qname;
+        [XmlIgnore]
+        public XmlQualifiedName QName { get; set; }
     }
 }

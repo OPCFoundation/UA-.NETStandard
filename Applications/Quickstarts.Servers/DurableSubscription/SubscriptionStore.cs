@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -40,17 +40,23 @@ namespace Quickstarts.Servers
 {
     public class SubscriptionStore : ISubscriptionStore
     {
-        private static readonly JsonSerializerSettings s_settings = new JsonSerializerSettings {
+        private static readonly JsonSerializerSettings s_settings = new()
+        {
             TypeNameHandling = TypeNameHandling.All,
-            Converters = { new ExtensionObjectConverter(), new NumericRangeConverter() },
+            Converters = { new ExtensionObjectConverter(), new NumericRangeConverter() }
         };
-        private static readonly string s_storage_path = Path.Combine(Environment.CurrentDirectory, "Durable Subscriptions");
-        private static readonly string s_filename = "subscriptionsStore.txt";
+
+        private static readonly string s_storage_path = Path.Combine(
+            Environment.CurrentDirectory,
+            "Durable Subscriptions");
+
+        private const string kFilename = "subscriptionsStore.txt";
         private readonly DurableMonitoredItemQueueFactory m_durableMonitoredItemQueueFactory;
 
         public SubscriptionStore(IServerInternal server)
         {
-            m_durableMonitoredItemQueueFactory = server.MonitoredItemQueueFactory as DurableMonitoredItemQueueFactory;
+            m_durableMonitoredItemQueueFactory = server
+                .MonitoredItemQueueFactory as DurableMonitoredItemQueueFactory;
         }
 
         public bool StoreSubscriptions(IEnumerable<IStoredSubscription> subscriptions)
@@ -64,11 +70,12 @@ namespace Quickstarts.Servers
                     Directory.CreateDirectory(s_storage_path);
                 }
 
-                File.WriteAllText(Path.Combine(s_storage_path, s_filename), result);
+                File.WriteAllText(Path.Combine(s_storage_path, kFilename), result);
 
                 if (m_durableMonitoredItemQueueFactory != null)
                 {
-                    IEnumerable<uint> ids = subscriptions.SelectMany(s => s.MonitoredItems.Select(m => m.Id));
+                    IEnumerable<uint> ids = subscriptions.SelectMany(
+                        s => s.MonitoredItems.Select(m => m.Id));
                     m_durableMonitoredItemQueueFactory.PersistQueues(ids, s_storage_path);
                 }
                 return true;
@@ -82,13 +89,16 @@ namespace Quickstarts.Servers
 
         public RestoreSubscriptionResult RestoreSubscriptions()
         {
-            string filePath = Path.Combine(s_storage_path, s_filename);
+            string filePath = Path.Combine(s_storage_path, kFilename);
             try
             {
                 if (File.Exists(filePath))
                 {
                     string json = File.ReadAllText(filePath);
-                    List<IStoredSubscription> result = JsonConvert.DeserializeObject<List<IStoredSubscription>>(json, s_settings);
+                    List<IStoredSubscription> result = JsonConvert
+                        .DeserializeObject<List<IStoredSubscription>>(
+                            json,
+                            s_settings);
 
                     File.Delete(filePath);
 
@@ -99,7 +109,7 @@ namespace Quickstarts.Servers
             {
                 Opc.Ua.Utils.LogWarning(ex, "Failed to restore subscriptions");
             }
-            
+
             return new RestoreSubscriptionResult(false, null);
         }
 
@@ -110,7 +120,11 @@ namespace Quickstarts.Servers
                 return objectType == typeof(ExtensionObject);
             }
 
-            public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+            public override object ReadJson(
+                JsonReader reader,
+                Type objectType,
+                object existingValue,
+                JsonSerializer serializer)
             {
                 var jo = JObject.Load(reader);
                 object body = jo["Body"].ToObject<object>(serializer);
@@ -118,10 +132,14 @@ namespace Quickstarts.Servers
                 return new ExtensionObject { Body = body, TypeId = typeId };
             }
 
-            public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+            public override void WriteJson(
+                JsonWriter writer,
+                object value,
+                JsonSerializer serializer)
             {
                 var extensionObject = (ExtensionObject)value;
-                var jo = new JObject {
+                var jo = new JObject
+                {
                     ["Body"] = JToken.FromObject(extensionObject.Body, serializer),
                     ["TypeId"] = JToken.FromObject(extensionObject.TypeId, serializer)
                 };
@@ -136,7 +154,11 @@ namespace Quickstarts.Servers
                 return objectType == typeof(NumericRange);
             }
 
-            public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+            public override object ReadJson(
+                JsonReader reader,
+                Type objectType,
+                object existingValue,
+                JsonSerializer serializer)
             {
                 var jo = JObject.Load(reader);
                 int begin = jo["Begin"].ToObject<int>(serializer);
@@ -144,10 +166,14 @@ namespace Quickstarts.Servers
                 return new NumericRange(begin, end);
             }
 
-            public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+            public override void WriteJson(
+                JsonWriter writer,
+                object value,
+                JsonSerializer serializer)
             {
                 var extensionObject = (NumericRange)value;
-                var jo = new JObject {
+                var jo = new JObject
+                {
                     ["Begin"] = JToken.FromObject(extensionObject.Begin, serializer),
                     ["End"] = JToken.FromObject(extensionObject.End, serializer)
                 };
@@ -155,18 +181,24 @@ namespace Quickstarts.Servers
             }
         }
 
-        public IDataChangeMonitoredItemQueue RestoreDataChangeMonitoredItemQueue(uint monitoredItemId)
+        public IDataChangeMonitoredItemQueue RestoreDataChangeMonitoredItemQueue(
+            uint monitoredItemId)
         {
-            return m_durableMonitoredItemQueueFactory?.RestoreDataChangeQueue(monitoredItemId, s_storage_path);
+            return m_durableMonitoredItemQueueFactory?.RestoreDataChangeQueue(
+                monitoredItemId,
+                s_storage_path);
         }
+
         public IEventMonitoredItemQueue RestoreEventMonitoredItemQueue(uint monitoredItemId)
         {
-            return m_durableMonitoredItemQueueFactory?.RestoreEventQueue(monitoredItemId, s_storage_path);
+            return m_durableMonitoredItemQueueFactory?.RestoreEventQueue(
+                monitoredItemId,
+                s_storage_path);
         }
 
         public void OnSubscriptionRestoreComplete(Dictionary<uint, uint[]> createdSubscriptions)
         {
-            string filePath = Path.Combine(s_storage_path, s_filename);
+            string filePath = Path.Combine(s_storage_path, kFilename);
 
             //remove old file
             if (File.Exists(filePath))

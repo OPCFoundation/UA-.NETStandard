@@ -17,8 +17,6 @@ namespace Opc.Ua.Schema
     /// used to describe data types exposed by a UA server.
     /// </summary>
     ///<exclude/>
-    [System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    public class NamespaceDoc
-    {
-    }
+    [System.Runtime.CompilerServices.CompilerGenerated]
+    public class NamespaceDoc;
 }

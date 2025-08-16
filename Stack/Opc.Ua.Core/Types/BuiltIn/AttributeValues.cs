@@ -152,35 +152,24 @@ namespace Opc.Ua
 
             switch (expectedValueRank)
             {
-                case ValueRanks.Any:
-                {
+                case Any:
                     return true;
-                }
-
-                case ValueRanks.OneOrMoreDimensions:
-                {
+                case OneOrMoreDimensions:
                     if (actualValueRank < 0)
                     {
                         return false;
                     }
 
                     break;
-                }
-
-                case ValueRanks.ScalarOrOneDimension:
-                {
-                    if (actualValueRank != ValueRanks.Scalar && actualValueRank != ValueRanks.OneDimension)
+                case ScalarOrOneDimension:
+                    if (actualValueRank is not Scalar and not OneDimension)
                     {
                         return false;
                     }
 
                     break;
-                }
-
                 default:
-                {
                     return false;
-                }
             }
 
             return true;
@@ -189,7 +178,10 @@ namespace Opc.Ua
         /// <summary>
         /// Checks if the actual array dimensions is compatible with the expected value rank and array dimensions.
         /// </summary>
-        public static bool IsValid(IList<uint> actualArrayDimensions, int valueRank, IList<uint> expectedArrayDimensions)
+        public static bool IsValid(
+            IList<uint> actualArrayDimensions,
+            int valueRank,
+            IList<uint> expectedArrayDimensions)
         {
             // check if parameter omitted.
             if (actualArrayDimensions == null || actualArrayDimensions.Count == 0)
@@ -198,27 +190,22 @@ namespace Opc.Ua
             }
 
             // no array dimensions allowed for scalars.
-            if (valueRank == ValueRanks.Scalar)
+            if (valueRank == Scalar)
             {
                 return false;
             }
 
             // check if one dimension required.
-            if (valueRank == ValueRanks.OneDimension || valueRank == ValueRanks.ScalarOrOneDimension)
+            if (valueRank is OneDimension or ScalarOrOneDimension &&
+                actualArrayDimensions.Count != 1)
             {
-                if (actualArrayDimensions.Count != 1)
-                {
-                    return false;
-                }
+                return false;
             }
 
             // check number of dimensions.
-            if (valueRank != ValueRanks.OneOrMoreDimensions)
+            if (valueRank != OneOrMoreDimensions && actualArrayDimensions.Count != valueRank)
             {
-                if (actualArrayDimensions.Count != valueRank)
-                {
-                    return false;
-                }
+                return false;
             }
 
             // nothing more to do if expected dimensions omitted.
@@ -236,7 +223,8 @@ namespace Opc.Ua
             // check length of each dimension.
             for (int ii = 0; ii < expectedArrayDimensions.Count; ii++)
             {
-                if (expectedArrayDimensions[ii] != actualArrayDimensions[ii] && expectedArrayDimensions[ii] != 0)
+                if (expectedArrayDimensions[ii] != actualArrayDimensions[ii] &&
+                    expectedArrayDimensions[ii] != 0)
                 {
                     return false;
                 }
@@ -265,5 +253,4 @@ namespace Opc.Ua
         /// </summary>
         public const double Continuous = 0;
     }
-
-}//namespace
+}

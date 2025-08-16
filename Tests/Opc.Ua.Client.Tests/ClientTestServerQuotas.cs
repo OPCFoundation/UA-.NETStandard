@@ -28,20 +28,10 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
-using Moq;
 using NUnit.Framework;
-using Opc.Ua.Bindings;
-using Opc.Ua.Configuration;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
@@ -50,22 +40,23 @@ namespace Opc.Ua.Client.Tests
 {
     public class ClientTestServerQuotas : ClientTestFramework
     {
-        const int MaxByteStringLengthForTest = 4096;
-        public ClientTestServerQuotas() : base(Utils.UriSchemeOpcTcp)
+        internal const int MaxByteStringLengthForTest = 4096;
+
+        public ClientTestServerQuotas()
+            : base(Utils.UriSchemeOpcTcp)
         {
         }
 
-        public ClientTestServerQuotas(string uriScheme = Utils.UriSchemeOpcTcp) :
-            base(uriScheme)
+        public ClientTestServerQuotas(string uriScheme = Utils.UriSchemeOpcTcp)
+            : base(uriScheme)
         {
         }
 
-        #region Test Setup
         /// <summary>
         /// Set up a Server and a Client instance.
         /// </summary>
         [OneTimeSetUp]
-        public new Task OneTimeSetUp()
+        public override Task OneTimeSetUpAsync()
         {
             SupportsExternalServerUrl = true;
             return base.OneTimeSetUpAsync();
@@ -75,7 +66,7 @@ namespace Opc.Ua.Client.Tests
         /// Tear down the Server and the Client.
         /// </summary>
         [OneTimeTearDown]
-        public new Task OneTimeTearDownAsync()
+        public override Task OneTimeTearDownAsync()
         {
             return base.OneTimeTearDownAsync();
         }
@@ -84,15 +75,22 @@ namespace Opc.Ua.Client.Tests
         /// Test setup.
         /// </summary>
         [SetUp]
-        public new Task SetUp()
+        public override Task SetUpAsync()
         {
-            return base.SetUp();
+            return base.SetUpAsync();
         }
 
-        public override async Task CreateReferenceServerFixture(bool enableTracing, bool disableActivityLogging, bool securityNone, TextWriter writer)
+        public override async Task CreateReferenceServerFixtureAsync(
+            bool enableTracing,
+            bool disableActivityLogging,
+            bool securityNone,
+            TextWriter writer)
         {
             // start Ref server
-            ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging) {
+            ServerFixture = new ServerFixture<ReferenceServer>(
+                enableTracing,
+                disableActivityLogging)
+            {
                 UriScheme = UriScheme,
                 SecurityNone = securityNone,
                 AutoAccept = true,
@@ -104,17 +102,23 @@ namespace Opc.Ua.Client.Tests
                 ServerFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
             }
 
-            await ServerFixture.LoadConfiguration(PkiRoot).ConfigureAwait(false);
+            await ServerFixture.LoadConfigurationAsync(PkiRoot).ConfigureAwait(false);
             ServerFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
             ServerFixture.Config.TransportQuotas.MaxByteStringLength = MaxByteStringLengthForTest;
             ServerFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName));
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate));
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies
+                .Add(new UserTokenPolicy(UserTokenType.UserName));
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Opc.Ua.Profiles.JwtUserToken });
+                new UserTokenPolicy(UserTokenType.Certificate));
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                new UserTokenPolicy(UserTokenType.IssuedToken)
+                {
+                    IssuedTokenType = Profiles.JwtUserToken
+                });
 
-            ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
-            ReferenceServer.TokenValidator = this.TokenValidator;
+            ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out)
+                .ConfigureAwait(false);
+            ReferenceServer.TokenValidator = TokenValidator;
             ServerFixturePort = ServerFixture.Port;
         }
 
@@ -122,18 +126,16 @@ namespace Opc.Ua.Client.Tests
         /// Test teardown.
         /// </summary>
         [TearDown]
-        public new Task TearDown()
+        public override Task TearDownAsync()
         {
-            return base.TearDown();
+            return base.TearDownAsync();
         }
-        #endregion
 
-        #region Benchmark Setup
         /// <summary>
         /// Global Setup for benchmarks.
         /// </summary>
         [GlobalSetup]
-        public new void GlobalSetup()
+        public override void GlobalSetup()
         {
             base.GlobalSetup();
         }
@@ -142,82 +144,84 @@ namespace Opc.Ua.Client.Tests
         /// Global cleanup for benchmarks.
         /// </summary>
         [GlobalCleanup]
-        public new void GlobalCleanup()
+        public override void GlobalCleanup()
         {
             base.GlobalCleanup();
         }
-        #endregion
 
-        #region Test Methods
-
-        [Test, Order(200)]
+        [Test]
+        [Order(200)]
         public void TestBoundaryCaseForReadingChunks()
         {
-            Session theSession = ((Session)(((TraceableSession)Session).Session));
+            var theSession = (Session)((TraceableSession)Session).Session;
 
-            int NamespaceIndex = theSession.NamespaceUris.GetIndex("http://opcfoundation.org/Quickstarts/ReferenceServer");
-            NodeId NodeId = new NodeId($"ns={NamespaceIndex};s=Scalar_Static_ByteString");
+            int namespaceIndex = theSession.NamespaceUris.GetIndex(
+                "http://opcfoundation.org/Quickstarts/ReferenceServer");
+            var nodeId = new NodeId($"ns={namespaceIndex};s=Scalar_Static_ByteString");
 
-            Random random = new Random();
+            var random = new Random();
 
             byte[] chunk = new byte[MaxByteStringLengthForTest];
             random.NextBytes(chunk);
 
-            WriteValue WriteValue = new WriteValue {
-                NodeId = NodeId,
+            var writeValue = new WriteValue
+            {
+                NodeId = nodeId,
                 AttributeId = Attributes.Value,
-                Value = new DataValue() { WrappedValue = new Variant(chunk) },
+                Value = new DataValue { WrappedValue = new Variant(chunk) },
                 IndexRange = null
             };
-            WriteValueCollection writeValues = new WriteValueCollection {
-                WriteValue
-            };
-            theSession.Write(null, writeValues, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos);
+            var writeValues = new WriteValueCollection { writeValue };
+
+            theSession.Write(null, writeValues, out StatusCodeCollection results, out _);
 
             if (results[0] != StatusCodes.Good)
             {
-                Assert.Fail($"Write failed with status code {results[0]}");
+                NUnit.Framework.Assert.Fail($"Write failed with status code {results[0]}");
             }
 
-            byte[] readData = theSession.ReadByteStringInChunks(NodeId);
+            byte[] readData = theSession.ReadByteStringInChunks(nodeId);
 
             Assert.IsTrue(Utils.IsEqual(chunk, readData));
         }
 
-        [Test, Order(210)]
+        [Test]
+        [Order(210)]
         public async Task TestBoundaryCaseForReadingChunksAsync()
         {
-            Session theSession = ((Session)(((TraceableSession)Session).Session));
+            var theSession = (Session)((TraceableSession)Session).Session;
 
-            int NamespaceIndex = theSession.NamespaceUris.GetIndex("http://opcfoundation.org/Quickstarts/ReferenceServer");
-            NodeId NodeId = new NodeId($"ns={NamespaceIndex};s=Scalar_Static_ByteString");
+            int namespaceIndex = theSession.NamespaceUris.GetIndex(
+                "http://opcfoundation.org/Quickstarts/ReferenceServer");
+            var nodeId = new NodeId($"ns={namespaceIndex};s=Scalar_Static_ByteString");
 
-            Random random = new Random();
+            var random = new Random();
 
             byte[] chunk = new byte[MaxByteStringLengthForTest];
             random.NextBytes(chunk);
 
-            WriteValue WriteValue = new WriteValue {
-                NodeId = NodeId,
+            var writeValue = new WriteValue
+            {
+                NodeId = nodeId,
                 AttributeId = Attributes.Value,
-                Value = new DataValue() { WrappedValue = new Variant(chunk) },
+                Value = new DataValue { WrappedValue = new Variant(chunk) },
                 IndexRange = null
             };
-            WriteValueCollection writeValues = new WriteValueCollection {
-                WriteValue
-            };
+            var writeValues = new WriteValueCollection { writeValue };
 
-            var result = await theSession.WriteAsync(null, writeValues, default).ConfigureAwait(false);
+            WriteResponse result = await theSession.WriteAsync(null, writeValues, default)
+                .ConfigureAwait(false);
             StatusCodeCollection results = result.Results;
-            DiagnosticInfoCollection diagnosticInfos = result.DiagnosticInfos;
+
+            _ = result.DiagnosticInfos;
             if (results[0] != StatusCodes.Good)
             {
-                Assert.Fail($"Write failed with status code {results[0]}");
+                NUnit.Framework.Assert.Fail($"Write failed with status code {results[0]}");
             }
 
-            byte[] readData = await theSession.ReadByteStringInChunksAsync(NodeId, default).ConfigureAwait(false);
+            byte[] readData = await theSession.ReadByteStringInChunksAsync(nodeId, default)
+                .ConfigureAwait(false);
             Assert.IsTrue(Utils.IsEqual(chunk, readData));
         }
-        #endregion // Test Methods
     }
 }

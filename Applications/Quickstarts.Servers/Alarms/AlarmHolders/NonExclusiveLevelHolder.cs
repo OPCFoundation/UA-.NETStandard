@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -28,12 +28,11 @@
  * ======================================================================*/
 
 using System;
-
 using Opc.Ua;
 
 namespace Alarms
 {
-    class NonExclusiveLevelHolder : NonExclusiveLimitHolder
+    internal class NonExclusiveLevelHolder : NonExclusiveLimitHolder
     {
         public NonExclusiveLevelHolder(
             AlarmNodeManager alarmNodeManager,
@@ -45,12 +44,22 @@ namespace Alarms
             int interval,
             bool optional = true,
             double maxShelveTime = AlarmDefines.NORMAL_MAX_TIME_SHELVED,
-            bool create = true) :
-            base(alarmNodeManager, parent, trigger, name, alarmConditionType, controllerType, interval, optional, maxShelveTime, false)
+            bool create = true)
+            : base(
+                alarmNodeManager,
+                parent,
+                trigger,
+                name,
+                alarmConditionType,
+                controllerType,
+                interval,
+                optional,
+                maxShelveTime,
+                false)
         {
             if (create)
             {
-                Initialize(Opc.Ua.ObjectTypes.NonExclusiveLevelAlarmType, name, maxShelveTime);
+                Initialize(ObjectTypes.NonExclusiveLevelAlarmType, name, maxShelveTime);
             }
         }
 
@@ -61,27 +70,18 @@ namespace Alarms
         {
             // Create an alarm and trigger name - Create a base method for creating the trigger, just provide the name
 
-            if (m_alarm == null)
-            {
-                m_alarm = new NonExclusiveLevelAlarmState(m_parent);
-            }
+            m_alarm ??= new NonExclusiveLevelAlarmState(m_parent);
 
             // Call the base class to set parameters
             base.Initialize(alarmTypeIdentifier, name, maxTimeShelved);
-            Utils.LogTrace("NonExclusiveLevelHolder alarm typedefinition {0}", m_alarm.TypeDefinitionId);
+            Utils.LogTrace(
+                "NonExclusiveLevelHolder alarm typedefinition {0}",
+                m_alarm.TypeDefinitionId);
         }
 
         public override void SetBranching(bool value)
         {
             m_supportsBranching = value;
         }
-
-
-        private NonExclusiveLevelAlarmState GetAlarm()
-        {
-            return (NonExclusiveLevelAlarmState)m_alarm;
-        }
-
-
     }
 }

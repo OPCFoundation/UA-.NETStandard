@@ -10,10 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace Opc.Ua
 {
     /// <summary>
@@ -21,7 +17,6 @@ namespace Opc.Ua
     /// </summary>
     public interface ISessionClient : ISessionClientMethods, IClientBase
     {
-        #region Public Properties
         /// <summary>
         /// The server assigned identifier for the current session.
         /// </summary>
@@ -33,6 +28,5 @@ namespace Opc.Ua
         /// </summary>
         /// <value><c>true</c> if connected; otherwise, <c>false</c>.</value>
         bool Connected { get; }
-        #endregion
     }
 }

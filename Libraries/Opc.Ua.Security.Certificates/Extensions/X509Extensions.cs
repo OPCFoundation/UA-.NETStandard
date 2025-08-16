@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -47,7 +47,8 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <typeparam name="T">The type of the extension.</typeparam>
         /// <param name="certificate">The certificate with extensions.</param>
-        public static T FindExtension<T>(this X509Certificate2 certificate) where T : X509Extension
+        public static T FindExtension<T>(this X509Certificate2 certificate)
+            where T : X509Extension
         {
             return FindExtension<T>(certificate.Extensions);
         }
@@ -57,30 +58,43 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <typeparam name="T">The type of the extension.</typeparam>
         /// <param name="extensions">The extensions to search.</param>
-        public static T FindExtension<T>(this X509ExtensionCollection extensions) where T : X509Extension
+        /// <exception cref="ArgumentNullException"><paramref name="extensions"/> is <c>null</c>.</exception>
+        public static T FindExtension<T>(this X509ExtensionCollection extensions)
+            where T : X509Extension
         {
-            if (extensions == null) throw new ArgumentNullException(nameof(extensions));
+            if (extensions == null)
+            {
+                throw new ArgumentNullException(nameof(extensions));
+            }
+
             lock (extensions.SyncRoot)
             {
                 // search known custom extensions
                 if (typeof(T) == typeof(X509AuthorityKeyIdentifierExtension))
                 {
-                    X509Extension extension = extensions.Cast<X509Extension>().FirstOrDefault(e => (
-                        e.Oid.Value == X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifierOid ||
-                        e.Oid.Value == X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifier2Oid)
-                    );
+                    X509Extension extension = extensions
+                        .Cast<X509Extension>()
+                        .FirstOrDefault(e =>
+                            e.Oid.Value
+                                is X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifierOid
+                                    or X509AuthorityKeyIdentifierExtension
+                                        .AuthorityKeyIdentifier2Oid);
                     if (extension != null)
                     {
-                        return new X509AuthorityKeyIdentifierExtension(extension, extension.Critical) as T;
+                        return new X509AuthorityKeyIdentifierExtension(
+                            extension,
+                            extension.Critical) as T;
                     }
                 }
 
                 if (typeof(T) == typeof(X509SubjectAltNameExtension))
                 {
-                    X509Extension extension = extensions.Cast<X509Extension>().FirstOrDefault(e => (
-                        e.Oid.Value == X509SubjectAltNameExtension.SubjectAltNameOid ||
-                        e.Oid.Value == X509SubjectAltNameExtension.SubjectAltName2Oid)
-                    );
+                    X509Extension extension = extensions
+                        .Cast<X509Extension>()
+                        .FirstOrDefault(e =>
+                            e.Oid.Value
+                                is X509SubjectAltNameExtension.SubjectAltNameOid
+                                    or X509SubjectAltNameExtension.SubjectAltName2Oid);
                     if (extension != null)
                     {
                         return new X509SubjectAltNameExtension(extension, extension.Critical) as T;
@@ -89,9 +103,9 @@ namespace Opc.Ua.Security.Certificates
 
                 if (typeof(T) == typeof(X509CrlNumberExtension))
                 {
-                    X509Extension extension = extensions.Cast<X509Extension>().FirstOrDefault(e => (
-                        e.Oid.Value == X509CrlNumberExtension.CrlNumberOid)
-                    );
+                    X509Extension extension = extensions
+                        .Cast<X509Extension>()
+                        .FirstOrDefault(e => e.Oid.Value == X509CrlNumberExtension.CrlNumberOid);
                     if (extension != null)
                     {
                         return new X509CrlNumberExtension(extension, extension.Critical) as T;
@@ -108,15 +122,17 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="caIssuerUrls">Array of CA Issuer Urls</param>
         /// <param name="ocspResponder">optional, the OCSP responder </param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static X509Extension BuildX509AuthorityInformationAccess(
-            string[] caIssuerUrls,
-            string ocspResponder = null
-            )
+            this string[] caIssuerUrls,
+            string ocspResponder = null)
         {
-            if (String.IsNullOrEmpty(ocspResponder) &&
-               (caIssuerUrls == null || caIssuerUrls.Length == 0))
+            if (string.IsNullOrEmpty(ocspResponder) &&
+                (caIssuerUrls == null || caIssuerUrls.Length == 0))
             {
-                throw new ArgumentNullException(nameof(caIssuerUrls), "One CA Issuer Url or OCSP responder is required for the extension.");
+                throw new ArgumentNullException(
+                    nameof(caIssuerUrls),
+                    "One CA Issuer Url or OCSP responder is required for the extension.");
             }
 
             var generalNameUriChoice = new Asn1Tag(TagClass.ContextSpecific, 6);
@@ -131,20 +147,18 @@ namespace Opc.Ua.Security.Certificates
                     writer.WriteCharacterString(
                         UniversalTagNumber.IA5String,
                         caIssuerUrl,
-                        generalNameUriChoice
-                        );
+                        generalNameUriChoice);
                     writer.PopSequence();
                 }
             }
-            if (!String.IsNullOrEmpty(ocspResponder))
+            if (!string.IsNullOrEmpty(ocspResponder))
             {
                 writer.PushSequence();
                 writer.WriteObjectIdentifier(Oids.OnlineCertificateStatusProtocol);
                 writer.WriteCharacterString(
                     UniversalTagNumber.IA5String,
                     ocspResponder,
-                    generalNameUriChoice
-                    );
+                    generalNameUriChoice);
                 writer.PopSequence();
             }
             writer.PopSequence();
@@ -155,10 +169,9 @@ namespace Opc.Ua.Security.Certificates
         /// Build the CRL Distribution Point extension.
         /// </summary>
         /// <param name="distributionPoint">The CRL distribution point</param>
-        public static X509Extension BuildX509CRLDistributionPoints(
-            string distributionPoint)
+        public static X509Extension BuildX509CRLDistributionPoints(this string distributionPoint)
         {
-            return BuildX509CRLDistributionPoints(new string[] { distributionPoint });
+            return BuildX509CRLDistributionPoints([distributionPoint]);
         }
 
         /// <summary>
@@ -166,7 +179,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="distributionPoints">The CRL distribution points</param>
         public static X509Extension BuildX509CRLDistributionPoints(
-            IEnumerable<string> distributionPoints)
+            this IEnumerable<string> distributionPoints)
         {
             var context0 = new Asn1Tag(TagClass.ContextSpecific, 0, true);
             Asn1Tag distributionPointChoice = context0;
@@ -182,8 +195,7 @@ namespace Opc.Ua.Security.Certificates
                 writer.WriteCharacterString(
                     UniversalTagNumber.IA5String,
                     distributionPoint,
-                    generalNameUriChoice
-                    );
+                    generalNameUriChoice);
             }
             writer.PopSequence(fullNameChoice);
             writer.PopSequence(distributionPointChoice);
@@ -219,8 +231,6 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Write an extension object as ASN.1.
         /// </summary>
-        /// <param name="writer"></param>
-        /// <param name="extension"></param>
         public static void WriteExtension(this AsnWriter writer, X509Extension extension)
         {
             Asn1Tag etag = Asn1Tag.Sequence;
@@ -237,12 +247,10 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Build the CRL Reason extension.
         /// </summary>
-        public static X509Extension BuildX509CRLReason(
-            CRLReason reason
-            )
+        public static X509Extension BuildX509CRLReason(this CRLReason reason)
         {
             var writer = new AsnWriter(AsnEncodingRules.DER);
-            writer.WriteEnumeratedValue<CRLReason>(reason);
+            writer.WriteEnumeratedValue(reason);
             return new X509Extension(Oids.CrlReasonCode, writer.Encode(), false);
         }
 
@@ -250,10 +258,14 @@ namespace Opc.Ua.Security.Certificates
         /// Build the Authority Key Identifier from an Issuer CA certificate.
         /// </summary>
         /// <param name="issuerCaCertificate">The issuer CA certificate</param>
-        public static X509Extension BuildAuthorityKeyIdentifier(X509Certificate2 issuerCaCertificate)
+        public static X509Extension BuildAuthorityKeyIdentifier(
+            this X509Certificate2 issuerCaCertificate)
         {
             // force exception if SKI is not present
-            X509SubjectKeyIdentifierExtension ski = issuerCaCertificate.Extensions.OfType<X509SubjectKeyIdentifierExtension>().Single();
+            X509SubjectKeyIdentifierExtension ski = issuerCaCertificate
+                .Extensions
+                .OfType<X509SubjectKeyIdentifierExtension>()
+                .Single();
             return new X509AuthorityKeyIdentifierExtension(
                 ski.SubjectKeyIdentifier.FromHexString(),
                 issuerCaCertificate.IssuerName,
@@ -263,7 +275,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Build the CRL number.
         /// </summary>
-        public static X509Extension BuildCRLNumber(BigInteger crlNumber)
+        public static X509Extension BuildCRLNumber(this BigInteger crlNumber)
         {
             var writer = new AsnWriter(AsnEncodingRules.DER);
             writer.WriteInteger(crlNumber);
@@ -273,7 +285,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Patch serial number in a Url. byte version.
         /// </summary>
-        public static string PatchExtensionUrl(string extensionUrl, byte[] serialNumber)
+        public static string PatchExtensionUrl(this string extensionUrl, byte[] serialNumber)
         {
             return PatchExtensionUrl(extensionUrl, serialNumber.ToHexString());
         }
@@ -281,9 +293,9 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Patch serial number in a Url. string version.
         /// </summary>
-        public static string PatchExtensionUrl(string extensionUrl, string serial)
+        public static string PatchExtensionUrl(this string extensionUrl, string serial)
         {
-            return extensionUrl.Replace("%serial%", serial.ToLower());
+            return extensionUrl.Replace("%serial%", serial.ToLower(), StringComparison.Ordinal);
         }
     }
 }

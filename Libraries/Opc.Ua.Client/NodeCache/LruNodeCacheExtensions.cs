@@ -43,7 +43,9 @@ namespace Opc.Ua
         /// <summary>
         /// Get node from cache
         /// </summary>
-        public static ValueTask<INode> GetNodeAsync(this ILruNodeCache cache, ExpandedNodeId expandedNodeId,
+        public static ValueTask<INode> GetNodeAsync(
+            this ILruNodeCache cache,
+            ExpandedNodeId expandedNodeId,
             CancellationToken ct = default)
         {
             var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, cache.Session.NamespaceUris);
@@ -53,17 +55,25 @@ namespace Opc.Ua
         /// <summary>
         /// Get nodes from cache
         /// </summary>
-        public static ValueTask<IReadOnlyList<INode>> GetNodesAsync(this ILruNodeCache cache, IReadOnlyList<ExpandedNodeId> expandedNodeIds,
+        public static ValueTask<IReadOnlyList<INode>> GetNodesAsync(
+            this ILruNodeCache cache,
+            IReadOnlyList<ExpandedNodeId> expandedNodeIds,
             CancellationToken ct = default)
         {
-            var nodeIds = expandedNodeIds.Select(expandedNodeId => ExpandedNodeId.ToNodeId(expandedNodeId, cache.Session.NamespaceUris)).ToList();
+            var nodeIds = expandedNodeIds
+                .Select(expandedNodeId => ExpandedNodeId.ToNodeId(
+                    expandedNodeId,
+                    cache.Session.NamespaceUris))
+                .ToList();
             return cache.GetNodesAsync(nodeIds, ct);
         }
 
         /// <summary>
         /// Get node from cache
         /// </summary>
-        public static ValueTask<DataValue> GetValueAsync(this ILruNodeCache cache, ExpandedNodeId expandedNodeId,
+        public static ValueTask<DataValue> GetValueAsync(
+            this ILruNodeCache cache,
+            ExpandedNodeId expandedNodeId,
             CancellationToken ct = default)
         {
             var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, cache.Session.NamespaceUris);
@@ -73,47 +83,93 @@ namespace Opc.Ua
         /// <summary>
         /// Get nodes from cache
         /// </summary>
-        public static ValueTask<IReadOnlyList<DataValue>> GetValuesAsync(this ILruNodeCache cache, IReadOnlyList<ExpandedNodeId> expandedNodeIds,
+        public static ValueTask<IReadOnlyList<DataValue>> GetValuesAsync(
+            this ILruNodeCache cache,
+            IReadOnlyList<ExpandedNodeId> expandedNodeIds,
             CancellationToken ct = default)
         {
-            var nodeIds = expandedNodeIds.Select(expandedNodeId => ExpandedNodeId.ToNodeId(expandedNodeId, cache.Session.NamespaceUris)).ToList();
+            var nodeIds = expandedNodeIds
+                .Select(expandedNodeId => ExpandedNodeId.ToNodeId(
+                    expandedNodeId,
+                    cache.Session.NamespaceUris))
+                .ToList();
             return cache.GetValuesAsync(nodeIds, ct);
         }
 
         /// <summary>
         /// Get references from cache
         /// </summary>
-        public static ValueTask<IReadOnlyList<INode>> GetReferencesAsync(this ILruNodeCache cache, ExpandedNodeId expandedNodeId, NodeId referenceTypeId,
-            bool isInverse, bool includeSubtypes = true, CancellationToken ct = default)
+        public static ValueTask<IReadOnlyList<INode>> GetReferencesAsync(
+            this ILruNodeCache cache,
+            ExpandedNodeId expandedNodeId,
+            NodeId referenceTypeId,
+            bool isInverse,
+            bool includeSubtypes = true,
+            CancellationToken ct = default)
         {
             var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, cache.Session.NamespaceUris);
-            return cache.GetReferencesAsync(nodeId, referenceTypeId, isInverse, includeSubtypes, ct);
+            return cache.GetReferencesAsync(
+                nodeId,
+                referenceTypeId,
+                isInverse,
+                includeSubtypes,
+                ct);
         }
 
         /// <summary>
         /// Get references from cache
         /// </summary>
-        public static ValueTask<IReadOnlyList<INode>> GetReferencesAsync(this ILruNodeCache cache, IReadOnlyList<ExpandedNodeId> expandedNodeIds,
-            IReadOnlyList<NodeId> referenceTypeIds, bool isInverse, bool includeSubtypes = true, CancellationToken ct = default)
+        public static ValueTask<IReadOnlyList<INode>> GetReferencesAsync(
+            this ILruNodeCache cache,
+            IReadOnlyList<ExpandedNodeId> expandedNodeIds,
+            IReadOnlyList<NodeId> referenceTypeIds,
+            bool isInverse,
+            bool includeSubtypes = true,
+            CancellationToken ct = default)
         {
-            var nodeIds = expandedNodeIds.Select(expandedNodeId => ExpandedNodeId.ToNodeId(expandedNodeId, cache.Session.NamespaceUris)).ToList();
-            return cache.GetReferencesAsync(nodeIds, referenceTypeIds, isInverse, includeSubtypes, ct);
+            var nodeIds = expandedNodeIds
+                .Select(expandedNodeId => ExpandedNodeId.ToNodeId(
+                    expandedNodeId,
+                    cache.Session.NamespaceUris))
+                .ToList();
+            return cache.GetReferencesAsync(
+                nodeIds,
+                referenceTypeIds,
+                isInverse,
+                includeSubtypes,
+                ct);
         }
 
         /// <summary>
         /// Get references from cache
         /// </summary>
-        public static ValueTask<IReadOnlyList<INode>> GetReferencesAsync(this ILruNodeCache cache, IReadOnlyList<ExpandedNodeId> expandedNodeIds,
-            NodeId referenceTypeId, bool isInverse, bool includeSubtypes = true, CancellationToken ct = default)
+        public static ValueTask<IReadOnlyList<INode>> GetReferencesAsync(
+            this ILruNodeCache cache,
+            IReadOnlyList<ExpandedNodeId> expandedNodeIds,
+            NodeId referenceTypeId,
+            bool isInverse,
+            bool includeSubtypes = true,
+            CancellationToken ct = default)
         {
-            var nodeIds = expandedNodeIds.Select(expandedNodeId => ExpandedNodeId.ToNodeId(expandedNodeId, cache.Session.NamespaceUris)).ToList();
-            return cache.GetReferencesAsync(nodeIds, [referenceTypeId], isInverse, includeSubtypes, ct);
+            var nodeIds = expandedNodeIds
+                .Select(expandedNodeId => ExpandedNodeId.ToNodeId(
+                    expandedNodeId,
+                    cache.Session.NamespaceUris))
+                .ToList();
+            return cache.GetReferencesAsync(
+                nodeIds,
+                [referenceTypeId],
+                isInverse,
+                includeSubtypes,
+                ct);
         }
 
         /// <summary>
         /// Get super type from cache
         /// </summary>
-        public static ValueTask<NodeId> GetSuperTypeAsync(this ILruNodeCache cache, ExpandedNodeId expandedNodeId,
+        public static ValueTask<NodeId> GetSuperTypeAsync(
+            this ILruNodeCache cache,
+            ExpandedNodeId expandedNodeId,
             CancellationToken ct = default)
         {
             var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, cache.Session.NamespaceUris);
@@ -123,7 +179,10 @@ namespace Opc.Ua
         /// <summary>
         /// Is the subTypeId a subtype of the superTypeId?
         /// </summary>
-        public static bool IsTypeOf(this ILruNodeCache cache, ExpandedNodeId subTypeId, NodeId superTypeId)
+        public static bool IsTypeOf(
+            this ILruNodeCache cache,
+            ExpandedNodeId subTypeId,
+            NodeId superTypeId)
         {
             var nodeId = ExpandedNodeId.ToNodeId(subTypeId, cache.Session.NamespaceUris);
             return cache.IsTypeOf(nodeId, superTypeId);
@@ -132,12 +191,15 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the BuiltInType type for the DataTypeId.
         /// </summary>
-        public static async Task<BuiltInType> GetBuiltInTypeAsync(this ILruNodeCache cache, NodeId datatypeId, CancellationToken ct = default)
+        public static async Task<BuiltInType> GetBuiltInTypeAsync(
+            this ILruNodeCache cache,
+            NodeId datatypeId,
+            CancellationToken ct = default)
         {
             NodeId typeId = datatypeId;
-            while (!Opc.Ua.NodeId.IsNull(typeId))
+            while (!NodeId.IsNull(typeId))
             {
-                if (typeId != null && typeId.NamespaceIndex == 0 && typeId.IdType == Opc.Ua.IdType.Numeric)
+                if (typeId != null && typeId.NamespaceIndex == 0 && typeId.IdType == IdType.Numeric)
                 {
                     var id = (BuiltInType)(int)(uint)typeId.Identifier;
                     if (id is > BuiltInType.Null and <= BuiltInType.Enumeration and not BuiltInType.DiagnosticInfo)

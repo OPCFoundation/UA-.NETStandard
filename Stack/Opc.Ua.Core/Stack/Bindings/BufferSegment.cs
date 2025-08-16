@@ -40,7 +40,10 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns the base array of the buffer.
         /// </summary>
-        public byte[] Array() => m_array;
+        public byte[] Array()
+        {
+            return m_array;
+        }
 
         /// <summary>
         /// Constructor for a buffer segment.
@@ -56,15 +59,14 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public BufferSegment Append(byte[] array, int offset, int length)
         {
-            var segment = new BufferSegment(array, offset, length) {
+            var segment = new BufferSegment(array, offset, length)
+            {
                 RunningIndex = RunningIndex + Memory.Length
             };
             Next = segment;
             return segment;
         }
 
-        #region Private Fields
-        private byte[] m_array;
-        #endregion
+        private readonly byte[] m_array;
     }
 }

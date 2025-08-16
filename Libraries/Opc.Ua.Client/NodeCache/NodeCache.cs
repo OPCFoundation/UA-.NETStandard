@@ -41,23 +41,18 @@ namespace Opc.Ua.Client
     /// </summary>
     public partial class NodeCache : INodeCache, IDisposable
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
         public NodeCache(ISession session)
         {
-            if (session == null) throw new ArgumentNullException(nameof(session));
-
-            m_session = session;
+            m_session = session ?? throw new ArgumentNullException(nameof(session));
             m_typeTree = new TypeTable(m_session.NamespaceUris);
             m_nodes = new NodeTable(m_session.NamespaceUris, m_session.ServerUris, m_typeTree);
             m_uaTypesLoaded = false;
             m_cacheLock = new ReaderWriterLockSlim();
         }
-        #endregion
 
-        #region IDisposable
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
@@ -76,9 +71,7 @@ namespace Opc.Ua.Client
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
-        #endregion
 
-        #region INodeTable Members
         /// <inheritdoc/>
         public NamespaceTable NamespaceUris => m_session.NamespaceUris;
 
@@ -132,7 +125,10 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.LogError("Could not fetch node from server: NodeId={0}, Reason='{1}'.", nodeId, Redact.Create(e));
+                Utils.LogError(
+                    "Could not fetch node from server: NodeId={0}, Reason='{1}'.",
+                    nodeId,
+                    Redact.Create(e));
                 // m_nodes[nodeId] = null;
                 return null;
             }
@@ -144,11 +140,11 @@ namespace Opc.Ua.Client
             // check for null.
             if (nodeIds == null || nodeIds.Count == 0)
             {
-                return new List<INode>();
+                return [];
             }
 
             int count = nodeIds.Count;
-            IList<INode> nodes = new List<INode>(count);
+            var nodes = new List<INode>(count);
             var fetchNodeIds = new ExpandedNodeIdCollection();
 
             int ii;
@@ -168,8 +164,7 @@ namespace Opc.Ua.Client
                 }
 
                 // do not return temporary nodes created after a Browse().
-                if (node != null &&
-                    node?.GetType() != typeof(Node))
+                if (node != null && node?.GetType() != typeof(Node))
                 {
                     nodes.Add(node);
                 }
@@ -211,7 +206,8 @@ namespace Opc.Ua.Client
                 }
                 else
                 {
-                    Utils.LogError("Inconsistency fetching nodes from server. Not all nodes could be assigned.");
+                    Utils.LogError(
+                        "Inconsistency fetching nodes from server. Not all nodes could be assigned.");
                     break;
                 }
             }
@@ -228,8 +224,7 @@ namespace Opc.Ua.Client
             QualifiedName browseName)
         {
             // find the source.
-            Node source = Find(sourceId) as Node;
-            if (source == null)
+            if (Find(sourceId) is not Node source)
             {
                 return null;
             }
@@ -240,13 +235,13 @@ namespace Opc.Ua.Client
             try
             {
                 // find all references.
-                references = source.ReferenceTable.Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
+                references = source.ReferenceTable
+                    .Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
             }
             finally
             {
                 m_cacheLock.ExitReadLock();
             }
-
 
             foreach (IReference reference in references)
             {
@@ -274,12 +269,10 @@ namespace Opc.Ua.Client
             bool isInverse,
             bool includeSubtypes)
         {
-            List<INode> hits = new List<INode>();
+            var hits = new List<INode>();
 
             // find the source.
-            Node source = Find(sourceId) as Node;
-
-            if (source == null)
+            if (Find(sourceId) is not Node source)
             {
                 return hits;
             }
@@ -289,13 +282,13 @@ namespace Opc.Ua.Client
             try
             {
                 // find all references.
-                references = source.ReferenceTable.Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
+                references = source.ReferenceTable
+                    .Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
             }
             finally
             {
                 m_cacheLock.ExitReadLock();
             }
-
 
             foreach (IReference reference in references)
             {
@@ -311,9 +304,7 @@ namespace Opc.Ua.Client
 
             return hits;
         }
-        #endregion
 
-        #region ITypeTable Methods
         /// <inheritdoc/>
         public bool IsKnown(ExpandedNodeId typeId)
         {
@@ -375,7 +366,6 @@ namespace Opc.Ua.Client
             {
                 m_cacheLock.ExitReadLock();
             }
-
         }
 
         /// <inheritdoc/>
@@ -397,16 +387,14 @@ namespace Opc.Ua.Client
             {
                 m_cacheLock.ExitReadLock();
             }
-
         }
 
         /// <inheritdoc/>
         public IList<NodeId> FindSubTypes(ExpandedNodeId typeId)
         {
-            ILocalNode type = Find(typeId) as ILocalNode;
-            List<NodeId> subtypes = new List<NodeId>();
+            var subtypes = new List<NodeId>();
 
-            if (type == null)
+            if (Find(typeId) is not ILocalNode type)
             {
                 return subtypes;
             }
@@ -416,7 +404,8 @@ namespace Opc.Ua.Client
             m_cacheLock.EnterReadLock();
             try
             {
-                references = type.References.Find(ReferenceTypeIds.HasSubtype, false, true, m_typeTree);
+                references = type.References
+                    .Find(ReferenceTypeIds.HasSubtype, false, true, m_typeTree);
             }
             finally
             {
@@ -442,9 +431,7 @@ namespace Opc.Ua.Client
                 return true;
             }
 
-            ILocalNode subtype = Find(subTypeId) as ILocalNode;
-
-            if (subtype == null)
+            if (Find(subTypeId) is not ILocalNode subtype)
             {
                 return false;
             }
@@ -458,7 +445,8 @@ namespace Opc.Ua.Client
                 m_cacheLock.EnterReadLock();
                 try
                 {
-                    currentId = supertype.References.FindTarget(ReferenceTypeIds.HasSubtype, true, true, m_typeTree, 0);
+                    currentId = supertype.References
+                        .FindTarget(ReferenceTypeIds.HasSubtype, true, true, m_typeTree, 0);
                 }
                 finally
                 {
@@ -484,9 +472,7 @@ namespace Opc.Ua.Client
                 return true;
             }
 
-            ILocalNode subtype = Find(subTypeId) as ILocalNode;
-
-            if (subtype == null)
+            if (Find(subTypeId) is not ILocalNode subtype)
             {
                 return false;
             }
@@ -500,7 +486,8 @@ namespace Opc.Ua.Client
                 m_cacheLock.EnterReadLock();
                 try
                 {
-                    currentId = supertype.References.FindTarget(ReferenceTypeIds.HasSubtype, true, true, m_typeTree, 0);
+                    currentId = supertype.References
+                        .FindTarget(ReferenceTypeIds.HasSubtype, true, true, m_typeTree, 0);
                 }
                 finally
                 {
@@ -549,9 +536,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public bool IsEncodingOf(ExpandedNodeId encodingId, ExpandedNodeId datatypeId)
         {
-            ILocalNode encoding = Find(encodingId) as ILocalNode;
-
-            if (encoding == null)
+            if (Find(encodingId) is not ILocalNode encoding)
             {
                 return false;
             }
@@ -561,7 +546,8 @@ namespace Opc.Ua.Client
             m_cacheLock.EnterReadLock();
             try
             {
-                references = encoding.References.Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree);
+                references = encoding.References
+                    .Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree);
             }
             finally
             {
@@ -596,9 +582,7 @@ namespace Opc.Ua.Client
             }
 
             // find the encoding.
-            ILocalNode encoding = Find(value.TypeId) as ILocalNode;
-
-            if (encoding == null)
+            if (Find(value.TypeId) is not ILocalNode encoding)
             {
                 return false;
             }
@@ -608,7 +592,8 @@ namespace Opc.Ua.Client
             m_cacheLock.EnterReadLock();
             try
             {
-                references = encoding.References.Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree);
+                references = encoding.References
+                    .Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree);
             }
             finally
             {
@@ -661,17 +646,15 @@ namespace Opc.Ua.Client
             }
 
             // for structure types must try to determine the subtype.
-            ExtensionObject extension = value as ExtensionObject;
 
-            if (extension != null)
+            if (value is ExtensionObject extension)
             {
                 return IsEncodingFor(expectedTypeId, extension);
             }
 
             // every element in an array must match.
-            ExtensionObject[] extensions = value as ExtensionObject[];
 
-            if (extensions != null)
+            if (value is ExtensionObject[] extensions)
             {
                 for (int ii = 0; ii < extensions.Length; ii++)
                 {
@@ -691,9 +674,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public NodeId FindDataTypeId(ExpandedNodeId encodingId)
         {
-            ILocalNode encoding = Find(encodingId) as ILocalNode;
-
-            if (encoding == null)
+            if (Find(encodingId) is not ILocalNode encoding)
             {
                 return NodeId.Null;
             }
@@ -703,7 +684,8 @@ namespace Opc.Ua.Client
             m_cacheLock.EnterReadLock();
             try
             {
-                references = encoding.References.Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree);
+                references = encoding.References
+                    .Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree);
             }
             finally
             {
@@ -721,9 +703,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public NodeId FindDataTypeId(NodeId encodingId)
         {
-            ILocalNode encoding = Find(encodingId) as ILocalNode;
-
-            if (encoding == null)
+            if (Find(encodingId) is not ILocalNode encoding)
             {
                 return NodeId.Null;
             }
@@ -733,7 +713,8 @@ namespace Opc.Ua.Client
             m_cacheLock.EnterReadLock();
             try
             {
-                references = encoding.References.Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree);
+                references = encoding.References
+                    .Find(ReferenceTypeIds.HasEncoding, true, true, m_typeTree);
             }
             finally
             {
@@ -747,9 +728,7 @@ namespace Opc.Ua.Client
 
             return NodeId.Null;
         }
-        #endregion
 
-        #region INodeCache Methods
         /// <inheritdoc/>
         public void LoadUaDefinedTypes(ISystemContext context)
         {
@@ -758,18 +737,20 @@ namespace Opc.Ua.Client
                 return;
             }
 
-            NodeStateCollection predefinedNodes = new NodeStateCollection();
-            var assembly = typeof(ArgumentCollection).GetTypeInfo().Assembly;
-            predefinedNodes.LoadFromBinaryResource(context, "Opc.Ua.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes", assembly, true);
+            var predefinedNodes = new NodeStateCollection();
+            Assembly assembly = typeof(ArgumentCollection).GetTypeInfo().Assembly;
+            predefinedNodes.LoadFromBinaryResource(
+                context,
+                "Opc.Ua.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes",
+                assembly,
+                true);
 
             m_cacheLock.EnterWriteLock();
             try
             {
                 for (int ii = 0; ii < predefinedNodes.Count; ii++)
                 {
-                    BaseTypeState type = predefinedNodes[ii] as BaseTypeState;
-
-                    if (type == null)
+                    if (predefinedNodes[ii] is not BaseTypeState type)
                     {
                         continue;
                     }
@@ -802,7 +783,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public Node FetchNode(ExpandedNodeId nodeId)
         {
-            NodeId localId = ExpandedNodeId.ToNodeId(nodeId, m_session.NamespaceUris);
+            var localId = ExpandedNodeId.ToNodeId(nodeId, m_session.NamespaceUris);
 
             if (localId == null)
             {
@@ -828,16 +809,19 @@ namespace Opc.Ua.Client
                             // transform absolute identifiers.
                             if (reference.NodeId != null && reference.NodeId.IsAbsolute)
                             {
-                                reference.NodeId = ExpandedNodeId.ToNodeId(reference.NodeId, NamespaceUris);
+                                reference.NodeId = ExpandedNodeId.ToNodeId(
+                                    reference.NodeId,
+                                    NamespaceUris);
                             }
 
-                            Node target = new Node(reference);
+                            var target = new Node(reference);
 
                             InternalWriteLockedAttach(target);
                         }
 
                         // add the reference.
-                        source.ReferenceTable.Add(reference.ReferenceTypeId, !reference.IsForward, reference.NodeId);
+                        source.ReferenceTable
+                            .Add(reference.ReferenceTypeId, !reference.IsForward, reference.NodeId);
                     }
                 }
                 finally
@@ -847,7 +831,10 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.LogError("Could not fetch references for valid node with NodeId = {0}. Error = {1}", nodeId, Redact.Create(e));
+                Utils.LogError(
+                    "Could not fetch references for valid node with NodeId = {0}. Error = {1}",
+                    nodeId,
+                    Redact.Create(e));
             }
 
             InternalWriteLockedAttach(source);
@@ -861,15 +848,21 @@ namespace Opc.Ua.Client
             int count = nodeIds.Count;
             if (count == 0)
             {
-                return new List<Node>();
+                return [];
             }
 
-            NodeIdCollection localIds = new NodeIdCollection(
+            var localIds = new NodeIdCollection(
                 nodeIds.Select(nodeId => ExpandedNodeId.ToNodeId(nodeId, m_session.NamespaceUris)));
 
             // fetch nodes and references from server.
-            m_session.ReadNodes(localIds, out IList<Node> sourceNodes, out IList<ServiceResult> readErrors);
-            m_session.FetchReferences(localIds, out IList<ReferenceDescriptionCollection> referenceCollectionList, out IList<ServiceResult> fetchErrors);
+            m_session.ReadNodes(
+                localIds,
+                out IList<Node> sourceNodes,
+                out IList<ServiceResult> readErrors);
+            m_session.FetchReferences(
+                localIds,
+                out IList<ReferenceDescriptionCollection> referenceCollectionList,
+                out IList<ServiceResult> fetchErrors);
 
             int ii = 0;
             for (ii = 0; ii < count; ii++)
@@ -882,9 +875,7 @@ namespace Opc.Ua.Client
                 if (!ServiceResult.IsBad(fetchErrors[ii]))
                 {
                     // fetch references from server.
-                    ReferenceDescriptionCollection references = referenceCollectionList[ii];
-
-                    foreach (ReferenceDescription reference in references)
+                    foreach (ReferenceDescription reference in referenceCollectionList[ii])
                     {
                         m_cacheLock.EnterUpgradeableReadLock();
                         try
@@ -895,10 +886,12 @@ namespace Opc.Ua.Client
                                 // transform absolute identifiers.
                                 if (reference.NodeId != null && reference.NodeId.IsAbsolute)
                                 {
-                                    reference.NodeId = ExpandedNodeId.ToNodeId(reference.NodeId, NamespaceUris);
+                                    reference.NodeId = ExpandedNodeId.ToNodeId(
+                                        reference.NodeId,
+                                        NamespaceUris);
                                 }
 
-                                Node target = new Node(reference);
+                                var target = new Node(reference);
 
                                 InternalWriteLockedAttach(target);
                             }
@@ -909,7 +902,11 @@ namespace Opc.Ua.Client
                         }
 
                         // add the reference.
-                        sourceNodes[ii].ReferenceTable.Add(reference.ReferenceTypeId, !reference.IsForward, reference.NodeId);
+                        sourceNodes[ii]
+                            .ReferenceTable.Add(
+                                reference.ReferenceTypeId,
+                                !reference.IsForward,
+                                reference.NodeId);
                     }
                 }
 
@@ -923,9 +920,7 @@ namespace Opc.Ua.Client
         public void FetchSuperTypes(ExpandedNodeId nodeId)
         {
             // find the target node,
-            ILocalNode source = Find(nodeId) as ILocalNode;
-
-            if (source == null)
+            if (Find(nodeId) is not ILocalNode source)
             {
                 return;
             }
@@ -937,7 +932,8 @@ namespace Opc.Ua.Client
             {
                 ILocalNode superType = null;
 
-                IList<IReference> references = subType.References.Find(ReferenceTypeIds.HasSubtype, true, true, this);
+                IList<IReference> references = subType.References
+                    .Find(ReferenceTypeIds.HasSubtype, true, true, this);
 
                 if (references != null && references.Count > 0)
                 {
@@ -955,11 +951,9 @@ namespace Opc.Ua.Client
             bool isInverse,
             bool includeSubtypes)
         {
-            IList<INode> targets = new List<INode>();
+            IList<INode> targets = [];
 
-            Node source = Find(nodeId) as Node;
-
-            if (source == null)
+            if (Find(nodeId) is not Node source)
             {
                 return targets;
             }
@@ -969,7 +963,8 @@ namespace Opc.Ua.Client
             m_cacheLock.EnterReadLock();
             try
             {
-                references = source.ReferenceTable.Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
+                references = source.ReferenceTable
+                    .Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
             }
             finally
             {
@@ -979,9 +974,7 @@ namespace Opc.Ua.Client
             var targetIds = new ExpandedNodeIdCollection(
                 references.Select(reference => reference.TargetId));
 
-            IList<INode> result = Find(targetIds);
-
-            foreach (INode target in result)
+            foreach (INode target in Find(targetIds))
             {
                 if (target != null)
                 {
@@ -998,41 +991,39 @@ namespace Opc.Ua.Client
             bool isInverse,
             bool includeSubtypes)
         {
-            IList<INode> targets = new List<INode>();
+            IList<INode> targets = [];
             if (nodeIds.Count == 0 || referenceTypeIds.Count == 0)
             {
                 return targets;
             }
-            ExpandedNodeIdCollection targetIds = new ExpandedNodeIdCollection();
-            IList<INode> sources = Find(nodeIds);
-            foreach (INode source in sources)
+            var targetIds = new ExpandedNodeIdCollection();
+            foreach (INode source in Find(nodeIds))
             {
-                if (!(source is Node node))
+                if (source is not Node node)
                 {
                     continue;
                 }
 
-                foreach (var referenceTypeId in referenceTypeIds)
+                foreach (NodeId referenceTypeId in referenceTypeIds)
                 {
                     IList<IReference> references;
 
                     m_cacheLock.EnterReadLock();
                     try
                     {
-                        references = node.ReferenceTable.Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
+                        references = node.ReferenceTable
+                            .Find(referenceTypeId, isInverse, includeSubtypes, m_typeTree);
                     }
                     finally
                     {
                         m_cacheLock.ExitReadLock();
                     }
 
-                    targetIds.AddRange(
-                        references.Select(reference => reference.TargetId));
+                    targetIds.AddRange(references.Select(reference => reference.TargetId));
                 }
             }
 
-            IList<INode> result = Find(targetIds);
-            foreach (INode target in result)
+            foreach (INode target in Find(targetIds))
             {
                 if (target != null)
                 {
@@ -1049,13 +1040,11 @@ namespace Opc.Ua.Client
             // check for null.
             if (node == null)
             {
-                return String.Empty;
+                return string.Empty;
             }
 
             // check for remote node.
-            Node target = node as Node;
-
-            if (target == null)
+            if (node is not Node target)
             {
                 return node.ToString();
             }
@@ -1070,7 +1059,8 @@ namespace Opc.Ua.Client
             m_cacheLock.EnterReadLock();
             try
             {
-                references = target.ReferenceTable.Find(ReferenceTypeIds.Aggregates, true, true, m_typeTree);
+                references = target.ReferenceTable
+                    .Find(ReferenceTypeIds.Aggregates, true, true, m_typeTree);
             }
             finally
             {
@@ -1079,7 +1069,7 @@ namespace Opc.Ua.Client
 
             foreach (IReference reference in references)
             {
-                Node parent = Find(reference.TargetId) as Node;
+                var parent = Find(reference.TargetId) as Node;
 
                 // use the first parent if modelling rule is new.
                 if (modellingRule == Objects.ModellingRule_Mandatory)
@@ -1089,7 +1079,7 @@ namespace Opc.Ua.Client
                 }
 
                 // use the type node as the parent for other modelling rules.
-                if (parent is VariableTypeNode || parent is ObjectTypeNode)
+                if (parent is VariableTypeNode or ObjectTypeNode)
                 {
                     displayText = GetDisplayText(parent);
                     break;
@@ -1111,7 +1101,7 @@ namespace Opc.Ua.Client
         {
             if (NodeId.IsNull(nodeId))
             {
-                return String.Empty;
+                return string.Empty;
             }
 
             INode node = Find(nodeId);
@@ -1129,7 +1119,7 @@ namespace Opc.Ua.Client
         {
             if (reference == null || NodeId.IsNull(reference.NodeId))
             {
-                return String.Empty;
+                return string.Empty;
             }
 
             INode node = Find(reference.NodeId);
@@ -1151,9 +1141,7 @@ namespace Opc.Ua.Client
 
             return typeId;
         }
-        #endregion
 
-        #region Private Methods
         private void InternalWriteLockedAttach(ILocalNode node)
         {
             m_cacheLock.EnterWriteLock();
@@ -1167,14 +1155,11 @@ namespace Opc.Ua.Client
                 m_cacheLock.ExitWriteLock();
             }
         }
-        #endregion
 
-        #region Private Fields
-        private ReaderWriterLockSlim m_cacheLock = new ReaderWriterLockSlim();
+        private readonly ReaderWriterLockSlim m_cacheLock = new();
         private ISession m_session;
-        private TypeTable m_typeTree;
-        private NodeTable m_nodes;
+        private readonly TypeTable m_typeTree;
+        private readonly NodeTable m_nodes;
         private bool m_uaTypesLoaded;
-        #endregion
     }
 }

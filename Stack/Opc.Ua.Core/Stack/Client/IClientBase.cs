@@ -21,7 +21,6 @@ namespace Opc.Ua
     /// </summary>
     public interface IClientBase : IDisposable
     {
-        #region Properties
         /// <summary>
         /// The description of the endpoint.
         /// </summary>
@@ -68,9 +67,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value><c>true</c> if disposed; otherwise, <c>false</c>.</value>
         bool Disposed { get; }
-        #endregion
 
-        #region Methods
         /// <summary>
         /// Attach the channel to an already created client.
         /// </summary>
@@ -96,6 +93,5 @@ namespace Opc.Ua
         /// Generates a unique request handle.
         /// </summary>
         uint NewRequestHandle();
-        #endregion
     }
 }

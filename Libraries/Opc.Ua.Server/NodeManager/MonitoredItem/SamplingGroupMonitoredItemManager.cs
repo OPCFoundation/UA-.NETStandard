@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -43,7 +43,6 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-
             m_samplingGroupManager = new SamplingGroupManager(
                 server,
                 nodeManager,
@@ -52,13 +51,15 @@ namespace Opc.Ua.Server
                 configuration.ServerConfiguration.AvailableSamplingRates);
 
             m_nodeManager = nodeManager;
-            m_monitoredNodes = new NodeIdDictionary<MonitoredNode2>();
-            m_monitoredItems = new ConcurrentDictionary<uint, IMonitoredItem>();
+            MonitoredNodes = [];
+            MonitoredItems = new ConcurrentDictionary<uint, IMonitoredItem>();
         }
+
         /// <inheritdoc/>
-        public NodeIdDictionary<MonitoredNode2> MonitoredNodes => m_monitoredNodes;
+        public NodeIdDictionary<MonitoredNode2> MonitoredNodes { get; }
+
         /// <inheritdoc/>
-        public ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems => m_monitoredItems;
+        public ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems { get; }
 
         /// <inheritdoc/>
         public ISampledDataChangeMonitoredItem CreateMonitoredItem(
@@ -77,32 +78,37 @@ namespace Opc.Ua.Server
             uint revisedQueueSize,
             bool createDurable,
             uint monitoredItemId,
-            Func<ISystemContext, NodeHandle, NodeState, NodeState> AddNodeToComponentCache)
+            Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache)
         {
             // set min sampling interval if 0
-            if(samplingInterval.CompareTo(0.0) == 0)
+            if (samplingInterval.CompareTo(0.0) == 0)
             {
                 samplingInterval = 1;
             }
 
             // create monitored item.
-            ISampledDataChangeMonitoredItem monitoredItem = m_samplingGroupManager.CreateMonitoredItem(
-                context.OperationContext,
-                subscriptionId,
-                publishingInterval,
-                timestampsToReturn,
-                monitoredItemId,
-                handle,
-                itemToCreate,
-                euRange,
-                samplingInterval,
-                createDurable);
+            ISampledDataChangeMonitoredItem monitoredItem = m_samplingGroupManager
+                .CreateMonitoredItem(
+                    context.OperationContext,
+                    subscriptionId,
+                    publishingInterval,
+                    timestampsToReturn,
+                    monitoredItemId,
+                    handle,
+                    itemToCreate,
+                    euRange,
+                    samplingInterval,
+                    createDurable);
 
             // save the monitored item.
-            m_monitoredItems.AddOrUpdate(monitoredItemId, monitoredItem, (key, oldValue) => monitoredItem);
+            MonitoredItems.AddOrUpdate(
+                monitoredItemId,
+                monitoredItem,
+                (key, oldValue) => monitoredItem);
 
             return monitoredItem;
         }
+
         /// <inheritdoc/>
         public void ApplyChanges()
         {
@@ -113,21 +119,36 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void Dispose()
         {
-            Utils.SilentDispose(m_samplingGroupManager);
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// An overrideable version of the Dispose.
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                Utils.SilentDispose(m_samplingGroupManager);
+            }
         }
 
         /// <inheritdoc/>
-        public StatusCode DeleteMonitoredItem(ServerSystemContext context, ISampledDataChangeMonitoredItem monitoredItem, NodeHandle handle)
+        public StatusCode DeleteMonitoredItem(
+            ServerSystemContext context,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            NodeHandle handle)
         {
             // validate monitored item.
-            IMonitoredItem existingMonitoredItem = null;
-
-            if (!m_monitoredItems.TryGetValue(monitoredItem.Id, out existingMonitoredItem))
+            if (!MonitoredItems.TryGetValue(
+                monitoredItem.Id,
+                out IMonitoredItem existingMonitoredItem))
             {
                 return StatusCodes.BadMonitoredItemIdInvalid;
             }
 
-            if (!Object.ReferenceEquals(monitoredItem, existingMonitoredItem))
+            if (!ReferenceEquals(monitoredItem, existingMonitoredItem))
             {
                 return StatusCodes.BadMonitoredItemIdInvalid;
             }
@@ -136,54 +157,60 @@ namespace Opc.Ua.Server
             m_samplingGroupManager.StopMonitoring(monitoredItem);
 
             // remove association with the group.
-            m_monitoredItems.TryRemove(monitoredItem.Id, out _);
+            MonitoredItems.TryRemove(monitoredItem.Id, out _);
 
             // delete successful.
             return StatusCodes.Good;
         }
+
         /// <inheritdoc/>
-        public ServiceResult ModifyMonitoredItem(ServerSystemContext context,
-                                                 DiagnosticsMasks diagnosticsMasks,
-                                                 TimestampsToReturn timestampsToReturn,
-                                                 MonitoringFilter filterToUse,
-                                                 Range euRange,
-                                                 double samplingInterval,
-                                                 uint revisedQueueSize,
-                                                 ISampledDataChangeMonitoredItem monitoredItem,
-                                                 MonitoredItemModifyRequest itemToModify)
+        public ServiceResult ModifyMonitoredItem(
+            ServerSystemContext context,
+            DiagnosticsMasks diagnosticsMasks,
+            TimestampsToReturn timestampsToReturn,
+            MonitoringFilter filterToUse,
+            Range euRange,
+            double samplingInterval,
+            uint revisedQueueSize,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            MonitoredItemModifyRequest itemToModify)
         {
             // validate monitored item.
-            IMonitoredItem existingMonitoredItem = null;
-
-            if (!m_monitoredItems.TryGetValue(monitoredItem.Id, out existingMonitoredItem))
+            if (!MonitoredItems.TryGetValue(
+                monitoredItem.Id,
+                out IMonitoredItem existingMonitoredItem))
             {
                 return StatusCodes.BadMonitoredItemIdInvalid;
             }
 
-            if (!Object.ReferenceEquals(monitoredItem, existingMonitoredItem))
+            if (!ReferenceEquals(monitoredItem, existingMonitoredItem))
             {
                 return StatusCodes.BadMonitoredItemIdInvalid;
             }
 
             return m_samplingGroupManager.ModifyMonitoredItem(
-                        context.OperationContext,
-                        timestampsToReturn,
-                        monitoredItem,
-                        itemToModify,
-                        euRange);
+                context.OperationContext,
+                timestampsToReturn,
+                monitoredItem,
+                itemToModify,
+                euRange);
         }
 
         /// <inheritdoc/>
-        public (ServiceResult, MonitoringMode?) SetMonitoringMode(ServerSystemContext context, ISampledDataChangeMonitoredItem monitoredItem, MonitoringMode monitoringMode, NodeHandle handle)
+        public (ServiceResult, MonitoringMode?) SetMonitoringMode(
+            ServerSystemContext context,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            MonitoringMode monitoringMode,
+            NodeHandle handle)
         {
-            IMonitoredItem existingMonitoredItem;
-
-            if (!m_monitoredItems.TryGetValue(monitoredItem.Id, out existingMonitoredItem))
+            if (!MonitoredItems.TryGetValue(
+                monitoredItem.Id,
+                out IMonitoredItem existingMonitoredItem))
             {
                 return (StatusCodes.BadMonitoredItemIdInvalid, null);
             }
 
-            if (!Object.ReferenceEquals(monitoredItem, existingMonitoredItem))
+            if (!ReferenceEquals(monitoredItem, existingMonitoredItem))
             {
                 return (StatusCodes.BadMonitoredItemIdInvalid, null);
             }
@@ -192,19 +219,23 @@ namespace Opc.Ua.Server
             MonitoringMode previousMode = monitoredItem.SetMonitoringMode(monitoringMode);
 
             // need to provide an immediate update after enabling.
-            if (previousMode == MonitoringMode.Disabled && monitoringMode != MonitoringMode.Disabled)
+            if (previousMode == MonitoringMode.Disabled &&
+                monitoringMode != MonitoringMode.Disabled)
             {
-                DataValue initialValue = new DataValue();
-
-                initialValue.ServerTimestamp = DateTime.UtcNow;
-                initialValue.StatusCode = StatusCodes.BadWaitingForInitialData;
+                var initialValue = new DataValue
+                {
+                    ServerTimestamp = DateTime.UtcNow,
+                    StatusCode = StatusCodes.BadWaitingForInitialData
+                };
 
                 // read the initial value.
-                Node node = monitoredItem.ManagerHandle as Node;
 
-                if (node != null)
+                if (monitoredItem.ManagerHandle is Node node)
                 {
-                    ServiceResult error = node.Read(context, monitoredItem.AttributeId, initialValue);
+                    ServiceResult error = node.Read(
+                        context,
+                        monitoredItem.AttributeId,
+                        initialValue);
 
                     if (ServiceResult.IsBad(error))
                     {
@@ -220,87 +251,88 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public bool RestoreMonitoredItem(IServerInternal server,
-                                         INodeManager nodeManager,
-                                         ServerSystemContext context,
-                                         NodeHandle handle,
-                                         IStoredMonitoredItem storedMonitoredItem,
-                                         IUserIdentity savedOwnerIdentity,
-                                         Func<ISystemContext, NodeHandle, NodeState, NodeState> AddNodeToComponentCache,
-                                         out ISampledDataChangeMonitoredItem monitoredItem)
+        public bool RestoreMonitoredItem(
+            IServerInternal server,
+            INodeManager nodeManager,
+            ServerSystemContext context,
+            NodeHandle handle,
+            IStoredMonitoredItem storedMonitoredItem,
+            IUserIdentity savedOwnerIdentity,
+            Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache,
+            out ISampledDataChangeMonitoredItem monitoredItem)
         {
             // create monitored item.
             monitoredItem = m_samplingGroupManager.RestoreMonitoredItem(
                 handle,
                 storedMonitoredItem,
-                savedOwnerIdentity
-                );
+                savedOwnerIdentity);
 
             // save monitored item.
-            m_monitoredItems.TryAdd(monitoredItem.Id, monitoredItem);
+            MonitoredItems.TryAdd(monitoredItem.Id, monitoredItem);
 
             return true;
         }
 
         /// <inheritdoc/>
-        public (MonitoredNode2, ServiceResult) SubscribeToEvents(ServerSystemContext context, NodeState source, IEventMonitoredItem monitoredItem, bool unsubscribe)
+        public (MonitoredNode2, ServiceResult) SubscribeToEvents(
+            ServerSystemContext context,
+            NodeState source,
+            IEventMonitoredItem monitoredItem,
+            bool unsubscribe)
         {
             MonitoredNode2 monitoredNode = null;
             // handle unsubscribe.
             if (unsubscribe)
             {
                 // check for existing monitored node.
-                if (!m_monitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
+                if (!MonitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
                 {
                     return (null, StatusCodes.BadNodeIdUnknown);
                 }
 
                 monitoredNode.Remove(monitoredItem);
-                m_monitoredItems.TryRemove(monitoredItem.Id, out _);
+                MonitoredItems.TryRemove(monitoredItem.Id, out _);
 
                 // check if node is no longer being monitored.
                 if (!monitoredNode.HasMonitoredItems)
                 {
-                    m_monitoredNodes.Remove(source.NodeId);
+                    MonitoredNodes.Remove(source.NodeId);
                 }
 
                 return (monitoredNode, ServiceResult.Good);
             }
 
             // only objects or views can be subscribed to.
-            if (!(source is BaseObjectState instance) || (instance.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
+            if (source is not BaseObjectState instance ||
+                (instance.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
             {
-                if (!(source is ViewState view) || (view.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
+                if (source is not ViewState view ||
+                    (view.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
                 {
                     return (null, StatusCodes.BadNotSupported);
                 }
             }
 
             // check for existing monitored node.
-            if (!m_monitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
+            if (!MonitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
             {
-                m_monitoredNodes[source.NodeId] = monitoredNode = new MonitoredNode2(m_nodeManager, source);
+                MonitoredNodes[source.NodeId]
+                    = monitoredNode = new MonitoredNode2(m_nodeManager, source);
             }
 
-            if (monitoredNode.EventMonitoredItems != null)
-            {
-                // remove existing monitored items with the same Id prior to insertion in order to avoid duplicates
-                // this is necessary since the SubscribeToEvents method is called also from ModifyMonitoredItemsForEvents
-                monitoredNode.EventMonitoredItems.RemoveAll(e => e.Id == monitoredItem.Id);
-            }
+            // remove existing monitored items with the same Id prior to insertion in order to avoid duplicates
+            // this is necessary since the SubscribeToEvents method is called also from ModifyMonitoredItemsForEvents
+            monitoredNode.EventMonitoredItems?.RemoveAll(e => e.Id == monitoredItem.Id);
 
             // this links the node to specified monitored item and ensures all events
             // reported by the node are added to the monitored item's queue.
             monitoredNode.Add(monitoredItem);
-            m_monitoredItems.TryAdd(monitoredItem.Id, monitoredItem);
+            MonitoredItems.TryAdd(monitoredItem.Id, monitoredItem);
 
             return (monitoredNode, ServiceResult.Good);
         }
 
         private readonly CustomNodeManager2 m_nodeManager;
-        private readonly NodeIdDictionary<MonitoredNode2> m_monitoredNodes;
-        private readonly ConcurrentDictionary<uint, IMonitoredItem> m_monitoredItems;
-        private SamplingGroupManager m_samplingGroupManager;
+        private readonly SamplingGroupManager m_samplingGroupManager;
     }
-
 }

@@ -32,6 +32,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
@@ -41,59 +43,56 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Configuration;
+using Opc.Ua.Security.Certificates;
+using Opc.Ua.Security.Certificates.Tests;
 using Opc.Ua.Server.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
-
-
-using Opc.Ua.Security.Certificates.Tests;
-using System.Security.Cryptography;
-using System.Runtime.InteropServices;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client.Tests
 {
     /// <summary>
     /// Client tests.
     /// </summary>
-    [TestFixture, Category("Client")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("Client")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [TestFixtureSource(nameof(FixtureArgs))]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
     public class ClientTest : ClientTestFramework
     {
-        public ClientTest() : base(Utils.UriSchemeOpcTcp)
+        public ClientTest()
+            : base(Utils.UriSchemeOpcTcp)
         {
         }
 
-        public ClientTest(string uriScheme = Utils.UriSchemeOpcTcp) :
-            base(uriScheme)
+        public ClientTest(string uriScheme = Utils.UriSchemeOpcTcp)
+            : base(uriScheme)
         {
         }
 
-        #region DataPointSources
-        public static readonly NodeId[] TypeSystems = {
+        public static readonly NodeId[] TypeSystems =
+        [
             ObjectIds.OPCBinarySchema_TypeSystem,
             ObjectIds.XmlSchema_TypeSystem
-        };
-        #endregion
+        ];
 
-        #region Test Setup
         /// <summary>
         /// Set up a Server and a Client instance.
         /// </summary>
         [OneTimeSetUp]
-        public new Task OneTimeSetUp()
+        public override Task OneTimeSetUpAsync()
         {
             SupportsExternalServerUrl = true;
-            return base.OneTimeSetUp();
+            return base.OneTimeSetUpAsync();
         }
 
         /// <summary>
         /// Tear down the Server and the Client.
         /// </summary>
         [OneTimeTearDown]
-        public new Task OneTimeTearDownAsync()
+        public override Task OneTimeTearDownAsync()
         {
             return base.OneTimeTearDownAsync();
         }
@@ -102,27 +101,25 @@ namespace Opc.Ua.Client.Tests
         /// Test setup.
         /// </summary>
         [SetUp]
-        public new Task SetUp()
+        public override Task SetUpAsync()
         {
-            return base.SetUp();
+            return base.SetUpAsync();
         }
 
         /// <summary>
         /// Test teardown.
         /// </summary>
         [TearDown]
-        public new Task TearDown()
+        public override Task TearDownAsync()
         {
-            return base.TearDown();
+            return base.TearDownAsync();
         }
-        #endregion
 
-        #region Benchmark Setup
         /// <summary>
         /// Global Setup for benchmarks.
         /// </summary>
         [GlobalSetup]
-        public new void GlobalSetup()
+        public override void GlobalSetup()
         {
             base.GlobalSetup();
         }
@@ -131,116 +128,122 @@ namespace Opc.Ua.Client.Tests
         /// Global cleanup for benchmarks.
         /// </summary>
         [GlobalCleanup]
-        public new void GlobalCleanup()
+        public override void GlobalCleanup()
         {
             base.GlobalCleanup();
         }
-        #endregion
 
-        #region Test Methods
-        [Test, Order(100)]
+        [Test]
+        [Order(100)]
         public async Task GetEndpointsAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
 
-            using (var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration))
+            using var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration);
+            Endpoints = await client.GetEndpointsAsync(null, CancellationToken.None)
+                .ConfigureAwait(false);
+            StatusCode statusCode = await client.CloseAsync(CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.AreEqual((StatusCode)StatusCodes.Good, statusCode);
+
+            TestContext.Out.WriteLine("Endpoints:");
+            foreach (EndpointDescription endpoint in Endpoints)
             {
-                Endpoints = await client.GetEndpointsAsync(null, CancellationToken.None).ConfigureAwait(false);
-                var statusCode = await client.CloseAsync(CancellationToken.None).ConfigureAwait(false);
-                Assert.AreEqual((StatusCode)StatusCodes.Good, statusCode);
+                TestContext.Out.WriteLine("{0}", endpoint.Server.ApplicationName);
+                TestContext.Out.WriteLine("  {0}", endpoint.Server.ApplicationUri);
+                TestContext.Out.WriteLine(" {0}", endpoint.EndpointUrl);
+                TestContext.Out.WriteLine("  {0}", endpoint.EncodingSupport);
+                TestContext.Out.WriteLine(
+                    "  {0}/{1}/{2}",
+                    endpoint.SecurityLevel,
+                    endpoint.SecurityMode,
+                    endpoint.SecurityPolicyUri);
 
-                TestContext.Out.WriteLine("Endpoints:");
-                foreach (var endpoint in Endpoints)
+                if (endpoint.ServerCertificate != null)
                 {
-                    TestContext.Out.WriteLine("{0}", endpoint.Server.ApplicationName);
-                    TestContext.Out.WriteLine("  {0}", endpoint.Server.ApplicationUri);
-                    TestContext.Out.WriteLine(" {0}", endpoint.EndpointUrl);
-                    TestContext.Out.WriteLine("  {0}", endpoint.EncodingSupport);
-                    TestContext.Out.WriteLine("  {0}/{1}/{2}", endpoint.SecurityLevel, endpoint.SecurityMode, endpoint.SecurityPolicyUri);
+                    using X509Certificate2 cert = X509CertificateLoader.LoadCertificate(
+                        endpoint.ServerCertificate);
+                    TestContext.Out.WriteLine("  [{0}]", cert.Thumbprint);
+                }
+                else
+                {
+                    TestContext.Out.WriteLine("  [no certificate]");
+                }
 
-                    if (endpoint.ServerCertificate != null)
-                    {
-                        using (var cert = X509CertificateLoader.LoadCertificate(endpoint.ServerCertificate))
-                        {
-                            TestContext.Out.WriteLine("  [{0}]", cert.Thumbprint);
-                        }
-                    }
-                    else
-                    {
-                        TestContext.Out.WriteLine("  [no certificate]");
-                    }
-
-                    foreach (var userIdentity in endpoint.UserIdentityTokens)
-                    {
-                        TestContext.Out.WriteLine("  {0}", userIdentity.TokenType);
-                        TestContext.Out.WriteLine("  {0}", userIdentity.PolicyId);
-                        TestContext.Out.WriteLine("  {0}", userIdentity.SecurityPolicyUri);
-                    }
+                foreach (UserTokenPolicy userIdentity in endpoint.UserIdentityTokens)
+                {
+                    TestContext.Out.WriteLine("  {0}", userIdentity.TokenType);
+                    TestContext.Out.WriteLine("  {0}", userIdentity.PolicyId);
+                    TestContext.Out.WriteLine("  {0}", userIdentity.SecurityPolicyUri);
                 }
             }
         }
 
-        [Test, Order(100)]
+        [Test]
+        [Order(100)]
         public async Task FindServersAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
 
-            using (var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration))
-            {
-                var servers = await client.FindServersAsync(null).ConfigureAwait(false);
-                var statusCode = await client.CloseAsync(CancellationToken.None).ConfigureAwait(false);
-                Assert.AreEqual((StatusCode)StatusCodes.Good, statusCode);
+            using var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration);
+            ApplicationDescriptionCollection servers = await client.FindServersAsync(null)
+                .ConfigureAwait(false);
+            StatusCode statusCode = await client.CloseAsync(CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.AreEqual((StatusCode)StatusCodes.Good, statusCode);
 
-                foreach (var server in servers)
+            foreach (ApplicationDescription server in servers)
+            {
+                TestContext.Out.WriteLine("{0}", server.ApplicationName);
+                TestContext.Out.WriteLine("  {0}", server.ApplicationUri);
+                TestContext.Out.WriteLine("  {0}", server.ApplicationType);
+                TestContext.Out.WriteLine("  {0}", server.ProductUri);
+                foreach (string discoveryUrl in server.DiscoveryUrls)
                 {
-                    TestContext.Out.WriteLine("{0}", server.ApplicationName);
-                    TestContext.Out.WriteLine("  {0}", server.ApplicationUri);
-                    TestContext.Out.WriteLine("  {0}", server.ApplicationType);
-                    TestContext.Out.WriteLine("  {0}", server.ProductUri);
-                    foreach (var discoveryUrl in server.DiscoveryUrls)
-                    {
-                        TestContext.Out.WriteLine("  {0}", discoveryUrl);
-                    }
+                    TestContext.Out.WriteLine("  {0}", discoveryUrl);
                 }
             }
         }
 
-        [Test, Order(100)]
+        [Test]
+        [Order(100)]
         public async Task FindServersOnNetworkAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
 
-            using (var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration))
+            using var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration);
+            try
             {
-                try
-                {
-                    var response = await client.FindServersOnNetworkAsync(null, 0, 100, null, CancellationToken.None).ConfigureAwait(false);
-                    var statusCode = await client.CloseAsync(CancellationToken.None).ConfigureAwait(false);
-                    Assert.AreEqual((StatusCode)StatusCodes.Good, statusCode);
+                FindServersOnNetworkResponse response = await client
+                    .FindServersOnNetworkAsync(null, 0, 100, null, CancellationToken.None)
+                    .ConfigureAwait(false);
+                StatusCode statusCode = await client.CloseAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.AreEqual((StatusCode)StatusCodes.Good, statusCode);
 
-                    foreach (ServerOnNetwork server in response.Servers)
-                    {
-                        TestContext.Out.WriteLine("{0}", server.ServerName);
-                        TestContext.Out.WriteLine("  {0}", server.RecordId);
-                        TestContext.Out.WriteLine("  {0}", server.ServerCapabilities);
-                        TestContext.Out.WriteLine("  {0}", server.DiscoveryUrl);
-                    }
-                }
-                catch (ServiceResultException sre)
-                    when (sre.StatusCode == StatusCodes.BadServiceUnsupported)
+                foreach (ServerOnNetwork server in response.Servers)
                 {
-                    Assert.Ignore("FindServersOnNetwork not supported on server.");
+                    TestContext.Out.WriteLine("{0}", server.ServerName);
+                    TestContext.Out.WriteLine("  {0}", server.RecordId);
+                    TestContext.Out.WriteLine("  {0}", server.ServerCapabilities);
+                    TestContext.Out.WriteLine("  {0}", server.DiscoveryUrl);
                 }
+            }
+            catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes
+                .BadServiceUnsupported)
+            {
+                NUnit.Framework.Assert.Ignore("FindServersOnNetwork not supported on server.");
             }
         }
 
         /// <summary>
         /// Try to use the discovery channel to read a node.
         /// </summary>
-        [Test, Order(105)]
+        [Test]
+        [Order(105)]
         [TestCase(1000)]
         [TestCase(10000)]
         public void ReadOnDiscoveryChannel(int readCount)
@@ -248,250 +251,305 @@ namespace Opc.Ua.Client.Tests
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
 
-            using (var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration))
+            using var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration);
+            EndpointDescriptionCollection endpoints = client.GetEndpoints(null);
+            Assert.NotNull(endpoints);
+
+            // cast Innerchannel to ISessionChannel
+            ITransportChannel channel = client.TransportChannel;
+
+            var sessionClient = new SessionClient(channel)
             {
-                var endpoints = client.GetEndpoints(null);
-                Assert.NotNull(endpoints);
+                ReturnDiagnostics = DiagnosticsMasks.All
+            };
 
-                // cast Innerchannel to ISessionChannel
-                ITransportChannel channel = client.TransportChannel;
+            var request = new ReadRequest { RequestHeader = null };
 
-                var sessionClient = new SessionClient(channel) {
-                    ReturnDiagnostics = DiagnosticsMasks.All
-                };
+            var readMessage = new ReadMessage { ReadRequest = request };
 
-                var request = new ReadRequest {
-                    RequestHeader = null
-                };
+            var readValueId = new ReadValueId
+            {
+                NodeId = new NodeId(Guid.NewGuid()),
+                AttributeId = Attributes.Value
+            };
 
-                var readMessage = new ReadMessage() {
-                    ReadRequest = request,
-                };
-
-                var readValueId = new ReadValueId() {
-                    NodeId = new NodeId(Guid.NewGuid()),
-                    AttributeId = Attributes.Value
-                };
-
-                var readValues = new ReadValueIdCollection();
-                for (int i = 0; i < readCount; i++)
-                {
-                    readValues.Add(readValueId);
-                }
-
-                // try to read nodes using discovery channel
-                var sre = Assert.Throws<ServiceResultException>(() =>
-                    sessionClient.Read(null, 0, TimestampsToReturn.Neither,
-                        readValues, out var results, out var diagnosticInfos));
-                StatusCode statusCode = StatusCodes.BadSecurityPolicyRejected;
-                // race condition, if socket closed is detected before the error was returned,
-                // client may report channel closed instead of security policy rejected
-                if (StatusCodes.BadSecureChannelClosed == sre.StatusCode)
-                {
-                    Assert.Inconclusive($"Unexpected Status: {sre}");
-                }
-                Assert.AreEqual((StatusCode)StatusCodes.BadSecurityPolicyRejected, (StatusCode)sre.StatusCode, "Unexpected Status: {0}", sre);
+            var readValues = new ReadValueIdCollection();
+            for (int i = 0; i < readCount; i++)
+            {
+                readValues.Add(readValueId);
             }
+
+            // try to read nodes using discovery channel
+            ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+                sessionClient.Read(
+                    null,
+                    0,
+                    TimestampsToReturn.Neither,
+                    readValues,
+                    out DataValueCollection results,
+                    out DiagnosticInfoCollection diagnosticInfos));
+            StatusCode statusCode = StatusCodes.BadSecurityPolicyRejected;
+            // race condition, if socket closed is detected before the error was returned,
+            // client may report channel closed instead of security policy rejected
+            if (StatusCodes.BadSecureChannelClosed == sre.StatusCode)
+            {
+                NUnit.Framework.Assert.Inconclusive($"Unexpected Status: {sre}");
+            }
+            Assert.AreEqual(
+                (StatusCode)StatusCodes.BadSecurityPolicyRejected,
+                (StatusCode)sre.StatusCode,
+                "Unexpected Status: {0}",
+                sre);
         }
 
         /// <summary>
         /// GetEndpoints on the discovery channel,
         /// but an oversized message should return an error.
         /// </summary>
-        [Test, Order(105)]
+        [Test]
+        [Order(105)]
         [TestCase(false)]
         public void GetEndpointsOnDiscoveryChannel(bool securityNoneEnabled)
         {
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
 
-            using (var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration))
+            using var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration);
+            var profileUris = new StringCollection();
+            for (int i = 0; i < 10000; i++)
             {
-                var profileUris = new StringCollection();
-                for (int i = 0; i < 10000; i++)
-                {
-                    // dummy uri to create a bigger message
-                    profileUris.Add($"https://opcfoundation.org/ProfileUri={i}");
-                }
+                // dummy uri to create a bigger message
+                profileUris.Add($"https://opcfoundation.org/ProfileUri={i}");
+            }
 
-                if (securityNoneEnabled)
+            if (securityNoneEnabled)
+            {
+                // test can pass, there is no limit for discovery messages
+                // because the server supports security None
+                client.GetEndpoints(profileUris);
+            }
+            else
+            {
+                ServiceResultException sre = NUnit.Framework.Assert
+                    .Throws<ServiceResultException>(() =>
+                        client.GetEndpoints(profileUris));
+                // race condition, if socket closed is detected before the error was returned,
+                // client may report channel closed instead of security policy rejected
+                if (StatusCodes.BadSecureChannelClosed == sre.StatusCode)
                 {
-                    // test can pass, there is no limit for discovery messages
-                    // because the server supports security None
-                    client.GetEndpoints(profileUris);
+                    NUnit.Framework.Assert.Inconclusive($"Unexpected Status: {sre}");
                 }
-                else
-                {
-                    var sre = Assert.Throws<ServiceResultException>(() => client.GetEndpoints(profileUris));
-                    // race condition, if socket closed is detected before the error was returned,
-                    // client may report channel closed instead of security policy rejected
-                    if (StatusCodes.BadSecureChannelClosed == sre.StatusCode)
-                    {
-                        Assert.Inconclusive($"Unexpected Status: {sre}");
-                    }
-                    Assert.AreEqual((StatusCode)StatusCodes.BadSecurityPolicyRejected, (StatusCode)sre.StatusCode, "Unexpected Status: {0}", sre);
-                }
+                Assert.AreEqual(
+                    (StatusCode)StatusCodes.BadSecurityPolicyRejected,
+                    (StatusCode)sre.StatusCode,
+                    "Unexpected Status: {0}",
+                    sre);
             }
         }
 
-        [Test, Order(110)]
-        public async Task InvalidConfiguration()
+        [Test]
+        [Order(110)]
+        public async Task InvalidConfigurationAsync()
         {
-            var applicationInstance = new ApplicationInstance() {
+            var applicationInstance = new ApplicationInstance
+            {
                 ApplicationName = ClientFixture.Config.ApplicationName
             };
             Assert.NotNull(applicationInstance);
 
-            CertificateIdentifierCollection applicationCerts = ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
-                ClientFixture.Config.SecurityConfiguration.ApplicationCertificate.SubjectName
-                );
+            CertificateIdentifierCollection applicationCerts =
+                ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                    ClientFixture.Config.SecurityConfiguration.ApplicationCertificate.SubjectName);
 
-            ApplicationConfiguration config = await applicationInstance.Build(ClientFixture.Config.ApplicationUri, ClientFixture.Config.ProductUri)
+            _ = await applicationInstance
+                .Build(ClientFixture.Config.ApplicationUri, ClientFixture.Config.ProductUri)
                 .AsClient()
                 .AddSecurityConfiguration(applicationCerts)
-                .Create().ConfigureAwait(false);
+                .Create()
+                .ConfigureAwait(false);
         }
 
-        [Theory, Order(200)]
-        public async Task ConnectAndClose(string securityPolicy)
+        [Theory]
+        [Order(200)]
+        public async Task ConnectAndCloseSyncAsync(string securityPolicy)
         {
             bool closeChannel = securityPolicy != SecurityPolicies.Aes128_Sha256_RsaOaep;
-            var session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
+            ISession session = await ClientFixture
+                .ConnectAsync(ServerUrl, securityPolicy, Endpoints)
+                .ConfigureAwait(false);
             Assert.NotNull(session);
-            Session.SessionClosing += Session_Closing;
-            var result = session.Close(5_000, closeChannel);
+            Session.SessionClosing += SessionClosing;
+            StatusCode result = session.Close(5_000, closeChannel);
             Assert.NotNull(result);
             session.Dispose();
         }
 
-        [Theory, Order(201)]
+        [Theory]
+        [Order(201)]
         public async Task ConnectAndCloseAsync(string securityPolicy)
         {
             bool closeChannel = securityPolicy != SecurityPolicies.Basic128Rsa15;
-            var session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
+            ISession session = await ClientFixture
+                .ConnectAsync(ServerUrl, securityPolicy, Endpoints)
+                .ConfigureAwait(false);
             Assert.NotNull(session);
-            Session.SessionClosing += Session_Closing;
-            var result = await session.CloseAsync(5_000, closeChannel, CancellationToken.None).ConfigureAwait(false);
+            Session.SessionClosing += SessionClosing;
+            StatusCode result = await session
+                .CloseAsync(5_000, closeChannel, CancellationToken.None)
+                .ConfigureAwait(false);
             Assert.NotNull(result);
             session.Dispose();
         }
 
-        [Test, Order(202)]
-        public async Task ConnectAndCloseAsyncReadAfterClose()
+        [Test]
+        [Order(202)]
+        public async Task ConnectAndCloseAsyncReadAfterCloseAsync()
         {
-            var securityPolicy = SecurityPolicies.Basic256Sha256;
-            using (var session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false))
-            {
-                Assert.NotNull(session);
-                Session.SessionClosing += Session_Closing;
+            const string securityPolicy = SecurityPolicies.Basic256Sha256;
+            using ISession session = await ClientFixture
+                .ConnectAsync(ServerUrl, securityPolicy, Endpoints)
+                .ConfigureAwait(false);
+            Assert.NotNull(session);
+            Session.SessionClosing += SessionClosing;
 
-                var nodeId = new NodeId(Opc.Ua.VariableIds.ServerStatusType_BuildInfo);
-                var node = await session.ReadNodeAsync(nodeId, CancellationToken.None).ConfigureAwait(false);
-                var value = await session.ReadValueAsync(nodeId, CancellationToken.None).ConfigureAwait(false);
+            var nodeId = new NodeId(VariableIds.ServerStatusType_BuildInfo);
+            Node node = await session.ReadNodeAsync(nodeId, CancellationToken.None)
+                .ConfigureAwait(false);
+            DataValue value = await session.ReadValueAsync(nodeId, CancellationToken.None)
+                .ConfigureAwait(false);
 
-                // keep channel open/inactive
-                var result = await session.CloseAsync(1_000, false).ConfigureAwait(false);
-                Assert.AreEqual((StatusCode)StatusCodes.Good, result);
+            // keep channel open/inactive
+            StatusCode result = await session.CloseAsync(1_000, false).ConfigureAwait(false);
+            Assert.AreEqual((StatusCode)StatusCodes.Good, result);
 
-                await Task.Delay(5_000).ConfigureAwait(false);
+            await Task.Delay(5_000).ConfigureAwait(false);
 
-                var sre = Assert.ThrowsAsync<ServiceResultException>(async () => await session.ReadNodeAsync(nodeId, CancellationToken.None).ConfigureAwait(false));
-                Assert.AreEqual((StatusCode)StatusCodes.BadSessionIdInvalid, (StatusCode)sre.StatusCode);
-            }
+            ServiceResultException sre = NUnit.Framework.Assert
+                .ThrowsAsync<ServiceResultException>(async () =>
+                    await session.ReadNodeAsync(nodeId, CancellationToken.None)
+                        .ConfigureAwait(false));
+            Assert.AreEqual(
+                (StatusCode)StatusCodes.BadSessionIdInvalid,
+                (StatusCode)sre.StatusCode);
         }
 
-        [Test, Order(204)]
+        [Test]
+        [Order(204)]
         public async Task ConnectAndCloseAsyncReadAfterCloseSessionReconnectAsync()
         {
-            var securityPolicy = SecurityPolicies.Basic256Sha256;
-            using (var session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false))
-            {
-                Assert.NotNull(session);
-                Session.SessionClosing += Session_Closing;
+            const string securityPolicy = SecurityPolicies.Basic256Sha256;
+            using ISession session = await ClientFixture
+                .ConnectAsync(ServerUrl, securityPolicy, Endpoints)
+                .ConfigureAwait(false);
+            Assert.NotNull(session);
+            Session.SessionClosing += SessionClosing;
 
-                var userIdentity = session.Identity;
-                var sessionName = session.SessionName;
+            IUserIdentity userIdentity = session.Identity;
+            string sessionName = session.SessionName;
 
-                var nodeId = new NodeId(Opc.Ua.VariableIds.ServerStatusType_BuildInfo);
-                var node = await session.ReadNodeAsync(nodeId, CancellationToken.None).ConfigureAwait(false);
-                var value = await session.ReadValueAsync(nodeId, CancellationToken.None).ConfigureAwait(false);
+            var nodeId = new NodeId(VariableIds.ServerStatusType_BuildInfo);
+            Node node = await session.ReadNodeAsync(nodeId, CancellationToken.None)
+                .ConfigureAwait(false);
+            DataValue value = await session.ReadValueAsync(nodeId, CancellationToken.None)
+                .ConfigureAwait(false);
 
-                // keep channel open/inactive
-                var result = await session.CloseAsync(1_000, false).ConfigureAwait(false);
-                Assert.AreEqual((StatusCode)StatusCodes.Good, result);
+            // keep channel open/inactive
+            StatusCode result = await session.CloseAsync(1_000, false).ConfigureAwait(false);
+            Assert.AreEqual((StatusCode)StatusCodes.Good, result);
 
-                await Task.Delay(5_000).ConfigureAwait(false);
+            await Task.Delay(5_000).ConfigureAwait(false);
 
-                var sre = Assert.ThrowsAsync<ServiceResultException>(async () => await session.ReadNodeAsync(nodeId, CancellationToken.None).ConfigureAwait(false));
-                Assert.AreEqual((StatusCode)StatusCodes.BadSessionIdInvalid, (StatusCode)sre.StatusCode);
+            ServiceResultException sre = NUnit.Framework.Assert
+                .ThrowsAsync<ServiceResultException>(async () =>
+                    await session.ReadNodeAsync(nodeId, CancellationToken.None)
+                        .ConfigureAwait(false));
+            Assert.AreEqual(
+                (StatusCode)StatusCodes.BadSessionIdInvalid,
+                (StatusCode)sre.StatusCode);
 
-                // reconnect/reactivate
-                await session.OpenAsync(sessionName, userIdentity, CancellationToken.None).ConfigureAwait(false);
+            // reconnect/reactivate
+            await session.OpenAsync(sessionName, userIdentity, CancellationToken.None)
+                .ConfigureAwait(false);
 
-                node = await session.ReadNodeAsync(nodeId, CancellationToken.None).ConfigureAwait(false);
-                value = await session.ReadValueAsync(nodeId, CancellationToken.None).ConfigureAwait(false);
-            }
+            node = await session.ReadNodeAsync(nodeId, CancellationToken.None)
+                .ConfigureAwait(false);
+            value = await session.ReadValueAsync(nodeId, CancellationToken.None)
+                .ConfigureAwait(false);
         }
 
-        [Test, Order(206)]
-        public async Task ConnectCloseSessionCloseChannel()
+        [Test]
+        [Order(206)]
+        public async Task ConnectCloseSessionCloseChannelAsync()
         {
-            var securityPolicy = SecurityPolicies.Basic256Sha256;
-            using (var session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false))
+            const string securityPolicy = SecurityPolicies.Basic256Sha256;
+            using ISession session = await ClientFixture
+                .ConnectAsync(ServerUrl, securityPolicy, Endpoints)
+                .ConfigureAwait(false);
+            Assert.NotNull(session);
+            Session.SessionClosing += SessionClosing;
+
+            IUserIdentity userIdentity = session.Identity;
+            string sessionName = session.SessionName;
+
+            var nodeId = new NodeId(VariableIds.ServerStatusType_BuildInfo);
+            Node node = await session.ReadNodeAsync(nodeId, CancellationToken.None)
+                .ConfigureAwait(false);
+            DataValue value = await session.ReadValueAsync(nodeId, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            // keep channel opened but detach so no comm goes through
+            ITransportChannel channel = session.TransportChannel;
+            session.DetachChannel();
+
+            int waitTime =
+                ServerFixture.Application.ApplicationConfiguration.TransportQuotas.ChannelLifetime +
+                (ServerFixture.Application.ApplicationConfiguration.TransportQuotas
+                    .ChannelLifetime /
+                    2) +
+                5_000;
+            await Task.Delay(waitTime).ConfigureAwait(false);
+
+            // Channel handling checked for TcpTransportChannel only
+            if (channel is TcpTransportChannel tcp)
             {
-
-                Assert.NotNull(session);
-                Session.SessionClosing += Session_Closing;
-
-                var userIdentity = session.Identity;
-                var sessionName = session.SessionName;
-
-                var nodeId = new NodeId(Opc.Ua.VariableIds.ServerStatusType_BuildInfo);
-                var node = await session.ReadNodeAsync(nodeId, CancellationToken.None).ConfigureAwait(false);
-                var value = await session.ReadValueAsync(nodeId, CancellationToken.None).ConfigureAwait(false);
-
-                // keep channel opened but detach so no comm goes through
-                var channel = session.TransportChannel;
-                session.DetachChannel();
-
-                int waitTime = ServerFixture.Application.ApplicationConfiguration.TransportQuotas.ChannelLifetime +
-                    (ServerFixture.Application.ApplicationConfiguration.TransportQuotas.ChannelLifetime / 2) + 5_000;
-                await Task.Delay(waitTime).ConfigureAwait(false);
-
-                // Channel handling checked for TcpTransportChannel only
-                if (channel is TcpTransportChannel tcp)
-                {
-                    Assert.IsNull(tcp.Socket);
-                }
+                Assert.IsNull(tcp.Socket);
             }
         }
 
-        [Theory, Order(210)]
+        [Theory]
+        [Order(210)]
         public async Task ConnectAndReconnectAsync(bool reconnectAbort, bool useMaxReconnectPeriod)
         {
             const int connectTimeout = MaxTimeout;
-            var session = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints).ConfigureAwait(false);
+            ISession session = await ClientFixture
+                .ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints)
+                .ConfigureAwait(false);
             Assert.NotNull(session);
 
             int sessionConfigChanged = 0;
-            session.SessionConfigurationChanged += (object sender, EventArgs e) => { sessionConfigChanged++; };
+            session.SessionConfigurationChanged += (sender, e) => sessionConfigChanged++;
 
             int sessionClosing = 0;
-            session.SessionClosing += (object sender, EventArgs e) => { sessionClosing++; };
+            session.SessionClosing += (sender, e) => sessionClosing++;
 
-            ManualResetEvent quitEvent = new ManualResetEvent(false);
-            var reconnectHandler = new SessionReconnectHandler(reconnectAbort, useMaxReconnectPeriod ? MaxTimeout : -1);
-            reconnectHandler.BeginReconnect(session, connectTimeout / 5,
-                (object sender, EventArgs e) => {
+            var quitEvent = new ManualResetEvent(false);
+            var reconnectHandler = new SessionReconnectHandler(
+                reconnectAbort,
+                useMaxReconnectPeriod ? MaxTimeout : -1);
+            reconnectHandler.BeginReconnect(
+                session,
+                connectTimeout / 5,
+                (sender, e) =>
+                {
                     // ignore callbacks from discarded objects.
-                    if (!Object.ReferenceEquals(sender, reconnectHandler))
+                    if (!ReferenceEquals(sender, reconnectHandler))
                     {
-                        Assert.Fail("Unexpected sender");
+                        NUnit.Framework.Assert.Fail("Unexpected sender");
                     }
 
                     if (reconnectHandler.Session != null)
                     {
-                        if (!Object.ReferenceEquals(reconnectHandler.Session, session))
+                        if (!ReferenceEquals(reconnectHandler.Session, session))
                         {
                             session.Dispose();
                             session = reconnectHandler.Session;
@@ -510,7 +568,7 @@ namespace Opc.Ua.Client.Tests
                     quitEvent.Set();
                 });
 
-            var timeout = quitEvent.WaitOne(connectTimeout);
+            bool timeout = quitEvent.WaitOne(connectTimeout);
             Assert.True(timeout);
 
             if (reconnectAbort)
@@ -525,7 +583,7 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(reconnectAbort ? 0 : 1, sessionConfigChanged);
             Assert.AreEqual(0, sessionClosing);
 
-            var result = session.Close();
+            StatusCode result = session.Close();
             Assert.NotNull(result);
             reconnectHandler.Dispose();
             session.Dispose();
@@ -533,12 +591,14 @@ namespace Opc.Ua.Client.Tests
             Assert.Less(0, sessionClosing);
         }
 
-        [Theory, Order(220)]
-        public async Task ConnectJWT(string securityPolicy)
+        [Theory]
+        [Order(220)]
+        public async Task ConnectJWTAsync(string securityPolicy)
         {
-            var identityToken = "fakeTokenString";
+            const string identityToken = "fakeTokenString";
 
-            var issuedToken = new IssuedIdentityToken() {
+            var issuedToken = new IssuedIdentityToken
+            {
                 IssuedTokenType = IssuedTokenType.JWT,
                 PolicyId = Profiles.JwtUserToken,
                 DecryptedTokenData = Encoding.UTF8.GetBytes(identityToken)
@@ -546,25 +606,30 @@ namespace Opc.Ua.Client.Tests
 
             var userIdentity = new UserIdentity(issuedToken);
 
-            var session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints, userIdentity).ConfigureAwait(false);
+            ISession session = await ClientFixture
+                .ConnectAsync(ServerUrl, securityPolicy, Endpoints, userIdentity)
+                .ConfigureAwait(false);
             Assert.NotNull(session);
             Assert.NotNull(TokenValidator.LastIssuedToken);
 
-            var receivedToken = Encoding.UTF8.GetString(TokenValidator.LastIssuedToken.DecryptedTokenData);
+            string receivedToken = Encoding.UTF8
+                .GetString(TokenValidator.LastIssuedToken.DecryptedTokenData);
             Assert.AreEqual(identityToken, receivedToken);
 
-            var result = session.Close();
+            StatusCode result = session.Close();
             Assert.NotNull(result);
 
             session.Dispose();
         }
 
-        [Theory, Order(230)]
-        public async Task ReconnectJWT(string securityPolicy)
+        [Theory]
+        [Order(230)]
+        public async Task ReconnectJWTAsync(string securityPolicy)
         {
-            UserIdentity CreateUserIdentity(string tokenData)
+            static UserIdentity CreateUserIdentity(string tokenData)
             {
-                var issuedToken = new IssuedIdentityToken() {
+                var issuedToken = new IssuedIdentityToken
+                {
                     IssuedTokenType = IssuedTokenType.JWT,
                     PolicyId = Profiles.JwtUserToken,
                     DecryptedTokenData = Encoding.UTF8.GetBytes(tokenData)
@@ -573,44 +638,50 @@ namespace Opc.Ua.Client.Tests
                 return new UserIdentity(issuedToken);
             }
 
-            var identityToken = "fakeTokenString";
-            var userIdentity = CreateUserIdentity(identityToken);
+            const string identityToken = "fakeTokenString";
+            UserIdentity userIdentity = CreateUserIdentity(identityToken);
 
-            var session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints, userIdentity).ConfigureAwait(false);
+            ISession session = await ClientFixture
+                .ConnectAsync(ServerUrl, securityPolicy, Endpoints, userIdentity)
+                .ConfigureAwait(false);
             Assert.NotNull(session);
             Assert.NotNull(TokenValidator.LastIssuedToken);
 
-            var receivedToken = Encoding.UTF8.GetString(TokenValidator.LastIssuedToken.DecryptedTokenData);
+            string receivedToken = Encoding.UTF8
+                .GetString(TokenValidator.LastIssuedToken.DecryptedTokenData);
             Assert.AreEqual(identityToken, receivedToken);
 
-            var newIdentityToken = "fakeTokenStringNew";
-            session.RenewUserIdentity += (s, i) => {
-                return CreateUserIdentity(newIdentityToken);
-            };
+            const string newIdentityToken = "fakeTokenStringNew";
+            session.RenewUserIdentity += (_, _) => CreateUserIdentity(newIdentityToken);
 
             session.Reconnect();
-            receivedToken = Encoding.UTF8.GetString(TokenValidator.LastIssuedToken.DecryptedTokenData);
+            receivedToken = Encoding.UTF8
+                .GetString(TokenValidator.LastIssuedToken.DecryptedTokenData);
             Assert.AreEqual(newIdentityToken, receivedToken);
 
-            var result = session.Close();
+            StatusCode result = session.Close();
             Assert.NotNull(result);
 
             session.Dispose();
         }
 
-        [Test, Order(240)]
+        [Test]
+        [Order(240)]
         public async Task ConnectMultipleSessionsAsync()
         {
-            var endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints).ConfigureAwait(false);
+            ConfiguredEndpoint endpoint = await ClientFixture
+                .GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints)
+                .ConfigureAwait(false);
             Assert.NotNull(endpoint);
 
-            var channel = await ClientFixture.CreateChannelAsync(endpoint, false).ConfigureAwait(false);
+            ITransportChannel channel = await ClientFixture.CreateChannelAsync(endpoint, false)
+                .ConfigureAwait(false);
             Assert.NotNull(channel);
 
-            var session1 = ClientFixture.CreateSession(channel, endpoint);
+            ISession session1 = ClientFixture.CreateSession(channel, endpoint);
             session1.Open("Session1", null);
 
-            var session2 = ClientFixture.CreateSession(channel, endpoint);
+            ISession session2 = ClientFixture.CreateSession(channel, endpoint);
             session2.Open("Session2", null);
 
             _ = session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
@@ -625,9 +696,10 @@ namespace Opc.Ua.Client.Tests
             session2.DetachChannel();
             session2.Dispose();
 
-
             //Recreate session using same channel
-            var session3 = await ClientFixture.SessionFactory.RecreateAsync(session1, channel).ConfigureAwait(false);
+            ISession session3 = await ClientFixture
+                .SessionFactory.RecreateAsync(session1, channel)
+                .ConfigureAwait(false);
 
             _ = session3.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
 
@@ -638,25 +710,33 @@ namespace Opc.Ua.Client.Tests
         /// Open a session on a channel, then reconnect (activate) the same session on a new channel.
         /// Close the first channel before or after the new channel is activated.
         /// </summary>
-        [Theory, Order(250)]
-        public async Task ReconnectSessionOnAlternateChannel(bool closeChannel, bool asyncReconnect)
+        [Theory]
+        [Order(250)]
+        public async Task ReconnectSessionOnAlternateChannelAsync(
+            bool closeChannel,
+            bool asyncReconnect)
         {
             ServiceResultException sre;
 
             // the endpoint to use
-            var endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints).ConfigureAwait(false);
+            ConfiguredEndpoint endpoint = await ClientFixture
+                .GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints)
+                .ConfigureAwait(false);
             Assert.NotNull(endpoint);
 
             // the active channel
-            ISession session1 = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints).ConfigureAwait(false);
+            ISession session1 = await ClientFixture
+                .ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints)
+                .ConfigureAwait(false);
             Assert.NotNull(session1);
 
             // test by reading a value
-            ServerStatusDataType value1 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+            var value1 = (ServerStatusDataType)
+                session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
             Assert.NotNull(value1);
 
             // save the channel to close it later
-            var channel1 = session1.TransportChannel;
+            ITransportChannel channel1 = session1.TransportChannel;
 
             // test case: close the channel before reconnecting
             if (closeChannel)
@@ -665,18 +745,26 @@ namespace Opc.Ua.Client.Tests
                 channel1.Dispose();
 
                 // cannot read using a detached channel
-                var exception = Assert.Throws<ServiceResultException>(() => session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
-                Assert.AreEqual((StatusCode)StatusCodes.BadSecureChannelClosed, (StatusCode)exception.StatusCode);
+                ServiceResultException exception = NUnit.Framework.Assert
+                    .Throws<ServiceResultException>(() =>
+                        session1.ReadValue(
+                        VariableIds.Server_ServerStatus,
+                        typeof(ServerStatusDataType)));
+                Assert.AreEqual(
+                    (StatusCode)StatusCodes.BadSecureChannelClosed,
+                    (StatusCode)exception.StatusCode);
             }
 
             // the inactive channel
-            ITransportChannel channel2 = await ClientFixture.CreateChannelAsync(endpoint, false).ConfigureAwait(false);
+            ITransportChannel channel2 = await ClientFixture.CreateChannelAsync(endpoint, false)
+                .ConfigureAwait(false);
             Assert.NotNull(channel2);
 
             // activate the session on the new channel
             if (asyncReconnect)
             {
-                await session1.ReconnectAsync(channel2, CancellationToken.None).ConfigureAwait(false);
+                await session1.ReconnectAsync(channel2, CancellationToken.None)
+                    .ConfigureAwait(false);
             }
             else
             {
@@ -684,7 +772,8 @@ namespace Opc.Ua.Client.Tests
             }
 
             // test by reading a value
-            ServerStatusDataType value2 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+            var value2 = (ServerStatusDataType)
+                session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
             Assert.NotNull(value2);
             Assert.AreEqual(value1.State, value2.State);
 
@@ -696,14 +785,16 @@ namespace Opc.Ua.Client.Tests
             }
 
             // test by reading a value
-            ServerStatusDataType value3 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+            var value3 = (ServerStatusDataType)
+                session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
             Assert.NotNull(value3);
             Assert.AreEqual(value1.State, value3.State);
 
             // close the session, keep the channel open
             if (asyncReconnect)
             {
-                await session1.CloseAsync(closeChannel: false, CancellationToken.None).ConfigureAwait(false);
+                await session1.CloseAsync(closeChannel: false, CancellationToken.None)
+                    .ConfigureAwait(false);
             }
             else
             {
@@ -711,8 +802,12 @@ namespace Opc.Ua.Client.Tests
             }
 
             // cannot read using a closed session, validate the status code
-            sre = Assert.Throws<ServiceResultException>(() => session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
-            Assert.AreEqual((StatusCode)StatusCodes.BadSessionIdInvalid, (StatusCode)sre.StatusCode, sre.Message);
+            sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+                session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
+            Assert.AreEqual(
+                (StatusCode)StatusCodes.BadSessionIdInvalid,
+                (StatusCode)sre.StatusCode,
+                sre.Message);
 
             // close the channel
             if (asyncReconnect)
@@ -726,18 +821,26 @@ namespace Opc.Ua.Client.Tests
             channel2.Dispose();
 
             // cannot read using a closed channel, validate the status code
-            sre = Assert.Throws<ServiceResultException>(() => session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
+            sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+                session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
 
             // TODO: Both channel should return BadNotConnected
-            if (!(StatusCodes.BadSecureChannelClosed == sre.StatusCode))
+            if (StatusCodes.BadSecureChannelClosed != sre.StatusCode)
             {
-                if (endpoint.EndpointUrl.ToString().StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
+                if (endpoint.EndpointUrl.ToString()
+                    .StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
                 {
-                    Assert.AreEqual((StatusCode)StatusCodes.BadNotConnected, (StatusCode)sre.StatusCode, sre.Message);
+                    Assert.AreEqual(
+                        (StatusCode)StatusCodes.BadNotConnected,
+                        (StatusCode)sre.StatusCode,
+                        sre.Message);
                 }
                 else
                 {
-                    Assert.AreEqual((StatusCode)StatusCodes.BadUnknownResponse, (StatusCode)sre.StatusCode, sre.Message);
+                    Assert.AreEqual(
+                        (StatusCode)StatusCodes.BadUnknownResponse,
+                        (StatusCode)sre.StatusCode,
+                        sre.Message);
                 }
             }
         }
@@ -746,7 +849,8 @@ namespace Opc.Ua.Client.Tests
         /// Open a session on a channel, then reconnect (activate)
         /// the same session on a new channel with saved session secrets
         /// </summary>
-        [Test, Order(260)]
+        [Test]
+        [Order(260)]
         [TestCase(SecurityPolicies.None, true, false)]
         [TestCase(SecurityPolicies.None, false, false)]
         [TestCase(SecurityPolicies.None, false, true)]
@@ -765,29 +869,40 @@ namespace Opc.Ua.Client.Tests
         [TestCase(SecurityPolicies.ECC_nistP384, true, false)]
         [TestCase(SecurityPolicies.ECC_nistP384, false, false)]
         [TestCase(SecurityPolicies.ECC_nistP384, false, true)]
-        public async Task ReconnectSessionOnAlternateChannelWithSavedSessionSecrets(string securityPolicy, bool anonymous, bool asyncReconnect)
+        public async Task ReconnectSessionOnAlternateChannelWithSavedSessionSecretsAsync(
+            string securityPolicy,
+            bool anonymous,
+            bool asyncReconnect)
         {
             ServiceResultException sre;
 
-            IUserIdentity userIdentity = anonymous ? new UserIdentity() : new UserIdentity("user1", "password");
+            UserIdentity userIdentity = anonymous
+                ? new UserIdentity()
+                : new UserIdentity("user1", "password");
 
             // the first channel determines the endpoint
-            ConfiguredEndpoint endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
+            ConfiguredEndpoint endpoint = await ClientFixture
+                .GetEndpointAsync(ServerUrl, securityPolicy, Endpoints)
+                .ConfigureAwait(false);
             Assert.NotNull(endpoint);
 
-            UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(userIdentity.TokenType,
+            UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
+                userIdentity.TokenType,
                 userIdentity.IssuedTokenType,
                 endpoint.Description.SecurityPolicyUri);
             if (identityPolicy == null)
             {
-                Assert.Ignore($"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");
+                NUnit.Framework.Assert.Ignore(
+                    $"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");
             }
 
             // the active channel
-            ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity).ConfigureAwait(false);
+            ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity)
+                .ConfigureAwait(false);
             Assert.NotNull(session1);
 
-            ServerStatusDataType value1 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+            var value1 = (ServerStatusDataType)
+                session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
             Assert.NotNull(value1);
 
             // save the session configuration
@@ -795,7 +910,7 @@ namespace Opc.Ua.Client.Tests
 
             session1.SaveSessionConfiguration(stream);
 
-            var streamArray = stream.ToArray();
+            byte[] streamArray = stream.ToArray();
             TestContext.Out.WriteLine($"SessionSecrets: {stream.Length} bytes");
             TestContext.Out.WriteLine(Encoding.UTF8.GetString(streamArray));
 
@@ -804,24 +919,27 @@ namespace Opc.Ua.Client.Tests
             var sessionConfiguration = SessionConfiguration.Create(loadStream);
 
             // create the inactive channel
-            ITransportChannel channel2 = await ClientFixture.CreateChannelAsync(sessionConfiguration.ConfiguredEndpoint, false).ConfigureAwait(false);
+            ITransportChannel channel2 = await ClientFixture
+                .CreateChannelAsync(sessionConfiguration.ConfiguredEndpoint, false)
+                .ConfigureAwait(false);
             Assert.NotNull(channel2);
 
             // prepare the inactive session with the new channel
-            ISession session2 = ClientFixture.CreateSession(channel2, sessionConfiguration.ConfiguredEndpoint);
+            ISession session2 = ClientFixture.CreateSession(
+                channel2,
+                sessionConfiguration.ConfiguredEndpoint);
 
             // apply the saved session configuration
             bool success = session2.ApplySessionConfiguration(sessionConfiguration);
 
             // hook callback to renew the user identity
-            session2.RenewUserIdentity += (session, identity) => {
-                return userIdentity;
-            };
+            session2.RenewUserIdentity += (_, _) => userIdentity;
 
             // activate the session from saved session secrets on the new channel
             if (asyncReconnect)
             {
-                await session2.ReconnectAsync(channel2, CancellationToken.None).ConfigureAwait(false);
+                await session2.ReconnectAsync(channel2, CancellationToken.None)
+                    .ConfigureAwait(false);
             }
             else
             {
@@ -831,20 +949,30 @@ namespace Opc.Ua.Client.Tests
 
             Assert.AreEqual(session1.SessionId, session2.SessionId);
 
-            ServerStatusDataType value2 = (ServerStatusDataType)session2.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+            var value2 = (ServerStatusDataType)
+                session2.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
             Assert.NotNull(value2);
 
             await Task.Delay(500).ConfigureAwait(false);
 
             // cannot read using a closed channel, validate the status code
-            if (endpoint.EndpointUrl.ToString().StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
+            if (endpoint.EndpointUrl.ToString()
+                .StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
             {
-                sre = Assert.Throws<ServiceResultException>(() => session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
-                Assert.AreEqual((StatusCode)StatusCodes.BadSecureChannelIdInvalid, (StatusCode)sre.StatusCode, sre.Message);
+                sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+                    session1.ReadValue(
+                        VariableIds.Server_ServerStatus,
+                        typeof(ServerStatusDataType)));
+                Assert.AreEqual(
+                    (StatusCode)StatusCodes.BadSecureChannelIdInvalid,
+                    (StatusCode)sre.StatusCode,
+                    sre.Message);
             }
             else
             {
-                var result = session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+                object result = session1.ReadValue(
+                    VariableIds.Server_ServerStatus,
+                    typeof(ServerStatusDataType));
                 Assert.NotNull(result);
             }
 
@@ -860,42 +988,49 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Open a session on a channel, then recreate using the session as a template, verify the renewUserIdentityHandler is brought to the new session and called before Session.Open
         /// /// </summary>
-        [Test, Order(270)]
+        [Test]
+        [Order(270)]
         [TestCase(false)]
         [TestCase(true)]
-        public async Task RecreateSessionWithRenewUserIdentity(bool async)
+        public async Task RecreateSessionWithRenewUserIdentityAsync(bool async)
         {
-            IUserIdentity userIdentityAnonymous = new UserIdentity() ;
-            IUserIdentity userIdentityPW = new UserIdentity("user1", "password");
+            var userIdentityAnonymous = new UserIdentity();
+            var userIdentityPW = new UserIdentity("user1", "password");
 
             // the first channel determines the endpoint
-            ConfiguredEndpoint endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints).ConfigureAwait(false);
+            ConfiguredEndpoint endpoint = await ClientFixture
+                .GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints)
+                .ConfigureAwait(false);
             Assert.NotNull(endpoint);
 
-            UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(userIdentityAnonymous.TokenType,
+            UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
+                userIdentityAnonymous.TokenType,
                 userIdentityAnonymous.IssuedTokenType,
                 endpoint.Description.SecurityPolicyUri);
             if (identityPolicy == null)
             {
-                Assert.Ignore($"No UserTokenPolicy found for {userIdentityAnonymous.TokenType} / {userIdentityAnonymous.IssuedTokenType}");
+                NUnit.Framework.Assert.Ignore(
+                    $"No UserTokenPolicy found for {userIdentityAnonymous.TokenType} / {userIdentityAnonymous.IssuedTokenType}");
             }
 
             // the active channel
-            ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentityAnonymous).ConfigureAwait(false);
+            ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentityAnonymous)
+                .ConfigureAwait(false);
             Assert.NotNull(session1);
 
-            ServerStatusDataType value1 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+            var value1 = (ServerStatusDataType)
+                session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
             Assert.NotNull(value1);
 
             // hook callback to renew the user identity
-            session1.RenewUserIdentity += (session, identity) => {
-                return userIdentityPW;
-            };
+            session1.RenewUserIdentity += (_, _) => userIdentityPW;
 
-            Client.Session session2;
+            Session session2;
             if (async)
             {
-                session2 = await Client.Session.RecreateAsync((Session)((TraceableSession)session1).Session).ConfigureAwait(false);
+                session2 = await Client
+                    .Session.RecreateAsync((Session)((TraceableSession)session1).Session)
+                    .ConfigureAwait(false);
             }
             else
             {
@@ -903,18 +1038,22 @@ namespace Opc.Ua.Client.Tests
             }
 
             // create new channel
-            ITransportChannel channel2 = await ClientFixture.CreateChannelAsync(session1.ConfiguredEndpoint, false).ConfigureAwait(false);
+            ITransportChannel channel2 = await ClientFixture
+                .CreateChannelAsync(session1.ConfiguredEndpoint, false)
+                .ConfigureAwait(false);
             Assert.NotNull(channel2);
 
-            Client.Session session3;
+            Session session3;
             if (async)
             {
-                session3 = await Client.Session.RecreateAsync((Session)((TraceableSession)session1).Session, channel2).ConfigureAwait(false);
-
+                session3 = await Client
+                    .Session.RecreateAsync((Session)((TraceableSession)session1).Session, channel2)
+                    .ConfigureAwait(false);
             }
             else
             {
-                session3 = Client.Session.Recreate((Session)((TraceableSession)session1).Session, channel2);
+                session3 = Client.Session
+                    .Recreate((Session)((TraceableSession)session1).Session, channel2);
             }
 
             //validate new Session Ids are used and also UserName PW identity token is injected as renewed token
@@ -923,9 +1062,9 @@ namespace Opc.Ua.Client.Tests
             Assert.AreNotEqual(session1.SessionId, session3.SessionId);
             Assert.AreEqual(userIdentityPW.TokenType, session3.Identity.TokenType);
 
-            ServerStatusDataType value2 = (ServerStatusDataType)session2.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+            var value2 = (ServerStatusDataType)
+                session2.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
             Assert.NotNull(value2);
-
 
             session1.DeleteSubscriptionsOnClose = true;
             session1.Close(1000);
@@ -940,23 +1079,48 @@ namespace Opc.Ua.Client.Tests
             Utils.SilentDispose(session3);
         }
 
-        [Test, Order(300)]
+        [Test]
+        [Order(300)]
         public new void GetOperationLimits()
         {
             base.GetOperationLimits();
 
-            ValidateOperationLimit(OperationLimits.MaxNodesPerRead, Session.OperationLimits.MaxNodesPerRead);
-            ValidateOperationLimit(OperationLimits.MaxNodesPerHistoryReadData, Session.OperationLimits.MaxNodesPerHistoryReadData);
-            ValidateOperationLimit(OperationLimits.MaxNodesPerHistoryReadEvents, Session.OperationLimits.MaxNodesPerHistoryReadEvents);
-            ValidateOperationLimit(OperationLimits.MaxNodesPerBrowse, Session.OperationLimits.MaxNodesPerBrowse);
-            ValidateOperationLimit(OperationLimits.MaxMonitoredItemsPerCall, Session.OperationLimits.MaxMonitoredItemsPerCall);
-            ValidateOperationLimit(OperationLimits.MaxNodesPerHistoryUpdateData, Session.OperationLimits.MaxNodesPerHistoryUpdateData);
-            ValidateOperationLimit(OperationLimits.MaxNodesPerHistoryUpdateEvents, Session.OperationLimits.MaxNodesPerHistoryUpdateEvents);
-            ValidateOperationLimit(OperationLimits.MaxNodesPerMethodCall, Session.OperationLimits.MaxNodesPerMethodCall);
-            ValidateOperationLimit(OperationLimits.MaxNodesPerNodeManagement, Session.OperationLimits.MaxNodesPerNodeManagement);
-            ValidateOperationLimit(OperationLimits.MaxNodesPerRegisterNodes, Session.OperationLimits.MaxNodesPerRegisterNodes);
-            ValidateOperationLimit(OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds, Session.OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
-            ValidateOperationLimit(OperationLimits.MaxNodesPerWrite, Session.OperationLimits.MaxNodesPerWrite);
+            ValidateOperationLimit(
+                OperationLimits.MaxNodesPerRead,
+                Session.OperationLimits.MaxNodesPerRead);
+            ValidateOperationLimit(
+                OperationLimits.MaxNodesPerHistoryReadData,
+                Session.OperationLimits.MaxNodesPerHistoryReadData);
+            ValidateOperationLimit(
+                OperationLimits.MaxNodesPerHistoryReadEvents,
+                Session.OperationLimits.MaxNodesPerHistoryReadEvents);
+            ValidateOperationLimit(
+                OperationLimits.MaxNodesPerBrowse,
+                Session.OperationLimits.MaxNodesPerBrowse);
+            ValidateOperationLimit(
+                OperationLimits.MaxMonitoredItemsPerCall,
+                Session.OperationLimits.MaxMonitoredItemsPerCall);
+            ValidateOperationLimit(
+                OperationLimits.MaxNodesPerHistoryUpdateData,
+                Session.OperationLimits.MaxNodesPerHistoryUpdateData);
+            ValidateOperationLimit(
+                OperationLimits.MaxNodesPerHistoryUpdateEvents,
+                Session.OperationLimits.MaxNodesPerHistoryUpdateEvents);
+            ValidateOperationLimit(
+                OperationLimits.MaxNodesPerMethodCall,
+                Session.OperationLimits.MaxNodesPerMethodCall);
+            ValidateOperationLimit(
+                OperationLimits.MaxNodesPerNodeManagement,
+                Session.OperationLimits.MaxNodesPerNodeManagement);
+            ValidateOperationLimit(
+                OperationLimits.MaxNodesPerRegisterNodes,
+                Session.OperationLimits.MaxNodesPerRegisterNodes);
+            ValidateOperationLimit(
+                OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds,
+                Session.OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
+            ValidateOperationLimit(
+                OperationLimits.MaxNodesPerWrite,
+                Session.OperationLimits.MaxNodesPerWrite);
         }
 
         [Test]
@@ -975,55 +1139,62 @@ namespace Opc.Ua.Client.Tests
             TestContext.Out.WriteLine("SubscriptionCount: {0}", Session.SubscriptionCount);
             TestContext.Out.WriteLine("DefaultSubscription: {0}", Session.DefaultSubscription);
             TestContext.Out.WriteLine("LastKeepAliveTime: {0}", Session.LastKeepAliveTime);
-            TestContext.Out.WriteLine("LastKeepAliveTickCount: {0}", Session.LastKeepAliveTickCount);
+            TestContext.Out
+                .WriteLine("LastKeepAliveTickCount: {0}", Session.LastKeepAliveTickCount);
             TestContext.Out.WriteLine("KeepAliveInterval: {0}", Session.KeepAliveInterval);
             Session.KeepAliveInterval += 1000;
             TestContext.Out.WriteLine("KeepAliveInterval: {0}", Session.KeepAliveInterval);
             Session.KeepAliveInterval -= 1000;
             TestContext.Out.WriteLine("KeepAliveInterval: {0}", Session.KeepAliveInterval);
             TestContext.Out.WriteLine("KeepAliveStopped : {0}", Session.KeepAliveStopped);
-            TestContext.Out.WriteLine("OutstandingRequestCount : {0}", Session.OutstandingRequestCount);
+            TestContext.Out
+                .WriteLine("OutstandingRequestCount : {0}", Session.OutstandingRequestCount);
             TestContext.Out.WriteLine("DefunctRequestCount     : {0}", Session.DefunctRequestCount);
-            TestContext.Out.WriteLine("GoodPublishRequestCount : {0}", Session.GoodPublishRequestCount);
+            TestContext.Out
+                .WriteLine("GoodPublishRequestCount : {0}", Session.GoodPublishRequestCount);
         }
 
         [Test]
         public void ChangePreferredLocales()
         {
             // change locale
-            var localeCollection = new StringCollection() { "de-de", "en-us" };
+            var localeCollection = new StringCollection { "de-de", "en-us" };
             Session.ChangePreferredLocales(localeCollection);
         }
 
         [Test]
-        public void ReadValueAsync()
+        public Task ReadValueAsync()
         {
             // Test ReadValue
-            Task task1 = Session.ReadValueAsync(VariableIds.Server_ServerRedundancy_RedundancySupport);
+            Task task1 = Session.ReadValueAsync(
+                VariableIds.Server_ServerRedundancy_RedundancySupport);
             Task task2 = Session.ReadValueAsync(VariableIds.Server_ServerStatus);
             Task task3 = Session.ReadValueAsync(VariableIds.Server_ServerStatus_BuildInfo);
-            Task.WaitAll(task1, task2, task3);
+            return Task.WhenAll(task1, task2, task3);
         }
 
         [Test]
         public void ReadValueTyped()
         {
             // Test ReadValue
-            _ = Session.ReadValue(VariableIds.Server_ServerRedundancy_RedundancySupport, typeof(Int32));
+            _ = Session.ReadValue(
+                VariableIds.Server_ServerRedundancy_RedundancySupport,
+                typeof(int));
             _ = Session.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
-            var sre = Assert.Throws<ServiceResultException>(() => Session.ReadValue(VariableIds.Server_ServerStatus, typeof(ServiceHost)));
+            ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+                Session.ReadValue(VariableIds.Server_ServerStatus, typeof(ServiceHost)));
             Assert.AreEqual((StatusCode)StatusCodes.BadTypeMismatch, (StatusCode)sre.StatusCode);
         }
 
         [Test]
         public void ReadValue()
         {
-            var namespaceUris = Session.NamespaceUris;
+            NamespaceTable namespaceUris = Session.NamespaceUris;
             var testSet = GetTestSetStatic(namespaceUris).ToList();
             testSet.AddRange(GetTestSetSimulation(namespaceUris));
-            foreach (var nodeId in testSet)
+            foreach (NodeId nodeId in testSet)
             {
-                var dataValue = Session.ReadValue(nodeId);
+                DataValue dataValue = Session.ReadValue(nodeId);
                 Assert.NotNull(dataValue);
                 Assert.NotNull(dataValue.Value);
                 Assert.AreNotEqual(DateTime.MinValue, dataValue.SourceTimestamp);
@@ -1034,10 +1205,13 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void ReadValues()
         {
-            var namespaceUris = Session.NamespaceUris;
+            NamespaceTable namespaceUris = Session.NamespaceUris;
             var testSet = new NodeIdCollection(GetTestSetStatic(namespaceUris));
             testSet.AddRange(GetTestSetFullSimulation(namespaceUris));
-            Session.ReadValues(testSet, out DataValueCollection values, out IList<ServiceResult> errors);
+            Session.ReadValues(
+                testSet,
+                out DataValueCollection values,
+                out IList<ServiceResult> errors);
             Assert.AreEqual(testSet.Count, values.Count);
             Assert.AreEqual(testSet.Count, errors.Count);
         }
@@ -1045,12 +1219,12 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public async Task ReadValuesAsync()
         {
-            var namespaceUris = Session.NamespaceUris;
+            NamespaceTable namespaceUris = Session.NamespaceUris;
             var testSet = GetTestSetStatic(namespaceUris).ToList();
             testSet.AddRange(GetTestSetFullSimulation(namespaceUris));
             DataValueCollection values;
             IList<ServiceResult> errors;
-            (values, errors) = await Session.ReadValuesAsync(new NodeIdCollection(testSet)).ConfigureAwait(false);
+            (values, errors) = await Session.ReadValuesAsync([.. testSet]).ConfigureAwait(false);
             Assert.AreEqual(testSet.Count, values.Count);
             Assert.AreEqual(testSet.Count, errors.Count);
         }
@@ -1067,7 +1241,8 @@ namespace Opc.Ua.Client.Tests
         public async Task ReadDataTypeDefinitionAsync()
         {
             // Test Read a DataType Node
-            INode node = await Session.ReadNodeAsync(DataTypeIds.ProgramDiagnosticDataType).ConfigureAwait(false);
+            INode node = await Session.ReadNodeAsync(DataTypeIds.ProgramDiagnosticDataType)
+                .ConfigureAwait(false);
             ValidateDataTypeDefinition(node);
         }
 
@@ -1075,7 +1250,10 @@ namespace Opc.Ua.Client.Tests
         public void ReadDataTypeDefinition2()
         {
             // Test Read a DataType Node, the nodeclass is known
-            INode node = Session.ReadNode(DataTypeIds.ProgramDiagnosticDataType, NodeClass.DataType, false);
+            INode node = Session.ReadNode(
+                DataTypeIds.ProgramDiagnosticDataType,
+                NodeClass.DataType,
+                false);
             ValidateDataTypeDefinition(node);
         }
 
@@ -1083,7 +1261,9 @@ namespace Opc.Ua.Client.Tests
         public async Task ReadDataTypeDefinition2Async()
         {
             // Test Read a DataType Node, the nodeclass is known
-            INode node = await Session.ReadNodeAsync(DataTypeIds.ProgramDiagnosticDataType, NodeClass.DataType, false).ConfigureAwait(false);
+            INode node = await Session
+                .ReadNodeAsync(DataTypeIds.ProgramDiagnosticDataType, NodeClass.DataType, false)
+                .ConfigureAwait(false);
             ValidateDataTypeDefinition(node);
         }
 
@@ -1091,7 +1271,12 @@ namespace Opc.Ua.Client.Tests
         public void ReadDataTypeDefinitionNodes()
         {
             // Test Read a DataType Node, the nodeclass is known
-            Session.ReadNodes(new NodeIdCollection() { DataTypeIds.ProgramDiagnosticDataType }, NodeClass.DataType, out IList<Node> nodes, out IList<ServiceResult> errors, false);
+            Session.ReadNodes(
+                [DataTypeIds.ProgramDiagnosticDataType],
+                NodeClass.DataType,
+                out IList<Node> nodes,
+                out _,
+                false);
             ValidateDataTypeDefinition(nodes[0]);
         }
 
@@ -1099,40 +1284,51 @@ namespace Opc.Ua.Client.Tests
         public async Task ReadDataTypeDefinitionNodesAsync()
         {
             // Test Read a DataType Node, the nodeclass is known
-            (var nodes, var errors) = await Session.ReadNodesAsync(new NodeIdCollection() { DataTypeIds.ProgramDiagnosticDataType }, NodeClass.DataType, false).ConfigureAwait(false);
+            (IList<Node> nodes, IList<ServiceResult> errors) = await Session
+                .ReadNodesAsync([DataTypeIds.ProgramDiagnosticDataType], NodeClass.DataType, false)
+                .ConfigureAwait(false);
             Assert.AreEqual(nodes.Count, errors.Count);
             ValidateDataTypeDefinition(nodes[0]);
         }
 
-
-        private void ValidateDataTypeDefinition(INode node)
+        private static void ValidateDataTypeDefinition(INode node)
         {
             Assert.NotNull(node);
             var dataTypeNode = (DataTypeNode)node;
             Assert.NotNull(dataTypeNode);
-            var dataTypeDefinition = dataTypeNode.DataTypeDefinition;
+            ExtensionObject dataTypeDefinition = dataTypeNode.DataTypeDefinition;
             Assert.NotNull(dataTypeDefinition);
-            Assert.True(dataTypeDefinition is ExtensionObject);
             Assert.NotNull(dataTypeDefinition.Body);
             Assert.True(dataTypeDefinition.Body is StructureDefinition);
-            StructureDefinition structureDefinition = dataTypeDefinition.Body as StructureDefinition;
-            Assert.AreEqual(ObjectIds.ProgramDiagnosticDataType_Encoding_DefaultBinary, structureDefinition.DefaultEncodingId);
+            var structureDefinition = dataTypeDefinition.Body as StructureDefinition;
+            Assert.AreEqual(
+                ObjectIds.ProgramDiagnosticDataType_Encoding_DefaultBinary,
+                structureDefinition.DefaultEncodingId);
         }
 
-        [Theory, Order(400)]
-        public async Task BrowseFullAddressSpace(string securityPolicy, bool operationLimits = false)
+        [Theory]
+        [Order(400)]
+        public async Task BrowseFullAddressSpaceAsync(
+            string securityPolicy,
+            bool operationLimits = false)
         {
-            if (OperationLimits == null) { GetOperationLimits(); }
+            if (OperationLimits == null)
+            {
+                GetOperationLimits();
+            }
 
-            var requestHeader = new RequestHeader();
-            requestHeader.Timestamp = DateTime.UtcNow;
-            requestHeader.TimeoutHint = MaxTimeout;
+            var requestHeader = new RequestHeader
+            {
+                Timestamp = DateTime.UtcNow,
+                TimeoutHint = MaxTimeout
+            };
 
             // Session
             ISession session;
             if (securityPolicy != null)
             {
-                session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
+                session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints)
+                    .ConfigureAwait(false);
                 if (operationLimits)
                 {
                     // disable the operation limit handler in SessionClientOperationLimits
@@ -1145,7 +1341,11 @@ namespace Opc.Ua.Client.Tests
             }
 
             var clientTestServices = new ClientTestServices(session);
-            ReferenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(clientTestServices, requestHeader, operationLimits ? OperationLimits : null, outputResult: true);
+            ReferenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(
+                clientTestServices,
+                requestHeader,
+                operationLimits ? OperationLimits : null,
+                outputResult: true);
 
             if (securityPolicy != null)
             {
@@ -1154,12 +1354,18 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
-        [Test, Order(410)]
+        [Test]
+        [Order(410)]
         [NonParallelizable]
-        public async Task ReadDisplayNames()
+        public async Task ReadDisplayNamesSyncAsync()
         {
-            if (ReferenceDescriptions == null) { await BrowseFullAddressSpace(null).ConfigureAwait(false); }
-            var nodeIds = ReferenceDescriptions.Select(n => ExpandedNodeId.ToNodeId(n.NodeId, Session.NamespaceUris)).ToList();
+            if (ReferenceDescriptions == null)
+            {
+                await BrowseFullAddressSpaceAsync(null).ConfigureAwait(false);
+            }
+            var nodeIds = ReferenceDescriptions
+                .Select(n => ExpandedNodeId.ToNodeId(n.NodeId, Session.NamespaceUris))
+                .ToList();
             if (OperationLimits.MaxNodesPerRead > 0 &&
                 nodeIds.Count > OperationLimits.MaxNodesPerRead)
             {
@@ -1167,16 +1373,26 @@ namespace Opc.Ua.Client.Tests
                 try
                 {
                     Session.OperationLimits.MaxNodesPerRead = 0;
-                    var sre = Assert.Throws<ServiceResultException>(() => Session.ReadDisplayName(nodeIds, out var displayNames, out var errors));
-                    Assert.AreEqual((StatusCode)StatusCodes.BadTooManyOperations, (StatusCode)sre.StatusCode);
+                    ServiceResultException sre = NUnit.Framework.Assert
+                        .Throws<ServiceResultException>(() =>
+                            Session.ReadDisplayName(
+                                nodeIds,
+                                out IList<string> displayNames,
+                                out IList<ServiceResult> errors));
+                    Assert.AreEqual(
+                        (StatusCode)StatusCodes.BadTooManyOperations,
+                        (StatusCode)sre.StatusCode);
                     while (nodeIds.Count > 0)
                     {
-                        Session.ReadDisplayName(nodeIds.Take((int)OperationLimits.MaxNodesPerRead).ToArray(), out var displayNames, out var errors);
-                        foreach (var name in displayNames)
+                        Session.ReadDisplayName(
+                            [.. nodeIds.Take((int)OperationLimits.MaxNodesPerRead)],
+                            out IList<string> displayNames,
+                            out IList<ServiceResult> errors);
+                        foreach (string name in displayNames)
                         {
                             TestContext.Out.WriteLine("{0}", name);
                         }
-                        nodeIds = nodeIds.Skip((int)OperationLimits.MaxNodesPerRead).ToList();
+                        nodeIds = [.. nodeIds.Skip((int)OperationLimits.MaxNodesPerRead)];
                     }
                 }
                 finally
@@ -1186,45 +1402,51 @@ namespace Opc.Ua.Client.Tests
             }
             else
             {
-                Session.ReadDisplayName(nodeIds, out var displayNames, out var errors);
-                foreach (var name in displayNames)
+                Session.ReadDisplayName(
+                    nodeIds,
+                    out IList<string> displayNames,
+                    out IList<ServiceResult> errors);
+                foreach (string name in displayNames)
                 {
                     TestContext.Out.WriteLine("{0}", name);
                 }
             }
         }
 
-        [Test, Order(480)]
+        [Test]
+        [Order(480)]
         public void Subscription()
         {
-            var requestHeader = new RequestHeader();
-            requestHeader.Timestamp = DateTime.UtcNow;
-            requestHeader.TimeoutHint = MaxTimeout;
+            var requestHeader = new RequestHeader
+            {
+                Timestamp = DateTime.UtcNow,
+                TimeoutHint = MaxTimeout
+            };
 
             var clientTestServices = new ClientTestServices(Session);
             CommonTestWorkers.SubscriptionTest(clientTestServices, requestHeader);
         }
 
-
-        [Test, Order(550)]
-        public async Task ReadNode()
+        [Test]
+        [Order(550)]
+        public async Task ReadNodeSyncAsync()
         {
             if (ReferenceDescriptions == null)
             {
-                await BrowseFullAddressSpace(null).ConfigureAwait(false);
+                await BrowseFullAddressSpaceAsync(null).ConfigureAwait(false);
             }
 
-            foreach (var reference in ReferenceDescriptions.Take(MaxReferences))
+            foreach (ReferenceDescription reference in ReferenceDescriptions.Take(MaxReferences))
             {
                 var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
-                var node = Session.ReadNode(nodeId);
+                Node node = Session.ReadNode(nodeId);
                 Assert.NotNull(node);
                 TestContext.Out.WriteLine("NodeId: {0} Node: {1}", nodeId, node);
                 if (node is VariableNode)
                 {
                     try
                     {
-                        var value = Session.ReadValue(nodeId);
+                        DataValue value = Session.ReadValue(nodeId);
                         Assert.NotNull(value);
                         TestContext.Out.WriteLine("-- Value {0} ", value);
                     }
@@ -1236,15 +1458,16 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
-        [Test, Order(550)]
+        [Test]
+        [Order(550)]
         public async Task ReadNodeAsync()
         {
             if (ReferenceDescriptions == null)
             {
-                await BrowseFullAddressSpace(null).ConfigureAwait(false);
+                await BrowseFullAddressSpaceAsync(null).ConfigureAwait(false);
             }
 
-            foreach (var reference in ReferenceDescriptions.Take(MaxReferences))
+            foreach (ReferenceDescription reference in ReferenceDescriptions.Take(MaxReferences))
             {
                 var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
                 INode node = await Session.ReadNodeAsync(nodeId).ConfigureAwait(false);
@@ -1254,7 +1477,8 @@ namespace Opc.Ua.Client.Tests
                 {
                     try
                     {
-                        var value = await Session.ReadValueAsync(nodeId).ConfigureAwait(false);
+                        DataValue value = await Session.ReadValueAsync(nodeId)
+                            .ConfigureAwait(false);
                         Assert.NotNull(value);
                         TestContext.Out.WriteLine("-- Value {0} ", value);
                     }
@@ -1266,22 +1490,28 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
-        [Test, Order(560)]
+        [Test]
+        [Order(560)]
         [TestCase(0)]
         [TestCase(MaxReferences)]
-        public async Task ReadNodes(int nodeCount)
+        public async Task ReadNodesSyncAsync(int nodeCount)
         {
             if (ReferenceDescriptions == null)
             {
-                await BrowseFullAddressSpace(null).ConfigureAwait(false);
+                await BrowseFullAddressSpaceAsync(null).ConfigureAwait(false);
             }
 
-            NodeIdCollection nodes = new NodeIdCollection(
+            var nodes = new NodeIdCollection(
                 ReferenceDescriptions
-                .Take(nodeCount)
-                .Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris)));
+                    .Take(nodeCount)
+                    .Select(reference => ExpandedNodeId.ToNodeId(
+                        reference.NodeId,
+                        Session.NamespaceUris)));
 
-            Session.ReadNodes(nodes, out IList<Node> nodeCollection, out IList<ServiceResult> errors);
+            Session.ReadNodes(
+                nodes,
+                out IList<Node> nodeCollection,
+                out IList<ServiceResult> errors);
             Assert.NotNull(nodeCollection);
             Assert.NotNull(errors);
             Assert.AreEqual(nodes.Count, nodeCollection.Count);
@@ -1305,7 +1535,7 @@ namespace Opc.Ua.Client.Tests
                     try
                     {
                         variableNodes.Add(node.NodeId);
-                        var value = Session.ReadValue(node.NodeId);
+                        DataValue value = Session.ReadValue(node.NodeId);
                         Assert.NotNull(value);
                         TestContext.Out.WriteLine("-- Value {0} ", value);
                     }
@@ -1330,30 +1560,36 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(variableNodes.Count, errors.Count);
         }
 
-        [Test, Order(570)]
+        [Test]
+        [Order(570)]
         [TestCase(0)]
         [TestCase(MaxReferences)]
         public async Task ReadNodesAsync(int nodeCount)
         {
             if (ReferenceDescriptions == null)
             {
-                await BrowseFullAddressSpace(null).ConfigureAwait(false);
+                await BrowseFullAddressSpaceAsync(null).ConfigureAwait(false);
             }
 
-            NodeIdCollection nodes = new NodeIdCollection(
+            var nodes = new NodeIdCollection(
                 ReferenceDescriptions
                     .Where(reference => reference.NodeClass == NodeClass.Variable)
                     .Take(nodeCount)
-                    .Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris))
-                );
+                    .Select(reference => ExpandedNodeId.ToNodeId(
+                        reference.NodeId,
+                        Session.NamespaceUris)));
 
-            (IList<Node> nodeCollection, IList<ServiceResult> errors) = await Session.ReadNodesAsync(nodes, true).ConfigureAwait(false);
+            (IList<Node> nodeCollection, IList<ServiceResult> errors) = await Session
+                .ReadNodesAsync(nodes, true)
+                .ConfigureAwait(false);
             Assert.NotNull(nodeCollection);
             Assert.NotNull(errors);
             Assert.AreEqual(nodes.Count, nodeCollection.Count);
             Assert.AreEqual(nodes.Count, errors.Count);
 
-            (nodeCollection, errors) = await Session.ReadNodesAsync(nodes, NodeClass.Unspecified, true).ConfigureAwait(false);
+            (nodeCollection, errors) = await Session
+                .ReadNodesAsync(nodes, NodeClass.Unspecified, true)
+                .ConfigureAwait(false);
             Assert.NotNull(nodeCollection);
             Assert.NotNull(errors);
             Assert.AreEqual(nodes.Count, nodeCollection.Count);
@@ -1371,7 +1607,8 @@ namespace Opc.Ua.Client.Tests
                     try
                     {
                         variableNodes.Add(node.NodeId);
-                        var value = await Session.ReadValueAsync(node.NodeId).ConfigureAwait(false);
+                        DataValue value = await Session.ReadValueAsync(node.NodeId)
+                            .ConfigureAwait(false);
                         Assert.NotNull(value);
                         TestContext.Out.WriteLine("-- Value {0} ", value);
                     }
@@ -1399,12 +1636,15 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(variableNodes.Count, errors.Count);
         }
 
-        [Test, Order(620)]
+        [Test]
+        [Order(620)]
         public void ReadAvailableEncodings()
         {
-            var sre = Assert.Throws<ServiceResultException>(() => Session.ReadAvailableEncodings(DataTypeIds.BaseDataType));
+            ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+                Session.ReadAvailableEncodings(DataTypeIds.BaseDataType));
             Assert.AreEqual((StatusCode)StatusCodes.BadNodeIdInvalid, (StatusCode)sre.StatusCode);
-            var encoding = Session.ReadAvailableEncodings(VariableIds.Server_ServerStatus_CurrentTime);
+            ReferenceDescriptionCollection encoding = Session.ReadAvailableEncodings(
+                VariableIds.Server_ServerStatus_CurrentTime);
             Assert.NotNull(encoding);
             Assert.AreEqual(0, encoding.Count);
         }
@@ -1416,43 +1656,67 @@ namespace Opc.Ua.Client.Tests
         /// Create a subscription with a monitored item using the native service calls.
         /// Create a secondary Session.
         /// </remarks>
-        [Theory, Order(800)]
+        [Theory]
+        [Order(800)]
         [NonParallelizable]
-        public async Task TransferSubscriptionNative(bool sendInitialData)
+        public async Task TransferSubscriptionNativeAsync(bool sendInitialData)
         {
             ISession transferSession = null;
             try
             {
-                var requestHeader = new RequestHeader {
+                var requestHeader = new RequestHeader
+                {
                     Timestamp = DateTime.UtcNow,
                     TimeoutHint = MaxTimeout
                 };
 
                 // to validate the behavior of the sendInitialValue flag,
                 // use a static variable to avoid sampled notifications in publish requests
-                var namespaceUris = Session.NamespaceUris;
-                NodeId[] testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
+                NamespaceTable namespaceUris = Session.NamespaceUris;
+                NodeId[] testSet =
+                [
+                    .. CommonTestWorkers.NodeIdTestSetStatic
+                        .Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
+                ];
                 var clientTestServices = new ClientTestServices(Session);
-                var subscriptionIds = CommonTestWorkers.CreateSubscriptionForTransfer(clientTestServices, requestHeader, testSet, 0, -1);
+                UInt32Collection subscriptionIds = CommonTestWorkers.CreateSubscriptionForTransfer(
+                    clientTestServices,
+                    requestHeader,
+                    testSet,
+                    0,
+                    -1);
 
                 TestContext.Out.WriteLine("Transfer SubscriptionIds: {0}", subscriptionIds[0]);
 
-                transferSession = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints).ConfigureAwait(false);
+                transferSession = await ClientFixture
+                    .ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints)
+                    .ConfigureAwait(false);
                 Assert.AreNotEqual(Session.SessionId, transferSession.SessionId);
 
-                requestHeader = new RequestHeader {
+                requestHeader = new RequestHeader
+                {
                     Timestamp = DateTime.UtcNow,
                     TimeoutHint = MaxTimeout
                 };
                 var transferTestServices = new ClientTestServices(transferSession);
-                CommonTestWorkers.TransferSubscriptionTest(transferTestServices, requestHeader, subscriptionIds, sendInitialData, false);
+                CommonTestWorkers.TransferSubscriptionTest(
+                    transferTestServices,
+                    requestHeader,
+                    subscriptionIds,
+                    sendInitialData,
+                    false);
 
                 // verify the notification of message transfer
-                requestHeader = new RequestHeader {
+                requestHeader = new RequestHeader
+                {
                     Timestamp = DateTime.UtcNow,
                     TimeoutHint = MaxTimeout
                 };
-                CommonTestWorkers.VerifySubscriptionTransferred(clientTestServices, requestHeader, subscriptionIds, true);
+                CommonTestWorkers.VerifySubscriptionTransferred(
+                    clientTestServices,
+                    requestHeader,
+                    subscriptionIds,
+                    true);
 
                 transferSession.Close();
             }
@@ -1462,7 +1726,9 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
-        // Test class for testing protected methods in TraceableRequestHeaderClientSession
+        /// <summary>
+        /// Test class for testing protected methods in TraceableRequestHeaderClientSession
+        /// </summary>
         public class TestableTraceableRequestHeaderClientSession : TraceableRequestHeaderClientSession
         {
             public TestableTraceableRequestHeaderClientSession(
@@ -1473,43 +1739,47 @@ namespace Opc.Ua.Client.Tests
             {
             }
 
-            // Expose the protected method for testing
+            /// <summary>
+            /// Expose the protected method for testing
+            /// </summary>
             public void TestableUpdateRequestHeader(IServiceRequest request, bool useDefaults)
             {
                 base.UpdateRequestHeader(request, useDefaults);
             }
         }
 
-        public static ActivityContext TestExtractActivityContextFromParameters(AdditionalParametersType parameters)
+        public static ActivityContext TestExtractActivityContextFromParameters(
+            AdditionalParametersType parameters)
         {
             if (parameters == null)
             {
                 return default;
             }
 
-            ActivityTraceId traceId = default;
-            ActivitySpanId spanId = default;
-            ActivityTraceFlags traceFlags = ActivityTraceFlags.None;
-
-            foreach (var item in parameters.Parameters)
+            foreach (KeyValuePair item in parameters.Parameters)
             {
                 if (item.Key == "traceparent")
                 {
-                    var traceparent = item.Value.ToString();
-                    int firstDash = traceparent.IndexOf('-');
+                    string traceparent = item.Value.ToString();
+                    int firstDash = traceparent.IndexOf('-', StringComparison.Ordinal);
                     int secondDash = traceparent.IndexOf('-', firstDash + 1);
                     int thirdDash = traceparent.IndexOf('-', secondDash + 1);
 
                     if (firstDash != -1 && secondDash != -1)
                     {
-                        ReadOnlySpan<char> traceIdSpan = traceparent.AsSpan(firstDash + 1, secondDash - firstDash - 1);
-                        ReadOnlySpan<char> spanIdSpan = traceparent.AsSpan(secondDash + 1, thirdDash - secondDash - 1);
+                        ReadOnlySpan<char> traceIdSpan = traceparent.AsSpan(
+                            firstDash + 1,
+                            secondDash - firstDash - 1);
+                        ReadOnlySpan<char> spanIdSpan = traceparent.AsSpan(
+                            secondDash + 1,
+                            thirdDash - secondDash - 1);
                         ReadOnlySpan<char> traceFlagsSpan = traceparent.AsSpan(thirdDash + 1);
 
-                        traceId = ActivityTraceId.CreateFromString(traceIdSpan);
-                        spanId = ActivitySpanId.CreateFromString(spanIdSpan);
-                        traceFlags = traceFlagsSpan.SequenceEqual("01".AsSpan()) ? ActivityTraceFlags.Recorded : ActivityTraceFlags.None;
-
+                        var traceId = ActivityTraceId.CreateFromString(traceIdSpan);
+                        var spanId = ActivitySpanId.CreateFromString(spanIdSpan);
+                        ActivityTraceFlags traceFlags = traceFlagsSpan.SequenceEqual("01".AsSpan())
+                            ? ActivityTraceFlags.Recorded
+                            : ActivityTraceFlags.None;
                         return new ActivityContext(traceId, spanId, traceFlags);
                     }
                     return default;
@@ -1520,51 +1790,65 @@ namespace Opc.Ua.Client.Tests
             return default;
         }
 
-        [Test, Order(900)]
-        public async Task ClientTestRequestHeaderUpdate()
+        [Test]
+        [Order(900)]
+        public async Task ClientTestRequestHeaderUpdateAsync()
         {
-            var rootActivity = new Activity("Test_Activity_Root") {
-                ActivityTraceFlags = ActivityTraceFlags.Recorded,
+            Activity rootActivity = new Activity("Test_Activity_Root")
+            {
+                ActivityTraceFlags = ActivityTraceFlags.Recorded
             }.Start();
 
-            var activityListener = new ActivityListener {
-                ShouldListenTo = s => true,
-                Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
+            var activityListener = new ActivityListener
+            {
+                ShouldListenTo = _ => true,
+                Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded
             };
 
             ActivitySource.AddActivityListener(activityListener);
 
-            using (var activity = new ActivitySource("TestActivitySource").StartActivity("Test_Activity"))
+            using (Activity activity = new ActivitySource("TestActivitySource").StartActivity(
+                "Test_Activity"))
             {
                 if (activity != null && activity.Id != null)
                 {
-                    var endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints).ConfigureAwait(false);
+                    ConfiguredEndpoint endpoint = await ClientFixture
+                        .GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints)
+                        .ConfigureAwait(false);
                     Assert.NotNull(endpoint);
 
                     // Mock the channel and session
                     var channelMock = new Mock<ITransportChannel>();
-                    var sessionChannelMock = channelMock.As<ISessionChannel>();
+                    Mock<ISessionChannel> sessionChannelMock = channelMock.As<ISessionChannel>();
 
-                    TestableTraceableRequestHeaderClientSession testableTraceableRequestHeaderClientSession = new TestableTraceableRequestHeaderClientSession(sessionChannelMock.Object, ClientFixture.Config, endpoint);
-                    CreateSessionRequest request = new CreateSessionRequest();
-                    request.RequestHeader = new RequestHeader();
+                    var testableTraceableRequestHeaderClientSession
+                        = new TestableTraceableRequestHeaderClientSession(
+                        sessionChannelMock.Object,
+                        ClientFixture.Config,
+                        endpoint);
+                    var request = new CreateSessionRequest { RequestHeader = new RequestHeader() };
 
                     // Mock call TestableUpdateRequestHeader() to simulate the header update
-                    testableTraceableRequestHeaderClientSession.TestableUpdateRequestHeader(request, true);
+                    testableTraceableRequestHeaderClientSession.TestableUpdateRequestHeader(
+                        request,
+                        true);
 
                     // Get the AdditionalHeader from the request
-                    var additionalHeader = request.RequestHeader.AdditionalHeader as ExtensionObject;
+                    ExtensionObject additionalHeader = request.RequestHeader.AdditionalHeader;
                     Assert.NotNull(additionalHeader);
 
                     // Simulate extraction
-                    var extractedContext = TestExtractActivityContextFromParameters(additionalHeader.Body as AdditionalParametersType);
+                    ActivityContext extractedContext = TestExtractActivityContextFromParameters(
+                        additionalHeader.Body as AdditionalParametersType);
 
                     // Verify that the trace context is propagated.
                     Assert.AreEqual(activity.TraceId, extractedContext.TraceId);
                     Assert.AreEqual(activity.SpanId, extractedContext.SpanId);
 
-                    TestContext.Out.WriteLine($"Activity TraceId: {activity.TraceId}, Activity SpanId: {activity.SpanId}");
-                    TestContext.Out.WriteLine($"Extracted TraceId: {extractedContext.TraceId}, Extracted SpanId: {extractedContext.SpanId}");
+                    TestContext.Out.WriteLine(
+                        $"Activity TraceId: {activity.TraceId}, Activity SpanId: {activity.SpanId}");
+                    TestContext.Out.WriteLine(
+                        $"Extracted TraceId: {extractedContext.TraceId}, Extracted SpanId: {extractedContext.SpanId}");
                 }
             }
 
@@ -1574,10 +1858,11 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Read BuildInfo and ensure the values in the structure are the same as in the properties.
         /// </summary>
-        [Test, Order(10000)]
+        [Test]
+        [Order(10000)]
         public void ReadBuildInfo()
         {
-            NodeIdCollection nodes = new NodeIdCollection()
+            var nodes = new NodeIdCollection
             {
                 VariableIds.Server_ServerStatus_BuildInfo,
                 VariableIds.Server_ServerStatus_BuildInfo_ProductName,
@@ -1588,19 +1873,25 @@ namespace Opc.Ua.Client.Tests
                 VariableIds.Server_ServerStatus_BuildInfo_BuildDate
             };
 
-            Session.ReadNodes(nodes, out IList<Node> nodeCollection, out IList<ServiceResult> errors);
+            Session.ReadNodes(
+                nodes,
+                out IList<Node> nodeCollection,
+                out IList<ServiceResult> errors);
             Assert.NotNull(nodeCollection);
             Assert.NotNull(errors);
             Assert.AreEqual(nodes.Count, nodeCollection.Count);
             Assert.AreEqual(nodes.Count, errors.Count);
 
-            Session.ReadValues(nodes, out DataValueCollection values, out IList<ServiceResult> errors2);
+            Session.ReadValues(
+                nodes,
+                out DataValueCollection values,
+                out IList<ServiceResult> errors2);
             Assert.NotNull(values);
             Assert.NotNull(errors);
             Assert.AreEqual(nodes.Count, values.Count);
             Assert.AreEqual(nodes.Count, errors2.Count);
 
-            IList<VariableNode> variableNodes = nodeCollection.Cast<VariableNode>().ToList();
+            IList<VariableNode> variableNodes = [.. nodeCollection.Cast<VariableNode>()];
             Assert.NotNull(variableNodes);
 
             // test build info contains the equal values as the properties
@@ -1617,112 +1908,145 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Open a session on a channel using ECC encrypted UserIdentityToken
         /// </summary>
-        [Test, Combinatorial, Order(10100)]
-        public async Task OpenSessionECCUserNamePwdIdentityToken(
-            [Values(SecurityPolicies.ECC_nistP256,
-                    SecurityPolicies.ECC_nistP384,
-                    SecurityPolicies.ECC_brainpoolP256r1,
-                    SecurityPolicies.ECC_brainpoolP384r1)] string securityPolicy)
+        [Test]
+        [Combinatorial]
+        [Order(10100)]
+        public async Task OpenSessionECCUserNamePwdIdentityTokenAsync(
+            [Values(
+                SecurityPolicies.ECC_nistP256,
+                SecurityPolicies.ECC_nistP384,
+                SecurityPolicies.ECC_brainpoolP256r1,
+                SecurityPolicies.ECC_brainpoolP384r1
+            )]
+                string securityPolicy)
         {
-
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ||
                 (securityPolicy != SecurityPolicies.ECC_brainpoolP256r1) ||
                 (securityPolicy != SecurityPolicies.ECC_brainpoolP384r1))
             {
-                IUserIdentity userIdentity = new UserIdentity("user1", "password");
+                var userIdentity = new UserIdentity("user1", "password");
 
                 // the first channel determines the endpoint
-                ConfiguredEndpoint endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
+                ConfiguredEndpoint endpoint = await ClientFixture
+                    .GetEndpointAsync(ServerUrl, securityPolicy, Endpoints)
+                    .ConfigureAwait(false);
                 Assert.NotNull(endpoint);
 
-                UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(userIdentity.TokenType,
+                UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
+                    userIdentity.TokenType,
                     userIdentity.IssuedTokenType,
                     endpoint.Description.SecurityPolicyUri);
                 if (identityPolicy == null)
                 {
-                    Assert.Ignore($"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");
+                    NUnit.Framework.Assert.Ignore(
+                        $"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");
                 }
 
                 // the active channel
-                ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity).ConfigureAwait(false);
+                ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity)
+                    .ConfigureAwait(false);
                 Assert.NotNull(session1);
 
-                ServerStatusDataType value1 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+                var value1 = (ServerStatusDataType)
+                    session1.ReadValue(
+                        VariableIds.Server_ServerStatus,
+                        typeof(ServerStatusDataType));
                 Assert.NotNull(value1);
             }
-
         }
 
         /// <summary>
         /// Open a session on a channel using ECC encrypted IssuedIdentityToken
         /// </summary>
-        [Test, Combinatorial, Order(10200)]
-        public async Task OpenSessionECCIssuedIdentityToken(
-            [Values(SecurityPolicies.ECC_nistP256,
-                    SecurityPolicies.ECC_nistP384,
-                    SecurityPolicies.ECC_brainpoolP256r1,
-                    SecurityPolicies.ECC_brainpoolP384r1)] string securityPolicy)
+        [Test]
+        [Combinatorial]
+        [Order(10200)]
+        public async Task OpenSessionECCIssuedIdentityTokenAsync(
+            [Values(
+                SecurityPolicies.ECC_nistP256,
+                SecurityPolicies.ECC_nistP384,
+                SecurityPolicies.ECC_brainpoolP256r1,
+                SecurityPolicies.ECC_brainpoolP384r1
+            )]
+                string securityPolicy)
         {
-
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ||
                 (securityPolicy != SecurityPolicies.ECC_brainpoolP256r1) ||
                 (securityPolicy != SecurityPolicies.ECC_brainpoolP384r1))
-
             {
-                var identityToken = "fakeTokenString";
+                const string identityToken = "fakeTokenString";
 
-                var issuedToken = new IssuedIdentityToken() {
+                var issuedToken = new IssuedIdentityToken
+                {
                     IssuedTokenType = IssuedTokenType.JWT,
                     PolicyId = Profiles.JwtUserToken,
-                    DecryptedTokenData = Encoding.UTF8.GetBytes(identityToken),
+                    DecryptedTokenData = Encoding.UTF8.GetBytes(identityToken)
                 };
 
-                IUserIdentity userIdentity = new UserIdentity(issuedToken);
+                var userIdentity = new UserIdentity(issuedToken);
 
                 // the first channel determines the endpoint
-                ConfiguredEndpoint endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
+                ConfiguredEndpoint endpoint = await ClientFixture
+                    .GetEndpointAsync(ServerUrl, securityPolicy, Endpoints)
+                    .ConfigureAwait(false);
                 Assert.NotNull(endpoint);
 
-                UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(userIdentity.TokenType,
+                UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
+                    userIdentity.TokenType,
                     userIdentity.IssuedTokenType,
                     securityPolicy);
 
                 if (identityPolicy == null)
                 {
-                    Assert.Ignore($"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");
+                    NUnit.Framework.Assert.Ignore(
+                        $"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");
                 }
 
                 // the active channel
-                ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity).ConfigureAwait(false);
+                ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity)
+                    .ConfigureAwait(false);
                 Assert.NotNull(session1);
 
-                ServerStatusDataType value1 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+                var value1 = (ServerStatusDataType)
+                    session1.ReadValue(
+                        VariableIds.Server_ServerStatus,
+                        typeof(ServerStatusDataType));
                 Assert.NotNull(value1);
             }
         }
+
 #if ECC_SUPPORT
         /// <summary>
         /// Open a session on a channel using ECC encrypted UserCertificateIdentityToken
         /// </summary>
-        [Test, Combinatorial, Order(10300)]
-        public async Task OpenSessionECCUserCertIdentityToken(
-            [Values(SecurityPolicies.ECC_nistP256,
-                    SecurityPolicies.ECC_nistP384,
-                    SecurityPolicies.ECC_brainpoolP256r1,
-                    SecurityPolicies.ECC_brainpoolP384r1)] string securityPolicy)
+        [Test]
+        [Combinatorial]
+        [Order(10300)]
+        public async Task OpenSessionECCUserCertIdentityTokenAsync(
+            [Values(
+                SecurityPolicies.ECC_nistP256,
+                SecurityPolicies.ECC_nistP384,
+                SecurityPolicies.ECC_brainpoolP256r1,
+                SecurityPolicies.ECC_brainpoolP384r1
+            )]
+                string securityPolicy)
         {
-
-            var eccCurveHashPairs = new ECCurveHashPairCollection {
+            var eccCurveHashPairs = new ECCurveHashPairCollection
+            {
                 { ECCurve.NamedCurves.nistP256, HashAlgorithmName.SHA256 },
-                { ECCurve.NamedCurves.nistP384, HashAlgorithmName.SHA384 } };
+                { ECCurve.NamedCurves.nistP384, HashAlgorithmName.SHA384 }
+            };
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                eccCurveHashPairs.AddRange(new ECCurveHashPairCollection {
-                { ECCurve.NamedCurves.brainpoolP256r1, HashAlgorithmName.SHA256 },
-                { ECCurve.NamedCurves.brainpoolP384r1, HashAlgorithmName.SHA384 }});
+                eccCurveHashPairs.AddRange(
+                    new ECCurveHashPairCollection
+                    {
+                        { ECCurve.NamedCurves.brainpoolP256r1, HashAlgorithmName.SHA256 },
+                        { ECCurve.NamedCurves.brainpoolP384r1, HashAlgorithmName.SHA384 }
+                    });
             }
 
-            foreach (var eccurveHashPair in eccCurveHashPairs)
+            foreach (ECCurveHashPair eccurveHashPair in eccCurveHashPairs)
             {
                 string extractedFriendlyNamae = null;
                 string[] friendlyNameContext = securityPolicy.Split('_');
@@ -1730,32 +2054,41 @@ namespace Opc.Ua.Client.Tests
                 {
                     extractedFriendlyNamae = friendlyNameContext[1];
                 }
-                if (eccurveHashPair.Curve.Oid.FriendlyName.Contains(extractedFriendlyNamae))
+                if (eccurveHashPair.Curve.Oid.FriendlyName
+                    .Contains(extractedFriendlyNamae, StringComparison.Ordinal))
                 {
+                    X509Certificate2 cert = CertificateBuilder
+                        .Create("CN=Client Test ECC Subject, O=OPC Foundation")
+                        .SetECCurve(eccurveHashPair.Curve)
+                        .CreateForECDsa();
 
-                    X509Certificate2 cert = CertificateBuilder.Create("CN=Client Test ECC Subject, O=OPC Foundation")
-                    .SetECCurve(eccurveHashPair.Curve)
-                    .CreateForECDsa();
-
-                    IUserIdentity userIdentity = new UserIdentity(cert);
+                    var userIdentity = new UserIdentity(cert);
 
                     // the first channel determines the endpoint
-                    ConfiguredEndpoint endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
+                    ConfiguredEndpoint endpoint = await ClientFixture
+                        .GetEndpointAsync(ServerUrl, securityPolicy, Endpoints)
+                        .ConfigureAwait(false);
                     Assert.NotNull(endpoint);
 
-                    UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(userIdentity.TokenType,
+                    UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
+                        userIdentity.TokenType,
                         userIdentity.IssuedTokenType,
                         endpoint.Description.SecurityPolicyUri);
                     if (identityPolicy == null)
                     {
-                        Assert.Ignore($"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");
+                        NUnit.Framework.Assert.Ignore(
+                            $"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");
                     }
 
                     // the active channel
-                    ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity).ConfigureAwait(false);
+                    ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity)
+                        .ConfigureAwait(false);
                     Assert.NotNull(session1);
 
-                    ServerStatusDataType value1 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+                    var value1 = (ServerStatusDataType)
+                        session1.ReadValue(
+                            VariableIds.Server_ServerStatus,
+                            typeof(ServerStatusDataType));
                     Assert.NotNull(value1);
                 }
             }
@@ -1765,25 +2098,25 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Happy SetSubscriptionDurable
         /// </summary>
-        [Test, Order(11000)]
-        public void SetSubscriptionDurable_Success()
+        [Test]
+        [Order(11000)]
+        public void SetSubscriptionDurableSuccess()
         {
-            uint expectedRevised = 5;
+            const uint expectedRevised = 5;
 
-            List<object> outputParameters = new List<object>();
-            outputParameters.Add(expectedRevised);
+            var outputParameters = new List<object> { expectedRevised };
 
-            Moq.Mock<ISession> sessionMock = new Mock<ISession>();
+            var sessionMock = new Mock<ISession>();
 
-            sessionMock.Setup(mock => mock.Call(
-                It.IsAny<NodeId>(),
-                It.IsAny<NodeId>(),
-                It.IsAny<uint>(),
-                It.IsAny<uint>()
-                ))
+            sessionMock
+                .Setup(mock => mock.Call(
+                    It.IsAny<NodeId>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint>()))
                 .Returns(outputParameters);
 
-            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+            var subscription = new Subscription { Session = sessionMock.Object };
 
             if (subscription.SetSubscriptionDurable(1, out uint revised))
             {
@@ -1791,27 +2124,28 @@ namespace Opc.Ua.Client.Tests
             }
             else
             {
-                Assert.Fail("Unexpected Error in SetSubscriptionDurable");
+                NUnit.Framework.Assert.Fail("Unexpected Error in SetSubscriptionDurable");
             }
         }
 
         /// <summary>
         /// SetSubscriptionDurable Typical Failure
         /// </summary>
-        [Test, Order(11010)]
-        public void SetSubscriptionDurable_Exception()
+        [Test]
+        [Order(11010)]
+        public void SetSubscriptionDurableException()
         {
-            Moq.Mock<ISession> sessionMock = new Mock<ISession>();
+            var sessionMock = new Mock<ISession>();
 
-            sessionMock.Setup(mock => mock.Call(
-                It.IsAny<NodeId>(),
-                It.IsAny<NodeId>(),
-                It.IsAny<uint>(),
-                It.IsAny<uint>()
-                ))
+            sessionMock
+                .Setup(mock => mock.Call(
+                    It.IsAny<NodeId>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint>()))
                 .Throws(new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid));
 
-            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+            var subscription = new Subscription { Session = sessionMock.Object };
 
             Assert.IsFalse(subscription.SetSubscriptionDurable(1, out uint revised));
         }
@@ -1820,22 +2154,23 @@ namespace Opc.Ua.Client.Tests
         /// SetSubscriptionDurable No Output Parameters
         /// Not an expected case
         /// </summary>
-        [Test, Order(11020)]
-        public void SetSubscriptionDurable_NoOutputParameters()
+        [Test]
+        [Order(11020)]
+        public void SetSubscriptionDurableNoOutputParameters()
         {
-            List<object> outputParameters = new List<object>();
+            var outputParameters = new List<object>();
 
-            Moq.Mock<ISession> sessionMock = new Mock<ISession>();
+            var sessionMock = new Mock<ISession>();
 
-            sessionMock.Setup(mock => mock.Call(
-                It.IsAny<NodeId>(),
-                It.IsAny<NodeId>(),
-                It.IsAny<uint>(),
-                It.IsAny<uint>()
-                ))
+            sessionMock
+                .Setup(mock => mock.Call(
+                    It.IsAny<NodeId>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint>()))
                 .Returns(outputParameters);
 
-            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+            var subscription = new Subscription { Session = sessionMock.Object };
 
             Assert.IsFalse(subscription.SetSubscriptionDurable(1, out uint revised));
         }
@@ -1844,22 +2179,23 @@ namespace Opc.Ua.Client.Tests
         /// SetSubscriptionDurable No Output Parameters
         /// Not an expected case
         /// </summary>
-        [Test, Order(11030)]
-        public void SetSubscriptionDurable_NullOutputParameters()
+        [Test]
+        [Order(11030)]
+        public void SetSubscriptionDurableNullOutputParameters()
         {
             List<object> outputParameters = null;
 
-            Moq.Mock<ISession> sessionMock = new Mock<ISession>();
+            var sessionMock = new Mock<ISession>();
 
-            sessionMock.Setup(mock => mock.Call(
-                It.IsAny<NodeId>(),
-                It.IsAny<NodeId>(),
-                It.IsAny<uint>(),
-                It.IsAny<uint>()
-                ))
+            sessionMock
+                .Setup(mock => mock.Call(
+                    It.IsAny<NodeId>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint>()))
                 .Returns(outputParameters);
 
-            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+            var subscription = new Subscription { Session = sessionMock.Object };
 
             Assert.IsFalse(subscription.SetSubscriptionDurable(1, out uint revised));
         }
@@ -1868,26 +2204,25 @@ namespace Opc.Ua.Client.Tests
         /// SetSubscriptionDurable with in invalid number of Output Parameters
         /// Not an expected case
         /// </summary>
-        [Test, Order(11040)]
-        public void SetSubscriptionDurable_TooManyOutputParameters()
+        [Test]
+        [Order(11040)]
+        public void SetSubscriptionDurableTooManyOutputParameters()
         {
-            uint expectedRevised = 5;
+            const uint expectedRevised = 5;
 
-            List<object> outputParameters = new List<object>();
-            outputParameters.Add(expectedRevised);
-            outputParameters.Add(expectedRevised);
+            var outputParameters = new List<object> { expectedRevised, expectedRevised };
 
-            Moq.Mock<ISession> sessionMock = new Mock<ISession>();
+            var sessionMock = new Mock<ISession>();
 
-            sessionMock.Setup(mock => mock.Call(
-                It.IsAny<NodeId>(),
-                It.IsAny<NodeId>(),
-                It.IsAny<uint>(),
-                It.IsAny<uint>()
-                ))
+            sessionMock
+                .Setup(mock => mock.Call(
+                    It.IsAny<NodeId>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint>()))
                 .Returns(outputParameters);
 
-            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+            var subscription = new Subscription { Session = sessionMock.Object };
 
             Assert.IsFalse(subscription.SetSubscriptionDurable(1, out uint revised));
         }
@@ -1895,27 +2230,25 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// GetMonitoredItems Success Case
         /// </summary>
-        [Test, Order(11100)]
-        public void GetMonitoredItems_Success()
+        [Test]
+        [Order(11100)]
+        public void GetMonitoredItemsSuccess()
         {
-            List<object> outputParameters = new List<object>();
-            outputParameters.Add(new uint[] { 1, 2, 3, 4, 5 });
-            outputParameters.Add(new uint[] { 6, 7, 8, 9, 10 });
+            var outputParameters = new List<object> {
+                new uint[] { 1, 2, 3, 4, 5 },
+                new uint[] { 6, 7, 8, 9, 10 } };
 
-            Moq.Mock<ISession> sessionMock = new Mock<ISession>();
+            var sessionMock = new Mock<ISession>();
 
-            sessionMock.Setup(mock => mock.Call(
-                It.IsAny<NodeId>(),
-                It.IsAny<NodeId>(),
-                It.IsAny<uint>()
-                ))
+            sessionMock
+                .Setup(mock => mock.Call(It.IsAny<NodeId>(), It.IsAny<NodeId>(), It.IsAny<uint>()))
                 .Returns(outputParameters);
 
-            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+            var subscription = new Subscription { Session = sessionMock.Object };
 
-            UInt32Collection serverHandles;
-            UInt32Collection clientHandles;
-            Assert.IsTrue(subscription.GetMonitoredItems(out serverHandles, out clientHandles));
+            Assert.IsTrue(subscription.GetMonitoredItems(
+                out UInt32Collection serverHandles,
+                out UInt32Collection clientHandles));
             Assert.AreEqual(5, serverHandles.Count);
             Assert.AreEqual(5, clientHandles.Count);
         }
@@ -1923,119 +2256,111 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// GetMonitoredItems Error Case
         /// </summary>
-        [Test, Order(11110)]
-        public void GetMonitoredItems_Exception()
+        [Test]
+        [Order(11110)]
+        public void GetMonitoredItemsException()
         {
-            Moq.Mock<ISession> sessionMock = new Mock<ISession>();
+            var sessionMock = new Mock<ISession>();
 
-            sessionMock.Setup(mock => mock.Call(
-                It.IsAny<NodeId>(),
-                It.IsAny<NodeId>(),
-                It.IsAny<uint>()
-                ))
+            sessionMock
+                .Setup(mock => mock.Call(It.IsAny<NodeId>(), It.IsAny<NodeId>(), It.IsAny<uint>()))
                 .Throws(new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid));
 
-            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+            var subscription = new Subscription { Session = sessionMock.Object };
 
-            Assert.IsFalse(subscription.GetMonitoredItems(
-                out UInt32Collection serverHandles,
-                out UInt32Collection clientHandles));
+            Assert.IsFalse(
+                subscription.GetMonitoredItems(
+                    out UInt32Collection serverHandles,
+                    out UInt32Collection clientHandles));
         }
 
         /// <summary>
         /// GetMonitoredItems No Output Parameters
         /// Not an expected case
         /// </summary>
-        [Test, Order(11120)]
-        public void GetMonitoredItems_NoOutputParameters()
+        [Test]
+        [Order(11120)]
+        public void GetMonitoredItemsNoOutputParameters()
         {
-            List<object> outputParameters = new List<object>();
+            var outputParameters = new List<object>();
 
-            Moq.Mock<ISession> sessionMock = new Mock<ISession>();
+            var sessionMock = new Mock<ISession>();
 
-            sessionMock.Setup(mock => mock.Call(
-                It.IsAny<NodeId>(),
-                It.IsAny<NodeId>(),
-                It.IsAny<uint>()
-                ))
+            sessionMock
+                .Setup(mock => mock.Call(It.IsAny<NodeId>(), It.IsAny<NodeId>(), It.IsAny<uint>()))
                 .Returns(outputParameters);
 
-            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+            var subscription = new Subscription { Session = sessionMock.Object };
 
-            Assert.IsFalse(subscription.GetMonitoredItems(
-                out UInt32Collection serverHandles,
-                out UInt32Collection clientHandles));
+            Assert.IsFalse(
+                subscription.GetMonitoredItems(
+                    out UInt32Collection serverHandles,
+                    out UInt32Collection clientHandles));
         }
 
         /// <summary>
         /// GetMonitoredItems Null Output Parameters
         /// Not an expected case
         /// </summary>
-        [Test, Order(11130)]
-        public void GetMonitoredItems_NullOutputParameters()
+        [Test]
+        [Order(11130)]
+        public void GetMonitoredItemsNullOutputParameters()
         {
             List<object> outputParameters = null;
 
-            Moq.Mock<ISession> sessionMock = new Mock<ISession>();
+            var sessionMock = new Mock<ISession>();
 
-            sessionMock.Setup(mock => mock.Call(
-                It.IsAny<NodeId>(),
-                It.IsAny<NodeId>(),
-                It.IsAny<uint>()
-                ))
+            sessionMock
+                .Setup(mock => mock.Call(It.IsAny<NodeId>(), It.IsAny<NodeId>(), It.IsAny<uint>()))
                 .Returns(outputParameters);
 
-            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+            var subscription = new Subscription { Session = sessionMock.Object };
 
-            Assert.IsFalse(subscription.GetMonitoredItems(
-                out UInt32Collection serverHandles,
-                out UInt32Collection clientHandles));
+            Assert.IsFalse(
+                subscription.GetMonitoredItems(
+                    out UInt32Collection serverHandles,
+                    out UInt32Collection clientHandles));
         }
 
         /// <summary>
         /// GetMonitoredItems invalid number of Output Parameters
         /// Not an expected case
         /// </summary>
-        [Test, Order(11140)]
-        public void GetMonitoredItems_TooManyOutputParameters()
+        [Test]
+        [Order(11140)]
+        public void GetMonitoredItemsTooManyOutputParameters()
         {
-            List<object> outputParameters = new List<object>();
-            outputParameters.Add(new uint[] { 1, 2, 3, 4, 5 });
-            outputParameters.Add(new uint[] { 6, 7, 8, 9, 10 });
-            outputParameters.Add(new uint[] { 11, 12, 13, 14, 15 });
+            var outputParameters = new List<object>
+            {
+                new uint[] { 1, 2, 3, 4, 5 },
+                new uint[] { 6, 7, 8, 9, 10 },
+                new uint[] { 11, 12, 13, 14, 15 }
+            };
 
-            Moq.Mock<ISession> sessionMock = new Mock<ISession>();
+            var sessionMock = new Mock<ISession>();
 
-            sessionMock.Setup(mock => mock.Call(
-                It.IsAny<NodeId>(),
-                It.IsAny<NodeId>(),
-                It.IsAny<uint>()
-                ))
+            sessionMock
+                .Setup(mock => mock.Call(It.IsAny<NodeId>(), It.IsAny<NodeId>(), It.IsAny<uint>()))
                 .Returns(outputParameters);
 
-            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+            var subscription = new Subscription { Session = sessionMock.Object };
 
-            Assert.IsFalse(subscription.GetMonitoredItems(
-                out UInt32Collection serverHandles,
-                out UInt32Collection clientHandles));
+            Assert.IsFalse(
+                subscription.GetMonitoredItems(
+                    out UInt32Collection serverHandles,
+                    out UInt32Collection clientHandles));
         }
 
-
-        #endregion
-
-        #region Benchmarks
         /// <summary>
         /// Benchmark wrapper for browse tests.
         /// </summary>
         [Benchmark]
-        public async Task BrowseFullAddressSpaceBenchmark()
+        public async Task BrowseFullAddressSpaceBenchmarkAsync()
         {
-            await BrowseFullAddressSpace(null).ConfigureAwait(false);
+            await BrowseFullAddressSpaceAsync(null).ConfigureAwait(false);
         }
-        #endregion
 
-        #region Private Methods
-        void ValidateOperationLimit(uint serverLimit, uint clientLimit)
+        private static void ValidateOperationLimit(uint serverLimit, uint clientLimit)
         {
             if (serverLimit != 0)
             {
@@ -2043,19 +2368,5 @@ namespace Opc.Ua.Client.Tests
                 Assert.NotZero(clientLimit);
             }
         }
-
-        private Subscription MockOutSubscriptionSession(Moq.Mock<ISession> sessionMock)
-        {
-            Subscription subscription = new Subscription();
-            Type subscriptionType = subscription.GetType();
-            System.Reflection.FieldInfo sessionFieldInfo = subscriptionType.GetField("m_session",
-                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-
-            Assert.IsNotNull(sessionFieldInfo);
-            sessionFieldInfo.SetValue(subscription, sessionMock.Object);
-            return subscription;
-        }
-
-        #endregion
     }
 }

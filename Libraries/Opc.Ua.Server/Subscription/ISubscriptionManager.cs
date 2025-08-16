@@ -131,9 +131,7 @@ namespace Opc.Ua.Server
         /// <returns>
         /// True if successful. False if the request has been requeued.
         /// </returns>
-        bool CompletePublish(
-            OperationContext context,
-            AsyncPublishOperation operation);
+        bool CompletePublish(OperationContext context, AsyncPublishOperation operation);
 
         /// <summary>
         /// Modifies an existing subscription.
@@ -255,7 +253,6 @@ namespace Opc.Ua.Server
         /// </summary>
         void ConditionRefresh2(OperationContext context, uint subscriptionId, uint monitoredItemId);
     }
-
 
     /// <summary>
     /// The delegate for functions used to receive subscription related events.

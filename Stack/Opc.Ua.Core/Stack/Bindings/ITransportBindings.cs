@@ -13,8 +13,6 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Security.Cryptography.X509Certificates;
-using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
@@ -33,8 +31,8 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// This is an interface to the factory of a transport binding.
     /// </summary>
-    public interface ITransportBindingFactory<T>
-        : ITransportBindingScheme
+    /// <typeparam name="T"></typeparam>
+    public interface ITransportBindingFactory<T> : ITransportBindingScheme
     {
         /// <summary>
         /// The factory to create a new transport.
@@ -46,6 +44,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// The interface to manage transport bindings.
     /// </summary>
+    /// <typeparam name="T"></typeparam>
     public interface ITransportBindings<T>
     {
         /// <summary>
@@ -82,8 +81,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// This is the transport listener factory interface for a binding (server).
     /// </summary>
-    public interface ITransportListenerFactory :
-        ITransportBindingFactory<ITransportListener>
+    public interface ITransportListenerFactory : ITransportBindingFactory<ITransportListener>
     {
         /// <summary>
         /// Create the service host for a server using <see cref="ServerBase"/>
@@ -102,16 +100,11 @@ namespace Opc.Ua.Bindings
             IList<string> baseAddresses,
             ApplicationDescription serverDescription,
             List<ServerSecurityPolicy> securityPolicies,
-            CertificateTypesProvider instanceCertificateTypesProvider
-            );
+            CertificateTypesProvider instanceCertificateTypesProvider);
     }
 
     /// <summary>
     /// This is the transport channel factory interface for a binding (client).
     /// </summary>
-    public interface ITransportChannelFactory :
-        ITransportBindingFactory<ITransportChannel>
-    {
-    }
-
+    public interface ITransportChannelFactory : ITransportBindingFactory<ITransportChannel>;
 }

@@ -10,16 +10,13 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-
 namespace Opc.Ua
 {
     /// <summary>
-	/// Stores context information for message encoding and decoding.
-	/// </summary>
-	public interface IServiceMessageContext
+    /// Stores context information for message encoding and decoding.
+    /// </summary>
+    public interface IServiceMessageContext
     {
-        #region Public Properties
         /// <summary>
         /// The maximum length for any string, byte string or xml element.
         /// </summary>
@@ -46,7 +43,7 @@ namespace Opc.Ua
         int MaxEncodingNestingLevels { get; }
 
         /// <summary>
-        /// The number of times the decoder can recover from an error 
+        /// The number of times the decoder can recover from an error
         /// caused by an encoded ExtensionObject before throwing a decoder error.
         /// </summary>
         int MaxDecoderRecoveries { get; }
@@ -65,6 +62,5 @@ namespace Opc.Ua
         /// The factory used to create encodeable objects.
         /// </summary>
         IEncodeableFactory Factory { get; }
-        #endregion
     }
 }

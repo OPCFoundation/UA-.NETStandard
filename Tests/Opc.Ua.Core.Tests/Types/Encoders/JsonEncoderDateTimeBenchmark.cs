@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -35,21 +35,24 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
-    [TestFixture, Category("JsonEncoder")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("JsonEncoder")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [NonParallelizable]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
     public class JsonEncoderDateTimeBenchmark
     {
         [Params(0, 4, 7)]
-        public int DateTimeOmittedZeros { get; set; } = 0;
+        public int DateTimeOmittedZeros { get; set; }
 
         [Benchmark]
         [Test]
         public void DateTimeEncodeToString()
         {
-            _ = m_dateTime.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK", CultureInfo.InvariantCulture);
+            _ = m_dateTime.ToUniversalTime()
+                .ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK", CultureInfo.InvariantCulture);
         }
 
         [Benchmark]
@@ -59,13 +62,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 #if ECC_SUPPORT && (NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER)
             Span<char> valueString = stackalloc char[JsonEncoder.DateTimeRoundTripKindLength];
             JsonEncoder.ConvertUniversalTimeToString(m_dateTime, valueString, out int charsWritten);
-            _ = valueString.Slice(0, charsWritten);
+            _ = valueString[..charsWritten];
 #else
             _ = JsonEncoder.ConvertUniversalTimeToString(m_dateTime);
 #endif
         }
 
-        #region Test Setup
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
@@ -77,9 +79,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void OneTimeTearDown()
         {
         }
-        #endregion
 
-        #region Benchmark Setup
         /// <summary>
         /// Set up some variables for benchmarks.
         /// </summary>
@@ -89,8 +89,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // for validating benchmark tests
             switch (DateTimeOmittedZeros)
             {
-                case 4: m_dateTime = new DateTime(2011, 11, 11, 11, 11, 11, 999, DateTimeKind.Utc); break;
-                case 7: m_dateTime = new DateTime(2011, 11, 11, 11, 11, 11, DateTimeKind.Utc); break;
+                case 4:
+                    m_dateTime = new DateTime(2011, 11, 11, 11, 11, 11, 999, DateTimeKind.Utc);
+                    break;
+                case 7:
+                    m_dateTime = new DateTime(2011, 11, 11, 11, 11, 11, DateTimeKind.Utc);
+                    break;
                 default:
                     do
                     {
@@ -107,10 +111,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void GlobalCleanup()
         {
         }
-        #endregion
 
-        #region Private Fields
         private DateTime m_dateTime;
-        #endregion
     }
 }

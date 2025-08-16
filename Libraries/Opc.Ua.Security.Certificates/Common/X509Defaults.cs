@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -43,14 +43,17 @@ namespace Opc.Ua.Security.Certificates
         /// Supported values are 1024(deprecated), 2048, 3072 or 4096.
         /// </remarks>
         public static readonly ushort RSAKeySize = 2048;
+
         /// <summary>
         /// The min supported size for a RSA key.
         /// </summary>
         public static readonly ushort RSAKeySizeMin = 1024;
+
         /// <summary>
         /// The max supported size for a RSA key.
         /// </summary>
         public static readonly ushort RSAKeySizeMax = 4096;
+
         /// <summary>
         /// The default hash algorithm to use for signatures.
         /// </summary>
@@ -58,14 +61,17 @@ namespace Opc.Ua.Security.Certificates
         /// Supported values are SHA-1(deprecated) or 256, 384 and 512 for SHA-2.
         /// </remarks>
         public static readonly HashAlgorithmName HashAlgorithmName = HashAlgorithmName.SHA256;
+
         /// <summary>
         /// The default lifetime of certificates in months.
         /// </summary>
         public static readonly ushort LifeTime = 24;
+
         /// <summary>
         /// The recommended min serial numbers length in octets.
         /// </summary>
         public static readonly int SerialNumberLengthMin = 10;
+
         /// <summary>
         /// The max serial numbers length in octets.
         /// </summary>

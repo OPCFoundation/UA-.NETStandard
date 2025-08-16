@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -31,13 +31,10 @@ using System;
 using System.Globalization;
 using Opc.Ua;
 
-#pragma warning disable CS1591
-
 namespace Alarms
 {
     public class ConditionTypeHolder : BaseEventTypeHolder
     {
-
         protected ConditionTypeHolder(
             AlarmNodeManager alarmNodeManager,
             FolderState parent,
@@ -46,21 +43,24 @@ namespace Alarms
             SupportedAlarmConditionType alarmConditionType,
             Type controllerType,
             int interval,
-            bool optional) :
-            base(alarmNodeManager, parent, trigger, name, alarmConditionType, controllerType, interval, optional)
+            bool optional)
+            : base(
+                alarmNodeManager,
+                parent,
+                trigger,
+                name,
+                alarmConditionType,
+                controllerType,
+                interval,
+                optional)
         {
             m_alarmConditionType = alarmConditionType;
         }
 
-        protected new void Initialize(
-            uint alarmTypeIdentifier,
-            string name)
+        protected new void Initialize(uint alarmTypeIdentifier, string name)
         {
-            if (m_alarm == null)
-            {
-                // this is invalid
-                m_alarm = new ConditionState(m_parent);
-            }
+            // this is invalid
+            m_alarm ??= new ConditionState(m_parent);
 
             ConditionState alarm = GetAlarm();
 
@@ -70,7 +70,8 @@ namespace Alarms
             // Set all ConditionType Parameters
             alarm.ClientUserId.Value = "Anonymous";
             alarm.ConditionClassId.Value = m_alarmConditionType.Node;
-            alarm.ConditionClassName.Value = new LocalizedText("", m_alarmConditionType.ConditionName);
+            alarm.ConditionClassName.Value
+                = new LocalizedText(string.Empty, m_alarmConditionType.ConditionName);
             alarm.ConditionName.Value = m_alarmRootName;
             Utils.LogTrace("Alarm ConditionName = {0}", alarm.ConditionName.Value);
 
@@ -78,10 +79,10 @@ namespace Alarms
             alarm.Retain.Value = false;
 
             alarm.SetEnableState(SystemContext, true);
-            alarm.Quality.Value = Opc.Ua.StatusCodes.Good;
+            alarm.Quality.Value = StatusCodes.Good;
             alarm.LastSeverity.Value = AlarmDefines.INACTIVE_SEVERITY;
             alarm.Severity.Value = AlarmDefines.INACTIVE_SEVERITY;
-            alarm.Comment.Value = new LocalizedText("en", "");
+            alarm.Comment.Value = new LocalizedText("en", string.Empty);
 
             // Set Method Handlers
             alarm.OnEnableDisable = OnEnableDisableAlarm;
@@ -91,12 +92,9 @@ namespace Alarms
             alarm.ConditionSubClassName = null;
         }
 
-
         public BaseEventState FindBranch()
         {
-            BaseEventState state = null;
-
-            return state;
+            return null;
         }
 
         protected override void CreateBranch()
@@ -117,17 +115,21 @@ namespace Alarms
                     NodeId branchId = GetNewBranchId();
                     ConditionState branch = alarm.CreateBranch(SystemContext, branchId);
 
-                    string postEventId = Utils.ToHexString(branch.EventId.Value as byte[]);
+                    string postEventId = Utils.ToHexString(branch.EventId.Value);
 
-                    Log("CreateBranch", " Branch " + branchId.ToString() +
-                        " EventId " + postEventId + " created, Message " + alarm.Message.Value.Text);
+                    Log(
+                        "CreateBranch",
+                        " Branch " +
+                        branchId +
+                        " EventId " +
+                        postEventId +
+                        " created, Message " +
+                        alarm.Message.Value.Text);
 
                     m_alarmController.SetBranchCount(alarm.GetBranchCount());
                 }
             }
         }
-
-        #region Overrides
 
         public override void SetValue(string message = "")
         {
@@ -142,7 +144,7 @@ namespace Alarms
                 alarm.SetSeverity(SystemContext, (EventSeverity)newSeverity);
                 if (message.Length == 0)
                 {
-                    message = "Alarm Event Value = " + m_trigger.Value.ToString();
+                    message = "Alarm Event Value = " + m_trigger.Value;
                 }
 
                 alarm.Message.Value = new LocalizedText("en", message);
@@ -151,16 +153,9 @@ namespace Alarms
             }
         }
 
-        #endregion
-
-        #region Child Helpers
-
         public void ReportEvent(ConditionState alarm = null)
         {
-            if (alarm == null)
-            {
-                alarm = GetAlarm();
-            }
+            alarm ??= GetAlarm();
 
             if (alarm.EnabledState.Id.Value)
             {
@@ -168,12 +163,16 @@ namespace Alarms
                 alarm.Time.Value = DateTime.UtcNow;
                 alarm.ReceiveTime.Value = alarm.Time.Value;
 
-                Log("ReportEvent", " Value " + m_alarmController.GetValue().ToString(CultureInfo.InvariantCulture) +
-                    " Message " + alarm.Message.Value.Text);
+                Log(
+                    "ReportEvent",
+                    " Value " +
+                    m_alarmController.GetValue().ToString(CultureInfo.InvariantCulture) +
+                    " Message " +
+                    alarm.Message.Value.Text);
 
                 alarm.ClearChangeMasks(SystemContext, true);
 
-                InstanceStateSnapshot eventSnapshot = new InstanceStateSnapshot();
+                var eventSnapshot = new InstanceStateSnapshot();
                 eventSnapshot.Initialize(SystemContext, alarm);
                 alarm.ReportEvent(SystemContext, eventSnapshot);
             }
@@ -207,18 +206,14 @@ namespace Alarms
                     severity = AlarmDefines.HIGH_SEVERITY;
                 }
             }
-            else
+            else if (level <= AlarmDefines.BOOL_LOW_ALARM)
             {
-                if (level <= AlarmDefines.BOOL_LOW_ALARM)
-                {
-                    severity = AlarmDefines.LOW_SEVERITY;
-                }
-                // Level is High
-                else if (level >= AlarmDefines.BOOL_HIGH_ALARM)
-                {
-                    severity = AlarmDefines.HIGH_SEVERITY;
-                }
-
+                severity = AlarmDefines.LOW_SEVERITY;
+            }
+            // Level is High
+            else if (level >= AlarmDefines.BOOL_HIGH_ALARM)
+            {
+                severity = AlarmDefines.HIGH_SEVERITY;
             }
 
             return severity;
@@ -258,20 +253,11 @@ namespace Alarms
             return shouldEvent;
         }
 
-        #endregion
-
-        #region Helpers
-
         private ConditionState GetAlarm(BaseEventState alarm = null)
         {
-            if (alarm == null)
-            {
-                alarm = m_alarm;
-            }
+            alarm ??= m_alarm;
             return (ConditionState)alarm;
         }
-
-
 
         protected bool IsEvent(string caller, byte[] eventId)
         {
@@ -290,10 +276,6 @@ namespace Alarms
             return " Requested Event " + Utils.ToHexString(eventId);
         }
 
-
-        #endregion
-
-        #region Method Handlers 
         public ServiceResult OnEnableDisableAlarm(
             ISystemContext context,
             ConditionState condition,
@@ -306,21 +288,18 @@ namespace Alarms
             if (enabling != alarm.EnabledState.Id.Value)
             {
                 alarm.SetEnableState(SystemContext, enabling);
-                alarm.Message.Value = enabling ? "Enabling" : "Disabling" + " alarm " + MapName;
+                alarm.Message.Value = enabling ? "Enabling" : "Disabling alarm " + MapName;
 
                 // if disabled, it will not fire
                 ReportEvent();
             }
+            else if (enabling)
+            {
+                status = StatusCodes.BadConditionAlreadyEnabled;
+            }
             else
             {
-                if (enabling)
-                {
-                    status = StatusCodes.BadConditionAlreadyEnabled;
-                }
-                else
-                {
-                    status = StatusCodes.BadConditionAlreadyDisabled;
-                }
+                status = StatusCodes.BadConditionAlreadyDisabled;
             }
 
             return status;
@@ -360,8 +339,8 @@ namespace Alarms
             {
                 canSetComment = true;
 
-                bool emptyComment = comment.Text == null || comment.Text.Length == 0;
-                bool emptyLocale = comment.Locale == null || comment.Locale.Length == 0;
+                bool emptyComment = string.IsNullOrEmpty(comment.Text);
+                bool emptyLocale = string.IsNullOrEmpty(comment.Locale);
 
                 if (emptyComment && emptyLocale)
                 {
@@ -376,10 +355,5 @@ namespace Alarms
         {
             return true;
         }
-
-        #endregion
     }
-
-
-
 }

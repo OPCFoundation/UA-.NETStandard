@@ -12,8 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
 {
@@ -22,24 +20,15 @@ namespace Opc.Ua
     /// </summary>
     public partial class NotificationMessage
     {
-        #region Public Interface
         /// <summary>
         /// The string table that was received with the message.
         /// </summary>
-        public StringCollection StringTable
-        {
-            get { return m_stringTable; }
-            set { m_stringTable = value; }
-        }
+        public StringCollection StringTable { get; set; }
 
         /// <summary>
         /// Gets a value indicating whether there are more NotificationMessages for this publish interval.
         /// </summary>
-        public bool MoreNotifications
-        {
-            get { return m_moreNotifications; }
-            set { m_moreNotifications = value; }
-        }
+        public bool MoreNotifications { get; set; }
 
         /// <summary>
         /// Gets a value indicating whether this NotificationMessage is empty.
@@ -47,27 +36,16 @@ namespace Opc.Ua
         /// <value>
         ///   <c>true</c> if this instance is empty; otherwise, <c>false</c>.
         /// </value>
-        public bool IsEmpty
-        {
-            get
-            {
-                if (SequenceNumber == 0 &&
-                    PublishTime == DateTime.MinValue &&
-                    NotificationData.Count == 0)
-                {
-                    return true;
-                }
-
-                return false;
-            }
-        }
+        public bool IsEmpty => SequenceNumber == 0 &&
+            PublishTime == DateTime.MinValue &&
+            NotificationData.Count == 0;
 
         /// <summary>
         /// Returns the data changes contained in the notification message.
         /// </summary>
         public IList<MonitoredItemNotification> GetDataChanges(bool reverse)
         {
-            List<MonitoredItemNotification> datachanges = new List<MonitoredItemNotification>();
+            var datachanges = new List<MonitoredItemNotification>();
 
             for (int jj = 0; jj < m_notificationData.Count; jj++)
             {
@@ -78,8 +56,7 @@ namespace Opc.Ua
                     continue;
                 }
 
-
-                if (!(extension.Body is DataChangeNotification notification))
+                if (extension.Body is not DataChangeNotification notification)
                 {
                     continue;
                 }
@@ -120,7 +97,7 @@ namespace Opc.Ua
         /// </summary>
         public IList<EventFieldList> GetEvents(bool reverse)
         {
-            List<EventFieldList> events = new List<EventFieldList>();
+            var events = new List<EventFieldList>();
 
             foreach (ExtensionObject extension in m_notificationData)
             {
@@ -129,7 +106,7 @@ namespace Opc.Ua
                     continue;
                 }
 
-                if (!(extension.Body is EventNotificationList notification))
+                if (extension.Body is not EventNotificationList notification)
                 {
                     continue;
                 }
@@ -164,11 +141,5 @@ namespace Opc.Ua
 
             return events;
         }
-        #endregion
-
-        #region Private Fields
-        private bool m_moreNotifications;
-        private StringCollection m_stringTable;
-        #endregion
     }
 }

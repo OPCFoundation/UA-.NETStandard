@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -32,13 +32,16 @@ using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 
-#pragma warning disable CS1591
-
 namespace Alarms
 {
     public class AlarmHolder
     {
-        public AlarmHolder(AlarmNodeManager alarmNodeManager, FolderState parent, SourceController trigger, Type controllerType, int interval)
+        public AlarmHolder(
+            AlarmNodeManager alarmNodeManager,
+            FolderState parent,
+            SourceController trigger,
+            Type controllerType,
+            int interval)
         {
             m_alarmNodeManager = alarmNodeManager;
             m_parent = parent;
@@ -53,7 +56,7 @@ namespace Alarms
             m_alarmTypeIdentifier = alarmTypeIdentifier;
             m_alarmTypeName = GetAlarmTypeName(m_alarmTypeIdentifier);
 
-            string extraName = "";
+            string extraName = string.Empty;
             if (name.Length > 0)
             {
                 extraName = "." + name;
@@ -69,8 +72,7 @@ namespace Alarms
         {
             bool hasBranches = false;
 
-            ConditionState alarm = m_alarm as ConditionState;
-            if (alarm != null)
+            if (m_alarm is ConditionState alarm)
             {
                 hasBranches = alarm.GetBranchCount() > 0;
             }
@@ -82,8 +84,7 @@ namespace Alarms
         {
             BaseEventState state = null;
 
-            ConditionState alarm = m_alarm as ConditionState;
-            if (alarm != null)
+            if (m_alarm is ConditionState alarm)
             {
                 state = alarm.GetBranch(eventId);
             }
@@ -93,8 +94,7 @@ namespace Alarms
 
         public void ClearBranches()
         {
-            ConditionState alarm = m_alarm as ConditionState;
-            if (alarm != null)
+            if (m_alarm is ConditionState alarm)
             {
                 alarm.ClearBranches();
                 m_alarmController.SetBranchCount(0);
@@ -103,17 +103,12 @@ namespace Alarms
 
         public void GetBranchesForConditionRefresh(List<IFilterTarget> events)
         {
-            ConditionState alarm = m_alarm as ConditionState;
-            if (alarm != null)
+            if (m_alarm is ConditionState alarm)
             {
                 Dictionary<string, ConditionState> branches = alarm.GetBranches();
-                foreach (BaseEventState branch in branches.Values)
-                {
-                    events.Add(branch);
-                }
+                events.AddRange(branches.Values);
             }
         }
-
 
         protected virtual void CreateBranch()
         {
@@ -125,16 +120,11 @@ namespace Alarms
             string alarmNodeId = (string)m_parent.NodeId.Identifier + "." + AlarmName;
 
             alarm.SymbolicName = alarmName;
-
-            NodeId createNodeId = null;
-            QualifiedName createQualifiedName = new QualifiedName(alarmName, NamespaceIndex);
-            LocalizedText createLocalizedText = null;
-
+            var createQualifiedName = new QualifiedName(alarmName, NamespaceIndex);
 
             bool isBranch = IsBranch(branchId);
-            createNodeId = new NodeId(alarmNodeId, NamespaceIndex);
-            createLocalizedText = new LocalizedText(alarmName);
-
+            var createNodeId = new NodeId(alarmNodeId, NamespaceIndex);
+            var createLocalizedText = new LocalizedText(alarmName);
             alarm.ReferenceTypeId = ReferenceTypeIds.HasComponent;
             alarm.Create(
                 SystemContext,
@@ -143,16 +133,14 @@ namespace Alarms
                 createLocalizedText,
                 true);
 
-
             if (!isBranch)
             {
                 m_trigger.AddReference(ReferenceTypes.HasCondition, false, m_alarm.NodeId);
                 m_parent.AddChild(alarm);
             }
-
         }
 
-        private bool IsBranch(NodeId branchId)
+        private static bool IsBranch(NodeId branchId)
         {
             bool isBranch = false;
             if (branchId != null && !branchId.IsNullNodeId)
@@ -182,7 +170,10 @@ namespace Alarms
             // Delayed events are expected events to be logged to file.
             while (m_delayedMessages.Count > 0)
             {
-                Utils.LogWarning("Delayed:{0} Event Time: {1}", m_delayedMessages[0], m_alarm.Time.Value);
+                Utils.LogWarning(
+                    "Delayed:{0} Event Time: {1}",
+                    m_delayedMessages[0],
+                    m_alarm.Time.Value);
                 m_delayedMessages.RemoveAt(0);
             }
         }
@@ -199,16 +190,21 @@ namespace Alarms
 
         protected void LogMessage(LogLevel logLevel, string caller, string message)
         {
-            Utils.Log(logLevel, "{0}: {1} EventId {2} {3}", caller, m_mapName, Utils.ToHexString(m_alarm.EventId.Value), message);
+            Utils.Log(
+                logLevel,
+                "{0}: {1} EventId {2} {3}",
+                caller,
+                m_mapName,
+                Utils.ToHexString(m_alarm.EventId.Value),
+                message);
         }
-
 
         public virtual void SetValue(string message = "")
         {
             Utils.LogError("AlarmHolder.SetValue() - Should not be called");
         }
 
-        public void Start(UInt32 seconds)
+        public void Start(uint seconds)
         {
             ClearBranches();
             m_alarmController.Start(seconds);
@@ -234,10 +230,8 @@ namespace Alarms
 
         protected virtual void SetActive(BaseEventState state, bool activeState)
         {
-
         }
 
-        #region Methods
         public ServiceResult OnWriteAlarmTrigger(
             ISystemContext context,
             NodeState node,
@@ -250,86 +244,38 @@ namespace Alarms
             if (Trigger.Value != value)
             {
                 Trigger.Value = value;
-                SetValue("Manual Write to trigger " + value.ToString());
+                SetValue("Manual Write to trigger " + value);
             }
 
-            return Opc.Ua.StatusCodes.Good;
-        }
-        #endregion
-
-        #region Properties
-
-        public ISystemContext SystemContext
-        {
-            get { return GetNodeManager().SystemContext; }
+            return StatusCodes.Good;
         }
 
-        public ushort NamespaceIndex
-        {
-            get { return GetNodeManager().NamespaceIndex; }
-        }
+        public ISystemContext SystemContext => GetNodeManager().SystemContext;
 
-        public BaseEventState Alarm
-        {
-            get { return m_alarm; }
-        }
+        public ushort NamespaceIndex => GetNodeManager().NamespaceIndex;
 
-        public AlarmController Controller
-        {
-            get { return m_alarmController; }
-        }
+        public BaseEventState Alarm => m_alarm;
 
-        public BaseDataVariableState Trigger
-        {
-            get { return m_trigger; }
-        }
+        public AlarmController Controller => m_alarmController;
 
-        public string MapName
-        {
-            get { return m_mapName; }
-        }
+        public BaseDataVariableState Trigger => m_trigger;
 
-        public string TriggerName
-        {
-            get { return m_alarmRootName + AlarmDefines.TRIGGER_EXTENSION; }
-        }
+        public string MapName => m_mapName;
 
-        public string AlarmName
-        {
-            get { return m_alarmRootName + AlarmDefines.ALARM_EXTENSION; }
-        }
+        public string TriggerName => m_alarmRootName + AlarmDefines.TRIGGER_EXTENSION;
 
-        public string AlarmNodeName
-        {
-            get { return m_alarm.NodeId.ToString(); }
-        }
+        public string AlarmName => m_alarmRootName + AlarmDefines.ALARM_EXTENSION;
 
-        public bool Analog
-        {
-            get { return m_analog; }
-        }
-        public bool Optional
-        {
-            get { return m_optional; }
-        }
+        public string AlarmNodeName => m_alarm.NodeId.ToString();
 
-        public bool SupportsBranching
-        {
-            get { return m_supportsBranching; }
-        }
+        public bool Analog => m_analog;
+        public bool Optional => m_optional;
+
+        public bool SupportsBranching => m_supportsBranching;
 
         public virtual void SetBranching(bool value)
         {
-
         }
-
-
-
-
-
-        #endregion
-
-        #region Helpers
 
         public PropertyState<NodeId> GetEventType()
         {
@@ -341,150 +287,89 @@ namespace Alarms
             return m_alarmNodeManager;
         }
 
-        protected string GetAlarmTypeName(UInt32 alarmTypeIdentifier)
+        protected string GetAlarmTypeName(uint alarmTypeIdentifier)
         {
-            string alarmTypeName = "";
-
             switch (alarmTypeIdentifier)
             {
-                case Opc.Ua.ObjectTypes.ConditionType:
-                    alarmTypeName = "ConditionType";
-                    break;
-
-                case Opc.Ua.ObjectTypes.DialogConditionType:
-                    alarmTypeName = "DialogConditionType";
-                    break;
-
-                case Opc.Ua.ObjectTypes.AcknowledgeableConditionType:
-                    alarmTypeName = "AcknowledgeableConditionType";
-                    break;
-
-                case Opc.Ua.ObjectTypes.AlarmConditionType:
-                    alarmTypeName = "AlarmConditionType";
-                    break;
-
-                case Opc.Ua.ObjectTypes.AlarmGroupType:
-                    alarmTypeName = "AlarmGroupType";
-                    break;
-
-                case Opc.Ua.ObjectTypes.ShelvedStateMachineType:
-                    alarmTypeName = "ShelvedStateMachineType";
-                    break;
-
-                case Opc.Ua.ObjectTypes.LimitAlarmType:
-                    alarmTypeName = "LimitAlarmType";
-                    break;
-
-                case Opc.Ua.ObjectTypes.ExclusiveLimitStateMachineType:
-                    alarmTypeName = "ExclusiveLimitStateMachineType";
-                    break;
-
-                case Opc.Ua.ObjectTypes.ExclusiveLimitAlarmType:
-                    alarmTypeName = "ExclusiveLimitAlarmType";
-                    break;
-
-                case Opc.Ua.ObjectTypes.NonExclusiveLimitAlarmType:
-                    alarmTypeName = "NonExclusiveLimitAlarmType";
-                    break;
-
-                case Opc.Ua.ObjectTypes.NonExclusiveLevelAlarmType:
-                    alarmTypeName = "NonExclusiveLevelAlarmType";
-                    break;
-
-                case Opc.Ua.ObjectTypes.ExclusiveLevelAlarmType:
-                    alarmTypeName = "ExclusiveLevelAlarmType";
-                    break;
-
-                case Opc.Ua.ObjectTypes.NonExclusiveDeviationAlarmType:
-                    alarmTypeName = "NonExclusiveDeviationAlarmType";
-                    break;
-
-                case Opc.Ua.ObjectTypes.NonExclusiveRateOfChangeAlarmType:
-                    alarmTypeName = "NonExclusiveRateOfChangeAlarmType";
-                    break;
-
-                case Opc.Ua.ObjectTypes.ExclusiveDeviationAlarmType:
-                    alarmTypeName = "ExclusiveDeviationAlarmType";
-                    break;
-
-                case Opc.Ua.ObjectTypes.ExclusiveRateOfChangeAlarmType:
-                    alarmTypeName = "ExclusiveRateOfChangeAlarmType";
-                    break;
-
-                case Opc.Ua.ObjectTypes.DiscreteAlarmType:
-                    alarmTypeName = "DiscreteAlarmType";
-                    break;
-
-                case Opc.Ua.ObjectTypes.OffNormalAlarmType:
-                    alarmTypeName = "OffNormalAlarmType";
-                    break;
-
-                case Opc.Ua.ObjectTypes.SystemOffNormalAlarmType:
-                    alarmTypeName = "SystemOffNormalAlarmType";
-                    break;
-
-                case Opc.Ua.ObjectTypes.TripAlarmType:
-                    alarmTypeName = "TripAlarmType";
-                    break;
-
-                case Opc.Ua.ObjectTypes.InstrumentDiagnosticAlarmType:
-                    alarmTypeName = "InstrumentDiagnosticAlarmType";
-                    break;
-
-                case Opc.Ua.ObjectTypes.SystemDiagnosticAlarmType:
-                    alarmTypeName = "SystemDiagnosticAlarmType";
-                    break;
-
-                case Opc.Ua.ObjectTypes.CertificateExpirationAlarmType:
-                    alarmTypeName = "CertificateExpirationAlarmType";
-                    break;
-
-                case Opc.Ua.ObjectTypes.DiscrepancyAlarmType:
-                    alarmTypeName = "DiscrepancyAlarmType";
-                    break;
-
+                case ObjectTypes.ConditionType:
+                    return "ConditionType";
+                case ObjectTypes.DialogConditionType:
+                    return "DialogConditionType";
+                case ObjectTypes.AcknowledgeableConditionType:
+                    return "AcknowledgeableConditionType";
+                case ObjectTypes.AlarmConditionType:
+                    return "AlarmConditionType";
+                case ObjectTypes.AlarmGroupType:
+                    return "AlarmGroupType";
+                case ObjectTypes.ShelvedStateMachineType:
+                    return "ShelvedStateMachineType";
+                case ObjectTypes.LimitAlarmType:
+                    return "LimitAlarmType";
+                case ObjectTypes.ExclusiveLimitStateMachineType:
+                    return "ExclusiveLimitStateMachineType";
+                case ObjectTypes.ExclusiveLimitAlarmType:
+                    return "ExclusiveLimitAlarmType";
+                case ObjectTypes.NonExclusiveLimitAlarmType:
+                    return "NonExclusiveLimitAlarmType";
+                case ObjectTypes.NonExclusiveLevelAlarmType:
+                    return "NonExclusiveLevelAlarmType";
+                case ObjectTypes.ExclusiveLevelAlarmType:
+                    return "ExclusiveLevelAlarmType";
+                case ObjectTypes.NonExclusiveDeviationAlarmType:
+                    return "NonExclusiveDeviationAlarmType";
+                case ObjectTypes.NonExclusiveRateOfChangeAlarmType:
+                    return "NonExclusiveRateOfChangeAlarmType";
+                case ObjectTypes.ExclusiveDeviationAlarmType:
+                    return "ExclusiveDeviationAlarmType";
+                case ObjectTypes.ExclusiveRateOfChangeAlarmType:
+                    return "ExclusiveRateOfChangeAlarmType";
+                case ObjectTypes.DiscreteAlarmType:
+                    return "DiscreteAlarmType";
+                case ObjectTypes.OffNormalAlarmType:
+                    return "OffNormalAlarmType";
+                case ObjectTypes.SystemOffNormalAlarmType:
+                    return "SystemOffNormalAlarmType";
+                case ObjectTypes.TripAlarmType:
+                    return "TripAlarmType";
+                case ObjectTypes.InstrumentDiagnosticAlarmType:
+                    return "InstrumentDiagnosticAlarmType";
+                case ObjectTypes.SystemDiagnosticAlarmType:
+                    return "SystemDiagnosticAlarmType";
+                case ObjectTypes.CertificateExpirationAlarmType:
+                    return "CertificateExpirationAlarmType";
+                case ObjectTypes.DiscrepancyAlarmType:
+                    return "DiscrepancyAlarmType";
                 default:
-                    break;
+                    return string.Empty;
             }
-
-            return alarmTypeName;
         }
 
         /// <summary>
         /// Function is to modify the namespace if this is a derived type.
         /// If no derived types, it's 0
         /// </summary>
-        /// <param name="alarmTypeIdentifier"></param>
         /// <returns>ushort namespaceindex</returns>
-        protected ushort GetNameSpaceIndex(UInt32 alarmTypeIdentifier)
+        protected ushort GetNameSpaceIndex(uint alarmTypeIdentifier)
         {
-            ushort nameSpaceIndex = 0;
-
-            return nameSpaceIndex;
+            return 0;
         }
 
-        #endregion
-
-        #region Private Fields
-        protected AlarmNodeManager m_alarmNodeManager = null;
-        protected BaseEventState m_alarm = null;
-        protected Type m_alarmControllerType = null;
-        protected AlarmController m_alarmController = null;
-        protected BaseDataVariableState m_trigger = null;
-        protected string m_alarmRootName = "";
-        protected string m_mapName = "";
+        protected AlarmNodeManager m_alarmNodeManager;
+        protected BaseEventState m_alarm;
+        protected Type m_alarmControllerType;
+        protected AlarmController m_alarmController;
+        protected BaseDataVariableState m_trigger;
+        protected string m_alarmRootName = string.Empty;
+        protected string m_mapName = string.Empty;
         protected bool m_analog = true;
-        protected bool m_optional = false;
-        protected int m_interval = 0;
-        protected uint m_branchCounter = 0;
-        protected bool m_supportsBranching = false;
-        protected FolderState m_parent = null;
-        protected uint m_alarmTypeIdentifier = 0;
-        protected string m_alarmTypeName = "";
-        protected SupportedAlarmConditionType m_alarmConditionType = null;
-        protected List<string> m_delayedMessages = new List<string>();
-        #endregion
-
-
+        protected bool m_optional;
+        protected int m_interval;
+        protected uint m_branchCounter;
+        protected bool m_supportsBranching;
+        protected FolderState m_parent;
+        protected uint m_alarmTypeIdentifier;
+        protected string m_alarmTypeName = string.Empty;
+        protected SupportedAlarmConditionType m_alarmConditionType;
+        protected List<string> m_delayedMessages = [];
     }
 }

@@ -20,144 +20,139 @@ namespace Opc.Ua
     /// <summary>
     /// An exception thrown when a UA defined error occurs.
     /// </summary>
-    [DataContractAttribute]
-    [SerializableAttribute]
+    [DataContract]
+    [Serializable]
     public class ServiceResultException : Exception
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
-        public ServiceResultException() : base(Strings.DefaultMessage)
+        public ServiceResultException()
+            : base(Strings.DefaultMessage)
         {
-            m_status = StatusCodes.Bad;
+            Result = StatusCodes.Bad;
         }
 
         /// <summary>
         /// Initializes the exception with a message.
         /// </summary>
-        public ServiceResultException(string message) : base(message)
+        public ServiceResultException(string message)
+            : base(message)
         {
-            m_status = StatusCodes.Bad;
+            Result = StatusCodes.Bad;
         }
 
         /// <summary>
         /// Initializes the exception with a message and an exception.
         /// </summary>
-        public ServiceResultException(Exception e, uint defaultCode) : base(e.Message, e)
+        public ServiceResultException(Exception e, uint defaultCode)
+            : base(e.Message, e)
         {
-            m_status = ServiceResult.Create(e, defaultCode, String.Empty);
+            Result = ServiceResult.Create(e, defaultCode, string.Empty);
         }
 
         /// <summary>
         /// Initializes the exception with a message and an exception.
         /// </summary>
-        public ServiceResultException(string message, Exception e) : base(message, e)
+        public ServiceResultException(string message, Exception e)
+            : base(message, e)
         {
-            m_status = StatusCodes.Bad;
+            Result = StatusCodes.Bad;
         }
 
         /// <summary>
         /// Initializes the exception with a status code.
         /// </summary>
-        public ServiceResultException(uint statusCode) : base(GetMessage(statusCode))
+        public ServiceResultException(uint statusCode)
+            : base(GetMessage(statusCode))
         {
-            m_status = new ServiceResult(statusCode);
+            Result = new ServiceResult(statusCode);
         }
 
         /// <summary>
         /// Initializes the exception with a status code and a message.
         /// </summary>
-        public ServiceResultException(uint statusCode, string message) : base(message)
+        public ServiceResultException(uint statusCode, string message)
+            : base(message)
         {
-            m_status = new ServiceResult(statusCode, message);
+            Result = new ServiceResult(statusCode, message);
         }
 
         /// <summary>
         /// Initializes the exception with a status code and an inner exception.
         /// </summary>
-        public ServiceResultException(uint statusCode, Exception e) : base(GetMessage(statusCode), e)
+        public ServiceResultException(uint statusCode, Exception e)
+            : base(GetMessage(statusCode), e)
         {
-            m_status = new ServiceResult(statusCode, e);
+            Result = new ServiceResult(statusCode, e);
         }
 
         /// <summary>
         /// Initializes the exception with a status code, a message and an inner exception.
         /// </summary>
-        public ServiceResultException(uint statusCode, string message, Exception e) : base(message, e)
+        public ServiceResultException(uint statusCode, string message, Exception e)
+            : base(message, e)
         {
-            m_status = new ServiceResult(statusCode, message, e);
+            Result = new ServiceResult(statusCode, message, e);
         }
 
         /// <summary>
         /// Initializes the exception with a Result object.
         /// </summary>
-        public ServiceResultException(ServiceResult status) : base(GetMessage(status))
+        public ServiceResultException(ServiceResult status)
+            : base(GetMessage(status))
         {
-            if (status != null)
-            {
-                m_status = status;
-            }
-            else
-            {
-                m_status = new ServiceResult(StatusCodes.Bad);
-            }
+            Result = status ?? new ServiceResult(StatusCodes.Bad);
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The identifier for the status code.
         /// </summary>
-        public uint StatusCode => m_status.Code;
+        public uint StatusCode => Result.Code;
 
         /// <summary>
         /// The namespace that qualifies symbolic identifier.
         /// </summary>
-        public string NamespaceUri => m_status.NamespaceUri;
+        public string NamespaceUri => Result.NamespaceUri;
 
         /// <summary>
         /// The qualified name of the symbolic identifier associated with the status code.
         /// </summary>
-        public string SymbolicId => m_status.SymbolicId;
+        public string SymbolicId => Result.SymbolicId;
 
         /// <summary>
         /// The localized description for the status code.
         /// </summary>
-        public LocalizedText LocalizedText => m_status.LocalizedText;
+        public LocalizedText LocalizedText => Result.LocalizedText;
 
         /// <summary>
         /// Additional diagnostic/debugging information associated with the operation.
         /// </summary>
-        public string AdditionalInfo => m_status.AdditionalInfo;
+        public string AdditionalInfo => Result.AdditionalInfo;
 
         /// <summary>
         /// Returns the status result associated with the exception.
         /// </summary>
-        public ServiceResult Result => m_status;
+        public ServiceResult Result { get; }
 
         /// <summary>
         /// Nested error information.
         /// </summary>
-        public ServiceResult InnerResult => m_status.InnerResult;
-        #endregion
+        public ServiceResult InnerResult => Result.InnerResult;
 
-        #region Public Methods
         /// <summary>
         /// Returns a formatted string with the contents of exception.
         /// </summary>
         public string ToLongString()
         {
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
-            buffer.AppendLine(Message);
-            buffer.Append(m_status.ToLongString());
+            buffer.AppendLine(Message)
+                .Append(Result.ToLongString());
 
             return buffer.ToString();
         }
-        #endregion
 
-        #region Static Interface
         /// <summary>
         /// Creates a new instance of a ServiceResultException
         /// </summary>
@@ -174,7 +169,11 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new instance of a ServiceResultException
         /// </summary>
-        public static ServiceResultException Create(uint code, Exception e, string format, params object[] args)
+        public static ServiceResultException Create(
+            uint code,
+            Exception e,
+            string format,
+            params object[] args)
         {
             if (format == null)
             {
@@ -187,13 +186,16 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new instance of a ServiceResultException
         /// </summary>
-        public static ServiceResultException Create(StatusCode code, int index, DiagnosticInfoCollection diagnosticInfos, IList<string> stringTable)
+        public static ServiceResultException Create(
+            StatusCode code,
+            int index,
+            DiagnosticInfoCollection diagnosticInfos,
+            IList<string> stringTable)
         {
-            return new ServiceResultException(new ServiceResult(code, index, diagnosticInfos, stringTable));
+            return new ServiceResultException(
+                new ServiceResult(code, index, diagnosticInfos, stringTable));
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Extracts an exception message from a Result object.
         /// </summary>
@@ -211,13 +213,7 @@ namespace Opc.Ua
 
             return status.ToString();
         }
-        #endregion
 
-        #region Private Fields
-        private ServiceResult m_status;
-        #endregion
-
-        #region Private Constants
         /// <summary>
         /// Wraps string constants defined in the class.
         /// </summary>
@@ -225,6 +221,5 @@ namespace Opc.Ua
         {
             public const string DefaultMessage = "A UA specific error occurred.";
         }
-        #endregion
     }
 }

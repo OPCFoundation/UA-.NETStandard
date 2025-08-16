@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -27,18 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Collections.Generic;
-using System.Xml;
-using System.IO;
-using System.Reflection;
 using Opc.Ua;
 
 namespace TestData
 {
     public partial class ArrayValueObjectState
     {
-        #region Initialization
         /// <summary>
         /// Initializes the object as a collection of counters which change value on read.
         /// </summary>
@@ -46,41 +40,78 @@ namespace TestData
         {
             base.OnAfterCreate(context, node);
 
-            InitializeVariable(context, BooleanValue, TestData.Variables.ArrayValueObjectType_BooleanValue);
-            InitializeVariable(context, SByteValue, TestData.Variables.ArrayValueObjectType_SByteValue);
-            InitializeVariable(context, ByteValue, TestData.Variables.ArrayValueObjectType_ByteValue);
-            InitializeVariable(context, Int16Value, TestData.Variables.ArrayValueObjectType_Int16Value);
-            InitializeVariable(context, UInt16Value, TestData.Variables.ArrayValueObjectType_UInt16Value);
-            InitializeVariable(context, Int32Value, TestData.Variables.ArrayValueObjectType_Int32Value);
-            InitializeVariable(context, UInt32Value, TestData.Variables.ArrayValueObjectType_UInt32Value);
-            InitializeVariable(context, Int64Value, TestData.Variables.ArrayValueObjectType_Int64Value);
-            InitializeVariable(context, UInt64Value, TestData.Variables.ArrayValueObjectType_UInt64Value);
-            InitializeVariable(context, FloatValue, TestData.Variables.ArrayValueObjectType_FloatValue);
-            InitializeVariable(context, DoubleValue, TestData.Variables.ArrayValueObjectType_DoubleValue);
-            InitializeVariable(context, StringValue, TestData.Variables.ArrayValueObjectType_StringValue);
-            InitializeVariable(context, DateTimeValue, TestData.Variables.ArrayValueObjectType_DateTimeValue);
-            InitializeVariable(context, GuidValue, TestData.Variables.ArrayValueObjectType_GuidValue);
-            InitializeVariable(context, ByteStringValue, TestData.Variables.ArrayValueObjectType_ByteStringValue);
-            InitializeVariable(context, XmlElementValue, TestData.Variables.ArrayValueObjectType_XmlElementValue);
-            InitializeVariable(context, NodeIdValue, TestData.Variables.ArrayValueObjectType_NodeIdValue);
-            InitializeVariable(context, ExpandedNodeIdValue, TestData.Variables.ArrayValueObjectType_ExpandedNodeIdValue);
-            InitializeVariable(context, QualifiedNameValue, TestData.Variables.ArrayValueObjectType_QualifiedNameValue);
-            InitializeVariable(context, LocalizedTextValue, TestData.Variables.ArrayValueObjectType_LocalizedTextValue);
-            InitializeVariable(context, StatusCodeValue, TestData.Variables.ArrayValueObjectType_StatusCodeValue);
-            InitializeVariable(context, VariantValue, TestData.Variables.ArrayValueObjectType_VariantValue);
-            InitializeVariable(context, EnumerationValue, TestData.Variables.ArrayValueObjectType_EnumerationValue);
-            InitializeVariable(context, StructureValue, TestData.Variables.ArrayValueObjectType_StructureValue);
-            InitializeVariable(context, NumberValue, TestData.Variables.ArrayValueObjectType_NumberValue);
-            InitializeVariable(context, IntegerValue, TestData.Variables.ArrayValueObjectType_IntegerValue);
-            InitializeVariable(context, UIntegerValue, TestData.Variables.ArrayValueObjectType_UIntegerValue);
-            InitializeVariable(context, VectorValue, TestData.Variables.ArrayValueObjectType_VectorValue);
-            InitializeVariable(context, VectorUnionValue, TestData.Variables.ArrayValueObjectType_VectorUnionValue);
-            InitializeVariable(context, VectorWithOptionalFieldsValue, TestData.Variables.ArrayValueObjectType_VectorWithOptionalFieldsValue);
-            InitializeVariable(context, MultipleVectorsValue, TestData.Variables.ArrayValueObjectType_MultipleVectorsValue);
+            InitializeVariable(context, BooleanValue, Variables.ArrayValueObjectType_BooleanValue);
+            InitializeVariable(context, SByteValue, Variables.ArrayValueObjectType_SByteValue);
+            InitializeVariable(context, ByteValue, Variables.ArrayValueObjectType_ByteValue);
+            InitializeVariable(context, Int16Value, Variables.ArrayValueObjectType_Int16Value);
+            InitializeVariable(context, UInt16Value, Variables.ArrayValueObjectType_UInt16Value);
+            InitializeVariable(context, Int32Value, Variables.ArrayValueObjectType_Int32Value);
+            InitializeVariable(context, UInt32Value, Variables.ArrayValueObjectType_UInt32Value);
+            InitializeVariable(context, Int64Value, Variables.ArrayValueObjectType_Int64Value);
+            InitializeVariable(context, UInt64Value, Variables.ArrayValueObjectType_UInt64Value);
+            InitializeVariable(context, FloatValue, Variables.ArrayValueObjectType_FloatValue);
+            InitializeVariable(context, DoubleValue, Variables.ArrayValueObjectType_DoubleValue);
+            InitializeVariable(context, StringValue, Variables.ArrayValueObjectType_StringValue);
+            InitializeVariable(
+                context,
+                DateTimeValue,
+                Variables.ArrayValueObjectType_DateTimeValue);
+            InitializeVariable(context, GuidValue, Variables.ArrayValueObjectType_GuidValue);
+            InitializeVariable(
+                context,
+                ByteStringValue,
+                Variables.ArrayValueObjectType_ByteStringValue);
+            InitializeVariable(
+                context,
+                XmlElementValue,
+                Variables.ArrayValueObjectType_XmlElementValue);
+            InitializeVariable(context, NodeIdValue, Variables.ArrayValueObjectType_NodeIdValue);
+            InitializeVariable(
+                context,
+                ExpandedNodeIdValue,
+                Variables.ArrayValueObjectType_ExpandedNodeIdValue);
+            InitializeVariable(
+                context,
+                QualifiedNameValue,
+                Variables.ArrayValueObjectType_QualifiedNameValue);
+            InitializeVariable(
+                context,
+                LocalizedTextValue,
+                Variables.ArrayValueObjectType_LocalizedTextValue);
+            InitializeVariable(
+                context,
+                StatusCodeValue,
+                Variables.ArrayValueObjectType_StatusCodeValue);
+            InitializeVariable(context, VariantValue, Variables.ArrayValueObjectType_VariantValue);
+            InitializeVariable(
+                context,
+                EnumerationValue,
+                Variables.ArrayValueObjectType_EnumerationValue);
+            InitializeVariable(
+                context,
+                StructureValue,
+                Variables.ArrayValueObjectType_StructureValue);
+            InitializeVariable(context, NumberValue, Variables.ArrayValueObjectType_NumberValue);
+            InitializeVariable(context, IntegerValue, Variables.ArrayValueObjectType_IntegerValue);
+            InitializeVariable(
+                context,
+                UIntegerValue,
+                Variables.ArrayValueObjectType_UIntegerValue);
+            InitializeVariable(context, VectorValue, Variables.ArrayValueObjectType_VectorValue);
+            InitializeVariable(
+                context,
+                VectorUnionValue,
+                Variables.ArrayValueObjectType_VectorUnionValue);
+            InitializeVariable(
+                context,
+                VectorWithOptionalFieldsValue,
+                Variables.ArrayValueObjectType_VectorWithOptionalFieldsValue);
+            InitializeVariable(
+                context,
+                MultipleVectorsValue,
+                Variables.ArrayValueObjectType_MultipleVectorsValue);
         }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Handles the generate values method.
         /// </summary>
@@ -90,9 +121,7 @@ namespace TestData
             NodeId objectId,
             uint count)
         {
-            TestDataSystem system = context.SystemHandle as TestDataSystem;
-
-            if (system == null)
+            if (context.SystemHandle is not TestDataSystem system)
             {
                 return StatusCodes.BadOutOfService;
             }
@@ -132,6 +161,5 @@ namespace TestData
 
             return base.OnGenerateValues(context, method, objectId, count);
         }
-        #endregion
     }
 }

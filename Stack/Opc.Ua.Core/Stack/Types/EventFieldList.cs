@@ -10,11 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-using System.Collections.Generic;
-using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
-
 namespace Opc.Ua
 {
     /// <summary>
@@ -22,28 +17,18 @@ namespace Opc.Ua
     /// </summary>
     public partial class EventFieldList
     {
-        #region Public Properties
         /// <summary>
         /// The handle cast to a notification message.
         /// </summary>
         public NotificationMessage Message
         {
-            get { return m_handle as NotificationMessage; }
-            set { m_handle = value; }
+            get => Handle as NotificationMessage;
+            set => Handle = value;
         }
 
         /// <summary>
         /// A handle associated withe the event instance.
         /// </summary>
-        public object Handle
-        {
-            get { return m_handle; }
-            set { m_handle = value; }
-        }
-        #endregion
-
-        #region Private Fields
-        private object m_handle;
-        #endregion
+        public object Handle { get; set; }
     }
 }

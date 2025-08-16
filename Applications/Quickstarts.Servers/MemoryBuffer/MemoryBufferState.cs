@@ -29,23 +29,19 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
-using System.IO;
-using System.Reflection;
 using System.Threading;
 using Opc.Ua;
 using Opc.Ua.Server;
-using System.Diagnostics;
 
 namespace MemoryBuffer
 {
     public partial class MemoryBufferState
     {
-        #region Constructors
         /// <summary>
         /// Initializes the buffer from the configuration.
         /// </summary>
-        public MemoryBufferState(ISystemContext context, MemoryBufferInstance configuration) : base(null)
+        public MemoryBufferState(ISystemContext context, MemoryBufferInstance configuration)
+            : base(null)
         {
             Initialize(context);
 
@@ -57,77 +53,67 @@ namespace MemoryBuffer
             {
                 count = configuration.TagCount;
 
-                if (!String.IsNullOrEmpty(configuration.DataType))
+                if (!string.IsNullOrEmpty(configuration.DataType))
                 {
                     dataType = configuration.DataType;
                 }
 
-                if (!String.IsNullOrEmpty(configuration.Name))
+                if (!string.IsNullOrEmpty(configuration.Name))
                 {
                     name = dataType;
                 }
             }
 
-            this.SymbolicName = name;
+            SymbolicName = name;
 
             BuiltInType elementType = BuiltInType.UInt32;
 
             switch (dataType)
             {
                 case "Double":
-                {
                     elementType = BuiltInType.Double;
                     break;
-                }
             }
 
             CreateBuffer(elementType, count);
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The server that the buffer belongs to.
         /// </summary>
-        public IServerInternal Server
-        {
-            get { return m_server; }
-        }
+        public IServerInternal Server { get; private set; }
 
         /// <summary>
         /// The node manager that the buffer belongs to.
         /// </summary>
-        public INodeManager NodeManager
-        {
-            get { return m_nodeManager; }
-        }
+        public INodeManager NodeManager { get; private set; }
 
         /// <summary>
         /// The built-in type for the values stored in the buffer.
         /// </summary>
-        public BuiltInType ElementType
-        {
-            get { return m_elementType; }
-        }
+        public BuiltInType ElementType { get; private set; }
 
         /// <summary>
         /// The size of each element in the buffer.
         /// </summary>
-        public uint ElementSize
-        {
-            get { return (uint)m_elementSize; }
-        }
+        public uint ElementSize => (uint)m_elementSize;
 
         /// <summary>
         /// The rate at which the buffer is scanned.
         /// </summary>
-        public int MaximumScanRate
-        {
-            get { return m_maximumScanRate; }
-        }
-        #endregion
+        public int MaximumScanRate { get; private set; }
 
-        #region Public Methods
+        /// <inheritdoc/>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                Utils.SilentDispose(m_scanTimer);
+                m_scanTimer = null;
+            }
+            base.Dispose(disposing);
+        }
+
         /// <summary>
         /// Initializes the buffer with enough space to hold the specified number of elements.
         /// </summary>
@@ -135,7 +121,7 @@ namespace MemoryBuffer
         /// <param name="noOfElements">The number of elements.</param>
         public void CreateBuffer(string elementName, int noOfElements)
         {
-            if (String.IsNullOrEmpty(elementName))
+            if (string.IsNullOrEmpty(elementName))
             {
                 elementName = "UInt32";
             }
@@ -145,10 +131,8 @@ namespace MemoryBuffer
             switch (elementName)
             {
                 case "Double":
-                {
                     elementType = BuiltInType.Double;
                     break;
-                }
             }
 
             CreateBuffer(elementType, noOfElements);
@@ -163,26 +147,21 @@ namespace MemoryBuffer
         {
             lock (m_dataLock)
             {
-                m_elementType = elementType;
+                ElementType = elementType;
                 m_elementSize = 1;
 
-                switch (m_elementType)
+                switch (ElementType)
                 {
                     case BuiltInType.UInt32:
-                    {
                         m_elementSize = 4;
                         break;
-                    }
-
                     case BuiltInType.Double:
-                    {
                         m_elementSize = 8;
                         break;
-                    }
                 }
 
                 m_lastScanTime = DateTime.UtcNow;
-                m_maximumScanRate = 1000;
+                MaximumScanRate = 1000;
 
                 m_buffer = new byte[m_elementSize * noOfElements];
                 SizeInBytes.Value = (uint)m_buffer.Length;
@@ -230,9 +209,7 @@ namespace MemoryBuffer
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
-            MemoryTagState tag = node as MemoryTagState;
-
-            if (tag == null)
+            if (node is not MemoryTagState tag)
             {
                 return StatusCodes.BadNodeIdUnknown;
             }
@@ -282,9 +259,7 @@ namespace MemoryBuffer
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
-            MemoryTagState tag = node as MemoryTagState;
-
-            if (tag == null)
+            if (node is not MemoryTagState tag)
             {
                 return StatusCodes.BadNodeIdUnknown;
             }
@@ -326,7 +301,7 @@ namespace MemoryBuffer
 
                 byte[] bytes = null;
 
-                switch (m_elementType)
+                switch (ElementType)
                 {
                     case BuiltInType.UInt32:
                     {
@@ -340,7 +315,6 @@ namespace MemoryBuffer
                         bytes = BitConverter.GetBytes(valueToWrite.Value);
                         break;
                     }
-
                     case BuiltInType.Double:
                     {
                         double? valueToWrite = value as double?;
@@ -353,21 +327,15 @@ namespace MemoryBuffer
                         bytes = BitConverter.GetBytes(valueToWrite.Value);
                         break;
                     }
-
                     default:
-                    {
                         return StatusCodes.BadNodeIdUnknown;
-                    }
                 }
 
                 for (int ii = 0; ii < bytes.Length; ii++)
                 {
-                    if (!changed)
+                    if (!changed && m_buffer[offset + ii] != bytes[ii])
                     {
-                        if (m_buffer[offset + ii] != bytes[ii])
-                        {
-                            changed = true;
-                        }
+                        changed = true;
                     }
 
                     m_buffer[offset + ii] = bytes[ii];
@@ -399,37 +367,28 @@ namespace MemoryBuffer
                     return Variant.Null;
                 }
 
-                switch (m_elementType)
+                switch (ElementType)
                 {
                     case BuiltInType.UInt32:
-                    {
                         return new Variant(BitConverter.ToUInt32(m_buffer, offset));
-                    }
-
                     case BuiltInType.Double:
-                    {
                         return new Variant(BitConverter.ToDouble(m_buffer, offset));
-                    }
                 }
 
                 return Variant.Null;
             }
         }
-        #endregion
 
-        #region Monitoring Support Functions
         /// <summary>
         /// Initializes the instance with the context for the node being monitored.
         /// </summary>
-        public void InitializeMonitoring(
-            IServerInternal server,
-            INodeManager nodeManager)
+        public void InitializeMonitoring(IServerInternal server, INodeManager nodeManager)
         {
             lock (m_dataLock)
             {
-                m_server = server;
-                m_nodeManager = nodeManager;
-                m_nonValueMonitoredItems = new Dictionary<uint, MemoryBufferMonitoredItem>();
+                Server = server;
+                NodeManager = nodeManager;
+                m_nonValueMonitoredItems = [];
             }
         }
 
@@ -448,7 +407,6 @@ namespace MemoryBuffer
             uint clientHandle,
             double samplingInterval,
             bool createDurable)
-
         /*
         ISystemContext context,
         MemoryTagState tag,
@@ -462,9 +420,9 @@ namespace MemoryBuffer
         {
             lock (m_dataLock)
             {
-                MemoryBufferMonitoredItem monitoredItem = new MemoryBufferMonitoredItem(
-                    m_server,
-                    m_nodeManager,
+                var monitoredItem = new MemoryBufferMonitoredItem(
+                    Server,
+                    NodeManager,
                     this,
                     tag.Offset,
                     0,
@@ -508,13 +466,13 @@ namespace MemoryBuffer
         public MemoryBufferMonitoredItem RestoreDataChangeItem(
             ServerSystemContext context,
             MemoryTagState tag,
-           IStoredMonitoredItem storedMonitoredItem)
+            IStoredMonitoredItem storedMonitoredItem)
         {
             lock (m_dataLock)
             {
-                MemoryBufferMonitoredItem monitoredItem = new MemoryBufferMonitoredItem(
-                    m_server,
-                    m_nodeManager,
+                var monitoredItem = new MemoryBufferMonitoredItem(
+                    Server,
+                    NodeManager,
                     this,
                     tag.Offset,
                     storedMonitoredItem);
@@ -525,7 +483,9 @@ namespace MemoryBuffer
             }
         }
 
-        private void AddMonitoredItemInternal(MemoryBufferMonitoredItem monitoredItem, MemoryTagState tag)
+        private void AddMonitoredItemInternal(
+            MemoryBufferMonitoredItem monitoredItem,
+            MemoryTagState tag)
         {
             if (monitoredItem.AttributeId != Attributes.Value)
             {
@@ -538,6 +498,7 @@ namespace MemoryBuffer
             if (m_monitoringTable == null)
             {
                 m_monitoringTable = new MemoryBufferMonitoredItem[elementCount][];
+                Utils.SilentDispose(m_scanTimer);
                 m_scanTimer = new Timer(DoScan, null, 100, 100);
             }
 
@@ -555,7 +516,7 @@ namespace MemoryBuffer
                 m_monitoringTable[elementOffet].CopyTo(monitoredItems, 0);
             }
 
-            monitoredItems[monitoredItems.Length - 1] = monitoredItem;
+            monitoredItems[^1] = monitoredItem;
             m_monitoringTable[elementOffet] = monitoredItems;
             m_itemCount++;
         }
@@ -563,7 +524,7 @@ namespace MemoryBuffer
         /// <summary>
         /// Scans the buffer and updates every other element.
         /// </summary>
-        void DoScan(object state)
+        private void DoScan(object state)
         {
             DateTime start1 = DateTime.UtcNow;
 
@@ -615,7 +576,7 @@ namespace MemoryBuffer
 
                         for (int ii = 0; ii < monitoredItems.Length; ii++)
                         {
-                            if (Object.ReferenceEquals(monitoredItems[ii], monitoredItem))
+                            if (ReferenceEquals(monitoredItems[ii], monitoredItem))
                             {
                                 index = ii;
                                 break;
@@ -632,10 +593,22 @@ namespace MemoryBuffer
                             }
                             else
                             {
-                                monitoredItems = new MemoryBufferMonitoredItem[monitoredItems.Length - 1];
+                                monitoredItems = new MemoryBufferMonitoredItem[monitoredItems
+                                    .Length -
+                                    1];
 
-                                Array.Copy(m_monitoringTable[elementOffet], 0, monitoredItems, 0, index);
-                                Array.Copy(m_monitoringTable[elementOffet], index + 1, monitoredItems, index, monitoredItems.Length - index);
+                                Array.Copy(
+                                    m_monitoringTable[elementOffet],
+                                    0,
+                                    monitoredItems,
+                                    0,
+                                    index);
+                                Array.Copy(
+                                    m_monitoringTable[elementOffet],
+                                    index + 1,
+                                    monitoredItems,
+                                    index,
+                                    monitoredItems.Length - index);
                             }
 
                             m_monitoringTable[elementOffet] = monitoredItems;
@@ -660,12 +633,13 @@ namespace MemoryBuffer
 
                     if (monitoredItems != null)
                     {
-                        DataValue value = new DataValue();
-
-                        value.WrappedValue = GetValueAtOffset(offset);
-                        value.StatusCode = StatusCodes.Good;
-                        value.ServerTimestamp = DateTime.UtcNow;
-                        value.SourceTimestamp = m_lastScanTime;
+                        var value = new DataValue
+                        {
+                            WrappedValue = GetValueAtOffset(offset),
+                            StatusCode = StatusCodes.Good,
+                            ServerTimestamp = DateTime.UtcNow,
+                            SourceTimestamp = m_lastScanTime
+                        };
 
                         for (int ii = 0; ii < monitoredItems.Length; ii++)
                         {
@@ -677,12 +651,12 @@ namespace MemoryBuffer
             }
         }
 
-        void ScanTimer_Tick(object sender, EventArgs e)
+        private void ScanTimer_Tick(object sender, EventArgs e)
         {
             DoScan(null);
         }
 
-        void PublishTimer_Tick(object sender, EventArgs e)
+        private void PublishTimer_Tick(object sender, EventArgs e)
         {
             DateTime start1 = DateTime.UtcNow;
 
@@ -690,7 +664,11 @@ namespace MemoryBuffer
             {
                 if (m_itemCount > 0 && m_updateCount < m_itemCount)
                 {
-                    Utils.LogInfo("{0:HH:mm:ss.fff} MEMORYBUFFER Reported  {1}/{2} items ***.", DateTime.Now, m_updateCount, m_itemCount);
+                    Utils.LogInfo(
+                        "{0:HH:mm:ss.fff} MEMORYBUFFER Reported  {1}/{2} items ***.",
+                        DateTime.Now,
+                        m_updateCount,
+                        m_itemCount);
                 }
 
                 m_updateCount = 0;
@@ -702,25 +680,21 @@ namespace MemoryBuffer
 
             if (delta1 > 100)
             {
-                Utils.LogInfo("{0} ****** PUBLISH DELAY ({1}ms) ******", nameof(MemoryBufferState), delta1);
+                Utils.LogInfo(
+                    "{0} ****** PUBLISH DELAY ({1}ms) ******",
+                    nameof(MemoryBufferState),
+                    delta1);
             }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_dataLock = new object();
-        private IServerInternal m_server;
-        private INodeManager m_nodeManager;
+        private readonly Lock m_dataLock = new();
         private MemoryBufferMonitoredItem[][] m_monitoringTable;
         private Dictionary<uint, MemoryBufferMonitoredItem> m_nonValueMonitoredItems;
-        private BuiltInType m_elementType;
         private int m_elementSize;
         private DateTime m_lastScanTime;
-        private int m_maximumScanRate;
         private byte[] m_buffer;
         private Timer m_scanTimer;
         private int m_updateCount;
         private int m_itemCount;
-        #endregion
     }
 }

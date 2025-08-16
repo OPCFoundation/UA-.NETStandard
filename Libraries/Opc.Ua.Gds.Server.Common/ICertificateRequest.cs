@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -113,18 +113,14 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         /// <param name="requestId">The id of the request.</param>
         /// <param name="isRejected">Whether the request is rejected.</param>
-        void ApproveRequest(
-            NodeId requestId,
-            bool isRejected);
+        void ApproveRequest(NodeId requestId, bool isRejected);
 
         /// <summary>
         /// Accept the request.
         /// </summary>
         /// <param name="requestId">The request id.</param>
         /// <param name="certificate">The accepted certificate.</param>
-        void AcceptRequest(
-            NodeId requestId,
-            byte[] certificate);
+        void AcceptRequest(NodeId requestId, byte[] certificate);
 
         /// <summary>
         /// Finish the request.
@@ -141,8 +137,7 @@ namespace Opc.Ua.Gds.Server
             out string certificateGroupId,
             out string certificateTypeId,
             out byte[] signedCertificate,
-            out byte[] privateKey
-            );
+            out byte[] privateKey);
 
         /// <summary>
         /// Read a certificate request.
@@ -151,7 +146,7 @@ namespace Opc.Ua.Gds.Server
         /// <param name="requestId">The request id.</param>
         /// <param name="certificateGroupId">The group id.</param>
         /// <param name="certificateTypeId">The certificate type.</param>
-        /// <param name="certificateRequest"></param>
+        /// <param name="certificateRequest">Cert request</param>
         /// <param name="subjectName">The subject for the certificate</param>
         /// <param name="domainNames">The domain names for the certificate.</param>
         /// <param name="privateKeyFormat">The private key format, PEM or PFX.</param>
@@ -166,6 +161,5 @@ namespace Opc.Ua.Gds.Server
             out string[] domainNames,
             out string privateKeyFormat,
             out string privateKeyPassword);
-
     }
 }

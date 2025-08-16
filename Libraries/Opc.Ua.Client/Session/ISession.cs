@@ -38,7 +38,9 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Used to handle renews of user identity tokens before reconnect.
     /// </summary>
-    public delegate IUserIdentity RenewUserIdentityEventHandler(ISession session, IUserIdentity identity);
+    public delegate IUserIdentity RenewUserIdentityEventHandler(
+        ISession session,
+        IUserIdentity identity);
 
     /// <summary>
     /// The delegate used to receive keep alive notifications.
@@ -58,14 +60,15 @@ namespace Opc.Ua.Client
     /// <summary>
     /// The delegate used to modify publish response sequence numbers to acknowledge.
     /// </summary>
-    public delegate void PublishSequenceNumbersToAcknowledgeEventHandler(ISession session, PublishSequenceNumbersToAcknowledgeEventArgs e);
+    public delegate void PublishSequenceNumbersToAcknowledgeEventHandler(
+        ISession session,
+        PublishSequenceNumbersToAcknowledgeEventArgs e);
 
     /// <summary>
     /// Manages a session with a server.
     /// </summary>
     public interface ISession : ISessionClient
     {
-        #region Events
         /// <summary>
         /// Raised when a keep alive arrives from the server or an error is detected.
         /// </summary>
@@ -125,9 +128,7 @@ namespace Opc.Ua.Client
         /// a new server nonce, a new locale etc.
         /// </remarks>
         event EventHandler SessionConfigurationChanged;
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The factory which was used to create the session.
         /// </summary>
@@ -301,16 +302,12 @@ namespace Opc.Ua.Client
         /// Continuation Points in the ManagedBrowse(Async) methods
         /// </summary>
         ContinuationPointPolicy ContinuationPointPolicy { get; set; }
-        #endregion
 
-        #region Delegates and Events
         /// <summary>
         /// Raised before a reconnect operation completes.
         /// </summary>
         event RenewUserIdentityEventHandler RenewUserIdentity;
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Reconnects to the server after a network failure.
         /// </summary>
@@ -326,7 +323,7 @@ namespace Opc.Ua.Client
         /// </summary>
         void Reconnect(ITransportChannel channel);
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <summary>
         /// Reconnects to the server after a network failure.
         /// </summary>
@@ -352,18 +349,24 @@ namespace Opc.Ua.Client
         /// Saves all the subscriptions of the session.
         /// </summary>
         /// <param name="filePath">The file path.</param>
-        /// <param name="knownTypes"></param>
+        /// <param name="knownTypes">Known types</param>
         void Save(string filePath, IEnumerable<Type> knownTypes = null);
 
         /// <summary>
         /// Saves a set of subscriptions to a stream.
         /// </summary>
-        void Save(Stream stream, IEnumerable<Subscription> subscriptions, IEnumerable<Type> knownTypes = null);
+        void Save(
+            Stream stream,
+            IEnumerable<Subscription> subscriptions,
+            IEnumerable<Type> knownTypes = null);
 
         /// <summary>
         /// Saves a set of subscriptions to a file.
         /// </summary>
-        void Save(string filePath, IEnumerable<Subscription> subscriptions, IEnumerable<Type> knownTypes = null);
+        void Save(
+            string filePath,
+            IEnumerable<Subscription> subscriptions,
+            IEnumerable<Type> knownTypes = null);
 
         /// <summary>
         /// Load the list of subscriptions saved in a stream.
@@ -372,7 +375,10 @@ namespace Opc.Ua.Client
         /// <param name="transferSubscriptions">Load the subscriptions for transfer after load.</param>
         /// <param name="knownTypes">Additional known types that may be needed to read the saved subscriptions.</param>
         /// <returns>The list of loaded subscriptions</returns>
-        IEnumerable<Subscription> Load(Stream stream, bool transferSubscriptions = false, IEnumerable<Type> knownTypes = null);
+        IEnumerable<Subscription> Load(
+            Stream stream,
+            bool transferSubscriptions = false,
+            IEnumerable<Type> knownTypes = null);
 
         /// <summary>
         /// Load the list of subscriptions saved in a file.
@@ -381,7 +387,10 @@ namespace Opc.Ua.Client
         /// <param name="transferSubscriptions">Load the subscriptions for transfer after load.</param>
         /// <param name="knownTypes">Additional known types that may be needed to read the saved subscriptions.</param>
         /// <returns>The list of loaded subscriptions</returns>
-        IEnumerable<Subscription> Load(string filePath, bool transferSubscriptions = false, IEnumerable<Type> knownTypes = null);
+        IEnumerable<Subscription> Load(
+            string filePath,
+            bool transferSubscriptions = false,
+            IEnumerable<Type> knownTypes = null);
 
         /// <summary>
         /// Returns the active session configuration and writes it to a stream.
@@ -415,7 +424,7 @@ namespace Opc.Ua.Client
         /// </remarks>
         void FetchTypeTree(ExpandedNodeIdCollection typeIds);
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <summary>
         /// Updates the local copy of the server's namespace uri and server uri tables.
         /// </summary>
@@ -477,7 +486,11 @@ namespace Opc.Ua.Client
         /// <param name="nodeCollection">The node collection read from the server.</param>
         /// <param name="errors">The errors occured reading the nodes.</param>
         /// <param name="optionalAttributes">Set to <c>true</c> if optional attributes should not be omitted.</param>
-        void ReadNodes(IList<NodeId> nodeIds, out IList<Node> nodeCollection, out IList<ServiceResult> errors, bool optionalAttributes = false);
+        void ReadNodes(
+            IList<NodeId> nodeIds,
+            out IList<Node> nodeCollection,
+            out IList<ServiceResult> errors,
+            bool optionalAttributes = false);
 
         /// <summary>
         /// Reads the values for the node attributes and returns a node object collection.
@@ -492,7 +505,12 @@ namespace Opc.Ua.Client
         /// <param name="nodeCollection">The node collection that is created from attributes read from the server.</param>
         /// <param name="errors">The errors that occured reading the nodes.</param>
         /// <param name="optionalAttributes">Set to <c>true</c> if optional attributes should not be omitted.</param>
-        void ReadNodes(IList<NodeId> nodeIds, NodeClass nodeClass, out IList<Node> nodeCollection, out IList<ServiceResult> errors, bool optionalAttributes = false);
+        void ReadNodes(
+            IList<NodeId> nodeIds,
+            NodeClass nodeClass,
+            out IList<Node> nodeCollection,
+            out IList<ServiceResult> errors,
+            bool optionalAttributes = false);
 
         /// <summary>
         /// Reads the value for a node.
@@ -513,7 +531,10 @@ namespace Opc.Ua.Client
         /// <param name="nodeIds">The node Id.</param>
         /// <param name="values">The data values read from the server.</param>
         /// <param name="errors">The errors reported by the server.</param>
-        void ReadValues(IList<NodeId> nodeIds, out DataValueCollection values, out IList<ServiceResult> errors);
+        void ReadValues(
+            IList<NodeId> nodeIds,
+            out DataValueCollection values,
+            out IList<ServiceResult> errors);
 
         /// <summary>
         /// Reads a byte string which is too large for the (server side) encoder to handle.
@@ -534,32 +555,38 @@ namespace Opc.Ua.Client
         /// <param name="nodeIds">The node id collection.</param>
         /// <param name="referenceDescriptions">A list of reference collections.</param>
         /// <param name="errors">The errors reported by the server.</param>
-        void FetchReferences(IList<NodeId> nodeIds, out IList<ReferenceDescriptionCollection> referenceDescriptions, out IList<ServiceResult> errors);
+        void FetchReferences(
+            IList<NodeId> nodeIds,
+            out IList<ReferenceDescriptionCollection> referenceDescriptions,
+            out IList<ServiceResult> errors);
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
 
         /// <summary>
         /// Reads a byte string which is too large for the (server side) encoder to handle.
         /// </summary>
         /// <param name="nodeId">The node id of a byte string variable</param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
+        /// <param name="ct">Cancelation token to cancel operation with</param>
         Task<byte[]> ReadByteStringInChunksAsync(NodeId nodeId, CancellationToken ct);
 
         /// <summary>
         /// Fetches all references for the specified node.
         /// </summary>
         /// <param name="nodeId">The node id.</param>
-        /// <param name="ct"></param>
-        Task<ReferenceDescriptionCollection> FetchReferencesAsync(NodeId nodeId, CancellationToken ct);
+        /// <param name="ct">Cancelation token to cancel operation with</param>
+        Task<ReferenceDescriptionCollection> FetchReferencesAsync(
+            NodeId nodeId,
+            CancellationToken ct);
 
         /// <summary>
         /// Fetches all references for the specified nodes.
         /// </summary>
         /// <param name="nodeIds">The node id collection.</param>
-        /// <param name="ct"></param>
+        /// <param name="ct">Cancelation token to cancel operation with</param>
         /// <returns>A list of reference collections and the errors reported by the server.</returns>
-        Task<(IList<ReferenceDescriptionCollection>, IList<ServiceResult>)> FetchReferencesAsync(IList<NodeId> nodeIds, CancellationToken ct);
+        Task<(IList<ReferenceDescriptionCollection>, IList<ServiceResult>)> FetchReferencesAsync(
+            IList<NodeId> nodeIds,
+            CancellationToken ct);
 #endif
 
         /// <summary>
@@ -576,7 +603,11 @@ namespace Opc.Ua.Client
         /// <param name="sessionTimeout">The session timeout.</param>
         /// <param name="identity">The user identity.</param>
         /// <param name="preferredLocales">The list of preferred locales.</param>
-        void Open(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales);
+        void Open(
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string> preferredLocales);
 
         /// <summary>
         /// Establishes a session with the server.
@@ -586,7 +617,12 @@ namespace Opc.Ua.Client
         /// <param name="identity">The user identity.</param>
         /// <param name="preferredLocales">The list of preferred locales.</param>
         /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
-        void Open(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain);
+        void Open(
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string> preferredLocales,
+            bool checkDomain);
 
         /// <summary>
         /// Establishes a session with the server.
@@ -597,7 +633,13 @@ namespace Opc.Ua.Client
         /// <param name="preferredLocales">The list of preferred locales.</param>
         /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
         /// <param name="closeChannel">If set to <c>true</c> then the channel is closed when the Open fails.</param>
-        void Open(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain, bool closeChannel);
+        void Open(
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string> preferredLocales,
+            bool checkDomain,
+            bool closeChannel);
 
         /// <summary>
         /// Updates the preferred locales used for the session.
@@ -615,7 +657,11 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Finds the NodeIds for the components for an instance.
         /// </summary>
-        void FindComponentIds(NodeId instanceId, IList<string> componentPaths, out NodeIdCollection componentIds, out IList<ServiceResult> errors);
+        void FindComponentIds(
+            NodeId instanceId,
+            IList<string> componentPaths,
+            out NodeIdCollection componentIds,
+            out IList<ServiceResult> errors);
 
         /// <summary>
         /// Reads the values for a set of variables.
@@ -624,14 +670,21 @@ namespace Opc.Ua.Client
         /// <param name="expectedTypes">The expected types.</param>
         /// <param name="values">The list of returned values.</param>
         /// <param name="errors">The list of returned errors.</param>
-        void ReadValues(IList<NodeId> variableIds, IList<Type> expectedTypes, out IList<object> values, out IList<ServiceResult> errors);
+        void ReadValues(
+            IList<NodeId> variableIds,
+            IList<Type> expectedTypes,
+            out IList<object> values,
+            out IList<ServiceResult> errors);
 
         /// <summary>
         /// Reads the display name for a set of Nodes.
         /// </summary>
-        void ReadDisplayName(IList<NodeId> nodeIds, out IList<string> displayNames, out IList<ServiceResult> errors);
+        void ReadDisplayName(
+            IList<NodeId> nodeIds,
+            out IList<string> displayNames,
+            out IList<ServiceResult> errors);
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <summary>
         /// Establishes a session with the server.
         /// </summary>
@@ -648,7 +701,12 @@ namespace Opc.Ua.Client
         /// <param name="identity">The user identity.</param>
         /// <param name="preferredLocales">The list of preferred locales.</param>
         /// <param name="ct">The cancellation token.</param>
-        Task OpenAsync(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, CancellationToken ct);
+        Task OpenAsync(
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string> preferredLocales,
+            CancellationToken ct);
 
         /// <summary>
         /// Establishes a session with the server.
@@ -659,7 +717,13 @@ namespace Opc.Ua.Client
         /// <param name="preferredLocales">The list of preferred locales.</param>
         /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
         /// <param name="ct">The cancellation token.</param>
-        Task OpenAsync(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain, CancellationToken ct);
+        Task OpenAsync(
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string> preferredLocales,
+            bool checkDomain,
+            CancellationToken ct);
 
         /// <summary>
         /// Establishes a session with the server.
@@ -671,7 +735,14 @@ namespace Opc.Ua.Client
         /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
         /// <param name="closeChannel">If set to <c>true</c> then the channel is closed when the Open fails.</param>
         /// <param name="ct">The cancellation token.</param>
-        Task OpenAsync(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain, bool closeChannel, CancellationToken ct);
+        Task OpenAsync(
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string> preferredLocales,
+            bool checkDomain,
+            bool closeChannel,
+            CancellationToken ct);
 
         /// <summary>
         /// Reads the values for the node attributes and returns a node object collection.
@@ -686,7 +757,11 @@ namespace Opc.Ua.Client
         /// <param name="optionalAttributes">Set to <c>true</c> if optional attributes should not be omitted.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The node collection and associated errors.</returns>
-        Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(IList<NodeId> nodeIds, NodeClass nodeClass, bool optionalAttributes = false, CancellationToken ct = default);
+        Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(
+            IList<NodeId> nodeIds,
+            NodeClass nodeClass,
+            bool optionalAttributes = false,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Reads the value for a node.
@@ -712,7 +787,11 @@ namespace Opc.Ua.Client
         /// <param name="nodeClass">The nodeclass of the node to read.</param>
         /// <param name="optionalAttributes">Read optional attributes.</param>
         /// <param name="ct">The cancellation token for the request.</param>
-        Task<Node> ReadNodeAsync(NodeId nodeId, NodeClass nodeClass, bool optionalAttributes = true, CancellationToken ct = default);
+        Task<Node> ReadNodeAsync(
+            NodeId nodeId,
+            NodeClass nodeClass,
+            bool optionalAttributes = true,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Reads the values for the node attributes and returns a node object collection.
@@ -722,18 +801,21 @@ namespace Opc.Ua.Client
         /// <param name="nodeIds">The nodeId collection.</param>
         /// <param name="optionalAttributes">If optional attributes to read.</param>
         /// <param name="ct">The cancellation token.</param>
-        Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(IList<NodeId> nodeIds, bool optionalAttributes = false, CancellationToken ct = default);
+        Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(
+            IList<NodeId> nodeIds,
+            bool optionalAttributes = false,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Reads the values for a node collection. Returns diagnostic errors.
         /// </summary>
         /// <param name="nodeIds">The node Id.</param>
         /// <param name="ct">The cancellation token for the request.</param>
-        Task<(DataValueCollection, IList<ServiceResult>)> ReadValuesAsync(IList<NodeId> nodeIds, CancellationToken ct = default);
+        Task<(DataValueCollection, IList<ServiceResult>)> ReadValuesAsync(
+            IList<NodeId> nodeIds,
+            CancellationToken ct = default);
 #endif
-        #endregion
 
-        #region Close Methods
         /// <summary>
         /// Disconnects from the server and frees any network resources with the specified timeout.
         /// </summary>
@@ -749,7 +831,7 @@ namespace Opc.Ua.Client
         /// </summary>
         StatusCode Close(int timeout, bool closeChannel);
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <summary>
         /// Close the session with the server and optionally closes the channel.
         /// </summary>
@@ -765,9 +847,7 @@ namespace Opc.Ua.Client
         /// </summary>
         Task<StatusCode> CloseAsync(int timeout, bool closeChannel, CancellationToken ct = default);
 #endif
-        #endregion
 
-        #region Subscription Methods
         /// <summary>
         /// Adds a subscription to the session.
         /// </summary>
@@ -808,20 +888,24 @@ namespace Opc.Ua.Client
         /// <param name="subscription">The subscription to remove.</param>
         bool RemoveTransferredSubscription(Subscription subscription);
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
         /// <summary>
         /// Removes a subscription from the session.
         /// </summary>
         /// <param name="subscription">The subscription to remove.</param>
         /// <param name="ct">The cancellation token for the request.</param>
-        Task<bool> RemoveSubscriptionAsync(Subscription subscription, CancellationToken ct = default);
+        Task<bool> RemoveSubscriptionAsync(
+            Subscription subscription,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Removes a list of subscriptions from the session.
         /// </summary>
         /// <param name="subscriptions">The list of subscriptions to remove.</param>
         /// <param name="ct">The cancellation token for the request.</param>
-        Task<bool> RemoveSubscriptionsAsync(IEnumerable<Subscription> subscriptions, CancellationToken ct = default);
+        Task<bool> RemoveSubscriptionsAsync(
+            IEnumerable<Subscription> subscriptions,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Reactivates a list of subscriptions loaded from storage.
@@ -829,7 +913,10 @@ namespace Opc.Ua.Client
         /// <param name="subscriptions">The list of subscriptions to reactivate.</param>
         /// <param name="sendInitialValues">Send the last value of each monitored item in the subscriptions.</param>
         /// <param name="ct">The cancellation token for the request.</param>
-        Task<bool> ReactivateSubscriptionsAsync(SubscriptionCollection subscriptions, bool sendInitialValues, CancellationToken ct = default);
+        Task<bool> ReactivateSubscriptionsAsync(
+            SubscriptionCollection subscriptions,
+            bool sendInitialValues,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Transfers a list of subscriptions from another session.
@@ -837,11 +924,12 @@ namespace Opc.Ua.Client
         /// <param name="subscriptions">The list of subscriptions to transfer.</param>
         /// <param name="sendInitialValues">Send the last value of each monitored item in the subscriptions.</param>
         /// <param name="ct">The cancellation token for the request.</param>
-        Task<bool> TransferSubscriptionsAsync(SubscriptionCollection subscriptions, bool sendInitialValues, CancellationToken ct = default);
+        Task<bool> TransferSubscriptionsAsync(
+            SubscriptionCollection subscriptions,
+            bool sendInitialValues,
+            CancellationToken ct = default);
 #endif
-        #endregion
 
-        #region Browse Methods
         /// <summary>
         /// Invokes the Browse service.
         /// </summary>
@@ -879,7 +967,7 @@ namespace Opc.Ua.Client
         /// <param name="includeSubtypes">If set to <c>true</c> the subtypes of the ReferenceType will be included in the browse.</param>
         /// <param name="nodeClassMask">The node class mask.</param>
         /// <param name="callback">The callback.</param>
-        /// <param name="asyncState"></param>
+        /// <param name="asyncState">Async state</param>
         IAsyncResult BeginBrowse(
             RequestHeader requestHeader,
             ViewDescription view,
@@ -902,9 +990,7 @@ namespace Opc.Ua.Client
             IAsyncResult result,
             out byte[] continuationPoint,
             out ReferenceDescriptionCollection references);
-        #endregion
 
-        #region BrowseNext Methods
         /// <summary>
         /// Invokes the BrowseNext service.
         /// </summary>
@@ -932,10 +1018,6 @@ namespace Opc.Ua.Client
             IAsyncResult result,
             out byte[] revisedContinuationPoint,
             out ReferenceDescriptionCollection references);
-        #endregion
-
-        #region ManagedBrowse methods
-
 
         /// <summary>
         /// Execute browse and, if necessary, browse next in one service call.
@@ -951,37 +1033,26 @@ namespace Opc.Ua.Client
             bool includeSubtypes,
             uint nodeClassMask,
             out IList<ReferenceDescriptionCollection> result,
-            out IList<ServiceResult> errors
-            );
+            out IList<ServiceResult> errors);
 
-#if (CLIENT_ASYNC)
+#if CLIENT_ASYNC
 
         /// <summary>
         /// Execute BrowseAsync and, if necessary, BrowseNextAsync, in one service call.
         /// Takes care of BadNoContinuationPoint and BadInvalidContinuationPoint status codes.
         /// </summary>
-        Task<(
-            IList<ReferenceDescriptionCollection>,
-            IList<ServiceResult>
-            )>
-                ManagedBrowseAsync(
-                RequestHeader requestHeader,
-                ViewDescription view,
-                IList<NodeId> nodesToBrowse,
-                uint maxResultsToReturn,
-                BrowseDirection browseDirection,
-                NodeId referenceTypeId,
-                bool includeSubtypes,
-                uint nodeClassMask,
-                CancellationToken ct = default
-            );
-
-
+        Task<(IList<ReferenceDescriptionCollection>, IList<ServiceResult>)> ManagedBrowseAsync(
+            RequestHeader requestHeader,
+            ViewDescription view,
+            IList<NodeId> nodesToBrowse,
+            uint maxResultsToReturn,
+            BrowseDirection browseDirection,
+            NodeId referenceTypeId,
+            bool includeSubtypes,
+            uint nodeClassMask,
+            CancellationToken ct = default);
 #endif
-        #endregion ManagedBrowse methods
 
-
-        #region Call Methods
         /// <summary>
         /// Calls the specified method and returns the output arguments.
         /// </summary>
@@ -1000,11 +1071,13 @@ namespace Opc.Ua.Client
         /// <param name="ct">The cancellation token for the request.</param>
         /// <param name="args">The input arguments.</param>
         /// <returns>The list of output argument values.</returns>
-        Task<IList<object>> CallAsync(NodeId objectId, NodeId methodId, CancellationToken ct = default, params object[] args);
+        Task<IList<object>> CallAsync(
+            NodeId objectId,
+            NodeId methodId,
+            CancellationToken ct = default,
+            params object[] args);
 #endif
-        #endregion
 
-        #region Publish Methods
         /// <summary>
         /// Sends an additional publish request.
         /// </summary>
@@ -1029,14 +1102,18 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Sends a republish request.
         /// </summary>
-        Task<(bool, ServiceResult)> RepublishAsync(uint subscriptionId, uint sequenceNumber, CancellationToken ct = default);
+        Task<(bool, ServiceResult)> RepublishAsync(
+            uint subscriptionId,
+            uint sequenceNumber,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Call the ResendData method on the server for all subscriptions.
         /// </summary>
-        Task<(bool, IList<ServiceResult>)> ResendDataAsync(IEnumerable<Subscription> subscriptions, CancellationToken ct = default);
+        Task<(bool, IList<ServiceResult>)> ResendDataAsync(
+            IEnumerable<Subscription> subscriptions,
+            CancellationToken ct = default);
 #endif
-        #endregion
     }
 
     /// <summary>
@@ -1063,7 +1140,5 @@ namespace Opc.Ua.Client
         /// (if set to a value different from 0)
         /// </summary>
         Balanced
-
-
     }
 }

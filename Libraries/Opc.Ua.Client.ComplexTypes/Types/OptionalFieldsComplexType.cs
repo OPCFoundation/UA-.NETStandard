@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 
 namespace Opc.Ua.Client.ComplexTypes
@@ -39,7 +38,6 @@ namespace Opc.Ua.Client.ComplexTypes
     /// </summary>
     public class OptionalFieldsComplexType : BaseComplexType
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
@@ -52,13 +50,12 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Initializes the object with a <paramref name="typeId"/>.
         /// </summary>
         /// <param name="typeId">The type to copy and create an instance from</param>
-        public OptionalFieldsComplexType(ExpandedNodeId typeId) : base(typeId)
+        public OptionalFieldsComplexType(ExpandedNodeId typeId)
+            : base(typeId)
         {
             EncodingMask = 0;
         }
-        #endregion Constructors
 
-        #region ICloneable
         /// <inheritdoc/>
         public override object Clone()
         {
@@ -77,9 +74,7 @@ namespace Opc.Ua.Client.ComplexTypes
             clone.EncodingMask = EncodingMask;
             return clone;
         }
-        #endregion
 
-        #region Public Properties
         /// <inheritdoc/>
         public override StructureType StructureType => StructureType.StructureWithOptionalFields;
 
@@ -97,12 +92,9 @@ namespace Opc.Ua.Client.ComplexTypes
 
             foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
             {
-                if (property.IsOptional)
+                if (property.IsOptional && (property.OptionalFieldMask & EncodingMask) == 0)
                 {
-                    if ((property.OptionalFieldMask & EncodingMask) == 0)
-                    {
-                        continue;
-                    }
+                    continue;
                 }
 
                 EncodeProperty(encoder, property);
@@ -134,12 +126,9 @@ namespace Opc.Ua.Client.ComplexTypes
 
             foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
             {
-                if (property.IsOptional)
+                if (property.IsOptional && (property.OptionalFieldMask & EncodingMask) == 0)
                 {
-                    if ((property.OptionalFieldMask & EncodingMask) == 0)
-                    {
-                        continue;
-                    }
+                    continue;
                 }
 
                 DecodeProperty(decoder, property);
@@ -174,12 +163,9 @@ namespace Opc.Ua.Client.ComplexTypes
 
             foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
             {
-                if (property.IsOptional)
+                if (property.IsOptional && (property.OptionalFieldMask & EncodingMask) == 0)
                 {
-                    if ((property.OptionalFieldMask & EncodingMask) == 0)
-                    {
-                        continue;
-                    }
+                    continue;
                 }
 
                 if (!Utils.IsEqual(property.GetValue(this), property.GetValue(valueBaseType)))
@@ -190,9 +176,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             return true;
         }
-        #endregion Public Properties
 
-        #region IFormattable Members
         /// <inheritdoc/>
         public override string ToString(string format, IFormatProvider formatProvider)
         {
@@ -201,15 +185,16 @@ namespace Opc.Ua.Client.ComplexTypes
                 var body = new StringBuilder();
                 foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
                 {
-                    if (property.IsOptional)
+                    if (property.IsOptional && (property.OptionalFieldMask & EncodingMask) == 0)
                     {
-                        if ((property.OptionalFieldMask & EncodingMask) == 0)
-                        {
-                            continue;
-                        }
+                        continue;
                     }
 
-                    AppendPropertyValue(formatProvider, body, property.GetValue(this), property.ValueRank);
+                    AppendPropertyValue(
+                        formatProvider,
+                        body,
+                        property.GetValue(this),
+                        property.ValueRank);
                 }
 
                 if (body.Length > 0)
@@ -228,17 +213,14 @@ namespace Opc.Ua.Client.ComplexTypes
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion IFormattable Members
 
-        #region IComplexTypeProperties Members
         /// <inheritdoc/>
         public override object this[int index]
         {
             get
             {
-                ComplexTypePropertyInfo property = m_propertyList.ElementAt(index);
-                if (property.IsOptional &&
-                    (property.OptionalFieldMask & EncodingMask) == 0)
+                ComplexTypePropertyInfo property = m_propertyList[index];
+                if (property.IsOptional && (property.OptionalFieldMask & EncodingMask) == 0)
                 {
                     return null;
                 }
@@ -246,7 +228,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             set
             {
-                ComplexTypePropertyInfo property = m_propertyList.ElementAt(index);
+                ComplexTypePropertyInfo property = m_propertyList[index];
                 property.SetValue(this, value);
                 if (property.IsOptional)
                 {
@@ -267,11 +249,9 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             get
             {
-                ComplexTypePropertyInfo property;
-                if (m_propertyDict.TryGetValue(name, out property))
+                if (m_propertyDict.TryGetValue(name, out ComplexTypePropertyInfo property))
                 {
-                    if (property.IsOptional &&
-                        (property.OptionalFieldMask & EncodingMask) == 0)
+                    if (property.IsOptional && (property.OptionalFieldMask & EncodingMask) == 0)
                     {
                         return null;
                     }
@@ -281,8 +261,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             set
             {
-                ComplexTypePropertyInfo property;
-                if (m_propertyDict.TryGetValue(name, out property))
+                if (m_propertyDict.TryGetValue(name, out ComplexTypePropertyInfo property))
                 {
                     property.SetValue(this, value);
                     if (value == null)
@@ -300,9 +279,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
             }
         }
-        #endregion IComplexTypeProperties Members
 
-        #region Private Members
         /// <inheritdoc/>
         protected override void InitializePropertyAttributes()
         {
@@ -320,6 +297,5 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
             }
         }
-        #endregion Private Members
     }
-}//namespace
+}

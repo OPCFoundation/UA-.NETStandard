@@ -11,18 +11,11 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.Xml;
-using System.Text;
-using System.IO;
-using System.Reflection;
-using Opc.Ua;
 
 namespace Opc.Ua
 {
     public partial class AcknowledgeableConditionState
     {
-        #region Initialization
         /// <summary>
         /// Called after a node is created.
         /// </summary>
@@ -30,27 +23,23 @@ namespace Opc.Ua
         {
             base.OnAfterCreate(context, node);
 
-            if (this.Acknowledge != null)
+            if (Acknowledge != null)
             {
-                this.Acknowledge.OnCall = OnAcknowledgeCalled;
+                Acknowledge.OnCall = OnAcknowledgeCalled;
             }
 
-            if (this.Confirm != null)
+            if (Confirm != null)
             {
-                this.Confirm.OnCall = OnConfirmCalled;
+                Confirm.OnCall = OnConfirmCalled;
             }
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Sets the acknowledged state of the condition.
         /// </summary>
         /// <param name="context">The system context.</param>
         /// <param name="acknowledged">if set to <c>true</c> the condition is acknowledged.</param>
-        public virtual void SetAcknowledgedState(
-            ISystemContext context,
-            bool acknowledged)
+        public virtual void SetAcknowledgedState(ISystemContext context, bool acknowledged)
         {
             if (acknowledged)
             {
@@ -67,9 +56,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="confirmed">if set to <c>true</c> the condition is confirmed.</param>
-        public virtual void SetConfirmedState(
-            ISystemContext context,
-            bool confirmed)
+        public virtual void SetConfirmedState(ISystemContext context, bool confirmed)
         {
             if (confirmed)
             {
@@ -80,9 +67,7 @@ namespace Opc.Ua
                 UpdateStateAfterUnconfirm(context);
             }
         }
-        #endregion
 
-        #region Event Handlers
         /// <summary>
         /// Raised when a condition is acknowledged.
         /// </summary>
@@ -98,33 +83,28 @@ namespace Opc.Ua
         /// Return code can be used to cancel the operation.
         /// </remarks>
         public ConditionAddCommentEventHandler OnConfirm;
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Updates the effective state for the condition.
         /// </summary>
         /// <param name="context">The context.</param>
         protected override void UpdateEffectiveState(ISystemContext context)
         {
-            if (!this.EnabledState.Id.Value)
+            if (!EnabledState.Id.Value)
             {
                 base.UpdateEffectiveState(context);
                 return;
             }
 
-            if (SupportsConfirm())
+            if (SupportsConfirm() && !ConfirmedState.Id.Value)
             {
-                if (!this.ConfirmedState.Id.Value)
-                {
-                    SetEffectiveSubState(context, this.ConfirmedState.Value, DateTime.MinValue);
-                    return;
-                }
+                SetEffectiveSubState(context, ConfirmedState.Value, DateTime.MinValue);
+                return;
             }
 
-            if (this.AckedState != null)
+            if (AckedState != null)
             {
-                SetEffectiveSubState(context, this.AckedState.Value, DateTime.MinValue);
+                SetEffectiveSubState(context, AckedState.Value, DateTime.MinValue);
             }
         }
 
@@ -180,7 +160,6 @@ namespace Opc.Ua
                 }
 
                 UpdateRetainState();
-
             }
 
             if (EventsMonitored())
@@ -192,9 +171,9 @@ namespace Opc.Ua
                 }
 
                 // raise the audit event.
-                AuditConditionAcknowledgeEventState e = new AuditConditionAcknowledgeEventState(null);
+                var e = new AuditConditionAcknowledgeEventState(null);
 
-                TranslationInfo info = new TranslationInfo(
+                var info = new TranslationInfo(
                     "AuditConditionAcknowledge",
                     "en-US",
                     "The Acknowledge method was called.");
@@ -211,7 +190,11 @@ namespace Opc.Ua
                 e.SetChildValue(context, BrowseNames.SourceName, "Method/Acknowledge", false);
 
                 e.SetChildValue(context, BrowseNames.MethodId, method.NodeId, false);
-                e.SetChildValue(context, BrowseNames.InputArguments, new object[] { eventId, comment }, false);
+                e.SetChildValue(
+                    context,
+                    BrowseNames.InputArguments,
+                    new object[] { eventId, comment },
+                    false);
 
                 e.SetChildValue(context, BrowseNames.ConditionEventId, eventId, false);
                 e.SetChildValue(context, BrowseNames.Comment, comment, false);
@@ -238,7 +221,7 @@ namespace Opc.Ua
                 return StatusCodes.BadEventIdUnknown;
             }
 
-            if (!this.EnabledState.Id.Value)
+            if (!EnabledState.Id.Value)
             {
                 return StatusCodes.BadConditionDisabled;
             }
@@ -251,7 +234,10 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    return ServiceResult.Create(e, StatusCodes.BadUnexpectedError, "Unexpected error acknowledging a Condition.");
+                    return ServiceResult.Create(
+                        e,
+                        StatusCodes.BadUnexpectedError,
+                        "Unexpected error acknowledging a Condition.");
                 }
             }
 
@@ -264,17 +250,17 @@ namespace Opc.Ua
         /// <param name="context">The system context.</param>
         protected virtual void UpdateStateAfterAcknowledge(ISystemContext context)
         {
-            TranslationInfo state = new TranslationInfo(
+            var state = new TranslationInfo(
                 "ConditionStateAcknowledged",
                 "en-US",
                 ConditionStateNames.Acknowledged);
 
-            this.AckedState.Value = new LocalizedText(state);
-            this.AckedState.Id.Value = true;
+            AckedState.Value = new LocalizedText(state);
+            AckedState.Id.Value = true;
 
-            if (this.AckedState.TransitionTime != null)
+            if (AckedState.TransitionTime != null)
             {
-                this.AckedState.TransitionTime.Value = DateTime.UtcNow;
+                AckedState.TransitionTime.Value = DateTime.UtcNow;
             }
 
             UpdateEffectiveState(context);
@@ -286,17 +272,17 @@ namespace Opc.Ua
         /// <param name="context">The system context.</param>
         protected virtual void UpdateStateAfterUnacknowledge(ISystemContext context)
         {
-            TranslationInfo state = new TranslationInfo(
+            var state = new TranslationInfo(
                 "ConditionStateUnacknowledged",
                 "en-US",
                 ConditionStateNames.Unacknowledged);
 
-            this.AckedState.Value = new LocalizedText(state);
-            this.AckedState.Id.Value = false;
+            AckedState.Value = new LocalizedText(state);
+            AckedState.Id.Value = false;
 
-            if (this.AckedState.TransitionTime != null)
+            if (AckedState.TransitionTime != null)
             {
-                this.AckedState.TransitionTime.Value = DateTime.UtcNow;
+                AckedState.TransitionTime.Value = DateTime.UtcNow;
             }
 
             UpdateEffectiveState(context);
@@ -352,9 +338,9 @@ namespace Opc.Ua
                 }
 
                 // raise the audit event.
-                AuditConditionConfirmEventState e = new AuditConditionConfirmEventState(null);
+                var e = new AuditConditionConfirmEventState(null);
 
-                TranslationInfo info = new TranslationInfo(
+                var info = new TranslationInfo(
                     "AuditConditionConfirm",
                     "en-US",
                     "The Confirm method was called.");
@@ -371,7 +357,11 @@ namespace Opc.Ua
                 e.SetChildValue(context, BrowseNames.SourceName, "Method/Confirm", false);
 
                 e.SetChildValue(context, BrowseNames.MethodId, method.NodeId, false);
-                e.SetChildValue(context, BrowseNames.InputArguments, new object[] { eventId, comment }, false);
+                e.SetChildValue(
+                    context,
+                    BrowseNames.InputArguments,
+                    new object[] { eventId, comment },
+                    false);
 
                 e.SetChildValue(context, BrowseNames.ConditionEventId, eventId, false);
                 e.SetChildValue(context, BrowseNames.Comment, comment, false);
@@ -398,7 +388,7 @@ namespace Opc.Ua
                 return StatusCodes.BadEventIdUnknown;
             }
 
-            if (!this.EnabledState.Id.Value)
+            if (!EnabledState.Id.Value)
             {
                 return StatusCodes.BadConditionDisabled;
             }
@@ -411,7 +401,10 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    return ServiceResult.Create(e, StatusCodes.BadUnexpectedError, "Unexpected error confirming a Condition.");
+                    return ServiceResult.Create(
+                        e,
+                        StatusCodes.BadUnexpectedError,
+                        "Unexpected error confirming a Condition.");
                 }
             }
 
@@ -424,19 +417,19 @@ namespace Opc.Ua
         /// <param name="context">The system context.</param>
         protected virtual void UpdateStateAfterConfirm(ISystemContext context)
         {
-            if (this.ConfirmedState != null)
+            if (ConfirmedState != null)
             {
-                TranslationInfo state = new TranslationInfo(
+                var state = new TranslationInfo(
                     "ConditionStateConfirmed",
                     "en-US",
                     ConditionStateNames.Confirmed);
 
-                this.ConfirmedState.Value = new LocalizedText(state);
-                this.ConfirmedState.Id.Value = true;
+                ConfirmedState.Value = new LocalizedText(state);
+                ConfirmedState.Id.Value = true;
 
-                if (this.ConfirmedState.TransitionTime != null)
+                if (ConfirmedState.TransitionTime != null)
                 {
-                    this.ConfirmedState.TransitionTime.Value = DateTime.UtcNow;
+                    ConfirmedState.TransitionTime.Value = DateTime.UtcNow;
                 }
 
                 UpdateEffectiveState(context);
@@ -449,19 +442,19 @@ namespace Opc.Ua
         /// <param name="context">The system context.</param>
         protected virtual void UpdateStateAfterUnconfirm(ISystemContext context)
         {
-            if (this.ConfirmedState != null)
+            if (ConfirmedState != null)
             {
-                TranslationInfo state = new TranslationInfo(
+                var state = new TranslationInfo(
                     "ConditionStateUnconfirmed",
                     "en-US",
                     ConditionStateNames.Unconfirmed);
 
-                this.ConfirmedState.Value = new LocalizedText(state);
-                this.ConfirmedState.Id.Value = false;
+                ConfirmedState.Value = new LocalizedText(state);
+                ConfirmedState.Id.Value = false;
 
-                if (this.ConfirmedState.TransitionTime != null)
+                if (ConfirmedState.TransitionTime != null)
                 {
-                    this.ConfirmedState.TransitionTime.Value = DateTime.UtcNow;
+                    ConfirmedState.TransitionTime.Value = DateTime.UtcNow;
                 }
 
                 UpdateEffectiveState(context);
@@ -480,7 +473,7 @@ namespace Opc.Ua
         /// This also applies to the Confirm method, although the spec needs updating
         /// (Mantis issue 6405)
         /// </remarks>
-        private bool CanSetComment(LocalizedText comment)
+        private static bool CanSetComment(LocalizedText comment)
         {
             bool canSetComment = false;
 
@@ -488,8 +481,8 @@ namespace Opc.Ua
             {
                 canSetComment = true;
 
-                bool emptyComment = comment.Text == null || comment.Text.Length == 0;
-                bool emptyLocale = comment.Locale == null || comment.Locale.Length == 0;
+                bool emptyComment = string.IsNullOrEmpty(comment.Text);
+                bool emptyLocale = string.IsNullOrEmpty(comment.Locale);
 
                 if (emptyComment && emptyLocale)
                 {
@@ -510,7 +503,7 @@ namespace Opc.Ua
         {
             bool supportsConfirm = false;
 
-            if (this.ConfirmedState != null && this.ConfirmedState.Value != null)
+            if (ConfirmedState != null && ConfirmedState.Value != null)
             {
                 supportsConfirm = true;
             }
@@ -553,34 +546,21 @@ namespace Opc.Ua
         {
             bool retainState = false;
 
-            if (this.EnabledState.Id.Value)
+            if (EnabledState.Id.Value)
             {
                 retainState = base.GetRetainState();
 
-                if (!this.AckedState.Id.Value)
+                if (!AckedState.Id.Value)
                 {
                     retainState = true;
                 }
-                else
+                else if (SupportsConfirm() && !ConfirmedState.Id.Value)
                 {
-                    if (SupportsConfirm() && !this.ConfirmedState.Id.Value)
-                    {
-                        retainState = true;
-                    }
+                    retainState = true;
                 }
             }
 
             return retainState;
         }
-
-
-
-        #endregion
-
-        #region Public Interface
-        #endregion
-
-        #region Private Fields
-        #endregion
     }
 }

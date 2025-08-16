@@ -8,7 +8,6 @@
   <ApplicationUri>urn:localhost:opcfoundation.org:GlobalDiscoveryTestServer</ApplicationUri>
   <ProductUri>http://opcfoundation.org/UA/GlobalDiscoveryTestServer</ProductUri>
   <ApplicationType>Server_0</ApplicationType>
-
   <SecurityConfiguration>
     <ApplicationCertificates>
       <CertificateIdentifier>
@@ -42,36 +41,28 @@
         <CertificateTypeString>BrainpoolP384r1</CertificateTypeString>
       </CertificateIdentifier>
     </ApplicationCertificates>
-
     <TrustedIssuerCertificates>
       <StoreType>Directory</StoreType>
       <StorePath>%LocalApplicationData%/OPC/GDS/issuers</StorePath>
     </TrustedIssuerCertificates>
-
     <TrustedPeerCertificates>
       <StoreType>Directory</StoreType>
       <StorePath>%LocalApplicationData%/OPC/GDS/trusted</StorePath>
     </TrustedPeerCertificates>
-
     <RejectedCertificateStore>
       <StoreType>Directory</StoreType>
       <StorePath>%LocalApplicationData%/OPC/GDS/rejected</StorePath>
     </RejectedCertificateStore>
-
     <!-- WARNING: The following setting (to automatically accept untrusted certificates) should be used
     for easy debugging purposes ONLY and turned off for production deployments! -->
     <AutoAcceptUntrustedCertificates>true</AutoAcceptUntrustedCertificates>
-
     <!-- WARNING: SHA1 signed certificates are by default rejected and should be phased out. -->
     <RejectSHA1SignedCertificates>false</RejectSHA1SignedCertificates>
     <MinimumCertificateKeySize>1024</MinimumCertificateKeySize>
     <AddAppCertToTrustedStore>false</AddAppCertToTrustedStore>
     <SendCertificateChain>true</SendCertificateChain>
-      
   </SecurityConfiguration>
-
   <TransportConfigurations></TransportConfigurations>
-
   <TransportQuotas>
     <OperationTimeout>600000</OperationTimeout>
     <MaxStringLength>1048576</MaxStringLength>
@@ -82,7 +73,6 @@
     <ChannelLifetime>300000</ChannelLifetime>
     <SecurityTokenLifetime>3600000</SecurityTokenLifetime>
   </TransportQuotas>
-
   <ServerConfiguration>
     <BaseAddresses>
       <ua:String>opc.tcp://localhost:58810/GlobalDiscoveryTestServer</ua:String>
@@ -120,7 +110,6 @@
     <MaxNotificationsPerPublish>1000</MaxNotificationsPerPublish>
     <MinMetadataSamplingInterval>1000</MinMetadataSamplingInterval>
     <AvailableSamplingRates />
-
     <RegistrationEndpoint>
       <ua:EndpointUrl>opc.tcp://localhost:4840</ua:EndpointUrl>
       <ua:Server>
@@ -134,14 +123,11 @@
       <ua:SecurityPolicyUri />
       <ua:UserIdentityTokens />
     </RegistrationEndpoint>
-
     <MaxRegistrationInterval>0</MaxRegistrationInterval>
-
     <!-- see https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles -->
     <ServerProfileArray>
       <ua:String>http://opcfoundation.org/UA-Profile/Server/GlobalDiscoveryAndCertificateManagement2017</ua:String>
     </ServerProfileArray>
-
     <ShutdownDelay>0</ShutdownDelay>
     <ServerCapabilities>
       <ua:String>GDS</ua:String>
@@ -152,7 +138,6 @@
     </SupportedPrivateKeyFormats>
     <MaxTrustListSize>0</MaxTrustListSize>
     <MultiCastDnsEnabled>false</MultiCastDnsEnabled>
-
   </ServerConfiguration>
   <Extensions>
     <ua:XmlElement>
@@ -180,13 +165,12 @@
             <CACertificateHashSize>512</CACertificateHashSize>
           </CertificateGroupConfiguration>
         </CertificateGroups>
-        <KnownHostNames/>
+        <KnownHostNames />
         <DatabaseStorePath>%LocalApplicationData%/OPC/GDS/gdsdb.json</DatabaseStorePath>
         <UsersDatabaseStorePath>%LocalApplicationData%/OPC/GDS/gdsusersdb.json</UsersDatabaseStorePath>
       </GlobalDiscoveryServerConfiguration>
     </ua:XmlElement>
   </Extensions>
-
   <TraceConfiguration>
     <OutputFilePath>%LocalApplicationData%/OPC/Logs/Opc.Ua.Gds.Tests.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
@@ -203,5 +187,4 @@
     <!-- Show Only Security, ServiceResultExceptions, Errors and Trace -->
     <TraceMasks>519</TraceMasks>
   </TraceConfiguration>
-
 </ApplicationConfiguration>

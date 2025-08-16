@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -48,16 +48,17 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Parse the url into an IPaddress and port number
         /// </summary>
-        /// <param name="url"></param>
         /// <returns>A new instance of <see cref="IPEndPoint"/> or null if invalid URL.</returns>
         internal static IPEndPoint GetEndPoint(string url)
         {
-            Uri connectionUri;
-            if (url != null && Uri.TryCreate(url, UriKind.Absolute, out connectionUri))
+            if (url != null && Uri.TryCreate(url, UriKind.Absolute, out Uri connectionUri))
             {
                 if (connectionUri.Scheme != Utils.UriSchemeOpcUdp)
                 {
-                    Utils.Trace(Utils.TraceMasks.Error, "Invalid Scheme specified in URL: {0}", url);
+                    Utils.Trace(
+                        Utils.TraceMasks.Error,
+                        "Invalid Scheme specified in URL: {0}",
+                        url);
                     return null;
                 }
                 if (connectionUri.Port <= 0)
@@ -71,8 +72,7 @@ namespace Opc.Ua.PubSub.Transport
                     hostName = "127.0.0.1";
                 }
 
-                IPAddress ipAddress;
-                if (IPAddress.TryParse(hostName, out ipAddress))
+                if (IPAddress.TryParse(hostName, out IPAddress ipAddress))
                 {
                     return new IPEndPoint(ipAddress, connectionUri.Port);
                 }
@@ -80,7 +80,7 @@ namespace Opc.Ua.PubSub.Transport
                 {
                     IPHostEntry hostEntry = Dns.GetHostEntry(hostName);
 
-                    //you might get more than one IP for a hostname since 
+                    //you might get more than one IP for a hostname since
                     //DNS supports more than one record
                     foreach (IPAddress address in hostEntry.AddressList)
                     {
@@ -104,16 +104,24 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="pubSubContext">Is the method called in a publisher context or a subscriber context</param>
         /// <param name="networkInterface">The configured network interface name.</param>
         /// <param name="configuredEndpoint">The configured <see cref="IPEndPoint"/> that will be used for data exchange.</param>
-        /// <returns></returns>
-        internal static List<UdpClient> GetUdpClients(UsedInContext pubSubContext, string networkInterface, IPEndPoint configuredEndpoint)
+        internal static List<UdpClient> GetUdpClients(
+            UsedInContext pubSubContext,
+            string networkInterface,
+            IPEndPoint configuredEndpoint)
         {
-            StringBuilder buffer = new StringBuilder();
-            buffer.AppendFormat(CultureInfo.InvariantCulture, "networkAddressUrl.NetworkInterface = {0} \n", networkInterface ?? "null");
-            buffer.AppendFormat(CultureInfo.InvariantCulture, "configuredEndpoint = {0}", configuredEndpoint != null ? configuredEndpoint.ToString() : "null");
+            var buffer = new StringBuilder();
+            buffer.AppendFormat(
+                CultureInfo.InvariantCulture,
+                "networkAddressUrl.NetworkInterface = {0} \n",
+                networkInterface ?? "null")
+                .AppendFormat(
+                CultureInfo.InvariantCulture,
+                "configuredEndpoint = {0}",
+                configuredEndpoint != null ? configuredEndpoint.ToString() : "null");
 
             Utils.Trace(Utils.TraceMasks.Information, buffer.ToString());
 
-            List<UdpClient> udpClients = new List<UdpClient>();
+            var udpClients = new List<UdpClient>();
             //validate input parameters
             if (configuredEndpoint == null)
             {
@@ -121,11 +129,13 @@ namespace Opc.Ua.PubSub.Transport
                 return udpClients;
             }
             //detect the list on network interfaces that will be used for creating the UdpClient s
-            List<NetworkInterface> usableNetworkInterfaces = new List<NetworkInterface>();
-            var interfaces = NetworkInterface.GetAllNetworkInterfaces();
+            var usableNetworkInterfaces = new List<NetworkInterface>();
+            NetworkInterface[] interfaces = NetworkInterface.GetAllNetworkInterfaces();
             if (string.IsNullOrEmpty(networkInterface))
             {
-                Utils.Trace(Utils.TraceMasks.Information, "No NetworkInterface name was provided. Use all available NICs.");
+                Utils.Trace(
+                    Utils.TraceMasks.Information,
+                    "No NetworkInterface name was provided. Use all available NICs.");
                 usableNetworkInterfaces.AddRange(interfaces);
             }
             else
@@ -140,14 +150,20 @@ namespace Opc.Ua.PubSub.Transport
                 }
                 if (usableNetworkInterfaces.Count == 0)
                 {
-                    Utils.Trace(Utils.TraceMasks.Information, "The configured value for NetworkInterface name('{0}') could not be used.", networkInterface);
+                    Utils.Trace(
+                        Utils.TraceMasks.Information,
+                        "The configured value for NetworkInterface name('{0}') could not be used.",
+                        networkInterface);
                     usableNetworkInterfaces.AddRange(interfaces);
                 }
             }
 
             foreach (NetworkInterface nic in usableNetworkInterfaces)
             {
-                Utils.Trace(Utils.TraceMasks.Information, "NetworkInterface name('{0}') attempts to create instance of UdpClient.", nic.Name);
+                Utils.Trace(
+                    Utils.TraceMasks.Information,
+                    "NetworkInterface name('{0}') attempts to create instance of UdpClient.",
+                    nic.Name);
 
                 if ((nic.NetworkInterfaceType == NetworkInterfaceType.Loopback) ||
                     (nic.NetworkInterfaceType == NetworkInterfaceType.Tunnel) ||
@@ -159,11 +175,20 @@ namespace Opc.Ua.PubSub.Transport
                     continue;
                 }
 
-                UdpClient udpClient = CreateUdpClientForNetworkInterface(pubSubContext, nic, configuredEndpoint);
-                if (udpClient == null) continue;
+                UdpClient udpClient = CreateUdpClientForNetworkInterface(
+                    pubSubContext,
+                    nic,
+                    configuredEndpoint);
+                if (udpClient == null)
+                {
+                    continue;
+                }
                 //store UdpClient
                 udpClients.Add(udpClient);
-                Utils.Trace(Utils.TraceMasks.Information, "NetworkInterface name('{0}') UdpClient successfully created.", nic.Name);
+                Utils.Trace(
+                    Utils.TraceMasks.Information,
+                    "NetworkInterface name('{0}') UdpClient successfully created.",
+                    nic.Name);
             }
 
             return udpClients;
@@ -173,16 +198,18 @@ namespace Opc.Ua.PubSub.Transport
         /// Create specific <see cref="UdpClient"/> for specified <see cref="NetworkInterface"/> and <see cref="IPEndPoint"/>.
         /// </summary>
         /// <param name="pubSubContext">Is the method called in a publisher context or a subscriber context</param>
-        /// <param name="networkInterface"></param>
-        /// <param name="configuredEndpoint"></param>
-        /// <returns></returns>
-        private static UdpClient CreateUdpClientForNetworkInterface(UsedInContext pubSubContext, NetworkInterface networkInterface, IPEndPoint configuredEndpoint)
+        /// <param name="networkInterface">The network interface</param>
+        /// <param name="configuredEndpoint">The configured IP endpoint to use</param>
+        private static UdpClient CreateUdpClientForNetworkInterface(
+            UsedInContext pubSubContext,
+            NetworkInterface networkInterface,
+            IPEndPoint configuredEndpoint)
         {
             UdpClient udpClient = null;
             IPInterfaceProperties ipProps = networkInterface.GetIPProperties();
             IPAddress localAddress = IPAddress.Any;
 
-            foreach (var address in ipProps.UnicastAddresses)
+            foreach (UnicastIPAddressInformation address in ipProps.UnicastAddresses)
             {
                 if (address.Address.AddressFamily == AddressFamily.InterNetwork)
                 {
@@ -194,14 +221,17 @@ namespace Opc.Ua.PubSub.Transport
             {
                 //detect the port used for binding
                 int port = 0;
-                if (pubSubContext == UsedInContext.Subscriber || pubSubContext == UsedInContext.Discovery)
+                if (pubSubContext is UsedInContext.Subscriber or UsedInContext.Discovery)
                 {
                     port = configuredEndpoint.Port;
                 }
                 if (IsIPv4MulticastAddress(configuredEndpoint.Address))
                 {
                     //instantiate multi-cast UdpClient
-                    udpClient = new UdpClientMulticast(localAddress, configuredEndpoint.Address, port);
+                    udpClient = new UdpClientMulticast(
+                        localAddress,
+                        configuredEndpoint.Address,
+                        port);
                 }
                 else if (IsIPv4BroadcastAddress(configuredEndpoint.Address, networkInterface))
                 {
@@ -213,26 +243,30 @@ namespace Opc.Ua.PubSub.Transport
                     //instantiate unicast UdpClient depending on publisher/subscriber usage context
                     udpClient = new UdpClientUnicast(localAddress, port);
                 }
-                if (pubSubContext == UsedInContext.Publisher || pubSubContext == UsedInContext.Discovery)
+                if (pubSubContext is UsedInContext.Publisher or UsedInContext.Discovery)
                 {
                     //try to send 1 byte for target IP
-                    udpClient.Send(new byte[] { 0 }, 1, configuredEndpoint);
+                    udpClient.Send([0], 1, configuredEndpoint);
                 }
 
                 // On Windows Only since Linux does not support this
                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                 {
                     // Disable exceptions raised by ICMP Port Unreachable messages
-                    udpClient.Client.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { 0, 0, 0, 0 }, null);
+                    udpClient.Client
+                        .IOControl((IOControlCode)SIO_UDP_CONNRESET, [0, 0, 0, 0], null);
                 }
             }
             catch (Exception ex)
             {
-                Utils.Trace(Utils.TraceMasks.Information, "Cannot use Network interface '{0}'. Exception: {1}",
-                       networkInterface.Name, ex.Message);
+                Utils.Trace(
+                    Utils.TraceMasks.Information,
+                    "Cannot use Network interface '{0}'. Exception: {1}",
+                    networkInterface.Name,
+                    ex.Message);
                 if (udpClient != null)
                 {
-                    //cleanup 
+                    //cleanup
                     udpClient.Dispose();
                     udpClient = null;
                 }
@@ -244,22 +278,23 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Checks if the address provided is an IPv4 multicast address
         /// </summary>
-        /// <param name="address"></param>
-        /// <returns></returns>
         private static bool IsIPv4MulticastAddress(IPAddress address)
         {
-            if (address == null) return false;
+            if (address == null)
+            {
+                return false;
+            }
+
             byte[] bytes = address.GetAddressBytes();
-            return bytes[0] >= 224 && bytes[0] <= 239;
+            return bytes[0] is >= 224 and <= 239;
         }
 
         /// <summary>
         /// Checks if the address provided is an IPv4 broadcast address
         /// </summary>
-        /// <param name="address"></param>
-        /// <param name="networkInterface"></param>
-        /// <returns></returns>
-        private static bool IsIPv4BroadcastAddress(IPAddress address, NetworkInterface networkInterface)
+        private static bool IsIPv4BroadcastAddress(
+            IPAddress address,
+            NetworkInterface networkInterface)
         {
             IPInterfaceProperties ipProps = networkInterface.GetIPProperties();
             foreach (UnicastIPAddressInformation localUnicastAddress in ipProps.UnicastAddresses)
@@ -270,7 +305,7 @@ namespace Opc.Ua.PubSub.Transport
                     uint addressBits = BitConverter.ToUInt32(address.GetAddressBytes(), 0);
                     uint invertedSubnetBits = ~BitConverter.ToUInt32(subnetMask, 0);
 
-                    bool isBroadcast = ((addressBits & invertedSubnetBits) == invertedSubnetBits);
+                    bool isBroadcast = (addressBits & invertedSubnetBits) == invertedSubnetBits;
                     if (isBroadcast)
                     {
                         return true;

@@ -32,10 +32,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
-using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
@@ -48,11 +46,12 @@ namespace Opc.Ua.Client.Tests
     /// </summary>
     public class ClientTestFramework
     {
-        public static readonly object[] FixtureArgs = {
-            new object [] { Utils.UriSchemeOpcTcp},
-            new object [] { Utils.UriSchemeHttps},
-            new object [] { Utils.UriSchemeOpcHttps},
-        };
+        public static readonly object[] FixtureArgs =
+        [
+            new object[] { Utils.UriSchemeOpcTcp },
+            new object[] { Utils.UriSchemeHttps },
+            new object[] { Utils.UriSchemeOpcHttps }
+        ];
 
         public const int MaxReferences = 100;
         public const int MaxTimeout = 10000;
@@ -62,7 +61,7 @@ namespace Opc.Ua.Client.Tests
 
         public bool SingleSession { get; set; } = true;
         public int MaxChannelCount { get; set; } = 100;
-        public bool SupportsExternalServerUrl { get; set; } = false;
+        public bool SupportsExternalServerUrl { get; set; }
         public ServerFixture<ReferenceServer> ServerFixture { get; set; }
         public ClientFixture ClientFixture { get; set; }
         public ReferenceServer ReferenceServer { get; set; }
@@ -70,14 +69,15 @@ namespace Opc.Ua.Client.Tests
         public ReferenceDescriptionCollection ReferenceDescriptions { get; set; }
         public ISession Session { get; protected set; }
         public OperationLimits OperationLimits { get; private set; }
-        public string UriScheme { get; private set; }
+        public string UriScheme { get; }
         public string PkiRoot { get; set; }
         public Uri ServerUrl { get; private set; }
         public int ServerFixturePort { get; set; }
         public ExpandedNodeId[] TestSetStatic { get; private set; }
         public ExpandedNodeId[] TestSetSimulation { get; private set; }
-        public ExpandedNodeId[] TestSetDataSimulation { get; private set; }
-        public ExpandedNodeId[] TestSetHistory { get; private set; }
+        public ExpandedNodeId[] TestSetDataSimulation { get; }
+        public ExpandedNodeId[] TestSetHistory { get; }
+
         public ClientTestFramework(string uriScheme = Utils.UriSchemeOpcTcp)
         {
             UriScheme = uriScheme;
@@ -86,22 +86,22 @@ namespace Opc.Ua.Client.Tests
             TestSetDataSimulation = CommonTestWorkers.NodeIdTestSetDataSimulation;
             TestSetHistory = CommonTestWorkers.NodeIdTestDataHistory;
         }
+
         public void InitializeSession(ISession session)
         {
             Session = session;
         }
 
-        #region DataPointSources
         [DatapointSource]
-        public static readonly string[] Policies = SecurityPolicies.GetDisplayNames()
-            .Select(displayName => SecurityPolicies.GetUri(displayName)).ToArray();
-        #endregion
+        public static readonly string[] Policies =
+        [
+            .. SecurityPolicies.GetDisplayNames().Select(SecurityPolicies.GetUri)
+        ];
 
-        #region Test Setup
         /// <summary>
         /// Set up a Server and a Client instance.
         /// </summary>
-        public Task OneTimeSetUp()
+        public virtual Task OneTimeSetUpAsync()
         {
             return OneTimeSetUpAsync(null);
         }
@@ -110,12 +110,12 @@ namespace Opc.Ua.Client.Tests
         /// Setup a server and client fixture.
         /// </summary>
         /// <param name="writer">The test output writer.</param>
-        public async Task OneTimeSetUpAsync(TextWriter writer = null,
+        public virtual async Task OneTimeSetUpAsync(
+            TextWriter writer = null,
             bool securityNone = false,
             bool enableClientSideTracing = false,
             bool enableServerSideTracing = false,
-            bool disableActivityLogging = false
-            )
+            bool disableActivityLogging = false)
         {
             // pki directory root for test runs.
             PkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
@@ -142,15 +142,22 @@ namespace Opc.Ua.Client.Tests
 
             if (customUrl == null)
             {
-                await CreateReferenceServerFixture(enableServerSideTracing, disableActivityLogging, securityNone, writer).ConfigureAwait(false);
+                await CreateReferenceServerFixtureAsync(
+                        enableServerSideTracing,
+                        disableActivityLogging,
+                        securityNone,
+                        writer)
+                    .ConfigureAwait(false);
             }
 
             ClientFixture = new ClientFixture(enableClientSideTracing, disableActivityLogging);
 
-            await ClientFixture.LoadClientConfiguration(PkiRoot).ConfigureAwait(false);
+            await ClientFixture.LoadClientConfigurationAsync(PkiRoot).ConfigureAwait(false);
             ClientFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
-            ClientFixture.Config.TransportQuotas.MaxByteStringLength =
-            ClientFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
+            ClientFixture.Config.TransportQuotas.MaxByteStringLength = ClientFixture
+                .Config
+                .TransportQuotas
+                .MaxStringLength = TransportQuotaMaxStringLength;
 
             if (!string.IsNullOrEmpty(customUrl))
             {
@@ -158,124 +165,164 @@ namespace Opc.Ua.Client.Tests
             }
             else
             {
-                string url = UriScheme + "://localhost:" + ServerFixturePort.ToString(CultureInfo.InvariantCulture);
+                string url = UriScheme +
+                    "://localhost:" +
+                    ServerFixturePort.ToString(CultureInfo.InvariantCulture);
 
                 if (UriScheme.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) ||
                     Utils.IsUriHttpsScheme(UriScheme))
                 {
-                    url = url + ConfiguredEndpoint.DiscoverySuffix;
+                    url += ConfiguredEndpoint.DiscoverySuffix;
                 }
 
                 ServerUrl = new Uri(url);
-                
             }
 
             if (SingleSession)
             {
                 try
                 {
-                    Session = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+                    Session = await ClientFixture
+                        .ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256)
+                        .ConfigureAwait(false);
                     Assert.NotNull(Session);
                     Session.ReturnDiagnostics = DiagnosticsMasks.All;
                 }
                 catch (Exception e)
                 {
-                    Assert.Warn($"OneTimeSetup failed to create session with {ServerUrl}, tests fail. Error: {e.Message}");
+                    NUnit.Framework.Assert.Warn(
+                        $"OneTimeSetup failed to create session with {ServerUrl}, tests fail. Error: {e.Message}");
                 }
             }
         }
 
-        public virtual async Task CreateReferenceServerFixture(
+        public virtual async Task CreateReferenceServerFixtureAsync(
             bool enableTracing,
             bool disableActivityLogging,
             bool securityNone,
             TextWriter writer)
         {
+            // start Ref server
+            ServerFixture = new ServerFixture<ReferenceServer>(
+                enableTracing,
+                disableActivityLogging)
             {
-                // start Ref server
-                ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging) {
-                    UriScheme = UriScheme,
-                    SecurityNone = securityNone,
-                    AutoAccept = true,
-                    AllNodeManagers = true,
-                    OperationLimits = true
-                };
-            }
+                UriScheme = UriScheme,
+                SecurityNone = securityNone,
+                AutoAccept = true,
+                AllNodeManagers = true,
+                OperationLimits = true
+            };
 
             if (writer != null)
             {
                 ServerFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
             }
 
-            await ServerFixture.LoadConfiguration(PkiRoot).ConfigureAwait(false);
+            await ServerFixture.LoadConfigurationAsync(PkiRoot).ConfigureAwait(false);
             ServerFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
-            ServerFixture.Config.TransportQuotas.MaxByteStringLength =
-            ServerFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName));
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate));
+            ServerFixture.Config.TransportQuotas.MaxByteStringLength = ServerFixture
+                .Config
+                .TransportQuotas
+                .MaxStringLength = TransportQuotaMaxStringLength;
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies
+                .Add(new UserTokenPolicy(UserTokenType.UserName));
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Opc.Ua.Profiles.JwtUserToken });
+                new UserTokenPolicy(UserTokenType.Certificate));
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                new UserTokenPolicy(UserTokenType.IssuedToken)
+                {
+                    IssuedTokenType = Profiles.JwtUserToken
+                });
 
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName) {
-                SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1"
-            });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName) {
-                SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1"
-            });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName) {
-                SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256"
-            });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName) {
-                SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384"
-            });
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                new UserTokenPolicy(UserTokenType.UserName)
+                {
+                    SecurityPolicyUri
+                        = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1"
+                });
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                new UserTokenPolicy(UserTokenType.UserName)
+                {
+                    SecurityPolicyUri
+                        = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1"
+                });
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                new UserTokenPolicy(UserTokenType.UserName)
+                {
+                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256"
+                });
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                new UserTokenPolicy(UserTokenType.UserName)
+                {
+                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384"
+                });
 
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate) {
-                SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1"
-            });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate) {
-                SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1"
-            });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate) {
-                SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256"
-            });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate) {
-                SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384"
-            });
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                new UserTokenPolicy(UserTokenType.Certificate)
+                {
+                    SecurityPolicyUri
+                        = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1"
+                });
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                new UserTokenPolicy(UserTokenType.Certificate)
+                {
+                    SecurityPolicyUri
+                        = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1"
+                });
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                new UserTokenPolicy(UserTokenType.Certificate)
+                {
+                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256"
+                });
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                new UserTokenPolicy(UserTokenType.Certificate)
+                {
+                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384"
+                });
 
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.IssuedToken) {
-                IssuedTokenType = Opc.Ua.Profiles.JwtUserToken,
-                PolicyId = Profiles.JwtUserToken,
-                SecurityPolicyUri =  "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1"
-            });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.IssuedToken)
-            {
-                IssuedTokenType = Opc.Ua.Profiles.JwtUserToken,
-                PolicyId = Profiles.JwtUserToken,
-                SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1"
-            });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.IssuedToken)
-            {
-                IssuedTokenType = Opc.Ua.Profiles.JwtUserToken,
-                PolicyId = Profiles.JwtUserToken,
-                SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256"
-            });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.IssuedToken)
-            {
-                IssuedTokenType = Opc.Ua.Profiles.JwtUserToken,
-                PolicyId = Profiles.JwtUserToken,
-                SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384"
-            });
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                new UserTokenPolicy(UserTokenType.IssuedToken)
+                {
+                    IssuedTokenType = Profiles.JwtUserToken,
+                    PolicyId = Profiles.JwtUserToken,
+                    SecurityPolicyUri
+                        = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1"
+                });
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                new UserTokenPolicy(UserTokenType.IssuedToken)
+                {
+                    IssuedTokenType = Profiles.JwtUserToken,
+                    PolicyId = Profiles.JwtUserToken,
+                    SecurityPolicyUri
+                        = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1"
+                });
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                new UserTokenPolicy(UserTokenType.IssuedToken)
+                {
+                    IssuedTokenType = Profiles.JwtUserToken,
+                    PolicyId = Profiles.JwtUserToken,
+                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256"
+                });
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                new UserTokenPolicy(UserTokenType.IssuedToken)
+                {
+                    IssuedTokenType = Profiles.JwtUserToken,
+                    PolicyId = Profiles.JwtUserToken,
+                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384"
+                });
 
             ServerFixture.Config.ServerConfiguration.MaxChannelCount = MaxChannelCount;
-            ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
-            ReferenceServer.TokenValidator = this.TokenValidator;
+            ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out)
+                .ConfigureAwait(false);
+            ReferenceServer.TokenValidator = TokenValidator;
             ServerFixturePort = ServerFixture.Port;
         }
 
         /// <summary>
         /// Tear down the Server and the Client.
         /// </summary>
-        public async Task OneTimeTearDownAsync()
+        public virtual async Task OneTimeTearDownAsync()
         {
             if (Session != null)
             {
@@ -289,22 +336,37 @@ namespace Opc.Ua.Client.Tests
                 await Task.Delay(100).ConfigureAwait(false);
             }
             Utils.SilentDispose(ClientFixture);
+
+            // Clean up pki
+            try
+            {
+                if (!string.IsNullOrEmpty(PkiRoot) && Directory.Exists(PkiRoot))
+                {
+                    Directory.Delete(PkiRoot, true);
+                }
+            }
+            catch
+            {
+            }
         }
 
         /// <summary>
         /// Test setup.
         /// </summary>
-        public async Task SetUp()
+        public virtual async Task SetUpAsync()
         {
             if (!SingleSession)
             {
                 try
                 {
-                    Session = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+                    Session = await ClientFixture
+                        .ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256)
+                        .ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
-                    Assert.Ignore($"OneTimeSetup failed to create session, tests skipped. Error: {e.Message}");
+                    NUnit.Framework.Assert.Ignore(
+                        $"OneTimeSetup failed to create session, tests skipped. Error: {e.Message}");
                 }
             }
             if (ServerFixture == null)
@@ -320,7 +382,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Test Teardown.
         /// </summary>
-        public Task TearDown()
+        public virtual Task TearDownAsync()
         {
             if (!SingleSession && Session != null)
             {
@@ -330,9 +392,7 @@ namespace Opc.Ua.Client.Tests
             }
             return Task.CompletedTask;
         }
-        #endregion
 
-        #region Nodes Test Set
         /// <summary>
         /// Return a test set of nodes with static character.
         /// </summary>
@@ -340,7 +400,8 @@ namespace Opc.Ua.Client.Tests
         /// <returns>The list of static test nodes.</returns>
         public IList<NodeId> GetTestSetStatic(NamespaceTable namespaceUris)
         {
-            return TestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null).ToList();
+            return [.. TestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
+                .Where(n => n != null)];
         }
 
         /// <summary>
@@ -350,7 +411,8 @@ namespace Opc.Ua.Client.Tests
         /// <returns>The list of simulated test nodes.</returns>
         public IList<NodeId> GetTestSetSimulation(NamespaceTable namespaceUris)
         {
-            return TestSetSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null).ToList();
+            return [.. TestSetSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
+                .Where(n => n != null)];
         }
 
         /// <summary>
@@ -360,8 +422,13 @@ namespace Opc.Ua.Client.Tests
         /// <returns>The list of simulated test nodes.</returns>
         public IList<NodeId> GetTestSetFullSimulation(NamespaceTable namespaceUris)
         {
-            var simulation = TestSetSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null).ToList();
-            simulation.AddRange(TestSetDataSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null));
+            var simulation = TestSetSimulation
+                .Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
+                .Where(n => n != null)
+                .ToList();
+            simulation.AddRange(
+                TestSetDataSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
+                    .Where(n => n != null));
             return simulation;
         }
 
@@ -372,7 +439,11 @@ namespace Opc.Ua.Client.Tests
         /// <returns>The list of simulated test nodes.</returns>
         public IList<NodeId> GetTestSetDataSimulation(NamespaceTable namespaceUris)
         {
-            return TestSetDataSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null).ToList();
+            return
+            [
+                .. TestSetDataSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
+                    .Where(n => n != null)
+            ];
         }
 
         /// <summary>
@@ -382,15 +453,17 @@ namespace Opc.Ua.Client.Tests
         /// <returns>The list of test nodes.</returns>
         public IList<NodeId> GetTestSetHistory(NamespaceTable namespaceUris)
         {
-            return TestSetHistory.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null).ToList();
+            return [.. TestSetHistory.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
+                .Where(n => n != null)];
         }
-        #endregion
 
-        #region Benchmark Setup
         /// <summary>
         /// Enumerator for security policies.
         /// </summary>
-        public IEnumerable<string> BenchPolicies() { return Policies; }
+        public IEnumerable<string> BenchPolicies()
+        {
+            return Policies;
+        }
 
         /// <summary>
         /// Helper variable for benchmark.
@@ -401,44 +474,69 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Global Setup for benchmarks.
         /// </summary>
-        public void GlobalSetup()
+        public virtual void GlobalSetup()
         {
             Console.WriteLine("GlobalSetup: Start Server");
             OneTimeSetUpAsync(Console.Out).GetAwaiter().GetResult();
             Console.WriteLine("GlobalSetup: Connecting");
-            Session = ClientFixture.ConnectAsync(ServerUrl, SecurityPolicy).GetAwaiter().GetResult();
+            Session = ClientFixture.ConnectAsync(ServerUrl, SecurityPolicy).GetAwaiter()
+                .GetResult();
             Console.WriteLine("GlobalSetup: Ready");
         }
 
         /// <summary>
         /// Global cleanup for benchmarks.
         /// </summary>
-        public void GlobalCleanup()
+        public virtual void GlobalCleanup()
         {
             Console.WriteLine("GlobalCleanup: Disconnect and Stop Server");
             OneTimeTearDownAsync().GetAwaiter().GetResult();
             Console.WriteLine("GlobalCleanup: Done");
         }
-        #endregion
 
-        #region Public Methods
         public void GetOperationLimits()
         {
-            var operationLimits = new OperationLimits() {
-                MaxNodesPerRead = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRead),
-                MaxNodesPerHistoryReadData = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadData),
-                MaxNodesPerHistoryReadEvents = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadEvents),
-                MaxNodesPerWrite = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerWrite),
-                MaxNodesPerHistoryUpdateData = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateData),
-                MaxNodesPerHistoryUpdateEvents = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateEvents),
-                MaxNodesPerBrowse = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerBrowse),
-                MaxMonitoredItemsPerCall = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxMonitoredItemsPerCall),
-                MaxNodesPerNodeManagement = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerNodeManagement),
-                MaxNodesPerRegisterNodes = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRegisterNodes),
-                MaxNodesPerTranslateBrowsePathsToNodeIds = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerTranslateBrowsePathsToNodeIds),
-                MaxNodesPerMethodCall = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerMethodCall)
+            OperationLimits = new OperationLimits
+            {
+                MaxNodesPerRead = GetOperationLimitValue(
+                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRead
+                ),
+                MaxNodesPerHistoryReadData = GetOperationLimitValue(
+                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadData
+                ),
+                MaxNodesPerHistoryReadEvents = GetOperationLimitValue(
+                    VariableIds
+                        .Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadEvents
+                ),
+                MaxNodesPerWrite = GetOperationLimitValue(
+                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerWrite
+                ),
+                MaxNodesPerHistoryUpdateData = GetOperationLimitValue(
+                    VariableIds
+                        .Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateData
+                ),
+                MaxNodesPerHistoryUpdateEvents = GetOperationLimitValue(
+                    VariableIds
+                        .Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateEvents
+                ),
+                MaxNodesPerBrowse = GetOperationLimitValue(
+                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerBrowse
+                ),
+                MaxMonitoredItemsPerCall = GetOperationLimitValue(
+                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxMonitoredItemsPerCall
+                ),
+                MaxNodesPerNodeManagement = GetOperationLimitValue(
+                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerNodeManagement
+                ),
+                MaxNodesPerRegisterNodes = GetOperationLimitValue(
+                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRegisterNodes
+                ),
+                MaxNodesPerTranslateBrowsePathsToNodeIds = GetOperationLimitValue(
+                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerTranslateBrowsePathsToNodeIds
+                ),
+                MaxNodesPerMethodCall = GetOperationLimitValue(
+                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerMethodCall)
             };
-            OperationLimits = operationLimits;
         }
 
         public uint GetOperationLimitValue(NodeId nodeId)
@@ -461,7 +559,9 @@ namespace Opc.Ua.Client.Tests
         {
             writer.WriteLine("Subscription            : {0}", subscription.DisplayName);
             writer.WriteLine("CurrentKeepAliveCount   : {0}", subscription.CurrentKeepAliveCount);
-            writer.WriteLine("CurrentPublishingEnabled: {0}", subscription.CurrentPublishingEnabled);
+            writer.WriteLine(
+                "CurrentPublishingEnabled: {0}",
+                subscription.CurrentPublishingEnabled);
             writer.WriteLine("CurrentPriority         : {0}", subscription.CurrentPriority);
             writer.WriteLine("PublishTime             : {0}", subscription.PublishTime);
             writer.WriteLine("LastNotificationTime    : {0}", subscription.LastNotificationTime);
@@ -469,36 +569,35 @@ namespace Opc.Ua.Client.Tests
             writer.WriteLine("NotificationCount       : {0}", subscription.NotificationCount);
             writer.WriteLine("LastNotification        : {0}", subscription.LastNotification);
             writer.WriteLine("Notifications           : {0}", subscription.Notifications.Count());
-            writer.WriteLine("OutstandingMessageWorker: {0}", subscription.OutstandingMessageWorkers);
+            writer.WriteLine(
+                "OutstandingMessageWorker: {0}",
+                subscription.OutstandingMessageWorkers);
         }
-        #endregion
 
-        #region Private Methods
-        private ExpandedNodeId[] ReadCustomTestSet(string param)
+        private static ExpandedNodeId[] ReadCustomTestSet(string param)
         {
             // load custom test sets
-            var testSetParameter = TestContext.Parameters[param];
-            var testSetParameters = testSetParameter.Split('#');
+            string testSetParameter = TestContext.Parameters[param];
+            string[] testSetParameters = testSetParameter.Split('#');
             if (testSetParameters != null)
             {
                 // parse the custom content
                 var testSet = new List<ExpandedNodeId>();
-                foreach (var parameter in testSetParameters)
+                foreach (string parameter in testSetParameters)
                 {
                     testSet.Add(ExpandedNodeId.Parse(parameter));
                 }
-                return testSet.ToArray();
+                return [.. testSet];
             }
-            return Array.Empty<ExpandedNodeId>();
+            return [];
         }
 
-        protected void Session_Closing(object sender, EventArgs e)
+        protected void SessionClosing(object sender, EventArgs e)
         {
             if (sender is ISession session)
             {
                 TestContext.Out.WriteLine("Session_Closing: {0}", session.SessionId);
             }
         }
-        #endregion
     }
 }

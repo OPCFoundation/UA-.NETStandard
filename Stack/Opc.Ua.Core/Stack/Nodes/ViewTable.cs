@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace Opc.Ua
 {
@@ -21,17 +22,14 @@ namespace Opc.Ua
     /// <remarks>This class is thread safe.</remarks>
     public class ViewTable
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
         public ViewTable()
         {
-            m_views = new Dictionary<NodeId, ViewNode>();
+            m_views = [];
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Determines whether a node id is a valid view id.
         /// </summary>
@@ -60,6 +58,7 @@ namespace Opc.Ua
         /// <returns>
         /// 	<c>true</c> whether a node is in a view; otherwise, <c>false</c>.
         /// </returns>
+        /// <exception cref="ServiceResultException"></exception>
         public bool IsNodeInView(ViewDescription description, NodeId nodeId)
         {
             // everything is in the default view.
@@ -70,9 +69,7 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                ViewNode view = null;
-
-                if (m_views.TryGetValue(description.ViewId, out view))
+                if (m_views.TryGetValue(description.ViewId, out ViewNode view))
                 {
                     throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
                 }
@@ -89,6 +86,7 @@ namespace Opc.Ua
         /// <returns>
         /// 	<c>true</c> whether a reference is in a view; otherwise, <c>false</c>.
         /// </returns>
+        /// <exception cref="ServiceResultException"></exception>
         public bool IsReferenceInView(ViewDescription description, ReferenceDescription reference)
         {
             // everything is in the default view.
@@ -99,9 +97,7 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                ViewNode view = null;
-
-                if (m_views.TryGetValue(description.ViewId, out view))
+                if (m_views.TryGetValue(description.ViewId, out ViewNode view))
                 {
                     throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
                 }
@@ -114,9 +110,14 @@ namespace Opc.Ua
         /// Adds a view to the table.
         /// </summary>
         /// <param name="view">The view.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="view"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public void Add(ViewNode view)
         {
-            if (view == null) throw new ArgumentNullException(nameof(view));
+            if (view == null)
+            {
+                throw new ArgumentNullException(nameof(view));
+            }
 
             if (NodeId.IsNull(view.NodeId))
             {
@@ -144,31 +145,34 @@ namespace Opc.Ua
         /// Removes a view from the table.
         /// </summary>
         /// <param name="viewId">The view identifier.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         public void Remove(NodeId viewId)
         {
-            if (NodeId.IsNull(viewId)) throw new ArgumentNullException(nameof(viewId));
+            if (NodeId.IsNull(viewId))
+            {
+                throw new ArgumentNullException(nameof(viewId));
+            }
 
             lock (m_lock)
             {
                 // find view.
-                ViewNode view = null;
 
-                if (!m_views.TryGetValue(viewId, out view))
+                if (!m_views.TryGetValue(viewId, out ViewNode view))
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadViewIdUnknown,
-                        Utils.Format("A reference type with the node id '{0}' does not exist.", viewId));
+                        Utils.Format(
+                            "A reference type with the node id '{0}' does not exist.",
+                            viewId));
                 }
 
                 // remove view node.
                 m_views.Remove(viewId);
             }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
-        private Dictionary<NodeId, ViewNode> m_views;
-        #endregion
+        private readonly Lock m_lock = new();
+        private readonly Dictionary<NodeId, ViewNode> m_views;
     }
 }

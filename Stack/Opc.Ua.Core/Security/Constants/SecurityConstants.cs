@@ -60,7 +60,8 @@ namespace Opc.Ua
         /// <summary>
         /// The RSA-OAEP-SHA256 algorithm used to encrypt data.
         /// </summary>
-        public const string RsaOaepSha256 = "http://opcfoundation.org/UA/security/rsa-oaep-sha2-256";
+        public const string RsaOaepSha256
+            = "http://opcfoundation.org/UA/security/rsa-oaep-sha2-256";
 
         /// <summary>
         /// The RSA-PKCSv1.5 algorithm used to encrypt data.
@@ -85,7 +86,8 @@ namespace Opc.Ua
         /// <summary>
         /// The P-SHA1 algorithm used to generate keys.
         /// </summary>
-        public const string PSha1 = "http://docs.oasis-open.org/ws-sx/ws-secureconversation/200512/dk/p_sha1";
+        public const string PSha1
+            = "http://docs.oasis-open.org/ws-sx/ws-secureconversation/200512/dk/p_sha1";
 
         /// <summary>
         /// The P-SHA256 algorithm used to generate keys.
@@ -101,42 +103,49 @@ namespace Opc.Ua
         /// <summary>
         /// Communicates with UA TCP, UA Security and UA Binary.
         /// </summary>
-        public const string UaTcpTransport = "http://opcfoundation.org/UA-Profile/Transport/uatcp-uasc-uabinary";
+        public const string UaTcpTransport
+            = "http://opcfoundation.org/UA-Profile/Transport/uatcp-uasc-uabinary";
 
         /// <summary>
         /// Communicates with UA TCP over secure Websockets, UA Security and UA Binary.
         /// </summary>
-        public const string UaWssTransport = "http://opcfoundation.org/UA-Profile/Transport/uawss-uasc-uabinary";
+        public const string UaWssTransport
+            = "http://opcfoundation.org/UA-Profile/Transport/uawss-uasc-uabinary";
 
         /// <summary>
         /// Communicates with UA Binary over HTTPS.
         /// </summary>
-        public const string HttpsBinaryTransport = "http://opcfoundation.org/UA-Profile/Transport/https-uabinary";
+        public const string HttpsBinaryTransport
+            = "http://opcfoundation.org/UA-Profile/Transport/https-uabinary";
 
         /// <summary>
         /// Communicates with UA JSON over HTTPS.
         /// </summary>
-        public const string HttpsJsonTransport = "http://opcfoundation.org/UA-Profile/Transport/https-uajson";
+        public const string HttpsJsonTransport
+            = "http://opcfoundation.org/UA-Profile/Transport/https-uajson";
 
         /// <summary>
         /// Uri for "PubSub UDP UADP" Profile.
         /// This PubSub transport Facet defines a combination of the UDP transport protocol mapping with UADP message mapping
         /// </summary>
-        public const string PubSubUdpUadpTransport = "http://opcfoundation.org/UA-Profile/Transport/pubsub-udp-uadp";
+        public const string PubSubUdpUadpTransport
+            = "http://opcfoundation.org/UA-Profile/Transport/pubsub-udp-uadp";
 
         /// <summary>
         /// Uri for "PubSub MQTT UADP" Profile.
         /// This PubSub transport Facet defines a combination of the MQTT transport protocol mapping with UADP message mapping.
         /// This Facet is used for broker-based messaging.
         /// </summary>
-        public const string PubSubMqttUadpTransport = "http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-uadp";
+        public const string PubSubMqttUadpTransport
+            = "http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-uadp";
 
         /// <summary>
         /// Uri for "PubSub MQTT JSON" Profile.
         /// This PubSub transport Facet defines a combination of the MQTT transport protocol mapping with JSON message mapping.
         /// This Facet is used for broker-based messaging.
         /// </summary>
-        public const string PubSubMqttJsonTransport = "http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-json";
+        public const string PubSubMqttJsonTransport
+            = "http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-json";
 
         /// <summary>
         /// An Issued User Token that complies with the JWT specification.
@@ -155,7 +164,7 @@ namespace Opc.Ua
         /// <returns>The normalized URI.</returns>
         public static string NormalizeUri(string profileUri)
         {
-            if (System.String.IsNullOrEmpty(profileUri))
+            if (string.IsNullOrEmpty(profileUri))
             {
                 return profileUri;
             }

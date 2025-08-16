@@ -17,14 +17,15 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Security;
 using System.Reflection;
-using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
+using System.Security.Cryptography;
+#endif
 
 namespace Opc.Ua.Bindings
 {
-
     /// <summary>
     /// Creates a new HttpsTransportChannel with ITransportChannel interface.
     /// </summary>
@@ -71,7 +72,9 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class HttpsTransportChannel : ITransportChannel
     {
-        // limit the number of concurrent service requests on the server
+        /// <summary>
+        /// limit the number of concurrent service requests on the server
+        /// </summary>
         private const int kMaxConnectionsPerServer = 64;
 
         /// <summary>
@@ -79,16 +82,25 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public HttpsTransportChannel(string uriScheme)
         {
-            m_uriScheme = uriScheme;
+            UriScheme = uriScheme;
         }
 
         /// <inheritdoc/>
         public void Dispose()
         {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Override this method if you need to release resources.
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
         }
 
         /// <inheritdoc/>
-        public string UriScheme => m_uriScheme;
+        public string UriScheme { get; }
 
         /// <inheritdoc/>
         public TransportChannelFeatures SupportedFeatures =>
@@ -112,21 +124,19 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public event ChannelTokenActivatedEventHandler OnTokenActivated
         {
-            add { }
-            remove { }
+            add
+            {
+            }
+            remove
+            {
+            }
         }
 
         /// <inheritdoc/>
-        public int OperationTimeout
-        {
-            get => m_operationTimeout;
-            set => m_operationTimeout = value;
-        }
+        public int OperationTimeout { get; set; }
 
         /// <inheritdoc/>
-        public void Initialize(
-            Uri url,
-            TransportChannelSettings settings)
+        public void Initialize(Uri url, TransportChannelSettings settings)
         {
             SaveSettings(url, settings);
         }
@@ -153,86 +163,115 @@ namespace Opc.Ua.Bindings
 
                 // auto validate server cert, if supported
                 // if unsupported, the TLS server cert must be trusted by a root CA
-                var handler = new HttpClientHandler {
+                var handler = new HttpClientHandler
+                {
                     ClientCertificateOptions = ClientCertificateOption.Manual,
                     AllowAutoRedirect = false,
-                    MaxRequestContentBufferSize = m_quotas.MaxMessageSize,
+                    MaxRequestContentBufferSize = m_quotas.MaxMessageSize
                 };
 
                 // limit the number of concurrent connections, if supported
-                PropertyInfo maxConnectionsPerServerProperty = handler.GetType().GetProperty("MaxConnectionsPerServer");
+                PropertyInfo maxConnectionsPerServerProperty = handler.GetType()
+                    .GetProperty("MaxConnectionsPerServer");
                 maxConnectionsPerServerProperty?.SetValue(handler, kMaxConnectionsPerServer);
 
                 // send client certificate for servers that require TLS client authentication
                 if (m_settings.ClientCertificate != null)
                 {
                     // prepare the server TLS certificate
-                    var clientCertificate = m_settings.ClientCertificate;
-#if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
+                    X509Certificate2 clientCertificate = m_settings.ClientCertificate;
+#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
                     try
                     {
                         // Create a copy of the certificate with the private key on platforms
                         // which default to the ephemeral KeySet. Also a new certificate must be reloaded.
                         // If the key fails to copy, its probably a non exportable key from the X509Store.
                         // Then we can use the original certificate, the private key is already in the key store.
-                        clientCertificate = X509Utils.CreateCopyWithPrivateKey(m_settings.ClientCertificate, false);
+                        clientCertificate = X509Utils.CreateCopyWithPrivateKey(
+                            m_settings.ClientCertificate,
+                            false);
                     }
                     catch (CryptographicException ce)
                     {
-                        Utils.LogTrace("Copy of the private key for https was denied: {0}", ce.Message);
+                        Utils.LogTrace(
+                            "Copy of the private key for https was denied: {0}",
+                            ce.Message);
                     }
 #endif
                     PropertyInfo certProperty = handler.GetType().GetProperty("ClientCertificates");
                     if (certProperty != null)
                     {
-                        X509CertificateCollection clientCertificates = (X509CertificateCollection)certProperty.GetValue(handler);
+                        var clientCertificates = (X509CertificateCollection)certProperty.GetValue(
+                            handler);
                         _ = clientCertificates?.Add(clientCertificate);
                     }
                 }
 
-                PropertyInfo propertyInfo = handler.GetType().GetProperty("ServerCertificateCustomValidationCallback");
+                PropertyInfo propertyInfo = handler.GetType()
+                    .GetProperty("ServerCertificateCustomValidationCallback");
                 if (propertyInfo != null)
                 {
-                    Func<HttpRequestMessage, X509Certificate2, X509Chain, SslPolicyErrors, bool>
-                        serverCertificateCustomValidationCallback;
+                    Func<
+                        HttpRequestMessage,
+                        X509Certificate2,
+                        X509Chain,
+                        SslPolicyErrors,
+                        bool
+                    > serverCertificateCustomValidationCallback;
 
                     try
                     {
-                        serverCertificateCustomValidationCallback =
-                            (httpRequestMessage, cert, chain, policyErrors) => {
-                                try
+                        serverCertificateCustomValidationCallback = (_, cert, chain, _) =>
+                        {
+                            try
+                            {
+                                var validationChain = new X509Certificate2Collection();
+                                if (chain != null && chain.ChainElements != null)
                                 {
-                                    var validationChain = new X509Certificate2Collection();
-                                    if (chain != null && chain.ChainElements != null)
+                                    int i = 0;
+                                    Utils.LogInfo(
+                                        Utils.TraceMasks.Security,
+                                        "{0} Validate server chain:",
+                                        nameof(HttpsTransportChannel));
+                                    foreach (X509ChainElement element in chain.ChainElements)
                                     {
-                                        int i = 0;
-                                        Utils.LogInfo(Utils.TraceMasks.Security, "{0} Validate server chain:", nameof(HttpsTransportChannel));
-                                        foreach (X509ChainElement element in chain.ChainElements)
-                                        {
-                                            Utils.LogCertificate(Utils.TraceMasks.Security, "{0}: ", element.Certificate, i);
-                                            validationChain.Add(element.Certificate);
-                                            i++;
-                                        }
+                                        Utils.LogCertificate(
+                                            Utils.TraceMasks.Security,
+                                            "{0}: ",
+                                            element.Certificate,
+                                            i);
+                                        validationChain.Add(element.Certificate);
+                                        i++;
                                     }
-                                    else
-                                    {
-                                        Utils.LogCertificate(Utils.TraceMasks.Security, "{0} Validate Server Certificate: ", cert, nameof(HttpsTransportChannel));
-                                        validationChain.Add(cert);
-                                    }
-
-                                    m_quotas.CertificateValidator?.Validate(validationChain);
-
-                                    return true;
                                 }
-                                catch (Exception ex)
+                                else
                                 {
-                                    Utils.LogError(ex, "{0} Failed to validate certificate.", nameof(HttpsTransportChannel));
+                                    Utils.LogCertificate(
+                                        Utils.TraceMasks.Security,
+                                        "{0} Validate Server Certificate: ",
+                                        cert,
+                                        nameof(HttpsTransportChannel));
+                                    validationChain.Add(cert);
                                 }
-                                return false;
-                            };
+
+                                m_quotas.CertificateValidator?.Validate(validationChain);
+
+                                return true;
+                            }
+                            catch (Exception ex)
+                            {
+                                Utils.LogError(
+                                    ex,
+                                    "{0} Failed to validate certificate.",
+                                    nameof(HttpsTransportChannel));
+                            }
+                            return false;
+                        };
                         propertyInfo.SetValue(handler, serverCertificateCustomValidationCallback);
 
-                        Utils.LogInfo("{0} ServerCertificate callback enabled.", nameof(HttpsTransportChannel));
+                        Utils.LogInfo(
+                            "{0} ServerCertificate callback enabled.",
+                            nameof(HttpsTransportChannel));
                     }
                     catch (PlatformNotSupportedException)
                     {
@@ -278,8 +317,7 @@ namespace Opc.Ua.Bindings
                 int timeout,
                 IServiceRequest request,
                 HttpResponseMessage response)
-            :
-                base(callback, callbackData, timeout)
+                : base(callback, callbackData, timeout)
             {
                 Request = request;
                 Response = response;
@@ -287,30 +325,44 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public IAsyncResult BeginSendRequest(IServiceRequest request, AsyncCallback callback, object callbackData)
+        public IAsyncResult BeginSendRequest(
+            IServiceRequest request,
+            AsyncCallback callback,
+            object callbackData)
         {
             HttpResponseMessage response = null;
 
             try
             {
-                var content = new ByteArrayContent(BinaryEncoder.EncodeMessage(request, m_quotas.MessageContext));
+                var content = new ByteArrayContent(
+                    BinaryEncoder.EncodeMessage(request, m_quotas.MessageContext));
                 content.Headers.ContentType = s_mediaTypeHeaderValue;
                 if (EndpointDescription?.SecurityPolicyUri != null &&
-                    !string.Equals(EndpointDescription.SecurityPolicyUri, SecurityPolicies.None, StringComparison.Ordinal))
+                    !string.Equals(
+                        EndpointDescription.SecurityPolicyUri,
+                        SecurityPolicies.None,
+                        StringComparison.Ordinal))
                 {
-                    content.Headers.Add(Profiles.HttpsSecurityPolicyHeader, EndpointDescription.SecurityPolicyUri);
+                    content.Headers.Add(
+                        Profiles.HttpsSecurityPolicyHeader,
+                        EndpointDescription.SecurityPolicyUri);
                 }
 
-                var result = new HttpsAsyncResult(callback, callbackData, m_operationTimeout, request, null);
+                var result = new HttpsAsyncResult(
+                    callback,
+                    callbackData,
+                    OperationTimeout,
+                    request,
+                    null);
 
-                _ = Task.Run(async () => {
+                _ = Task.Run(async () =>
+                {
                     try
                     {
-                        using (var cts = new CancellationTokenSource(m_operationTimeout))
-                        {
-                            response = await m_client.PostAsync(m_url, content, cts.Token).ConfigureAwait(false);
-                            response.EnsureSuccessStatusCode();
-                        }
+                        using var cts = new CancellationTokenSource(OperationTimeout);
+                        response = await m_client.PostAsync(m_url, content, cts.Token)
+                            .ConfigureAwait(false);
+                        response.EnsureSuccessStatusCode();
                     }
                     catch (Exception ex)
                     {
@@ -327,8 +379,15 @@ namespace Opc.Ua.Bindings
             catch (Exception ex)
             {
                 Utils.LogError(ex, "Exception sending HTTPS request.");
-                var result = new HttpsAsyncResult(callback, callbackData, m_operationTimeout, request, response);
-                result.Exception = ex;
+                var result = new HttpsAsyncResult(
+                    callback,
+                    callbackData,
+                    OperationTimeout,
+                    request,
+                    response)
+                {
+                    Exception = ex
+                };
                 result.OperationCompleted();
                 return result;
             }
@@ -337,8 +396,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public IServiceResponse EndSendRequest(IAsyncResult result)
         {
-            var result2 = result as HttpsAsyncResult;
-            if (result2 == null)
+            if (result is not HttpsAsyncResult result2)
             {
                 throw new ArgumentException("Invalid result object passed.", nameof(result));
             }
@@ -351,9 +409,15 @@ namespace Opc.Ua.Bindings
 #if NET6_0_OR_GREATER
                     Stream responseContent = result2.Response.Content.ReadAsStream();
 #else
-                    Stream responseContent = result2.Response.Content.ReadAsStreamAsync().GetAwaiter().GetResult();
+                    Stream responseContent = result2.Response.Content.ReadAsStreamAsync()
+                        .GetAwaiter()
+                        .GetResult();
 #endif
-                    return BinaryDecoder.DecodeMessage(responseContent, null, m_quotas.MessageContext) as IServiceResponse;
+                    return BinaryDecoder.DecodeMessage(
+                        responseContent,
+                        null,
+                        m_quotas.MessageContext) as
+                        IServiceResponse;
                 }
             }
             catch (Exception ex)
@@ -434,32 +498,48 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public async Task<IServiceResponse> SendRequestAsync(IServiceRequest request, CancellationToken ct)
+        public async Task<IServiceResponse> SendRequestAsync(
+            IServiceRequest request,
+            CancellationToken ct)
         {
             try
             {
-                var content = new ByteArrayContent(BinaryEncoder.EncodeMessage(request, m_quotas.MessageContext));
+                var content = new ByteArrayContent(
+                    BinaryEncoder.EncodeMessage(request, m_quotas.MessageContext));
                 content.Headers.ContentType = s_mediaTypeHeaderValue;
                 if (EndpointDescription?.SecurityPolicyUri != null &&
-                    !string.Equals(EndpointDescription.SecurityPolicyUri, SecurityPolicies.None, StringComparison.Ordinal))
+                    !string.Equals(
+                        EndpointDescription.SecurityPolicyUri,
+                        SecurityPolicies.None,
+                        StringComparison.Ordinal))
                 {
-                    content.Headers.Add(Profiles.HttpsSecurityPolicyHeader, EndpointDescription.SecurityPolicyUri);
+                    content.Headers.Add(
+                        Profiles.HttpsSecurityPolicyHeader,
+                        EndpointDescription.SecurityPolicyUri);
                 }
 
                 HttpResponseMessage response;
-                using (var cts = new CancellationTokenSource(m_operationTimeout))
-                using (var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct))
+                using (var cts = new CancellationTokenSource(OperationTimeout))
+                using (var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+                    cts.Token,
+                    ct))
                 {
-                    response = await m_client.PostAsync(m_url, content, linkedCts.Token).ConfigureAwait(false);
+                    response = await m_client.PostAsync(m_url, content, linkedCts.Token)
+                        .ConfigureAwait(false);
                 }
                 response.EnsureSuccessStatusCode();
 
 #if NET6_0_OR_GREATER
-                Stream responseContent = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+                Stream responseContent = await response.Content.ReadAsStreamAsync(ct)
+                    .ConfigureAwait(false);
 #else
-                Stream responseContent = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                Stream responseContent = await response.Content.ReadAsStreamAsync()
+                    .ConfigureAwait(false);
 #endif
-                return BinaryDecoder.DecodeMessage(responseContent, null, m_quotas.MessageContext) as IServiceResponse;
+                return BinaryDecoder.DecodeMessage(
+                    responseContent,
+                    null,
+                    m_quotas.MessageContext) as IServiceResponse;
             }
             catch (HttpRequestException hre)
             {
@@ -468,9 +548,13 @@ namespace Opc.Ua.Bindings
                     StatusCode statusCode = StatusCodes.BadUnknownResponse;
                     switch (webex.Status)
                     {
-                        case WebExceptionStatus.Timeout: statusCode = StatusCodes.BadRequestTimeout; break;
+                        case WebExceptionStatus.Timeout:
+                            statusCode = StatusCodes.BadRequestTimeout;
+                            break;
                         case WebExceptionStatus.ConnectionClosed:
-                        case WebExceptionStatus.ConnectFailure: statusCode = StatusCodes.BadNotConnected; break;
+                        case WebExceptionStatus.ConnectFailure:
+                            statusCode = StatusCodes.BadNotConnected;
+                            break;
                     }
                     Utils.LogError(webex, "Exception sending HTTPS request.");
                     throw ServiceResultException.Create((uint)statusCode, webex.Message);
@@ -481,7 +565,9 @@ namespace Opc.Ua.Bindings
             catch (TaskCanceledException tce)
             {
                 Utils.LogError(tce, "Send request cancelled.");
-                throw ServiceResultException.Create(StatusCodes.BadRequestTimeout, "Https request was cancelled.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadRequestTimeout,
+                    "Https request was cancelled.");
             }
             catch (Exception ex)
             {
@@ -501,19 +587,21 @@ namespace Opc.Ua.Bindings
             // remove the opc. prefix, the https client can not handle it
             if (m_url.Scheme == Utils.UriSchemeOpcHttps)
             {
-                m_url = new Uri(url.ToString().Substring(4));
+                m_url = new Uri(url.ToString()[4..]);
             }
             m_settings = settings;
-            m_operationTimeout = settings.Configuration.OperationTimeout;
+            OperationTimeout = settings.Configuration.OperationTimeout;
 
             // initialize the quotas.
-            m_quotas = new ChannelQuotas {
+            m_quotas = new ChannelQuotas
+            {
                 MaxBufferSize = m_settings.Configuration.MaxBufferSize,
                 MaxMessageSize = m_settings.Configuration.MaxMessageSize,
                 ChannelLifetime = m_settings.Configuration.ChannelLifetime,
                 SecurityTokenLifetime = m_settings.Configuration.SecurityTokenLifetime,
 
-                MessageContext = new ServiceMessageContext {
+                MessageContext = new ServiceMessageContext
+                {
                     MaxArrayLength = m_settings.Configuration.MaxArrayLength,
                     MaxByteStringLength = m_settings.Configuration.MaxByteStringLength,
                     MaxMessageSize = m_settings.Configuration.MaxMessageSize,
@@ -529,12 +617,12 @@ namespace Opc.Ua.Bindings
             };
         }
 
-        private string m_uriScheme;
         private Uri m_url;
-        private int m_operationTimeout;
         private TransportChannelSettings m_settings;
         private ChannelQuotas m_quotas;
         private HttpClient m_client;
-        private static readonly MediaTypeHeaderValue s_mediaTypeHeaderValue = new MediaTypeHeaderValue("application/octet-stream");
+
+        private static readonly MediaTypeHeaderValue s_mediaTypeHeaderValue = new(
+            "application/octet-stream");
     }
 }

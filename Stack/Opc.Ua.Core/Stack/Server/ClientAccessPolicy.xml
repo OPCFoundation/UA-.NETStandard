@@ -7,7 +7,7 @@
         <domain uri="https://*" />
       </allow-from>
       <grant-to>
-        <resource path="/" include-subpaths="true"/>
+        <resource path="/" include-subpaths="true" />
       </grant-to>
     </policy>
   </cross-domain-access>

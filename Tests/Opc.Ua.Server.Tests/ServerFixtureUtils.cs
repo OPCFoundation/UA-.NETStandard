@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -47,7 +47,6 @@ namespace Opc.Ua.Server.Tests
         public const int MinTestPort = 50000;
         public const int MaxTestPort = 65000;
 
-        #region Public Methods
         /// <summary>
         /// Create and Activate a session without security.
         /// </summary>
@@ -67,15 +66,15 @@ namespace Opc.Ua.Server.Tests
             uint maxResponseMessageSize = DefaultMaxResponseMessageSize)
         {
             // Find TCP endpoint
-            var endpoints = server.GetEndpoints();
-            var endpoint = endpoints.FirstOrDefault(e =>
-                e.TransportProfileUri.Equals(Profiles.UaTcpTransport, StringComparison.Ordinal) ||
-                e.TransportProfileUri.Equals(Profiles.HttpsBinaryTransport, StringComparison.Ordinal));
-
-            if (endpoint == null)
-            {
+            EndpointDescriptionCollection endpoints = server.GetEndpoints();
+            EndpointDescription endpoint =
+                endpoints.FirstOrDefault(e =>
+                    e.TransportProfileUri
+                        .Equals(Profiles.UaTcpTransport, StringComparison.Ordinal) ||
+                    e.TransportProfileUri
+                        .Equals(Profiles.HttpsBinaryTransport, StringComparison.Ordinal)
+                ) ??
                 throw new Exception("Unsupported transport profile.");
-            }
 
             // fake profiles
             if (useSecurity)
@@ -89,32 +88,45 @@ namespace Opc.Ua.Server.Tests
                 endpoint.SecurityPolicyUri = SecurityPolicies.None;
             }
 
-            var context = new SecureChannelContext(
-                sessionName,
-                endpoint,
-                RequestEncoding.Binary);
-
             // set security context
-            SecureChannelContext.Current = context;
+            SecureChannelContext.Current
+                = new SecureChannelContext(sessionName, endpoint, RequestEncoding.Binary);
             var requestHeader = new RequestHeader();
 
             // Create session
-            var response = server.CreateSession(
+            ResponseHeader response = server.CreateSession(
                 requestHeader,
-                null, null, null,
+                null,
+                null,
+                null,
                 sessionName,
-                null, null, sessionTimeout, maxResponseMessageSize,
-                out var sessionId, out var authenticationToken, out sessionTimeout,
-                out var serverNonce, out var serverCertificate, out var endpointDescriptions,
-                out var serverSoftwareCertificates, out var signatureData, out var maxRequestMessageSize);
+                null,
+                null,
+                sessionTimeout,
+                maxResponseMessageSize,
+                out NodeId sessionId,
+                out NodeId authenticationToken,
+                out sessionTimeout,
+                out byte[] serverNonce,
+                out byte[] serverCertificate,
+                out EndpointDescriptionCollection endpointDescriptions,
+                out SignedSoftwareCertificateCollection serverSoftwareCertificates,
+                out SignatureData signatureData,
+                out uint maxRequestMessageSize);
             ValidateResponse(response);
 
             // Activate session
             requestHeader.AuthenticationToken = authenticationToken;
-            response = server.ActivateSession(requestHeader, signatureData,
-                new SignedSoftwareCertificateCollection(), new StringCollection(),
-                (identityToken != null) ? new ExtensionObject(identityToken) : null, null,
-                out serverNonce, out var results, out var diagnosticInfos);
+            response = server.ActivateSession(
+                requestHeader,
+                signatureData,
+                [],
+                [],
+                identityToken != null ? new ExtensionObject(identityToken) : null,
+                null,
+                out serverNonce,
+                out StatusCodeCollection results,
+                out DiagnosticInfoCollection diagnosticInfos);
             ValidateResponse(response);
 
             return requestHeader;
@@ -128,7 +140,7 @@ namespace Opc.Ua.Server.Tests
         public static void CloseSession(this SessionServerBase server, RequestHeader requestHeader)
         {
             // close session
-            var response = server.CloseSession(requestHeader, true);
+            ResponseHeader response = server.CloseSession(requestHeader, true);
             ValidateResponse(response);
         }
 
@@ -136,16 +148,23 @@ namespace Opc.Ua.Server.Tests
         /// Validate the response of a service call.
         /// </summary>
         /// <param name="header">The response header of the service call.</param>
+        /// <exception cref="ServiceResultException"></exception>
         public static void ValidateResponse(ResponseHeader header)
         {
             if (header == null)
             {
-                throw new ServiceResultException(StatusCodes.BadUnknownResponse, "Null header in response.");
+                throw new ServiceResultException(
+                    StatusCodes.BadUnknownResponse,
+                    "Null header in response.");
             }
 
             if (StatusCode.IsBad(header.ServiceResult))
             {
-                throw new ServiceResultException(new ServiceResult(header.ServiceResult, header.ServiceDiagnostics, header.StringTable));
+                throw new ServiceResultException(
+                    new ServiceResult(
+                        header.ServiceResult,
+                        header.ServiceDiagnostics,
+                        header.StringTable));
             }
         }
 
@@ -160,18 +179,24 @@ namespace Opc.Ua.Server.Tests
         /// <param name="header">The response header of the service call.</param>
         /// <param name="response">The list of returned values by the service call.</param>
         /// <param name="request">The list of requests passed to the service call.</param>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static void ValidateResponse(ResponseHeader header, IList response, IList request)
         {
             ValidateResponse(header);
 
             if (response is DiagnosticInfoCollection)
             {
-                throw new ArgumentException("Must call ValidateDiagnosticInfos() for DiagnosticInfoCollections.", nameof(response));
+                throw new ArgumentException(
+                    "Must call ValidateDiagnosticInfos() for DiagnosticInfoCollections.",
+                    nameof(response));
             }
 
             if (response == null || response.Count != request.Count)
             {
-                throw new ServiceResultException(StatusCodes.BadUnexpectedError, "The server returned a list without the expected number of elements.");
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    "The server returned a list without the expected number of elements.");
             }
         }
 
@@ -180,14 +205,19 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         /// <param name="response">The diagnostic info response.</param>
         /// <param name="request">The request items of the service call.</param>
-        public static void ValidateDiagnosticInfos(DiagnosticInfoCollection response, IList request, StringCollection stringTable)
+        /// <exception cref="ServiceResultException"></exception>
+        public static void ValidateDiagnosticInfos(
+            DiagnosticInfoCollection response,
+            IList request,
+            StringCollection stringTable)
         {
             // returning an empty list for diagnostic info arrays is allowed.
             if (response != null && response.Count != 0)
             {
                 if (response.Count != request.Count)
                 {
-                    throw new ServiceResultException(StatusCodes.BadUnexpectedError,
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
                         "The server forgot to fill in the DiagnosticInfos array correctly when returning an operation level error.");
                 }
 
@@ -196,17 +226,23 @@ namespace Opc.Ua.Server.Tests
                 {
                     for (int ii = 0; ii < response.Count; ii++)
                     {
-                        if (response[ii] is DiagnosticInfo diagnosticInfo && !diagnosticInfo.IsNullDiagnosticInfo)
+                        if (response[ii] is DiagnosticInfo diagnosticInfo &&
+                            !diagnosticInfo.IsNullDiagnosticInfo)
                         {
                             if (diagnosticInfo.NamespaceUri >= stringTable.Count ||
                                 diagnosticInfo.SymbolicId >= stringTable.Count ||
                                 diagnosticInfo.Locale >= stringTable.Count ||
                                 diagnosticInfo.LocalizedText >= stringTable.Count)
                             {
-                                throw new ServiceResultException(StatusCodes.BadUnexpectedError,
+                                throw new ServiceResultException(
+                                    StatusCodes.BadUnexpectedError,
                                     "The server forgot to fill in string table for the DiagnosticInfos array correctly when returning an operation level error.");
                             }
-                            var serviceResult = new ServiceResult(StatusCodes.Good, ii, response, stringTable);
+                            var serviceResult = new ServiceResult(
+                                StatusCodes.Good,
+                                ii,
+                                response,
+                                stringTable);
                             Utils.LogInfo("DiagnosticInfo: {0}", serviceResult.ToString());
                         }
                     }
@@ -224,9 +260,9 @@ namespace Opc.Ua.Server.Tests
             BrowseDescription template)
         {
             var browseDescriptionCollection = new BrowseDescriptionCollection();
-            foreach (var nodeId in nodeIdCollection)
+            foreach (NodeId nodeId in nodeIdCollection)
             {
-                BrowseDescription browseDescription = (BrowseDescription)template.MemberwiseClone();
+                var browseDescription = (BrowseDescription)template.MemberwiseClone();
                 browseDescription.NodeId = nodeId;
                 browseDescriptionCollection.Add(browseDescription);
             }
@@ -239,10 +275,11 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         /// <param name="browseResultCollection">The browse result collection to use.</param>
         /// <returns>The collection of continuation points for the BrowseNext service.</returns>
-        public static ByteStringCollection PrepareBrowseNext(BrowseResultCollection browseResultCollection)
+        public static ByteStringCollection PrepareBrowseNext(
+            BrowseResultCollection browseResultCollection)
         {
             var continuationPoints = new ByteStringCollection();
-            foreach (var browseResult in browseResultCollection)
+            foreach (BrowseResult browseResult in browseResultCollection)
             {
                 if (browseResult.ContinuationPoint != null)
                 {
@@ -255,8 +292,9 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// A dictionary of all node attributes.
         /// </summary>
-        public static readonly ReadOnlyDictionary<uint, DataValue> AttributesIds = new ReadOnlyDictionary<uint, DataValue>(
-            new SortedDictionary<uint, DataValue> {
+        public static readonly ReadOnlyDictionary<uint, DataValue> AttributesIds = new(
+            new SortedDictionary<uint, DataValue>
+            {
                 { Attributes.NodeId, null },
                 { Attributes.NodeClass, null },
                 { Attributes.BrowseName, null },
@@ -290,17 +328,17 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         public static int GetNextFreeIPPort()
         {
-            IPEndPoint endpoint = new IPEndPoint(IPAddress.Any, 0);
-            using (var socket = new Socket(endpoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp))
+            var endpoint = new IPEndPoint(IPAddress.Any, 0);
+            using var socket = new Socket(
+                endpoint.AddressFamily,
+                SocketType.Stream,
+                ProtocolType.Tcp);
+            socket.Bind(endpoint);
+            if (socket.LocalEndPoint is IPEndPoint ep)
             {
-                socket.Bind(endpoint);
-                if (socket.LocalEndPoint is IPEndPoint ep)
-                {
-                    return ep.Port;
-                }
+                return ep.Port;
             }
             return 0;
         }
-        #endregion
     }
 }

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -29,16 +29,14 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Calculates the value of an aggregate. 
+    /// Calculates the value of an aggregate.
     /// </summary>
     public class StatusAggregateCalculator : AggregateCalculator
     {
-        #region Constructors
         /// <summary>
         /// Initializes the aggregate calculator.
         /// </summary>
@@ -55,14 +53,11 @@ namespace Opc.Ua.Server
             double processingInterval,
             bool stepped,
             AggregateConfiguration configuration)
-        : 
-            base(aggregateId, startTime, endTime, processingInterval, stepped, configuration)
+            : base(aggregateId, startTime, endTime, processingInterval, stepped, configuration)
         {
             SetPartialBit = true;
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Computes the value for the timeslice.
         /// </summary>
@@ -75,42 +70,23 @@ namespace Opc.Ua.Server
                 switch (id.Value)
                 {
                     case Objects.AggregateFunction_DurationGood:
-                    {
                         return ComputeDurationGoodBad(slice, false, false);
-                    }
-
                     case Objects.AggregateFunction_DurationBad:
-                    {
                         return ComputeDurationGoodBad(slice, true, false);
-                    }
-
                     case Objects.AggregateFunction_PercentGood:
-                    {
                         return ComputeDurationGoodBad(slice, false, true);
-                    }
-
                     case Objects.AggregateFunction_PercentBad:
-                    {
                         return ComputeDurationGoodBad(slice, true, true);
-                    }
-
                     case Objects.AggregateFunction_WorstQuality:
-                    {
                         return ComputeWorstQuality(slice, false);
-                    }
-
                     case Objects.AggregateFunction_WorstQuality2:
-                    {
                         return ComputeWorstQuality(slice, true);
-                    }
                 }
             }
 
             return base.ComputeValue(slice);
         }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Calculates the DurationGood and DurationBad aggregates for the timeslice.
         /// </summary>
@@ -142,25 +118,24 @@ namespace Opc.Ua.Server
                         duration += regions[ii].Duration;
                     }
                 }
-                else
+                else if (StatusCode.IsGood(regions[ii].StatusCode))
                 {
-                    if (StatusCode.IsGood(regions[ii].StatusCode))
-                    {
-                        duration += regions[ii].Duration;
-                    }
+                    duration += regions[ii].Duration;
                 }
             }
 
             if (usePercent)
             {
-                duration = (duration / total) * 100;
+                duration = duration / total * 100;
             }
 
             // set the timestamp and status.
-            DataValue value = new DataValue();
-            value.WrappedValue = new Variant(duration, TypeInfo.Scalars.Double);
-            value.SourceTimestamp = GetTimestamp(slice);
-            value.ServerTimestamp = GetTimestamp(slice);            
+            var value = new DataValue
+            {
+                WrappedValue = new Variant(duration, TypeInfo.Scalars.Double),
+                SourceTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
+            };
             value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
 
             // return result.
@@ -173,8 +148,7 @@ namespace Opc.Ua.Server
         protected DataValue ComputeWorstQuality(TimeSlice slice, bool includeBounds)
         {
             // get the values in the slice.
-            List<DataValue> values = null;
-            
+            List<DataValue> values;
             if (!includeBounds)
             {
                 values = GetValues(slice);
@@ -191,7 +165,7 @@ namespace Opc.Ua.Server
             }
 
             // get the regions.
-            List<SubRegion> regions = GetRegionsInValueSet(values, false, true);
+            _ = GetRegionsInValueSet(values, false, true);
 
             StatusCode worstQuality = StatusCodes.Good;
             int badQualityCount = 0;
@@ -221,26 +195,27 @@ namespace Opc.Ua.Server
                     {
                         worstQuality = quality.CodeBits;
                     }
-
-                    continue;
                 }
             }
 
             // set the timestamp and status.
-            DataValue value = new DataValue();
-            value.WrappedValue = new Variant(worstQuality, TypeInfo.Scalars.StatusCode);
-            value.SourceTimestamp = GetTimestamp(slice);
-            value.ServerTimestamp = GetTimestamp(slice);
+            var value = new DataValue
+            {
+                WrappedValue = new Variant(worstQuality, TypeInfo.Scalars.StatusCode),
+                SourceTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
+            };
             value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
 
-            if ((StatusCode.IsBad(worstQuality) && badQualityCount > 1) || (StatusCode.IsUncertain(worstQuality) && uncertainQualityCount > 1))
+            if ((StatusCode.IsBad(worstQuality) && badQualityCount > 1) ||
+                (StatusCode.IsUncertain(worstQuality) && uncertainQualityCount > 1))
             {
-                value.StatusCode = value.StatusCode.SetAggregateBits(value.StatusCode.AggregateBits | AggregateBits.MultipleValues);
+                value.StatusCode = value.StatusCode.SetAggregateBits(
+                    value.StatusCode.AggregateBits | AggregateBits.MultipleValues);
             }
 
             // return result.
             return value;
         }
-        #endregion
     }
 }

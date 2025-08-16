@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -28,17 +28,13 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Xml;
-using System.IO;
-using System.Reflection;
 using Opc.Ua;
 
 namespace TestData
 {
     public partial class MethodTestState
     {
-        #region Initialization
         /// <summary>
         /// Initializes the object as a collection of counters which change value on read.
         /// </summary>
@@ -46,18 +42,17 @@ namespace TestData
         {
             base.OnAfterCreate(context, node);
 
-            this.ScalarMethod1.OnCall = OnScalarValue1;
-            this.ScalarMethod2.OnCall = OnScalarValue2;
-            this.ScalarMethod3.OnCall = OnScalarValue3;
-            this.ArrayMethod1.OnCall = OnArrayValue1;
-            this.ArrayMethod2.OnCall = OnArrayValue2;
-            this.ArrayMethod3.OnCall = OnArrayValue3;
-            this.UserScalarMethod1.OnCall = OnUserScalarValue1;
-            this.UserScalarMethod2.OnCall = OnUserScalarValue2;
-            this.UserArrayMethod1.OnCall = OnUserArrayValue1;
-            this.UserArrayMethod2.OnCall = OnUserArrayValue2;
+            ScalarMethod1.OnCall = OnScalarValue1;
+            ScalarMethod2.OnCall = OnScalarValue2;
+            ScalarMethod3.OnCall = OnScalarValue3;
+            ArrayMethod1.OnCall = OnArrayValue1;
+            ArrayMethod2.OnCall = OnArrayValue2;
+            ArrayMethod3.OnCall = OnArrayValue3;
+            UserScalarMethod1.OnCall = OnUserScalarValue1;
+            UserScalarMethod2.OnCall = OnUserScalarValue2;
+            UserArrayMethod1.OnCall = OnUserArrayValue1;
+            UserArrayMethod2.OnCall = OnUserArrayValue2;
         }
-        #endregion
 
         private ServiceResult OnScalarValue1(
             ISystemContext context,

@@ -12,7 +12,6 @@
 
 using System;
 using System.Reflection;
-using System.Xml;
 
 namespace Opc.Ua
 {
@@ -21,15 +20,13 @@ namespace Opc.Ua
     /// </summary>
     public static partial class DataTypes
     {
-        #region Static Helper Functions
         /// <summary>
-		/// Returns the browse name for the attribute.
-		/// </summary>
+        /// Returns the browse name for the attribute.
+        /// </summary>
         public static string GetBrowseName(int identifier)
         {
-            FieldInfo[] fields = typeof(DataTypes).GetFields(BindingFlags.Public | BindingFlags.Static);
-
-            foreach (FieldInfo field in fields)
+            foreach (FieldInfo field in typeof(DataTypes).GetFields(
+                BindingFlags.Public | BindingFlags.Static))
             {
                 if (identifier == (uint)field.GetValue(typeof(DataTypes)))
                 {
@@ -37,7 +34,7 @@ namespace Opc.Ua
                 }
             }
 
-            return System.String.Empty;
+            return string.Empty;
         }
 
         /// <summary>
@@ -45,7 +42,8 @@ namespace Opc.Ua
         /// </summary>
         public static string[] GetBrowseNames()
         {
-            FieldInfo[] fields = typeof(DataTypes).GetFields(BindingFlags.Public | BindingFlags.Static);
+            FieldInfo[] fields = typeof(DataTypes).GetFields(
+                BindingFlags.Public | BindingFlags.Static);
 
             int ii = 0;
 
@@ -64,9 +62,8 @@ namespace Opc.Ua
         /// </summary>
         public static uint GetIdentifier(string browseName)
         {
-            FieldInfo[] fields = typeof(DataTypes).GetFields(BindingFlags.Public | BindingFlags.Static);
-
-            foreach (FieldInfo field in fields)
+            foreach (FieldInfo field in typeof(DataTypes).GetFields(
+                BindingFlags.Public | BindingFlags.Static))
             {
                 if (field.Name == browseName)
                 {
@@ -140,6 +137,5 @@ namespace Opc.Ua
         {
             return TypeInfo.GetSystemType(datatypeId, factory);
         }
-        #endregion
     }
 }

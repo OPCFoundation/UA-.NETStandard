@@ -17,8 +17,6 @@ namespace Opc.Ua.Schema.Binary
     /// Type Description schema which is defined in Part 3 of the UA specification.
     /// </summary>
     ///<exclude/>
-    [System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    public class NamespaceDoc
-    {
-    }
+    [System.Runtime.CompilerServices.CompilerGenerated]
+    public class NamespaceDoc;
 }

@@ -40,6 +40,7 @@ namespace Opc.Ua.Redaction
         /// it will invoke the redaction strategy to censor the
         /// sensitive data held by <paramref name="value"/>.
         /// </summary>
+        /// <typeparam name="T"></typeparam>
         public static RedactionWrapper<T> Create<T>(T value)
         {
             return new RedactionWrapper<T>(value);

@@ -12,7 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Bindings;
@@ -20,14 +19,12 @@ using Opc.Ua.Security;
 
 namespace Opc.Ua
 {
-    #region ApplicationConfiguration
     /// <summary>
     /// Stores the configurable configuration information for a UA application.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public partial class ApplicationConfiguration
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -43,21 +40,21 @@ namespace Opc.Ua
         {
             Initialize();
 
-            m_applicationName = template.m_applicationName;
-            m_applicationType = template.m_applicationType;
-            m_applicationUri = template.m_applicationUri;
-            m_discoveryServerConfiguration = template.m_discoveryServerConfiguration;
+            ApplicationName = template.ApplicationName;
+            ApplicationType = template.ApplicationType;
+            ApplicationUri = template.ApplicationUri;
+            DiscoveryServerConfiguration = template.DiscoveryServerConfiguration;
             m_securityConfiguration = template.m_securityConfiguration;
             m_transportConfigurations = template.m_transportConfigurations;
-            m_serverConfiguration = template.m_serverConfiguration;
-            m_clientConfiguration = template.m_clientConfiguration;
-            m_disableHiResClock = template.m_disableHiResClock;
-            m_certificateValidator = template.m_certificateValidator;
-            m_transportQuotas = template.m_transportQuotas;
-            m_traceConfiguration = template.m_traceConfiguration;
+            ServerConfiguration = template.ServerConfiguration;
+            ClientConfiguration = template.ClientConfiguration;
+            DisableHiResClock = template.DisableHiResClock;
+            CertificateValidator = template.CertificateValidator;
+            TransportQuotas = template.TransportQuotas;
+            TraceConfiguration = template.TraceConfiguration;
             m_extensions = template.m_extensions;
             m_extensionObjects = template.m_extensionObjects;
-            m_sourceFilePath = template.m_sourceFilePath;
+            SourceFilePath = template.SourceFilePath;
             m_messageContext = template.m_messageContext;
             m_properties = template.m_properties;
         }
@@ -67,24 +64,25 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_sourceFilePath = null;
+            SourceFilePath = null;
             m_securityConfiguration = new SecurityConfiguration();
-            m_transportConfigurations = new TransportConfigurationCollection();
-            m_disableHiResClock = false;
-            m_properties = new Dictionary<string, object>();
-            m_certificateValidator = new CertificateValidator();
-            m_extensionObjects = new List<object>();
+            m_transportConfigurations = [];
+            DisableHiResClock = false;
+            m_properties = [];
+            CertificateValidator = new CertificateValidator();
+            m_extensionObjects = [];
         }
 
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
         /// <param name="context">The context.</param>
-        [OnDeserializing()]
-        public void Initialize(StreamingContext context) => Initialize();
-        #endregion
+        [OnDeserializing]
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
-        #region Public Properties
         /// <summary>
         /// Gets an object used to synchronize access to the properties dictionary.
         /// </summary>
@@ -106,52 +104,34 @@ namespace Opc.Ua
         /// Used by ParseExtension if no matching XmlElement is found.
         /// </summary>
         public IList<object> ExtensionObjects => m_extensionObjects;
-        #endregion
 
-        #region Persistent Properties
         /// <summary>
         /// A descriptive name for the application (not necessarily unique).
         /// </summary>
         /// <value>The name of the application.</value>
         [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 0)]
-        public string ApplicationName
-        {
-            get { return m_applicationName; }
-            set { m_applicationName = value; }
-        }
+        public string ApplicationName { get; set; }
 
         /// <summary>
         /// A unique identifier for the application instance.
         /// </summary>
         /// <value>The application URI.</value>
         [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 1)]
-        public string ApplicationUri
-        {
-            get { return m_applicationUri; }
-            set { m_applicationUri = value; }
-        }
+        public string ApplicationUri { get; set; }
 
         /// <summary>
         /// A unique identifier for the product.
         /// </summary>
         /// <value>The product URI.</value>
         [DataMember(IsRequired = false, Order = 2)]
-        public string ProductUri
-        {
-            get { return m_productUri; }
-            set { m_productUri = value; }
-        }
+        public string ProductUri { get; set; }
 
         /// <summary>
         /// The type of application.
         /// </summary>
         /// <value>The type of the application.</value>
         [DataMember(IsRequired = true, Order = 3)]
-        public ApplicationType ApplicationType
-        {
-            get { return m_applicationType; }
-            set { m_applicationType = value; }
-        }
+        public ApplicationType ApplicationType { get; set; }
 
         /// <summary>
         /// The security configuration for the application.
@@ -160,15 +140,8 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, EmitDefaultValue = true, Order = 4)]
         public SecurityConfiguration SecurityConfiguration
         {
-            get
-            {
-                return m_securityConfiguration;
-            }
-
-            set
-            {
-                m_securityConfiguration = value ?? new SecurityConfiguration();
-            }
+            get => m_securityConfiguration;
+            set => m_securityConfiguration = value ?? new SecurityConfiguration();
         }
 
         /// <summary>
@@ -178,15 +151,8 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, EmitDefaultValue = true, Order = 5)]
         public TransportConfigurationCollection TransportConfigurations
         {
-            get
-            {
-                return m_transportConfigurations;
-            }
-
-            set
-            {
-                m_transportConfigurations = value ?? new TransportConfigurationCollection();
-            }
+            get => m_transportConfigurations;
+            set => m_transportConfigurations = value ?? [];
         }
 
         /// <summary>
@@ -194,44 +160,28 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The transport quotas.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = true, Order = 6)]
-        public TransportQuotas TransportQuotas
-        {
-            get { return m_transportQuotas; }
-            set { m_transportQuotas = value; }
-        }
+        public TransportQuotas TransportQuotas { get; set; }
 
         /// <summary>
         /// Additional configuration for server applications.
         /// </summary>
         /// <value>The server configuration.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 7)]
-        public ServerConfiguration ServerConfiguration
-        {
-            get { return m_serverConfiguration; }
-            set { m_serverConfiguration = value; }
-        }
+        public ServerConfiguration ServerConfiguration { get; set; }
 
         /// <summary>
         /// Additional configuration for client applications.
         /// </summary>
         /// <value>The client configuration.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 8)]
-        public ClientConfiguration ClientConfiguration
-        {
-            get { return m_clientConfiguration; }
-            set { m_clientConfiguration = value; }
-        }
+        public ClientConfiguration ClientConfiguration { get; set; }
 
         /// <summary>
         /// Additional configuration of the discovery server.
         /// </summary>
         /// <value>The discovery server configuration.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 9)]
-        public DiscoveryServerConfiguration DiscoveryServerConfiguration
-        {
-            get { return m_discoveryServerConfiguration; }
-            set { m_discoveryServerConfiguration = value; }
-        }
+        public DiscoveryServerConfiguration DiscoveryServerConfiguration { get; set; }
 
         /// <summary>
         /// A bucket to store additional application specific configuration data.
@@ -240,8 +190,8 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 10)]
         public XmlElementCollection Extensions
         {
-            get { return m_extensions; }
-            set { m_extensions = value; }
+            get => m_extensions;
+            set => m_extensions = value;
         }
 
         /// <summary>
@@ -249,60 +199,29 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The trace configuration.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 11)]
-        public TraceConfiguration TraceConfiguration
-        {
-            get { return m_traceConfiguration; }
-            set { m_traceConfiguration = value; }
-        }
+        public TraceConfiguration TraceConfiguration { get; set; }
 
         /// <summary>
-        /// Disabling / enabling high resolution clock 
+        /// Disabling / enabling high resolution clock
         /// </summary>
         /// <value><c>true</c> if high resolution clock is disabled; otherwise, <c>false</c>.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 12)]
-        public bool DisableHiResClock
-        {
-            get { return m_disableHiResClock; }
-            set { m_disableHiResClock = value; }
-        }
-
-
-        #endregion
-
-        #region Private Fields
-        private string m_applicationName;
-        private string m_applicationUri;
-        private string m_productUri;
-        private ApplicationType m_applicationType;
+        public bool DisableHiResClock { get; set; }
 
         private SecurityConfiguration m_securityConfiguration;
         private TransportConfigurationCollection m_transportConfigurations;
-
-        private TransportQuotas m_transportQuotas;
-        private ServerConfiguration m_serverConfiguration;
-        private ClientConfiguration m_clientConfiguration;
-        private DiscoveryServerConfiguration m_discoveryServerConfiguration;
-        private TraceConfiguration m_traceConfiguration;
-        private bool m_disableHiResClock;
         private XmlElementCollection m_extensions;
         private List<object> m_extensionObjects;
-        private string m_sourceFilePath;
-
-        private IServiceMessageContext m_messageContext;
-        private CertificateValidator m_certificateValidator;
+        private readonly IServiceMessageContext m_messageContext;
         private Dictionary<string, object> m_properties;
-        #endregion
     }
-    #endregion
 
-    #region TransportQuotas Class
     /// <summary>
     /// Specifies various limits that apply to the transport or secure channel layers.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public class TransportQuotas
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -317,163 +236,106 @@ namespace Opc.Ua
         private void Initialize()
         {
             // encoding limits
-            m_maxMessageSize = DefaultEncodingLimits.MaxMessageSize;
-            m_maxStringLength = DefaultEncodingLimits.MaxStringLength;
-            m_maxByteStringLength = DefaultEncodingLimits.MaxByteStringLength;
-            m_maxArrayLength = DefaultEncodingLimits.MaxArrayLength;
-            m_maxEncodingNestingLevels = DefaultEncodingLimits.MaxEncodingNestingLevels;
-            m_maxDecoderRecoveries = DefaultEncodingLimits.MaxDecoderRecoveries;
+            MaxMessageSize = DefaultEncodingLimits.MaxMessageSize;
+            MaxStringLength = DefaultEncodingLimits.MaxStringLength;
+            MaxByteStringLength = DefaultEncodingLimits.MaxByteStringLength;
+            MaxArrayLength = DefaultEncodingLimits.MaxArrayLength;
+            MaxEncodingNestingLevels = DefaultEncodingLimits.MaxEncodingNestingLevels;
+            MaxDecoderRecoveries = DefaultEncodingLimits.MaxDecoderRecoveries;
 
             // message limits
-            m_maxBufferSize = TcpMessageLimits.DefaultMaxBufferSize;
-            m_operationTimeout = TcpMessageLimits.DefaultOperationTimeout;
-            m_channelLifetime = TcpMessageLimits.DefaultChannelLifetime;
-            m_securityTokenLifetime = TcpMessageLimits.DefaultSecurityTokenLifeTime;
+            MaxBufferSize = TcpMessageLimits.DefaultMaxBufferSize;
+            OperationTimeout = TcpMessageLimits.DefaultOperationTimeout;
+            ChannelLifetime = TcpMessageLimits.DefaultChannelLifetime;
+            SecurityTokenLifetime = TcpMessageLimits.DefaultSecurityTokenLifeTime;
         }
 
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
         /// <param name="context">The context.</param>
-        [OnDeserializing()]
-        public void Initialize(StreamingContext context) => Initialize();
-        #endregion
+        [OnDeserializing]
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
-        #region Persistent Properties
         /// <summary>
         /// The default timeout to use when sending requests (in milliseconds).
         /// </summary>
         /// <value>The operation timeout.</value>
         [DataMember(IsRequired = false, Order = 0)]
-        public int OperationTimeout
-        {
-            get { return m_operationTimeout; }
-            set { m_operationTimeout = value; }
-        }
+        public int OperationTimeout { get; set; }
 
         /// <summary>
         /// The maximum length of string encoded in a message body.
         /// </summary>
         /// <value>The max length of the string.</value>
         [DataMember(IsRequired = false, Order = 1)]
-        public int MaxStringLength
-        {
-            get { return m_maxStringLength; }
-            set { m_maxStringLength = value; }
-        }
+        public int MaxStringLength { get; set; }
 
         /// <summary>
         /// The maximum length of a byte string encoded in a message body.
         /// </summary>
         /// <value>The max length of the byte string.</value>
         [DataMember(IsRequired = false, Order = 2)]
-        public int MaxByteStringLength
-        {
-            get { return m_maxByteStringLength; }
-            set { m_maxByteStringLength = value; }
-        }
+        public int MaxByteStringLength { get; set; }
 
         /// <summary>
         /// The maximum length of an array encoded in a message body.
         /// </summary>
         /// <value>The max length of the array.</value>
         [DataMember(IsRequired = false, Order = 3)]
-        public int MaxArrayLength
-        {
-            get { return m_maxArrayLength; }
-            set { m_maxArrayLength = value; }
-        }
+        public int MaxArrayLength { get; set; }
 
         /// <summary>
         /// The maximum length of a message body.
         /// </summary>
         /// <value>The max size of the message.</value>
         [DataMember(IsRequired = false, Order = 4)]
-        public int MaxMessageSize
-        {
-            get { return m_maxMessageSize; }
-            set { m_maxMessageSize = value; }
-        }
+        public int MaxMessageSize { get; set; }
 
         /// <summary>
         /// The maximum size of the buffer to use when sending messages.
         /// </summary>
         /// <value>The max size of the buffer.</value>
         [DataMember(IsRequired = false, Order = 5)]
-        public int MaxBufferSize
-        {
-            get { return m_maxBufferSize; }
-            set { m_maxBufferSize = value; }
-        }
-
+        public int MaxBufferSize { get; set; }
 
         /// <summary>
         /// The maximum nesting level accepted while encoding or decoding objects.
         /// </summary>
         [DataMember(IsRequired = false, Order = 6)]
-        public int MaxEncodingNestingLevels
-        {
-            get { return m_maxEncodingNestingLevels; }
-            set { m_maxEncodingNestingLevels = value; }
-        }
+        public int MaxEncodingNestingLevels { get; set; }
 
         /// <summary>
-        /// The number of times the decoder can recover from a decoder error 
+        /// The number of times the decoder can recover from a decoder error
         /// of an IEncodeable before throwing a decoder error.
         /// </summary>
         [DataMember(IsRequired = false, Order = 7)]
-        public int MaxDecoderRecoveries
-        {
-            get { return m_maxDecoderRecoveries; }
-            set { m_maxDecoderRecoveries = value; }
-        }
+        public int MaxDecoderRecoveries { get; set; }
 
         /// <summary>
         /// The lifetime of a secure channel (in milliseconds).
         /// </summary>
         /// <value>The channel lifetime.</value>
         [DataMember(IsRequired = false, Order = 8)]
-        public int ChannelLifetime
-        {
-            get { return m_channelLifetime; }
-            set { m_channelLifetime = value; }
-        }
+        public int ChannelLifetime { get; set; }
 
         /// <summary>
         /// The lifetime of a security token (in milliseconds).
         /// </summary>
         /// <value>The security token lifetime.</value>
         [DataMember(IsRequired = false, Order = 9)]
-        public int SecurityTokenLifetime
-        {
-            get { return m_securityTokenLifetime; }
-            set { m_securityTokenLifetime = value; }
-        }
-        #endregion
-
-        #region Private Fields
-        private int m_operationTimeout;
-        private int m_maxStringLength;
-        private int m_maxByteStringLength;
-        private int m_maxArrayLength;
-        private int m_maxMessageSize;
-        private int m_maxBufferSize;
-        private int m_channelLifetime;
-        private int m_securityTokenLifetime;
-        private int m_maxEncodingNestingLevels;
-        private int m_maxDecoderRecoveries;
-        #endregion
+        public int SecurityTokenLifetime { get; set; }
     }
-    #endregion
 
-    #region TraceConfiguration Class
     /// <summary>
     /// Specifies parameters used for tracing.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public partial class TraceConfiguration
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -487,43 +349,36 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_outputFilePath = null;
-            m_deleteOnLoad = false;
+            OutputFilePath = null;
+            DeleteOnLoad = false;
         }
 
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
         /// <param name="context">The context.</param>
-        [OnDeserializing()]
-        public void Initialize(StreamingContext context) => Initialize();
-        #endregion
+        [OnDeserializing]
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
-        #region Persistent Properties
         /// <summary>
         /// The output file used to log the trace information.
         /// </summary>
         /// <value>The output file path.</value>
         [DataMember(IsRequired = false, Order = 0)]
-        public string OutputFilePath
-        {
-            get { return m_outputFilePath; }
-            set { m_outputFilePath = value; }
-        }
+        public string OutputFilePath { get; set; }
 
         /// <summary>
         /// Whether the existing log file should be deleted when the application configuration is loaded.
         /// </summary>
         /// <value><c>true</c> if existing log file should be deleted when the application configuration is loaded; otherwise, <c>false</c>.</value>
         [DataMember(IsRequired = false, Order = 1)]
-        public bool DeleteOnLoad
-        {
-            get { return m_deleteOnLoad; }
-            set { m_deleteOnLoad = value; }
-        }
+        public bool DeleteOnLoad { get; set; }
 
         /// <summary>
-        /// The masks used to select what is written to the output  
+        /// The masks used to select what is written to the output
         /// Masks supported by the trace feature:
         /// - Do not output any messages -None = 0x0;
         /// - Output error messages - Error = 0x1;
@@ -539,22 +394,9 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The trace masks.</value>
         [DataMember(IsRequired = false, Order = 2)]
-        public int TraceMasks
-        {
-            get { return m_traceMasks; }
-            set { m_traceMasks = value; }
-        }
-        #endregion
-
-        #region Private Fields
-        private string m_outputFilePath;
-        private bool m_deleteOnLoad;
-        private int m_traceMasks;
-        #endregion
+        public int TraceMasks { get; set; }
     }
-    #endregion
 
-    #region TransportConfiguration Class
     /// <summary>
     /// Specifies the configuration information for a transport protocol
     /// </summary>
@@ -564,7 +406,6 @@ namespace Opc.Ua
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public class TransportConfiguration
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -579,61 +420,52 @@ namespace Opc.Ua
         /// <param name="type">The type.</param>
         public TransportConfiguration(string urlScheme, Type type)
         {
-            m_uriScheme = urlScheme;
-            m_typeName = type.AssemblyQualifiedName;
+            UriScheme = urlScheme;
+            TypeName = type.AssemblyQualifiedName;
         }
-        #endregion
 
-        #region Persistent Properties
         /// <summary>
         /// The URL prefix used by the application (http, opc.tcp, net.tpc, etc.).
         /// </summary>
         /// <value>The URI scheme.</value>
         [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 0)]
-        public string UriScheme
-        {
-            get { return m_uriScheme; }
-            set { m_uriScheme = value; }
-        }
+        public string UriScheme { get; set; }
 
         /// <summary>
         /// The name of the class that defines the binding for the transport.
         /// </summary>
         /// <value>The name of the type.</value>
         /// <remarks>
-        /// This can be any instance of the System.ServiceModel.Channels.Binding class 
+        /// <para>
+        /// This can be any instance of the System.ServiceModel.Channels.Binding class
         /// that implements these constructors:
-        /// 
+        /// </para>
+        /// <para>
         /// XxxBinding(EndpointDescription description, EndpointConfiguration configuration);
         /// XxxBinding(IList{EndpointDescription} descriptions, EndpointConfiguration configuration)
         /// XxxBinding(EndpointConfiguration configuration)
+        /// </para>
         /// </remarks>
         [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 1)]
-        public string TypeName
-        {
-            get { return m_typeName; }
-            set { m_typeName = value; }
-        }
-        #endregion
-
-        #region Private Fields
-        private string m_uriScheme;
-        private string m_typeName;
-        #endregion
+        public string TypeName { get; set; }
     }
-    #endregion
 
-    #region TransportConfigurationCollection Class
     /// <summary>
     /// A collection of TransportConfiguration objects.
     /// </summary>
-    [CollectionDataContract(Name = "ListOfTransportConfiguration", Namespace = Namespaces.OpcUaConfig, ItemName = "TransportConfiguration")]
-    public partial class TransportConfigurationCollection : List<TransportConfiguration>
+    [CollectionDataContract(
+        Name = "ListOfTransportConfiguration",
+        Namespace = Namespaces.OpcUaConfig,
+        ItemName = "TransportConfiguration"
+    )]
+    public class TransportConfigurationCollection : List<TransportConfiguration>
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public TransportConfigurationCollection() { }
+        public TransportConfigurationCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -642,24 +474,27 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
-        public TransportConfigurationCollection(IEnumerable<TransportConfiguration> collection) : base(collection) { }
+        public TransportConfigurationCollection(IEnumerable<TransportConfiguration> collection)
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The capacity.</param>
-        public TransportConfigurationCollection(int capacity) : base(capacity) { }
+        public TransportConfigurationCollection(int capacity)
+            : base(capacity)
+        {
+        }
     }
-    #endregion
 
-    #region ServerSecurityPolicy Class
     /// <summary>
     /// A class that defines a group of security policies supported by the server.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public class ServerSecurityPolicy
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -673,19 +508,20 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_securityMode = MessageSecurityMode.SignAndEncrypt;
-            m_securityPolicyUri = SecurityPolicies.Basic256Sha256;
+            SecurityMode = MessageSecurityMode.SignAndEncrypt;
+            SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
         }
 
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
         /// <param name="context">The context.</param>
-        [OnDeserializing()]
-        public void Initialize(StreamingContext context) => Initialize();
-        #endregion
+        [OnDeserializing]
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
-        #region Public Properties
         /// <summary>
         /// Calculates the security level, given the security mode and policy
         /// Invalid and none is discouraged
@@ -701,68 +537,61 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The security mode.</value>
         [DataMember(IsRequired = false, Order = 1)]
-        public MessageSecurityMode SecurityMode
-        {
-            get { return m_securityMode; }
-            set { m_securityMode = value; }
-        }
+        public MessageSecurityMode SecurityMode { get; set; }
 
         /// <summary>
         /// The security policy to use.
         /// </summary>
         /// <value>The security policy URI.</value>
         [DataMember(IsRequired = false, Order = 2)]
-        public string SecurityPolicyUri
-        {
-            get { return m_securityPolicyUri; }
-            set { m_securityPolicyUri = value; }
-        }
-        #endregion
-
-        #region Private Members
-        private MessageSecurityMode m_securityMode;
-        private string m_securityPolicyUri;
-        #endregion
+        public string SecurityPolicyUri { get; set; }
     }
-    #endregion
 
-    #region ServerSecurityPolicyCollection Class
     /// <summary>
     /// A collection of ServerSecurityPolicy objects.
     /// </summary>
-    [CollectionDataContract(Name = "ListOfServerSecurityPolicy", Namespace = Namespaces.OpcUaConfig, ItemName = "ServerSecurityPolicy")]
-    public partial class ServerSecurityPolicyCollection : List<ServerSecurityPolicy>
+    [CollectionDataContract(
+        Name = "ListOfServerSecurityPolicy",
+        Namespace = Namespaces.OpcUaConfig,
+        ItemName = "ServerSecurityPolicy"
+    )]
+    public class ServerSecurityPolicyCollection : List<ServerSecurityPolicy>
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public ServerSecurityPolicyCollection() { }
+        public ServerSecurityPolicyCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">A collection of values to add to this new collection</param>
-        /// <exception cref="System.ArgumentNullException">
+        /// <exception cref="ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
-        public ServerSecurityPolicyCollection(IEnumerable<ServerSecurityPolicy> collection) : base(collection) { }
+        public ServerSecurityPolicyCollection(IEnumerable<ServerSecurityPolicy> collection)
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The capacity.</param>
-        public ServerSecurityPolicyCollection(int capacity) : base(capacity) { }
+        public ServerSecurityPolicyCollection(int capacity)
+            : base(capacity)
+        {
+        }
     }
-    #endregion
 
-    #region SecurityConfiguration Class
     /// <summary>
     /// The security configuration for the application.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public partial class SecurityConfiguration
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -776,29 +605,30 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_applicationCertificates = new CertificateIdentifierCollection();
+            m_applicationCertificates = [];
             m_trustedIssuerCertificates = new CertificateTrustList();
             m_trustedPeerCertificates = new CertificateTrustList();
-            m_nonceLength = 32;
-            m_maxRejectedCertificates = 5;
-            m_autoAcceptUntrustedCertificates = false;
-            m_rejectSHA1SignedCertificates = true;
-            m_rejectUnknownRevocationStatus = false;
-            m_minCertificateKeySize = CertificateFactory.DefaultKeySize;
-            m_addAppCertToTrustedStore = true;
-            m_sendCertificateChain = true;
-            m_suppressNonceValidationErrors = false;
-            m_isDeprecatedConfiguration = false;
+            NonceLength = 32;
+            MaxRejectedCertificates = 5;
+            AutoAcceptUntrustedCertificates = false;
+            RejectSHA1SignedCertificates = true;
+            RejectUnknownRevocationStatus = false;
+            MinimumCertificateKeySize = CertificateFactory.DefaultKeySize;
+            AddAppCertToTrustedStore = true;
+            SendCertificateChain = true;
+            SuppressNonceValidationErrors = false;
+            IsDeprecatedConfiguration = false;
         }
 
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
-        [OnDeserializing()]
-        public void Initialize(StreamingContext context) => Initialize();
-        #endregion
+        [OnDeserializing]
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
-        #region Persistent Properties
         /// <summary>
         /// The application instance certificate.
         /// Kept for backward compatibility with configuration files which only support RSA certificates.
@@ -838,8 +668,9 @@ namespace Opc.Ua
                 }
                 SupportedSecurityPolicies = BuildSupportedSecurityPolicies();
 
-                m_applicationCertificates[0].CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType;
-                m_isDeprecatedConfiguration = true;
+                m_applicationCertificates[0].CertificateType = ObjectTypeIds
+                    .RsaSha256ApplicationCertificateType;
+                IsDeprecatedConfiguration = true;
             }
         }
 
@@ -852,14 +683,15 @@ namespace Opc.Ua
             get => m_applicationCertificates;
             set
             {
-                m_applicationCertificates = value ?? new CertificateIdentifierCollection();
+                m_applicationCertificates = value ?? [];
 
-                m_isDeprecatedConfiguration = false;
+                IsDeprecatedConfiguration = false;
 
                 // Remove any unsupported certificate types.
                 for (int i = m_applicationCertificates.Count - 1; i >= 0; i--)
                 {
-                    if (!Utils.IsSupportedCertificateType(m_applicationCertificates[i].CertificateType))
+                    if (!Utils.IsSupportedCertificateType(
+                        m_applicationCertificates[i].CertificateType))
                     {
                         m_applicationCertificates.RemoveAt(i);
                     }
@@ -870,7 +702,8 @@ namespace Opc.Ua
                 {
                     for (int j = m_applicationCertificates.Count - 1; j > i; j--)
                     {
-                        if (m_applicationCertificates[i].CertificateType == m_applicationCertificates[j].CertificateType)
+                        if (m_applicationCertificates[i]
+                                .CertificateType == m_applicationCertificates[j].CertificateType)
                         {
                             m_applicationCertificates.RemoveAt(j);
                         }
@@ -887,15 +720,8 @@ namespace Opc.Ua
         [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 2)]
         public CertificateTrustList TrustedIssuerCertificates
         {
-            get
-            {
-                return m_trustedIssuerCertificates;
-            }
-
-            set
-            {
-                m_trustedIssuerCertificates = value ?? new CertificateTrustList();
-            }
+            get => m_trustedIssuerCertificates;
+            set => m_trustedIssuerCertificates = value ?? new CertificateTrustList();
         }
 
         /// <summary>
@@ -904,15 +730,8 @@ namespace Opc.Ua
         [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 4)]
         public CertificateTrustList TrustedPeerCertificates
         {
-            get
-            {
-                return m_trustedPeerCertificates;
-            }
-
-            set
-            {
-                m_trustedPeerCertificates = value ?? new CertificateTrustList();
-            }
+            get => m_trustedPeerCertificates;
+            set => m_trustedPeerCertificates = value ?? new CertificateTrustList();
         }
 
         /// <summary>
@@ -922,24 +741,16 @@ namespace Opc.Ua
         /// The length of nonce in the CreateSession service.
         /// </value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 6)]
-        public int NonceLength
-        {
-            get { return m_nonceLength; }
-            set { m_nonceLength = value; }
-        }
+        public int NonceLength { get; set; }
 
         /// <summary>
         /// A store where invalid certificates can be placed for later review by the administrator.
         /// </summary>
-        /// <value> 
+        /// <value>
         /// A store where invalid certificates can be placed for later review by the administrator.
         /// </value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 7)]
-        public CertificateStoreIdentifier RejectedCertificateStore
-        {
-            get { return m_rejectedCertificateStore; }
-            set { m_rejectedCertificateStore = value; }
-        }
+        public CertificateStoreIdentifier RejectedCertificateStore { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating how many certificates are kept
@@ -952,11 +763,7 @@ namespace Opc.Ua
         /// A negative number to keep no history.
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 8)]
-        public int MaxRejectedCertificates
-        {
-            get { return m_maxRejectedCertificates; }
-            set { m_maxRejectedCertificates = value; }
-        }
+        public int MaxRejectedCertificates { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether untrusted certificates should be automatically accepted.
@@ -966,21 +773,13 @@ namespace Opc.Ua
         /// It can be set by clients that connect to URLs specified in configuration rather than with user entry.
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 9)]
-        public bool AutoAcceptUntrustedCertificates
-        {
-            get { return m_autoAcceptUntrustedCertificates; }
-            set { m_autoAcceptUntrustedCertificates = value; }
-        }
+        public bool AutoAcceptUntrustedCertificates { get; set; }
 
         /// <summary>
         /// Gets or sets a directory which contains files representing users roles.
         /// </summary>
         [DataMember(Order = 10)]
-        public string UserRoleDirectory
-        {
-            get { return m_userRoleDirectory; }
-            set { m_userRoleDirectory = value; }
-        }
+        public string UserRoleDirectory { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether SHA-1 signed certificates are accepted.
@@ -989,11 +788,7 @@ namespace Opc.Ua
         /// This flag can be set to false by servers that accept SHA-1 signed certificates.
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 11)]
-        public bool RejectSHA1SignedCertificates
-        {
-            get { return m_rejectSHA1SignedCertificates; }
-            set { m_rejectSHA1SignedCertificates = value; }
-        }
+        public bool RejectSHA1SignedCertificates { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether certificates with unavailable revocation lists are not accepted.
@@ -1002,11 +797,7 @@ namespace Opc.Ua
         /// This flag can be set to true by servers that must have a revocation list for each CA (even if empty).
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 12)]
-        public bool RejectUnknownRevocationStatus
-        {
-            get { return m_rejectUnknownRevocationStatus; }
-            set { m_rejectUnknownRevocationStatus = value; }
-        }
+        public bool RejectUnknownRevocationStatus { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating which minimum certificate key strength is accepted.
@@ -1016,11 +807,7 @@ namespace Opc.Ua
         /// This value can be set to 1024, 2048 or 4096 by servers
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 13)]
-        public ushort MinimumCertificateKeySize
-        {
-            get { return m_minCertificateKeySize; }
-            set { m_minCertificateKeySize = value; }
-        }
+        public ushort MinimumCertificateKeySize { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether the Validator skips the full chain validation
@@ -1030,11 +817,7 @@ namespace Opc.Ua
         /// This flag can be set to true by applications.
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 14)]
-        public bool UseValidatedCertificates
-        {
-            get { return m_useValidatedCertificates; }
-            set { m_useValidatedCertificates = value; }
-        }
+        public bool UseValidatedCertificates { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether the application cert should be copied to the trusted store.
@@ -1043,11 +826,7 @@ namespace Opc.Ua
         /// It is useful for client/server applications running on the same host  and sharing the cert store to autotrust.
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 15)]
-        public bool AddAppCertToTrustedStore
-        {
-            get { return m_addAppCertToTrustedStore; }
-            set { m_addAppCertToTrustedStore = value; }
-        }
+        public bool AddAppCertToTrustedStore { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether the application should send the complete certificate chain.
@@ -1056,11 +835,7 @@ namespace Opc.Ua
         /// If set to true the complete certificate chain will be sent for CA signed certificates.
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 16)]
-        public bool SendCertificateChain
-        {
-            get { return m_sendCertificateChain; }
-            set { m_sendCertificateChain = value; }
-        }
+        public bool SendCertificateChain { get; set; }
 
         /// <summary>
         /// The store containing additional user issuer certificates.
@@ -1068,20 +843,8 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 17)]
         public CertificateTrustList UserIssuerCertificates
         {
-            get
-            {
-                return m_userIssuerCertificates;
-            }
-
-            set
-            {
-                m_userIssuerCertificates = value;
-
-                if (m_userIssuerCertificates == null)
-                {
-                    m_userIssuerCertificates = new CertificateTrustList();
-                }
-            }
+            get => m_userIssuerCertificates;
+            set => m_userIssuerCertificates = value ?? new CertificateTrustList();
         }
 
         /// <summary>
@@ -1090,20 +853,8 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 18)]
         public CertificateTrustList TrustedUserCertificates
         {
-            get
-            {
-                return m_trustedUserCertificates;
-            }
-
-            set
-            {
-                m_trustedUserCertificates = value;
-
-                if (m_trustedUserCertificates == null)
-                {
-                    m_trustedUserCertificates = new CertificateTrustList();
-                }
-            }
+            get => m_trustedUserCertificates;
+            set => m_trustedUserCertificates = value ?? new CertificateTrustList();
         }
 
         /// <summary>
@@ -1112,20 +863,8 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 19)]
         public CertificateTrustList HttpsIssuerCertificates
         {
-            get
-            {
-                return m_httpsIssuerCertificates;
-            }
-
-            set
-            {
-                m_httpsIssuerCertificates = value;
-
-                if (m_httpsIssuerCertificates == null)
-                {
-                    m_httpsIssuerCertificates = new CertificateTrustList();
-                }
-            }
+            get => m_httpsIssuerCertificates;
+            set => m_httpsIssuerCertificates = value ?? new CertificateTrustList();
         }
 
         /// <summary>
@@ -1134,20 +873,8 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 20)]
         public CertificateTrustList TrustedHttpsCertificates
         {
-            get
-            {
-                return m_trustedHttpsCertificates;
-            }
-
-            set
-            {
-                m_trustedHttpsCertificates = value;
-
-                if (m_trustedHttpsCertificates == null)
-                {
-                    m_trustedHttpsCertificates = new CertificateTrustList();
-                }
-            }
+            get => m_trustedHttpsCertificates;
+            set => m_trustedHttpsCertificates = value ?? new CertificateTrustList();
         }
 
         /// <summary>
@@ -1159,28 +886,13 @@ namespace Opc.Ua
         /// Please set this flag to true only in close and secured networks since it can cause security vulnerabilities.
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 21)]
-        public bool SuppressNonceValidationErrors
-        {
-            get { return m_suppressNonceValidationErrors; }
-            set { m_suppressNonceValidationErrors = value; }
-        }
+        public bool SuppressNonceValidationErrors { get; set; }
 
-
-        #endregion
-
-        #region Non-Persistent Properties
         /// <summary>
         /// The type of Configuration (deprecated or not)
         /// </summary>
-        public bool IsDeprecatedConfiguration
-        {
-            get { return m_isDeprecatedConfiguration; }
-            set { m_isDeprecatedConfiguration = value; }
-        }
+        public bool IsDeprecatedConfiguration { get; set; }
 
-        #endregion
-
-        #region Private Fields       
         private CertificateIdentifierCollection m_applicationCertificates;
         private CertificateTrustList m_trustedIssuerCertificates;
         private CertificateTrustList m_trustedPeerCertificates;
@@ -1188,32 +900,14 @@ namespace Opc.Ua
         private CertificateTrustList m_trustedHttpsCertificates;
         private CertificateTrustList m_userIssuerCertificates;
         private CertificateTrustList m_trustedUserCertificates;
-        // TODO: is this really necessary?
-        private int m_nonceLength;
-        private CertificateStoreIdentifier m_rejectedCertificateStore;
-        private int m_maxRejectedCertificates;
-        private bool m_autoAcceptUntrustedCertificates;
-        private string m_userRoleDirectory;
-        private bool m_rejectSHA1SignedCertificates;
-        private bool m_rejectUnknownRevocationStatus;
-        private ushort m_minCertificateKeySize;
-        private bool m_useValidatedCertificates;
-        private bool m_addAppCertToTrustedStore;
-        private bool m_sendCertificateChain;
-        private bool m_suppressNonceValidationErrors;
-        private bool m_isDeprecatedConfiguration;
-        #endregion
     }
-    #endregion
 
-    #region SamplingRateGroup Class
     /// <summary>
     /// A class that defines a group of sampling rates supported by the server.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public class SamplingRateGroup
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -1230,9 +924,9 @@ namespace Opc.Ua
         /// <param name="count">The count.</param>
         public SamplingRateGroup(int start, int increment, int count)
         {
-            m_start = start;
-            m_increment = increment;
-            m_count = count;
+            Start = start;
+            Increment = increment;
+            Count = count;
         }
 
         /// <summary>
@@ -1240,30 +934,27 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_start = 1000;
-            m_increment = 0;
-            m_count = 0;
+            Start = 1000;
+            Increment = 0;
+            Count = 0;
         }
 
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
         /// <param name="context">The context.</param>
-        [OnDeserializing()]
-        public void Initialize(StreamingContext context) => Initialize();
-        #endregion
+        [OnDeserializing]
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
-        #region Public Properties
         /// <summary>
         /// The first sampling rate in the group (in milliseconds).
         /// </summary>
         /// <value>The first sampling rate in the group (in milliseconds).</value>
         [DataMember(IsRequired = false, Order = 1)]
-        public double Start
-        {
-            get { return m_start; }
-            set { m_start = value; }
-        }
+        public double Start { get; set; }
 
         /// <summary>
         /// The increment between sampling rates in the group (in milliseconds).
@@ -1273,11 +964,7 @@ namespace Opc.Ua
         /// An increment of 0 means the group only contains one sampling rate equal to the start.
         /// </remarks>
         [DataMember(IsRequired = false, Order = 2)]
-        public double Increment
-        {
-            get { return m_increment; }
-            set { m_increment = value; }
-        }
+        public double Increment { get; set; }
 
         /// <summary>
         /// The number of sampling rates in the group.
@@ -1287,32 +974,25 @@ namespace Opc.Ua
         /// A count of 0 means there is no limit.
         /// </remarks>
         [DataMember(IsRequired = false, Order = 3)]
-        public int Count
-        {
-            get { return m_count; }
-            set { m_count = value; }
-        }
-        #endregion
-
-        #region Private Members
-        private double m_start;
-        private double m_increment;
-        private int m_count;
-        #endregion
+        public int Count { get; set; }
     }
-    #endregion
 
-    #region SamplingRateGroupCollection Class
     /// <summary>
     /// A collection of SamplingRateGroup objects.
     /// </summary>
-    [CollectionDataContract(Name = "ListOfSamplingRateGroup", Namespace = Namespaces.OpcUaConfig, ItemName = "SamplingRateGroup")]
-    public partial class SamplingRateGroupCollection : List<SamplingRateGroup>
+    [CollectionDataContract(
+        Name = "ListOfSamplingRateGroup",
+        Namespace = Namespaces.OpcUaConfig,
+        ItemName = "SamplingRateGroup"
+    )]
+    public class SamplingRateGroupCollection : List<SamplingRateGroup>
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public SamplingRateGroupCollection() { }
+        public SamplingRateGroupCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -1321,24 +1001,27 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
-        public SamplingRateGroupCollection(IEnumerable<SamplingRateGroup> collection) : base(collection) { }
+        public SamplingRateGroupCollection(IEnumerable<SamplingRateGroup> collection)
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The capacity.</param>
-        public SamplingRateGroupCollection(int capacity) : base(capacity) { }
+        public SamplingRateGroupCollection(int capacity)
+            : base(capacity)
+        {
+        }
     }
-    #endregion
 
-    #region ServerBaseConfiguration Class
     /// <summary>
     /// Specifies the configuration for a server application.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public partial class ServerBaseConfiguration
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -1352,43 +1035,51 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_baseAddresses = new StringCollection();
-            m_alternateBaseAddresses = new StringCollection();
-            m_securityPolicies = new ServerSecurityPolicyCollection();
-            m_minRequestThreadCount = 10;
-            m_maxRequestThreadCount = 100;
-            m_maxQueuedRequestCount = 200;
+            m_baseAddresses = [];
+            m_alternateBaseAddresses = [];
+            m_securityPolicies = [];
+            MinRequestThreadCount = 10;
+            MaxRequestThreadCount = 100;
+            MaxQueuedRequestCount = 200;
         }
 
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
         /// <param name="context">The context.</param>
-        [OnDeserializing()]
-        public void Initialize(StreamingContext context) => Initialize();
+        [OnDeserializing]
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// Remove unsupported security policies and expand wild cards.
         /// </summary>
-        [OnDeserialized()]
+        [OnDeserialized]
         private void ValidateSecurityPolicyCollection(StreamingContext context)
         {
-            var supportedPolicies = Opc.Ua.SecurityPolicies.GetDisplayNames();
+            string[] supportedPolicies = Ua.SecurityPolicies.GetDisplayNames();
             var newPolicies = new ServerSecurityPolicyCollection();
-            foreach (var securityPolicy in m_securityPolicies)
+            foreach (ServerSecurityPolicy securityPolicy in m_securityPolicies)
             {
-                if (String.IsNullOrWhiteSpace(securityPolicy.SecurityPolicyUri))
+                if (string.IsNullOrWhiteSpace(securityPolicy.SecurityPolicyUri))
                 {
                     // add wild card policies
-                    foreach (var policyUri in Opc.Ua.SecurityPolicies.GetDefaultUris())
+                    foreach (string policyUri in Ua.SecurityPolicies.GetDefaultUris())
                     {
-                        var newPolicy = new ServerSecurityPolicy() {
+                        var newPolicy = new ServerSecurityPolicy
+                        {
                             SecurityMode = securityPolicy.SecurityMode,
                             SecurityPolicyUri = policyUri
                         };
                         if (newPolicies.Find(s =>
-                            s.SecurityMode == newPolicy.SecurityMode &&
-                            string.Equals(s.SecurityPolicyUri, newPolicy.SecurityPolicyUri, StringComparison.Ordinal)) == null)
+                                s.SecurityMode == newPolicy.SecurityMode &&
+                                string.Equals(
+                                    s.SecurityPolicyUri,
+                                    newPolicy.SecurityPolicyUri,
+                                    StringComparison.Ordinal)
+                            ) == null)
                         {
                             newPolicies.Add(newPolicy);
                         }
@@ -1398,12 +1089,16 @@ namespace Opc.Ua
                 {
                     for (int i = 0; i < supportedPolicies.Length; i++)
                     {
-                        if (securityPolicy.SecurityPolicyUri.Contains(supportedPolicies[i]))
+                        if (securityPolicy.SecurityPolicyUri
+                            .Contains(supportedPolicies[i], StringComparison.Ordinal))
                         {
                             if (newPolicies.Find(s =>
-                                s.SecurityMode == securityPolicy.SecurityMode &&
-                                string.Equals(s.SecurityPolicyUri, securityPolicy.SecurityPolicyUri,
-                                    StringComparison.Ordinal)) == null)
+                                    s.SecurityMode == securityPolicy.SecurityMode &&
+                                    string.Equals(
+                                        s.SecurityPolicyUri,
+                                        securityPolicy.SecurityPolicyUri,
+                                        StringComparison.Ordinal)
+                                ) == null)
                             {
                                 newPolicies.Add(securityPolicy);
                             }
@@ -1414,9 +1109,7 @@ namespace Opc.Ua
             }
             m_securityPolicies = newPolicies;
         }
-        #endregion
 
-        #region Persistent Properties
         /// <summary>
         /// The base addresses for the server.
         /// </summary>
@@ -1428,20 +1121,8 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, Order = 0)]
         public StringCollection BaseAddresses
         {
-            get
-            {
-                return m_baseAddresses;
-            }
-
-            set
-            {
-                m_baseAddresses = value;
-
-                if (m_baseAddresses == null)
-                {
-                    m_baseAddresses = new StringCollection();
-                }
-            }
+            get => m_baseAddresses;
+            set => m_baseAddresses = value ?? [];
         }
 
         /// <summary>
@@ -1457,20 +1138,8 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, Order = 1)]
         public StringCollection AlternateBaseAddresses
         {
-            get
-            {
-                return m_alternateBaseAddresses;
-            }
-
-            set
-            {
-                m_alternateBaseAddresses = value;
-
-                if (m_alternateBaseAddresses == null)
-                {
-                    m_alternateBaseAddresses = new StringCollection();
-                }
-            }
+            get => m_alternateBaseAddresses;
+            set => m_alternateBaseAddresses = value ?? [];
         }
 
         /// <summary>
@@ -1483,20 +1152,8 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, Order = 2)]
         public ServerSecurityPolicyCollection SecurityPolicies
         {
-            get
-            {
-                return m_securityPolicies;
-            }
-
-            set
-            {
-                m_securityPolicies = value;
-
-                if (m_securityPolicies == null)
-                {
-                    m_securityPolicies = new ServerSecurityPolicyCollection();
-                }
-            }
+            get => m_securityPolicies;
+            set => m_securityPolicies = value ?? [];
         }
 
         /// <summary>
@@ -1504,54 +1161,33 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The minimum request thread count.</value>
         [DataMember(IsRequired = false, Order = 3)]
-        public int MinRequestThreadCount
-        {
-            get { return m_minRequestThreadCount; }
-            set { m_minRequestThreadCount = value; }
-        }
+        public int MinRequestThreadCount { get; set; }
 
         /// <summary>
         /// The maximum number of threads assigned to processing requests.
         /// </summary>
         /// <value>The maximum request thread count.</value>
         [DataMember(IsRequired = false, Order = 4)]
-        public int MaxRequestThreadCount
-        {
-            get { return m_maxRequestThreadCount; }
-            set { m_maxRequestThreadCount = value; }
-        }
+        public int MaxRequestThreadCount { get; set; }
 
         /// <summary>
         /// The maximum number of requests that will be queued waiting for a thread.
         /// </summary>
         /// <value>The maximum queued request count.</value>
         [DataMember(IsRequired = false, Order = 5)]
-        public int MaxQueuedRequestCount
-        {
-            get { return m_maxQueuedRequestCount; }
-            set { m_maxQueuedRequestCount = value; }
-        }
-        #endregion
+        public int MaxQueuedRequestCount { get; set; }
 
-        #region Private Members
         private StringCollection m_baseAddresses;
         private StringCollection m_alternateBaseAddresses;
         private ServerSecurityPolicyCollection m_securityPolicies;
-        private int m_minRequestThreadCount;
-        private int m_maxRequestThreadCount;
-        private int m_maxQueuedRequestCount;
-        #endregion
     }
-    #endregion
 
-    #region ServerConfiguration Class
     /// <summary>
     /// Specifies the configuration for a server application.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public partial class ServerConfiguration : ServerBaseConfiguration
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -1565,55 +1201,57 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_userTokenPolicies = new UserTokenPolicyCollection();
-            m_diagnosticsEnabled = false;
-            m_maxSessionCount = 100;
-            m_maxChannelCount = 1000;
-            m_maxSessionTimeout = 3600000;
-            m_minSessionTimeout = 10000;
-            m_maxBrowseContinuationPoints = 10;
-            m_maxQueryContinuationPoints = 10;
-            m_maxHistoryContinuationPoints = 100;
-            m_maxRequestAge = 600000;
-            m_minPublishingInterval = 100;
-            m_maxPublishingInterval = 3600000;
-            m_publishingResolution = 100;
-            m_minSubscriptionLifetime = 10000;
-            m_maxSubscriptionLifetime = 3600000;
-            m_maxMessageQueueSize = 10;
-            m_maxNotificationQueueSize = 100;
-            m_maxNotificationsPerPublish = 100;
-            m_minMetadataSamplingInterval = 1000;
-            m_availableSamplingRates = new SamplingRateGroupCollection();
-            m_registrationEndpoint = null;
-            m_maxRegistrationInterval = 30000;
-            m_maxPublishRequestCount = 20;
-            m_maxSubscriptionCount = 100;
-            m_maxEventQueueSize = 10000;
+            m_userTokenPolicies = [];
+            DiagnosticsEnabled = false;
+            MaxSessionCount = 100;
+            MaxChannelCount = 1000;
+            MaxSessionTimeout = 3600000;
+            MinSessionTimeout = 10000;
+            MaxBrowseContinuationPoints = 10;
+            MaxQueryContinuationPoints = 10;
+            MaxHistoryContinuationPoints = 100;
+            MaxRequestAge = 600000;
+            MinPublishingInterval = 100;
+            MaxPublishingInterval = 3600000;
+            PublishingResolution = 100;
+            MinSubscriptionLifetime = 10000;
+            MaxSubscriptionLifetime = 3600000;
+            MaxMessageQueueSize = 10;
+            MaxNotificationQueueSize = 100;
+            MaxNotificationsPerPublish = 100;
+            MinMetadataSamplingInterval = 1000;
+            AvailableSamplingRates = [];
+            RegistrationEndpoint = null;
+            MaxRegistrationInterval = 30000;
+            MaxPublishRequestCount = 20;
+            MaxSubscriptionCount = 100;
+            MaxEventQueueSize = 10000;
             // https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles
-            m_serverProfileArray = new string[] { "http://opcfoundation.org/UA-Profile/Server/StandardUA2017" };
-            m_shutdownDelay = 5;
+            m_serverProfileArray = new string[] {
+                "http://opcfoundation.org/UA-Profile/Server/StandardUA2017" };
+            ShutdownDelay = 5;
             m_serverCapabilities = new string[] { "DA" };
             m_supportedPrivateKeyFormats = new string[] { "PFX", "PEM" };
-            m_maxTrustListSize = 0;
-            m_multicastDnsEnabled = false;
-            m_auditingEnabled = false;
-            m_httpsMutualTls = true;
-            m_DurableSubscriptionsEnabled = false;
-            m_maxDurableNotificationQueueSize = 200000;
-            m_maxDurableEventQueueSize = 200000;
-            m_maxDurableSubscriptionLifetimeInHours = 10;
+            MaxTrustListSize = 0;
+            MultiCastDnsEnabled = false;
+            AuditingEnabled = false;
+            HttpsMutualTls = true;
+            DurableSubscriptionsEnabled = false;
+            MaxDurableNotificationQueueSize = 200000;
+            MaxDurableEventQueueSize = 200000;
+            MaxDurableSubscriptionLifetimeInHours = 10;
         }
 
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
         /// <param name="context">The context.</param>
-        [OnDeserializing()]
-        public new void Initialize(StreamingContext context) => Initialize();
-        #endregion
+        [OnDeserializing]
+        public new void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
-        #region Persistent Properties
         /// <summary>
         /// The user tokens accepted by the server.
         /// </summary>
@@ -1621,20 +1259,8 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 3)]
         public UserTokenPolicyCollection UserTokenPolicies
         {
-            get
-            {
-                return m_userTokenPolicies;
-            }
-
-            set
-            {
-                m_userTokenPolicies = value;
-
-                if (m_userTokenPolicies == null)
-                {
-                    m_userTokenPolicies = new UserTokenPolicyCollection();
-                }
-            }
+            get => m_userTokenPolicies;
+            set => m_userTokenPolicies = value ?? [];
         }
 
         /// <summary>
@@ -1642,33 +1268,21 @@ namespace Opc.Ua
         /// </summary>
         /// <value><c>true</c> if diagnostic is enabled; otherwise, <c>false</c>.</value>
         [DataMember(IsRequired = false, Order = 4)]
-        public bool DiagnosticsEnabled
-        {
-            get { return m_diagnosticsEnabled; }
-            set { m_diagnosticsEnabled = value; }
-        }
+        public bool DiagnosticsEnabled { get; set; }
 
         /// <summary>
         /// The maximum number of open sessions.
         /// </summary>
         /// <value>The maximum session count.</value>
         [DataMember(IsRequired = false, Order = 5)]
-        public int MaxSessionCount
-        {
-            get { return m_maxSessionCount; }
-            set { m_maxSessionCount = value; }
-        }
+        public int MaxSessionCount { get; set; }
 
         /// <summary>
         /// The maximum number of supported secure channels.
         /// </summary>
         /// <value>The channel lifetime.</value>
         [DataMember(IsRequired = false, Order = 6)]
-        public int MaxChannelCount
-        {
-            get { return m_maxChannelCount; }
-            set { m_maxChannelCount = value; }
-        }
+        public int MaxChannelCount { get; set; }
 
         /// <summary>
         /// That minimum period of that a session is allowed to remain
@@ -1676,11 +1290,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The minimum session timeout.</value>
         [DataMember(IsRequired = false, Order = 7)]
-        public int MinSessionTimeout
-        {
-            get { return m_minSessionTimeout; }
-            set { m_minSessionTimeout = value; }
-        }
+        public int MinSessionTimeout { get; set; }
 
         /// <summary>
         /// That maximum period of that a session is allowed to remain
@@ -1688,11 +1298,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The maximum session timeout.</value>
         [DataMember(IsRequired = false, Order = 8)]
-        public int MaxSessionTimeout
-        {
-            get { return m_maxSessionTimeout; }
-            set { m_maxSessionTimeout = value; }
-        }
+        public int MaxSessionTimeout { get; set; }
 
         /// <summary>
         /// The maximum number of continuation points used for
@@ -1700,11 +1306,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The maximum number of continuation points used for Browse/BrowseNext operations</value>
         [DataMember(IsRequired = false, Order = 9)]
-        public int MaxBrowseContinuationPoints
-        {
-            get { return m_maxBrowseContinuationPoints; }
-            set { m_maxBrowseContinuationPoints = value; }
-        }
+        public int MaxBrowseContinuationPoints { get; set; }
 
         /// <summary>
         /// The maximum number of continuation points used for
@@ -1712,209 +1314,133 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The maximum number of query continuation points.</value>
         [DataMember(IsRequired = false, Order = 10)]
-        public int MaxQueryContinuationPoints
-        {
-            get { return m_maxQueryContinuationPoints; }
-            set { m_maxQueryContinuationPoints = value; }
-        }
+        public int MaxQueryContinuationPoints { get; set; }
 
         /// <summary>
         /// The maximum number of continuation points used for HistoryRead operations.
         /// </summary>
         /// <value>The maximum number of  history continuation points.</value>
         [DataMember(IsRequired = false, Order = 11)]
-        public int MaxHistoryContinuationPoints
-        {
-            get { return m_maxHistoryContinuationPoints; }
-            set { m_maxHistoryContinuationPoints = value; }
-        }
+        public int MaxHistoryContinuationPoints { get; set; }
 
         /// <summary>
         /// The maximum age of an incoming request (old requests are rejected) (in milliseconds).
         /// </summary>
         /// <value>The maximum age of an incoming request.</value>
         [DataMember(IsRequired = false, Order = 12)]
-        public int MaxRequestAge
-        {
-            get { return m_maxRequestAge; }
-            set { m_maxRequestAge = value; }
-        }
+        public int MaxRequestAge { get; set; }
 
         /// <summary>
         /// The minimum publishing interval supported by the server (in milliseconds).
         /// </summary>
         /// <value>The minimum publishing interval.</value>
         [DataMember(IsRequired = false, Order = 13)]
-        public int MinPublishingInterval
-        {
-            get { return m_minPublishingInterval; }
-            set { m_minPublishingInterval = value; }
-        }
+        public int MinPublishingInterval { get; set; }
 
         /// <summary>
         /// The maximum publishing interval supported by the server (in milliseconds).
         /// </summary>
         /// <value>The maximum publishing interval.</value>
         [DataMember(IsRequired = false, Order = 14)]
-        public int MaxPublishingInterval
-        {
-            get { return m_maxPublishingInterval; }
-            set { m_maxPublishingInterval = value; }
-        }
+        public int MaxPublishingInterval { get; set; }
 
         /// <summary>
         /// The minimum difference between supported publishing interval (in milliseconds).
         /// </summary>
         /// <value>The publishing resolution.</value>
         [DataMember(IsRequired = false, Order = 15)]
-        public int PublishingResolution
-        {
-            get { return m_publishingResolution; }
-            set { m_publishingResolution = value; }
-        }
+        public int PublishingResolution { get; set; }
 
         /// <summary>
         /// How long the subscriptions will remain open without a publish from the client.
         /// </summary>
         /// <value>The maximum subscription lifetime.</value>
         [DataMember(IsRequired = false, Order = 16)]
-        public int MaxSubscriptionLifetime
-        {
-            get { return m_maxSubscriptionLifetime; }
-            set { m_maxSubscriptionLifetime = value; }
-        }
+        public int MaxSubscriptionLifetime { get; set; }
 
         /// <summary>
         /// The maximum number of messages saved in the queue for each subscription.
         /// </summary>
         /// <value>The maximum size of the  message queue.</value>
         [DataMember(IsRequired = false, Order = 17)]
-        public int MaxMessageQueueSize
-        {
-            get { return m_maxMessageQueueSize; }
-            set { m_maxMessageQueueSize = value; }
-        }
+        public int MaxMessageQueueSize { get; set; }
 
         /// <summary>
         /// The maximum number of notificates saved in the queue for each monitored item.
         /// </summary>
         /// <value>The maximum size of the notification queue.</value>
         [DataMember(IsRequired = false, Order = 18)]
-        public int MaxNotificationQueueSize
-        {
-            get { return m_maxNotificationQueueSize; }
-            set { m_maxNotificationQueueSize = value; }
-        }
+        public int MaxNotificationQueueSize { get; set; }
 
         /// <summary>
         /// The maximum number of notifications per publish.
         /// </summary>
         /// <value>The maximum number of notifications per publish.</value>
         [DataMember(IsRequired = false, Order = 19)]
-        public int MaxNotificationsPerPublish
-        {
-            get { return m_maxNotificationsPerPublish; }
-            set { m_maxNotificationsPerPublish = value; }
-        }
+        public int MaxNotificationsPerPublish { get; set; }
 
         /// <summary>
         /// The minimum sampling interval for metadata.
         /// </summary>
         /// <value>The minimum sampling interval for metadata.</value>
         [DataMember(IsRequired = false, Order = 20)]
-        public int MinMetadataSamplingInterval
-        {
-            get { return m_minMetadataSamplingInterval; }
-            set { m_minMetadataSamplingInterval = value; }
-        }
+        public int MinMetadataSamplingInterval { get; set; }
 
         /// <summary>
         /// The available sampling rates.
         /// </summary>
         /// <value>The available sampling rates.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 21)]
-        public SamplingRateGroupCollection AvailableSamplingRates
-        {
-            get { return m_availableSamplingRates; }
-            set { m_availableSamplingRates = value; }
-        }
+        public SamplingRateGroupCollection AvailableSamplingRates { get; set; }
 
         /// <summary>
         /// The endpoint description for the registration endpoint.
         /// </summary>
         /// <value>The registration endpoint.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 22)]
-        public EndpointDescription RegistrationEndpoint
-        {
-            get { return m_registrationEndpoint; }
-            set { m_registrationEndpoint = value; }
-        }
+        public EndpointDescription RegistrationEndpoint { get; set; }
 
         /// <summary>
         /// The maximum time between registration attempts (in milliseconds).
         /// </summary>
         /// <value>The maximum time between registration attempts (in milliseconds).</value>
         [DataMember(IsRequired = false, Order = 23)]
-        public int MaxRegistrationInterval
-        {
-            get { return m_maxRegistrationInterval; }
-            set { m_maxRegistrationInterval = value; }
-        }
+        public int MaxRegistrationInterval { get; set; }
 
         /// <summary>
         /// The path to the file containing nodes persisted by the core node manager.
         /// </summary>
         /// <value>The path to the file containing nodes persisted by the core node manager.</value>
         [DataMember(IsRequired = false, Order = 24)]
-        public string NodeManagerSaveFile
-        {
-            get { return m_nodeManagerSaveFile; }
-            set { m_nodeManagerSaveFile = value; }
-        }
+        public string NodeManagerSaveFile { get; set; }
 
         /// <summary>
         /// The minimum lifetime for a subscription (in milliseconds).
         /// </summary>
         /// <value>The minimum lifetime for a subscription.</value>
         [DataMember(IsRequired = false, Order = 25)]
-        public int MinSubscriptionLifetime
-        {
-            get { return m_minSubscriptionLifetime; }
-            set { m_minSubscriptionLifetime = value; }
-        }
+        public int MinSubscriptionLifetime { get; set; }
 
         /// <summary>
         /// The max publish request count.
         /// </summary>
         /// <value>The max publish request count.</value>
         [DataMember(IsRequired = false, Order = 26)]
-        public int MaxPublishRequestCount
-        {
-            get { return m_maxPublishRequestCount; }
-            set { m_maxPublishRequestCount = value; }
-        }
+        public int MaxPublishRequestCount { get; set; }
 
         /// <summary>
         /// The max subscription count.
         /// </summary>
         /// <value>The max subscription count.</value>
         [DataMember(IsRequired = false, Order = 27)]
-        public int MaxSubscriptionCount
-        {
-            get { return m_maxSubscriptionCount; }
-            set { m_maxSubscriptionCount = value; }
-        }
+        public int MaxSubscriptionCount { get; set; }
 
         /// <summary>
         /// The max size of the event queue.
         /// </summary>
         /// <value>The max size of the event queue.</value>
         [DataMember(IsRequired = false, Order = 28)]
-        public int MaxEventQueueSize
-        {
-            get { return m_maxEventQueueSize; }
-            set { m_maxEventQueueSize = value; }
-        }
+        public int MaxEventQueueSize { get; set; }
 
         /// <summary>
         /// The server profile array.
@@ -1923,15 +1449,8 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, Order = 29)]
         public StringCollection ServerProfileArray
         {
-            get { return m_serverProfileArray; }
-            set
-            {
-                m_serverProfileArray = value;
-                if (m_serverProfileArray == null)
-                {
-                    m_serverProfileArray = new StringCollection();
-                }
-            }
+            get => m_serverProfileArray;
+            set => m_serverProfileArray = value ?? [];
         }
 
         /// <summary>
@@ -1939,33 +1458,19 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The number of seconds to delay the shutdown if a client is connected.</value>
         [DataMember(IsRequired = false, Order = 30)]
-        public int ShutdownDelay
-        {
-            get { return m_shutdownDelay; }
-            set
-            {
-                m_shutdownDelay = value;
-            }
-        }
+        public int ShutdownDelay { get; set; }
 
         /// <summary>
         /// The server capabilities.
-        /// The latest set of server capabilities is listed 
+        /// The latest set of server capabilities is listed
         /// <see href="http://www.opcfoundation.org/UA/schemas/1.05/ServerCapabilities.csv">here.</see>
         /// </summary>
         /// <value>The array of server capabilites.</value>
         [DataMember(IsRequired = false, Order = 31)]
         public StringCollection ServerCapabilities
         {
-            get { return m_serverCapabilities; }
-            set
-            {
-                m_serverCapabilities = value;
-                if (m_serverCapabilities == null)
-                {
-                    m_serverCapabilities = new StringCollection();
-                }
-            }
+            get => m_serverCapabilities;
+            set => m_serverCapabilities = value ?? [];
         }
 
         /// <summary>
@@ -1975,177 +1480,88 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, Order = 32)]
         public StringCollection SupportedPrivateKeyFormats
         {
-            get { return m_supportedPrivateKeyFormats; }
-            set
-            {
-                m_supportedPrivateKeyFormats = value;
-                if (m_supportedPrivateKeyFormats == null)
-                {
-                    m_supportedPrivateKeyFormats = new StringCollection();
-                }
-            }
+            get => m_supportedPrivateKeyFormats;
+            set => m_supportedPrivateKeyFormats = value ?? [];
         }
 
         /// <summary>
         /// Gets or sets the max size of the trust list.
         /// </summary>
         [DataMember(IsRequired = false, Order = 33)]
-        public int MaxTrustListSize
-        {
-            get { return m_maxTrustListSize; }
-            set { m_maxTrustListSize = value; }
-        }
+        public int MaxTrustListSize { get; set; }
 
         /// <summary>
         /// Gets or sets if multicast DNS is enabled.
         /// </summary>
         [DataMember(IsRequired = false, Order = 34)]
-        public bool MultiCastDnsEnabled
-        {
-            get { return m_multicastDnsEnabled; }
-            set { m_multicastDnsEnabled = value; }
-        }
+        public bool MultiCastDnsEnabled { get; set; }
 
         /// <summary>
         /// Gets or sets reverse connect server configuration.
         /// </summary>
         [DataMember(IsRequired = false, Order = 35)]
-        public ReverseConnectServerConfiguration ReverseConnect
-        {
-            get { return m_reverseConnect; }
-            set { m_reverseConnect = value; }
-        }
+        public ReverseConnectServerConfiguration ReverseConnect { get; set; }
 
         /// <summary>
         /// Gets or sets the operation limits of the OPC UA Server.
         /// </summary>
         [DataMember(IsRequired = false, Order = 36)]
-        public OperationLimits OperationLimits
-        {
-            get { return m_operationLimits; }
-            set { m_operationLimits = value; }
-        }
+        public OperationLimits OperationLimits { get; set; }
 
         /// <summary>
         /// Whether auditing is enabled.
         /// </summary>
         /// <value><c>true</c> if auditing is enabled; otherwise, <c>false</c>.</value>
         [DataMember(IsRequired = false, Order = 37)]
-        public bool AuditingEnabled
-        {
-            get { return m_auditingEnabled; }
-            set { m_auditingEnabled = value; }
-        }
+        public bool AuditingEnabled { get; set; }
 
         /// <summary>
         /// Whether mTLS is required/enforced by the HttpsTransportListener
         /// </summary>
         /// <value><c>true</c> if mutual TLS is enabled; otherwise, <c>false</c>.</value>
         [DataMember(IsRequired = false, Order = 38)]
-        public bool HttpsMutualTls
-        {
-            get { return m_httpsMutualTls; }
-            set { m_httpsMutualTls = value; }
-        }
+        public bool HttpsMutualTls { get; set; }
 
         /// <summary>
         /// Enable / disable support for durable subscriptions
         /// </summary>
         /// <value><c>true</c> if durable subscriptions are enabled; otherwise, <c>false</c>.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 39)]
-        public bool DurableSubscriptionsEnabled
-        {
-            get { return m_DurableSubscriptionsEnabled; }
-            set { m_DurableSubscriptionsEnabled = value; }
-        }
+        public bool DurableSubscriptionsEnabled { get; set; }
 
         /// <summary>
         /// The maximum number of notifications saved in the durable queue for each monitored item.
         /// </summary>
         /// <value>The maximum size of the durable notification queue.</value>
         [DataMember(IsRequired = false, Order = 40)]
-        public int MaxDurableNotificationQueueSize
-        {
-            get { return m_maxDurableNotificationQueueSize; }
-            set { m_maxDurableNotificationQueueSize = value; }
-        }
+        public int MaxDurableNotificationQueueSize { get; set; }
 
         /// <summary>
         /// The max size of the durable event queue.
         /// </summary>
         /// <value>The max size of the durable event queue.</value>
         [DataMember(IsRequired = false, Order = 41)]
-        public int MaxDurableEventQueueSize
-        {
-            get { return m_maxDurableEventQueueSize; }
-            set { m_maxDurableEventQueueSize = value; }
-        }
+        public int MaxDurableEventQueueSize { get; set; }
 
         /// <summary>
         /// How long the durable subscriptions will remain open without a publish from the client.
         /// </summary>
         /// <value>The maximum durable subscription lifetime.</value>
         [DataMember(IsRequired = false, Order = 42)]
-        public int MaxDurableSubscriptionLifetimeInHours
-        {
-            get { return m_maxDurableSubscriptionLifetimeInHours; }
-            set { m_maxDurableSubscriptionLifetimeInHours = value; }
-        }
-        #endregion
+        public int MaxDurableSubscriptionLifetimeInHours { get; set; }
 
-        #region Private Members
         private UserTokenPolicyCollection m_userTokenPolicies;
-        private bool m_diagnosticsEnabled;
-        private int m_maxSessionCount;
-        private int m_maxChannelCount;
-        private int m_minSessionTimeout;
-        private int m_maxSessionTimeout;
-        private int m_maxBrowseContinuationPoints;
-        private int m_maxQueryContinuationPoints;
-        private int m_maxHistoryContinuationPoints;
-        private int m_maxRequestAge;
-        private int m_minPublishingInterval;
-        private int m_maxPublishingInterval;
-        private int m_publishingResolution;
-        private int m_minSubscriptionLifetime;
-        private int m_maxSubscriptionLifetime;
-        private int m_maxMessageQueueSize;
-        private int m_maxNotificationQueueSize;
-        private int m_maxNotificationsPerPublish;
-        private int m_minMetadataSamplingInterval;
-        private SamplingRateGroupCollection m_availableSamplingRates;
-        private EndpointDescription m_registrationEndpoint;
-        private int m_maxRegistrationInterval;
-        private string m_nodeManagerSaveFile;
-        private int m_maxPublishRequestCount;
-        private int m_maxSubscriptionCount;
-        private int m_maxEventQueueSize;
         private StringCollection m_serverProfileArray;
-        private int m_shutdownDelay;
         private StringCollection m_serverCapabilities;
         private StringCollection m_supportedPrivateKeyFormats;
-        private int m_maxTrustListSize;
-        private bool m_multicastDnsEnabled;
-        private ReverseConnectServerConfiguration m_reverseConnect;
-        private OperationLimits m_operationLimits;
-        private bool m_auditingEnabled;
-        private bool m_httpsMutualTls;
-        private bool m_DurableSubscriptionsEnabled;
-        private int m_maxDurableNotificationQueueSize;
-        private int m_maxDurableEventQueueSize;
-        private int m_maxDurableSubscriptionLifetimeInHours;
-        #endregion
     }
-    #endregion
 
-    #region ReverseConnectServerConfiguration Class
     /// <summary>
     /// Stores the configuration of the reverse connections.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public class ReverseConnectServerConfiguration
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -2158,7 +1574,10 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         [OnDeserializing]
-        private void Initialize(StreamingContext context) => Initialize();
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// Sets private members to default values.
@@ -2169,9 +1588,7 @@ namespace Opc.Ua
             ConnectTimeout = 30000;
             RejectTimeout = 60000;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// A collection of reverse connect clients.
         /// </summary>
@@ -2196,18 +1613,14 @@ namespace Opc.Ua
         /// </summary>
         [DataMember(Order = 40)]
         public int RejectTimeout { get; set; }
-        #endregion
     }
-    #endregion
 
-    #region OperationLimits Class
     /// <summary>
     /// Stores the operation limits of a OPC UA Server.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public class OperationLimits
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -2220,7 +1633,10 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         [OnDeserializing]
-        private void Initialize(StreamingContext context) => Initialize();
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// Sets private members to default values.
@@ -2240,65 +1656,73 @@ namespace Opc.Ua
             MaxNodesPerNodeManagement = 0;
             MaxMonitoredItemsPerCall = 0;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// Indicates the maximum size of the nodesToRead array when a Client calls the Read Service.
         /// </summary>
         [DataMember(Order = 10)]
         public uint MaxNodesPerRead { get; set; }
+
         /// <summary>
         /// Indicates the maximum size of the nodesToRead array when a Client calls the HistoryRead
         /// Service using the historyReadDetails RAW, PROCESSED, MODIFIED or ATTIME.
         /// </summary>
         [DataMember(Order = 20)]
         public uint MaxNodesPerHistoryReadData { get; set; }
+
         /// <summary>
         /// Indicates the maximum size of the nodesToRead array when a Client calls the HistoryRead
         /// Service using the historyReadDetails EVENTS.
         /// </summary>
         [DataMember(Order = 30)]
         public uint MaxNodesPerHistoryReadEvents { get; set; }
+
         /// <summary>
         /// Indicates the maximum size of the nodesToWrite array when a Client calls the Write Service.
         /// </summary>
         [DataMember(Order = 40)]
         public uint MaxNodesPerWrite { get; set; }
+
         /// <summary>
         /// Indicates the maximum size of the historyUpdateDetails array supported by the Server
         /// when a Client calls the HistoryUpdate Service.
         /// </summary>
         [DataMember(Order = 50)]
         public uint MaxNodesPerHistoryUpdateData { get; set; }
+
         /// <summary>
         /// Indicates the maximum size of the historyUpdateDetails array
         /// when a Client calls the HistoryUpdate Service.
         /// </summary>
         [DataMember(Order = 60)]
         public uint MaxNodesPerHistoryUpdateEvents { get; set; }
+
         /// <summary>
         /// Indicates the maximum size of the methodsToCall array when a Client calls the Call Service.
         /// </summary>
         [DataMember(Order = 70)]
         public uint MaxNodesPerMethodCall { get; set; }
+
         /// <summary>
         /// Indicates the maximum size of the nodesToBrowse array when calling the Browse Service
         /// or the continuationPoints array when a Client calls the BrowseNext Service.
         /// </summary>
         [DataMember(Order = 80)]
         public uint MaxNodesPerBrowse { get; set; }
+
         /// <summary>
         /// Indicates the maximum size of the nodesToRegister array when a Client calls the RegisterNodes Service
         /// and the maximum size of the nodesToUnregister when calling the UnregisterNodes Service.
         /// </summary>
         [DataMember(Order = 90)]
         public uint MaxNodesPerRegisterNodes { get; set; }
+
         /// <summary>
         /// Indicates the maximum size of the browsePaths array when a Client calls the TranslateBrowsePathsToNodeIds Service.
         /// </summary>
         [DataMember(Order = 100)]
         public uint MaxNodesPerTranslateBrowsePathsToNodeIds { get; set; }
+
         /// <summary>
         /// Indicates the maximum size of the nodesToAdd array when a Client calls the AddNodes Service,
         /// the maximum size of the referencesToAdd array when a Client calls the AddReferences Service,
@@ -2307,6 +1731,7 @@ namespace Opc.Ua
         /// </summary>
         [DataMember(Order = 110)]
         public uint MaxNodesPerNodeManagement { get; set; }
+
         /// <summary>
         /// Indicates the maximum size of the itemsToCreate array when a Client calls the CreateMonitoredItems Service,
         /// the maximum size of the itemsToModify array when a Client calls the ModifyMonitoredItems Service,
@@ -2315,18 +1740,14 @@ namespace Opc.Ua
         /// </summary>
         [DataMember(Order = 120)]
         public uint MaxMonitoredItemsPerCall { get; set; }
-        #endregion
     }
-    #endregion
 
-    #region ReverseConnectClient Class
     /// <summary>
     /// Stores the configuration of the reverse connections.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public class ReverseConnectClient
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -2339,7 +1760,10 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         [OnDeserializing]
-        private void Initialize(StreamingContext context) => Initialize();
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// Sets private members to default values.
@@ -2348,9 +1772,7 @@ namespace Opc.Ua
         {
             Enabled = true;
         }
-        #endregion
 
-        #region Persistent Properties
         /// <summary>
         /// The endpoint Url of the reverse connect client endpoint.
         /// </summary>
@@ -2379,22 +1801,24 @@ namespace Opc.Ua
         /// </summary>
         [DataMember(Order = 40)]
         public bool Enabled { get; set; } = true;
-        #endregion
     }
-    #endregion
 
-    #region ReverseConnectClientCollection Class
     /// <summary>
     /// A collection of reverse connect clients.
     /// </summary>
-    [CollectionDataContract(Name = "ListOfReverseConnectClient", Namespace = Namespaces.OpcUaConfig, ItemName = "ReverseConnectClient")]
+    [CollectionDataContract(
+        Name = "ListOfReverseConnectClient",
+        Namespace = Namespaces.OpcUaConfig,
+        ItemName = "ReverseConnectClient"
+    )]
     public class ReverseConnectClientCollection : List<ReverseConnectClient>
     {
-        #region Constructors
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public ReverseConnectClientCollection() { }
+        public ReverseConnectClientCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -2403,25 +1827,27 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
-        public ReverseConnectClientCollection(IEnumerable<ReverseConnectClient> collection) : base(collection) { }
+        public ReverseConnectClientCollection(IEnumerable<ReverseConnectClient> collection)
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The capacity.</param>
-        public ReverseConnectClientCollection(int capacity) : base(capacity) { }
-        #endregion
+        public ReverseConnectClientCollection(int capacity)
+            : base(capacity)
+        {
+        }
     }
-    #endregion
 
-    #region ClientConfiguration Class
     /// <summary>
     /// The configuration for a client application.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public partial class ClientConfiguration
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -2435,32 +1861,29 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_defaultSessionTimeout = 60000;
-            m_minSubscriptionLifetime = 10000;
-            m_wellKnownDiscoveryUrls = new StringCollection();
-            m_discoveryServers = new EndpointDescriptionCollection();
-            m_operationLimits = new OperationLimits();
+            DefaultSessionTimeout = 60000;
+            MinSubscriptionLifetime = 10000;
+            m_wellKnownDiscoveryUrls = [];
+            m_discoveryServers = [];
+            OperationLimits = new OperationLimits();
         }
 
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
         /// <param name="context">The context.</param>
-        [OnDeserializing()]
-        public void Initialize(StreamingContext context) => Initialize();
-        #endregion
+        [OnDeserializing]
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
-        #region Persistent Properties
         /// <summary>
         /// The default session timeout (in milliseconds).
         /// </summary>
         /// <value>The default session timeout.</value>
         [DataMember(IsRequired = false, Order = 0)]
-        public int DefaultSessionTimeout
-        {
-            get { return m_defaultSessionTimeout; }
-            set { m_defaultSessionTimeout = value; }
-        }
+        public int DefaultSessionTimeout { get; set; }
 
         /// <summary>
         /// The well known URLs for the local discovery servers.
@@ -2469,20 +1892,8 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 1)]
         public StringCollection WellKnownDiscoveryUrls
         {
-            get
-            {
-                return m_wellKnownDiscoveryUrls;
-            }
-
-            set
-            {
-                m_wellKnownDiscoveryUrls = value;
-
-                if (m_wellKnownDiscoveryUrls == null)
-                {
-                    m_wellKnownDiscoveryUrls = new StringCollection();
-                }
-            }
+            get => m_wellKnownDiscoveryUrls;
+            set => m_wellKnownDiscoveryUrls = value ?? [];
         }
 
         /// <summary>
@@ -2492,20 +1903,8 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public EndpointDescriptionCollection DiscoveryServers
         {
-            get
-            {
-                return m_discoveryServers;
-            }
-
-            set
-            {
-                m_discoveryServers = value;
-
-                if (m_discoveryServers == null)
-                {
-                    m_discoveryServers = new EndpointDescriptionCollection();
-                }
-            }
+            get => m_discoveryServers;
+            set => m_discoveryServers = value ?? [];
         }
 
         /// <summary>
@@ -2513,32 +1912,20 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The path to the file containing the cached endpoints.</value>
         [DataMember(IsRequired = false, Order = 3)]
-        public string EndpointCacheFilePath
-        {
-            get { return m_endpointCacheFilePath; }
-            set { m_endpointCacheFilePath = value; }
-        }
+        public string EndpointCacheFilePath { get; set; }
 
         /// <summary>
         /// The minimum lifetime for a subscription (in milliseconds).
         /// </summary>
         /// <value>The minimum lifetime for a subscription.</value>
         [DataMember(IsRequired = false, Order = 4)]
-        public int MinSubscriptionLifetime
-        {
-            get { return m_minSubscriptionLifetime; }
-            set { m_minSubscriptionLifetime = value; }
-        }
+        public int MinSubscriptionLifetime { get; set; }
 
         /// <summary>
         /// The reverse connect Client configuration.
         /// </summary>
         [DataMember(IsRequired = false, Order = 5)]
-        public ReverseConnectClientConfiguration ReverseConnect
-        {
-            get { return m_reverseConnect; }
-            set { m_reverseConnect = value; }
-        }
+        public ReverseConnectClientConfiguration ReverseConnect { get; set; }
 
         /// <summary>
         /// Gets or sets the default operation limits of the OPC UA client.
@@ -2548,56 +1935,18 @@ namespace Opc.Ua
         /// The values are used to limit client service calls.
         /// </remarks>
         [DataMember(IsRequired = false, Order = 6)]
-        public OperationLimits OperationLimits
-        {
-            get { return m_operationLimits; }
-            set { m_operationLimits = value; }
-        }
-        #endregion
+        public OperationLimits OperationLimits { get; set; }
 
-        #region Private Members
         private StringCollection m_wellKnownDiscoveryUrls;
         private EndpointDescriptionCollection m_discoveryServers;
-        private int m_defaultSessionTimeout;
-        private string m_endpointCacheFilePath;
-        private int m_minSubscriptionLifetime;
-        private ReverseConnectClientConfiguration m_reverseConnect;
-        private OperationLimits m_operationLimits;
-        #endregion
     }
-    #endregion
 
-    #region ReverseConnectClientConfiguration Class
     /// <summary>
     /// Stores the configuration of the reverse connections.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public class ReverseConnectClientConfiguration
     {
-        #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
-        public ReverseConnectClientConfiguration()
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Initializes the object during deserialization.
-        /// </summary>
-        [OnDeserializing]
-        private void Initialize(StreamingContext context) => Initialize();
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private void Initialize()
-        {
-        }
-        #endregion
-
-        #region Public Properties
         /// <summary>
         /// A collection of reverse connect client endpoints.
         /// </summary>
@@ -2616,62 +1965,37 @@ namespace Opc.Ua
         /// </summary>
         [DataMember(Order = 30, IsRequired = false)]
         public int WaitTimeout { get; set; } = 20000;
-        #endregion
     }
-    #endregion
 
-    #region ReverseConnectClientEndpoint Class
     /// <summary>
     /// Stores the configuration of the reverse connections.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public class ReverseConnectClientEndpoint
     {
-        #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
-        public ReverseConnectClientEndpoint()
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Initializes the object during deserialization.
-        /// </summary>
-        [OnDeserializing]
-        private void Initialize(StreamingContext context) => Initialize();
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private void Initialize()
-        {
-        }
-        #endregion
-
-        #region Persistent Properties
         /// <summary>
         /// The endpoint Url of a reverse connect client.
         /// </summary>
         [DataMember(Order = 1, IsRequired = false)]
         public string EndpointUrl { get; set; }
-        #endregion
     }
-    #endregion
 
-    #region ReverseConnectClientEndpointCollection Class
     /// <summary>
     /// A collection of reverse connect client endpoints.
     /// </summary>
-    [CollectionDataContract(Name = "ListOfReverseConnectClientEndpoint", Namespace = Namespaces.OpcUaConfig, ItemName = "ClientEndpoint")]
+    [CollectionDataContract(
+        Name = "ListOfReverseConnectClientEndpoint",
+        Namespace = Namespaces.OpcUaConfig,
+        ItemName = "ClientEndpoint"
+    )]
     public class ReverseConnectClientEndpointCollection : List<ReverseConnectClientEndpoint>
     {
-        #region Constructors
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public ReverseConnectClientEndpointCollection() { }
+        public ReverseConnectClientEndpointCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -2680,25 +2004,28 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
-        public ReverseConnectClientEndpointCollection(IEnumerable<ReverseConnectClientEndpoint> collection) : base(collection) { }
+        public ReverseConnectClientEndpointCollection(
+            IEnumerable<ReverseConnectClientEndpoint> collection)
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The capacity.</param>
-        public ReverseConnectClientEndpointCollection(int capacity) : base(capacity) { }
-        #endregion
+        public ReverseConnectClientEndpointCollection(int capacity)
+            : base(capacity)
+        {
+        }
     }
-    #endregion
 
-    #region DiscoveryServerConfiguration Class
     /// <summary>
     /// Specifies the configuration for a discovery server application.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public class DiscoveryServerConfiguration : ServerBaseConfiguration
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -2712,19 +2039,20 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_serverNames = new LocalizedTextCollection();
-            m_serverRegistrations = new ServerRegistrationCollection();
+            m_serverNames = [];
+            ServerRegistrations = [];
         }
 
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
         /// <param name="context">The context.</param>
-        [OnDeserializing()]
-        public new void Initialize(StreamingContext context) => Initialize();
-        #endregion
+        [OnDeserializing]
+        public new void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
-        #region Persistent Properties
         /// <summary>
         /// The localized names for the discovery server.
         /// </summary>
@@ -2732,20 +2060,8 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public LocalizedTextCollection ServerNames
         {
-            get
-            {
-                return m_serverNames;
-            }
-
-            set
-            {
-                m_serverNames = value;
-
-                if (m_serverNames == null)
-                {
-                    m_serverNames = new LocalizedTextCollection();
-                }
-            }
+            get => m_serverNames;
+            set => m_serverNames = value ?? [];
         }
 
         /// <summary>
@@ -2753,40 +2069,24 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The discovery server cache file.</value>
         [DataMember(IsRequired = false, Order = 3)]
-        public string DiscoveryServerCacheFile
-        {
-            get { return m_discoveryServerCacheFile; }
-            set { m_discoveryServerCacheFile = value; }
-        }
+        public string DiscoveryServerCacheFile { get; set; }
 
         /// <summary>
         /// Gets or sets the server registrations associated with the discovery server.
         /// </summary>
         /// <value>The server registrations.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 4)]
-        public ServerRegistrationCollection ServerRegistrations
-        {
-            get { return m_serverRegistrations; }
-            set { m_serverRegistrations = value; }
-        }
-        #endregion
+        public ServerRegistrationCollection ServerRegistrations { get; set; }
 
-        #region Private Members
         private LocalizedTextCollection m_serverNames;
-        private string m_discoveryServerCacheFile;
-        private ServerRegistrationCollection m_serverRegistrations;
-        #endregion
     }
-    #endregion
 
-    #region ServerRegistration Class
     /// <summary>
     /// Specifies the configuration for a discovery server application.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public class ServerRegistration
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -2800,89 +2100,70 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_applicationUri = null;
-            m_alternateDiscoveryUrls = new StringCollection();
+            ApplicationUri = null;
+            m_alternateDiscoveryUrls = [];
         }
 
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
         /// <param name="context">The context.</param>
-        [OnDeserializing()]
-        public void Initialize(StreamingContext context) => Initialize();
-        #endregion
+        [OnDeserializing]
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
-        #region Persistent Properties
         /// <summary>
         /// Gets or sets the application URI of the server which the registration applies to.
         /// </summary>
         /// <value>The application uri.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 1)]
-        public string ApplicationUri
-        {
-            get
-            {
-                return m_applicationUri;
-            }
-
-            set
-            {
-                m_applicationUri = value;
-            }
-        }
+        public string ApplicationUri { get; set; }
 
         /// <summary>
         /// Gets or sets the alternate discovery urls.
         /// </summary>
         /// <value>The alternate discovery urls.</value>
         /// <remarks>
+        /// <para>
         /// These addresses are used to specify alternate paths to ther via firewalls, proxies
         /// or similar network infrastructure. If these paths are specified in the configuration
         /// file then the server will use the domain of the URL used by the client to determine
         /// which, if any, or the alternate addresses to use instead of the primary addresses.
-        /// 
+        /// </para>
+        /// <para>
         /// In the ideal world the server would provide these URLs during registration but this
-        /// table allows the administrator to provide the information to the discovery server 
+        /// table allows the administrator to provide the information to the discovery server
         /// directly without requiring a patch to the server.
+        /// </para>
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public StringCollection AlternateDiscoveryUrls
         {
-            get
-            {
-                return m_alternateDiscoveryUrls;
-            }
-
-            set
-            {
-                m_alternateDiscoveryUrls = value;
-
-                if (m_alternateDiscoveryUrls == null)
-                {
-                    m_alternateDiscoveryUrls = new StringCollection();
-                }
-            }
+            get => m_alternateDiscoveryUrls;
+            set => m_alternateDiscoveryUrls = value ?? [];
         }
-        #endregion
 
-        #region Private Members
-        private string m_applicationUri;
         private StringCollection m_alternateDiscoveryUrls;
-        #endregion
     }
-    #endregion
 
-    #region ServerRegistrationCollection Class
     /// <summary>
     /// A collection of AdditionalServerRegistrationInfo objects.
     /// </summary>
-    [CollectionDataContract(Name = "ListOfServerRegistration", Namespace = Namespaces.OpcUaConfig, ItemName = "ServerRegistration")]
-    public partial class ServerRegistrationCollection : List<ServerRegistration>
+    [CollectionDataContract(
+        Name = "ListOfServerRegistration",
+        Namespace = Namespaces.OpcUaConfig,
+        ItemName = "ServerRegistration"
+    )]
+    public class ServerRegistrationCollection : List<ServerRegistration>
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public ServerRegistrationCollection() { }
+        public ServerRegistrationCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -2891,24 +2172,27 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
-        public ServerRegistrationCollection(IEnumerable<ServerRegistration> collection) : base(collection) { }
+        public ServerRegistrationCollection(IEnumerable<ServerRegistration> collection)
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The capacity.</param>
-        public ServerRegistrationCollection(int capacity) : base(capacity) { }
+        public ServerRegistrationCollection(int capacity)
+            : base(capacity)
+        {
+        }
     }
-    #endregion
 
-    #region CertificateStoreIdentifier Class
     /// <summary>
     /// Describes a certificate store.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public partial class CertificateStoreIdentifier
     {
-        #region Persistent Properties
         /// <summary>
         /// The type of certificate store.
         /// </summary>
@@ -2916,18 +2200,7 @@ namespace Opc.Ua
         /// If the StoreName is not empty, the CertificateStoreType.X509Store is returned, otherwise the StoreType is returned.
         /// </value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 0)]
-        public string StoreType
-        {
-            get
-            {
-                return m_storeType;
-            }
-
-            set
-            {
-                m_storeType = value;
-            }
-        }
+        public string StoreType { get; set; }
 
         /// <summary>
         /// The path that identifies the certificate store.
@@ -2940,21 +2213,14 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 1)]
         public string StorePath
         {
-            get
-            {
-                return m_storePath;
-            }
-
+            get => m_storePath;
             set
             {
                 m_storePath = value;
 
-                if (!String.IsNullOrEmpty(m_storePath))
+                if (!string.IsNullOrEmpty(m_storePath) && string.IsNullOrEmpty(StoreType))
                 {
-                    if (String.IsNullOrEmpty(m_storeType))
-                    {
-                        m_storeType = CertificateStoreIdentifier.DetermineStoreType(m_storePath);
-                    }
+                    StoreType = DetermineStoreType(m_storePath);
                 }
             }
         }
@@ -2962,28 +2228,24 @@ namespace Opc.Ua
         /// <summary>
         /// Options that can be used to suppress certificate validation errors.
         /// </summary>
-        [DataMember(Name = "ValidationOptions", IsRequired = false, EmitDefaultValue = false, Order = 4)]
-        private int XmlEncodedValidationOptions
+        [DataMember(
+            Name = "ValidationOptions",
+            IsRequired = false,
+            EmitDefaultValue = false,
+            Order = 4)]
+        internal int XmlEncodedValidationOptions
         {
-            get { return (int)m_validationOptions; }
-            set { m_validationOptions = (CertificateValidationOptions)value; }
+            get => (int)ValidationOptions;
+            set => ValidationOptions = (CertificateValidationOptions)value;
         }
-        #endregion
 
-        #region Private Fields
-        private string m_storeType;
         private string m_storePath;
-        private CertificateValidationOptions m_validationOptions;
-        #endregion
     }
-    #endregion
 
-    #region CertificateTrustList Class
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     [KnownType(typeof(CertificateTrustList))]
     public partial class CertificateTrustList : CertificateStoreIdentifier
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -2997,17 +2259,18 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_trustedCertificates = new CertificateIdentifierCollection();
+            m_trustedCertificates = [];
         }
 
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
-        [OnDeserializing()]
-        public void Initialize(StreamingContext context) => Initialize();
-        #endregion
+        [OnDeserializing]
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
-        #region Persistent Properties
         /// <summary>
         /// The list of trusted certificates.
         /// </summary>
@@ -3018,62 +2281,53 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 3)]
         public CertificateIdentifierCollection TrustedCertificates
         {
-            get
-            {
-                return m_trustedCertificates;
-            }
-
-            set
-            {
-                m_trustedCertificates = value;
-
-                if (m_trustedCertificates == null)
-                {
-                    m_trustedCertificates = new CertificateIdentifierCollection();
-                }
-            }
+            get => m_trustedCertificates;
+            set => m_trustedCertificates = value ?? [];
         }
-        #endregion
 
-        #region Private Fields
         private CertificateIdentifierCollection m_trustedCertificates;
-        #endregion
     }
-    #endregion
 
-    #region CertificateIdentifierCollection Class
-    [CollectionDataContract(Name = "ApplicationCertificates", Namespace = Namespaces.OpcUaConfig, ItemName = "CertificateIdentifier")]
+    [CollectionDataContract(
+        Name = "ApplicationCertificates",
+        Namespace = Namespaces.OpcUaConfig,
+        ItemName = "CertificateIdentifier"
+    )]
     public partial class CertificateIdentifierCollection : List<CertificateIdentifier>
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public CertificateIdentifierCollection() { }
+        public CertificateIdentifierCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">A collection of values to add to this new collection</param>
-        public CertificateIdentifierCollection(IEnumerable<CertificateIdentifier> collection) : base(collection) { }
+        public CertificateIdentifierCollection(IEnumerable<CertificateIdentifier> collection)
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
-        public CertificateIdentifierCollection(int capacity) : base(capacity) { }
+        public CertificateIdentifierCollection(int capacity)
+            : base(capacity)
+        {
+        }
     }
-    #endregion
 
-    #region CertificateIdentifier Class
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public partial class CertificateIdentifier
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
         public CertificateIdentifier()
         {
-            Initialize();
         }
 
         /// <summary>
@@ -3081,62 +2335,34 @@ namespace Opc.Ua
         /// </summary>
         public CertificateIdentifier(X509Certificate2 certificate)
         {
-            Initialize();
             Certificate = certificate;
         }
 
         /// <summary>
         /// Initializes the identifier with the raw data from a certificate.
         /// </summary>
-        public CertificateIdentifier(X509Certificate2 certificate, CertificateValidationOptions validationOptions)
+        public CertificateIdentifier(
+            X509Certificate2 certificate,
+            CertificateValidationOptions validationOptions)
         {
-            Initialize();
             Certificate = certificate;
-            m_validationOptions = validationOptions;
+            ValidationOptions = validationOptions;
         }
-
 
         /// <summary>
         /// Initializes the identifier with the raw data from a certificate.
         /// </summary>
         public CertificateIdentifier(byte[] rawData)
         {
-            Initialize();
             Certificate = CertificateFactory.Create(rawData, true);
         }
 
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private void Initialize()
-        {
-        }
-
-        /// <summary>
-        /// Initializes the object during deserialization.
-        /// </summary>
-        [OnDeserializing()]
-        public void Initialize(StreamingContext context) => Initialize();
-        #endregion
-
-        #region Public Properties
         /// <summary>
         /// The type of certificate store.
         /// </summary>
         /// <value>The type of the store - defined in the <see cref="CertificateStoreType"/>.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 10)]
-        public string StoreType
-        {
-            get
-            {
-                return m_storeType;
-            }
-
-            set
-            {
-                m_storeType = value;
-            }
-        }
+        public string StoreType { get; set; }
 
         /// <summary>
         /// The path that identifies the certificate store.
@@ -3145,21 +2371,14 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 15)]
         public string StorePath
         {
-            get
-            {
-                return m_storePath;
-            }
-
+            get => m_storePath;
             set
             {
                 m_storePath = value;
 
-                if (!String.IsNullOrEmpty(m_storePath))
+                if (!string.IsNullOrEmpty(m_storePath) && string.IsNullOrEmpty(StoreType))
                 {
-                    if (String.IsNullOrEmpty(m_storeType))
-                    {
-                        m_storeType = CertificateStoreIdentifier.DetermineStoreType(m_storePath);
-                    }
+                    StoreType = CertificateStoreIdentifier.DetermineStoreType(m_storePath);
                 }
             }
         }
@@ -3170,7 +2389,7 @@ namespace Opc.Ua
         /// <value>
         /// The distinguished name of an X509 certificate acording to the Abstract Syntax Notation One (ASN.1) syntax.
         /// </value>
-        /// <remarks> The subject field identifies the entity associated with the public key stored in the subject public 
+        /// <remarks> The subject field identifies the entity associated with the public key stored in the subject public
         /// key field.  The subject name MAY be carried in the subject field and/or the subjectAltName extension.
         /// Where it is non-empty, the subject field MUST contain an X.500 distinguished name (DN).
         /// Name is defined by the following ASN.1 structures:
@@ -3186,31 +2405,35 @@ namespace Opc.Ua
         ///   universalString         UniversalString (SIZE (1..MAX)),
         ///   utf8String              UTF8String (SIZE (1..MAX)),
         ///   bmpString               BMPString (SIZE (1..MAX)) }
-        ///  The Name describes a hierarchical name composed of attributes, such as country name, and 
-        ///  corresponding values, such as US.  The type of the component AttributeValue is determined by 
+        ///  The Name describes a hierarchical name composed of attributes, such as country name, and
+        ///  corresponding values, such as US.  The type of the component AttributeValue is determined by
         ///  the AttributeType; in general it will be a DirectoryString.
         /// String X.500 AttributeType:
         /// <list type="bullet">
-        /// <item>CN commonName</item> 
+        /// <item>CN commonName</item>
         /// <item>L localityName</item>
         /// <item>ST stateOrProvinceName</item>
-        /// <item>O organizationName</item> 
+        /// <item>O organizationName</item>
         /// <item>OU organizationalUnitName</item>
         /// <item>C countryName</item>
         /// <item>STREET streetAddress</item>
         /// <item>DC domainComponent</item>
         /// <item>UID userid</item>
         /// </list>
-        /// This notation is designed to be convenient for common forms of name. This section gives a few 
+        /// <para>
+        /// This notation is designed to be convenient for common forms of name. This section gives a few
         /// examples of distinguished names written using this notation. First is a name containing three relative
         /// distinguished names (RDNs):
-        /// <code>CN=Steve Kille,O=Isode Limited,C=GB</code>
-        /// 
+        /// <c>CN=Steve Kille,O=Isode Limited,C=GB</c>
+        /// </para>
+        /// <para>
         /// RFC 3280 Internet X.509 Public Key Infrastructure, April 2002
         /// RFC 2253 LADPv3 Distinguished Names, December 1997
+        /// </para>
         /// </remarks>
-        /// <seealso cref="System.Security.Cryptography.X509Certificates.X500DistinguishedName"/>
+        /// <seealso cref="X500DistinguishedName"/>
         /// <seealso cref="System.Security.Cryptography.AsnEncodedData"/>
+        /// <exception cref="ArgumentException"></exception>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 40)]
         public string SubjectName
         {
@@ -3223,15 +2446,14 @@ namespace Opc.Ua
 
                 return m_certificate.Subject;
             }
-
             set
             {
-                if (m_certificate != null && !String.IsNullOrEmpty(value))
+                if (m_certificate != null &&
+                    !string.IsNullOrEmpty(value) &&
+                    m_certificate.Subject != value)
                 {
-                    if (m_certificate.Subject != value)
-                    {
-                        throw new ArgumentException("SubjectName does not match the SubjectName of the current certificate.");
-                    }
+                    throw new ArgumentException(
+                        "SubjectName does not match the SubjectName of the current certificate.");
                 }
 
                 m_subjectName = value;
@@ -3243,6 +2465,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The thumbprint of a certificate..</value>
         /// <seealso cref="X509Certificate2"/>
+        /// <exception cref="ArgumentException"></exception>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 50)]
         public string Thumbprint
         {
@@ -3255,15 +2478,14 @@ namespace Opc.Ua
 
                 return m_certificate.Thumbprint;
             }
-
             set
             {
-                if (m_certificate != null)
+                if (m_certificate != null &&
+                    !string.IsNullOrEmpty(value) &&
+                    m_certificate.Thumbprint != value)
                 {
-                    if (!String.IsNullOrEmpty(value) && m_certificate.Thumbprint != value)
-                    {
-                        throw new ArgumentException("Thumbprint does not match the thumbprint of the current certificate.");
-                    }
+                    throw new ArgumentException(
+                        "Thumbprint does not match the thumbprint of the current certificate.");
                 }
 
                 m_thumbprint = value;
@@ -3286,7 +2508,6 @@ namespace Opc.Ua
 
                 return m_certificate.RawData;
             }
-
             set
             {
                 if (value == null || value.Length == 0)
@@ -3298,7 +2519,7 @@ namespace Opc.Ua
                 m_certificate = CertificateFactory.Create(value, true);
                 m_subjectName = m_certificate.Subject;
                 m_thumbprint = m_certificate.Thumbprint;
-                m_certificateType = GetCertificateType(m_certificate);
+                CertificateType = GetCertificateType(m_certificate);
             }
         }
 
@@ -3306,11 +2527,15 @@ namespace Opc.Ua
         /// Gets or sets the XML encoded validation options - use to serialize the validation options.
         /// </summary>
         /// <value>The XML encoded validation options.</value>
-        [DataMember(Name = "ValidationOptions", IsRequired = false, EmitDefaultValue = false, Order = 70)]
-        private int XmlEncodedValidationOptions
+        [DataMember(
+            Name = "ValidationOptions",
+            IsRequired = false,
+            EmitDefaultValue = false,
+            Order = 70)]
+        internal int XmlEncodedValidationOptions
         {
-            get { return (int)m_validationOptions; }
-            set { m_validationOptions = (CertificateValidationOptions)value; }
+            get => (int)ValidationOptions;
+            set => ValidationOptions = (CertificateValidationOptions)value;
         }
 
         /// <summary>
@@ -3318,11 +2543,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The NodeId of the certificate type, e.g. EccNistP256ApplicationCertificateType.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 80)]
-        public NodeId CertificateType
-        {
-            get => m_certificateType;
-            set => m_certificateType = value;
-        }
+        public NodeId CertificateType { get; set; }
 
         /// <summary>
         /// The string representation of the certificate
@@ -3331,31 +2552,22 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 90)]
         public string CertificateTypeString
         {
-            get => EncodeCertificateType(m_certificateType);
-            set => m_certificateType = DecodeCertificateType(value);
+            get => EncodeCertificateType(CertificateType);
+            set => CertificateType = DecodeCertificateType(value);
         }
-        #endregion
 
-        #region Private Fields
-        private string m_storeType;
         private string m_storePath;
         private string m_subjectName;
         private string m_thumbprint;
         private X509Certificate2 m_certificate;
-        private NodeId m_certificateType;
-        private CertificateValidationOptions m_validationOptions;
-        #endregion
     }
-    #endregion
 
-    #region ConfiguredEndpointCollection Class
     /// <summary>
     /// Stores a list of cached endpoints.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public partial class ConfiguredEndpointCollection
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -3368,43 +2580,30 @@ namespace Opc.Ua
         /// Called by the .NET framework during deserialization.
         /// </summary>
         [OnDeserializing]
-        public void Initialize(StreamingContext context) => Initialize();
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
         private void Initialize()
         {
-            m_knownHosts = new StringCollection();
-            m_discoveryUrls = new StringCollection(Utils.DiscoveryUrls);
-            m_endpoints = new List<ConfiguredEndpoint>();
-            m_defaultConfiguration = EndpointConfiguration.Create();
+            m_knownHosts = [];
+            m_discoveryUrls = [.. Utils.DiscoveryUrls];
+            m_endpoints = [];
+            DefaultConfiguration = EndpointConfiguration.Create();
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// A list of known hosts that can be used for discovery.
         /// </summary>
         [DataMember(Name = "KnownHosts", IsRequired = false, Order = 1)]
         public StringCollection KnownHosts
         {
-            get
-            {
-                return m_knownHosts;
-            }
-
-            set
-            {
-                if (value == null)
-                {
-                    m_knownHosts = new StringCollection();
-                }
-                else
-                {
-                    m_knownHosts = value;
-                }
-            }
+            get => m_knownHosts;
+            set => m_knownHosts = value ?? [];
         }
 
         /// <summary>
@@ -3413,21 +2612,10 @@ namespace Opc.Ua
         [DataMember(Name = "Endpoints", IsRequired = false, Order = 2)]
         public List<ConfiguredEndpoint> Endpoints
         {
-            get
-            {
-                return m_endpoints;
-            }
-
+            get => m_endpoints;
             private set
             {
-                if (value == null)
-                {
-                    m_endpoints = new List<ConfiguredEndpoint>();
-                }
-                else
-                {
-                    m_endpoints = value;
-                }
+                m_endpoints = value ?? [];
 
                 foreach (ConfiguredEndpoint endpoint in m_endpoints)
                 {
@@ -3435,36 +2623,19 @@ namespace Opc.Ua
                 }
             }
         }
+
         /// <summary>
         /// The URL of the UA TCP proxy server.
         /// </summary>
         [DataMember(Name = "TcpProxyUrl", EmitDefaultValue = false, Order = 3)]
-        public Uri TcpProxyUrl
-        {
-            get
-            {
-                return m_tcpProxyUrl;
-            }
+        public Uri TcpProxyUrl { get; set; }
 
-            set
-            {
-                m_tcpProxyUrl = value;
-            }
-        }
-        #endregion
-
-        #region Private Fields
         private string m_filepath;
         private StringCollection m_knownHosts;
         private StringCollection m_discoveryUrls;
-        private EndpointConfiguration m_defaultConfiguration;
         private List<ConfiguredEndpoint> m_endpoints;
-        private Uri m_tcpProxyUrl;
-        #endregion
     }
-    #endregion
 
-    #region ConfiguredEndpoint Class
     /// <summary>
     /// Stores the configuration information for an endpoint.
     /// </summary>
@@ -3474,7 +2645,6 @@ namespace Opc.Ua
     [KnownType(typeof(IssuedIdentityToken))]
     public partial class ConfiguredEndpoint
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -3487,7 +2657,10 @@ namespace Opc.Ua
         /// Called by the .NET framework during deserialization.
         /// </summary>
         [OnDeserializing]
-        public void Initialize(StreamingContext context) => Initialize();
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// Sets private members to default values.
@@ -3497,37 +2670,21 @@ namespace Opc.Ua
             m_collection = null;
             m_description = new EndpointDescription();
             m_configuration = null;
-            m_updateBeforeConnect = true;
-            m_binaryEncodingSupport = BinaryEncodingSupport.Optional;
-            m_selectedUserTokenPolicyIndex = 0;
-            m_userIdentity = null;
-            m_reverseConnect = null;
+            UpdateBeforeConnect = true;
+            BinaryEncodingSupport = BinaryEncodingSupport.Optional;
+            SelectedUserTokenPolicyIndex = 0;
+            UserIdentity = null;
+            ReverseConnect = null;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The description for the endpoint.
         /// </summary>
         [DataMember(Name = "Endpoint", Order = 1, IsRequired = true)]
         public EndpointDescription Description
         {
-            get
-            {
-                return m_description;
-            }
-
-            private set
-            {
-                if (value == null)
-                {
-                    m_description = new EndpointDescription();
-                }
-                else
-                {
-                    m_description = value;
-                }
-            }
+            get => m_description;
+            private set => m_description = value ?? new EndpointDescription();
         }
 
         /// <summary>
@@ -3536,11 +2693,7 @@ namespace Opc.Ua
         [DataMember(Name = "Configuration", Order = 2, IsRequired = false)]
         public EndpointConfiguration Configuration
         {
-            get
-            {
-                return m_configuration;
-            }
-
+            get => m_configuration;
             set
             {
                 m_configuration = value;
@@ -3564,51 +2717,31 @@ namespace Opc.Ua
         /// Whether the endpoint information should be updated before connecting to the server.
         /// </summary>
         [DataMember(Name = "UpdateBeforeConnect", Order = 3, IsRequired = false)]
-        public bool UpdateBeforeConnect
-        {
-            get { return m_updateBeforeConnect; }
-            set { m_updateBeforeConnect = value; }
-        }
+        public bool UpdateBeforeConnect { get; set; }
 
         /// <summary>
         /// The user identity to use when connecting to the endpoint.
         /// </summary>
         [DataMember(Name = "BinaryEncodingSupport", Order = 4, IsRequired = false)]
-        public BinaryEncodingSupport BinaryEncodingSupport
-        {
-            get { return m_binaryEncodingSupport; }
-            set { m_binaryEncodingSupport = value; }
-        }
+        public BinaryEncodingSupport BinaryEncodingSupport { get; set; }
 
         /// <summary>
         /// The user identity to use when connecting to the endpoint.
         /// </summary>
         [DataMember(Name = "SelectedUserTokenPolicy", Order = 5, IsRequired = false)]
-        public int SelectedUserTokenPolicyIndex
-        {
-            get { return m_selectedUserTokenPolicyIndex; }
-            set { m_selectedUserTokenPolicyIndex = value; }
-        }
+        public int SelectedUserTokenPolicyIndex { get; set; }
 
         /// <summary>
         /// The user identity to use when connecting to the endpoint.
         /// </summary>
         [DataMember(Name = "UserIdentity", Order = 6, IsRequired = false)]
-        public UserIdentityToken UserIdentity
-        {
-            get { return m_userIdentity; }
-            set { m_userIdentity = value; }
-        }
+        public UserIdentityToken UserIdentity { get; set; }
 
         /// <summary>
         /// The reverse connect information.
         /// </summary>
         [DataMember(Name = "ReverseConnect", Order = 8, IsRequired = false)]
-        public ReverseConnectEndpoint ReverseConnect
-        {
-            get { return m_reverseConnect; }
-            set { m_reverseConnect = value; }
-        }
+        public ReverseConnectEndpoint ReverseConnect { get; set; }
 
         /// <summary>
         /// A bucket to store additional application specific configuration data.
@@ -3616,26 +2749,16 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 9)]
         public XmlElementCollection Extensions
         {
-            get { return m_extensions; }
-            set { m_extensions = value; }
+            get => m_extensions;
+            set => m_extensions = value;
         }
-        #endregion
 
-        #region Private Fields
         private ConfiguredEndpointCollection m_collection;
         private EndpointDescription m_description;
         private EndpointConfiguration m_configuration;
-        private bool m_updateBeforeConnect;
-        private BinaryEncodingSupport m_binaryEncodingSupport;
-        private int m_selectedUserTokenPolicyIndex;
-        private UserIdentityToken m_userIdentity;
-        private ReverseConnectEndpoint m_reverseConnect;
         private XmlElementCollection m_extensions;
-        #endregion
     }
-    #endregion
 
-    #region BinaryEncodingSupport Enumeration
     /// <summary>
     /// The type of binary encoding support allowed by a channel.
     /// </summary>
@@ -3645,31 +2768,28 @@ namespace Opc.Ua
         /// <summary>
         /// The UA binary encoding may be used.
         /// </summary>
-        [EnumMember()]
+        [EnumMember]
         Optional,
 
         /// <summary>
         /// The UA binary encoding must be used.
         /// </summary>
-        [EnumMember()]
+        [EnumMember]
         Required,
 
         /// <summary>
         /// The UA binary encoding may not be used.
         /// </summary>
-        [EnumMember()]
+        [EnumMember]
         None
     }
-    #endregion
 
-    #region ReverseConnectEndpoint Class
     /// <summary>
     /// Stores the reverse connect information for an endpoint.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
-    public partial class ReverseConnectEndpoint
+    public class ReverseConnectEndpoint
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -3682,57 +2802,38 @@ namespace Opc.Ua
         /// Called by the .NET framework during deserialization.
         /// </summary>
         [OnDeserializing]
-        public void Initialize(StreamingContext context) => Initialize();
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
         private void Initialize()
         {
-            m_enabled = false;
-            m_serverUri = null;
-            m_thumbprint = null;
+            Enabled = false;
+            ServerUri = null;
+            Thumbprint = null;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// Whether reverse connect is enabled for the endpoint.
         /// </summary>
         [DataMember(Name = "Enabled", Order = 1, IsRequired = false)]
-        public bool Enabled
-        {
-            get { return m_enabled; }
-            set { m_enabled = value; }
-        }
+        public bool Enabled { get; set; }
 
         /// <summary>
         /// The server Uri of the endpoint.
         /// </summary>
         [DataMember(Name = "ServerUri", Order = 2, IsRequired = false)]
-        public string ServerUri
-        {
-            get { return m_serverUri; }
-            set { m_serverUri = value; }
-        }
+        public string ServerUri { get; set; }
 
         /// <summary>
         /// The thumbprint of the certificate which contains
         /// the server Uri.
         /// </summary>
         [DataMember(Name = "Thumbprint", Order = 3, IsRequired = false)]
-        public string Thumbprint
-        {
-            get { return m_thumbprint; }
-            set { m_thumbprint = value; }
-        }
-        #endregion
-
-        #region Private Fields
-        private bool m_enabled;
-        private string m_serverUri;
-        private string m_thumbprint;
-        #endregion
+        public string Thumbprint { get; set; }
     }
-    #endregion
 }

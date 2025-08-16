@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -29,12 +29,7 @@
 
 using System;
 using System.Collections.Generic;
-
 using Opc.Ua;
-
-
-#pragma warning disable CS1591
-
 
 namespace Alarms
 {
@@ -51,25 +46,28 @@ namespace Alarms
             Type controllerType,
             int interval,
             bool optional = true,
-            bool create = true) :
-            base(alarmNodeManager, parent, trigger, name, alarmConditionType, controllerType, interval, optional)
+            bool create = true)
+            : base(
+                alarmNodeManager,
+                parent,
+                trigger,
+                name,
+                alarmConditionType,
+                controllerType,
+                interval,
+                optional)
         {
             if (create)
             {
-                Initialize(Opc.Ua.ObjectTypes.AcknowledgeableConditionType, name);
+                Initialize(ObjectTypes.AcknowledgeableConditionType, name);
             }
         }
 
-        protected new void Initialize(
-            uint alarmTypeIdentifier,
-            string name)
+        protected new void Initialize(uint alarmTypeIdentifier, string name)
         {
             // Create an alarm and trigger name - Create a base method for creating the trigger, just provide the name
 
-            if (m_alarm == null)
-            {
-                m_alarm = new AcknowledgeableConditionState(m_parent);
-            }
+            m_alarm ??= new AcknowledgeableConditionState(m_parent);
 
             AcknowledgeableConditionState alarm = GetAlarm();
             InitializeInternal(alarm);
@@ -90,18 +88,11 @@ namespace Alarms
         {
             alarm.OnAcknowledge = OnAcknowledge;
 
-            // Create any optional 
-            if (alarm.ConfirmedState == null)
-            {
-                alarm.ConfirmedState = new TwoStateVariableState(alarm);
-            }
+            // Create any optional
+            alarm.ConfirmedState ??= new TwoStateVariableState(alarm);
 
             alarm.Confirm = new AddCommentMethodState(alarm);
         }
-
-
-
-        #region Overrides 
 
         public override void SetValue(string message = "")
         {
@@ -116,7 +107,6 @@ namespace Alarms
                     Log("AcknowledgeableConditionTypeHolder", "Setting Acked State to false");
                     alarm.SetAcknowledgedState(SystemContext, acknowledged: false);
                     alarm.Retain.Value = true;
-
                 }
                 else
                 {
@@ -135,28 +125,17 @@ namespace Alarms
             AcknowledgeableConditionState alarm = GetAlarm();
 
             bool retainState = true;
-            if (alarm.AckedState.Id.Value)
+            if (alarm.AckedState.Id.Value && alarm.ConfirmedState.Id.Value)
             {
-                if (alarm.ConfirmedState.Id.Value)
-                {
-                    retainState = false;
-                }
+                retainState = false;
             }
 
             return retainState;
         }
 
-
-        #endregion
-
-        #region Helpers
-
         private AcknowledgeableConditionState GetAlarm(BaseEventState alarm = null)
         {
-            if (alarm == null)
-            {
-                alarm = m_alarm;
-            }
+            alarm ??= m_alarm;
             return (AcknowledgeableConditionState)alarm;
         }
 
@@ -172,13 +151,6 @@ namespace Alarms
             }
             return alarmOrBranch;
         }
-
-
-
-
-        #endregion
-
-        #region Methods
 
         private ServiceResult OnAcknowledge(
             ISystemContext context,
@@ -230,17 +202,17 @@ namespace Alarms
             return ServiceResult.Good;
         }
 
-
         private ServiceResult OnConfirm(
             ISystemContext context,
             ConditionState condition,
             byte[] eventId,
             LocalizedText comment)
         {
-
             string eventIdString = Utils.ToHexString(eventId);
 
-            Log("OnConfirm", "Called with eventId " + eventIdString + " Comment " + comment?.Text ?? "(empty)");
+            Log(
+                "OnConfirm",
+                "Called with eventId " + eventIdString + " Comment " + comment?.Text ?? "(empty)");
 
             if (m_confirmed.Contains(eventIdString))
             {
@@ -269,16 +241,7 @@ namespace Alarms
             return ServiceResult.Good;
         }
 
-        #endregion
-
-        #region Private
-
-        protected HashSet<string> m_acked = new HashSet<string>();
-        protected HashSet<string> m_confirmed = new HashSet<string>();
-
-        #endregion
-
-
-
+        protected HashSet<string> m_acked = [];
+        protected HashSet<string> m_confirmed = [];
     }
 }

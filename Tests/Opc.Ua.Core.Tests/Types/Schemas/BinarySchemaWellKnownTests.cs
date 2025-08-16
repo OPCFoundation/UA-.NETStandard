@@ -28,37 +28,34 @@
  * ======================================================================*/
 
 using System.Reflection;
-using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Schema.Binary;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
-
 
 namespace Opc.Ua.Core.Tests.Types.Schemas
 {
     /// <summary>
     /// Tests for the Binary Schema Validator class.
     /// </summary>
-    [TestFixture, Category("BinarySchema")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("BinarySchema")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class BinarySchemaWellKnownTests : BinarySchemaValidator
     {
-        #region DataPointSources
         [DatapointSource]
         public string[][] WellKnownSchemaData = WellKnownDictionaries;
-        #endregion
 
-        #region Test Methods
         /// <summary>
         /// Load well known resource type dictionaries.
         /// </summary>
         [Theory]
         public void LoadResources(string[] schemaData)
         {
-            Assert.That(schemaData.Length == 2);
-            var assembly = typeof(BinarySchemaValidator).GetTypeInfo().Assembly;
-            var resource = LoadResource(typeof(TypeDictionary), schemaData[1], assembly);
+            NUnit.Framework.Assert.That(schemaData.Length == 2);
+            Assembly assembly = typeof(BinarySchemaValidator).GetTypeInfo().Assembly;
+            object resource = LoadResource(typeof(TypeDictionary), schemaData[1], assembly);
             Assert.IsNotNull(resource);
             Assert.AreEqual(resource.GetType(), typeof(TypeDictionary));
         }
@@ -69,8 +66,8 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
         [Theory]
         public void ValidateResources(string[] schemaData)
         {
-            var assembly = typeof(BinarySchemaValidator).GetTypeInfo().Assembly;
-            var stream = assembly.GetManifestResourceStream(schemaData[1]);
+            Assembly assembly = typeof(BinarySchemaValidator).GetTypeInfo().Assembly;
+            System.IO.Stream stream = assembly.GetManifestResourceStream(schemaData[1]);
             Assert.IsNotNull(stream);
             var schema = new BinarySchemaValidator();
             Assert.IsNotNull(schema);
@@ -78,7 +75,5 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
             Assert.IsNotNull(schema.Dictionary);
             Assert.AreEqual(schemaData[0], schema.Dictionary.TargetNamespace);
         }
-        #endregion
     }
-
 }

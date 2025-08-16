@@ -29,14 +29,6 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Binds a new socket to an existing channel.
         /// </summary>
-        /// <param name="socket"></param>
-        /// <param name="requestId"></param>
-        /// <param name="sequenceNumber"></param>
-        /// <param name="channelId"></param>
-        /// <param name="clientCertificate"></param>
-        /// <param name="token"></param>
-        /// <param name="request"></param>
-        /// <returns></returns>
         bool ReconnectToExistingChannel(
             IMessageSocket socket,
             uint requestId,
@@ -50,18 +42,12 @@ namespace Opc.Ua.Bindings
         /// Used to transfer a reverse connection socket to the client.
         /// </summary>
         [Obsolete("Use TransferListenerChannelAsync instead.")]
-        Task<bool> TransferListenerChannel(
-            uint channelId,
-            string serverUri,
-            Uri endpointUrl);
+        Task<bool> TransferListenerChannel(uint channelId, string serverUri, Uri endpointUrl);
 
         /// <summary>
         /// Used to transfer a reverse connection socket to the client.
         /// </summary>
-        Task<bool> TransferListenerChannelAsync(
-            uint channelId,
-            string serverUri,
-            Uri endpointUrl);
+        Task<bool> TransferListenerChannelAsync(uint channelId, string serverUri, Uri endpointUrl);
 
         /// <summary>
         /// Called when a channel closes.

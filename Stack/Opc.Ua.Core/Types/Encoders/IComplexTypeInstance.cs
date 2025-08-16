@@ -39,5 +39,4 @@ namespace Opc.Ua
         /// <returns>The xml qualified name for the type instance</returns>
         XmlQualifiedName GetXmlName(IServiceMessageContext context);
     }
-
 }

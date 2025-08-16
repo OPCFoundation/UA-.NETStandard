@@ -10,11 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-using System.Collections.Generic;
-using System.Xml;
-using System.Runtime.Serialization;
-
 namespace Opc.Ua
 {
     /// <summary>
@@ -22,29 +17,14 @@ namespace Opc.Ua
     /// </summary>
     public class EncryptedData
     {
-        #region Public Members
         /// <summary>
         /// The algorithm used to encrypt the data.
         /// </summary>
-        public string Algorithm
-        {
-            get { return m_algorithm; }
-            set { m_algorithm = value; }
-        }
+        public string Algorithm { get; set; }
 
         /// <summary>
         /// The encrypted data.
         /// </summary>
-        public byte[] Data
-        {
-            get { return m_data; }
-            set { m_data = value; }
-        }
-        #endregion
-
-        #region Private Members
-        private string m_algorithm;
-        private byte[] m_data;
-        #endregion
+        public byte[] Data { get; set; }
     }
 }

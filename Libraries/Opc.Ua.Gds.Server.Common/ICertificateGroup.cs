@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -41,7 +41,10 @@ namespace Opc.Ua.Gds.Server
         public string PrivateKeyFormat { get; }
         public byte[] PrivateKey { get; }
 
-        public X509Certificate2KeyPair(X509Certificate2 certificate, string privateKeyFormat, byte[] privateKey)
+        public X509Certificate2KeyPair(
+            X509Certificate2 certificate,
+            string privateKeyFormat,
+            byte[] privateKey)
         {
             if (certificate.HasPrivateKey)
             {
@@ -51,7 +54,7 @@ namespace Opc.Ua.Gds.Server
             PrivateKeyFormat = privateKeyFormat;
             PrivateKey = privateKey;
         }
-    };
+    }
 
     /// <summary>
     /// An abstract interface to the certificate provider
@@ -74,26 +77,19 @@ namespace Opc.Ua.Gds.Server
 
         Task InitAsync();
 
-        Task<X509Certificate2> CreateCACertificateAsync(
-            string subjectName,
-            NodeId certificateType
-            );
+        Task<X509Certificate2> CreateCACertificateAsync(string subjectName, NodeId certificateType);
 
-        Task<X509CRL> RevokeCertificateAsync(
-            X509Certificate2 certificate
-            );
+        Task<X509CRL> RevokeCertificateAsync(X509Certificate2 certificate);
 
         Task VerifySigningRequestAsync(
             ApplicationRecordDataType application,
-            byte[] certificateRequest
-            );
+            byte[] certificateRequest);
 
         Task<X509Certificate2> SigningRequestAsync(
             ApplicationRecordDataType application,
             NodeId certificateType,
             string[] domainNames,
-            byte[] certificateRequest
-            );
+            byte[] certificateRequest);
 
         Task<X509Certificate2KeyPair> NewKeyPairRequestAsync(
             ApplicationRecordDataType application,
@@ -101,7 +97,6 @@ namespace Opc.Ua.Gds.Server
             string subjectName,
             string[] domainNames,
             string privateKeyFormat,
-            string privateKeyPassword
-            );
+            string privateKeyPassword);
     }
 }

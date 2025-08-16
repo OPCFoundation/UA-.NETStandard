@@ -11,7 +11,6 @@
 */
 
 using System;
-using System.Collections.Generic;
 
 namespace Opc.Ua
 {
@@ -20,11 +19,11 @@ namespace Opc.Ua
     /// </summary>
     public class DataTypeState : BaseTypeState
     {
-        #region Constructors
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        public DataTypeState() : base(NodeClass.DataType)
+        public DataTypeState()
+            : base(NodeClass.DataType)
         {
         }
 
@@ -37,13 +36,11 @@ namespace Opc.Ua
         {
             return new DataTypeState();
         }
-        #endregion
 
-        #region ICloneable Members
         /// <inheritdoc/>
         public override object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -54,22 +51,16 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            DataTypeState clone = (DataTypeState)Activator.CreateInstance(this.GetType());
+            var clone = (DataTypeState)Activator.CreateInstance(GetType());
             return CloneChildren(clone);
         }
-        #endregion
-
 
         /// <summary>
         /// The abstract definition of the data type.
         /// </summary>
         public ExtensionObject DataTypeDefinition
         {
-            get
-            {
-                return m_dataTypeDefinition;
-            }
-
+            get => m_dataTypeDefinition;
             set
             {
                 if (m_dataTypeDefinition != value)
@@ -84,9 +75,8 @@ namespace Opc.Ua
         /// <summary>
         /// The purpose of the data type.
         /// </summary>
-        public Opc.Ua.Export.DataTypePurpose Purpose { get; set; }
+        public Export.DataTypePurpose Purpose { get; set; }
 
-        #region Serialization Functions
         /// <summary>
         /// Saves the attributes from the stream.
         /// </summary>
@@ -148,7 +138,10 @@ namespace Opc.Ua
         /// <param name="context">The context for the system being accessed.</param>
         /// <param name="encoder">The encoder to write to.</param>
         /// <param name="attributesToSave">The masks indicating what attributes to write.</param>
-        public override void Save(ISystemContext context, BinaryEncoder encoder, AttributesToSave attributesToSave)
+        public override void Save(
+            ISystemContext context,
+            BinaryEncoder encoder,
+            AttributesToSave attributesToSave)
         {
             base.Save(context, encoder, attributesToSave);
 
@@ -164,7 +157,10 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         /// <param name="decoder">The decoder.</param>
         /// <param name="attributesToLoad">The attributes to load.</param>
-        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attributesToLoad)
+        public override void Update(
+            ISystemContext context,
+            BinaryDecoder decoder,
+            AttributesToSave attributesToLoad)
         {
             base.Update(context, decoder, attributesToLoad);
 
@@ -173,9 +169,7 @@ namespace Opc.Ua
                 DataTypeDefinition = decoder.ReadExtensionObject(null);
             }
         }
-        #endregion
 
-        #region Event Callbacks
         /// <summary>
         /// Raised when the DataTypeDefinition attribute is read.
         /// </summary>
@@ -185,9 +179,7 @@ namespace Opc.Ua
         /// Raised when the DataTypeDefinition attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<ExtensionObject> OnWriteDataTypeDefinition;
-        #endregion
 
-        #region Read Support Functions
         /// <summary>
         /// Reads the value for DataTypeDefinition attribute.
         /// </summary>
@@ -201,10 +193,10 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.DataTypeDefinition:
-                {
                     ExtensionObject dataTypeDefinition = m_dataTypeDefinition;
 
-                    NodeAttributeEventHandler<ExtensionObject> onReadDataTypeDefinition = OnReadDataTypeDefinition;
+                    NodeAttributeEventHandler<ExtensionObject> onReadDataTypeDefinition
+                        = OnReadDataTypeDefinition;
 
                     if (onReadDataTypeDefinition != null)
                     {
@@ -215,7 +207,7 @@ namespace Opc.Ua
                     {
                         if (dataTypeDefinition?.Body is StructureDefinition structureType &&
                             (structureType.DefaultEncodingId == null ||
-                             structureType.DefaultEncodingId.IsNullNodeId))
+                                structureType.DefaultEncodingId.IsNullNodeId))
                         {
                             // one time set the id for binary encoding, currently the only supported encoding
                             structureType.SetDefaultEncodingId(context, NodeId, null);
@@ -229,14 +221,11 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
             }
 
             return base.ReadNonValueAttribute(context, attributeId, ref value);
         }
-        #endregion
 
-        #region Write Support Functions
         /// <summary>
         /// Write the value for DataTypeDefinition attribute.
         /// </summary>
@@ -250,15 +239,15 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.DataTypeDefinition:
-                {
-                    ExtensionObject dataTypeDefinition = value as ExtensionObject;
+                    var dataTypeDefinition = value as ExtensionObject;
 
                     if ((WriteMask & AttributeWriteMask.DataTypeDefinition) == 0)
                     {
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<ExtensionObject> onWriteDataTypeDefinition = OnWriteDataTypeDefinition;
+                    NodeAttributeEventHandler<ExtensionObject> onWriteDataTypeDefinition
+                        = OnWriteDataTypeDefinition;
 
                     if (onWriteDataTypeDefinition != null)
                     {
@@ -271,15 +260,11 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
             }
 
             return base.WriteNonValueAttribute(context, attributeId, value);
         }
-        #endregion
 
-        #region Private Fields
         private ExtensionObject m_dataTypeDefinition;
-        #endregion
     }
 }

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -39,38 +39,42 @@ namespace Opc.Ua.PubSub
     public class IntervalRunner : IDisposable
     {
         private const int kMinInterval = 10;
-        private readonly object m_lock = new object();
+        private readonly Lock m_lock = new();
 
         private double m_interval = kMinInterval;
-        private double m_nextPublishTick = 0;
+        private double m_nextPublishTick;
 
-        // event used to cancel run
-        private CancellationTokenSource m_cancellationToken = new CancellationTokenSource();
+        /// <summary>
+        /// event used to cancel run
+        /// </summary>
+        private CancellationTokenSource m_cancellationToken = new();
 
-        #region Constructor
         /// <summary>
         /// Create new instance of <see cref="IntervalRunner"/>.
         /// </summary>
-        public IntervalRunner(object id, double interval, Func<bool> canExecuteFunc, Action intervalAction)
+        public IntervalRunner(
+            object id,
+            double interval,
+            Func<bool> canExecuteFunc,
+            Action intervalAction)
         {
             Id = id;
             Interval = interval;
             CanExecuteFunc = canExecuteFunc;
             IntervalAction = intervalAction;
         }
-        #endregion
 
         /// <summary>
         /// Identifier of current IntervalRunner
         /// </summary>
-        public object Id { get; private set; }
+        public object Id { get; }
 
         /// <summary>
         /// Get/set the Interval between Runs
         /// </summary>
         public double Interval
         {
-            get { return m_interval; }
+            get => m_interval;
             set
             {
                 lock (m_lock)
@@ -88,14 +92,12 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Get the function that decides if the configured action can be executed when the Interval elapses
         /// </summary>
-        public Func<bool> CanExecuteFunc { get; private set; }
+        public Func<bool> CanExecuteFunc { get; }
 
         /// <summary>
         /// Get the action that will be executed at each interval
         /// </summary>
-        public Action IntervalAction { get; private set; }
-
-        #region Public Methods
+        public Action IntervalAction { get; }
 
         /// <summary>
         /// Starts the IntervalRunner and makes it ready to execute the code.
@@ -118,9 +120,7 @@ namespace Opc.Ua.PubSub
 
             Utils.Trace("IntervalRunner with id: {0} was stopped.", Id);
         }
-        #endregion
 
-        #region IDisposable Implementation
         /// <summary>
         /// Releases all resources used by the current instance of the <see cref="UaPublisher"/> class.
         /// </summary>
@@ -131,7 +131,7 @@ namespace Opc.Ua.PubSub
         }
 
         /// <summary>
-        ///  When overridden in a derived class, releases the unmanaged resources used by that class 
+        ///  When overridden in a derived class, releases the unmanaged resources used by that class
         ///  and optionally releases the managed resources.
         /// </summary>
         /// <param name="disposing"> true to release both managed and unmanaged resources; false to release only unmanaged resources.</param>
@@ -148,7 +148,6 @@ namespace Opc.Ua.PubSub
                 }
             }
         }
-        #endregion
 
         /// <summary>
         /// Periodically executes the .
@@ -159,17 +158,12 @@ namespace Opc.Ua.PubSub
             {
                 m_nextPublishTick = HiResClock.Ticks;
             }
-            do
+            while (!m_cancellationToken.IsCancellationRequested)
             {
-                if (m_cancellationToken.IsCancellationRequested)
-                {
-                    break;
-                }
-
                 long nowTick = HiResClock.Ticks;
                 double nextPublishTick = 0;
 
-                lock(m_lock)
+                lock (m_lock)
                 {
                     nextPublishTick = m_nextPublishTick;
                 }
@@ -178,7 +172,10 @@ namespace Opc.Ua.PubSub
                 if (sleepCycle > 16)
                 {
                     // Use Task.Delay if sleep cycle is larger
-                    await Task.Delay(TimeSpan.FromMilliseconds(sleepCycle), m_cancellationToken.Token).ConfigureAwait(false);
+                    await Task.Delay(
+                        TimeSpan.FromMilliseconds(sleepCycle),
+                        m_cancellationToken.Token)
+                        .ConfigureAwait(false);
 
                     // Still ticks to consume (spurious wakeup too early), improbable
                     nowTick = HiResClock.Ticks;
@@ -187,26 +184,23 @@ namespace Opc.Ua.PubSub
                         SpinWait.SpinUntil(() => HiResClock.Ticks >= nextPublishTick);
                     }
                 }
-                else if (sleepCycle >= 0 && sleepCycle <= 16)
+                else if (sleepCycle is >= 0 and <= 16)
                 {
                     SpinWait.SpinUntil(() => HiResClock.Ticks >= nextPublishTick);
                 }
-                    
+
                 lock (m_lock)
                 {
-                    var nextCycle = (long)m_interval * HiResClock.TicksPerMillisecond;
+                    double nextCycle = (long)m_interval * HiResClock.TicksPerMillisecond;
                     m_nextPublishTick += nextCycle;
 
                     if (IntervalAction != null && CanExecuteFunc != null && CanExecuteFunc())
                     {
                         // call on a new thread
-                        Task.Run(() => {
-                            IntervalAction();
-                        });
+                        Task.Run(() => IntervalAction());
                     }
                 }
             }
-            while (true);
         }
     }
 }

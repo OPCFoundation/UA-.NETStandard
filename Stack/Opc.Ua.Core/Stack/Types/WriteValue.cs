@@ -11,9 +11,6 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
 {
@@ -22,32 +19,23 @@ namespace Opc.Ua
     /// </summary>
     public partial class WriteValue
     {
-        #region Supporting Properties and Methods
         /// <summary>
         /// A handle assigned to the item during processing.
         /// </summary>
-        public object Handle
-        {
-            get { return m_handle; }
-            set { m_handle = value; }
-        }
+        public object Handle { get; set; }
 
         /// <summary>
         /// Whether the value has been processed.
         /// </summary>
-        public bool Processed
-        {
-            get { return m_processed; }
-            set { m_processed = value; }
-        }
+        public bool Processed { get; set; }
 
         /// <summary>
         /// Stores the parsed form of the index range parameter.
         /// </summary>
         public NumericRange ParsedIndexRange
         {
-            get { return m_parsedIndexRange; }
-            set { m_parsedIndexRange = value; }
+            get => m_parsedIndexRange;
+            set => m_parsedIndexRange = value;
         }
 
         /// <summary>
@@ -77,7 +65,7 @@ namespace Opc.Ua
             value.ParsedIndexRange = NumericRange.Empty;
 
             // parse the index range if specified.
-            if (!String.IsNullOrEmpty(value.IndexRange))
+            if (!string.IsNullOrEmpty(value.IndexRange))
             {
                 try
                 {
@@ -85,17 +73,20 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    return ServiceResult.Create(e, StatusCodes.BadIndexRangeInvalid, String.Empty);
+                    return ServiceResult.Create(e, StatusCodes.BadIndexRangeInvalid, string.Empty);
                 }
 
                 if (value.ParsedIndexRange.SubRanges != null)
                 {
-                    if (!(value.Value.Value is Matrix matrix))
+                    if (value.Value.Value is not Matrix)
                     {
                         // Check for String or ByteString arrays. Those DataTypes have special handling
                         // when using sub ranges.
-                        bool isArrayWithValidDataType = value.Value.Value is Array &&
-                            value.Value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.String ||
+                        bool isArrayWithValidDataType =
+                            (
+                                value.Value.Value is Array &&
+                                value.Value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.String
+                            ) ||
                             value.Value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.ByteString;
 
                         if (!isArrayWithValidDataType)
@@ -104,46 +95,42 @@ namespace Opc.Ua
                         }
                     }
                 }
-                else
+                else if (value.Value.Value is Array array)
                 {
-                    if (value.Value.Value is Array array)
+                    NumericRange range = value.ParsedIndexRange;
+
+                    // check that the number of elements to write matches the index range.
+                    if (range.End >= 0 && (range.End - range.Begin != array.Length - 1))
                     {
-                        NumericRange range = value.ParsedIndexRange;
-
-                        // check that the number of elements to write matches the index range.
-                        if (range.End >= 0 && (range.End - range.Begin != array.Length - 1))
-                        {
-                            return StatusCodes.BadIndexRangeNoData;
-                        }
-
-                        // check for single element.
-                        if (range.End < 0 && array.Length != 1)
-                        {
-                            return StatusCodes.BadIndexRangeInvalid;
-                        }
+                        return StatusCodes.BadIndexRangeNoData;
                     }
-                    else if (value.Value.Value is string str)
-                    {
-                        NumericRange range = value.ParsedIndexRange;
 
-                        // check that the number of elements to write matches the index range.
-                        if (range.End >= 0 && (range.End - range.Begin != str.Length - 1))
-                        {
-                            return StatusCodes.BadIndexRangeNoData;
-                        }
-
-                        // check for single element.
-                        if (range.End < 0 && str.Length != 1)
-                        {
-                            return StatusCodes.BadIndexRangeInvalid;
-                        }
-                    }
-                    else
+                    // check for single element.
+                    if (range.End < 0 && array.Length != 1)
                     {
-                        return StatusCodes.BadTypeMismatch;
+                        return StatusCodes.BadIndexRangeInvalid;
                     }
                 }
+                else if (value.Value.Value is string str)
+                {
+                    NumericRange range = value.ParsedIndexRange;
 
+                    // check that the number of elements to write matches the index range.
+                    if (range.End >= 0 && (range.End - range.Begin != str.Length - 1))
+                    {
+                        return StatusCodes.BadIndexRangeNoData;
+                    }
+
+                    // check for single element.
+                    if (range.End < 0 && str.Length != 1)
+                    {
+                        return StatusCodes.BadIndexRangeInvalid;
+                    }
+                }
+                else
+                {
+                    return StatusCodes.BadTypeMismatch;
+                }
             }
             else
             {
@@ -153,12 +140,7 @@ namespace Opc.Ua
             // passed basic validation.
             return null;
         }
-        #endregion
 
-        #region Private Fields
-        private object m_handle;
-        private bool m_processed;
         private NumericRange m_parsedIndexRange = NumericRange.Empty;
-        #endregion
     }
 }

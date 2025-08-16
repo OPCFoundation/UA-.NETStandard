@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -29,8 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-
-#pragma warning disable 0618
 
 namespace Opc.Ua.Server
 {
@@ -81,7 +79,7 @@ namespace Opc.Ua.Server
         /// <value>The type tree.</value>
         /// <remarks>
         /// The type tree table is a global object that all components of a server have access to.
-        /// Node managers must populate this table with all types that they define. 
+        /// Node managers must populate this table with all types that they define.
         /// This object is thread safe.
         /// </remarks>
         TypeTable TypeTree { get; }
@@ -276,22 +274,19 @@ namespace Opc.Ua.Server
         /// Stores the MonitoredItemQueueFactory in the datastore.
         /// </summary>
         /// <param name="monitoredItemQueueFactory">The MonitoredItemQueueFactory.</param>
-        void SetMonitoredItemQueueFactory(
-            IMonitoredItemQueueFactory monitoredItemQueueFactory);
+        void SetMonitoredItemQueueFactory(IMonitoredItemQueueFactory monitoredItemQueueFactory);
 
         /// <summary>
         /// Stores the Subscriptionstore in the datastore.
         /// </summary>
         /// <param name="subscriptionStore">The subscriptionstore.</param>
-        void SetSubscriptionStore(
-            ISubscriptionStore subscriptionStore);
+        void SetSubscriptionStore(ISubscriptionStore subscriptionStore);
 
         /// <summary>
         /// Stores the AggregateManager in the datastore.
         /// </summary>
         /// <param name="aggregateManager">The AggregateManager.</param>
-        void SetAggregateManager(
-            AggregateManager aggregateManager);
+        void SetAggregateManager(AggregateManager aggregateManager);
 
         /// <summary>
         /// Updates the server status safely.

@@ -20,18 +20,12 @@ namespace Opc.Ua
     /// <summary>
     /// The SoftwareCertificate class.
     /// </summary>
-    public partial class SoftwareCertificate
+    public class SoftwareCertificate
     {
         /// <summary>
         /// The SignedSoftwareCertificate that contains the SoftwareCertificate
         /// </summary>
-        public X509Certificate2 SignedCertificate
-        {
-            get { return m_signedCertificate; }
-            set { m_signedCertificate = value; }
-        }
-
-        private X509Certificate2 m_signedCertificate;
+        public X509Certificate2 SignedCertificate { get; set; }
 
         /// <summary>
         /// Validates a software certificate.
@@ -44,8 +38,7 @@ namespace Opc.Ua
             softwareCertificate = null;
 
             // validate the certificate.
-            X509Certificate2 certificate = null;
-
+            X509Certificate2 certificate;
             try
             {
                 certificate = CertificateFactory.Create(signedCertificate, true);
@@ -53,28 +46,35 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                return ServiceResult.Create(e, StatusCodes.BadDecodingError, "Could not decode software certificate body.");
+                return ServiceResult.Create(
+                    e,
+                    StatusCodes.BadDecodingError,
+                    "Could not decode software certificate body.");
             }
-
 
             // find the software certificate.
             byte[] encodedData = null;
 
             if (encodedData == null)
             {
-                return ServiceResult.Create(StatusCodes.BadCertificateInvalid, "Could not find extension containing the software certificate.");
+                return ServiceResult.Create(
+                    StatusCodes.BadCertificateInvalid,
+                    "Could not find extension containing the software certificate.");
             }
 
             try
             {
-                MemoryStream istrm = new MemoryStream(encodedData, false);
-                DataContractSerializer serializer = new DataContractSerializer(typeof(SoftwareCertificate));
+                var istrm = new MemoryStream(encodedData, false);
+                var serializer = new DataContractSerializer(typeof(SoftwareCertificate));
                 softwareCertificate = (SoftwareCertificate)serializer.ReadObject(istrm);
                 softwareCertificate.SignedCertificate = certificate;
             }
             catch (Exception e)
             {
-                return ServiceResult.Create(e, StatusCodes.BadCertificateInvalid, "Certificate does not contain a valid SoftwareCertificate body.");
+                return ServiceResult.Create(
+                    e,
+                    StatusCodes.BadCertificateInvalid,
+                    "Certificate does not contain a valid SoftwareCertificate body.");
             }
 
             // certificate is valid.

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2023 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -32,29 +32,42 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
 using System.Xml;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
-
+#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
+using System.Runtime.CompilerServices;
+#endif
 
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {
-    [TestFixture, Category("Utils")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("Utils")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
-    public class UtilsIsEqualTests
+    public
+#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
+    partial
+#endif
+    class UtilsIsEqualTests
     {
+#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
+        [LibraryImport("msvcrt")]
+        [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
+        private static partial int memcmp(ReadOnlySpan<byte> b1, ReadOnlySpan<byte> b2, long count);
+#else
         [DllImport("msvcrt.dll", CallingConvention = CallingConvention.Cdecl)]
         private static extern int memcmp(byte[] b1, byte[] b2, long count);
+#endif
 
         [Params(32, 128, 1024, 4096, 65536)]
         public int PayLoadSize { get; set; } = 1024;
 
-        private bool m_windows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+        private readonly bool m_windows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
         /// <summary>
         /// Test IsEqual using the generic IsEqual from previous versions.
@@ -89,7 +102,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Benchmark]
         public bool UtilsIsEqualObjectCompare()
         {
-            return Utils.IsEqual((object)m_bufferA, (object)m_bufferB);
+            return Utils.IsEqual(m_bufferA, (object)m_bufferB);
         }
 
         /// <summary>
@@ -98,7 +111,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Benchmark]
         public bool UtilsIsEqualIEnumerableCompare()
         {
-            return Utils.IsEqual((IEnumerable<byte>)m_bufferA, (IEnumerable<byte>)m_bufferB);
+            return Utils.IsEqual(m_bufferA, (IEnumerable<byte>)m_bufferB);
         }
 
         /// <summary>
@@ -116,7 +129,11 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Benchmark]
         public bool ForLoopBinaryCompare()
         {
-            if (m_bufferA.Length != m_bufferB.Length) return false;
+            if (m_bufferA.Length != m_bufferB.Length)
+            {
+                return false;
+            }
+
             int payloadsize = m_bufferA.Length;
             for (int ii = 0; ii < payloadsize; ii++)
             {
@@ -137,13 +154,12 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             if (m_windows)
             {
                 // Validate buffers are the same length.
-                // This also ensures that the count does not exceed the length of either buffer.  
-                return m_bufferA.Length == m_bufferB.Length && memcmp(m_bufferA, m_bufferB, m_bufferA.Length) == 0;
+                // This also ensures that the count does not exceed the length of either buffer.
+                return m_bufferA.Length == m_bufferB.Length &&
+                    memcmp(m_bufferA, m_bufferB, m_bufferA.Length) == 0;
             }
-            else
-            {
-                return ForLoopBinaryCompare();
-            }
+
+            return ForLoopBinaryCompare();
         }
 
         /// <summary>
@@ -152,8 +168,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void UtilsIsEqualObjectCompareTest()
         {
-            bool result;
-            result = UtilsIsEqualGenericByteArrayCompare();
+            bool result = UtilsIsEqualGenericByteArrayCompare();
             Assert.True(result);
             result = UtilsIsEqualByteArrayCompare();
             Assert.True(result);
@@ -173,24 +188,45 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void UtilsIsEqualArrayEqualsByteArrayTest()
         {
             // byte arrays and null
-            Assert.AreEqual(Utils.IsEqual((object)m_bufferA, (object)m_bufferB), Utils.IsEqual(m_bufferA, m_bufferB));
-            Assert.AreEqual(Utils.IsEqual((object)null, (object)m_bufferB), Utils.IsEqual(null, m_bufferB));
-            Assert.AreEqual(Utils.IsEqual((object)m_bufferA, (object)null), Utils.IsEqual(m_bufferA, null));
-            Assert.AreEqual(Utils.IsEqual((object)null, (object)null), Utils.IsEqual((byte[])null, (byte[])null));
 
-            Assert.AreEqual(Utils.IsEqual((object)m_bufferA, (object)m_bufferB), Utils.IsEqual((IEnumerable)m_bufferA, (IEnumerable)m_bufferB));
-            Assert.AreEqual(Utils.IsEqual((object)null, (object)m_bufferB), Utils.IsEqual((IEnumerable)null, (IEnumerable)m_bufferB));
-            Assert.AreEqual(Utils.IsEqual((object)m_bufferA, (object)null), Utils.IsEqual((IEnumerable)m_bufferA, (IEnumerable)null));
+            Assert.AreEqual(
+                Utils.IsEqual(m_bufferA, (object)m_bufferB),
+                Utils.IsEqual(m_bufferA, m_bufferB));
+            Assert.AreEqual(Utils.IsEqual(null, (object)m_bufferB), Utils.IsEqual(null, m_bufferB));
+            Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)null), Utils.IsEqual(m_bufferA, null));
+            Assert.AreEqual(Utils.IsEqual(null, null), Utils.IsEqual(null, null));
 
-            Assert.AreEqual(Utils.IsEqual((object)m_bufferA, (object)m_bufferB), Utils.IsEqual((Array)m_bufferA, (Array)m_bufferB));
-            Assert.AreEqual(Utils.IsEqual((object)null, (object)m_bufferB), Utils.IsEqual((Array)null, (Array)m_bufferB));
-            Assert.AreEqual(Utils.IsEqual((object)m_bufferA, (object)null), Utils.IsEqual((Array)m_bufferA, (Array)null));
+            Assert.AreEqual(
+                Utils.IsEqual(m_bufferA, (object)m_bufferB),
+                Utils.IsEqual(m_bufferA, m_bufferB));
+            Assert.AreEqual(Utils.IsEqual(null, (object)m_bufferB), Utils.IsEqual(null, m_bufferB));
+            Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)null), Utils.IsEqual(m_bufferA, null));
+            Assert.AreEqual(Utils.IsEqual(null, null), Utils.IsEqual(null, null));
 
-            int i = 1;
-            Assert.AreEqual(Utils.IsEqual((object)i, (object)m_bufferB), Utils.IsEqual(i, m_bufferB));
+            Assert.AreEqual(
+                Utils.IsEqual(m_bufferA, (object)m_bufferB),
+                Utils.IsEqual(m_bufferA, (IEnumerable)m_bufferB));
+            Assert.AreEqual(
+                Utils.IsEqual(null, (object)m_bufferB),
+                Utils.IsEqual(null, (IEnumerable)m_bufferB));
+            Assert.AreEqual(
+                Utils.IsEqual(m_bufferA, (object)null),
+                Utils.IsEqual(m_bufferA, (IEnumerable)null));
+
+            Assert.AreEqual(
+                Utils.IsEqual(m_bufferA, (object)m_bufferB),
+                Utils.IsEqual(m_bufferA, (Array)m_bufferB));
+            Assert.AreEqual(
+                Utils.IsEqual(null, (object)m_bufferB),
+                Utils.IsEqual(null, (Array)m_bufferB));
+            Assert.AreEqual(
+                Utils.IsEqual(m_bufferA, (object)null),
+                Utils.IsEqual(m_bufferA, (Array)null));
+
+            const int i = 1;
+            Assert.AreEqual(Utils.IsEqual(i, m_bufferB), Utils.IsEqual(i, m_bufferB));
         }
 
-        #region Test Setup
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
@@ -206,9 +242,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void OneTimeTearDown()
         {
         }
-        #endregion
 
-        #region Benchmark Setup
         /// <summary>
         /// Set up some variables for benchmarks.
         /// </summary>
@@ -230,37 +264,33 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void GlobalCleanup()
         {
         }
-        #endregion
 
-        #region IsEqualByteArray
         /// <summary>
         /// Checks if two byte[] values are equal.
         /// </summary>
         public static bool IsEqual(byte[] value1, byte[] value2)
         {
             // check for reference equality.
-            if (Object.ReferenceEquals(value1, value2))
+            if (ReferenceEquals(value1, value2))
             {
                 return true;
             }
 
-            if (Object.ReferenceEquals(value1, null) || Object.ReferenceEquals(value2, null))
+            if (value1 is null || value2 is null)
             {
                 return false;
             }
 
             return value1.SequenceEqual(value2);
         }
-        #endregion
 
-        #region IsEqual up to 1.4.372.106
         /// <summary>
         /// For backward comparison the original generic version of IsEqual up to release 1.4.372.106.
         /// </summary>
         public static bool IsEqualGeneric(object value1, object value2)
         {
             // check for reference equality.
-            if (Object.ReferenceEquals(value1, value2))
+            if (ReferenceEquals(value1, value2))
             {
                 return true;
             }
@@ -305,7 +335,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
             if (value1 is IEncodeable encodeable1)
             {
-                if (!(value2 is IEncodeable encodeable2))
+                if (value2 is not IEncodeable encodeable2)
                 {
                     return false;
                 }
@@ -317,7 +347,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
             if (value1 is XmlElement element1)
             {
-                if (!(value2 is XmlElement element2))
+                if (value2 is not XmlElement element2)
                 {
                     return false;
                 }
@@ -330,7 +360,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             if (value1 is Array array1)
             {
                 // arrays are greater than non-arrays.
-                if (!(value2 is Array array2))
+                if (value2 is not Array array2)
                 {
                     return false;
                 }
@@ -383,7 +413,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             if (value1 is IEnumerable enumerable1)
             {
                 // collections are greater than non-collections.
-                if (!(value2 is IEnumerable enumerable2))
+                if (value2 is not IEnumerable enumerable2)
                 {
                     return false;
                 }
@@ -393,7 +423,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
                 while (enumerator1.MoveNext())
                 {
-                    // enumerable2 must be shorter. 
+                    // enumerable2 must be shorter.
                     if (!enumerator2.MoveNext())
                     {
                         return false;
@@ -420,12 +450,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             // check for objects that override the Equals function.
             return value1.Equals(value2);
         }
-        #endregion
 
-        #region Private Fields
         private Random m_random;
         private byte[] m_bufferA;
         private byte[] m_bufferB;
-        #endregion
     }
 }

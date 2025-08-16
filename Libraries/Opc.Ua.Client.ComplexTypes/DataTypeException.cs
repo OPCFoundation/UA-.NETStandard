@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -43,6 +43,32 @@ namespace Opc.Ua.Client.ComplexTypes
         public ExpandedNodeIdCollection NodeIds { get; }
 
         /// <summary>
+        /// Create exception
+        /// </summary>
+        public DataTypeNotFoundException()
+        {
+            NodeIds = [];
+        }
+
+        /// <summary>
+        /// Create exception with message.
+        /// </summary>
+        public DataTypeNotFoundException(string message)
+            : base(message)
+        {
+            NodeIds = [];
+        }
+
+        /// <summary>
+        /// Create exception with message and inner exception.
+        /// </summary>
+        public DataTypeNotFoundException(string message, Exception innerException)
+            : base(message, innerException)
+        {
+            NodeIds = [];
+        }
+
+        /// <summary>
         /// Create the exception.
         /// </summary>
         /// <param name="nodeIds">The collection of nodeId of the data types not found.</param>
@@ -68,7 +94,10 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="nodeIds">The collection of nodeId of the data types not found.</param>
         /// <param name="message">The exception message.</param>
         /// <param name="inner">The inner exception.</param>
-        public DataTypeNotFoundException(ExpandedNodeIdCollection nodeIds, string message, Exception inner)
+        public DataTypeNotFoundException(
+            ExpandedNodeIdCollection nodeIds,
+            string message,
+            Exception inner)
             : base(message, inner)
         {
             NodeIds = nodeIds;
@@ -92,6 +121,32 @@ namespace Opc.Ua.Client.ComplexTypes
         public string TypeName { get; }
 
         /// <summary>
+        /// Create exception
+        /// </summary>
+        public DataTypeNotSupportedException()
+        {
+            NodeId = ExpandedNodeId.Null;
+        }
+
+        /// <summary>
+        /// Create exception with message.
+        /// </summary>
+        public DataTypeNotSupportedException(string message)
+            : base(message)
+        {
+            NodeId = ExpandedNodeId.Null;
+        }
+
+        /// <summary>
+        /// Create exception with message and inner exception.
+        /// </summary>
+        public DataTypeNotSupportedException(string message, Exception innerException)
+            : base(message, innerException)
+        {
+            NodeId = ExpandedNodeId.Null;
+        }
+
+        /// <summary>
         /// Create the exception.
         /// </summary>
         /// <param name="nodeId">The nodeId of the data type.</param>
@@ -108,7 +163,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public DataTypeNotSupportedException(string typeName, string message)
             : base(message)
         {
-            NodeId = Ua.NodeId.Null;
+            NodeId = ExpandedNodeId.Null;
             TypeName = typeName;
         }
 
@@ -135,4 +190,4 @@ namespace Opc.Ua.Client.ComplexTypes
             NodeId = nodeId;
         }
     }
-}//namespace
+}

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -27,10 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Text;
-using Opc.Ua;
-
 namespace Opc.Ua.Server
 {
     /// <summary>
@@ -38,13 +34,12 @@ namespace Opc.Ua.Server
     /// </summary>
     /// <remarks>
     /// A NodeHandle is created when GetManagerHandle is called and will only contain
-    /// information found by parsing the NodeId. The ValidateNode method is used to 
-    /// verify that the NodeId refers to a real Node and find a NodeState object that 
+    /// information found by parsing the NodeId. The ValidateNode method is used to
+    /// verify that the NodeId refers to a real Node and find a NodeState object that
     /// can be used to access the Node.
     /// </remarks>
     public class NodeHandle
     {
-        #region Constructors
         /// <summary>
         /// Initializes a new instance of the <see cref="NodeHandle"/> class.
         /// </summary>
@@ -59,13 +54,11 @@ namespace Opc.Ua.Server
         /// <param name="node">The node.</param>
         public NodeHandle(NodeId nodeId, NodeState node)
         {
-            this.NodeId = nodeId;
-            this.Validated = true;
-            this.Node = node;
+            NodeId = nodeId;
+            Validated = true;
+            Node = node;
         }
-        #endregion
-        
-        #region Public Interface
+
         /// <summary>
         /// The NodeId provided by the client.
         /// </summary>
@@ -114,6 +107,5 @@ namespace Opc.Ua.Server
         /// An object that can be used to manage the items which are monitoring the node.
         /// </summary>
         public MonitoredNode2 MonitoredNode { get; set; }
-        #endregion
     }
 }

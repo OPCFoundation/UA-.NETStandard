@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -38,7 +38,6 @@ namespace Opc.Ua.Gds.Client
     /// </summary>
     public class ServerCapabilities : IEnumerable<ServerCapability>
     {
-        #region Constructors
         /// <summary>
         /// Initializes a new instance of the <see cref="ServerCapabilities"/> class.
         /// </summary>
@@ -46,9 +45,7 @@ namespace Opc.Ua.Gds.Client
         {
             Load();
         }
-        #endregion
 
-        #region IEnumerable Members
         public IEnumerator<ServerCapability> GetEnumerator()
         {
             if (m_capabilities == null)
@@ -61,11 +58,9 @@ namespace Opc.Ua.Gds.Client
 
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
         {
-            return this.GetEnumerator();
+            return GetEnumerator();
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// Loads the default set of server capability identifiers.
         /// </summary>
@@ -84,11 +79,15 @@ namespace Opc.Ua.Gds.Client
 
             if (istrm == null)
             {
-                foreach (var resourceName in typeof(Opc.Ua.ObjectIds).Assembly.GetManifestResourceNames())
+                foreach (string resourceName in typeof(Ua.ObjectIds).Assembly
+                    .GetManifestResourceNames())
                 {
-                    if (resourceName.EndsWith("ServerCapabilities.csv", StringComparison.OrdinalIgnoreCase))
+                    if (resourceName.EndsWith(
+                        "ServerCapabilities.csv",
+                        StringComparison.OrdinalIgnoreCase))
                     {
-                        istrm = typeof(Opc.Ua.ObjectIds).Assembly.GetManifestResourceStream(resourceName);
+                        istrm = typeof(Ua.ObjectIds).Assembly
+                            .GetManifestResourceStream(resourceName);
                         break;
                     }
                 }
@@ -96,23 +95,22 @@ namespace Opc.Ua.Gds.Client
 
             if (istrm != null)
             {
-                using (StreamReader reader = new StreamReader(istrm))
+                using var reader = new StreamReader(istrm);
+                string line = reader.ReadLine();
+
+                while (line != null)
                 {
-                    string line = reader.ReadLine();
+                    int index = line.IndexOf(',', StringComparison.Ordinal);
 
-                    while (line != null)
+                    if (index >= 0)
                     {
-                        int index = line.IndexOf(',');
-
-                        if (index >= 0)
-                        {
-                            string id = line.Substring(0, index).Trim();
-                            string description = line.Substring(index + 1).Trim();
-                            capabilities.Add(new ServerCapability() { Id = id, Description = description });
-                        }
-
-                        line = reader.ReadLine();
+                        string id = line[..index].Trim();
+                        string description = line[(index + 1)..].Trim();
+                        capabilities.Add(
+                            new ServerCapability { Id = id, Description = description });
                     }
+
+                    line = reader.ReadLine();
                 }
             }
 
@@ -126,27 +124,21 @@ namespace Opc.Ua.Gds.Client
         /// <returns>The server capability, if found. NULL if it does not exist.</returns>
         public ServerCapability Find(string id)
         {
-            if (id != null)
+            if (id != null && m_capabilities != null)
             {
-                if (m_capabilities != null)
+                foreach (ServerCapability capability in m_capabilities)
                 {
-                    foreach (var capability in m_capabilities)
+                    if (capability.Id == id)
                     {
-                        if (capability.Id == id)
-                        {
-                            return capability;
-                        }
+                        return capability;
                     }
                 }
             }
 
             return null;
         }
-        #endregion
 
-        #region Private Fields
         private List<ServerCapability> m_capabilities;
-        #endregion
     }
 
     /// <summary>
@@ -171,10 +163,10 @@ namespace Opc.Ua.Gds.Client
         public string Description { get; set; }
 
         /// <summary>
-        /// Returns a <see cref="System.String" /> that represents this instance.
+        /// Returns a <see cref="string" /> that represents this instance.
         /// </summary>
         /// <returns>
-        /// A <see cref="System.String" /> that represents this instance.
+        /// A <see cref="string" /> that represents this instance.
         /// </returns>
         public override string ToString()
         {
@@ -182,20 +174,24 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <summary>
-        /// Returns a <see cref="System.String" /> that represents this instance.
+        /// Returns a <see cref="string" /> that represents this instance.
         /// </summary>
         /// <param name="format">The format. Must be null.</param>
         /// <param name="formatProvider">The format provider.</param>
         /// <returns>
-        /// A <see cref="System.String" /> that represents this instance.
+        /// A <see cref="string" /> that represents this instance.
         /// </returns>
+        /// <exception cref="FormatException"></exception>
         public string ToString(string format, IFormatProvider formatProvider)
         {
-            if (format != null) throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+            if (format != null)
+            {
+                throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+            }
+
             return string.Format(formatProvider, "[{0}] {1}", Id, Description);
         }
 
-        #region Well Known Identifiers
         /// <summary>
         /// No information is available.
         /// </summary>
@@ -235,6 +231,5 @@ namespace Opc.Ua.Gds.Client
         /// The server supports the device integration (DI) information model.
         /// </summary>
         public const string DI = "DI";
-        #endregion
     }
 }

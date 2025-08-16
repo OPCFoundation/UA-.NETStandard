@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -35,7 +35,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Mono.Options;
 using Opc.Ua;
@@ -44,6 +43,9 @@ using Serilog;
 using Serilog.Events;
 using Serilog.Templates;
 using static Opc.Ua.Utils;
+#if NET5_0_OR_GREATER
+using Microsoft.Extensions.Configuration;
+#endif
 
 namespace Quickstarts
 {
@@ -52,7 +54,7 @@ namespace Quickstarts
     /// </summary>
     public class LogWriter : TextWriter
     {
-        private StringBuilder m_builder = new StringBuilder();
+        private readonly StringBuilder m_builder = new();
 
         public override void Write(char value)
         {
@@ -105,16 +107,13 @@ namespace Quickstarts
             m_builder.Clear();
         }
 
-        public override Encoding Encoding
-        {
-            get { return Encoding.Default; }
-        }
+        public override Encoding Encoding => Encoding.Default;
     }
 
     /// <summary>
     /// The error code why the application exit.
     /// </summary>
-    public enum ExitCode : int
+    public enum ExitCode
     {
         Ok = 0,
         ErrorNotStarted = 0x80,
@@ -123,7 +122,7 @@ namespace Quickstarts
         ErrorStopping = 0x83,
         ErrorCertificate = 0x84,
         ErrorInvalidCommandLine = 0x100
-    };
+    }
 
     /// <summary>
     /// An exception that occured and caused an exit of the application.
@@ -143,22 +142,26 @@ namespace Quickstarts
             ExitCode = ExitCode.Ok;
         }
 
-        public ErrorExitException(string message) : base(message)
+        public ErrorExitException(string message)
+            : base(message)
         {
             ExitCode = ExitCode.Ok;
         }
 
-        public ErrorExitException(string message, ExitCode exitCode) : base(message)
+        public ErrorExitException(string message, ExitCode exitCode)
+            : base(message)
         {
             ExitCode = exitCode;
         }
 
-        public ErrorExitException(string message, Exception innerException) : base(message, innerException)
+        public ErrorExitException(string message, Exception innerException)
+            : base(message, innerException)
         {
             ExitCode = ExitCode.Ok;
         }
 
-        public ErrorExitException(string message, Exception innerException, ExitCode exitCode) : base(message, innerException)
+        public ErrorExitException(string message, Exception innerException, ExitCode exitCode)
+            : base(message, innerException)
         {
             ExitCode = exitCode;
         }
@@ -169,7 +172,7 @@ namespace Quickstarts
     /// </summary>
     public class ApplicationMessageDlg : IApplicationMessageDlg
     {
-        private TextWriter m_output;
+        private readonly TextWriter m_output;
         private string m_message = string.Empty;
         private bool m_ask;
 
@@ -196,8 +199,8 @@ namespace Quickstarts
                 {
                     ConsoleKeyInfo result = Console.ReadKey();
                     m_output.WriteLine();
-                    return await Task.FromResult((result.KeyChar == 'y') ||
-                        (result.KeyChar == 'Y') || (result.KeyChar == '\r')).ConfigureAwait(false);
+                    return await Task.FromResult(result.KeyChar is 'y' or 'Y' or '\r')
+                        .ConfigureAwait(false);
                 }
                 catch
                 {
@@ -221,33 +224,36 @@ namespace Quickstarts
         /// <summary>
         /// Process a command line of the console sample application.
         /// </summary>
+        /// <exception cref="ErrorExitException"></exception>
         public static string ProcessCommandLine(
             TextWriter output,
             string[] args,
             Mono.Options.OptionSet options,
             ref bool showHelp,
             string environmentPrefix,
-            bool noExtraArgs = true)
+            bool noExtraArgs = true
+        )
         {
 #if NET5_0_OR_GREATER
             // Convert environment settings to command line flags
             // because in some environments (e.g. docker cloud) it is
             // the only supported way to pass arguments.
-            var config = new ConfigurationBuilder()
+            IConfigurationRoot config = new ConfigurationBuilder()
                 .AddEnvironmentVariables(environmentPrefix + "_")
                 .Build();
 
-            var argslist = args.ToList();
-            foreach (var option in options)
+            List<string> argslist = [.. args];
+            foreach (Option option in options)
             {
-                var names = option.GetNames();
+                string[] names = option.GetNames();
                 string longest = names.MaxBy(s => s.Length);
                 if (longest != null && longest.Length >= 3)
                 {
                     string envKey = config[longest.ToUpperInvariant()];
                     if (envKey != null)
                     {
-                        if (string.IsNullOrWhiteSpace(envKey) || option.OptionValueType == Mono.Options.OptionValueType.None)
+                        if (string.IsNullOrWhiteSpace(envKey) ||
+                            option.OptionValueType == OptionValueType.None)
                         {
                             argslist.Add("--" + longest);
                         }
@@ -258,7 +264,7 @@ namespace Quickstarts
                     }
                 }
             }
-            args = argslist.ToArray();
+            args = [.. argslist];
 #endif
 
             IList<string> extraArgs = null;
@@ -283,7 +289,10 @@ namespace Quickstarts
             if (showHelp)
             {
                 options.WriteOptionDescriptions(output);
-                throw new ErrorExitException("Invalid Commandline or help requested.", ExitCode.ErrorInvalidCommandLine);
+                throw new ErrorExitException(
+                    "Invalid Commandline or help requested.",
+                    ExitCode.ErrorInvalidCommandLine
+                );
             }
 
             return extraArgs.FirstOrDefault();
@@ -309,50 +318,62 @@ namespace Quickstarts
             ApplicationConfiguration configuration,
             string context,
             bool logConsole,
-            LogLevel consoleLogLevel)
+            LogLevel consoleLogLevel
+        )
         {
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
             TaskScheduler.UnobservedTaskException += Unobserved_TaskException;
 
-            var loggerConfiguration = new LoggerConfiguration()
-                    .Enrich.FromLogContext();
+            LoggerConfiguration loggerConfiguration = new LoggerConfiguration().Enrich
+                .FromLogContext();
 
             if (logConsole)
             {
                 loggerConfiguration.WriteTo.Console(
                     restrictedToMinimumLevel: (LogEventLevel)consoleLogLevel,
                     formatProvider: CultureInfo.InvariantCulture
-                    );
+                );
             }
 #if DEBUG
             else
             {
-                loggerConfiguration
-                    .WriteTo.Debug(
-                        restrictedToMinimumLevel: (LogEventLevel)consoleLogLevel,
-                        formatProvider: CultureInfo.InvariantCulture
-                        );
+                loggerConfiguration.WriteTo.Debug(
+                    restrictedToMinimumLevel: (LogEventLevel)consoleLogLevel,
+                    formatProvider: CultureInfo.InvariantCulture
+                );
             }
 #endif
             LogLevel fileLevel = LogLevel.Information;
 
             // switch for Trace/Verbose output
-            var traceMasks = configuration.TraceConfiguration.TraceMasks;
-            if ((traceMasks & ~(TraceMasks.Information | TraceMasks.Error |
-                TraceMasks.Security | TraceMasks.StartStop | TraceMasks.StackTrace)) != 0)
+            int traceMasks = configuration.TraceConfiguration.TraceMasks;
+            if (
+                (
+                    traceMasks &
+                    ~(
+                        TraceMasks.Information |
+                        TraceMasks.Error |
+                        TraceMasks.Security |
+                        TraceMasks.StartStop |
+                        TraceMasks.StackTrace
+                    )
+                ) != 0
+            )
             {
                 fileLevel = LogLevel.Trace;
             }
 
             // add file logging if configured
-            var outputFilePath = configuration.TraceConfiguration.OutputFilePath;
+            string outputFilePath = configuration.TraceConfiguration.OutputFilePath;
             if (!string.IsNullOrWhiteSpace(outputFilePath))
             {
                 loggerConfiguration.WriteTo.File(
-                    new ExpressionTemplate("{UtcDateTime(@t):yyyy-MM-dd HH:mm:ss.fff} [{@l:u3}] {@m}\n{@x}"),
+                    new ExpressionTemplate(
+                        "{UtcDateTime(@t):yyyy-MM-dd HH:mm:ss.fff} [{@l:u3}] {@m}\n{@x}"),
                     ReplaceSpecialFolderNames(outputFilePath),
                     restrictedToMinimumLevel: (LogEventLevel)fileLevel,
-                    rollOnFileSizeLimit: true);
+                    rollOnFileSizeLimit: true
+                );
             }
 
             // adjust minimum level
@@ -362,11 +383,11 @@ namespace Quickstarts
             }
 
             // create the serilog logger
-            var serilogger = loggerConfiguration
-                .CreateLogger();
+            Serilog.Core.Logger serilogger = loggerConfiguration.CreateLogger();
 
             // create the ILogger for Opc.Ua.Core
-            var logger = LoggerFactory.Create(builder => builder.SetMinimumLevel(LogLevel.Trace))
+            Microsoft.Extensions.Logging.ILogger logger = LoggerFactory
+                .Create(builder => builder.SetMinimumLevel(LogLevel.Trace))
                 .AddSerilog(serilogger)
                 .CreateLogger(context);
 
@@ -381,14 +402,29 @@ namespace Quickstarts
         {
             // print legacy logging output, for testing
             Trace(TraceMasks.Error, "This is an Error message: {0}", TraceMasks.Error);
-            Trace(TraceMasks.Information, "This is a Information message: {0}", TraceMasks.Information);
-            Trace(TraceMasks.StackTrace, "This is a StackTrace message: {0}", TraceMasks.StackTrace);
+            Trace(
+                TraceMasks.Information,
+                "This is a Information message: {0}",
+                TraceMasks.Information);
+            Trace(
+                TraceMasks.StackTrace,
+                "This is a StackTrace message: {0}",
+                TraceMasks.StackTrace);
             Trace(TraceMasks.Service, "This is a Service message: {0}", TraceMasks.Service);
-            Trace(TraceMasks.ServiceDetail, "This is a ServiceDetail message: {0}", TraceMasks.ServiceDetail);
+            Trace(
+                TraceMasks.ServiceDetail,
+                "This is a ServiceDetail message: {0}",
+                TraceMasks.ServiceDetail);
             Trace(TraceMasks.Operation, "This is a Operation message: {0}", TraceMasks.Operation);
-            Trace(TraceMasks.OperationDetail, "This is a OperationDetail message: {0}", TraceMasks.OperationDetail);
+            Trace(
+                TraceMasks.OperationDetail,
+                "This is a OperationDetail message: {0}",
+                TraceMasks.OperationDetail);
             Trace(TraceMasks.StartStop, "This is a StartStop message: {0}", TraceMasks.StartStop);
-            Trace(TraceMasks.ExternalSystem, "This is a ExternalSystem message: {0}", TraceMasks.ExternalSystem);
+            Trace(
+                TraceMasks.ExternalSystem,
+                "This is a ExternalSystem message: {0}",
+                TraceMasks.ExternalSystem);
             Trace(TraceMasks.Security, "This is a Security message: {0}", TraceMasks.Security);
 
             // print ILogger logging output
@@ -409,7 +445,8 @@ namespace Quickstarts
             var quitEvent = new ManualResetEvent(false);
             try
             {
-                Console.CancelKeyPress += (_, eArgs) => {
+                Console.CancelKeyPress += (_, eArgs) =>
+                {
                     cts.Cancel();
                     quitEvent.Set();
                     eArgs.Cancel = true;
@@ -422,16 +459,21 @@ namespace Quickstarts
             return quitEvent;
         }
 
-        private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs args)
+        private static void CurrentDomain_UnhandledException(
+            object sender,
+            UnhandledExceptionEventArgs args)
         {
-            Utils.LogCritical("Unhandled Exception: {0} IsTerminating: {1}", args.ExceptionObject, args.IsTerminating);
+            LogCritical(
+                "Unhandled Exception: {0} IsTerminating: {1}",
+                args.ExceptionObject,
+                args.IsTerminating);
         }
 
-        private static void Unobserved_TaskException(object sender, UnobservedTaskExceptionEventArgs args)
+        private static void Unobserved_TaskException(
+            object sender,
+            UnobservedTaskExceptionEventArgs args)
         {
-            Utils.LogCritical("Unobserved Exception: {0} Observed: {1}", args.Exception, args.Observed);
+            LogCritical("Unobserved Exception: {0} Observed: {1}", args.Exception, args.Observed);
         }
-
     }
 }
-

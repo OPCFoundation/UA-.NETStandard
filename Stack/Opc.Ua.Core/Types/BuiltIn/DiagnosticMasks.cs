@@ -17,7 +17,7 @@ namespace Opc.Ua
     /// <summary>
     /// The DiagnosticsMasks enumeration.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1717:OnlyFlagsEnumsShouldHavePluralNames"), Flags]
+    [Flags]
     public enum DiagnosticsMasks : uint
     {
         /// <summary>
@@ -36,6 +36,11 @@ namespace Opc.Ua
         ServiceLocalizedText = 2,
 
         /// <summary>
+        /// ServiceSymbolicIdAndText = 3,
+        /// </summary>
+        ServiceSymbolicIdAndText = ServiceSymbolicId | ServiceLocalizedText,
+
+        /// <summary>
         /// ServiceAdditionalInfo = 4,
         /// </summary>
         ServiceAdditionalInfo = 4,
@@ -46,24 +51,21 @@ namespace Opc.Ua
         ServiceInnerStatusCode = 8,
 
         /// <summary>
+        /// ServiceNoInnerStatus = 15,
+        /// </summary>
+        ServiceNoInnerStatus = ServiceSymbolicIdAndText |
+            ServiceAdditionalInfo |
+            ServiceInnerStatusCode,
+
+        /// <summary>
         /// ServiceInnerDiagnostics = 16,
         /// </summary>
         ServiceInnerDiagnostics = 16,
 
         /// <summary>
-        /// ServiceSymbolicIdAndText = 3,
-        /// </summary>
-        ServiceSymbolicIdAndText = 3,
-
-        /// <summary>
-        /// ServiceNoInnerStatus = 15,
-        /// </summary>
-        ServiceNoInnerStatus = 15,
-
-        /// <summary>
         /// ServiceAll = 31,
         /// </summary>
-        ServiceAll = 31,
+        ServiceAll = ServiceNoInnerStatus | ServiceInnerDiagnostics,
 
         /// <summary>
         /// OperationSymbolicId = 32,
@@ -71,9 +73,29 @@ namespace Opc.Ua
         OperationSymbolicId = 32,
 
         /// <summary>
+        /// SymbolicId = 33,
+        /// </summary>
+        SymbolicId = ServiceSymbolicId | OperationSymbolicId,
+
+        /// <summary>
         /// OperationLocalizedText = 64,
         /// </summary>
         OperationLocalizedText = 64,
+
+        /// <summary>
+        /// LocalizedText = 66,
+        /// </summary>
+        LocalizedText = ServiceLocalizedText | OperationLocalizedText,
+
+        /// <summary>
+        /// OperationSymbolicIdAndText = 96,
+        /// </summary>
+        OperationSymbolicIdAndText = OperationSymbolicId | OperationLocalizedText,
+
+        /// <summary>
+        /// SymbolicIdAndText = 99,
+        /// </summary>
+        SymbolicIdAndText = ServiceSymbolicIdAndText | OperationSymbolicIdAndText,
 
         /// <summary>
         /// OperationAdditionalInfo = 128,
@@ -81,9 +103,29 @@ namespace Opc.Ua
         OperationAdditionalInfo = 128,
 
         /// <summary>
+        /// AdditionalInfo = 132,
+        /// </summary>
+        AdditionalInfo = ServiceAdditionalInfo | OperationAdditionalInfo,
+
+        /// <summary>
+        /// OperationNoInnerStatus = 224,
+        /// </summary>
+        OperationNoInnerStatus = OperationSymbolicIdAndText | OperationAdditionalInfo,
+
+        /// <summary>
+        /// NoInnerStatus = 239,
+        /// </summary>
+        NoInnerStatus = ServiceNoInnerStatus | OperationNoInnerStatus,
+
+        /// <summary>
         /// OperationInnerStatusCode = 256,
         /// </summary>
         OperationInnerStatusCode = 256,
+
+        /// <summary>
+        /// InnerStatusCode = 264,
+        /// </summary>
+        InnerStatusCode = ServiceInnerStatusCode | OperationInnerStatusCode,
 
         /// <summary>
         /// OperationInnerDiagnostics = 512,
@@ -91,59 +133,21 @@ namespace Opc.Ua
         OperationInnerDiagnostics = 512,
 
         /// <summary>
-        /// OperationSymbolicIdAndText = 96,
+        /// InnerDiagnostics = 528,
         /// </summary>
-        OperationSymbolicIdAndText = 96,
-
-        /// <summary>
-        /// OperationNoInnerStatus = 224,
-        /// </summary>
-        OperationNoInnerStatus = 224,
+        InnerDiagnostics = ServiceInnerDiagnostics | OperationInnerDiagnostics,
 
         /// <summary>
         /// OperationAll = 992,
         /// </summary>
-        OperationAll = 992,
-
-        /// <summary>
-        /// SymbolicId = 33,
-        /// </summary>
-        SymbolicId = 33,
-
-        /// <summary>
-        /// LocalizedText = 66,
-        /// </summary>
-        LocalizedText = 66,
-
-        /// <summary>
-        /// AdditionalInfo = 132,
-        /// </summary>
-        AdditionalInfo = 132,
-
-        /// <summary>
-        /// InnerStatusCode = 264,
-        /// </summary>
-        InnerStatusCode = 264,
-
-        /// <summary>
-        /// InnerDiagnostics = 528,
-        /// </summary>
-        InnerDiagnostics = 528,
-
-        /// <summary>
-        /// SymbolicIdAndText = 99,
-        /// </summary>
-        SymbolicIdAndText = 99,
-
-        /// <summary>
-        /// NoInnerStatus = 239,
-        /// </summary>
-        NoInnerStatus = 239,
+        OperationAll = OperationNoInnerStatus |
+            OperationInnerStatusCode |
+            OperationInnerDiagnostics,
 
         /// <summary>
         /// All = 1023
         /// </summary>
-        All = 1023,
+        All = ServiceAll | OperationAll,
 
         /// <summary>
         /// UserPermissionAdditionalInfo = 0x80000000,
@@ -152,6 +156,5 @@ namespace Opc.Ua
         /// Mask for internal use only.
         /// </remarks>
         UserPermissionAdditionalInfo = 0x80000000
-
     }
 }

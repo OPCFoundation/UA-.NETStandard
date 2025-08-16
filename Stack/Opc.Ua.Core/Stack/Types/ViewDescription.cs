@@ -11,13 +11,9 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
 {
-    #region ViewDescription Class
     /// <summary>
     /// Describes a view to browse or query.
     /// </summary>
@@ -33,7 +29,9 @@ namespace Opc.Ua
                 return true;
             }
 
-            if (NodeId.IsNull(view.m_viewId) && view.m_viewVersion == 0 && view.m_timestamp == DateTime.MinValue)
+            if (NodeId.IsNull(view.m_viewId) &&
+                view.m_viewVersion == 0 &&
+                view.m_timestamp == DateTime.MinValue)
             {
                 return true;
             }
@@ -41,5 +39,4 @@ namespace Opc.Ua
             return false;
         }
     }
-    #endregion
 }

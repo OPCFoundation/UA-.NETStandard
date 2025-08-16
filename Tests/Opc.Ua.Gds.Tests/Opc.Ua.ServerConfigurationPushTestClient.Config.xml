@@ -8,7 +8,6 @@
   <ApplicationUri>urn:localhost:opcfoundation.org:ServerConfigurationPushTestClient</ApplicationUri>
   <ProductUri>http://opcfoundation.org/UA/ServerConfigurationPushTestClient</ProductUri>
   <ApplicationType>Client_1</ApplicationType>
-
   <SecurityConfiguration>
     <ApplicationCertificates>
       <CertificateIdentifier>
@@ -18,36 +17,28 @@
         <CertificateTypeString>RsaSha256</CertificateTypeString>
       </CertificateIdentifier>
     </ApplicationCertificates>
-
     <TrustedIssuerCertificates>
       <StoreType>Directory</StoreType>
       <StorePath>%LocalApplicationData%/OPC/pki/issuers</StorePath>
     </TrustedIssuerCertificates>
-
     <TrustedPeerCertificates>
       <StoreType>Directory</StoreType>
       <StorePath>%LocalApplicationData%/OPC/pki/trusted</StorePath>
     </TrustedPeerCertificates>
-
     <RejectedCertificateStore>
       <StoreType>Directory</StoreType>
       <StorePath>%LocalApplicationData%/OPC/pki/rejected</StorePath>
     </RejectedCertificateStore>
-
     <!-- WARNING: The following setting (to automatically accept untrusted certificates) should be used
     for easy debugging purposes ONLY and turned off for production deployments! -->
     <AutoAcceptUntrustedCertificates>true</AutoAcceptUntrustedCertificates>
-
     <!-- WARNING: SHA1 signed certificates are by default rejected and should be phased out. -->
     <RejectSHA1SignedCertificates>false</RejectSHA1SignedCertificates>
     <MinimumCertificateKeySize>1024</MinimumCertificateKeySize>
     <AddAppCertToTrustedStore>false</AddAppCertToTrustedStore>
     <SendCertificateChain>false</SendCertificateChain>
-      
   </SecurityConfiguration>
-
   <TransportConfigurations></TransportConfigurations>
-
   <TransportQuotas>
     <OperationTimeout>600000</OperationTimeout>
     <MaxStringLength>1048576</MaxStringLength>
@@ -58,27 +49,21 @@
     <ChannelLifetime>300000</ChannelLifetime>
     <SecurityTokenLifetime>3600000</SecurityTokenLifetime>
   </TransportQuotas>
-
   <ClientConfiguration>
     <!-- The default timeout for new sessions -->
     <DefaultSessionTimeout>600000</DefaultSessionTimeout>
-
     <!-- The well-known URLs for the local discovery servers
          URLs are tested in the order they appear in this list. -->
     <WellKnownDiscoveryUrls>
       <ua:String>opc.tcp://{0}:4840/UADiscovery</ua:String>
     </WellKnownDiscoveryUrls>
-
     <!-- EndpointDescriptions for system wide discovery servers -->
     <DiscoveryServers></DiscoveryServers>
-
     <!-- The minimum subscription lifetime.
          This ensures subscriptions are not set to expire too quickly. The requesed lifetime count
          and keep alive count are calculated using this value and the request publishing interval -->
     <MinSubscriptionLifetime>10000</MinSubscriptionLifetime>
-
   </ClientConfiguration>
-  
   <Extensions>
     <ua:XmlElement>
       <ServerConfigurationPushTestClientConfiguration xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd">
@@ -91,7 +76,6 @@
       </ServerConfigurationPushTestClientConfiguration>
     </ua:XmlElement>
   </Extensions>
-
   <TraceConfiguration>
     <OutputFilePath>%LocalApplicationData%/OPC/Logs/Opc.Ua.Gds.Tests.log.txt</OutputFilePath>
     <DeleteOnLoad>false</DeleteOnLoad>
@@ -108,5 +92,4 @@
     <!-- Show Only Security, ServiceResultExceptions, Errors and Trace -->
     <TraceMasks>519</TraceMasks>
   </TraceConfiguration>
-
 </ApplicationConfiguration>

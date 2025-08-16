@@ -13,7 +13,6 @@
     <EnablePackageValidation>false</EnablePackageValidation>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
-
   <!-- Choose which platforms support ECC -->
   <Choose>
     <When Condition="'$(TargetFramework)' == 'net462' Or '$(TargetFramework)' == 'netstandard2.0'">
@@ -27,15 +26,19 @@
       </PropertyGroup>
     </Otherwise>
   </Choose>
-
+  <!-- Polyfills for .NET Standard 2.0 and .net 4.8 -->
+  <ItemGroup>
+    <PackageReference Include="PolySharp" PrivateAssets="All" />
+  </ItemGroup>
+  <PropertyGroup>
+    <PolySharpUsePublicAccessibilityForGeneratedTypes>true</PolySharpUsePublicAccessibilityForGeneratedTypes>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
-
   <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
     <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
   </PropertyGroup>
-
   <!-- Choose Asn1 encoder and additional crypto library version -->
   <Choose>
     <When Condition="'$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48'">
@@ -44,11 +47,8 @@
       </ItemGroup>
     </When>
   </Choose>
-  
   <ItemGroup>
     <PackageReference Include="System.Formats.Asn1" />
   </ItemGroup>
-  
   <Target Name="GetPackagingOutputs" />
-
 </Project>

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -37,53 +37,48 @@ namespace Opc.Ua.Security.Certificates
     /// The certificate builder interface.
     /// </summary>
     public interface ICertificateBuilder
-        : ICertificateBuilderConfig
-        , ICertificateBuilderPublicKey
-        , ICertificateBuilderSetIssuer
-        , ICertificateBuilderParameter
-        , ICertificateBuilderCreateForRSA
-        , IX509Certificate
-    { }
+        : ICertificateBuilderConfig,
+            ICertificateBuilderPublicKey,
+            ICertificateBuilderSetIssuer,
+            ICertificateBuilderParameter,
+            ICertificateBuilderCreateForRSA,
+            IX509Certificate;
 
     /// <summary>
     /// The interface to set an issuer.
     /// </summary>
     public interface ICertificateBuilderIssuer
-        : ICertificateBuilderPublicKey
-        , ICertificateBuilderCreateForRSA
-        , ICertificateBuilderParameter
-        , ICertificateBuilderCreateGenerator
-    { }
+        : ICertificateBuilderPublicKey,
+            ICertificateBuilderCreateForRSA,
+            ICertificateBuilderParameter,
+            ICertificateBuilderCreateGenerator;
 
     /// <summary>
     /// The interface to set a public key.
     /// </summary>
-    public interface ICertificateBuilderPublicKey
-        : ICertificateBuilderRSAPublicKey
+    public interface ICertificateBuilderPublicKey : ICertificateBuilderRSAPublicKey
 #if ECC_SUPPORT
-        , ICertificateBuilderECDsaPublicKey
+            , ICertificateBuilderECDsaPublicKey
 #endif
-    { }
+    ;
 
     /// <summary>
     /// The interface to set key parameters.
     /// </summary>
-    public interface ICertificateBuilderParameter
-        : ICertificateBuilderRSAParameter
+    public interface ICertificateBuilderParameter : ICertificateBuilderRSAParameter
 #if ECC_SUPPORT
-        , ICertificateBuilderECCParameter
+            , ICertificateBuilderECCParameter
 #endif
-    { }
+    ;
 
     /// <summary>
     /// The interface to create a certificate.
     /// </summary>
-    public interface ICertificateBuilderCreate
-        : ICertificateBuilderCreateForRSA
+    public interface ICertificateBuilderCreate : ICertificateBuilderCreateForRSA
 #if ECC_SUPPORT
-        , ICertificateBuilderCreateForECDsa
+            , ICertificateBuilderCreateForECDsa
 #endif
-    { }
+    ;
 
     /// <summary>
     /// The interface to use a signature generator.
@@ -91,26 +86,25 @@ namespace Opc.Ua.Security.Certificates
     public interface ICertificateBuilderCreateGenerator
         : ICertificateBuilderCreateForRSAGenerator
 #if ECC_SUPPORT
-        , ICertificateBuilderCreateForECDsaGenerator
+            ,
+            ICertificateBuilderCreateForECDsaGenerator
 #endif
-    { }
+    ;
 
     /// <summary>
     /// The interface to create a RSA based certificate.
     /// </summary>
     public interface ICertificateBuilderCreateForRSAAny
-        : ICertificateBuilderCreateForRSA
-        , ICertificateBuilderCreateForRSAGenerator
-    { }
+        : ICertificateBuilderCreateForRSA,
+            ICertificateBuilderCreateForRSAGenerator;
 
 #if ECC_SUPPORT
     /// <summary>
     /// The interface to create a ECDSA based certificate.
     /// </summary>
     public interface ICertificateBuilderCreateForECDsaAny
-        : ICertificateBuilderCreateForECDsa
-        , ICertificateBuilderCreateForECDsaGenerator
-    { }
+        : ICertificateBuilderCreateForECDsa,
+            ICertificateBuilderCreateForECDsaGenerator;
 #endif
 
     /// <summary>
@@ -126,7 +120,6 @@ namespace Opc.Ua.Security.Certificates
         /// The length of the serial number shall
         /// not exceed <see cref="X509Defaults.SerialNumberLengthMax"/> octets.
         /// </remarks>
-        /// <param name="length"></param>
         ICertificateBuilder SetSerialNumberLength(int length);
 
         /// <summary>

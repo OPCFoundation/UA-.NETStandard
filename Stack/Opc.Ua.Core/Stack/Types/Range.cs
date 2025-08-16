@@ -11,9 +11,6 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
 {
@@ -41,9 +38,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the difference between high and low.
         /// </summary>
-        public double Magnitude
-        {
-            get { return Math.Abs(m_high - m_low); }
-        }
+        public double Magnitude => Math.Abs(m_high - m_low);
     }
 }

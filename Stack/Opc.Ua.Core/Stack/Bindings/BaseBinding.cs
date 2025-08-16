@@ -17,7 +17,6 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public abstract class BaseBinding
     {
-        #region Constructors
         /// <summary>
         /// Initializes the binding.
         /// </summary>
@@ -26,7 +25,8 @@ namespace Opc.Ua.Bindings
             IEncodeableFactory factory,
             EndpointConfiguration configuration)
         {
-            m_messageContext = new ServiceMessageContext {
+            MessageContext = new ServiceMessageContext
+            {
                 MaxStringLength = configuration.MaxStringLength,
                 MaxByteStringLength = configuration.MaxByteStringLength,
                 MaxArrayLength = configuration.MaxArrayLength,
@@ -37,21 +37,10 @@ namespace Opc.Ua.Bindings
                 NamespaceUris = namespaceUris
             };
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The message context to use with the binding.
         /// </summary>
-        public IServiceMessageContext MessageContext
-        {
-            get { return m_messageContext; }
-            set { m_messageContext = value; }
-        }
-        #endregion
-
-        #region Private Fields
-        private IServiceMessageContext m_messageContext;
-        #endregion
+        public IServiceMessageContext MessageContext { get; set; }
     }
 }

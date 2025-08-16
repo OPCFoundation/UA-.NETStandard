@@ -10,11 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-using System.Collections.Generic;
-using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
-
 namespace Opc.Ua
 {
     /// <summary>
@@ -22,33 +17,20 @@ namespace Opc.Ua
     /// </summary>
     public partial class HistoryUpdateDetails
     {
-        #region Supporting Properties and Methods
         /// <summary>
         /// The identifier for the Node being updated.
         /// </summary>
-        public virtual NodeId NodeId
-        {
-            get;
-            set;
-        }
+        public virtual NodeId NodeId { get; set; }
 
         /// <summary>
         /// A handle assigned to the item during processing.
         /// </summary>
-        public object Handle
-        {
-            get { return m_handle; }
-            set { m_handle = value; }
-        }
+        public object Handle { get; set; }
 
         /// <summary>
         /// Whether the value has been processed.
         /// </summary>
-        public bool Processed
-        {
-            get { return m_processed; }
-            set { m_processed = value; }
-        }
+        public bool Processed { get; set; }
 
         /// <summary>
         /// Validates a HistoryUpdateDetails parameter.
@@ -70,11 +52,5 @@ namespace Opc.Ua
             // passed basic validation.
             return null;
         }
-        #endregion
-
-        #region Private Fields
-        private object m_handle;
-        private bool m_processed;
-        #endregion
     }
 }

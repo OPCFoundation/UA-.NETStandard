@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -38,7 +38,6 @@ namespace Opc.Ua.Client
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class Browser
     {
-        #region Constructors
         /// <summary>
         /// Creates an unattached instance of a browser.
         /// </summary>
@@ -85,7 +84,7 @@ namespace Opc.Ua.Client
             m_session = null;
             m_view = null;
             m_maxReferencesReturned = 0;
-            m_browseDirection = Opc.Ua.BrowseDirection.Forward;
+            m_browseDirection = BrowseDirection.Forward;
             m_referenceTypeId = null;
             m_includeSubtypes = true;
             m_nodeClassMask = 0;
@@ -93,16 +92,13 @@ namespace Opc.Ua.Client
             m_continueUntilDone = false;
             m_browseInProgress = false;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The session that the browse is attached to.
         /// </summary>
         public ISession Session
         {
-            get { return m_session; }
-
+            get => m_session;
             set
             {
                 CheckBrowserState();
@@ -116,8 +112,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 1)]
         public ViewDescription View
         {
-            get { return m_view; }
-
+            get => m_view;
             set
             {
                 CheckBrowserState();
@@ -131,8 +126,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 2)]
         public uint MaxReferencesReturned
         {
-            get { return m_maxReferencesReturned; }
-
+            get => m_maxReferencesReturned;
             set
             {
                 CheckBrowserState();
@@ -146,8 +140,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 3)]
         public BrowseDirection BrowseDirection
         {
-            get { return m_browseDirection; }
-
+            get => m_browseDirection;
             set
             {
                 CheckBrowserState();
@@ -161,8 +154,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 4)]
         public NodeId ReferenceTypeId
         {
-            get { return m_referenceTypeId; }
-
+            get => m_referenceTypeId;
             set
             {
                 CheckBrowserState();
@@ -176,8 +168,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 5)]
         public bool IncludeSubtypes
         {
-            get { return m_includeSubtypes; }
-
+            get => m_includeSubtypes;
             set
             {
                 CheckBrowserState();
@@ -191,8 +182,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 6)]
         public int NodeClassMask
         {
-            get { return Utils.ToInt32(m_nodeClassMask); }
-
+            get => Utils.ToInt32(m_nodeClassMask);
             set
             {
                 CheckBrowserState();
@@ -206,8 +196,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 6)]
         public uint ResultMask
         {
-            get { return m_resultMask; }
-
+            get => m_resultMask;
             set
             {
                 CheckBrowserState();
@@ -218,11 +207,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Raised when a browse operation halted because of a continuation point.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1009:DeclareEventHandlersCorrectly")]
         public event BrowserEventHandler MoreReferences
         {
-            add { m_MoreReferences += value; }
-            remove { m_MoreReferences -= value; }
+            add => m_MoreReferences += value;
+            remove => m_MoreReferences -= value;
         }
 
         /// <summary>
@@ -230,25 +218,25 @@ namespace Opc.Ua.Client
         /// </summary>
         public bool ContinueUntilDone
         {
-            get { return m_continueUntilDone; }
-
+            get => m_continueUntilDone;
             set
             {
                 CheckBrowserState();
                 m_continueUntilDone = value;
             }
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Browses the specified node.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public ReferenceDescriptionCollection Browse(NodeId nodeId)
         {
             if (m_session == null)
             {
-                throw new ServiceResultException(StatusCodes.BadServerNotConnected, "Cannot browse if not connected to a server.");
+                throw new ServiceResultException(
+                    StatusCodes.BadServerNotConnected,
+                    "Cannot browse if not connected to a server.");
             }
 
             try
@@ -256,29 +244,27 @@ namespace Opc.Ua.Client
                 m_browseInProgress = true;
 
                 // construct request.
-                BrowseDescription nodeToBrowse = new BrowseDescription();
+                var nodeToBrowse = new BrowseDescription
+                {
+                    NodeId = nodeId,
+                    BrowseDirection = m_browseDirection,
+                    ReferenceTypeId = m_referenceTypeId,
+                    IncludeSubtypes = m_includeSubtypes,
+                    NodeClassMask = m_nodeClassMask,
+                    ResultMask = m_resultMask
+                };
 
-                nodeToBrowse.NodeId = nodeId;
-                nodeToBrowse.BrowseDirection = m_browseDirection;
-                nodeToBrowse.ReferenceTypeId = m_referenceTypeId;
-                nodeToBrowse.IncludeSubtypes = m_includeSubtypes;
-                nodeToBrowse.NodeClassMask = m_nodeClassMask;
-                nodeToBrowse.ResultMask = m_resultMask;
-
-                BrowseDescriptionCollection nodesToBrowse = new BrowseDescriptionCollection();
-                nodesToBrowse.Add(nodeToBrowse);
+                var nodesToBrowse = new BrowseDescriptionCollection { nodeToBrowse };
 
                 // make the call to the server.
-                BrowseResultCollection results;
-                DiagnosticInfoCollection diagnosticInfos;
 
                 ResponseHeader responseHeader = m_session.Browse(
                     null,
                     m_view,
                     m_maxReferencesReturned,
                     nodesToBrowse,
-                    out results,
-                    out diagnosticInfos);
+                    out BrowseResultCollection results,
+                    out DiagnosticInfoCollection diagnosticInfos);
 
                 // ensure that the server returned valid results.
                 ClientBase.ValidateResponse(results, nodesToBrowse);
@@ -287,7 +273,11 @@ namespace Opc.Ua.Client
                 // check if valid.
                 if (StatusCode.IsBad(results[0].StatusCode))
                 {
-                    throw ServiceResultException.Create(results[0].StatusCode, 0, diagnosticInfos, responseHeader.StringTable);
+                    throw ServiceResultException.Create(
+                        results[0].StatusCode,
+                        0,
+                        diagnosticInfos,
+                        responseHeader.StringTable);
                 }
 
                 // fetch initial set of references.
@@ -301,7 +291,7 @@ namespace Opc.Ua.Client
 
                     if (!m_continueUntilDone && m_MoreReferences != null)
                     {
-                        BrowserEventArgs args = new BrowserEventArgs(references);
+                        var args = new BrowserEventArgs(references);
                         m_MoreReferences(this, args);
 
                         // cancel browser and return the references fetched so far.
@@ -334,17 +324,18 @@ namespace Opc.Ua.Client
                 m_browseInProgress = false;
             }
         }
-        #endregion        
 
-        #region Private Methods
         /// <summary>
         /// Checks the state of the browser.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void CheckBrowserState()
         {
             if (m_browseInProgress)
             {
-                throw new ServiceResultException(StatusCodes.BadInvalidState, "Cannot change browse parameters while a browse operation is in progress.");
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState,
+                    "Cannot change browse parameters while a browse operation is in progress.");
             }
         }
 
@@ -354,21 +345,19 @@ namespace Opc.Ua.Client
         /// <param name="continuationPoint">The continuation point.</param>
         /// <param name="cancel">if set to <c>true</c> the browse operation is cancelled.</param>
         /// <returns>The next batch of references</returns>
+        /// <exception cref="ServiceResultException"></exception>
         private ReferenceDescriptionCollection BrowseNext(ref byte[] continuationPoint, bool cancel)
         {
-            ByteStringCollection continuationPoints = new ByteStringCollection();
-            continuationPoints.Add(continuationPoint);
+            var continuationPoints = new ByteStringCollection { continuationPoint };
 
             // make the call to the server.
-            BrowseResultCollection results;
-            DiagnosticInfoCollection diagnosticInfos;
 
             ResponseHeader responseHeader = m_session.BrowseNext(
                 null,
                 cancel,
                 continuationPoints,
-                out results,
-                out diagnosticInfos);
+                out BrowseResultCollection results,
+                out DiagnosticInfoCollection diagnosticInfos);
 
             // ensure that the server returned valid results.
             ClientBase.ValidateResponse(results, continuationPoints);
@@ -377,7 +366,11 @@ namespace Opc.Ua.Client
             // check if valid.
             if (StatusCode.IsBad(results[0].StatusCode))
             {
-                throw ServiceResultException.Create(results[0].StatusCode, 0, diagnosticInfos, responseHeader.StringTable);
+                throw ServiceResultException.Create(
+                    results[0].StatusCode,
+                    0,
+                    diagnosticInfos,
+                    responseHeader.StringTable);
             }
 
             // update continuation point.
@@ -386,9 +379,7 @@ namespace Opc.Ua.Client
             // return references.
             return results[0].References;
         }
-        #endregion
 
-        #region Private Fields
         private ISession m_session;
         private ViewDescription m_view;
         private uint m_maxReferencesReturned;
@@ -400,60 +391,39 @@ namespace Opc.Ua.Client
         private event BrowserEventHandler m_MoreReferences;
         private bool m_continueUntilDone;
         private bool m_browseInProgress;
-        #endregion        
     }
 
-    #region BrowserEventArgs Class
     /// <summary>
     /// The event arguments provided a browse operation returns a continuation point.
     /// </summary>
     public class BrowserEventArgs : EventArgs
     {
-        #region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
         internal BrowserEventArgs(ReferenceDescriptionCollection references)
         {
-            m_references = references;
+            References = references;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// Whether the browse operation should be cancelled.
         /// </summary>
-        public bool Cancel
-        {
-            get { return m_cancel; }
-            set { m_cancel = value; }
-        }
+        public bool Cancel { get; set; }
 
         /// <summary>
         /// Whether subsequent continuation points should be processed automatically.
         /// </summary>
-        public bool ContinueUntilDone
-        {
-            get { return m_continueUntilDone; }
-            set { m_continueUntilDone = value; }
-        }
+        public bool ContinueUntilDone { get; set; }
 
         /// <summary>
         /// The references that have been fetched so far.
         /// </summary>
-        public ReferenceDescriptionCollection References => m_references;
-        #endregion
-
-        #region Private Fields
-        private bool m_cancel;
-        private bool m_continueUntilDone;
-        private ReferenceDescriptionCollection m_references;
-        #endregion
+        public ReferenceDescriptionCollection References { get; }
     }
 
     /// <summary>
     /// A delegate used to received browser events.
     /// </summary>
     public delegate void BrowserEventHandler(Browser sender, BrowserEventArgs e);
-    #endregion
 }

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -27,10 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using NUnit.Framework;
-using NUnit.Framework.Internal;
 using System;
 using System.Buffers;
+using NUnit.Framework;
 
 namespace Opc.Ua.Buffers.Tests
 {
@@ -50,14 +49,14 @@ namespace Opc.Ua.Buffers.Tests
             var writer = new ArrayPoolBufferWriter<byte>();
 
             // Act
-            Action act = () => writer.Dispose();
-            var buffer = new byte[1] { 0x23 };
+            Action act = writer.Dispose;
+            byte[] buffer = [0x23];
 
-            var memory = writer.GetMemory(1);
+            Memory<byte> memory = writer.GetMemory(1);
             memory.Span[0] = 0x12;
             writer.Advance(1);
             writer.Write(buffer);
-            var sequence = writer.GetReadOnlySequence();
+            ReadOnlySequence<byte> sequence = writer.GetReadOnlySequence();
             Assert.ByVal(sequence.Length, Is.EqualTo(2));
             Assert.That(sequence.ToArray(), Is.EqualTo(new byte[] { 0x12, 0x23 }));
 
@@ -90,68 +89,68 @@ namespace Opc.Ua.Buffers.Tests
             byte[] buffer;
 
             // Arrange
-            using (var writer = new ArrayPoolBufferWriter<byte>(false, defaultChunkSize, maxChunkSize))
+            using var writer = new ArrayPoolBufferWriter<byte>(
+                false,
+                defaultChunkSize,
+                maxChunkSize);
+            // Act
+            for (int i = 0; i <= byte.MaxValue; i++)
             {
+                Span<byte> span;
+                int randomGetChunkSize = maxChunkSize > 0
+                    ? chunkSize + random.Next(maxChunkSize)
+                    : chunkSize;
 
-                // Act
-                for (int i = 0; i <= byte.MaxValue; i++)
+                int repeats = random.Next(3);
+                do
                 {
-                    Span<byte> span;
-                    int randomGetChunkSize = maxChunkSize > 0 ? chunkSize + random.Next(maxChunkSize) : chunkSize;
-
-                    int repeats = random.Next(3);
-                    do
+                    // get a new chunk
+                    if (random.Next(2) == 0)
                     {
-                        // get a new chunk
-                        if (random.Next(2) == 0)
-                        {
-                            var memory = writer.GetMemory(randomGetChunkSize);
-                            Assert.That(memory.Length, Is.GreaterThanOrEqualTo(chunkSize));
-                            span = memory.Span;
-                        }
-                        else
-                        {
-                            span = writer.GetSpan(randomGetChunkSize);
-                        }
-
-                        Assert.That(span.Length, Is.GreaterThanOrEqualTo(chunkSize));
+                        Memory<byte> memory = writer.GetMemory(randomGetChunkSize);
+                        Assert.That(memory.Length, Is.GreaterThanOrEqualTo(chunkSize));
+                        span = memory.Span;
                     }
-                    while (repeats-- > 0);
-
-                    // fill chunk with a byte
-                    for (int v = 0; v < chunkSize; v++)
+                    else
                     {
-                        span[v] = (byte)i;
+                        span = writer.GetSpan(randomGetChunkSize);
                     }
 
-                    writer.Advance(chunkSize);
+                    Assert.That(span.Length, Is.GreaterThanOrEqualTo(chunkSize));
+                } while (repeats-- > 0);
 
-                    // Assert interim projections
-                    if (random.Next(10) == 0)
-                    {
-                        length = chunkSize * (i + 1);
-                        sequence = writer.GetReadOnlySequence();
-                        buffer = sequence.ToArray();
-
-                        // Assert
-                        Assert.That(buffer.Length, Is.EqualTo(length));
-                        Assert.That(sequence.Length, Is.EqualTo(length));
-
-                    }
+                // fill chunk with a byte
+                for (int v = 0; v < chunkSize; v++)
+                {
+                    span[v] = (byte)i;
                 }
 
-                length = (byte.MaxValue + 1) * chunkSize;
-                sequence = writer.GetReadOnlySequence();
-                buffer = sequence.ToArray();
+                writer.Advance(chunkSize);
 
-                // Assert
-                Assert.That(sequence.Length, Is.EqualTo(length));
-                Assert.That(buffer.Length, Is.EqualTo(length));
-
-                for (int i = 0; i < buffer.Length; i++)
+                // Assert interim projections
+                if (random.Next(10) == 0)
                 {
-                    Assert.That(buffer[i], Is.EqualTo((byte)(i / chunkSize)));
+                    length = chunkSize * (i + 1);
+                    sequence = writer.GetReadOnlySequence();
+                    buffer = sequence.ToArray();
+
+                    // Assert
+                    Assert.That(buffer.Length, Is.EqualTo(length));
+                    Assert.That(sequence.Length, Is.EqualTo(length));
                 }
+            }
+
+            length = (byte.MaxValue + 1) * chunkSize;
+            sequence = writer.GetReadOnlySequence();
+            buffer = sequence.ToArray();
+
+            // Assert
+            Assert.That(sequence.Length, Is.EqualTo(length));
+            Assert.That(buffer.Length, Is.EqualTo(length));
+
+            for (int i = 0; i < buffer.Length; i++)
+            {
+                Assert.That(buffer[i], Is.EqualTo((byte)(i / chunkSize)));
             }
         }
     }

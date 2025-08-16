@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -30,10 +30,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Opc.Ua.Client;
-using Opc.Ua.Configuration;
-using System.Threading.Tasks;
 using System.Reflection;
+using System.Threading.Tasks;
+using Opc.Ua.Client;
 
 namespace Opc.Ua.Gds.Client
 {
@@ -42,14 +41,13 @@ namespace Opc.Ua.Gds.Client
     /// </summary>
     public class GlobalDiscoveryServerClient
     {
-        #region Constructors
         /// <summary>
         /// Initializes a new instance of the <see cref="GlobalDiscoveryServerClient"/> class.
         /// </summary>
         /// <param name="configuration">The application configuration.</param>
         /// <param name="endpointUrl">The endpoint Url.</param>
-        /// <param name="sessionFactory">Used to create session to the server</param>
         /// <param name="adminUserIdentity">The user identity for the administrator.</param>
+        /// <param name="sessionFactory">Used to create session to the server</param>
         public GlobalDiscoveryServerClient(
             ApplicationConfiguration configuration,
             string endpointUrl,
@@ -59,19 +57,17 @@ namespace Opc.Ua.Gds.Client
             Configuration = configuration;
             EndpointUrl = endpointUrl;
             m_sessionFactory = sessionFactory ?? DefaultSessionFactory.Instance;
-            // preset admin 
+            // preset admin
             AdminCredentials = adminUserIdentity;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// Gets the application.
         /// </summary>
         /// <value>
         /// The application.
         /// </value>
-        public ApplicationConfiguration Configuration { get; private set; }
+        public ApplicationConfiguration Configuration { get; }
 
         /// <summary>
         /// Gets or sets the admin credentials.
@@ -84,7 +80,9 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Raised when admin credentials are required.
         /// </summary>
-        public event AdminCredentialsRequiredEventHandler AdminCredentialsRequired;
+#pragma warning disable CS0067
+        public event EventHandler<AdminCredentialsRequiredEventArgs> AdminCredentialsRequired;
+#pragma warning restore CS0067
 
         /// <summary>
         /// Gets the session.
@@ -116,10 +114,8 @@ namespace Opc.Ua.Gds.Client
         /// <value>
         ///   <c>true</c> if [is connected]; otherwise, <c>false</c>.
         /// </value>
-        public bool IsConnected { get { return Session != null && Session.Connected; } }
-        #endregion
+        public bool IsConnected => Session != null && Session.Connected;
 
-        #region Public Methods
         /// <summary>
         ///  Returns list of servers known to the LDS, excluding GDS servers.
         /// </summary>
@@ -129,26 +125,24 @@ namespace Opc.Ua.Gds.Client
         /// </returns>
         public List<string> GetDefaultServerUrls(LocalDiscoveryServerClient lds)
         {
-            List<string> serverUrls = new List<string>();
+            var serverUrls = new List<string>();
 
             try
             {
-                DateTime lastResetTime;
+                lds ??= new LocalDiscoveryServerClient(Configuration);
 
-                if (lds == null)
-                {
-                    lds = new LocalDiscoveryServerClient(Configuration);
-                }
-
-                var servers = lds.FindServersOnNetwork(0, 1000, out lastResetTime);
-
-                foreach (var server in servers)
+                foreach (ServerOnNetwork server in lds.FindServersOnNetwork(
+                    0,
+                    1000,
+                    out DateTime lastResetTime))
                 {
                     if (server.ServerCapabilities != null)
                     {
                         // ignore GDS and LDS servers
-                        if (server.ServerCapabilities.Contains(ServerCapability.GlobalDiscoveryServer) ||
-                            server.ServerCapabilities.Contains(ServerCapability.LocalDiscoveryServer))
+                        if (server.ServerCapabilities
+                                .Contains(ServerCapability.GlobalDiscoveryServer) ||
+                            server.ServerCapabilities
+                                .Contains(ServerCapability.LocalDiscoveryServer))
                         {
                             continue;
                         }
@@ -173,22 +167,19 @@ namespace Opc.Ua.Gds.Client
         /// </returns>
         public List<string> GetDefaultGdsUrls(LocalDiscoveryServerClient lds)
         {
-            List<string> gdsUrls = new List<string>();
+            var gdsUrls = new List<string>();
 
             try
             {
-                DateTime lastResetTime;
+                lds ??= new LocalDiscoveryServerClient(Configuration);
 
-                if (lds == null)
+                foreach (ServerOnNetwork server in lds.FindServersOnNetwork(
+                    0,
+                    1000,
+                    out DateTime lastResetTime))
                 {
-                    lds = new LocalDiscoveryServerClient(Configuration);
-                }
-
-                var servers = lds.FindServersOnNetwork(0, 1000, out lastResetTime);
-
-                foreach (var server in servers)
-                {
-                    if (server.ServerCapabilities != null && server.ServerCapabilities.Contains(ServerCapability.GlobalDiscoveryServer))
+                    if (server.ServerCapabilities != null &&
+                        server.ServerCapabilities.Contains(ServerCapability.GlobalDiscoveryServer))
                     {
                         gdsUrls.Add(server.DiscoveryUrl);
                     }
@@ -223,8 +214,8 @@ namespace Opc.Ua.Gds.Client
         /// Connects the specified endpoint URL.
         /// </summary>
         /// <param name="endpointUrl">The endpoint URL.</param>
-        /// <exception cref="System.ArgumentNullException">endpointUrl</exception>
-        /// <exception cref="System.ArgumentException">endpointUrl</exception>
+        /// <exception cref="ArgumentNullException">endpointUrl</exception>
+        /// <exception cref="ArgumentException">endpointUrl</exception>
         [Obsolete("Use ConnectAsync instead.")]
         public Task Connect(string endpointUrl)
         {
@@ -235,43 +226,44 @@ namespace Opc.Ua.Gds.Client
         /// Connects the specified endpoint URL.
         /// </summary>
         /// <param name="endpointUrl">The endpoint URL.</param>
-        /// <exception cref="System.ArgumentNullException">endpointUrl</exception>
-        /// <exception cref="System.ArgumentException">endpointUrl</exception>
+        /// <exception cref="ArgumentNullException">endpointUrl</exception>
+        /// <exception cref="ArgumentException">endpointUrl</exception>
         public async Task ConnectAsync(string endpointUrl)
         {
-            if (String.IsNullOrEmpty(endpointUrl))
+            if (string.IsNullOrEmpty(endpointUrl))
             {
                 throw new ArgumentNullException(nameof(endpointUrl));
             }
 
             if (!Uri.IsWellFormedUriString(endpointUrl, UriKind.Absolute))
             {
-                throw new ArgumentException(endpointUrl + " is not a valid URL.", nameof(endpointUrl));
+                throw new ArgumentException(
+                    endpointUrl + " is not a valid URL.",
+                    nameof(endpointUrl));
             }
 
-            bool serverHalted = false;
+            bool serverHalted;
             do
             {
                 serverHalted = false;
                 try
                 {
-                    EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(Configuration, endpointUrl, true);
-                    EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(Configuration);
-                    ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
+                    EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(
+                        Configuration,
+                        endpointUrl,
+                        true);
+                    var endpointConfiguration = EndpointConfiguration.Create(Configuration);
+                    var endpoint = new ConfiguredEndpoint(
+                        null,
+                        endpointDescription,
+                        endpointConfiguration);
 
                     await ConnectAsync(endpoint).ConfigureAwait(false);
                 }
-                catch (ServiceResultException e)
+                catch (ServiceResultException e) when (e.StatusCode == StatusCodes.BadServerHalted)
                 {
-                    if (e.StatusCode == StatusCodes.BadServerHalted)
-                    {
-                        serverHalted = true;
-                        await Task.Delay(1000).ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        throw;
-                    }
+                    serverHalted = true;
+                    await Task.Delay(1000).ConfigureAwait(false);
                 }
             } while (serverHalted);
         }
@@ -290,9 +282,12 @@ namespace Opc.Ua.Gds.Client
         /// Connects the specified endpoint.
         /// </summary>
         /// <param name="endpoint">The endpoint.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <c>null</c>.</exception>
         public async Task ConnectAsync(ConfiguredEndpoint endpoint)
         {
-            if (endpoint != null && m_endpoint != null && endpoint.EndpointUrl != m_endpoint.EndpointUrl)
+            if (endpoint != null &&
+                m_endpoint != null &&
+                endpoint.EndpointUrl != m_endpoint.EndpointUrl)
             {
                 AdminCredentials = null;
             }
@@ -313,32 +308,35 @@ namespace Opc.Ua.Gds.Client
                 Session = null;
             }
 
-            Session = await m_sessionFactory.CreateAsync(
-                Configuration,
-                endpoint,
-                false,
-                false,
-                Configuration.ApplicationName,
-                60000,
-                AdminCredentials,
-                PreferredLocales).ConfigureAwait(false);
+            Session = await m_sessionFactory
+                .CreateAsync(
+                    Configuration,
+                    endpoint,
+                    false,
+                    false,
+                    Configuration.ApplicationName,
+                    60000,
+                    AdminCredentials,
+                    PreferredLocales)
+                .ConfigureAwait(false);
 
             m_endpoint = Session.ConfiguredEndpoint;
 
             Session.SessionClosing += Session_SessionClosing;
             Session.KeepAlive += Session_KeepAlive;
             Session.KeepAlive += KeepAlive;
-            // TODO: implement, suppress warning/error 
-            if (ServerStatusChanged != null) { }
-
-            if (Session.Factory.GetSystemType(Opc.Ua.Gds.DataTypeIds.ApplicationRecordDataType) == null)
+            // TODO: implement, suppress warning/error
+            if (ServerStatusChanged != null)
             {
-                Session.Factory.AddEncodeableTypes(typeof(Opc.Ua.Gds.ObjectIds).GetTypeInfo().Assembly);
+            }
+
+            if (Session.Factory.GetSystemType(DataTypeIds.ApplicationRecordDataType) == null)
+            {
+                Session.Factory.AddEncodeableTypes(typeof(ObjectIds).GetTypeInfo().Assembly);
             }
 
             Session.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
             EndpointUrl = Session.ConfiguredEndpoint.EndpointUrl.ToString();
-
         }
 
         /// <summary>
@@ -377,9 +375,7 @@ namespace Opc.Ua.Gds.Client
         /// Occurs when the server status changes.
         /// </summary>
         public event MonitoredItemNotificationEventHandler ServerStatusChanged;
-        #endregion
 
-        #region GDS Methods
         /// <summary>
         /// Finds the applications with the specified application uri.
         /// </summary>
@@ -392,16 +388,21 @@ namespace Opc.Ua.Gds.Client
                 ConnectAsync().GetAwaiter().GetResult();
             }
 
-            var outputArguments = Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_FindApplications, Session.NamespaceUris),
+            IList<object> outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(
+                    MethodIds.Directory_FindApplications,
+                    Session.NamespaceUris),
                 applicationUri);
 
             ApplicationRecordDataType[] applications = null;
 
             if (outputArguments.Count > 0)
             {
-                applications = (ApplicationRecordDataType[])ExtensionObject.ToArray(outputArguments[0] as ExtensionObject[], typeof(ApplicationRecordDataType));
+                applications = (ApplicationRecordDataType[])
+                    ExtensionObject.ToArray(
+                        outputArguments[0] as ExtensionObject[],
+                        typeof(ApplicationRecordDataType));
             }
 
             return applications;
@@ -450,15 +451,14 @@ namespace Opc.Ua.Gds.Client
             string productUri,
             IList<string> serverCapabilities)
         {
-            DateTime lastCounterResetTime;
             return QueryServers(
-                startingRecordId, 
-                maxRecordsToReturn, 
-                applicationName, 
-                applicationUri, 
-                productUri, 
-                serverCapabilities, 
-                out lastCounterResetTime);
+                startingRecordId,
+                maxRecordsToReturn,
+                applicationName,
+                applicationUri,
+                productUri,
+                serverCapabilities,
+                out _);
         }
 
         /// <summary>
@@ -488,9 +488,9 @@ namespace Opc.Ua.Gds.Client
                 ConnectAsync().GetAwaiter().GetResult();
             }
 
-            var outputArguments = Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_QueryServers, Session.NamespaceUris),
+            IList<object> outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(MethodIds.Directory_QueryServers, Session.NamespaceUris),
                 startingRecordId,
                 maxRecordsToReturn,
                 applicationName,
@@ -503,12 +503,14 @@ namespace Opc.Ua.Gds.Client
             if (outputArguments.Count >= 2)
             {
                 lastCounterResetTime = (DateTime)outputArguments[0];
-                servers = (ServerOnNetwork[])ExtensionObject.ToArray(outputArguments[1] as ExtensionObject[], typeof(ServerOnNetwork));
+                servers = (ServerOnNetwork[])
+                    ExtensionObject.ToArray(
+                        outputArguments[1] as ExtensionObject[],
+                        typeof(ServerOnNetwork));
             }
 
             return servers;
         }
-
 
         /// <summary>
         /// Queries the GDS for any servers matching the criteria.
@@ -542,9 +544,11 @@ namespace Opc.Ua.Gds.Client
                 ConnectAsync().GetAwaiter().GetResult();
             }
 
-            var outputArguments = Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_QueryApplications, Session.NamespaceUris),
+            IList<object> outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(
+                    MethodIds.Directory_QueryApplications,
+                    Session.NamespaceUris),
                 startingRecordId,
                 maxRecordsToReturn,
                 applicationName,
@@ -559,7 +563,10 @@ namespace Opc.Ua.Gds.Client
             {
                 lastCounterResetTime = (DateTime)outputArguments[0];
                 nextRecordId = (uint)outputArguments[1];
-                applications = (ApplicationDescription[])ExtensionObject.ToArray(outputArguments[2] as ExtensionObject[], typeof(ApplicationDescription));
+                applications = (ApplicationDescription[])
+                    ExtensionObject.ToArray(
+                        outputArguments[2] as ExtensionObject[],
+                        typeof(ApplicationDescription));
             }
 
             return applications;
@@ -577,14 +584,15 @@ namespace Opc.Ua.Gds.Client
                 ConnectAsync().GetAwaiter().GetResult();
             }
 
-            var outputArguments = Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_GetApplication, Session.NamespaceUris),
+            IList<object> outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(MethodIds.Directory_GetApplication, Session.NamespaceUris),
                 applicationId);
 
             if (outputArguments.Count >= 1)
             {
-                return ExtensionObject.ToEncodeable(outputArguments[0] as ExtensionObject) as ApplicationRecordDataType;
+                return ExtensionObject.ToEncodeable(
+                    outputArguments[0] as ExtensionObject) as ApplicationRecordDataType;
             }
 
             return null;
@@ -602,9 +610,11 @@ namespace Opc.Ua.Gds.Client
                 ConnectAsync().GetAwaiter().GetResult();
             }
 
-            var outputArguments = Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_RegisterApplication, Session.NamespaceUris),
+            IList<object> outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(
+                    MethodIds.Directory_RegisterApplication,
+                    Session.NamespaceUris),
                 application);
 
             if (outputArguments.Count >= 1)
@@ -631,17 +641,19 @@ namespace Opc.Ua.Gds.Client
             out NodeId[] certificateTypeIds,
             out byte[][] certificates)
         {
-            certificateTypeIds = Array.Empty<NodeId>();
-            certificates = Array.Empty<byte[]>();
+            certificateTypeIds = [];
+            certificates = [];
 
             if (!IsConnected)
             {
                 ConnectAsync().GetAwaiter().GetResult();
             }
 
-            var outputArguments = Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_GetCertificates, Session.NamespaceUris),
+            IList<object> outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(
+                    MethodIds.CertificateDirectoryType_GetCertificates,
+                    Session.NamespaceUris),
                 applicationId,
                 certificateGroupId);
 
@@ -658,7 +670,8 @@ namespace Opc.Ua.Gds.Client
         /// <param name="certificate">The DER encoded form of the Certificate to check.</param>
         /// <param name="certificateStatus">The first error encountered when validating the Certificate.</param>
         /// <param name="validityTime">When the result expires and should be rechecked. DateTime.MinValue if this is unknown.</param>
-        public void CheckRevocationStatus(byte[] certificate,
+        public void CheckRevocationStatus(
+            byte[] certificate,
             out StatusCode certificateStatus,
             out DateTime validityTime)
         {
@@ -670,9 +683,12 @@ namespace Opc.Ua.Gds.Client
                 ConnectAsync().GetAwaiter().GetResult();
             }
 
-            var outputArguments = Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_CheckRevocationStatus, Session.NamespaceUris),
+            IList<object> outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(
+                    MethodIds.CertificateDirectoryType_CheckRevocationStatus,
+                    Session.NamespaceUris
+                ),
                 certificate);
 
             if (outputArguments.Count >= 2)
@@ -694,8 +710,10 @@ namespace Opc.Ua.Gds.Client
             }
 
             Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_UpdateApplication, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(
+                    MethodIds.Directory_UpdateApplication,
+                    Session.NamespaceUris),
                 application);
         }
 
@@ -711,8 +729,10 @@ namespace Opc.Ua.Gds.Client
             }
 
             Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_UnregisterApplication, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(
+                    MethodIds.Directory_UnregisterApplication,
+                    Session.NamespaceUris),
                 applicationId);
         }
 
@@ -729,8 +749,10 @@ namespace Opc.Ua.Gds.Client
             }
 
             Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_RevokeCertificate, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(
+                    MethodIds.CertificateDirectoryType_RevokeCertificate,
+                    Session.NamespaceUris),
                 applicationId,
                 certificate);
         }
@@ -762,9 +784,11 @@ namespace Opc.Ua.Gds.Client
                 ConnectAsync().GetAwaiter().GetResult();
             }
 
-            var outputArguments = Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_StartNewKeyPairRequest, Session.NamespaceUris),
+            IList<object> outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(
+                    MethodIds.Directory_StartNewKeyPairRequest,
+                    Session.NamespaceUris),
                 applicationId,
                 certificateGroupId,
                 certificateTypeId,
@@ -800,9 +824,11 @@ namespace Opc.Ua.Gds.Client
                 ConnectAsync().GetAwaiter().GetResult();
             }
 
-            var outputArguments = Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_StartSigningRequest, Session.NamespaceUris),
+            IList<object> outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(
+                    MethodIds.Directory_StartSigningRequest,
+                    Session.NamespaceUris),
                 applicationId,
                 certificateGroupId,
                 certificateTypeId,
@@ -815,6 +841,7 @@ namespace Opc.Ua.Gds.Client
 
             return null;
         }
+
         /// <summary>
         /// Checks the request status.
         /// </summary>
@@ -837,9 +864,9 @@ namespace Opc.Ua.Gds.Client
                 ConnectAsync().GetAwaiter().GetResult();
             }
 
-            var outputArguments = Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_FinishRequest, Session.NamespaceUris),
+            IList<object> outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(MethodIds.Directory_FinishRequest, Session.NamespaceUris),
                 applicationId,
                 requestId);
 
@@ -867,18 +894,18 @@ namespace Opc.Ua.Gds.Client
         /// Gets the certificate groups.
         /// </summary>
         /// <param name="applicationId">The application id.</param>
-        /// <returns></returns>
-        public NodeId[] GetCertificateGroups(
-            NodeId applicationId)
+        public NodeId[] GetCertificateGroups(NodeId applicationId)
         {
             if (!IsConnected)
             {
                 ConnectAsync().GetAwaiter().GetResult();
             }
 
-            var outputArguments = Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_GetCertificateGroups, Session.NamespaceUris),
+            IList<object> outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(
+                    MethodIds.Directory_GetCertificateGroups,
+                    Session.NamespaceUris),
                 applicationId);
 
             if (outputArguments.Count >= 1)
@@ -894,19 +921,16 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         /// <param name="applicationId">The application id.</param>
         /// <param name="certificateGroupId">Type of the trust list.</param>
-        /// <returns></returns>
-        public NodeId GetTrustList(
-            NodeId applicationId,
-            NodeId certificateGroupId)
+        public NodeId GetTrustList(NodeId applicationId, NodeId certificateGroupId)
         {
             if (!IsConnected)
             {
                 ConnectAsync().GetAwaiter().GetResult();
             }
 
-            var outputArguments = Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_GetTrustList, Session.NamespaceUris),
+            IList<object> outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(MethodIds.Directory_GetTrustList, Session.NamespaceUris),
                 applicationId,
                 certificateGroupId);
 
@@ -924,8 +948,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="applicationId">The application id.</param>
         /// <param name="certificateGroupId">Group of the trust list.</param>
         /// <param name="certificateTypeId">Type of the trust list.</param>
-        /// <returns></returns>
-        public Boolean GetCertificateStatus(
+        public bool GetCertificateStatus(
             NodeId applicationId,
             NodeId certificateGroupId,
             NodeId certificateTypeId)
@@ -935,16 +958,18 @@ namespace Opc.Ua.Gds.Client
                 ConnectAsync().GetAwaiter().GetResult();
             }
 
-            var outputArguments = Session.Call(
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_GetCertificateStatus, Session.NamespaceUris),
+            IList<object> outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(
+                    MethodIds.Directory_GetCertificateStatus,
+                    Session.NamespaceUris),
                 applicationId,
                 certificateGroupId,
                 certificateTypeId);
 
             if (outputArguments.Count >= 1 && outputArguments[0] != null)
             {
-                Boolean? result = outputArguments[0] as Boolean?;
+                bool? result = outputArguments[0] as bool?;
                 if (result != null)
                 {
                     return (bool)result;
@@ -964,128 +989,57 @@ namespace Opc.Ua.Gds.Client
                 ConnectAsync().GetAwaiter().GetResult();
             }
 
-            var outputArguments = Session.Call(
+            IList<object> outputArguments = Session.Call(
                 trustListId,
-                Opc.Ua.MethodIds.FileType_Open,
+                Ua.MethodIds.FileType_Open,
                 (byte)OpenFileMode.Read);
 
             uint fileHandle = (uint)outputArguments[0];
-            using (MemoryStream ostrm = new MemoryStream())
-            {
-                try
-                {
-                    while (true)
-                    {
-                        int length = 4096;
-
-                        outputArguments = Session.Call(
-                            trustListId,
-                            Opc.Ua.MethodIds.FileType_Read,
-                            fileHandle,
-                            length);
-
-                        byte[] bytes = (byte[])outputArguments[0];
-                        ostrm.Write(bytes, 0, bytes.Length);
-
-                        if (length != bytes.Length)
-                        {
-                            break;
-                        }
-                    }
-                }
-                catch (Exception)
-                {
-                    throw;
-                }
-                finally
-                {
-                    if (IsConnected)
-                    {
-                        Session.Call(
-                            trustListId,
-                            Opc.Ua.MethodIds.FileType_Close,
-                            fileHandle);
-                    }
-                }
-
-                ostrm.Position = 0;
-
-                TrustListDataType trustList = new TrustListDataType();
-                using (BinaryDecoder decoder = new BinaryDecoder(ostrm, Session.MessageContext))
-                {
-                    trustList.Decode(decoder);
-                }
-                return trustList;
-            }
-        }
-        #endregion
-
-        #region Private Methods
-        private IUserIdentity ElevatePermissions()
-        {
-            IUserIdentity oldUser = Session.Identity;
-
-            if (AdminCredentials == null || !Object.ReferenceEquals(Session.Identity, AdminCredentials))
-            {
-                IUserIdentity newCredentials = null;
-
-                if (AdminCredentials == null)
-                {
-                    var handle = AdminCredentialsRequired;
-
-                    if (handle == null)
-                    {
-                        throw new InvalidOperationException("The operation requires administrator credentials.");
-                    }
-
-                    var args = new AdminCredentialsRequiredEventArgs();
-                    handle(this, args);
-                    newCredentials = args.Credentials;
-
-                    if (args.CacheCredentials)
-                    {
-                        AdminCredentials = args.Credentials;
-                    }
-                }
-                else
-                {
-                    newCredentials = AdminCredentials;
-                }
-
-                try
-                {
-                    Session.UpdateSession(newCredentials, PreferredLocales);
-                }
-                catch (Exception)
-                {
-                    AdminCredentials = null;
-                    throw;
-                }
-            }
-
-            return oldUser;
-        }
-
-        private void RevertPermissions(IUserIdentity oldUser)
-        {
+            using var ostrm = new MemoryStream();
             try
             {
-                if (!Object.ReferenceEquals(Session.Identity, oldUser))
+                while (true)
                 {
-                    Session.UpdateSession(oldUser, PreferredLocales);
+                    const int length = 4096;
+
+                    outputArguments = Session.Call(
+                        trustListId,
+                        Ua.MethodIds.FileType_Read,
+                        fileHandle,
+                        length);
+
+                    byte[] bytes = (byte[])outputArguments[0];
+                    ostrm.Write(bytes, 0, bytes.Length);
+
+                    if (length != bytes.Length)
+                    {
+                        break;
+                    }
                 }
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                Utils.LogError(e, "Error reverting to normal permissions.");
+                throw;
             }
+            finally
+            {
+                if (IsConnected)
+                {
+                    Session.Call(trustListId, Ua.MethodIds.FileType_Close, fileHandle);
+                }
+            }
+
+            ostrm.Position = 0;
+
+            var trustList = new TrustListDataType();
+            using (var decoder = new BinaryDecoder(ostrm, Session.MessageContext))
+            {
+                trustList.Decode(decoder);
+            }
+            return trustList;
         }
 
-        #endregion
-
-        #region Private Fields
         private ConfiguredEndpoint m_endpoint;
         private readonly ISessionFactory m_sessionFactory;
-        #endregion
     }
 }

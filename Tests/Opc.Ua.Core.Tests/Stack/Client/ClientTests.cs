@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -27,27 +27,22 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
-using System.IO;
-using System.Text;
-using System.Xml;
 using NUnit.Framework;
-using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
-
 
 namespace Opc.Ua.Core.Tests.Stack.Client
 {
     /// <summary>
     /// Tests for the UANodeSet helper.
     /// </summary>
-    [TestFixture, Category("Client")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("Client")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class ClientTests
     {
-        #region Test Setup
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
@@ -61,16 +56,13 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [SetUp]
         protected void SetUp()
         {
-
         }
 
         [TearDown]
         protected void TearDown()
         {
         }
-        #endregion
 
-        #region Test Methods
         /// <summary>
         /// Ensure that use of OriginalString preserves a scope id of a IPv6 address.
         /// </summary>
@@ -82,10 +74,11 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [TestCase("opc.tcp://[fe80::de39:6fff:feae:c78%12]:4840/Endpoint1")]
         public void DiscoveryEndPointUrls(string urlString)
         {
-            Uri uri = new Uri(urlString);
+            var uri = new Uri(urlString);
             Assert.True(uri.IsWellFormedOriginalString());
 
-            UriBuilder uriBuilder = new UriBuilder {
+            var uriBuilder = new UriBuilder
+            {
                 Scheme = uri.Scheme,
                 Host = uri.DnsSafeHost,
                 Port = uri.Port,
@@ -98,18 +91,19 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void ValidateAppConfigWithoutAppCert()
         {
-            var appConfig = new ApplicationConfiguration() {
+            var appConfig = new ApplicationConfiguration
+            {
                 ApplicationName = "Test",
-                ClientConfiguration = new ClientConfiguration() { },
-                SecurityConfiguration = new SecurityConfiguration() {
+                ClientConfiguration = new ClientConfiguration(),
+                SecurityConfiguration = new SecurityConfiguration
+                {
                     ApplicationCertificate = new CertificateIdentifier(),
                     TrustedPeerCertificates = new CertificateTrustList { StorePath = "Test" },
-                    TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" },
-
+                    TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" }
                 }
             };
-            Assert.DoesNotThrow(() => appConfig.ValidateAsync(ApplicationType.Client).GetAwaiter().GetResult());
+            NUnit.Framework.Assert.DoesNotThrow(() =>
+                appConfig.ValidateAsync(ApplicationType.Client).GetAwaiter().GetResult());
         }
-        #endregion
     }
 }

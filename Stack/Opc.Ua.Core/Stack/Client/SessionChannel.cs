@@ -19,7 +19,6 @@ namespace Opc.Ua
     /// </summary>
     public partial class SessionChannel
     {
-        #region Constructors
         /// <summary>
         /// Creates a new transport channel that supports the ISessionChannel service contract.
         /// </summary>
@@ -28,7 +27,6 @@ namespace Opc.Ua
         /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
-        /// <returns></returns>
         public static ITransportChannel Create(
             ApplicationConfiguration configuration,
             EndpointDescription description,
@@ -36,7 +34,13 @@ namespace Opc.Ua
             X509Certificate2 clientCertificate,
             IServiceMessageContext messageContext)
         {
-            return Create(configuration, description, endpointConfiguration, clientCertificate, null, messageContext);
+            return Create(
+                configuration,
+                description,
+                endpointConfiguration,
+                clientCertificate,
+                null,
+                messageContext);
         }
 
         /// <summary>
@@ -48,7 +52,6 @@ namespace Opc.Ua
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="clientCertificateChain">The client certificate chain.</param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
-        /// <returns></returns>
         public static ITransportChannel Create(
             ApplicationConfiguration configuration,
             EndpointDescription description,
@@ -58,28 +61,25 @@ namespace Opc.Ua
             IServiceMessageContext messageContext)
         {
             // create a UA binary channel.
-            ITransportChannel channel = CreateUaBinaryChannel(
+            return CreateUaBinaryChannel(
                 configuration,
                 description,
                 endpointConfiguration,
                 clientCertificate,
                 clientCertificateChain,
                 messageContext);
-
-            return channel;
         }
 
         /// <summary>
         /// Creates a new transport channel that supports the ISessionChannel service contract.
         /// </summary>
         /// <param name="configuration">The application configuration.</param>
-        /// <param name="connection"></param>
+        /// <param name="connection">The connection</param>
         /// <param name="description">The description for the endpoint.</param>
         /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="clientCertificateChain">The client certificate chain.</param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
-        /// <returns></returns>
         public static ITransportChannel Create(
             ApplicationConfiguration configuration,
             ITransportWaitingConnection connection,
@@ -90,7 +90,7 @@ namespace Opc.Ua
             IServiceMessageContext messageContext)
         {
             // create a UA binary channel.
-            ITransportChannel channel = CreateUaBinaryChannel(
+            return CreateUaBinaryChannel(
                 configuration,
                 connection,
                 description,
@@ -98,9 +98,6 @@ namespace Opc.Ua
                 clientCertificate,
                 clientCertificateChain,
                 messageContext);
-
-            return channel;
         }
-        #endregion
     }
 }

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -37,7 +37,6 @@ namespace TestData
     [DataContract(Namespace = Namespaces.TestData)]
     public class TestDataNodeManagerConfiguration
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -49,7 +48,7 @@ namespace TestData
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
-        [OnDeserializing()]
+        [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
@@ -60,47 +59,26 @@ namespace TestData
         /// </summary>
         private void Initialize()
         {
-            m_saveFilePath = null;
-            m_maxQueueSize = 100;
+            SaveFilePath = null;
+            MaxQueueSize = 100;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The path to the file that stores state of the node manager.
         /// </summary>
         [DataMember(Order = 1)]
-        public string SaveFilePath
-        {
-            get { return m_saveFilePath; }
-            set { m_saveFilePath = value; }
-        }
+        public string SaveFilePath { get; set; }
 
         /// <summary>
         /// The maximum length for a monitored item sampling queue.
         /// </summary>
         [DataMember(Order = 2)]
-        public uint MaxQueueSize
-        {
-            get { return m_maxQueueSize; }
-            set { m_maxQueueSize = value; }
-        }
+        public uint MaxQueueSize { get; set; }
 
         /// <summary>
         /// The next unused value that can be assigned to new nodes.
         /// </summary>
         [DataMember(Order = 3)]
-        public uint NextUnusedId
-        {
-            get { return m_nextUnusedId; }
-            set { m_nextUnusedId = value; }
-        }
-        #endregion
-
-        #region Private Members
-        private string m_saveFilePath;
-        private uint m_maxQueueSize;
-        private uint m_nextUnusedId;
-        #endregion
+        public uint NextUnusedId { get; set; }
     }
 }

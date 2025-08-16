@@ -20,8 +20,9 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// The bindings for the transport listeners.
     /// </summary>
-    public class TransportBindingsBase<T> :
-        ITransportBindings<T> where T : class, ITransportBindingScheme
+    /// <typeparam name="T"></typeparam>
+    public class TransportBindingsBase<T> : ITransportBindings<T>
+        where T : class, ITransportBindingScheme
     {
         /// <summary>
         /// Implement the default constructor.
@@ -31,7 +32,7 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         protected TransportBindingsBase()
         {
-            Bindings = new Dictionary<string, T>();
+            Bindings = [];
             AddBindings(typeof(TransportBindingsBase<T>).Assembly);
         }
 
@@ -40,23 +41,19 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected TransportBindingsBase(Type[] defaultBindings)
         {
-            Bindings = new Dictionary<string, T>();
+            Bindings = [];
             AddBindings(defaultBindings);
         }
 
-        #region Public Properties
         /// <summary>
         /// Dictionary of bindings.
         /// </summary>
-        protected Dictionary<string, T> Bindings { get; private set; }
-        #endregion
+        protected Dictionary<string, T> Bindings { get; }
 
-        #region ITransportBindings
         /// <inheritdoc/>
         public T GetBinding(string uriScheme)
         {
-            T binding;
-            if (!Bindings.TryGetValue(uriScheme, out binding))
+            if (!Bindings.TryGetValue(uriScheme, out T binding))
             {
                 TryAddDefaultTransportBindings(uriScheme);
                 if (!Bindings.TryGetValue(uriScheme, out binding))
@@ -70,12 +67,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public bool HasBinding(string uriScheme)
         {
-            T binding;
-            if (Bindings.TryGetValue(uriScheme, out binding))
-            {
-                return true;
-            }
-            return false;
+            return Bindings.TryGetValue(uriScheme, out _);
         }
 
         /// <inheritdoc/>
@@ -87,7 +79,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public IEnumerable<Type> AddBindings(Assembly assembly)
         {
-            var bindings = assembly.GetExportedTypes().Where(type => IsBindingType(type));
+            IEnumerable<Type> bindings = assembly.GetExportedTypes().Where(IsBindingType);
             return AddBindings(bindings);
         }
 
@@ -105,27 +97,25 @@ namespace Opc.Ua.Bindings
             }
             return result;
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Validate the type is a transport listener.
         /// </summary>
-        protected static bool IsBindingType(System.Type bindingType)
+        protected static bool IsBindingType(Type bindingType)
         {
             if (bindingType == null)
             {
                 return false;
             }
 
-            var bindingTypeInfo = bindingType.GetTypeInfo();
+            System.Reflection.TypeInfo bindingTypeInfo = bindingType.GetTypeInfo();
             if (bindingTypeInfo.IsAbstract ||
                 !typeof(T).GetTypeInfo().IsAssignableFrom(bindingTypeInfo))
             {
                 return false;
             }
 
-            if (!(Activator.CreateInstance(bindingType) is T listener))
+            if (Activator.CreateInstance(bindingType) is not T)
             {
                 return false;
             }
@@ -139,25 +129,28 @@ namespace Opc.Ua.Bindings
         /// <param name="scheme">The uri scheme of the binding.</param>
         private bool TryAddDefaultTransportBindings(string scheme)
         {
-            string assemblyName;
-            if (Utils.DefaultBindings.TryGetValue(scheme, out assemblyName))
+            if (Utils.DefaultBindings.TryGetValue(scheme, out string assemblyName))
             {
                 Assembly assembly = null;
-                string fullName = Utils.DefaultOpcUaCoreAssemblyFullName.Replace(Utils.DefaultOpcUaCoreAssemblyName, assemblyName);
+                string fullName = Utils.DefaultOpcUaCoreAssemblyFullName.Replace(
+                    Utils.DefaultOpcUaCoreAssemblyName,
+                    assemblyName,
+                    StringComparison.Ordinal);
                 try
                 {
                     assembly = Assembly.Load(fullName);
                 }
                 catch
                 {
-                    Utils.LogError("Failed to load the assembly {0} for transport binding {1}.",
-                        fullName, scheme
-                        );
+                    Utils.LogError(
+                        "Failed to load the assembly {0} for transport binding {1}.",
+                        fullName,
+                        scheme);
                 }
 
                 if (assembly != null)
                 {
-                    var listeners = AddBindings(assembly);
+                    IEnumerable<Type> listeners = AddBindings(assembly);
                     return listeners.Any();
                 }
             }
@@ -167,6 +160,5 @@ namespace Opc.Ua.Bindings
             }
             return false;
         }
-        #endregion
     }
 }

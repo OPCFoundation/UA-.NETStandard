@@ -53,12 +53,12 @@ namespace Opc.Ua
         /// <returns>The immediate supertype idnetyfier for <paramref name="typeId"/></returns>
         NodeId FindSuperType(NodeId typeId);
 
-#if (NET_STANDARD_ASYNC)
+#if NET_STANDARD_ASYNC
         /// <summary>
         /// Returns the immediate supertype for the type.
         /// </summary>
         /// <param name="typeId">The extended type identifier.</param>
-        /// <param name="ct"></param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>A type identifier of the <paramref name="typeId "/></returns>
         Task<NodeId> FindSuperTypeAsync(ExpandedNodeId typeId, CancellationToken ct = default);
 
@@ -66,7 +66,7 @@ namespace Opc.Ua
         /// Returns the immediate supertype for the type.
         /// </summary>
         /// <param name="typeId">The type identifier.</param>
-        /// <param name="ct"></param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>The immediate supertype idnetyfier for <paramref name="typeId"/></returns>
         Task<NodeId> FindSuperTypeAsync(NodeId typeId, CancellationToken ct = default);
 #endif
@@ -148,7 +148,6 @@ namespace Opc.Ua
         /// Returns the data type for the specified encoding.
         /// </summary>
         /// <param name="encodingId">The encoding id.</param>
-        /// <returns></returns>
         NodeId FindDataTypeId(ExpandedNodeId encodingId);
 
         /// <summary>

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2023 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -27,23 +27,16 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Opc.Ua.Client
 {
-
     /// <summary>
     /// A subclass of a session to override some implementations from CleintBase
-    /// </summary> 
+    /// </summary>
     public class TraceableRequestHeaderClientSession : Session
     {
-        #region Constructors
         /// <summary>
         /// Constructs a new instance of the <see cref="Session"/> class.
         /// </summary>
@@ -54,8 +47,7 @@ namespace Opc.Ua.Client
             ISessionChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint)
-        :
-            this(channel as ITransportChannel, configuration, endpoint, null)
+            : this(channel as ITransportChannel, configuration, endpoint, null)
         {
         }
 
@@ -83,7 +75,13 @@ namespace Opc.Ua.Client
             X509Certificate2 clientCertificate,
             EndpointDescriptionCollection availableEndpoints = null,
             StringCollection discoveryProfileUris = null)
-            : base(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris)
+            : base(
+                channel,
+                configuration,
+                endpoint,
+                clientCertificate,
+                availableEndpoints,
+                discoveryProfileUris)
         {
         }
 
@@ -93,26 +91,32 @@ namespace Opc.Ua.Client
         /// <param name="channel">The channel.</param>
         /// <param name="template">The template session.</param>
         /// <param name="copyEventHandlers">if set to <c>true</c> the event handlers are copied.</param>
-        public TraceableRequestHeaderClientSession(ITransportChannel channel, Session template, bool copyEventHandlers)
-        :
-            base(channel, template, copyEventHandlers)
+        public TraceableRequestHeaderClientSession(
+            ITransportChannel channel,
+            Session template,
+            bool copyEventHandlers)
+            : base(channel, template, copyEventHandlers)
         {
         }
-        #endregion
 
         /// <summary>
         /// Populates AdditionalParameters with details from the ActivityContext
         /// </summary>
-        public static void InjectTraceIntoAdditionalParameters(ActivityContext context, out AdditionalParametersType traceData)
+        public static void InjectTraceIntoAdditionalParameters(
+            ActivityContext context,
+            out AdditionalParametersType traceData)
         {
             traceData = new AdditionalParametersType();
 
             // Determine the trace flag based on the 'Recorded' status.
-            string traceFlags = (context.TraceFlags & ActivityTraceFlags.Recorded) != 0 ? "01" : "00";
+            string traceFlags = (context.TraceFlags & ActivityTraceFlags.Recorded) != 0
+                ? "01"
+                : "00";
 
             // Construct the traceparent header, adhering to the W3C Trace Context format.
             string traceparent = $"00-{context.TraceId}-{context.SpanId}-{traceFlags}";
-            traceData.Parameters.Add(new KeyValuePair() { Key = "traceparent", Value = new Variant(traceparent) });
+            traceData.Parameters
+                .Add(new KeyValuePair { Key = "traceparent", Value = new Variant(traceparent) });
         }
 
         ///<inheritdoc/>
@@ -122,13 +126,16 @@ namespace Opc.Ua.Client
 
             if (Activity.Current != null)
             {
-                InjectTraceIntoAdditionalParameters(Activity.Current.Context, out AdditionalParametersType traceData);
+                InjectTraceIntoAdditionalParameters(
+                    Activity.Current.Context,
+                    out AdditionalParametersType traceData);
 
                 if (request.RequestHeader.AdditionalHeader == null)
                 {
                     request.RequestHeader.AdditionalHeader = new ExtensionObject(traceData);
                 }
-                else if (request.RequestHeader.AdditionalHeader.Body is AdditionalParametersType existingParameters)
+                else if (request.RequestHeader.AdditionalHeader
+                    .Body is AdditionalParametersType existingParameters)
                 {
                     // Merge the trace data into the existing parameters.
                     existingParameters.Parameters.AddRange(traceData.Parameters);

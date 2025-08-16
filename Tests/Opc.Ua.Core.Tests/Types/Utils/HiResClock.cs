@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -34,16 +34,21 @@ using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {
     /// <summary>
     /// Tests for the BuiltIn Types.
     /// </summary>
-    [TestFixture, Category("Utils")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("Utils")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [NonParallelizable]
-    public class HiResClockTests
+    public
+#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+    partial
+#endif
+    class HiResClockTests
     {
         /// <summary>
         /// How long the tests are running.
@@ -53,9 +58,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// <summary>
         /// On MacOS allow higher margin due to flaky tests in CI builds.
         /// </summary>
-        public int Percent { get => RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? 5 : 2; }
+        public int Percent => RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? 5 : 2;
 
-        #region Test Setup
         [OneTimeSetUp]
         protected void OneTimeSetup()
         {
@@ -73,13 +77,12 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             HiResClock.Reset();
         }
-        #endregion
 
-        #region Test Methods
         /// <summary>
         /// Validate HiResClock defaults, platform dependant.
         /// </summary>
-        [Test, Order(100)]
+        [Test]
+        [Order(100)]
         public void HiResParameters()
         {
             Assert.LessOrEqual(1.0, HiResClock.TicksPerMillisecond);
@@ -100,12 +103,13 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// <summary>
         /// Validate tick counts forward only and has at least one tick per millisecond resolution.
         /// </summary>
-        [Theory, Order(200)]
+        [Theory]
+        [Order(200)]
         public void HiResClockTickCount(bool disabled)
         {
             HiResClock.Disabled = disabled;
             Assert.AreEqual(disabled, HiResClock.Disabled);
-            Stopwatch stopWatch = new Stopwatch();
+            var stopWatch = new Stopwatch();
             long lastTickCount = HiResClock.TickCount64;
             long firstTickCount = lastTickCount;
             stopWatch.Start();
@@ -116,39 +120,45 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 do
                 {
                     tickCount = HiResClock.TickCount64;
-                }
-                while (tickCount == lastTickCount);
+                } while (tickCount == lastTickCount);
                 Assert.LessOrEqual(lastTickCount, tickCount);
                 lastTickCount = tickCount;
                 counts++;
             }
             if (counts < 500)
             {
-                Assert.Inconclusive("Polling tick count unsuccessful, maybe CPU is overloaded.");
+                NUnit.Framework.Assert
+                    .Inconclusive("Polling tick count unsuccessful, maybe CPU is overloaded.");
             }
             stopWatch.Stop();
             long elapsed = lastTickCount - firstTickCount;
-            TestContext.Out.WriteLine("HiResClock counts: {0} resolution: {1}µs", counts, stopWatch.ElapsedMilliseconds * 1000 / counts);
+            TestContext.Out.WriteLine(
+                "HiResClock counts: {0} resolution: {1}µs",
+                counts,
+                stopWatch.ElapsedMilliseconds * 1000 / counts);
             // test accuracy of counter vs. stop watch
             try
             {
-                Assert.That(elapsed, Is.EqualTo(stopWatch.ElapsedMilliseconds).Within(Percent).Percent);
+                NUnit.Framework.Assert.That(
+                    elapsed,
+                    Is.EqualTo(stopWatch.ElapsedMilliseconds).Within(Percent).Percent);
             }
             catch (Exception ex)
             {
-                Assert.Inconclusive(ex.Message);
+                NUnit.Framework.Assert.Inconclusive(ex.Message);
             }
         }
 
         /// <summary>
         /// Validate DateTime.UtcNow counts forward and has a high resolution.
         /// </summary>
-        [Theory, Order(300)]
+        [Theory]
+        [Order(300)]
         public void HiResUtcNowTickCount(bool disabled)
         {
             HiResClock.Disabled = disabled;
             Assert.AreEqual(disabled, HiResClock.Disabled);
-            Stopwatch stopWatch = new Stopwatch();
+            var stopWatch = new Stopwatch();
             stopWatch.Start();
             long lastTickCount = HiResClock.UtcNow.Ticks;
             long firstTickCount = lastTickCount;
@@ -159,8 +169,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 do
                 {
                     tickCount = HiResClock.UtcNow.Ticks;
-                }
-                while (tickCount == lastTickCount);
+                } while (tickCount == lastTickCount);
                 Assert.LessOrEqual(lastTickCount, tickCount);
                 lastTickCount = tickCount;
                 counts++;
@@ -171,20 +180,23 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             }
             stopWatch.Stop();
             long elapsed = (lastTickCount - firstTickCount) / TimeSpan.TicksPerMillisecond;
-            TestContext.Out.WriteLine("HiResClock counts: {0} resolution: {1}µs", counts, stopWatch.ElapsedMilliseconds * 1000 / counts);
+            TestContext.Out.WriteLine(
+                "HiResClock counts: {0} resolution: {1}µs",
+                counts,
+                stopWatch.ElapsedMilliseconds * 1000 / counts);
             // test accuracy of counter vs. stop watch
             try
             {
-                Assert.That(elapsed, Is.EqualTo(stopWatch.ElapsedMilliseconds).Within(Percent).Percent);
+                NUnit.Framework.Assert.That(
+                    elapsed,
+                    Is.EqualTo(stopWatch.ElapsedMilliseconds).Within(Percent).Percent);
             }
             catch (Exception ex)
             {
-                Assert.Inconclusive(ex.Message);
+                NUnit.Framework.Assert.Inconclusive(ex.Message);
             }
         }
-        #endregion
 
-        #region Benchmarks
         /// <summary>
         /// Test the overhead and perf of the Stopwatch timer.
         /// </summary>
@@ -222,9 +234,6 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             _ = Environment.TickCount;
         }
 
-        [DllImport("kernel32")]
-        private extern static UInt64 GetTickCount64();
-
         [Benchmark]
         public void WindowsGetTickCount64()
         {
@@ -234,10 +243,17 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Benchmark]
         public void EnvironmentTickCount64()
         {
-#if NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER && !NET_STANDARD_TESTS
             _ = Environment.TickCount64;
 #endif
         }
-        #endregion
+
+#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+        [LibraryImport("kernel32")]
+        private static partial ulong GetTickCount64();
+#else
+        [DllImport("kernel32")]
+        private static extern ulong GetTickCount64();
+#endif
     }
 }

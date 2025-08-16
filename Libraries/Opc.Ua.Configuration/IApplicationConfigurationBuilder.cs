@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -27,52 +27,49 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Threading.Tasks;
 using System.Xml;
-using System;
 
 namespace Opc.Ua.Configuration
 {
     /// <summary>
     /// A fluent API to build the application configuration.
     /// </summary>
-    public interface IApplicationConfigurationBuilder :
-        IApplicationConfigurationBuilderTypes,
-        IApplicationConfigurationBuilderTransportQuotas,
-        IApplicationConfigurationBuilderTransportQuotasSet,
-        IApplicationConfigurationBuilderServerSelected,
-        IApplicationConfigurationBuilderServerOptions,
-        IApplicationConfigurationBuilderClientSelected,
-        IApplicationConfigurationBuilderSecurity,
-        IApplicationConfigurationBuilderSecurityOptions,
-        IApplicationConfigurationBuilderSecurityOptionStores,
-        IApplicationConfigurationBuilderServerPolicies,
-        IApplicationConfigurationBuilderCreate
-    {
-    };
+    public interface IApplicationConfigurationBuilder
+        : IApplicationConfigurationBuilderTypes,
+
+            IApplicationConfigurationBuilderTransportQuotasSet,
+            IApplicationConfigurationBuilderServerSelected,
+            IApplicationConfigurationBuilderServerOptions,
+            IApplicationConfigurationBuilderClientSelected,
+            IApplicationConfigurationBuilderSecurity,
+            IApplicationConfigurationBuilderSecurityOptions,
+            IApplicationConfigurationBuilderSecurityOptionStores,
+            IApplicationConfigurationBuilderServerPolicies,
+            IApplicationConfigurationBuilderCreate;
 
     /// <summary>
     /// The client or server configuration types to choose.
     /// </summary>
-    public interface IApplicationConfigurationBuilderTypes :
-        IApplicationConfigurationBuilderTransportQuotas,
-        IApplicationConfigurationBuilderServer,
-        IApplicationConfigurationBuilderClient
-    {
-    }
+    public interface IApplicationConfigurationBuilderTypes
+        : IApplicationConfigurationBuilderTransportQuotas
+
+            ;
 
     /// <summary>
     /// The set transport quota state.
     /// </summary>
-    public interface IApplicationConfigurationBuilderTransportQuotas :
-        IApplicationConfigurationBuilderServer,
-        IApplicationConfigurationBuilderClient
+    public interface IApplicationConfigurationBuilderTransportQuotas
+        : IApplicationConfigurationBuilderServer,
+            IApplicationConfigurationBuilderClient
     {
         /// <summary>
         /// Set the transport quotas for this application (client and server).
         /// </summary>
         /// <param name="transportQuotas">The object with the new transport quotas.</param>
-        IApplicationConfigurationBuilderTransportQuotasSet SetTransportQuotas(TransportQuotas transportQuotas);
+        IApplicationConfigurationBuilderTransportQuotasSet SetTransportQuotas(
+            TransportQuotas transportQuotas);
 
         /// <inheritdoc cref="TransportQuotas.OperationTimeout"/>
         /// <remarks>applies to <see cref="TransportQuotas.OperationTimeout"/></remarks>
@@ -87,7 +84,8 @@ namespace Opc.Ua.Configuration
         /// <inheritdoc cref="TransportQuotas.MaxByteStringLength"/>
         /// <remarks>applies to <see cref="TransportQuotas.MaxByteStringLength"/></remarks>
         /// <param name="maxByteStringLength">The max byte string length.</param>
-        IApplicationConfigurationBuilderTransportQuotas SetMaxByteStringLength(int maxByteStringLength);
+        IApplicationConfigurationBuilderTransportQuotas SetMaxByteStringLength(
+            int maxByteStringLength);
 
         /// <inheritdoc cref="TransportQuotas.MaxArrayLength"/>
         /// <remarks>applies to <see cref="TransportQuotas.MaxArrayLength"/></remarks>
@@ -106,13 +104,13 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc cref="TransportQuotas.MaxEncodingNestingLevels"/>
         /// <remarks>applies to <see cref="TransportQuotas.MaxEncodingNestingLevels"/></remarks>
-        /// <param name="maxEncodingNestingLevels"></param>
-        IApplicationConfigurationBuilderTransportQuotas SetMaxEncodingNestingLevels(int maxEncodingNestingLevels);
+        IApplicationConfigurationBuilderTransportQuotas SetMaxEncodingNestingLevels(
+            int maxEncodingNestingLevels);
 
         /// <inheritdoc cref="TransportQuotas.MaxDecoderRecoveries"/>
         /// <remarks>applies to <see cref="TransportQuotas.MaxDecoderRecoveries"/></remarks>
-        /// <param name="maxDecoderRecoveries"></param>
-        IApplicationConfigurationBuilderTransportQuotas SetMaxDecoderRecoveries(int maxDecoderRecoveries);
+        IApplicationConfigurationBuilderTransportQuotas SetMaxDecoderRecoveries(
+            int maxDecoderRecoveries);
 
         /// <inheritdoc cref="TransportQuotas.ChannelLifetime"/>
         /// <remarks>applies to <see cref="TransportQuotas.ChannelLifetime"/></remarks>
@@ -122,47 +120,48 @@ namespace Opc.Ua.Configuration
         /// <inheritdoc cref="TransportQuotas.SecurityTokenLifetime"/>
         /// <remarks>applies to <see cref="TransportQuotas.SecurityTokenLifetime"/></remarks>
         /// <param name="securityTokenLifetime">The lifetime in milliseconds.</param>
-        IApplicationConfigurationBuilderTransportQuotas SetSecurityTokenLifetime(int securityTokenLifetime);
+        IApplicationConfigurationBuilderTransportQuotas SetSecurityTokenLifetime(
+            int securityTokenLifetime);
     }
 
     /// <summary>
     /// The set transport quota state.
     /// </summary>
-    public interface IApplicationConfigurationBuilderTransportQuotasSet :
-        IApplicationConfigurationBuilderServer,
-        IApplicationConfigurationBuilderClient
-    {
-    }
+    public interface IApplicationConfigurationBuilderTransportQuotasSet
+        : IApplicationConfigurationBuilderServer,
+            IApplicationConfigurationBuilderClient;
 
     /// <summary>
     /// The interfaces to implement if a server is selected.
     /// </summary>
-    public interface IApplicationConfigurationBuilderServerSelected :
-        IApplicationConfigurationBuilderServerPolicies,
-        IApplicationConfigurationBuilderServerOptions,
-        IApplicationConfigurationBuilderClient,
-        IApplicationConfigurationBuilderSecurity
-    {
-    }
+    public interface IApplicationConfigurationBuilderServerSelected
+        : IApplicationConfigurationBuilderServerPolicies,
+            IApplicationConfigurationBuilderServerOptions
+
+            ;
 
     /// <summary>
     /// The options which can be set if a server is selected.
     /// </summary>
-    public interface IApplicationConfigurationBuilderServerOptions :
-        IApplicationConfigurationBuilderClient,
-        IApplicationConfigurationBuilderSecurity
+    public interface IApplicationConfigurationBuilderServerOptions
+        : IApplicationConfigurationBuilderClient,
+            IApplicationConfigurationBuilderSecurity
     {
         /// <inheritdoc cref="ServerBaseConfiguration.MinRequestThreadCount"/>
-        IApplicationConfigurationBuilderServerOptions SetMinRequestThreadCount(int minRequestThreadCount);
+        IApplicationConfigurationBuilderServerOptions SetMinRequestThreadCount(
+            int minRequestThreadCount);
 
         /// <inheritdoc cref="ServerBaseConfiguration.MaxRequestThreadCount"/>
-        IApplicationConfigurationBuilderServerOptions SetMaxRequestThreadCount(int maxRequestThreadCount);
+        IApplicationConfigurationBuilderServerOptions SetMaxRequestThreadCount(
+            int maxRequestThreadCount);
 
         /// <inheritdoc cref="ServerBaseConfiguration.MaxQueuedRequestCount"/>
-        IApplicationConfigurationBuilderServerOptions SetMaxQueuedRequestCount(int maxQueuedRequestCount);
+        IApplicationConfigurationBuilderServerOptions SetMaxQueuedRequestCount(
+            int maxQueuedRequestCount);
 
         /// <inheritdoc cref="ServerConfiguration.DiagnosticsEnabled"/>
-        IApplicationConfigurationBuilderServerOptions SetDiagnosticsEnabled(bool diagnosticsEnabled);
+        IApplicationConfigurationBuilderServerOptions SetDiagnosticsEnabled(
+            bool diagnosticsEnabled);
 
         /// <inheritdoc cref="ServerConfiguration.MaxSessionCount"/>
         IApplicationConfigurationBuilderServerOptions SetMaxSessionCount(int maxSessionCount);
@@ -179,64 +178,83 @@ namespace Opc.Ua.Configuration
         IApplicationConfigurationBuilderServerOptions SetMaxSessionTimeout(int maxSessionTimeout);
 
         /// <inheritdoc cref="ServerConfiguration.MaxBrowseContinuationPoints"/>
-        IApplicationConfigurationBuilderServerOptions SetMaxBrowseContinuationPoints(int maxBrowseContinuationPoints);
+        IApplicationConfigurationBuilderServerOptions SetMaxBrowseContinuationPoints(
+            int maxBrowseContinuationPoints);
 
         /// <inheritdoc cref="ServerConfiguration.MaxQueryContinuationPoints"/>
-        IApplicationConfigurationBuilderServerOptions SetMaxQueryContinuationPoints(int maxQueryContinuationPoints);
+        IApplicationConfigurationBuilderServerOptions SetMaxQueryContinuationPoints(
+            int maxQueryContinuationPoints);
 
         /// <inheritdoc cref="ServerConfiguration.MaxHistoryContinuationPoints"/>
-        IApplicationConfigurationBuilderServerOptions SetMaxHistoryContinuationPoints(int maxHistoryContinuationPoints);
+        IApplicationConfigurationBuilderServerOptions SetMaxHistoryContinuationPoints(
+            int maxHistoryContinuationPoints);
 
         /// <inheritdoc cref="ServerConfiguration.MaxRequestAge"/>
         IApplicationConfigurationBuilderServerOptions SetMaxRequestAge(int maxRequestAge);
 
         /// <inheritdoc cref="ServerConfiguration.MinPublishingInterval"/>
-        IApplicationConfigurationBuilderServerOptions SetMinPublishingInterval(int minPublishingInterval);
+        IApplicationConfigurationBuilderServerOptions SetMinPublishingInterval(
+            int minPublishingInterval);
 
         /// <inheritdoc cref="ServerConfiguration.MaxPublishingInterval"/>
-        IApplicationConfigurationBuilderServerOptions SetMaxPublishingInterval(int maxPublishingInterval);
+        IApplicationConfigurationBuilderServerOptions SetMaxPublishingInterval(
+            int maxPublishingInterval);
 
         /// <inheritdoc cref="ServerConfiguration.PublishingResolution"/>
-        IApplicationConfigurationBuilderServerOptions SetPublishingResolution(int publishingResolution);
+        IApplicationConfigurationBuilderServerOptions SetPublishingResolution(
+            int publishingResolution);
 
         /// <inheritdoc cref="ServerConfiguration.MaxSubscriptionLifetime"/>
-        IApplicationConfigurationBuilderServerOptions SetMaxSubscriptionLifetime(int maxSubscriptionLifetime);
+        IApplicationConfigurationBuilderServerOptions SetMaxSubscriptionLifetime(
+            int maxSubscriptionLifetime);
 
         /// <inheritdoc cref="ServerConfiguration.MaxMessageQueueSize"/>
-        IApplicationConfigurationBuilderServerOptions SetMaxMessageQueueSize(int maxMessageQueueSize);
+        IApplicationConfigurationBuilderServerOptions SetMaxMessageQueueSize(
+            int maxMessageQueueSize);
 
         /// <inheritdoc cref="ServerConfiguration.MaxNotificationQueueSize"/>
-        IApplicationConfigurationBuilderServerOptions SetMaxNotificationQueueSize(int maxNotificationQueueSize);
+        IApplicationConfigurationBuilderServerOptions SetMaxNotificationQueueSize(
+            int maxNotificationQueueSize);
 
         /// <inheritdoc cref="ServerConfiguration.MaxNotificationsPerPublish"/>
-        IApplicationConfigurationBuilderServerOptions SetMaxNotificationsPerPublish(int maxNotificationsPerPublish);
+        IApplicationConfigurationBuilderServerOptions SetMaxNotificationsPerPublish(
+            int maxNotificationsPerPublish);
 
         /// <inheritdoc cref="ServerConfiguration.MinMetadataSamplingInterval"/>
-        IApplicationConfigurationBuilderServerOptions SetMinMetadataSamplingInterval(int minMetadataSamplingInterval);
+        IApplicationConfigurationBuilderServerOptions SetMinMetadataSamplingInterval(
+            int minMetadataSamplingInterval);
 
         /// <inheritdoc cref="ServerConfiguration.AvailableSamplingRates"/>
-        IApplicationConfigurationBuilderServerOptions SetAvailableSamplingRates(SamplingRateGroupCollection availableSampleRates);
+        IApplicationConfigurationBuilderServerOptions SetAvailableSamplingRates(
+            SamplingRateGroupCollection availableSampleRates);
 
         /// <inheritdoc cref="ServerConfiguration.RegistrationEndpoint"/>
-        IApplicationConfigurationBuilderServerOptions SetRegistrationEndpoint(EndpointDescription registrationEndpoint);
+        IApplicationConfigurationBuilderServerOptions SetRegistrationEndpoint(
+            EndpointDescription registrationEndpoint);
 
         /// <inheritdoc cref="ServerConfiguration.MaxRegistrationInterval"/>
-        IApplicationConfigurationBuilderServerOptions SetMaxRegistrationInterval(int maxRegistrationInterval);
+        IApplicationConfigurationBuilderServerOptions SetMaxRegistrationInterval(
+            int maxRegistrationInterval);
 
         /// <inheritdoc cref="ServerConfiguration.NodeManagerSaveFile"/>
-        IApplicationConfigurationBuilderServerOptions SetNodeManagerSaveFile(string nodeManagerSaveFile);
+        IApplicationConfigurationBuilderServerOptions SetNodeManagerSaveFile(
+            string nodeManagerSaveFile);
 
         /// <inheritdoc cref="ServerConfiguration.MinSubscriptionLifetime"/>
-        IApplicationConfigurationBuilderServerOptions SetMinSubscriptionLifetime(int minSubscriptionLifetime);
+        IApplicationConfigurationBuilderServerOptions SetMinSubscriptionLifetime(
+            int minSubscriptionLifetime);
 
         /// <inheritdoc cref="ServerConfiguration.MaxPublishRequestCount"/>
-        IApplicationConfigurationBuilderServerOptions SetMaxPublishRequestCount(int maxPublishRequestCount);
+        IApplicationConfigurationBuilderServerOptions SetMaxPublishRequestCount(
+            int maxPublishRequestCount);
 
         /// <inheritdoc cref="ServerConfiguration.MaxSubscriptionCount"/>
-        IApplicationConfigurationBuilderServerOptions SetMaxSubscriptionCount(int maxSubscriptionCount);
+        IApplicationConfigurationBuilderServerOptions SetMaxSubscriptionCount(
+            int maxSubscriptionCount);
 
         /// <inheritdoc cref="ServerConfiguration.MaxEventQueueSize"/>
-        IApplicationConfigurationBuilderServerOptions SetMaxEventQueueSize(int setMaxEventQueueSize);
+        IApplicationConfigurationBuilderServerOptions SetMaxEventQueueSize(
+            int setMaxEventQueueSize);
 
         /// <inheritdoc cref="ServerConfiguration.ServerProfileArray" path="/summary"/>
         /// <param name="serverProfile">Add a server profile to the array.</param>
@@ -247,22 +265,27 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc cref="ServerConfiguration.ServerCapabilities" path="/summary"/>
         /// <param name="serverCapability">The server capability to add.</param>
-        IApplicationConfigurationBuilderServerOptions AddServerCapabilities(string serverCapability);
+        IApplicationConfigurationBuilderServerOptions AddServerCapabilities(
+            string serverCapability);
 
         /// <inheritdoc cref="ServerConfiguration.SupportedPrivateKeyFormats"/>
-        IApplicationConfigurationBuilderServerOptions SetSupportedPrivateKeyFormats(StringCollection supportedPrivateKeyFormats);
+        IApplicationConfigurationBuilderServerOptions SetSupportedPrivateKeyFormats(
+            StringCollection supportedPrivateKeyFormats);
 
         /// <inheritdoc cref="ServerConfiguration.MaxTrustListSize"/>
         IApplicationConfigurationBuilderServerOptions SetMaxTrustListSize(int maxTrustListSize);
 
         /// <inheritdoc cref="ServerConfiguration.MultiCastDnsEnabled"/>
-        IApplicationConfigurationBuilderServerOptions SetMultiCastDnsEnabled(bool multiCastDnsEnabled);
+        IApplicationConfigurationBuilderServerOptions SetMultiCastDnsEnabled(
+            bool multiCastDnsEnabled);
 
         /// <inheritdoc cref="ServerConfiguration.ReverseConnect"/>
-        IApplicationConfigurationBuilderServerOptions SetReverseConnect(ReverseConnectServerConfiguration reverseConnectConfiguration);
+        IApplicationConfigurationBuilderServerOptions SetReverseConnect(
+            ReverseConnectServerConfiguration reverseConnectConfiguration);
 
         /// <inheritdoc cref="ServerConfiguration.OperationLimits"/>
-        IApplicationConfigurationBuilderServerOptions SetOperationLimits(OperationLimits operationLimits);
+        IApplicationConfigurationBuilderServerOptions SetOperationLimits(
+            OperationLimits operationLimits);
 
         /// <inheritdoc cref="ServerConfiguration.AuditingEnabled"/>
         IApplicationConfigurationBuilderServerOptions SetAuditingEnabled(bool auditingEnabled);
@@ -271,56 +294,62 @@ namespace Opc.Ua.Configuration
         IApplicationConfigurationBuilderServerOptions SetHttpsMutualTls(bool mTlsEnabled);
 
         /// <inheritdoc cref="ServerConfiguration.DurableSubscriptionsEnabled"/>
-        IApplicationConfigurationBuilderServerOptions SetDurableSubscriptionsEnabled(bool durableSubscriptionsEnabled);
+        IApplicationConfigurationBuilderServerOptions SetDurableSubscriptionsEnabled(
+            bool durableSubscriptionsEnabled);
 
         /// <inheritdoc cref="ServerConfiguration.MaxDurableNotificationQueueSize"/>
-        IApplicationConfigurationBuilderServerOptions SetMaxDurableNotificationQueueSize(int maxDurableNotificationQueueSize);
+        IApplicationConfigurationBuilderServerOptions SetMaxDurableNotificationQueueSize(
+            int maxDurableNotificationQueueSize);
 
         /// <inheritdoc cref="ServerConfiguration.MaxDurableEventQueueSize"/>
-        IApplicationConfigurationBuilderServerOptions SetMaxDurableEventQueueSize(int maxDurableEventQueueSize);
+        IApplicationConfigurationBuilderServerOptions SetMaxDurableEventQueueSize(
+            int maxDurableEventQueueSize);
 
         /// <inheritdoc cref="ServerConfiguration.MaxDurableSubscriptionLifetimeInHours"/>
-        IApplicationConfigurationBuilderServerOptions SetMaxDurableSubscriptionLifetime(int maxDurableSubscriptionLifetimeInHours);
-
+        IApplicationConfigurationBuilderServerOptions SetMaxDurableSubscriptionLifetime(
+            int maxDurableSubscriptionLifetimeInHours);
     }
 
     /// <summary>
     /// The interfaces to implement if a client is selected.
     /// </summary>
-    public interface IApplicationConfigurationBuilderClientSelected :
-        IApplicationConfigurationBuilderClientOptions,
-        IApplicationConfigurationBuilderSecurity
-    {
-    }
+    public interface IApplicationConfigurationBuilderClientSelected
+        : IApplicationConfigurationBuilderClientOptions;
 
     /// <summary>
     /// The options to set if a client is selected.
     /// </summary>
-    public interface IApplicationConfigurationBuilderClientOptions :
-        IApplicationConfigurationBuilderSecurity
+    public interface IApplicationConfigurationBuilderClientOptions : IApplicationConfigurationBuilderSecurity
     {
         /// <inheritdoc cref="ClientConfiguration.DefaultSessionTimeout"/>
-        IApplicationConfigurationBuilderClientOptions SetDefaultSessionTimeout(int defaultSessionTimeout);
+        IApplicationConfigurationBuilderClientOptions SetDefaultSessionTimeout(
+            int defaultSessionTimeout);
 
         /// <inheritdoc cref="ClientConfiguration.WellKnownDiscoveryUrls"/>
         /// <param name="wellKnownDiscoveryUrl">The well known discovery server url to add.</param>
-        IApplicationConfigurationBuilderClientOptions AddWellKnownDiscoveryUrls(string wellKnownDiscoveryUrl);
+        IApplicationConfigurationBuilderClientOptions AddWellKnownDiscoveryUrls(
+            string wellKnownDiscoveryUrl);
 
         /// <inheritdoc cref="ClientConfiguration.DiscoveryServers"/>
         /// <param name="discoveryServer">The discovery server endpoint description to add.</param>
-        IApplicationConfigurationBuilderClientOptions AddDiscoveryServer(EndpointDescription discoveryServer);
+        IApplicationConfigurationBuilderClientOptions AddDiscoveryServer(
+            EndpointDescription discoveryServer);
 
         /// <inheritdoc cref="ClientConfiguration.EndpointCacheFilePath"/>
-        IApplicationConfigurationBuilderClientOptions SetEndpointCacheFilePath(string endpointCacheFilePath);
+        IApplicationConfigurationBuilderClientOptions SetEndpointCacheFilePath(
+            string endpointCacheFilePath);
 
         /// <inheritdoc cref="ClientConfiguration.MinSubscriptionLifetime"/>
-        IApplicationConfigurationBuilderClientOptions SetMinSubscriptionLifetime(int minSubscriptionLifetime);
+        IApplicationConfigurationBuilderClientOptions SetMinSubscriptionLifetime(
+            int minSubscriptionLifetime);
 
         /// <inheritdoc cref="ClientConfiguration.ReverseConnect"/>
-        IApplicationConfigurationBuilderClientOptions SetReverseConnect(ReverseConnectClientConfiguration reverseConnect);
+        IApplicationConfigurationBuilderClientOptions SetReverseConnect(
+            ReverseConnectClientConfiguration reverseConnect);
 
         /// <inheritdoc cref="ClientConfiguration.OperationLimits"/>
-        IApplicationConfigurationBuilderClientOptions SetClientOperationLimits(OperationLimits operationLimits);
+        IApplicationConfigurationBuilderClientOptions SetClientOperationLimits(
+            OperationLimits operationLimits);
     }
 
     /// <summary>
@@ -368,7 +397,8 @@ namespace Opc.Ua.Configuration
         /// Add the sign and encrypt security policies to the server configuration.
         /// </summary>
         /// <param name="addPolicies">Add policies if true.</param>
-        IApplicationConfigurationBuilderServerSelected AddSignAndEncryptPolicies(bool addPolicies = true);
+        IApplicationConfigurationBuilderServerSelected AddSignAndEncryptPolicies(
+            bool addPolicies = true);
 
         /// <summary>
         /// Add the ECCsign security policies to the server configuration.
@@ -391,27 +421,30 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <param name="securityMode">The message security mode to add the policy to.</param>
         /// <param name="securityPolicy">The security policy Uri string.</param>
-        IApplicationConfigurationBuilderServerSelected AddPolicy(MessageSecurityMode securityMode, string securityPolicy);
+        IApplicationConfigurationBuilderServerSelected AddPolicy(
+            MessageSecurityMode securityMode,
+            string securityPolicy);
 
         /// <summary>
         /// Add user token policy to the server configuration.
         /// </summary>
         /// <param name="userTokenType">The user token type to add.</param>
-        IApplicationConfigurationBuilderServerSelected AddUserTokenPolicy(UserTokenType userTokenType);
+        IApplicationConfigurationBuilderServerSelected AddUserTokenPolicy(
+            UserTokenType userTokenType);
 
         /// <summary>
         /// Add user token policy to the server configuration.
         /// </summary>
         /// <param name="userTokenPolicy">The user token policy to add.</param>
-        IApplicationConfigurationBuilderServerSelected AddUserTokenPolicy(UserTokenPolicy userTokenPolicy);
-
+        IApplicationConfigurationBuilderServerSelected AddUserTokenPolicy(
+            UserTokenPolicy userTokenPolicy);
     }
 
     /// <summary>
     /// Add the security configuration (mandatory).
     /// </summary>
     public interface IApplicationConfigurationBuilderSecurity
-    {        
+    {
         /// <summary>
         /// Add the security configuration.
         /// </summary>
@@ -424,14 +457,15 @@ namespace Opc.Ua.Configuration
         /// <param name="pkiRoot">The path to the pki root. By default all cert stores use the pki root.</param>
         /// <param name="appRoot">The path to the app cert store, if different than the pki root.</param>
         /// <param name="rejectedRoot">The path to the rejected certificate store.</param>
-        [Obsolete("Use AddSecurityConfiguration(CertificateIdentifierCollection certIdList, string pkiRoot = null, string rejectedRoot = null) instead.")]
+        [Obsolete(
+            "Use AddSecurityConfiguration(CertificateIdentifierCollection certIdList, string pkiRoot = null, string rejectedRoot = null) instead."
+        )]
         IApplicationConfigurationBuilderSecurityOptions AddSecurityConfiguration(
             string subjectName,
             string pkiRoot = null,
             string appRoot = null,
-            string rejectedRoot = null
-            );
-        
+            string rejectedRoot = null);
+
         /// <summary>
         /// Add the security configuration.
         /// </summary>
@@ -443,12 +477,10 @@ namespace Opc.Ua.Configuration
         /// <param name="certIdList">A list of Certificate identifiers</param>
         /// <param name="pkiRoot">The path to the pki root. By default all cert stores use the pki root.</param>
         /// <param name="rejectedRoot">The path to the rejected certificate store.</param>
-
         IApplicationConfigurationBuilderSecurityOptions AddSecurityConfiguration(
             CertificateIdentifierCollection certIdList,
             string pkiRoot = null,
-            string rejectedRoot = null
-            );
+            string rejectedRoot = null);
 
         /// <summary>
         /// Add the security configuration for mandatory application, issuer and trusted stores.
@@ -464,15 +496,14 @@ namespace Opc.Ua.Configuration
             string appRoot,
             string trustedRoot,
             string issuerRoot,
-            string rejectedRoot = null
-            );
+            string rejectedRoot = null);
     }
 
     /// <summary>
     /// Add security options to the configuration.
     /// </summary>
-    public interface IApplicationConfigurationBuilderSecurityOptionStores :
-        IApplicationConfigurationBuilderSecurityOptions
+    public interface IApplicationConfigurationBuilderSecurityOptionStores
+        : IApplicationConfigurationBuilderSecurityOptions
     {
         /// <summary>
         /// Add the security configuration for the user certificate issuer and trusted stores.
@@ -481,8 +512,7 @@ namespace Opc.Ua.Configuration
         /// <param name="issuerRoot">The path to the issuer cert store.</param>
         IApplicationConfigurationBuilderSecurityOptionStores AddSecurityConfigurationUserStore(
             string trustedRoot,
-            string issuerRoot
-            );
+            string issuerRoot);
 
         /// <summary>
         /// Add the security configuration for the https certificate issuer and trusted stores.
@@ -491,18 +521,16 @@ namespace Opc.Ua.Configuration
         /// <param name="issuerRoot">The path to the issuer cert store.</param>
         IApplicationConfigurationBuilderSecurityOptionStores AddSecurityConfigurationHttpsStore(
             string trustedRoot,
-            string issuerRoot
-            );
+            string issuerRoot);
     }
 
     /// <summary>
     /// Add security options to the configuration.
     /// </summary>
-    public interface IApplicationConfigurationBuilderSecurityOptions :
-        IApplicationConfigurationBuilderGlobalConfiguration,
-        IApplicationConfigurationBuilderTraceConfiguration,
-        IApplicationConfigurationBuilderExtension,
-        IApplicationConfigurationBuilderCreate
+    public interface IApplicationConfigurationBuilderSecurityOptions
+        : IApplicationConfigurationBuilderGlobalConfiguration,
+
+            IApplicationConfigurationBuilderExtension
     {
         /// <summary>
         /// The certificate types that should be supported.
@@ -512,7 +540,8 @@ namespace Opc.Ua.Configuration
         /// Rsa,nistP256,nistP384,brainpoolP256r1,brainpoolP384r1
         /// </remarks>
         /// <param name="certIdList">A list of Certificate identifiers</param>
-        IApplicationConfigurationBuilderSecurityOptions SetApplicationCertificates(CertificateIdentifierCollection certIdList);
+        IApplicationConfigurationBuilderSecurityOptions SetApplicationCertificates(
+            CertificateIdentifierCollection certIdList);
 
         /// <summary>
         /// The number of rejected certificates to keep in the store.
@@ -522,40 +551,46 @@ namespace Opc.Ua.Configuration
         /// <see langword="0"/> to keep all rejected certificates.
         /// A negative number to keep no history.
         /// </param>
-        IApplicationConfigurationBuilderSecurityOptions SetMaxRejectedCertificates(int maxRejectedCertificates);
+        IApplicationConfigurationBuilderSecurityOptions SetMaxRejectedCertificates(
+            int maxRejectedCertificates);
 
         /// <summary>
         /// Whether an unknown application certificate should be accepted
         /// once all other security checks passed.
         /// </summary>
         /// <param name="autoAccept"><see langword="true"/> to accept unknown application certificates.</param>
-        IApplicationConfigurationBuilderSecurityOptions SetAutoAcceptUntrustedCertificates(bool autoAccept);
+        IApplicationConfigurationBuilderSecurityOptions SetAutoAcceptUntrustedCertificates(
+            bool autoAccept);
 
         /// <summary>
         /// Whether a newly created application certificate should be added to the trusted store.
         /// This function is only useful if multiple UA applications share the same trusted store.
         /// </summary>
         /// <param name="addToTrustedStore"><see langword="true"/> to add the cert to the trusted store.</param>
-        IApplicationConfigurationBuilderSecurityOptions SetAddAppCertToTrustedStore(bool addToTrustedStore);
+        IApplicationConfigurationBuilderSecurityOptions SetAddAppCertToTrustedStore(
+            bool addToTrustedStore);
 
         /// <summary>
         /// Reject SHA1 signed certificates.
         /// </summary>
         /// <param name="rejectSHA1Signed"><see langword="false"/> to accept SHA1 signed certificates.</param>
-        IApplicationConfigurationBuilderSecurityOptions SetRejectSHA1SignedCertificates(bool rejectSHA1Signed);
+        IApplicationConfigurationBuilderSecurityOptions SetRejectSHA1SignedCertificates(
+            bool rejectSHA1Signed);
 
         /// <summary>
         /// Reject chain validation with CA certs with unknown revocation status,
         /// e.g. when the CRL is not available or the OCSP provider is offline.
         /// </summary>
         /// <param name="rejectUnknownRevocationStatus"><see langword="false"/> to accept CA certs with unknown revocation status.</param>
-        IApplicationConfigurationBuilderSecurityOptions SetRejectUnknownRevocationStatus(bool rejectUnknownRevocationStatus);
+        IApplicationConfigurationBuilderSecurityOptions SetRejectUnknownRevocationStatus(
+            bool rejectUnknownRevocationStatus);
 
         /// <summary>
         /// Use the validated certificates for fast Validation.
         /// </summary>
         /// <param name="useValidatedCertificates"><see langword="true"/> to use the validated certificates.</param>
-        IApplicationConfigurationBuilderSecurityOptions SetUseValidatedCertificates(bool useValidatedCertificates);
+        IApplicationConfigurationBuilderSecurityOptions SetUseValidatedCertificates(
+            bool useValidatedCertificates);
 
         /// <summary>
         /// Whether to suppress errors which are caused by clients and servers which provide
@@ -564,34 +599,37 @@ namespace Opc.Ua.Configuration
         /// Only use if interoperability issues with legacy servers or clients leave no other choice to operate.
         /// </summary>
         /// <param name="suppressNonceValidationErrors"><see langword="true"/> to suppress nonce validation errors.</param>
-        IApplicationConfigurationBuilderSecurityOptions SetSuppressNonceValidationErrors(bool suppressNonceValidationErrors);
+        IApplicationConfigurationBuilderSecurityOptions SetSuppressNonceValidationErrors(
+            bool suppressNonceValidationErrors);
 
         /// <summary>
         /// Whether a certificate chain should be sent with the application certificate.
         /// Only used if the application certificate is CA signed.
         /// </summary>
         /// <param name="sendCertificateChain"><see langword="true"/> to send the certificate chain with the application certificate.</param>
-        IApplicationConfigurationBuilderSecurityOptions SetSendCertificateChain(bool sendCertificateChain);
+        IApplicationConfigurationBuilderSecurityOptions SetSendCertificateChain(
+            bool sendCertificateChain);
 
         /// <summary>
         /// The minimum RSA key size to accept.
         /// By default the key size is set to <see cref="CertificateFactory.DefaultKeySize"/>.
         /// </summary>
         /// <param name="keySize">The minimum RSA key size to accept.</param>
-        IApplicationConfigurationBuilderSecurityOptions SetMinimumCertificateKeySize(ushort keySize);
+        IApplicationConfigurationBuilderSecurityOptions SetMinimumCertificateKeySize(
+            ushort keySize);
 
         /// <summary>
         /// Add a certificate password provider.
         /// </summary>
         /// <param name="certificatePasswordProvider">The certificate password provider to use.</param>
-        IApplicationConfigurationBuilderSecurityOptions AddCertificatePasswordProvider(ICertificatePasswordProvider certificatePasswordProvider);
+        IApplicationConfigurationBuilderSecurityOptions AddCertificatePasswordProvider(
+            ICertificatePasswordProvider certificatePasswordProvider);
     }
 
     /// <summary>
     /// Add extensions configuration.
     /// </summary>
-    public interface IApplicationConfigurationBuilderExtension :
-        IApplicationConfigurationBuilderTraceConfiguration
+    public interface IApplicationConfigurationBuilderExtension : IApplicationConfigurationBuilderTraceConfiguration
     {
         /// <summary>
         /// Add an extension to the configuration.
@@ -599,28 +637,30 @@ namespace Opc.Ua.Configuration
         /// <typeparam name="T">The type of the object to add as an extension.</typeparam>
         /// <param name="elementName">The name of the extension, null to use the name.</param>
         /// <param name="value">The object to add and encode.</param>
-        IApplicationConfigurationBuilderExtension AddExtension<T>(XmlQualifiedName elementName, object value);
+        IApplicationConfigurationBuilderExtension AddExtension<T>(
+            XmlQualifiedName elementName,
+            object value);
     }
 
     /// <summary>
     /// Add some global configuration settings.
     /// </summary>
-    public interface IApplicationConfigurationBuilderGlobalConfiguration :
-        IApplicationConfigurationBuilderCreate,
-        IApplicationConfigurationBuilderTraceConfiguration
+    public interface IApplicationConfigurationBuilderGlobalConfiguration
+        : IApplicationConfigurationBuilderCreate,
+            IApplicationConfigurationBuilderTraceConfiguration
     {
         /// <summary>
         /// Set the high resolution clock to disabled or enabled.
         /// </summary>
         /// <param name="hiResClockDisabled"><value><c>true</c> if high resolution clock is disabled; otherwise, <c>false</c>.</value></param>
-        IApplicationConfigurationBuilderGlobalConfiguration SetHiResClockDisabled(bool hiResClockDisabled);
+        IApplicationConfigurationBuilderGlobalConfiguration SetHiResClockDisabled(
+            bool hiResClockDisabled);
     }
 
     /// <summary>
     /// Add the trace configuration.
     /// </summary>
-    public interface IApplicationConfigurationBuilderTraceConfiguration :
-        IApplicationConfigurationBuilderCreate
+    public interface IApplicationConfigurationBuilderTraceConfiguration : IApplicationConfigurationBuilderCreate
     {
         /// <inheritdoc cref="TraceConfiguration.OutputFilePath"/>
         IApplicationConfigurationBuilderTraceConfiguration SetOutputFilePath(string outputFilePath);
@@ -643,4 +683,3 @@ namespace Opc.Ua.Configuration
         Task<ApplicationConfiguration> Create();
     }
 }
-

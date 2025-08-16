@@ -39,7 +39,6 @@ namespace Opc.Ua.Client.ComplexTypes
     /// </summary>
     public sealed class DataDictionary
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -60,9 +59,7 @@ namespace Opc.Ua.Client.ComplexTypes
             DictionaryId = null;
             Name = null;
         }
-        #endregion
 
-        #region Public Interface
         /// <summary>
         /// The node id for the dictionary.
         /// </summary>
@@ -118,9 +115,6 @@ namespace Opc.Ua.Client.ComplexTypes
 
             return m_validator.GetSchema(null);
         }
-        #endregion
-
-        #region Private Members
 
         /// <summary>
         /// Validates the type dictionary.
@@ -138,7 +132,10 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="dictionary">The encoded dictionary to validate.</param>
         /// <param name="imports">A table of imported namespace schemas.</param>
         /// <param name="throwOnError">Throw if an error occurred.</param>
-        internal void Validate(byte[] dictionary, IDictionary<string, byte[]> imports = null, bool throwOnError = false)
+        internal void Validate(
+            byte[] dictionary,
+            IDictionary<string, byte[]> imports = null,
+            bool throwOnError = false)
         {
             var istrm = new MemoryStream(dictionary);
 
@@ -150,12 +147,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     validator.Validate(istrm);
                 }
-                catch (Exception e)
+                catch (Exception e) when (!throwOnError)
                 {
-                    if (throwOnError)
-                    {
-                        throw;
-                    }
                     Utils.LogWarning(e, "Could not validate XML schema, error is ignored.");
                 }
 
@@ -169,12 +162,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     validator.Validate(istrm);
                 }
-                catch (Exception e)
+                catch (Exception e) when (!throwOnError)
                 {
-                    if (throwOnError)
-                    {
-                        throw;
-                    }
                     Utils.LogWarning(e, "Could not validate binary schema, error is ignored.");
                 }
 
@@ -182,10 +171,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 TypeDictionary = validator.Dictionary;
             }
         }
-        #endregion
 
-        #region Private Members
         private SchemaValidator m_validator;
-        #endregion
     }
 }

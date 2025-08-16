@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -29,16 +29,14 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Calculates the value of an aggregate. 
+    /// Calculates the value of an aggregate.
     /// </summary>
     public class MinMaxAggregateCalculator : AggregateCalculator
     {
-        #region Constructors
         /// <summary>
         /// Initializes the aggregate calculator.
         /// </summary>
@@ -55,14 +53,11 @@ namespace Opc.Ua.Server
             double processingInterval,
             bool stepped,
             AggregateConfiguration configuration)
-        : 
-            base(aggregateId, startTime, endTime, processingInterval, stepped, configuration)
+            : base(aggregateId, startTime, endTime, processingInterval, stepped, configuration)
         {
             SetPartialBit = true;
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Computes the value for the timeslice.
         /// </summary>
@@ -75,62 +70,31 @@ namespace Opc.Ua.Server
                 switch (id.Value)
                 {
                     case Objects.AggregateFunction_Minimum:
-                    {
                         return ComputeMinMax(slice, 1, false);
-                    }
-
                     case Objects.AggregateFunction_MinimumActualTime:
-                    {
                         return ComputeMinMax(slice, 1, true);
-                    }
-
                     case Objects.AggregateFunction_Maximum:
-                    {
                         return ComputeMinMax(slice, 2, false);
-                    }
-
                     case Objects.AggregateFunction_MaximumActualTime:
-                    {
                         return ComputeMinMax(slice, 2, true);
-                    }
-
                     case Objects.AggregateFunction_Range:
-                    {
                         return ComputeMinMax(slice, 3, false);
-                    }
-
                     case Objects.AggregateFunction_Minimum2:
-                    {
                         return ComputeMinMax2(slice, 1, false);
-                    }
-
                     case Objects.AggregateFunction_MinimumActualTime2:
-                    {
                         return ComputeMinMax2(slice, 1, true);
-                    }
-
                     case Objects.AggregateFunction_Maximum2:
-                    {
                         return ComputeMinMax2(slice, 2, false);
-                    }
-
                     case Objects.AggregateFunction_MaximumActualTime2:
-                    {
                         return ComputeMinMax2(slice, 2, true);
-                    }
-
                     case Objects.AggregateFunction_Range2:
-                    {
                         return ComputeMinMax2(slice, 3, false);
-                    }
                 }
             }
 
             return base.ComputeValue(slice);
         }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Calculate the Minimum, Maximum, MinimumActualTime and MaximumActualTime aggregates for the timeslice.
         /// </summary>
@@ -145,10 +109,10 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            double minimumGoodValue = Double.MaxValue;
-            double minimumUncertainValue = Double.MaxValue;
-            double maximumGoodValue = Double.MinValue;
-            double maximumUncertainValue = Double.MinValue;
+            double minimumGoodValue = double.MaxValue;
+            double minimumUncertainValue = double.MaxValue;
+            double maximumGoodValue = double.MinValue;
+            double maximumUncertainValue = double.MinValue;
 
             DateTime minimumGoodTimestamp = DateTime.MinValue;
             DateTime maximumGoodTimestamp = DateTime.MinValue;
@@ -163,7 +127,6 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                double currentValue = 0;
                 DateTime currentTime = values[ii].SourceTimestamp;
                 StatusCode currentStatus = values[ii].StatusCode;
 
@@ -174,6 +137,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
+                double currentValue;
                 // convert to double.
                 try
                 {
@@ -210,7 +174,6 @@ namespace Opc.Ua.Server
                     duplicatesMinimumsExist = false;
                     goodValueExists = true;
                 }
-
                 // check for duplicate minimums.
                 else if (minimumGoodValue == currentValue)
                 {
@@ -226,7 +189,6 @@ namespace Opc.Ua.Server
                     duplicatesMaximumsExist = false;
                     goodValueExists = true;
                 }
-
                 // check for duplicate maximums.
                 else if (maximumGoodValue == currentValue)
                 {
@@ -253,7 +215,6 @@ namespace Opc.Ua.Server
             object processedValue = null;
             TypeInfo processedType = null;
             DateTime processedTimestamp = DateTime.MinValue;
-            bool uncertainValueExists = false;
             bool duplicatesExist = false;
 
             if (valueType == 1)
@@ -261,24 +222,23 @@ namespace Opc.Ua.Server
                 processedValue = minimumGoodValue;
                 processedTimestamp = minimumGoodTimestamp;
                 processedType = minimumOriginalType;
-                uncertainValueExists = minimumGoodValue > minimumUncertainValue;
+                _ = minimumGoodValue > minimumUncertainValue;
                 duplicatesExist = duplicatesMinimumsExist;
             }
-
             else if (valueType == 2)
             {
                 processedValue = maximumGoodValue;
                 processedTimestamp = maximumGoodTimestamp;
                 processedType = maximumOriginalType;
-                uncertainValueExists = maximumGoodValue < maximumUncertainValue;
+                _ = maximumGoodValue < maximumUncertainValue;
                 duplicatesExist = duplicatesMaximumsExist;
             }
-
             else if (valueType == 3)
             {
                 processedValue = Math.Abs(maximumGoodValue - minimumGoodValue);
                 processedType = TypeInfo.Scalars.Double;
-                uncertainValueExists = maximumGoodValue < maximumUncertainValue || minimumGoodValue > minimumUncertainValue;
+                _ = maximumGoodValue < maximumUncertainValue ||
+                    minimumGoodValue > minimumUncertainValue;
             }
 
             // set calculated if not returning actual time and value is not at the start time.
@@ -290,13 +250,17 @@ namespace Opc.Ua.Server
             // set the multiple values flags.
             if (duplicatesExist)
             {
-                statusCode = statusCode.SetAggregateBits(statusCode.AggregateBits | AggregateBits.MultipleValues);
+                statusCode = statusCode.SetAggregateBits(
+                    statusCode.AggregateBits | AggregateBits.MultipleValues);
             }
 
             // convert back to original datatype.
             if (processedType != null && processedType.BuiltInType != BuiltInType.Double)
             {
-                processedValue = TypeInfo.Cast(processedValue, TypeInfo.Scalars.Double, processedType.BuiltInType);
+                processedValue = TypeInfo.Cast(
+                    processedValue,
+                    TypeInfo.Scalars.Double,
+                    processedType.BuiltInType);
             }
             else
             {
@@ -304,9 +268,11 @@ namespace Opc.Ua.Server
             }
 
             // create processed value.
-            DataValue value = new DataValue();
-            value.WrappedValue = new Variant(processedValue, processedType);
-            value.StatusCode = statusCode;
+            var value = new DataValue
+            {
+                WrappedValue = new Variant(processedValue, processedType),
+                StatusCode = statusCode
+            };
 
             if (returnActualTime)
             {
@@ -336,8 +302,8 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            double minimumGoodValue = Double.MaxValue;
-            double maximumGoodValue = Double.MinValue;
+            double minimumGoodValue = double.MaxValue;
+            double maximumGoodValue = double.MinValue;
 
             DateTime minimumGoodTimestamp = DateTime.MinValue;
             DateTime maximumGoodTimestamp = DateTime.MinValue;
@@ -354,7 +320,6 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                double currentValue = 0;
                 DateTime currentTime = values[ii].SourceTimestamp;
                 StatusCode currentStatus = values[ii].StatusCode;
 
@@ -364,6 +329,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
+                double currentValue;
                 // convert to double.
                 try
                 {
@@ -375,12 +341,9 @@ namespace Opc.Ua.Server
                 }
 
                 // skip endpoint if stepped.
-                if (currentTime == slice.EndTime)
+                if (currentTime == slice.EndTime && Stepped)
                 {
-                    if (Stepped)
-                    {
-                        break;
-                    }
+                    break;
                 }
 
                 // check for new minimum.
@@ -393,7 +356,6 @@ namespace Opc.Ua.Server
                     duplicatesMinimumsExist = false;
                     goodValueExists = true;
                 }
-
                 // check for duplicate minimums.
                 else if (minimumGoodValue == currentValue)
                 {
@@ -410,7 +372,6 @@ namespace Opc.Ua.Server
                     duplicatesMaximumsExist = false;
                     goodValueExists = true;
                 }
-
                 // check for duplicate maximums.
                 else if (maximumGoodValue == currentValue)
                 {
@@ -425,7 +386,8 @@ namespace Opc.Ua.Server
                 // check if interval is partial and set the flag accordingly
                 if (slice.Partial)
                 {
-                    noDataValue.StatusCode = noDataValue.StatusCode.SetAggregateBits(AggregateBits.Partial);
+                    noDataValue.StatusCode = noDataValue.StatusCode
+                        .SetAggregateBits(AggregateBits.Partial);
                 }
                 return noDataValue;
             }
@@ -445,7 +407,6 @@ namespace Opc.Ua.Server
                 processedType = minimumOriginalType;
                 duplicatesExist = duplicatesMinimumsExist;
             }
-
             else if (valueType == 2)
             {
                 processedValue = maximumGoodValue;
@@ -454,7 +415,6 @@ namespace Opc.Ua.Server
                 processedType = maximumOriginalType;
                 duplicatesExist = duplicatesMaximumsExist;
             }
-
             else if (valueType == 3)
             {
                 processedValue = Math.Abs(maximumGoodValue - minimumGoodValue);
@@ -465,21 +425,28 @@ namespace Opc.Ua.Server
             StatusCode statusCode = processedStatusCode;
 
             // set calculated if not returning actual time and value is not at the start time.
-            if (!returnActualTime && processedTimestamp != slice.StartTime && (statusCode.AggregateBits & AggregateBits.Interpolated) == 0)
+            if (!returnActualTime &&
+                processedTimestamp != slice.StartTime &&
+                (statusCode.AggregateBits & AggregateBits.Interpolated) == 0)
             {
-                statusCode = statusCode.SetAggregateBits(statusCode.AggregateBits | AggregateBits.Calculated);
+                statusCode = statusCode.SetAggregateBits(
+                    statusCode.AggregateBits | AggregateBits.Calculated);
             }
 
             // set the multiple values flags.
             if (duplicatesExist)
             {
-                statusCode = statusCode.SetAggregateBits(statusCode.AggregateBits | AggregateBits.MultipleValues);
+                statusCode = statusCode.SetAggregateBits(
+                    statusCode.AggregateBits | AggregateBits.MultipleValues);
             }
 
             // convert back to original datatype.
             if (processedType != null && processedType.BuiltInType != BuiltInType.Double)
             {
-                processedValue = TypeInfo.Cast(processedValue, TypeInfo.Scalars.Double, processedType.BuiltInType);
+                processedValue = TypeInfo.Cast(
+                    processedValue,
+                    TypeInfo.Scalars.Double,
+                    processedType.BuiltInType);
             }
             else
             {
@@ -487,9 +454,11 @@ namespace Opc.Ua.Server
             }
 
             // create processed value.
-            DataValue value = new DataValue();
-            value.WrappedValue = new Variant(processedValue, processedType);
-            value.StatusCode = GetTimeBasedStatusCode(slice, values, statusCode);
+            var value = new DataValue
+            {
+                WrappedValue = new Variant(processedValue, processedType),
+                StatusCode = GetTimeBasedStatusCode(slice, values, statusCode)
+            };
 
             // zero value if status is bad.
             if (StatusCode.IsBad(value.StatusCode))
@@ -505,16 +474,15 @@ namespace Opc.Ua.Server
                     if (processedTimestamp == slice.StartTime)
                     {
                         processedTimestamp = processedTimestamp.AddMilliseconds(+1);
-                        value.StatusCode = value.StatusCode.SetAggregateBits(value.StatusCode.AggregateBits | AggregateBits.Interpolated);
+                        value.StatusCode = value.StatusCode.SetAggregateBits(
+                            value.StatusCode.AggregateBits | AggregateBits.Interpolated);
                     }
                 }
-                else
+                else if (processedTimestamp == slice.EndTime)
                 {
-                    if (processedTimestamp == slice.EndTime)
-                    {
-                        processedTimestamp = processedTimestamp.AddMilliseconds(-1);
-                        value.StatusCode = value.StatusCode.SetAggregateBits(value.StatusCode.AggregateBits | AggregateBits.Interpolated);
-                    }
+                    processedTimestamp = processedTimestamp.AddMilliseconds(-1);
+                    value.StatusCode = value.StatusCode.SetAggregateBits(
+                        value.StatusCode.AggregateBits | AggregateBits.Interpolated);
                 }
 
                 value.SourceTimestamp = processedTimestamp;
@@ -528,6 +496,5 @@ namespace Opc.Ua.Server
 
             return value;
         }
-        #endregion
     }
 }

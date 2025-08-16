@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -29,16 +29,14 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Calculates the value of an aggregate. 
+    /// Calculates the value of an aggregate.
     /// </summary>
     public class AverageAggregateCalculator : AggregateCalculator
     {
-        #region Constructors
         /// <summary>
         /// Initializes the aggregate calculator.
         /// </summary>
@@ -55,14 +53,11 @@ namespace Opc.Ua.Server
             double processingInterval,
             bool stepped,
             AggregateConfiguration configuration)
-        : 
-            base(aggregateId, startTime, endTime, processingInterval, stepped, configuration)
+            : base(aggregateId, startTime, endTime, processingInterval, stepped, configuration)
         {
-            SetPartialBit = aggregateId != Opc.Ua.ObjectIds.AggregateFunction_Average;
+            SetPartialBit = aggregateId != ObjectIds.AggregateFunction_Average;
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Computes the value for the timeslice.
         /// </summary>
@@ -75,37 +70,21 @@ namespace Opc.Ua.Server
                 switch (id.Value)
                 {
                     case Objects.AggregateFunction_Average:
-                    {
                         return ComputeAverage(slice);
-                    }
-
                     case Objects.AggregateFunction_TimeAverage:
-                    {
                         return ComputeTimeAverage(slice, false, 1);
-                    }
-
                     case Objects.AggregateFunction_Total:
-                    {
                         return ComputeTimeAverage(slice, false, 2);
-                    }
-
                     case Objects.AggregateFunction_TimeAverage2:
-                    {
                         return ComputeTimeAverage(slice, true, 1);
-                    }
-
                     case Objects.AggregateFunction_Total2:
-                    {
                         return ComputeTimeAverage(slice, true, 2);
-                    }
                 }
             }
 
             return base.ComputeValue(slice);
         }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Calculates the RegSlope, RegConst and RegStdDev aggregates for the timeslice.
         /// </summary>
@@ -148,13 +127,15 @@ namespace Opc.Ua.Server
             }
 
             // select the result.
-            double result = total/count;
+            double result = total / count;
 
             // set the timestamp and status.
-            DataValue value = new DataValue();
-            value.WrappedValue = new Variant(result, TypeInfo.Scalars.Double);
-            value.SourceTimestamp = GetTimestamp(slice);
-            value.ServerTimestamp = GetTimestamp(slice);
+            var value = new DataValue
+            {
+                WrappedValue = new Variant(result, TypeInfo.Scalars.Double),
+                SourceTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
+            };
             value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
             value.StatusCode = GetValueBasedStatusCode(slice, values, value.StatusCode);
 
@@ -168,8 +149,7 @@ namespace Opc.Ua.Server
         protected DataValue ComputeTimeAverage(TimeSlice slice, bool useSimpleBounds, int valueType)
         {
             // get the values in the slice.
-            List<DataValue> values = null;
-
+            List<DataValue> values;
             if (useSimpleBounds)
             {
                 values = GetValuesWithSimpleBounds(slice);
@@ -194,7 +174,7 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < regions.Count; ii++)
             {
-                double duration = regions[ii].Duration/1000.0;
+                double duration = regions[ii].Duration / 1000.0;
 
                 if (StatusCode.IsNotBad(regions[ii].StatusCode))
                 {
@@ -219,15 +199,21 @@ namespace Opc.Ua.Server
 
             switch (valueType)
             {
-                case 1: { result = total/totalDuration; break; }
-                case 2: { result = total; break; }
+                case 1:
+                    result = total / totalDuration;
+                    break;
+                case 2:
+                    result = total;
+                    break;
             }
 
             // set the timestamp and status.
-            DataValue value = new DataValue();
-            value.WrappedValue = new Variant(result, TypeInfo.Scalars.Double);
-            value.SourceTimestamp = GetTimestamp(slice);
-            value.ServerTimestamp = GetTimestamp(slice);
+            var value = new DataValue
+            {
+                WrappedValue = new Variant(result, TypeInfo.Scalars.Double),
+                SourceTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
+            };
 
             if (useSimpleBounds)
             {
@@ -248,6 +234,5 @@ namespace Opc.Ua.Server
             // return result.
             return value;
         }
-        #endregion
     }
 }

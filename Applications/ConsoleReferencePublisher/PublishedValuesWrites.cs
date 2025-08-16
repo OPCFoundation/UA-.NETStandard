@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -28,81 +28,103 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
 using System.Threading;
 using Opc.Ua;
 using Opc.Ua.PubSub;
 
 namespace Quickstarts.ConsoleReferencePublisher
 {
-    class PublishedValuesWrites
+    internal class PublishedValuesWrites
     {
-        #region Fields
-        // It should match the namespace index from configuration file
+        /// <summary>
+        /// It should match the namespace index from configuration file
+        /// </summary>
         public const ushort NamespaceIndexSimple = 2;
         public const ushort NamespaceIndexAllTypes = 3;
 
-        private const string DataSetNameSimple = "Simple";
-        private const string DataSetNameAllTypes = "AllTypes";
+        private const string kDataSetNameSimple = "Simple";
+        private const string kDataSetNameAllTypes = "AllTypes";
 
-        // simulate for BoolToogle changes to 3 seconds
-        private int m_boolToogleCount = 0;
-        private const int BoolToogleLimit = 2;
-        private const int SimpleInt32Limit = 10000;
+        /// <summary>
+        /// simulate for BoolToogle changes to 3 seconds
+        /// </summary>
+        private int m_boolToogleCount;
+        private const int kBoolToogleLimit = 2;
+        private const int kSimpleInt32Limit = 10000;
 
-        private FieldMetaDataCollection m_simpleFields = new FieldMetaDataCollection();
-        private FieldMetaDataCollection m_allTypesFields = new FieldMetaDataCollection();
+        private readonly FieldMetaDataCollection m_simpleFields = [];
+        private readonly FieldMetaDataCollection m_allTypesFields = [];
 
-        private PublishedDataSetDataTypeCollection m_publishedDataSets;
-        private IUaPubSubDataStore m_dataStore;
+        private readonly PublishedDataSetDataTypeCollection m_publishedDataSets;
+        private readonly IUaPubSubDataStore m_dataStore;
         private Timer m_updateValuesTimer;
-        string[] m_aviationAlphabet = new string[] {
-            "Alfa", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel", "India",
-            "Juliet", "Kilo", "Lima", "Mike",  "November",  "Oscar", "Papa", "Quebec", "Romeo",
-            "Sierra", "Tango", "Uniform", "Victor", "Whiskey", "X-Ray", "Yankee", "Zulu"
-        };
-        int m_aviationAlphabetIndex = 0;
-        private object m_lock = new object();
 
-        #endregion
+        private readonly string[] m_aviationAlphabet =
+        [
+            "Alfa",
+            "Bravo",
+            "Charlie",
+            "Delta",
+            "Echo",
+            "Foxtrot",
+            "Golf",
+            "Hotel",
+            "India",
+            "Juliet",
+            "Kilo",
+            "Lima",
+            "Mike",
+            "November",
+            "Oscar",
+            "Papa",
+            "Quebec",
+            "Romeo",
+            "Sierra",
+            "Tango",
+            "Uniform",
+            "Victor",
+            "Whiskey",
+            "X-Ray",
+            "Yankee",
+            "Zulu"
+        ];
 
-        #region Constructor
+        private int m_aviationAlphabetIndex;
+        private readonly Lock m_lock = new();
+
         /// <summary>
         /// Constructor
         /// </summary>
-        /// <param name="pubSubApplication"></param>
+        /// <param name="uaPubSubApplication"></param>
         public PublishedValuesWrites(UaPubSubApplication uaPubSubApplication)
         {
-            m_publishedDataSets = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration.PublishedDataSets;
+            m_publishedDataSets = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration
+                .PublishedDataSets;
             m_dataStore = uaPubSubApplication.DataStore;
         }
-        #endregion
-
-        #region IDisposable
 
         public void Dispose()
         {
             m_updateValuesTimer.Dispose();
         }
-        #endregion
-
-        #region Public Methods
 
         /// <summary>
-        /// Initialize PublisherData with information from configuration and start timer to update data 
+        /// Initialize PublisherData with information from configuration and start timer to update data
         /// </summary>
         public void Start()
         {
             if (m_publishedDataSets != null)
             {
-                // Remember the fields to be updated 
-                foreach (var publishedDataSet in m_publishedDataSets)
+                // Remember the fields to be updated
+                foreach (PublishedDataSetDataType publishedDataSet in m_publishedDataSets)
                 {
                     switch (publishedDataSet.Name)
                     {
-                        case DataSetNameSimple:
+                        case kDataSetNameSimple:
                             m_simpleFields.AddRange(publishedDataSet.DataSetMetaData.Fields);
                             break;
-                        case DataSetNameAllTypes:
+                        case kDataSetNameAllTypes:
                             m_allTypesFields.AddRange(publishedDataSet.DataSetMetaData.Fields);
                             break;
                     }
@@ -115,46 +137,123 @@ namespace Quickstarts.ConsoleReferencePublisher
             }
             catch (Exception e)
             {
-                Utils.Trace(Utils.TraceMasks.Error, "SamplePublisher.DataStoreValuesGenerator.LoadInitialData wrong field: {0}", e.StackTrace);
+                Utils.Trace(
+                    Utils.TraceMasks.Error,
+                    "SamplePublisher.DataStoreValuesGenerator.LoadInitialData wrong field: {0}",
+                    e.StackTrace
+                );
             }
 
             m_updateValuesTimer = new Timer(UpdateValues, null, 1000, 1000);
         }
 
-        #endregion
-
-        #region Private Methods
         /// <summary>
         /// Load initial demo data
         /// </summary>
         private void LoadInitialData()
         {
-            #region DataSet 'Simple' fill with data
-            WriteFieldData("BoolToggle", NamespaceIndexSimple, new DataValue(new Variant(false), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("Int32", NamespaceIndexSimple, new DataValue(new Variant(0), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("Int32Fast", NamespaceIndexSimple, new DataValue(new Variant(0), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("DateTime", NamespaceIndexSimple, new DataValue(new Variant(DateTime.UtcNow), StatusCodes.Good, DateTime.UtcNow));
-            #endregion
+            WriteFieldData(
+                "BoolToggle",
+                NamespaceIndexSimple,
+                new DataValue(new Variant(false), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "Int32",
+                NamespaceIndexSimple,
+                new DataValue(new Variant(0), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "Int32Fast",
+                NamespaceIndexSimple,
+                new DataValue(new Variant(0), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "DateTime",
+                NamespaceIndexSimple,
+                new DataValue(new Variant(DateTime.UtcNow), StatusCodes.Good, DateTime.UtcNow)
+            );
 
-            #region DataSet 'AllTypes' fill with data
-
-            WriteFieldData("BoolToggle", NamespaceIndexAllTypes, new DataValue(new Variant(true), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("Byte", NamespaceIndexAllTypes, new DataValue(new Variant((byte)0), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("Int16", NamespaceIndexAllTypes, new DataValue(new Variant((Int16)0), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("Int32", NamespaceIndexAllTypes, new DataValue(new Variant(0), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("SByte", NamespaceIndexAllTypes, new DataValue(new Variant((sbyte)0), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("UInt16", NamespaceIndexAllTypes, new DataValue(new Variant((UInt16)0), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("UInt32", NamespaceIndexAllTypes, new DataValue(new Variant((UInt32)0), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("UInt64", NamespaceIndexAllTypes, new DataValue(new Variant((UInt64)0), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("Float", NamespaceIndexAllTypes, new DataValue(new Variant((float)0F), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("Double", NamespaceIndexAllTypes, new DataValue(new Variant((double)0.0), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("String", NamespaceIndexAllTypes, new DataValue(new Variant(m_aviationAlphabet[0]), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("ByteString", NamespaceIndexAllTypes, new DataValue(new Variant(new byte[] { 1, 2, 3 }), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("Guid", NamespaceIndexAllTypes, new DataValue(new Variant(Guid.NewGuid()), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("DateTime", NamespaceIndexAllTypes, new DataValue(new Variant(DateTime.UtcNow), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("UInt32Array", NamespaceIndexAllTypes, new DataValue(new Variant(new UInt32[] { 1, 2, 3 }), StatusCodes.Good, DateTime.UtcNow));
-
-            #endregion
+            WriteFieldData(
+                "BoolToggle",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant(true), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "Byte",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant((byte)0), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "Int16",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant((short)0), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "Int32",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant(0), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "SByte",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant((sbyte)0), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "UInt16",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant((ushort)0), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "UInt32",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant((uint)0), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "UInt64",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant((ulong)0), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "Float",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant((float)0F), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "Double",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant((double)0.0), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "String",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant(m_aviationAlphabet[0]), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "ByteString",
+                NamespaceIndexAllTypes,
+                new DataValue(
+                    new Variant(new byte[] { 1, 2, 3 }),
+                    StatusCodes.Good,
+                    DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "Guid",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant(Guid.NewGuid()), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "DateTime",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant(DateTime.UtcNow), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "UInt32Array",
+                NamespaceIndexAllTypes,
+                new DataValue(
+                    new Variant(new uint[] { 1, 2, 3 }),
+                    StatusCodes.Good,
+                    DateTime.UtcNow)
+            );
         }
 
         /// <summary>
@@ -162,9 +261,16 @@ namespace Quickstarts.ConsoleReferencePublisher
         /// </summary>
         /// <param name="metaDatafieldName"></param>
         /// <param name="dataValue"></param>
-        private void WriteFieldData(string metaDatafieldName, ushort namespaceIndex, DataValue dataValue)
+        private void WriteFieldData(
+            string metaDatafieldName,
+            ushort namespaceIndex,
+            DataValue dataValue)
         {
-            m_dataStore.WritePublishedDataItem(new NodeId(metaDatafieldName, namespaceIndex), Attributes.Value, dataValue);
+            m_dataStore.WritePublishedDataItem(
+                new NodeId(metaDatafieldName, namespaceIndex),
+                Attributes.Value,
+                dataValue
+            );
         }
 
         /// <summary>
@@ -183,17 +289,21 @@ namespace Quickstarts.ConsoleReferencePublisher
                         {
                             case "BoolToggle":
                                 m_boolToogleCount++;
-                                if (m_boolToogleCount >= BoolToogleLimit)
+                                if (m_boolToogleCount >= kBoolToogleLimit)
                                 {
                                     m_boolToogleCount = 0;
                                     IncrementValue(variable, NamespaceIndexSimple);
                                 }
                                 break;
                             case "Int32":
-                                IncrementValue(variable, NamespaceIndexSimple, SimpleInt32Limit);
+                                IncrementValue(variable, NamespaceIndexSimple, kSimpleInt32Limit);
                                 break;
                             case "Int32Fast":
-                                IncrementValue(variable, NamespaceIndexSimple, SimpleInt32Limit, 100);
+                                IncrementValue(
+                                    variable,
+                                    NamespaceIndexSimple,
+                                    kSimpleInt32Limit,
+                                    100);
                                 break;
                             case "DateTime":
                                 IncrementValue(variable, NamespaceIndexSimple);
@@ -222,10 +332,18 @@ namespace Quickstarts.ConsoleReferencePublisher
         /// <param name="namespaceIndex"></param>
         /// <param name="maxAllowedValue"></param>
         /// <param name="step"></param>
-        private void IncrementValue(FieldMetaData variable, ushort namespaceIndex, long maxAllowedValue = Int32.MaxValue, int step = 0)
+        private void IncrementValue(
+            FieldMetaData variable,
+            ushort namespaceIndex,
+            long maxAllowedValue = int.MaxValue,
+            int step = 0
+        )
         {
             // Read value to be incremented
-            DataValue dataValue = m_dataStore.ReadPublishedDataItem(new NodeId(variable.Name, namespaceIndex), Attributes.Value);
+            DataValue dataValue = m_dataStore.ReadPublishedDataItem(
+                new NodeId(variable.Name, namespaceIndex),
+                Attributes.Value
+            );
             if (dataValue.Value == null)
             {
                 return;
@@ -233,13 +351,14 @@ namespace Quickstarts.ConsoleReferencePublisher
 
             bool valueUpdated = false;
 
-            BuiltInType expectedType = TypeInfo.GetBuiltInType(variable.DataType);
-            switch (expectedType)
+            switch (TypeInfo.GetBuiltInType(variable.DataType))
             {
                 case BuiltInType.Boolean:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        Boolean boolValue = Convert.ToBoolean(dataValue.Value);
+                        bool boolValue = Convert.ToBoolean(
+                            dataValue.Value,
+                            CultureInfo.InvariantCulture);
                         dataValue.Value = !boolValue;
                         valueUpdated = true;
                     }
@@ -247,7 +366,9 @@ namespace Quickstarts.ConsoleReferencePublisher
                 case BuiltInType.Byte:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        byte byteValue = Convert.ToByte(dataValue.Value);
+                        byte byteValue = Convert.ToByte(
+                            dataValue.Value,
+                            CultureInfo.InvariantCulture);
                         dataValue.Value = (byte)(byteValue + 1);
                         valueUpdated = true;
                     }
@@ -255,20 +376,23 @@ namespace Quickstarts.ConsoleReferencePublisher
                 case BuiltInType.Int16:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        Int16 int16Value = Convert.ToInt16(dataValue.Value);
-                        int intIdentifier = int16Value;
-                        Interlocked.CompareExchange(ref intIdentifier, 0, Int16.MaxValue);
-                        dataValue.Value = (Int16)Interlocked.Increment(ref intIdentifier);
+                        int intIdentifier = Convert.ToInt16(
+                            dataValue.Value,
+                            CultureInfo.InvariantCulture);
+                        Interlocked.CompareExchange(ref intIdentifier, 0, short.MaxValue);
+                        dataValue.Value = (short)Interlocked.Increment(ref intIdentifier);
                         valueUpdated = true;
                     }
                     break;
                 case BuiltInType.Int32:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        Int32 int32Value = Convert.ToInt32(dataValue.Value);
+                        int int32Value = Convert.ToInt32(
+                            dataValue.Value,
+                            CultureInfo.InvariantCulture);
                         if (step > 0)
                         {
-                            int32Value += (step - 1);
+                            int32Value += step - 1;
                         }
                         if (int32Value > maxAllowedValue)
                         {
@@ -281,30 +405,33 @@ namespace Quickstarts.ConsoleReferencePublisher
                 case BuiltInType.SByte:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        SByte sbyteValue = Convert.ToSByte(dataValue.Value);
-                        int intIdentifier = sbyteValue;
-                        Interlocked.CompareExchange(ref intIdentifier, 0, SByte.MaxValue);
-                        dataValue.Value = (SByte)Interlocked.Increment(ref intIdentifier);
+                        int intIdentifier = Convert.ToSByte(
+                            dataValue.Value,
+                            CultureInfo.InvariantCulture);
+                        Interlocked.CompareExchange(ref intIdentifier, 0, sbyte.MaxValue);
+                        dataValue.Value = (sbyte)Interlocked.Increment(ref intIdentifier);
                         valueUpdated = true;
                     }
                     break;
                 case BuiltInType.UInt16:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        UInt16 uint16Value = Convert.ToUInt16(dataValue.Value);
-                        int intIdentifier = uint16Value;
-                        Interlocked.CompareExchange(ref intIdentifier, 0, UInt16.MaxValue);
-                        dataValue.Value = (UInt16)Interlocked.Increment(ref intIdentifier);
+                        int intIdentifier = Convert.ToUInt16(
+                            dataValue.Value,
+                            CultureInfo.InvariantCulture);
+                        Interlocked.CompareExchange(ref intIdentifier, 0, ushort.MaxValue);
+                        dataValue.Value = (ushort)Interlocked.Increment(ref intIdentifier);
                         valueUpdated = true;
                     }
                     break;
                 case BuiltInType.UInt32:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        UInt32 uint32Value = Convert.ToUInt32(dataValue.Value);
-                        long longIdentifier = uint32Value;
-                        Interlocked.CompareExchange(ref longIdentifier, 0, UInt32.MaxValue);
-                        dataValue.Value = (UInt32)Interlocked.Increment(ref longIdentifier);
+                        long longIdentifier = Convert.ToUInt32(
+                            dataValue.Value,
+                            CultureInfo.InvariantCulture);
+                        Interlocked.CompareExchange(ref longIdentifier, 0, uint.MaxValue);
+                        dataValue.Value = (uint)Interlocked.Increment(ref longIdentifier);
                         valueUpdated = true;
                     }
                     else if (variable.ValueRank == ValueRanks.OneDimension)
@@ -313,10 +440,9 @@ namespace Quickstarts.ConsoleReferencePublisher
                         {
                             for (int i = 0; i < values.Length; i++)
                             {
-                                UInt32 uint32Value = values[i];
-                                long longIdentifier = uint32Value;
-                                Interlocked.CompareExchange(ref longIdentifier, 0, UInt32.MaxValue);
-                                values[i] = (UInt32)Interlocked.Increment(ref longIdentifier);
+                                long longIdentifier = values[i];
+                                Interlocked.CompareExchange(ref longIdentifier, 0, uint.MaxValue);
+                                values[i] = (uint)Interlocked.Increment(ref longIdentifier);
                             }
                             valueUpdated = true;
                         }
@@ -325,17 +451,21 @@ namespace Quickstarts.ConsoleReferencePublisher
                 case BuiltInType.UInt64:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        UInt64 uint64Value = Convert.ToUInt64(dataValue.Value);
+                        ulong uint64Value = Convert.ToUInt64(
+                            dataValue.Value,
+                            CultureInfo.InvariantCulture);
                         float longIdentifier = uint64Value + 1;
-                        Interlocked.CompareExchange(ref longIdentifier, 0, UInt64.MaxValue);
-                        dataValue.Value = (UInt64)longIdentifier;
+                        Interlocked.CompareExchange(ref longIdentifier, 0, ulong.MaxValue);
+                        dataValue.Value = (ulong)longIdentifier;
                         valueUpdated = true;
                     }
                     break;
                 case BuiltInType.Float:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        float floatValue = Convert.ToSingle(dataValue.Value);
+                        float floatValue = Convert.ToSingle(
+                            dataValue.Value,
+                            CultureInfo.InvariantCulture);
                         Interlocked.CompareExchange(ref floatValue, 0, float.MaxValue);
                         dataValue.Value = floatValue + 1;
                         valueUpdated = true;
@@ -344,7 +474,9 @@ namespace Quickstarts.ConsoleReferencePublisher
                 case BuiltInType.Double:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        double doubleValue = Convert.ToDouble(dataValue.Value);
+                        double doubleValue = Convert.ToDouble(
+                            dataValue.Value,
+                            CultureInfo.InvariantCulture);
                         Interlocked.CompareExchange(ref doubleValue, 0, double.MaxValue);
                         dataValue.Value = doubleValue + 1;
                         valueUpdated = true;
@@ -367,7 +499,8 @@ namespace Quickstarts.ConsoleReferencePublisher
                 case BuiltInType.String:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        m_aviationAlphabetIndex = (m_aviationAlphabetIndex + 1) % m_aviationAlphabet.Length;
+                        m_aviationAlphabetIndex = (m_aviationAlphabetIndex + 1) %
+                            m_aviationAlphabet.Length;
                         dataValue.Value = m_aviationAlphabet[m_aviationAlphabetIndex];
                         valueUpdated = true;
                     }
@@ -380,6 +513,5 @@ namespace Quickstarts.ConsoleReferencePublisher
                 WriteFieldData(variable.Name, namespaceIndex, dataValue);
             }
         }
-        #endregion
     }
 }

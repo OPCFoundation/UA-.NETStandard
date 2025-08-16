@@ -11,12 +11,11 @@
 */
 
 using System;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
 {
     /// <summary>
-    /// The arguments passed to the ConnectionWaiting event. 
+    /// The arguments passed to the ConnectionWaiting event.
     /// </summary>
     public class ConnectionWaitingEventArgs : EventArgs, ITransportWaitingConnection
     {
@@ -33,10 +32,10 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public string ServerUri { get; private set; }
+        public string ServerUri { get; }
 
         /// <inheritdoc/>
-        public Uri EndpointUrl { get; private set; }
+        public Uri EndpointUrl { get; }
 
         /// <inheritdoc/>
         public virtual object Handle => null;
@@ -49,11 +48,14 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// The arguments passed to the ConnectionStatus event. 
+    /// The arguments passed to the ConnectionStatus event.
     /// </summary>
     public class ConnectionStatusEventArgs : EventArgs
     {
-        internal ConnectionStatusEventArgs(Uri endpointUrl, ServiceResult channelStatus, bool closed)
+        internal ConnectionStatusEventArgs(
+            Uri endpointUrl,
+            ServiceResult channelStatus,
+            bool closed)
         {
             EndpointUrl = endpointUrl;
             ChannelStatus = channelStatus;
@@ -63,16 +65,16 @@ namespace Opc.Ua
         /// <summary>
         /// The endpoint Url of the channel which changed the status.
         /// </summary>
-        public Uri EndpointUrl { get; private set; }
+        public Uri EndpointUrl { get; }
 
         /// <summary>
         /// The new status of the channel.
         /// </summary>
-        public ServiceResult ChannelStatus { get; private set; }
+        public ServiceResult ChannelStatus { get; }
 
         /// <summary>
         /// Indicate that the channel is closed.
         /// </summary>
-        public bool Closed { get; private set; }
+        public bool Closed { get; }
     }
 }

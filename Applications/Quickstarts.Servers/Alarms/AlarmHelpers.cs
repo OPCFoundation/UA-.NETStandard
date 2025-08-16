@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -28,39 +28,38 @@
  * ======================================================================*/
 
 using System;
-
 using Opc.Ua;
-
 
 namespace Alarms
 {
     /// <summary>
     /// Helper class to allow for creation of various entities
     /// </summary>
-
-    public class AlarmHelpers
+    public static class AlarmHelpers
     {
         /// <summary>
         /// Create a mechanism to create a folder
         /// </summary>
-        public static FolderState CreateFolder(NodeState parent, ushort nameSpaceIndex, string path, string name)
+        public static FolderState CreateFolder(
+            NodeState parent,
+            ushort nameSpaceIndex,
+            string path,
+            string name)
         {
-            FolderState folder = new FolderState(parent);
-
-            folder.SymbolicName = name;
-            folder.ReferenceTypeId = ReferenceTypes.Organizes;
-            folder.TypeDefinitionId = ObjectTypeIds.FolderType;
-            folder.NodeId = new NodeId(path, nameSpaceIndex);
-            folder.BrowseName = new QualifiedName(path, nameSpaceIndex);
-            folder.DisplayName = new LocalizedText("en", name);
-            folder.WriteMask = AttributeWriteMask.None;
-            folder.UserWriteMask = AttributeWriteMask.None;
-            folder.EventNotifier = EventNotifiers.None;
-
-            if (parent != null)
+            var folder = new FolderState(parent)
             {
-                parent.AddChild(folder);
-            }
+                SymbolicName = name,
+                ReferenceTypeId = ReferenceTypes.Organizes,
+                TypeDefinitionId = ObjectTypeIds.FolderType,
+                NodeId = new NodeId(path, nameSpaceIndex),
+                BrowseName = new QualifiedName(path, nameSpaceIndex),
+                DisplayName = new LocalizedText("en", name),
+                WriteMask = AttributeWriteMask.None,
+                UserWriteMask = AttributeWriteMask.None,
+                EventNotifier = EventNotifiers.None
+            };
+
+            parent?.AddChild(folder);
 
             return folder;
         }
@@ -68,12 +67,17 @@ namespace Alarms
         /// <summary>
         /// Create a mechanism to create a variable
         /// </summary>
-        public static BaseDataVariableState CreateVariable(NodeState parent, ushort nameSpaceIndex, string path, string name, bool boolValue = false)
+        public static BaseDataVariableState CreateVariable(
+            NodeState parent,
+            ushort nameSpaceIndex,
+            string path,
+            string name,
+            bool boolValue = false)
         {
-            uint dataTypeIdentifier = Opc.Ua.DataTypes.Int32;
+            uint dataTypeIdentifier = DataTypes.Int32;
             if (boolValue)
             {
-                dataTypeIdentifier = Opc.Ua.DataTypes.Boolean;
+                dataTypeIdentifier = DataTypes.Boolean;
             }
             return CreateVariable(parent, nameSpaceIndex, path, name, dataTypeIdentifier);
         }
@@ -81,33 +85,38 @@ namespace Alarms
         /// <summary>
         /// Create a mechanism to create a Variable
         /// </summary>
-        public static BaseDataVariableState CreateVariable(NodeState parent, ushort nameSpaceIndex, string path, string name, uint dataTypeIdentifier)
+        public static BaseDataVariableState CreateVariable(
+            NodeState parent,
+            ushort nameSpaceIndex,
+            string path,
+            string name,
+            uint dataTypeIdentifier)
         {
-            BaseDataVariableState variable = new BaseDataVariableState(parent);
-
-            variable.SymbolicName = name;
-            variable.ReferenceTypeId = ReferenceTypes.Organizes;
-            variable.TypeDefinitionId = VariableTypeIds.BaseDataVariableType;
-            variable.NodeId = new NodeId(path, nameSpaceIndex);
-            variable.BrowseName = new QualifiedName(name, nameSpaceIndex);
-            variable.DisplayName = new LocalizedText("en", name);
-            variable.WriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description;
-            variable.UserWriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description;
+            var variable = new BaseDataVariableState(parent)
+            {
+                SymbolicName = name,
+                ReferenceTypeId = ReferenceTypes.Organizes,
+                TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
+                NodeId = new NodeId(path, nameSpaceIndex),
+                BrowseName = new QualifiedName(name, nameSpaceIndex),
+                DisplayName = new LocalizedText("en", name),
+                WriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description,
+                UserWriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description
+            };
             switch (dataTypeIdentifier)
             {
-                case Opc.Ua.DataTypes.Boolean:
+                case DataTypes.Boolean:
                     variable.DataType = DataTypeIds.Boolean;
                     variable.Value = false;
                     break;
-                case Opc.Ua.DataTypes.Int32:
+                case DataTypes.Int32:
                     variable.DataType = DataTypeIds.Int32;
                     variable.Value = AlarmDefines.NORMAL_START_VALUE;
                     break;
-                case Opc.Ua.DataTypes.Double:
+                case DataTypes.Double:
                     variable.DataType = DataTypeIds.Double;
                     variable.Value = (double)AlarmDefines.NORMAL_START_VALUE;
                     break;
-
             }
             variable.ValueRank = ValueRanks.Scalar;
             variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
@@ -116,10 +125,7 @@ namespace Alarms
             variable.StatusCode = StatusCodes.Good;
             variable.Timestamp = DateTime.UtcNow;
 
-            if (parent != null)
-            {
-                parent.AddChild(variable);
-            }
+            parent?.AddChild(variable);
 
             return variable;
         }
@@ -127,24 +133,26 @@ namespace Alarms
         /// <summary>
         /// Create a mechanism to create a method
         /// </summary>
-        public static MethodState CreateMethod(NodeState parent, ushort nameSpaceIndex, string path, string name)
+        public static MethodState CreateMethod(
+            NodeState parent,
+            ushort nameSpaceIndex,
+            string path,
+            string name)
         {
-            MethodState method = new MethodState(parent);
-
-            method.SymbolicName = name;
-            method.ReferenceTypeId = ReferenceTypeIds.HasComponent;
-            method.NodeId = new NodeId(path, nameSpaceIndex);
-            method.BrowseName = new QualifiedName(path, nameSpaceIndex);
-            method.DisplayName = new LocalizedText("en", name);
-            method.WriteMask = AttributeWriteMask.None;
-            method.UserWriteMask = AttributeWriteMask.None;
-            method.Executable = true;
-            method.UserExecutable = true;
-
-            if (parent != null)
+            var method = new MethodState(parent)
             {
-                parent.AddChild(method);
-            }
+                SymbolicName = name,
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                NodeId = new NodeId(path, nameSpaceIndex),
+                BrowseName = new QualifiedName(path, nameSpaceIndex),
+                DisplayName = new LocalizedText("en", name),
+                WriteMask = AttributeWriteMask.None,
+                UserWriteMask = AttributeWriteMask.None,
+                Executable = true,
+                UserExecutable = true
+            };
+
+            parent?.AddChild(method);
 
             return method;
         }
@@ -155,19 +163,27 @@ namespace Alarms
         public static void AddStartInputParameters(MethodState startMethod, ushort namespaceIndex)
         {
             // set input arguments
-            startMethod.InputArguments = new PropertyState<Argument[]>(startMethod);
-            startMethod.InputArguments.NodeId = new NodeId(startMethod.BrowseName.Name + "InArgs", namespaceIndex);
-            startMethod.InputArguments.BrowseName = BrowseNames.InputArguments;
+            startMethod.InputArguments = new PropertyState<Argument[]>(startMethod)
+            {
+                NodeId = new NodeId(startMethod.BrowseName.Name + "InArgs", namespaceIndex),
+                BrowseName = BrowseNames.InputArguments
+            };
             startMethod.InputArguments.DisplayName = startMethod.InputArguments.BrowseName.Name;
             startMethod.InputArguments.TypeDefinitionId = VariableTypeIds.PropertyType;
             startMethod.InputArguments.ReferenceTypeId = ReferenceTypeIds.HasProperty;
             startMethod.InputArguments.DataType = DataTypeIds.Argument;
             startMethod.InputArguments.ValueRank = ValueRanks.OneDimension;
 
-            startMethod.InputArguments.Value = new Argument[]
-            {
-                        new Argument() { Name = "UInt32 value", Description = "Runtime of Alarms in seconds.",  DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-            };
+            startMethod.InputArguments.Value =
+            [
+                new Argument
+                {
+                    Name = "UInt32 value",
+                    Description = "Runtime of Alarms in seconds.",
+                    DataType = DataTypeIds.UInt32,
+                    ValueRank = ValueRanks.Scalar
+                }
+            ];
         }
     }
 }

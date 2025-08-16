@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -27,11 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Runtime.Serialization;
 using System.Collections.Generic;
-
-using Opc.Ua.Server;
+using System.Runtime.Serialization;
 
 namespace MemoryBuffer
 {
@@ -41,7 +38,6 @@ namespace MemoryBuffer
     [DataContract(Namespace = Namespaces.MemoryBuffer)]
     public class MemoryBufferConfiguration
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -53,7 +49,7 @@ namespace MemoryBuffer
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
-        [OnDeserializing()]
+        [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
@@ -64,25 +60,14 @@ namespace MemoryBuffer
         /// </summary>
         private void Initialize()
         {
-            m_buffers = null;
+            Buffers = null;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
-        /// The buffers exposed by the memory 
+        /// The buffers exposed by the memory
         /// </summary>
         [DataMember(Order = 1)]
-        public MemoryBufferInstanceCollection Buffers
-        {
-            get { return m_buffers; }
-            set { m_buffers = value; }
-        }
-        #endregion
-
-        #region Private Members
-        private MemoryBufferInstanceCollection m_buffers;
-        #endregion
+        public MemoryBufferInstanceCollection Buffers { get; set; }
     }
 
     /// <summary>
@@ -91,7 +76,6 @@ namespace MemoryBuffer
     [DataContract(Namespace = Namespaces.MemoryBuffer)]
     public class MemoryBufferInstance
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -103,7 +87,7 @@ namespace MemoryBuffer
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
-        [OnDeserializing()]
+        [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
@@ -114,58 +98,37 @@ namespace MemoryBuffer
         /// </summary>
         private void Initialize()
         {
-            m_name = null;
-            m_tagCount = 0;
-            m_dataType = null;
+            Name = null;
+            TagCount = 0;
+            DataType = null;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The browse name for the instance.
         /// </summary>
         [DataMember(Order = 1)]
-        public string Name
-        {
-            get { return m_name; }
-            set { m_name = value; }
-        }
+        public string Name { get; set; }
 
         /// <summary>
         /// The number of tags in the buffer.
         /// </summary>
         [DataMember(Order = 2)]
-        public int TagCount
-        {
-            get { return m_tagCount; }
-            set { m_tagCount = value; }
-        }
+        public int TagCount { get; set; }
 
         /// <summary>
         /// The data type of the tags in the buffer.
         /// </summary>
         [DataMember(Order = 3)]
-        public string DataType
-        {
-            get { return m_dataType; }
-            set { m_dataType = value; }
-        }
-        #endregion
-
-        #region Private Members
-        private string m_name;
-        private int m_tagCount;
-        private string m_dataType;
-        #endregion
+        public string DataType { get; set; }
     }
 
-    #region MemoryBufferInstanceCollection Class
     /// <summary>
     /// A collection of MemoryBufferInstances.
     /// </summary>
-    [CollectionDataContract(Name = "ListOfMemoryBufferInstance", Namespace = Namespaces.MemoryBuffer, ItemName = "MemoryBufferInstance")]
-    public partial class MemoryBufferInstanceCollection : List<MemoryBufferInstance>
-    {
-    }
-    #endregion
+    [CollectionDataContract(
+        Name = "ListOfMemoryBufferInstance",
+        Namespace = Namespaces.MemoryBuffer,
+        ItemName = "MemoryBufferInstance"
+    )]
+    public class MemoryBufferInstanceCollection : List<MemoryBufferInstance>;
 }

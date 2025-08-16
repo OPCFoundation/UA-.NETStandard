@@ -19,7 +19,6 @@ namespace Opc.Ua
     /// </summary>
     public class SecureChannelContext
     {
-        #region Constructors
         /// <summary>
         /// Initializes a new instance with the specified property values.
         /// </summary>
@@ -31,9 +30,9 @@ namespace Opc.Ua
             EndpointDescription endpointDescription,
             RequestEncoding messageEncoding)
         {
-            m_secureChannelId = secureChannelId;
-            m_endpointDescription = endpointDescription;
-            m_messageEncoding = messageEncoding;
+            SecureChannelId = secureChannelId;
+            EndpointDescription = endpointDescription;
+            MessageEncoding = messageEncoding;
         }
 
         /// <summary>
@@ -41,71 +40,45 @@ namespace Opc.Ua
         /// </summary>
         protected SecureChannelContext()
         {
-            SecureChannelContext context = SecureChannelContext.Current;
+            SecureChannelContext context = Current;
 
             if (context != null)
             {
-                m_secureChannelId = context.SecureChannelId;
-                m_endpointDescription = context.EndpointDescription;
-                m_messageEncoding = context.MessageEncoding;
+                SecureChannelId = context.SecureChannelId;
+                EndpointDescription = context.EndpointDescription;
+                MessageEncoding = context.MessageEncoding;
             }
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// TThe unique identifier for the secure channel.
         /// </summary>
         /// <value>The secure channel identifier.</value>
-        public string SecureChannelId
-        {
-            get { return m_secureChannelId; }
-        }
+        public string SecureChannelId { get; }
 
         /// <summary>
         /// The description of the endpoint used with the channel.
         /// </summary>
         /// <value>The endpoint description.</value>
-        public EndpointDescription EndpointDescription
-        {
-            get { return m_endpointDescription; }
-        }
+        public EndpointDescription EndpointDescription { get; }
 
         /// <summary>
         /// The encoding used with the channel.
         /// </summary>
         /// <value>The message encoding.</value>
-        public RequestEncoding MessageEncoding
-        {
-            get { return m_messageEncoding; }
-        }
-        #endregion
+        public RequestEncoding MessageEncoding { get; }
 
-        #region Static Members
         /// <summary>
         /// The active secure channel for the thread.
         /// </summary>
         /// <value>The current secure channel context.</value>
         public static SecureChannelContext Current
         {
-            get
-            {
-                return s_Dataslot.Value;
-            }
-
-            set
-            {
-                s_Dataslot.Value = value;
-            }
+            get => s_dataslot.Value;
+            set => s_dataslot.Value = value;
         }
-        #endregion
 
-        #region Private Fields
-        private string m_secureChannelId;
-        private EndpointDescription m_endpointDescription;
-        private RequestEncoding m_messageEncoding;
-        private static AsyncLocal<SecureChannelContext> s_Dataslot = new AsyncLocal<SecureChannelContext>();
-        #endregion
+        private static readonly AsyncLocal<SecureChannelContext> s_dataslot = new();
     }
 
     /// <summary>

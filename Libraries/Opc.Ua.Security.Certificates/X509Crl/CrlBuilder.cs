@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -28,12 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Formats.Asn1;
+using System.Linq;
+using System.Numerics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Numerics;
-using System.Linq;
-using System.Collections.Generic;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -42,7 +42,6 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public sealed class CrlBuilder : IX509CRL
     {
-        #region Constructors
         /// <summary>
         /// Create a CRL builder initialized with a decoded CRL.
         /// </summary>
@@ -66,7 +65,9 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="issuerSubjectName">Issuer distinguished name</param>
         /// <param name="hashAlgorithmName">The signing algorithm to use.</param>
-        public static CrlBuilder Create(X500DistinguishedName issuerSubjectName, HashAlgorithmName hashAlgorithmName)
+        public static CrlBuilder Create(
+            X500DistinguishedName issuerSubjectName,
+            HashAlgorithmName hashAlgorithmName)
         {
             return new CrlBuilder(issuerSubjectName, hashAlgorithmName);
         }
@@ -82,12 +83,8 @@ namespace Opc.Ua.Security.Certificates
             ThisUpdate = crl.ThisUpdate;
             NextUpdate = crl.NextUpdate;
             RawData = crl.RawData;
-            m_revokedCertificates = new List<RevokedCertificate>(crl.RevokedCertificates);
-            m_crlExtensions = new X509ExtensionCollection();
-            foreach (X509Extension extension in crl.CrlExtensions)
-            {
-                m_crlExtensions.Add(extension);
-            }
+            m_revokedCertificates = [.. crl.RevokedCertificates];
+            CrlExtensions = [.. crl.CrlExtensions];
         }
 
         /// <summary>
@@ -104,7 +101,9 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="issuerSubjectName">Issuer distinguished name</param>
         /// <param name="hashAlgorithmName">The signing algorithm to use.</param>
-        private CrlBuilder(X500DistinguishedName issuerSubjectName, HashAlgorithmName hashAlgorithmName)
+        private CrlBuilder(
+            X500DistinguishedName issuerSubjectName,
+            HashAlgorithmName hashAlgorithmName)
             : this()
         {
             IssuerName = issuerSubjectName;
@@ -118,12 +117,10 @@ namespace Opc.Ua.Security.Certificates
         {
             ThisUpdate = DateTime.UtcNow;
             NextUpdate = DateTime.MinValue;
-            m_revokedCertificates = new List<RevokedCertificate>();
-            m_crlExtensions = new X509ExtensionCollection();
+            m_revokedCertificates = [];
+            CrlExtensions = [];
         }
-        #endregion
 
-        #region IX509CRL Interface
         /// <inheritdoc/>
         public X500DistinguishedName IssuerName { get; }
 
@@ -143,13 +140,11 @@ namespace Opc.Ua.Security.Certificates
         public IList<RevokedCertificate> RevokedCertificates => m_revokedCertificates;
 
         /// <inheritdoc/>
-        public X509ExtensionCollection CrlExtensions => m_crlExtensions;
+        public X509ExtensionCollection CrlExtensions { get; }
 
         /// <inheritdoc/>
         public byte[] RawData { get; private set; }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Set this update time.
         /// </summary>
@@ -182,10 +177,18 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="serialNumbers">The array of serial numbers to revoke.</param>
         /// <param name="crlReason">The revocation reason</param>
-        public CrlBuilder AddRevokedSerialNumbers(string[] serialNumbers, CRLReason crlReason = CRLReason.Unspecified)
+        /// <exception cref="ArgumentNullException"><paramref name="serialNumbers"/> is <c>null</c>.</exception>
+        public CrlBuilder AddRevokedSerialNumbers(
+            string[] serialNumbers,
+            CRLReason crlReason = CRLReason.Unspecified)
         {
-            if (serialNumbers == null) throw new ArgumentNullException(nameof(serialNumbers));
-            m_revokedCertificates.AddRange(serialNumbers.Select(s => new RevokedCertificate(s, crlReason)).ToList());
+            if (serialNumbers == null)
+            {
+                throw new ArgumentNullException(nameof(serialNumbers));
+            }
+
+            m_revokedCertificates.AddRange(
+                [.. serialNumbers.Select(s => new RevokedCertificate(s, crlReason))]);
             return this;
         }
 
@@ -194,9 +197,16 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="certificate">The certificate to revoke.</param>
         /// <param name="crlReason">The revocation reason</param>
-        public CrlBuilder AddRevokedCertificate(X509Certificate2 certificate, CRLReason crlReason = CRLReason.Unspecified)
+        /// <exception cref="ArgumentNullException"><paramref name="certificate"/> is <c>null</c>.</exception>
+        public CrlBuilder AddRevokedCertificate(
+            X509Certificate2 certificate,
+            CRLReason crlReason = CRLReason.Unspecified)
         {
-            if (certificate == null) throw new ArgumentNullException(nameof(certificate));
+            if (certificate == null)
+            {
+                throw new ArgumentNullException(nameof(certificate));
+            }
+
             m_revokedCertificates.Add(new RevokedCertificate(certificate.SerialNumber, crlReason));
             return this;
         }
@@ -204,9 +214,14 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Add a revoked certificate.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="revokedCertificate"/> is <c>null</c>.</exception>
         public CrlBuilder AddRevokedCertificate(RevokedCertificate revokedCertificate)
         {
-            if (revokedCertificate == null) throw new ArgumentNullException(nameof(revokedCertificate));
+            if (revokedCertificate == null)
+            {
+                throw new ArgumentNullException(nameof(revokedCertificate));
+            }
+
             m_revokedCertificates.Add(revokedCertificate);
             return this;
         }
@@ -214,9 +229,14 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Add a list of revoked certificate.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="revokedCertificates"/> is <c>null</c>.</exception>
         public CrlBuilder AddRevokedCertificates(IList<RevokedCertificate> revokedCertificates)
         {
-            if (revokedCertificates == null) throw new ArgumentNullException(nameof(revokedCertificates));
+            if (revokedCertificates == null)
+            {
+                throw new ArgumentNullException(nameof(revokedCertificates));
+            }
+
             m_revokedCertificates.AddRange(revokedCertificates);
             return this;
         }
@@ -226,7 +246,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public CrlBuilder AddCRLExtension(X509Extension extension)
         {
-            m_crlExtensions.Add(extension);
+            CrlExtensions.Add(extension);
             return this;
         }
 
@@ -238,7 +258,8 @@ namespace Opc.Ua.Security.Certificates
         public IX509CRL CreateSignature(X509SignatureGenerator generator)
         {
             byte[] tbsRawData = Encode();
-            byte[] signatureAlgorithm = generator.GetSignatureAlgorithmIdentifier(HashAlgorithmName);
+            byte[] signatureAlgorithm = generator.GetSignatureAlgorithmIdentifier(
+                HashAlgorithmName);
             byte[] signature = generator.SignData(tbsRawData, HashAlgorithmName);
             var crlSigner = new X509Signature(tbsRawData, signature, signatureAlgorithm);
             RawData = crlSigner.Encode();
@@ -251,11 +272,9 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>The signed CRL.</returns>
         public IX509CRL CreateForRSA(X509Certificate2 issuerCertificate)
         {
-            using (RSA rsa = issuerCertificate.GetRSAPrivateKey())
-            {
-                var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
-                return CreateSignature(generator);
-            }
+            using RSA rsa = issuerCertificate.GetRSAPrivateKey();
+            var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
+            return CreateSignature(generator);
         }
 
 #if ECC_SUPPORT
@@ -265,28 +284,25 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>The signed CRL.</returns>
         public IX509CRL CreateForECDsa(X509Certificate2 issuerCertificate)
         {
-            using (ECDsa ecdsa = issuerCertificate.GetECDsaPrivateKey())
-            {
-                var generator = X509SignatureGenerator.CreateForECDsa(ecdsa);
-                return CreateSignature(generator);
-            }
+            using ECDsa ecdsa = issuerCertificate.GetECDsaPrivateKey();
+            var generator = X509SignatureGenerator.CreateForECDsa(ecdsa);
+            return CreateSignature(generator);
         }
 #endif
-        #endregion
 
-        #region Internal Methods
         /// <summary>
         /// Constructs Certificate Revocation List raw data in X509 ASN format.
         /// </summary>
         /// <remarks>
-        /// CRL fields -- https://tools.ietf.org/html/rfc5280#section-5.1
-        /// 
+        /// <para>CRL fields -- https://tools.ietf.org/html/rfc5280#section-5.1</para>
+        /// <para>
         /// CertificateList  ::=  SEQUENCE  {
         ///    tbsCertList          TBSCertList,
         ///    signatureAlgorithm   AlgorithmIdentifier,
         ///    signatureValue       BIT STRING
         ///    }
-        ///
+        /// </para>
+        /// <para>
         /// TBSCertList  ::=  SEQUENCE  {
         ///    version                 Version OPTIONAL,
         ///                            -- if present, MUST be v2
@@ -303,6 +319,7 @@ namespace Opc.Ua.Security.Certificates
         ///    crlExtensions           [0]  EXPLICIT Extensions OPTIONAL
         ///                              -- if present, version MUST be v2
         ///                            }
+        /// </para>
         /// </remarks>
         internal byte[] Encode()
         {
@@ -330,8 +347,7 @@ namespace Opc.Ua.Security.Certificates
                 WriteTime(crlWriter, ThisUpdate);
 
                 // next update is OPTIONAL
-                if (NextUpdate != DateTime.MinValue &&
-                    NextUpdate > ThisUpdate)
+                if (NextUpdate != DateTime.MinValue && NextUpdate > ThisUpdate)
                 {
                     // next update
                     WriteTime(crlWriter, NextUpdate);
@@ -407,11 +423,7 @@ namespace Opc.Ua.Security.Certificates
                 writer.WriteGeneralizedTime(utcTime, true);
             }
         }
-        #endregion
 
-        #region Private Fields
-        private List<RevokedCertificate> m_revokedCertificates;
-        private X509ExtensionCollection m_crlExtensions;
-        #endregion
+        private readonly List<RevokedCertificate> m_revokedCertificates;
     }
 }

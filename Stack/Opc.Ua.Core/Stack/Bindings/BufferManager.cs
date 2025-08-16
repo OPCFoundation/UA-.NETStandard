@@ -16,16 +16,15 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace Opc.Ua.Bindings
 {
-    #region BufferCollection Class
     /// <summary>
     /// A collection of buffers.
     /// </summary>
     public class BufferCollection : List<ArraySegment<byte>>
     {
-        #region Constructors
         /// <summary>
         /// Creates an empty collection.
         /// </summary>
@@ -37,7 +36,8 @@ namespace Opc.Ua.Bindings
         /// Creates an empty collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The capacity.</param>
-        public BufferCollection(int capacity) : base(capacity)
+        public BufferCollection(int capacity)
+            : base(capacity)
         {
         }
 
@@ -60,9 +60,7 @@ namespace Opc.Ua.Bindings
         {
             Add(new ArraySegment<byte>(array, offset, count));
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Returns the buffers to the manager before clearing the collection.
         /// </summary>
@@ -94,7 +92,7 @@ namespace Opc.Ua.Bindings
             {
                 int count = 0;
 
-                for (int ii = 0; ii < this.Count; ii++)
+                for (int ii = 0; ii < Count; ii++)
                 {
                     count += this[ii].Count;
                 }
@@ -102,17 +100,13 @@ namespace Opc.Ua.Bindings
                 return count;
             }
         }
-        #endregion
     }
-    #endregion
 
-    #region BufferManager Class
     /// <summary>
     /// A thread safe wrapper for the buffer manager class.
     /// </summary>
     public class BufferManager
     {
-        #region Constructors
         /// <summary>
         /// Constructs the buffer manager.
         /// </summary>
@@ -120,28 +114,30 @@ namespace Opc.Ua.Bindings
         /// <param name="maxBufferSize">Max size of the buffer.</param>
         public BufferManager(string name, int maxBufferSize)
         {
-            m_name = name;
-            m_arrayPool = maxBufferSize <= 1024 * 1024
-                ? ArrayPool<byte>.Shared
-                : ArrayPool<byte>.Create(maxBufferSize + kCookieLength, 4);
+            Name = name;
+            m_arrayPool =
+                maxBufferSize <= 1024 * 1024
+                    ? ArrayPool<byte>.Shared
+                    : ArrayPool<byte>.Create(maxBufferSize + kCookieLength, 4);
             m_maxBufferSize = maxBufferSize;
-            m_maxSuggestedBufferSize = DetermineSuggestedBufferSize(maxBufferSize);
+            MaxSuggestedBufferSize = DetermineSuggestedBufferSize(maxBufferSize);
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Returns a buffer with at least the specified size.
         /// </summary>
         /// <param name="size">The size.</param>
         /// <param name="owner">The owner.</param>
         /// <returns>The buffer content</returns>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public byte[] TakeBuffer(int size, string owner)
         {
             if (size > m_maxBufferSize)
             {
                 throw new ArgumentOutOfRangeException(nameof(size));
             }
+
+            Debug.Assert(owner != null);
 
             byte[] buffer = m_arrayPool.Rent(size + kCookieLength);
 #if TRACK_MEMORY
@@ -163,9 +159,15 @@ namespace Opc.Ua.Bindings
             }
 #endif
 #if TRACE_MEMORY
-            Utils.LogTrace("{0:X}:TakeBuffer({1:X},{2:X},{3},{4})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner, ++m_buffersTaken);
+            Utils.LogTrace(
+                "{0:X}:TakeBuffer({1:X},{2:X},{3},{4})",
+                this.GetHashCode(),
+                buffer.GetHashCode(),
+                buffer.Length,
+                owner,
+                ++m_buffersTaken);
 #endif
-            buffer[buffer.Length - 1] = kCookieUnlocked;
+            buffer[^1] = kCookieUnlocked;
 
             return buffer;
         }
@@ -195,7 +197,8 @@ namespace Opc.Ua.Bindings
 
                     if (allocation.Reported > 0)
                     {
-                        Utils.LogTrace("{0}: Id={1}; Owner={2}; Size={3} KB; *** TRANSFERRED ***",
+                        Utils.LogTrace(
+                            "{0}: Id={1}; Owner={2}; Size={3} KB; *** TRANSFERRED ***",
                             m_name,
                             allocation.Id,
                             allocation.Owner,
@@ -205,7 +208,12 @@ namespace Opc.Ua.Bindings
             }
 #endif
 #if TRACE_MEMORY
-            Utils.LogTrace("{0:X}:TransferBuffer({1:X},{2:X},{3})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner);
+            Utils.LogTrace(
+                "{0:X}:TransferBuffer({1:X},{2:X},{3})",
+                this.GetHashCode(),
+                buffer.GetHashCode(),
+                buffer.Length,
+                owner);
 #endif
         }
 
@@ -213,32 +221,34 @@ namespace Opc.Ua.Bindings
         /// Locks the buffer (used for debugging only).
         /// </summary>
         /// <param name="buffer">The buffer.</param>
+        /// <exception cref="InvalidOperationException"></exception>
         public static void LockBuffer(byte[] buffer)
         {
-            if (buffer[buffer.Length - 1] != kCookieUnlocked)
+            if (buffer[^1] != kCookieUnlocked)
             {
                 throw new InvalidOperationException("Buffer is already locked.");
             }
 #if TRACE_MEMORY
             Utils.LogTrace("LockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
 #endif
-            buffer[buffer.Length - 1] = kCookieLocked;
+            buffer[^1] = kCookieLocked;
         }
 
         /// <summary>
         /// Unlocks the buffer (used for debugging only).
         /// </summary>
         /// <param name="buffer">The buffer.</param>
+        /// <exception cref="InvalidOperationException"></exception>
         public static void UnlockBuffer(byte[] buffer)
         {
-            if (buffer[buffer.Length - 1] != kCookieLocked)
+            if (buffer[^1] != kCookieLocked)
             {
                 throw new InvalidOperationException("Buffer is not locked.");
             }
 #if TRACE_MEMORY
             Utils.LogTrace("UnlockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
 #endif
-            buffer[buffer.Length - 1] = kCookieUnlocked;
+            buffer[^1] = kCookieUnlocked;
         }
 
         /// <summary>
@@ -246,6 +256,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="buffer">The buffer.</param>
         /// <param name="owner">The owner.</param>
+        /// <exception cref="InvalidOperationException"></exception>
         public void ReturnBuffer(byte[] buffer, string owner)
         {
             if (buffer == null)
@@ -253,21 +264,28 @@ namespace Opc.Ua.Bindings
                 return;
             }
 
+            Debug.Assert(owner != null);
+
 #if TRACE_MEMORY
-            Utils.LogTrace("{0:X}:ReturnBuffer({1:X},{2:X},{3},{4})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner, --m_buffersTaken);
+            Utils.LogTrace(
+                "{0:X}:ReturnBuffer({1:X},{2:X},{3},{4})",
+                this.GetHashCode(),
+                buffer.GetHashCode(),
+                buffer.Length,
+                owner,
+                --m_buffersTaken);
 #endif
-            if (buffer[buffer.Length - 1] != kCookieUnlocked)
+            if (buffer[^1] != kCookieUnlocked)
             {
                 throw new InvalidOperationException("Buffer has been locked.");
             }
 
             // destroy cookie
-            buffer[buffer.Length - 1] = kCookieUnlocked ^ kCookieLocked;
+            buffer[^1] = kCookieUnlocked ^ kCookieLocked;
 
 #if TRACK_MEMORY
             lock (m_lock)
             {
-
                 m_allocated -= buffer.Length;
 
                 int id = BitConverter.ToInt32(buffer, buffer.Length - 5);
@@ -280,7 +298,8 @@ namespace Opc.Ua.Bindings
 
                     if (allocation.Reported > 0)
                     {
-                        Utils.LogTrace("{0}: Id={1}; Owner={2}; ReleasedBy={3}; Size={4} KB; *** RETURNED ***",
+                        Utils.LogTrace(
+                            "{0}: Id={1}; Owner={2}; ReleasedBy={3}; Size={4} KB; *** RETURNED ***",
                             m_name,
                             allocation.Id,
                             allocation.Owner,
@@ -310,7 +329,8 @@ namespace Opc.Ua.Bindings
                     {
                         if (allocation.Reported < age)
                         {
-                            Utils.LogTrace("{0}: Id={1}; Owner={2}; Size={3} KB; Age={4}",
+                            Utils.LogTrace(
+                                "{0}: Id={1}; Owner={2}; Size={3} KB; Age={4}",
                                 m_name,
                                 allocation.Id,
                                 allocation.Owner,
@@ -342,13 +362,16 @@ namespace Opc.Ua.Bindings
         /// Returns the suggested max rent size for data in the buffers.
         /// </summary>
         /// <param name="maxBufferSize">The max buffer size configured.</param>
-        private int DetermineSuggestedBufferSize(int maxBufferSize)
+        private static int DetermineSuggestedBufferSize(int maxBufferSize)
         {
             int bufferArrayPoolSize = RoundUpToPowerOfTwo(maxBufferSize);
             int maxDataRentSize = RoundUpToPowerOfTwo(maxBufferSize + kCookieLength);
             if (bufferArrayPoolSize != maxDataRentSize)
             {
-                Utils.LogWarning("BufferManager: Max buffer size {0} + cookie length {1} may waste memory because it allocates buffers in the next bucket!", maxBufferSize, kCookieLength);
+                Utils.LogWarning(
+                    "BufferManager: Max buffer size {0} + cookie length {1} may waste memory because it allocates buffers in the next bucket!",
+                    maxBufferSize,
+                    kCookieLength);
                 return bufferArrayPoolSize - kCookieLength;
             }
             return maxBufferSize;
@@ -357,7 +380,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Helper to round up to the next power of two.
         /// </summary>
-        private int RoundUpToPowerOfTwo(int value)
+        private static int RoundUpToPowerOfTwo(int value)
         {
             int result = 1;
 
@@ -378,13 +401,14 @@ namespace Opc.Ua.Bindings
         /// To avoid memory waste, use this value as a guideline
         /// for the maximum buffer size when taking buffers.
         /// </remarks>
-        public int MaxSuggestedBufferSize => m_maxSuggestedBufferSize;
-        #endregion
+        public int MaxSuggestedBufferSize { get; }
 
-        #region Private Fields
-        private readonly string m_name;
+        /// <summary>
+        /// Debug view
+        /// </summary>
+        internal string Name { get; }
+
         private readonly int m_maxBufferSize;
-        private readonly int m_maxSuggestedBufferSize;
 #if TRACE_MEMORY
         private int m_buffersTaken = 0;
 #endif
@@ -393,6 +417,7 @@ namespace Opc.Ua.Bindings
         private const byte kCookieUnlocked = 0x5a;
 #if TRACK_MEMORY
         private const byte kCookieLength = 5;
+
         class Allocation
         {
             public int Id;
@@ -402,6 +427,7 @@ namespace Opc.Ua.Bindings
             public string ReleasedBy;
             public int Reported;
         }
+
         private readonly object m_lock = new object();
         private int m_allocated;
         private int m_id;
@@ -409,7 +435,5 @@ namespace Opc.Ua.Bindings
 #else
         private const byte kCookieLength = 1;
 #endif
-        #endregion
     }
-    #endregion
 }

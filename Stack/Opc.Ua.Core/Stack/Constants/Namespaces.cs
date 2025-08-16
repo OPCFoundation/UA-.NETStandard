@@ -10,8 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-
 namespace Opc.Ua
 {
     /// <summary>
@@ -32,12 +30,14 @@ namespace Opc.Ua
         /// <summary>
         /// The WS Security Extensions Namespace.
         /// </summary>
-        public const string WSSecurityExtensions = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd";
+        public const string WSSecurityExtensions =
+            "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd";
 
         /// <summary>
         /// The WS Security Utilities Namespace.
         /// </summary>
-        public const string WSSecurityUtilities = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd";
+        public const string WSSecurityUtilities =
+            "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd";
 
         /// <summary>
         /// The URI for the UA WSDL.
@@ -47,7 +47,8 @@ namespace Opc.Ua
         /// <summary>
         /// The URI for the UA SecuredApplication schema.
         /// </summary>
-        public const string OpcUaSecurity = "http://opcfoundation.org/UA/2011/03/SecuredApplication.xsd";
+        public const string OpcUaSecurity
+            = "http://opcfoundation.org/UA/2011/03/SecuredApplication.xsd";
 
         /// <summary>
         /// The base URI for the Global Discovery Service.

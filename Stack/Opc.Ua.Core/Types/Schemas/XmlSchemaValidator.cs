@@ -13,6 +13,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Xml;
@@ -25,7 +26,6 @@ namespace Opc.Ua.Schema.Xml
     /// </summary>
     public class XmlSchemaValidator : SchemaValidator
     {
-        #region Constructors
         /// <summary>
         /// Intializes the object with default values.
         /// </summary>
@@ -37,7 +37,8 @@ namespace Opc.Ua.Schema.Xml
         /// <summary>
         /// Intializes the object with a file table.
         /// </summary>
-        public XmlSchemaValidator(IDictionary<string, string> fileTable) : base(fileTable)
+        public XmlSchemaValidator(IDictionary<string, string> fileTable)
+            : base(fileTable)
         {
             SetResourcePaths(WellKnownDictionaries);
         }
@@ -45,31 +46,29 @@ namespace Opc.Ua.Schema.Xml
         /// <summary>
         /// Intializes the object with a import table.
         /// </summary>
-        public XmlSchemaValidator(IDictionary<string, byte[]> importTable) : base(importTable)
+        public XmlSchemaValidator(IDictionary<string, byte[]> importTable)
+            : base(importTable)
         {
             SetResourcePaths(WellKnownDictionaries);
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// The schema set that was validated.
         /// </summary>
-        public XmlSchemaSet SchemaSet => m_schemaSet;
+        public XmlSchemaSet SchemaSet { get; private set; }
+
         /// <summary>
         /// The schema that was validated.
         /// </summary>
-        public XmlSchema TargetSchema => m_schema;
+        public XmlSchema TargetSchema { get; private set; }
 
         /// <summary>
         /// Generates the code from the contents of the address space.
         /// </summary>
         public void Validate(string inputPath)
         {
-            using (Stream istrm = File.OpenRead(inputPath))
-            {
-                Validate(istrm);
-            }
+            using Stream istrm = File.OpenRead(inputPath);
+            Validate(istrm);
         }
 
         /// <summary>
@@ -77,44 +76,40 @@ namespace Opc.Ua.Schema.Xml
         /// </summary>
         public void Validate(Stream stream)
         {
-            using (var xmlReader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
+            using var xmlReader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
+            TargetSchema = XmlSchema.Read(xmlReader, new ValidationEventHandler(OnValidate));
+
+            Assembly assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
+            foreach (XmlSchemaImport import in TargetSchema.Includes.OfType<XmlSchemaImport>())
             {
-                m_schema = XmlSchema.Read(xmlReader, new ValidationEventHandler(OnValidate));
-
-                var assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
-                foreach (XmlSchemaImport import in m_schema.Includes)
+                if (!KnownFiles.TryGetValue(import.Namespace, out string location))
                 {
-                    string location = null;
-
-                    if (!KnownFiles.TryGetValue(import.Namespace, out location))
-                    {
-                        location = import.SchemaLocation;
-                    }
-
-                    FileInfo fileInfo = new FileInfo(location);
-                    var settings = Utils.DefaultXmlReaderSettings();
-                    if (!fileInfo.Exists)
-                    {
-                        using (StreamReader strm = new StreamReader(assembly.GetManifestResourceStream(location)))
-                        using (var schemaReader = XmlReader.Create(strm, settings))
-                        {
-                            import.Schema = XmlSchema.Read(schemaReader, new ValidationEventHandler(OnValidate));
-                        }
-                    }
-                    else
-                    {
-                        using (Stream strm = File.OpenRead(location))
-                        using (var schemaReader = XmlReader.Create(strm, settings))
-                        {
-                            import.Schema = XmlSchema.Read(schemaReader, new ValidationEventHandler(OnValidate));
-                        }
-                    }
+                    location = import.SchemaLocation;
                 }
 
-                m_schemaSet = new XmlSchemaSet();
-                m_schemaSet.Add(m_schema);
-                m_schemaSet.Compile();
+                var fileInfo = new FileInfo(location);
+                XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
+                if (!fileInfo.Exists)
+                {
+                    using var strm = new StreamReader(assembly.GetManifestResourceStream(location));
+                    using var schemaReader = XmlReader.Create(strm, settings);
+                    import.Schema = XmlSchema.Read(
+                        schemaReader,
+                        new ValidationEventHandler(OnValidate));
+                }
+                else
+                {
+                    using Stream strm = File.OpenRead(location);
+                    using var schemaReader = XmlReader.Create(strm, settings);
+                    import.Schema = XmlSchema.Read(
+                        schemaReader,
+                        new ValidationEventHandler(OnValidate));
+                }
             }
+
+            SchemaSet = new XmlSchemaSet();
+            SchemaSet.Add(TargetSchema);
+            SchemaSet.Compile();
         }
 
         /// <summary>
@@ -124,29 +119,26 @@ namespace Opc.Ua.Schema.Xml
         {
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
 
-            MemoryStream ostrm = new MemoryStream();
-            XmlWriter writer = XmlWriter.Create(ostrm, settings);
+            var ostrm = new MemoryStream();
+            var writer = XmlWriter.Create(ostrm, settings);
 
             try
             {
-                if (typeName == null || m_schema.Elements.Values.Count == 0)
+                if (typeName == null || TargetSchema.Elements.Values.Count == 0)
                 {
-                    m_schema.Write(writer);
+                    TargetSchema.Write(writer);
                 }
                 else
                 {
-                    foreach (XmlSchemaObject current in m_schema.Elements.Values)
+                    foreach (XmlSchemaObject current in TargetSchema.Elements.Values)
                     {
-                        if (current is XmlSchemaElement element)
+                        if (current is XmlSchemaElement element && element.Name == typeName)
                         {
-                            if (element.Name == typeName)
-                            {
-                                XmlSchema schema = new XmlSchema();
-                                schema.Items.Add(element.ElementSchemaType);
-                                schema.Items.Add(element);
-                                schema.Write(writer);
-                                break;
-                            }
+                            var schema = new XmlSchema();
+                            schema.Items.Add(element.ElementSchemaType);
+                            schema.Items.Add(element);
+                            schema.Write(writer);
+                            break;
                         }
                     }
                 }
@@ -159,29 +151,23 @@ namespace Opc.Ua.Schema.Xml
 
             return Encoding.UTF8.GetString(ostrm.ToArray());
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Handles a validation error.
         /// </summary>
-        static void OnValidate(object sender, ValidationEventArgs args)
+        /// <exception cref="InvalidOperationException"></exception>
+        private static void OnValidate(object sender, ValidationEventArgs args)
         {
             Utils.LogError("Error in XML schema validation: {0}", args.Message);
             throw new InvalidOperationException(args.Message, args.Exception);
         }
-        #endregion
 
-        #region Private Fields
         /// <summary>
         /// The well known schemas embedded in the assembly.
         /// </summary>
-        protected static readonly string[][] WellKnownDictionaries = new string[][]
-        {
-            new string[] { Namespaces.OpcUaXsd, "Opc.Ua.Schema.Opc.Ua.Types.xsd" }
-        };
-        private XmlSchema m_schema;
-        private XmlSchemaSet m_schemaSet;
-        #endregion
+        protected static readonly string[][] WellKnownDictionaries =
+        [
+            [Namespaces.OpcUaXsd, "Opc.Ua.Schema.Opc.Ua.Types.xsd"]
+        ];
     }
 }

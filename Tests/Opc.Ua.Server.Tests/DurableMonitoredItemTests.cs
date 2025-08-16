@@ -1,14 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Loggers;
-using CommandLine.Text;
-using Microsoft.AspNetCore.Hosting.Server;
-using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Quickstarts.Servers;
@@ -18,40 +13,43 @@ namespace Opc.Ua.Server.Tests
     /// <summary>
     /// Test MonitoredItem
     /// </summary>
-    [TestFixture, Category("MonitoredItem")]
+    [TestFixture]
+    [Category("MonitoredItem")]
     [TestFixtureSource(nameof(FixtureArgs))]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     [MemoryDiagnoser]
     public class DurableMonitoredItemTests
     {
-        #region Setup
         /// <summary>
         /// Queue Factories to run the test with
         /// </summary>
-        public static readonly object[] FixtureArgs = {
-            new object [] { new MonitoredItemQueueFactory()},
-            new object [] { new DurableMonitoredItemQueueFactory() }
-        };
+        public static readonly object[] FixtureArgs =
+        [
+            new object[] { new MonitoredItemQueueFactory() },
+            new object[] { new DurableMonitoredItemQueueFactory() }
+        ];
+
         public DurableMonitoredItemTests(IMonitoredItemQueueFactory factory)
         {
             m_factory = factory;
         }
 
         private readonly IMonitoredItemQueueFactory m_factory;
-        #endregion
-        #region dataChangeQueue
+
         [Test]
         public void EnqueueDequeueDataValue()
         {
-            var queue = m_factory.CreateDataChangeQueue(false, 1);
+            IDataChangeMonitoredItemQueue queue = m_factory.CreateDataChangeQueue(false, 1);
 
             Assert.That(queue.QueueSize, Is.EqualTo(0));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
             Assert.That(queue.IsDurable, Is.EqualTo(false));
             Assert.That(queue.Dequeue(out _, out _), Is.EqualTo(false));
             Assert.That(queue.PeekLastValue(), Is.EqualTo(null));
-            Assert.Throws<InvalidOperationException>(() => queue.OverwriteLastValue(new DataValue(), null));
+            Assert.Throws<InvalidOperationException>(
+                () => queue.OverwriteLastValue(new DataValue(), null));
             Assert.Throws<InvalidOperationException>(() => queue.Enqueue(new DataValue(), null));
 
             queue.ResetQueue(2, true);
@@ -85,7 +83,6 @@ namespace Opc.Ua.Server.Tests
             Assert.That(resultError, Is.EqualTo(statuscode));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
-
             bool status2 = queue.Dequeue(out DataValue result2, out ServiceResult resultError2);
 
             Assert.That(status2, Is.True);
@@ -101,12 +98,10 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
         }
 
-
-
         [Test]
         public void DataValueOverflow()
         {
-            var queue = m_factory.CreateDataChangeQueue(false, 1);
+            IDataChangeMonitoredItemQueue queue = m_factory.CreateDataChangeQueue(false, 1);
 
             queue.ResetQueue(2, true);
 
@@ -126,7 +121,6 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(2));
 
-
             bool status = queue.Dequeue(out DataValue result, out ServiceResult resultError);
 
             Assert.That(status, Is.True);
@@ -141,12 +135,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queue.ItemsInQueue, Is.EqualTo(2));
 
             queue.Enqueue(dataValue3, null);
-
-            var size = queue.ItemsInQueue;
-
+            _ = queue.ItemsInQueue;
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(2));
-
 
             bool status2 = queue.Dequeue(out DataValue result2, out ServiceResult resultError2);
 
@@ -173,7 +164,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void DataValueQueueSize1()
         {
-            var queue = m_factory.CreateDataChangeQueue(false, 1);
+            IDataChangeMonitoredItemQueue queue = m_factory.CreateDataChangeQueue(false, 1);
 
             queue.ResetQueue(1, false);
 
@@ -217,7 +208,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void DataValueQueueSize10()
         {
-            var queue = m_factory.CreateDataChangeQueue(false, 1);
+            IDataChangeMonitoredItemQueue queue = m_factory.CreateDataChangeQueue(false, 1);
 
             queue.ResetQueue(10, true);
 
@@ -252,25 +243,24 @@ namespace Opc.Ua.Server.Tests
             Assert.That(resultError2, Is.Null);
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
         }
-        #endregion
-        #region benchmarks
+
         [Benchmark]
         public void QueueDequeueValues()
         {
-            var queue = m_factory.CreateDataChangeQueue(false, 1);
+            IDataChangeMonitoredItemQueue queue = m_factory.CreateDataChangeQueue(false, 1);
             queue.ResetQueue(1000, false);
 
             for (int j = 0; j < 10_000; j++)
             {
                 queue.Enqueue(new DataValue(new Variant(false)), null);
-
-                queue.Dequeue(out var dataValue, out var _);
+                queue.Dequeue(out _, out _);
             }
         }
+
         [Benchmark]
         public void QueueDequeueValuesWithOverflow()
         {
-            var queue = m_factory.CreateDataChangeQueue(false, 1);
+            IDataChangeMonitoredItemQueue queue = m_factory.CreateDataChangeQueue(false, 1);
             queue.ResetQueue(100, false);
 
             for (int j = 0; j < 100; j++)
@@ -281,7 +271,7 @@ namespace Opc.Ua.Server.Tests
                 }
                 for (int v = 0; v < 90; v++)
                 {
-                    queue.Dequeue(out var dataValue, out var _);
+                    queue.Dequeue(out _, out _);
                 }
             }
         }
@@ -289,50 +279,41 @@ namespace Opc.Ua.Server.Tests
         [Benchmark]
         public void QueueDequeueEvents()
         {
-            var queue = m_factory.CreateEventQueue(false, 1);
+            IEventMonitoredItemQueue queue = m_factory.CreateEventQueue(false, 1);
             queue.SetQueueSize(1000, false);
 
             for (int j = 0; j < 10_000; j++)
             {
-                var value = new EventFieldList {
-                    EventFields = new VariantCollection(1) {
-                        new Variant(true)
-                    }
-                };
+                var value = new EventFieldList { EventFields = [new Variant(true)] };
                 queue.Enqueue(value);
-                queue.Dequeue(out var value2);
+                queue.Dequeue(out _);
             }
         }
+
         [Benchmark]
         public void QueueDequeueEventssWithOverflow()
         {
-            var queue = m_factory.CreateEventQueue(false, 1);
+            IEventMonitoredItemQueue queue = m_factory.CreateEventQueue(false, 1);
             queue.SetQueueSize(100, false);
 
             for (int j = 0; j < 100; j++)
             {
                 for (int i = 0; i < 100; i++)
                 {
-                    var value = new EventFieldList {
-                        EventFields = new VariantCollection(1) {
-                        new Variant(true)
-                    }
-                    };
+                    var value = new EventFieldList { EventFields = [new Variant(true)] };
                     queue.Enqueue(value);
                 }
                 for (int v = 0; v < 90; v++)
                 {
-                    queue.Dequeue(out var value);
+                    queue.Dequeue(out _);
                 }
             }
         }
-        #endregion
-        #region eventQueue
 
         [Test]
         public void EnqueueDequeueEvent()
         {
-            var queue = m_factory.CreateEventQueue(false, 1);
+            IEventMonitoredItemQueue queue = m_factory.CreateEventQueue(false, 1);
 
             Assert.That(queue.QueueSize, Is.EqualTo(0));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
@@ -346,34 +327,23 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queue.QueueSize, Is.EqualTo(2));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
 
-            var value = new EventFieldList {
-                EventFields = new VariantCollection(1) {
-                        new Variant(true)
-                    }
-            };
+            var value = new EventFieldList { EventFields = [new Variant(true)] };
 
             queue.Enqueue(value);
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
-
-            var value2 = new EventFieldList {
-                EventFields = new VariantCollection(1) {
-                        new Variant(false)
-                    }
-            };
+            var value2 = new EventFieldList { EventFields = [new Variant(false)] };
 
             queue.Enqueue(value2);
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(2));
-
 
             bool status = queue.Dequeue(out EventFieldList result);
 
             Assert.That(status, Is.True);
             Assert.That(result, Is.EqualTo(value));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
-
 
             bool status2 = queue.Dequeue(out EventFieldList result2);
 
@@ -391,31 +361,21 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void EventOverflow()
         {
-            var queue = m_factory.CreateEventQueue(false, 1);
+            IEventMonitoredItemQueue queue = m_factory.CreateEventQueue(false, 1);
 
             queue.SetQueueSize(2, false);
 
-            var value = new EventFieldList {
-                EventFields = new VariantCollection(1) {
-                        new Variant(true)
-                    }
-            };
+            var value = new EventFieldList { EventFields = [new Variant(true)] };
 
             queue.Enqueue(value);
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
-
-            var value2 = new EventFieldList {
-                EventFields = new VariantCollection(1) {
-                        new Variant(false)
-                    }
-            };
+            var value2 = new EventFieldList { EventFields = [new Variant(false)] };
 
             queue.Enqueue(value2);
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(2));
-
 
             bool status = queue.Dequeue(out EventFieldList result);
 
@@ -430,7 +390,6 @@ namespace Opc.Ua.Server.Tests
             queue.Enqueue(value2);
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(2));
-
 
             bool status2 = queue.Dequeue(out EventFieldList result2);
 
@@ -454,34 +413,24 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void EventQueueSize1()
         {
-            var queue = m_factory.CreateEventQueue(false, 1);
+            IEventMonitoredItemQueue queue = m_factory.CreateEventQueue(false, 1);
 
             queue.SetQueueSize(1, false);
 
             Assert.That(queue.QueueSize, Is.EqualTo(1));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
 
-            var value = new EventFieldList {
-                EventFields = new VariantCollection(1) {
-                        new Variant(true)
-                    }
-            };
+            var value = new EventFieldList { EventFields = [new Variant(true)] };
 
             queue.Enqueue(value);
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
-
-            var value2 = new EventFieldList {
-                EventFields = new VariantCollection(1) {
-                        new Variant(false)
-                    }
-            };
+            var value2 = new EventFieldList { EventFields = [new Variant(false)] };
 
             queue.Enqueue(value2);
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
-
 
             bool status = queue.Dequeue(out EventFieldList result);
 
@@ -499,27 +448,25 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void EventQueueIsEventContainedInQueue()
         {
-            var queue = m_factory.CreateEventQueue(false, 1);
+            IEventMonitoredItemQueue queue = m_factory.CreateEventQueue(false, 1);
 
             queue.SetQueueSize(2, false);
 
             Assert.That(queue.QueueSize, Is.EqualTo(2));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
 
-            var value = new EventFieldList {
-                EventFields = new VariantCollection(1) {
-                        new Variant(true)
-                    },
+            var value = new EventFieldList
+            {
+                EventFields = [new Variant(true)],
                 Handle = new AuditSessionEventState(null)
             };
 
             queue.Enqueue(value);
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
-            var value2 = new EventFieldList {
-                EventFields = new VariantCollection(1) {
-                        new Variant(false)
-                    },
+            var value2 = new EventFieldList
+            {
+                EventFields = [new Variant(false)],
                 Handle = new AuditUrlMismatchEventState(null)
             };
 
@@ -547,18 +494,14 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void EventQueueSize10()
         {
-            var queue = m_factory.CreateEventQueue(false, 1);
+            IEventMonitoredItemQueue queue = m_factory.CreateEventQueue(false, 1);
 
             queue.SetQueueSize(10, false);
 
             Assert.That(queue.QueueSize, Is.EqualTo(10));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
 
-            var value = new EventFieldList {
-                EventFields = new VariantCollection(1) {
-                        new Variant(true)
-                    }
-            };
+            var value = new EventFieldList { EventFields = [new Variant(true)] };
 
             for (int i = 0; i < 10; i++)
             {
@@ -587,18 +530,14 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void EventQueueSizeChangeRequeuesValues()
         {
-            var queue = m_factory.CreateEventQueue(false, 1);
+            IEventMonitoredItemQueue queue = m_factory.CreateEventQueue(false, 1);
 
             queue.SetQueueSize(10, false);
 
             Assert.That(queue.QueueSize, Is.EqualTo(10));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
 
-            var value = new EventFieldList {
-                EventFields = new VariantCollection(1) {
-                        new Variant(true)
-                    }
-            };
+            var value = new EventFieldList { EventFields = [new Variant(true)] };
 
             for (int i = 0; i < 10; i++)
             {
@@ -637,29 +576,21 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void EventDecreaseQueueSizeDiscardsOldest()
         {
-            var queue = m_factory.CreateEventQueue(false, 1);
+            IEventMonitoredItemQueue queue = m_factory.CreateEventQueue(false, 1);
 
             queue.SetQueueSize(10, false);
 
             Assert.That(queue.QueueSize, Is.EqualTo(10));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
 
-            var value = new EventFieldList {
-                EventFields = new VariantCollection(1) {
-                        new Variant(true)
-                    }
-            };
+            var value = new EventFieldList { EventFields = [new Variant(true)] };
 
             for (int i = 0; i < 5; i++)
             {
                 queue.Enqueue(value);
             }
 
-            var value2 = new EventFieldList {
-                EventFields = new VariantCollection(1) {
-                        new Variant(false)
-                    }
-            };
+            var value2 = new EventFieldList { EventFields = [new Variant(false)] };
 
             for (int i = 0; i < 5; i++)
             {
@@ -693,29 +624,21 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void EventDecreaseQueueSizeDiscardsNewest()
         {
-            var queue = m_factory.CreateEventQueue(false, 1);
+            IEventMonitoredItemQueue queue = m_factory.CreateEventQueue(false, 1);
 
             queue.SetQueueSize(10, false);
 
             Assert.That(queue.QueueSize, Is.EqualTo(10));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
 
-            var value = new EventFieldList {
-                EventFields = new VariantCollection(1) {
-                        new Variant(true)
-                    }
-            };
+            var value = new EventFieldList { EventFields = [new Variant(true)] };
 
             for (int i = 0; i < 5; i++)
             {
                 queue.Enqueue(value);
             }
 
-            var value2 = new EventFieldList {
-                EventFields = new VariantCollection(1) {
-                        new Variant(false)
-                    }
-            };
+            var value2 = new EventFieldList { EventFields = [new Variant(false)] };
 
             for (int i = 0; i < 5; i++)
             {
@@ -745,8 +668,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result2, Is.Null);
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
         }
-        #endregion
-        #region EventQueueHandler
+
         [Test]
         public void EventQueueHandlerOverflow()
         {
@@ -754,11 +676,7 @@ namespace Opc.Ua.Server.Tests
 
             queueHandler.SetQueueSize(1, false);
 
-            var value = new EventFieldList {
-                EventFields = new VariantCollection(1) {
-                        new Variant(true)
-                    }
-            };
+            var value = new EventFieldList { EventFields = [new Variant(true)] };
 
             queueHandler.QueueEvent(value);
 
@@ -775,19 +693,11 @@ namespace Opc.Ua.Server.Tests
 
             queueHandler.SetQueueSize(1, true);
 
-            var value = new EventFieldList {
-                EventFields = new VariantCollection(1) {
-                        new Variant(true)
-                    }
-            };
+            var value = new EventFieldList { EventFields = [new Variant(true)] };
 
             queueHandler.QueueEvent(value);
 
-            var value2 = new EventFieldList {
-                EventFields = new VariantCollection(1) {
-                        new Variant(true)
-                    }
-            };
+            var value2 = new EventFieldList { EventFields = [new Variant(true)] };
 
             queueHandler.QueueEvent(value2);
 
@@ -808,19 +718,11 @@ namespace Opc.Ua.Server.Tests
 
             queueHandler.SetQueueSize(2, false);
 
-            var value = new EventFieldList {
-                EventFields = new VariantCollection(1) {
-                        new Variant(true)
-                    }
-            };
+            var value = new EventFieldList { EventFields = [new Variant(true)] };
 
             queueHandler.QueueEvent(value);
 
-            var value2 = new EventFieldList {
-                EventFields = new VariantCollection(1) {
-                        new Variant(true)
-                    }
-            };
+            var value2 = new EventFieldList { EventFields = [new Variant(true)] };
 
             queueHandler.QueueEvent(value2);
 
@@ -852,19 +754,11 @@ namespace Opc.Ua.Server.Tests
 
             queueHandler.SetQueueSize(2, false);
 
-            var value = new EventFieldList {
-                EventFields = new VariantCollection(1) {
-                        new Variant(true)
-                    }
-            };
+            var value = new EventFieldList { EventFields = [new Variant(true)] };
 
             queueHandler.QueueEvent(value);
 
-            var value2 = new EventFieldList {
-                EventFields = new VariantCollection(1) {
-                        new Variant(true)
-                    }
-            };
+            var value2 = new EventFieldList { EventFields = [new Variant(true)] };
 
             queueHandler.QueueEvent(value2);
 
@@ -881,18 +775,20 @@ namespace Opc.Ua.Server.Tests
             queueHandler.Publish(null, events, 1);
             Assert.That(events, Is.Empty);
         }
-        #endregion
-        #region DataChangeQueueHandler
 
         [Test]
         public void DataValueQueueDiscardedValueHandlerInvoked()
         {
             bool called = false;
-            Action discardedValueHandler = () => { called = true; };
-            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, discardedValueHandler);
+            void DiscardedValueHandler() => called = true;
+
+            var queueHandler = new DataChangeQueueHandler(
+                1,
+                false,
+                m_factory,
+                DiscardedValueHandler);
 
             queueHandler.SetQueueSize(1, true, DiagnosticsMasks.All);
-
 
             var statuscode = new ServiceResult(StatusCodes.Good);
             var dataValue = new DataValue(new Variant(true));
@@ -906,7 +802,9 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(called, Is.True);
 
-            bool success = queueHandler.PublishSingleValue(out var result, out var resultError);
+            bool success = queueHandler.PublishSingleValue(
+                out DataValue result,
+                out ServiceResult resultError);
 
             Assert.That(success, Is.True);
             Assert.That(result, Is.EqualTo(dataValue2));
@@ -919,11 +817,11 @@ namespace Opc.Ua.Server.Tests
         public void DataValueQueueDiscardedValueHandlerInvokedNoDiscardOldest()
         {
             bool called = false;
-            Action discardedValueHandler = () => { called = true; };
-            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, discardedValueHandler);
+            void DiscardValueHandler() => called = true;
+
+            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, DiscardValueHandler);
 
             queueHandler.SetQueueSize(2, false, DiagnosticsMasks.All);
-
 
             var statuscode = new ServiceResult(StatusCodes.Good);
             var dataValue = new DataValue(new Variant(true));
@@ -938,14 +836,17 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(called, Is.True);
 
-            bool success = queueHandler.PublishSingleValue(out var result, out var resultError);
+            bool success = queueHandler.PublishSingleValue(
+                out DataValue result,
+                out ServiceResult resultError);
 
             Assert.That(success, Is.True);
             Assert.That(result, Is.EqualTo(dataValue));
             Assert.That(resultError, Is.EqualTo(statuscode));
 
-
-            bool success2 = queueHandler.PublishSingleValue(out var result2, out var resultError2);
+            bool success2 = queueHandler.PublishSingleValue(
+                out DataValue result2,
+                out ServiceResult resultError2);
 
             Assert.That(success2, Is.True);
             Assert.That(result2, Is.EqualTo(dataValue2));
@@ -957,32 +858,30 @@ namespace Opc.Ua.Server.Tests
         public void DataValueQueueSamplingIntervalOverwrites()
         {
             bool called = false;
-            Action discardedValueHandler = () => { called = true; };
+            void DiscardValueHandler() => called = true;
 
-            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, discardedValueHandler);
+            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, DiscardValueHandler);
 
             queueHandler.SetQueueSize(3, true, DiagnosticsMasks.All);
 
             queueHandler.SetSamplingInterval(5000);
 
-
             var statuscode = new ServiceResult(StatusCodes.Good);
             var dataValue = new DataValue(new Variant(true));
 
-
             queueHandler.QueueValue(dataValue, statuscode);
-
 
             var statuscode2 = new ServiceResult(StatusCodes.Good);
             var dataValue2 = new DataValue(new Variant(false));
-
 
             queueHandler.QueueValue(dataValue2, statuscode2);
 
             Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(1));
             Assert.That(called, Is.True);
 
-            bool success = queueHandler.PublishSingleValue(out var result, out var resultError);
+            bool success = queueHandler.PublishSingleValue(
+                out DataValue result,
+                out ServiceResult resultError);
 
             Assert.That(success, Is.True);
             Assert.That(result, Is.EqualTo(dataValue2));
@@ -990,25 +889,21 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task DataValueQueueSamplingIntervalChangeApplied()
+        public async Task DataValueQueueSamplingIntervalChangeAppliedAsync()
         {
             bool called = false;
-            Action discardedValueHandler = () => { called = true; };
+            void DiscardValueHandler() => called = true;
 
-            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, discardedValueHandler);
-
+            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, DiscardValueHandler);
 
             queueHandler.SetQueueSize(3, true, DiagnosticsMasks.All);
 
             queueHandler.SetSamplingInterval(2);
 
-
             var statuscode = new ServiceResult(StatusCodes.Good);
             var dataValue = new DataValue(new Variant(true));
 
-
             queueHandler.QueueValue(dataValue, statuscode);
-
 
             var statuscode2 = new ServiceResult(StatusCodes.Good);
             var dataValue2 = new DataValue(new Variant(false));
@@ -1020,7 +915,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(2));
             Assert.That(called, Is.False);
 
-            bool success = queueHandler.PublishSingleValue(out var result, out var resultError);
+            bool success = queueHandler.PublishSingleValue(
+                out DataValue result,
+                out ServiceResult resultError);
 
             Assert.That(success, Is.True);
             Assert.That(result, Is.EqualTo(dataValue));
@@ -1031,12 +928,11 @@ namespace Opc.Ua.Server.Tests
         public void DataValueQueueSizeChangeRequeuesValues()
         {
             bool called = false;
-            Action discardedValueHandler = () => { called = true; };
+            void DiscardValueHandler() => called = true;
 
-            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, discardedValueHandler);
+            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, DiscardValueHandler);
 
             queueHandler.SetQueueSize(10, true, DiagnosticsMasks.All);
-
 
             Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(0));
 
@@ -1061,7 +957,9 @@ namespace Opc.Ua.Server.Tests
 
             for (int i = 0; i < 5; i++)
             {
-                bool status = queueHandler.PublishSingleValue(out DataValue result, out ServiceResult resultError);
+                bool status = queueHandler.PublishSingleValue(
+                    out DataValue result,
+                    out ServiceResult resultError);
 
                 Assert.That(status, Is.True);
                 Assert.That(result, Is.EqualTo(dataValue));
@@ -1069,7 +967,9 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(0));
 
-            bool status2 = queueHandler.PublishSingleValue(out DataValue result2, out ServiceResult resultError2);
+            bool status2 = queueHandler.PublishSingleValue(
+                out DataValue result2,
+                out ServiceResult resultError2);
 
             Assert.That(status2, Is.False);
             Assert.That(result2, Is.Null);
@@ -1081,9 +981,9 @@ namespace Opc.Ua.Server.Tests
         public void DataValueDecreaseQueueSizeDiscardsOldest()
         {
             bool called = false;
-            Action discardedValueHandler = () => { called = true; };
+            void DiscardValueHandler() => called = true;
 
-            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, discardedValueHandler);
+            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, DiscardValueHandler);
 
             queueHandler.SetQueueSize(10, true, DiagnosticsMasks.All);
 
@@ -1109,13 +1009,14 @@ namespace Opc.Ua.Server.Tests
 
             queueHandler.SetQueueSize(5, true, DiagnosticsMasks.All);
 
-
             Assert.That(called, Is.True);
             Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(5));
 
             for (int i = 0; i < 5; i++)
             {
-                bool status = queueHandler.PublishSingleValue(out DataValue result, out ServiceResult resultError);
+                bool status = queueHandler.PublishSingleValue(
+                    out DataValue result,
+                    out ServiceResult resultError);
 
                 Assert.That(status, Is.True);
                 Assert.That(result, Is.EqualTo(dataValue2));
@@ -1124,7 +1025,9 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(0));
 
-            bool status2 = queueHandler.PublishSingleValue(out DataValue result2, out ServiceResult resultError2);
+            bool status2 = queueHandler.PublishSingleValue(
+                out DataValue result2,
+                out ServiceResult resultError2);
 
             Assert.That(status2, Is.False);
             Assert.That(result2, Is.Null);
@@ -1136,15 +1039,18 @@ namespace Opc.Ua.Server.Tests
         public void DataValueInitialDataOverWritesLastValue()
         {
             bool called = false;
-            Action discardedValueHandler = () => { called = true; };
+            void DiscardValueHandler() => called = true;
 
-            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, discardedValueHandler);
+            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, DiscardValueHandler);
 
             queueHandler.SetQueueSize(10, true, DiagnosticsMasks.All);
 
             Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(0));
 
-            var dataValue = new DataValue(new Variant(true)) { StatusCode = StatusCodes.BadWaitingForInitialData };
+            var dataValue = new DataValue(new Variant(true))
+            {
+                StatusCode = StatusCodes.BadWaitingForInitialData
+            };
 
             for (int i = 0; i < 5; i++)
             {
@@ -1156,29 +1062,30 @@ namespace Opc.Ua.Server.Tests
 
             queueHandler.QueueValue(dataValue2, statuscode2);
 
-
             Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(1));
-
 
             Assert.That(called, Is.False);
 
-            bool status = queueHandler.PublishSingleValue(out DataValue result, out ServiceResult resultError);
+            bool status = queueHandler.PublishSingleValue(
+                out DataValue result,
+                out ServiceResult resultError);
 
             Assert.That(status, Is.True);
             Assert.That(result, Is.EqualTo(dataValue2));
         }
-        #endregion
 
         [Test]
         public void FactorySupportsDurable()
         {
             if (m_factory.SupportsDurableQueues)
             {
-                var dataChangeQueue = m_factory.CreateDataChangeQueue(true, 1);
+                IDataChangeMonitoredItemQueue dataChangeQueue = m_factory.CreateDataChangeQueue(
+                    true,
+                    1);
 
                 Assert.That(dataChangeQueue.IsDurable, Is.True);
 
-                var eventQueue = m_factory.CreateEventQueue(true, 1);
+                IEventMonitoredItemQueue eventQueue = m_factory.CreateEventQueue(true, 1);
 
                 Assert.That(eventQueue.IsDurable, Is.True);
             }
@@ -1189,7 +1096,6 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
-        #region MonitoredItemDurable
         [Test]
         public void CreateDurableMI()
         {
@@ -1216,7 +1122,9 @@ namespace Opc.Ua.Server.Tests
                 MonitoredItemNotification publishResult = result.FirstOrDefault();
                 Assert.That(publishResult?.Value, Is.EqualTo(dataValue));
                 DiagnosticInfo publishErrorResult = result2.FirstOrDefault();
-                Assert.That(publishErrorResult.InnerStatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+                Assert.That(
+                    publishErrorResult.InnerStatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.Good));
             }
             else
             {
@@ -1240,7 +1148,6 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(1));
 
-
             var result = new Queue<EventFieldList>();
             monitoredItem.Publish(new OperationContext(monitoredItem), result, 1);
 
@@ -1248,7 +1155,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
             EventFieldList publishResult = result.FirstOrDefault();
             Assert.That(publishResult, Is.Not.Null);
-            Assert.That(publishResult.Handle, Is.AssignableTo(typeof(AuditUrlMismatchEventState)));
+            Assert.That(publishResult.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());
         }
 
         [Test]
@@ -1268,7 +1175,6 @@ namespace Opc.Ua.Server.Tests
 
             monitoredItem.QueueValue(dataValue, statuscode);
 
-
             var result = new Queue<MonitoredItemNotification>();
             var result2 = new Queue<DiagnosticInfo>();
             monitoredItem.Publish(new OperationContext(monitoredItem), result, result2, 1);
@@ -1277,7 +1183,9 @@ namespace Opc.Ua.Server.Tests
             MonitoredItemNotification publishResult = result.FirstOrDefault();
             Assert.That(publishResult?.Value, Is.EqualTo(dataValue));
             DiagnosticInfo publishErrorResult = result2.FirstOrDefault();
-            Assert.That(publishErrorResult.InnerStatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(
+                publishErrorResult.InnerStatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.Good));
         }
 
         [Test]
@@ -1297,11 +1205,9 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(2));
 
-
             monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(2));
-
 
             var result = new Queue<EventFieldList>();
             monitoredItem.Publish(new OperationContext(monitoredItem), result, 3);
@@ -1309,51 +1215,56 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result, Is.Not.Empty);
             EventFieldList publishResult = result.LastOrDefault();
             Assert.That(publishResult, Is.Not.Null);
-            Assert.That(publishResult.Handle, Is.AssignableTo(typeof(EventQueueOverflowEventState)));
+            Assert.That(publishResult.Handle, Is.AssignableTo<EventQueueOverflowEventState>());
         }
 
         [Test]
-        public void DurableEventQueueVerifyReferenceBatching()
+        public async Task DurableEventQueueVerifyReferenceBatchingAsync()
         {
             if (!m_factory.SupportsDurableQueues)
             {
                 Assert.Ignore("Test only works with durable queues");
             }
 
-            var queue = m_factory.CreateEventQueue(true, 0);
+            IEventMonitoredItemQueue queue = m_factory.CreateEventQueue(true, 0);
 
             queue.SetQueueSize(3000, false);
 
             for (uint i = 0; i < 3000; i++)
             {
-                queue.Enqueue(new EventFieldList() { ClientHandle = i });
+                queue.Enqueue(new EventFieldList { ClientHandle = i });
             }
 
             // wait for persisting to take place
-            Task.Delay(1000).Wait();
+            await Task.Delay(1000).ConfigureAwait(false);
 
             for (uint i = 0; i < 3000; i++)
             {
-                Assert.That(queue.Dequeue(out var value), string.Format(CultureInfo.InvariantCulture, "Dequeue operation failed for the {0}st item", i));
+                Assert.That(
+                    queue.Dequeue(out EventFieldList value),
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "Dequeue operation failed for the {0}st item",
+                        i));
                 Assert.That(i, Is.EqualTo(value.ClientHandle));
 
                 //simulate publishing operation
                 if (i % 501 == 0)
                 {
-                    Task.Delay(1200).Wait();
+                    await Task.Delay(1200).ConfigureAwait(false);
                 }
             }
         }
 
         [Test]
-        public void DurableDataValueQueueVerifyReferenceBatching()
+        public async Task DurableDataValueQueueVerifyReferenceBatchingAsync()
         {
             if (!m_factory.SupportsDurableQueues)
             {
                 Assert.Ignore("Test only works with durable queues");
             }
 
-            var queue = m_factory.CreateDataChangeQueue(true, 0);
+            IDataChangeMonitoredItemQueue queue = m_factory.CreateDataChangeQueue(true, 0);
 
             queue.ResetQueue(3000, false);
 
@@ -1363,23 +1274,26 @@ namespace Opc.Ua.Server.Tests
             }
 
             // wait for persisting to take place
-            Task.Delay(1000).Wait();
+            await Task.Delay(1000).ConfigureAwait(false);
 
             for (uint i = 0; i < 3000; i++)
             {
-                Assert.That(queue.Dequeue(out var value, out var _), string.Format(CultureInfo.InvariantCulture, "Dequeue operation failed for the {0}st item", i));
+                Assert.That(
+                    queue.Dequeue(out DataValue value, out ServiceResult _),
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "Dequeue operation failed for the {0}st item",
+                        i));
                 Assert.That(i, Is.EqualTo((uint)value.Value));
 
                 //simulate publishing operation
                 if (i % 501 == 0)
                 {
-                    Task.Delay(1200).Wait();
+                    await Task.Delay(1200).ConfigureAwait(false);
                 }
             }
         }
-        #endregion
 
-        #region private methods
         private MonitoredItem CreateDurableMonitoredItem(bool events = false, uint queueSize = 10)
         {
             MonitoringFilter filter = events ? new EventFilter() : new MonitoringFilter();
@@ -1409,9 +1323,7 @@ namespace Opc.Ua.Server.Tests
                 queueSize,
                 false,
                 1000,
-                true
-                );
+                true);
         }
-        #endregion
     }
 }

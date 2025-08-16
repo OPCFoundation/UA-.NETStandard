@@ -23,24 +23,21 @@ namespace Opc.Ua
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class Matrix : ICloneable, IFormattable
     {
-        #region Constructors
         /// <summary>
         /// Initializes the matrix with a multidimensional array.
         /// </summary>
         public Matrix(Array value, BuiltInType builtInType)
         {
-            if (value == null) throw new ArgumentNullException(nameof(value));
+            Elements = value ?? throw new ArgumentNullException(nameof(value));
+            Dimensions = new int[value.Rank];
 
-            m_elements = value;
-            m_dimensions = new int[value.Rank];
-
-            for (int ii = 0; ii < m_dimensions.Length; ii++)
+            for (int ii = 0; ii < Dimensions.Length; ii++)
             {
-                m_dimensions[ii] = value.GetLength(ii);
+                Dimensions[ii] = value.GetLength(ii);
             }
 
-            m_elements = Utils.FlattenArray(value);
-            m_typeInfo = new TypeInfo(builtInType, m_dimensions.Length);
+            Elements = Utils.FlattenArray(value);
+            TypeInfo = new TypeInfo(builtInType, Dimensions.Length);
         }
 
         /// <summary>
@@ -48,10 +45,8 @@ namespace Opc.Ua
         /// </summary>
         public Matrix(Array elements, BuiltInType builtInType, params int[] dimensions)
         {
-            if (elements == null) throw new ArgumentNullException(nameof(elements));
-
-            m_elements = elements;
-            m_dimensions = dimensions;
+            Elements = elements ?? throw new ArgumentNullException(nameof(elements));
+            Dimensions = dimensions;
 
             if (dimensions != null && dimensions.Length > 0)
             {
@@ -59,79 +54,76 @@ namespace Opc.Ua
 
                 if (length != elements.Length)
                 {
-                    throw new ArgumentException("The number of elements in the array does not match the dimensions.");
+                    throw new ArgumentException(
+                        "The number of elements in the array does not match the dimensions.");
                 }
             }
             else
             {
-                m_dimensions = new int[] { elements.Length };
+                Dimensions = [elements.Length];
             }
 
-            m_typeInfo = new TypeInfo(builtInType, m_dimensions.Length);
+            TypeInfo = new TypeInfo(builtInType, Dimensions.Length);
 
-            SanityCheckArrayElements(m_elements, builtInType);
+            SanityCheckArrayElements(Elements, builtInType);
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// The elements of the matrix.
         /// </summary>
         /// <value>An array of elements.</value>
-        public Array Elements => m_elements;
+        public Array Elements { get; }
 
         /// <summary>
         /// The dimensions of the matrix.
         /// </summary>
         /// <value>The dimensions of the array.</value>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
-        public int[] Dimensions => m_dimensions;
+        public int[] Dimensions { get; }
 
         /// <summary>
         /// The type information for the matrix.
         /// </summary>
         /// <value>The type information.</value>
-        public TypeInfo TypeInfo => m_typeInfo;
+        public TypeInfo TypeInfo { get; }
 
         /// <summary>
         /// Returns the flattened array as a multi-dimensional array.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public Array ToArray()
         {
             try
             {
-                Array array = Array.CreateInstance(m_elements.GetType().GetElementType(), m_dimensions);
+                var array = Array.CreateInstance(Elements.GetType().GetElementType(), Dimensions);
 
-                int[] indexes = new int[m_dimensions.Length];
+                int[] indexes = new int[Dimensions.Length];
 
-                for (int ii = 0; ii < m_elements.Length; ii++)
+                for (int ii = 0; ii < Elements.Length; ii++)
                 {
-                    array.SetValue(m_elements.GetValue(ii), indexes);
+                    array.SetValue(Elements.GetValue(ii), indexes);
 
                     for (int jj = indexes.Length - 1; jj >= 0; jj--)
                     {
                         indexes[jj]++;
 
-                        if (indexes[jj] < m_dimensions[jj])
+                        if (indexes[jj] < Dimensions[jj])
                         {
                             break;
                         }
 
                         indexes[jj] = 0;
                     }
-
-
                 }
                 return array;
             }
             catch (OutOfMemoryException oom)
             {
-                throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded, oom.Message);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    oom.Message);
             }
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Determines if the specified object is equal to the object.
         /// </summary>
@@ -140,23 +132,22 @@ namespace Opc.Ua
         /// </remarks>
         public override bool Equals(object obj)
         {
-            if (Object.ReferenceEquals(this, obj))
+            if (ReferenceEquals(this, obj))
             {
                 return true;
             }
 
-
             if (obj is Matrix matrix)
             {
-                if (!m_typeInfo.Equals(matrix.TypeInfo))
+                if (!TypeInfo.Equals(matrix.TypeInfo))
                 {
                     return false;
                 }
-                if (!Utils.IsEqual(m_dimensions, matrix.Dimensions))
+                if (!Utils.IsEqual(Dimensions, matrix.Dimensions))
                 {
                     return false;
                 }
-                return Utils.IsEqual(m_elements, matrix.Elements);
+                return Utils.IsEqual(Elements, matrix.Elements);
             }
 
             return false;
@@ -168,30 +159,28 @@ namespace Opc.Ua
         public override int GetHashCode()
         {
             var hash = new HashCode();
-            if (m_elements != null)
+            if (Elements != null)
             {
-                hash.Add(m_elements);
+                hash.Add(Elements);
             }
-            if (m_typeInfo != null)
+            if (TypeInfo != null)
             {
-                hash.Add(m_typeInfo);
+                hash.Add(TypeInfo);
             }
-            if (m_dimensions != null)
+            if (Dimensions != null)
             {
-                hash.Add(m_dimensions);
+                hash.Add(Dimensions);
             }
             return hash.ToHashCode();
         }
-        #endregion
 
-        #region IFormattable Members
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
         /// <param name="format">(Unused) Always pass a NULL value</param>
         /// <param name="formatProvider">The format-provider to use. If unsure, pass an empty string or null</param>
         /// <returns>
-        /// A <see cref="System.String"/> containing the value of the current instance in the specified format.
+        /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
         /// <remarks>
         /// Returns the string representation of the object.
@@ -201,18 +190,21 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                StringBuilder buffer = new StringBuilder();
+                var buffer = new StringBuilder();
 
-                buffer.AppendFormat(formatProvider, "{0}[", m_elements.GetType().GetElementType().Name);
+                buffer.AppendFormat(
+                    formatProvider,
+                    "{0}[",
+                    Elements.GetType().GetElementType().Name);
 
-                for (int ii = 0; ii < m_dimensions.Length; ii++)
+                for (int ii = 0; ii < Dimensions.Length; ii++)
                 {
                     if (ii > 0)
                     {
                         buffer.Append(',');
                     }
 
-                    buffer.AppendFormat(formatProvider, "{0}", m_dimensions[ii]);
+                    buffer.AppendFormat(formatProvider, "{0}", Dimensions[ii]);
                 }
 
                 buffer.AppendFormat(formatProvider, "]");
@@ -222,13 +214,11 @@ namespace Opc.Ua
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
 
-        #region ICloneable Members
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -239,11 +229,9 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            return new Matrix((Array)Utils.Clone(m_elements), m_typeInfo.BuiltInType, (int[])Utils.Clone(m_dimensions));
+            return new Matrix(Utils.Clone(Elements), TypeInfo.BuiltInType, Utils.Clone(Dimensions));
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Debug.Assert if the elements are assigned a valid BuiltInType.
         /// </summary>
@@ -253,23 +241,20 @@ namespace Opc.Ua
         private static void SanityCheckArrayElements(Array elements, BuiltInType builtInType)
         {
 #if DEBUG
-            TypeInfo sanityCheck = TypeInfo.Construct(elements);
-            Debug.Assert(sanityCheck.BuiltInType == builtInType || builtInType == BuiltInType.Enumeration ||
-                (sanityCheck.BuiltInType == BuiltInType.ExtensionObject && builtInType == BuiltInType.Null) ||
-                (sanityCheck.BuiltInType == BuiltInType.Int32 && builtInType == BuiltInType.Enumeration) ||
-                (sanityCheck.BuiltInType == BuiltInType.ByteString && builtInType == BuiltInType.Byte) ||
+            var sanityCheck = TypeInfo.Construct(elements);
+            Debug.Assert(
+                sanityCheck.BuiltInType == builtInType ||
+                builtInType == BuiltInType.Enumeration ||
+                (sanityCheck.BuiltInType == BuiltInType.ExtensionObject &&
+                    builtInType == BuiltInType.Null) ||
+                (sanityCheck.BuiltInType == BuiltInType.Int32 &&
+                    builtInType == BuiltInType.Enumeration) ||
+                (sanityCheck.BuiltInType == BuiltInType.ByteString &&
+                    builtInType == BuiltInType.Byte) ||
                 (builtInType == BuiltInType.Variant));
 #endif
         }
-        #endregion
 
-        #region Private Fields
-        private Array m_elements;
-        private int[] m_dimensions;
-        private TypeInfo m_typeInfo;
-        #endregion
-
-        #region Validation Methods
         /// <summary>
         /// A function that performs a validation on a given index into the dimensions array
         /// </summary>
@@ -278,7 +263,6 @@ namespace Opc.Ua
         /// <returns>The validation result</returns>
         public delegate bool ValidateDimensionsFunction(int idx, Int32Collection dimensions);
 
-        #region Public Static
         /// <summary>
         /// Validate the dimensions of a given matrix.
         /// As a side effect will bring to 0 negative dimensions.
@@ -290,16 +274,24 @@ namespace Opc.Ua
         /// <returns>Tuple with validation result and the calculated length of the flattended matrix</returns>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>
-        public static (bool valid, int flatLength) ValidateDimensions(bool allowZeroDimension, Int32Collection dimensions, int maxArrayLength)
+        public static (bool valid, int flatLength) ValidateDimensions(
+            bool allowZeroDimension,
+            Int32Collection dimensions,
+            int maxArrayLength)
         {
             bool ValidateWithSideEffect(int i, Int32Collection dimCollection)
             {
-                bool zeroCompFails = allowZeroDimension ? dimCollection[i] < 0 : dimCollection[i] <= 0;
+                bool zeroCompFails = allowZeroDimension
+                    ? dimCollection[i] < 0
+                    : dimCollection[i] <= 0;
 
                 if (zeroCompFails)
                 {
                     /* The number of values is 0 if one or more dimension is less than or equal to 0.*/
-                    Utils.LogTrace("ReadArray read dimensions[{0}] = {1}. Matrix will have 0 elements.", i, dimCollection);
+                    Utils.LogTrace(
+                        "ReadArray read dimensions[{0}] = {1}. Matrix will have 0 elements.",
+                        i,
+                        dimCollection);
                     dimCollection[i] = 0;
                     return false;
                 }
@@ -328,7 +320,10 @@ namespace Opc.Ua
         /// <returns>Tuple with validation result and the calculated length of the flattended matrix</returns>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>
-        public static (bool valid, int flatLength) ValidateDimensions(Int32Collection dimensions, int flatLength, int maxArrayLength)
+        public static (bool valid, int flatLength) ValidateDimensions(
+            Int32Collection dimensions,
+            int flatLength,
+            int maxArrayLength)
         {
             bool ValidateAgainstExpectedFlatLength(int i, Int32Collection dimCollection)
             {
@@ -336,18 +331,25 @@ namespace Opc.Ua
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
-                        "ArrayDimensions [{0}] is zero in Variant object.", i);
+                        "ArrayDimensions [{0}] is zero in Variant object.",
+                        i);
                 }
                 else if (dimCollection[i] > flatLength && flatLength > 0)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
-                        "ArrayDimensions [{0}] = {1} is greater than length {2}.", i, dimCollection[i], flatLength);
+                        "ArrayDimensions [{0}] = {1} is greater than length {2}.",
+                        i,
+                        dimCollection[i],
+                        flatLength);
                 }
                 return true;
             }
 
-            return ValidateDimensions(dimensions, maxArrayLength, ValidateAgainstExpectedFlatLength);
+            return ValidateDimensions(
+                dimensions,
+                maxArrayLength,
+                ValidateAgainstExpectedFlatLength);
         }
 
         /// <summary>
@@ -361,9 +363,7 @@ namespace Opc.Ua
         {
             return ValidateDimensions(dimensions, maxArrayLength: 0, customValidation: null);
         }
-        #endregion
 
-        #region Private Static
         /// <summary>
         /// Validate the dimensions of a matrix against a given validation function.
         /// Throws ArgumentException if dimensions overflow and ServiceResultException if maxArrayLength is exceeded
@@ -374,7 +374,9 @@ namespace Opc.Ua
         /// <returns>The calculated length of the flattended matrix</returns>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>
-        private static (bool valid, int flatLength) ValidateDimensions(Int32Collection dimensions, int maxArrayLength,
+        private static (bool valid, int flatLength) ValidateDimensions(
+            Int32Collection dimensions,
+            int maxArrayLength,
             ValidateDimensionsFunction customValidation)
         {
             (bool valid, int flatLength) = (false, 1);
@@ -388,7 +390,7 @@ namespace Opc.Ua
                         if (!valid)
                         {
                             return (valid, 0);
-                        };
+                        }
                     }
                     checked
                     {
@@ -398,21 +400,20 @@ namespace Opc.Ua
             }
             catch (OverflowException)
             {
-                throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded,
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
                     "The dimensions of the matrix are invalid and overflow when used to calculate the size.");
             }
             if ((maxArrayLength > 0) && (flatLength > maxArrayLength))
             {
-                throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded,
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
                     "Maximum array length of {0} was exceeded while summing up to {1} from the array dimensions",
-                    maxArrayLength, flatLength
-                    );
+                    maxArrayLength,
+                    flatLength);
             }
 
             return (valid, flatLength);
         }
-        #endregion
-        #endregion
     }
 }
-
