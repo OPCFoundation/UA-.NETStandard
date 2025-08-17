@@ -511,6 +511,7 @@ namespace Opc.Ua.Server
                             X509Utils.CompareDistinguishedName(cert.SubjectName, newCert.Subject) &&
                             cert.CertificateType == certificateTypeId)
                         ?? certificateGroup.ApplicationCertificates.FirstOrDefault(cert =>
+                            cert.Certificate != null &&
                             m_configuration.ApplicationUri ==
                                 X509Utils.GetApplicationUriFromCertificate(cert.Certificate) &&
                             cert.CertificateType == certificateTypeId))
@@ -818,9 +819,14 @@ namespace Opc.Ua.Server
                     .SecurityConfiguration
                     .CertificatePasswordProvider;
                 certWithPrivateKey = existingCertIdentifier
-                    .LoadPrivateKeyExAsync(passwordProvider)
+                    .LoadPrivateKeyExAsync(passwordProvider, m_configuration.ApplicationUri)
                     .GetAwaiter()
                     .GetResult();
+
+                if (certWithPrivateKey == null)
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadInternalError, "Failed to load private key");
+                }
             }
 
             Utils.LogCertificate(

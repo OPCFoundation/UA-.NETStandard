@@ -645,6 +645,7 @@ namespace Opc.Ua.Client
         /// Updates the preferred locales used for the session.
         /// </summary>
         /// <param name="preferredLocales">The preferred locales.</param>
+        [Obsolete("Use ChangePreferredLocalesAsync instead.")]
         void ChangePreferredLocales(StringCollection preferredLocales);
 
         /// <summary>
@@ -652,6 +653,7 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="identity">The user identity.</param>
         /// <param name="preferredLocales">The preferred locales.</param>
+        [Obsolete("Use UpdateSessionAsync instead.")]
         void UpdateSession(IUserIdentity identity, StringCollection preferredLocales);
 
         /// <summary>
@@ -743,6 +745,26 @@ namespace Opc.Ua.Client
             bool checkDomain,
             bool closeChannel,
             CancellationToken ct);
+
+        /// <summary>
+        /// Updates the user identity and/or locales used for the session.
+        /// </summary>
+        /// <param name="identity">The user identity.</param>
+        /// <param name="preferredLocales">The preferred locales.</param>
+        /// <param name="ct">The cancellation token.</param>
+        Task UpdateSessionAsync(
+            IUserIdentity identity,
+            StringCollection preferredLocales,
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Changes the preferred locales used for the session.
+        /// </summary>
+        /// <param name="preferredLocales">The preferred locales.</param>
+        /// <param name="ct">The cancellation token.</param>
+        Task ChangePreferredLocalesAsync(
+            StringCollection preferredLocales,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Reads the values for the node attributes and returns a node object collection.

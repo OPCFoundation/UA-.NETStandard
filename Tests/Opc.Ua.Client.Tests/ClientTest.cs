@@ -1155,11 +1155,11 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ChangePreferredLocales()
+        public async Task ChangePreferredLocalesAsync()
         {
             // change locale
             var localeCollection = new StringCollection { "de-de", "en-us" };
-            Session.ChangePreferredLocales(localeCollection);
+            await Session.ChangePreferredLocalesAsync(localeCollection).ConfigureAwait(false);
         }
 
         [Test]
