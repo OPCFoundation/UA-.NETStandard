@@ -16,6 +16,30 @@
         <SubjectName>CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost</SubjectName>
         <CertificateTypeString>RsaSha256</CertificateTypeString>
       </CertificateIdentifier>
+      <CertificateIdentifier>
+        <StoreType>Directory</StoreType>
+        <StorePath>%LocalApplicationData%/OPC/pki/own</StorePath>
+        <SubjectName>CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost</SubjectName>
+        <CertificateTypeString>NistP256</CertificateTypeString>
+      </CertificateIdentifier>
+      <CertificateIdentifier>
+        <StoreType>Directory</StoreType>
+        <StorePath>%LocalApplicationData%/OPC/pki/own</StorePath>
+        <SubjectName>CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost</SubjectName>
+        <CertificateTypeString>NistP384</CertificateTypeString>
+      </CertificateIdentifier>
+      <CertificateIdentifier>
+        <StoreType>Directory</StoreType>
+        <StorePath>%LocalApplicationData%/OPC/pki/own</StorePath>
+        <SubjectName>CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost</SubjectName>
+        <CertificateTypeString>BrainpoolP256r1</CertificateTypeString>
+      </CertificateIdentifier>
+      <CertificateIdentifier>
+        <StoreType>Directory</StoreType>
+        <StorePath>%LocalApplicationData%/OPC/pki/own</StorePath>
+        <SubjectName>CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost</SubjectName>
+        <CertificateTypeString>BrainpoolP384r1</CertificateTypeString>
+      </CertificateIdentifier>
     </ApplicationCertificates>
     <TrustedIssuerCertificates>
       <StoreType>Directory</StoreType>

@@ -186,6 +186,42 @@ namespace Opc.Ua.Gds.Tests
                 }
             }
         }
+
+        /// <summary>
+        /// Sets the PushClient's endpoint by SecurityPolicy URI and optional MessageSecurityMode.
+        /// </summary>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
+        public async Task ConnectAsync(
+            string securityPolicyUri,
+            MessageSecurityMode securityMode = MessageSecurityMode.SignAndEncrypt)
+        {
+            if (Config == null)
+            {
+                throw new InvalidOperationException("Client configuration must be loaded before setting endpoint.");
+            }
+            await PushClient.DisconnectAsync().ConfigureAwait(false);
+            var endpointConfiguration = EndpointConfiguration.Create(Config);
+            var discoveryClient = DiscoveryClient.Create(new Uri(PushClient.EndpointUrl), endpointConfiguration);
+            EndpointDescriptionCollection endpoints = await discoveryClient.GetEndpointsAsync(null).ConfigureAwait(false);
+            await discoveryClient.CloseAsync().ConfigureAwait(false);
+            EndpointDescription selectedEndpoint = null;
+            foreach (EndpointDescription ep in endpoints)
+            {
+                if (ep.SecurityPolicyUri == securityPolicyUri && ep.SecurityMode == securityMode)
+                {
+                    selectedEndpoint = ep;
+                    break;
+                }
+            }
+            if (selectedEndpoint == null)
+            {
+                throw new ArgumentException($"No endpoint found for SecurityPolicyUri '{securityPolicyUri}' and SecurityMode '{securityMode}'.");
+            }
+            PushClient.Endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
+
+            await PushClient.ConnectAsync().ConfigureAwait(false);
+        }
     }
 
     /// <summary>

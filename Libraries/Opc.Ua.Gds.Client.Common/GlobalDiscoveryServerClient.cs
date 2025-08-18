@@ -102,6 +102,43 @@ namespace Opc.Ua.Gds.Client
         public string EndpointUrl { get; set; }
 
         /// <summary>
+        /// Gets the endpoint.
+        /// </summary>
+        /// <value>
+        /// The endpoint.
+        /// </value>
+        /// <exception cref="InvalidOperationException"></exception>
+        public ConfiguredEndpoint Endpoint
+        {
+            get
+            {
+                if (Session != null && Session.ConfiguredEndpoint != null)
+                {
+                    return Session.ConfiguredEndpoint;
+                }
+
+                return m_endpoint;
+            }
+            set
+            {
+                if (Session != null)
+                {
+                    throw new InvalidOperationException(
+                        "Session must be closed before changing endpoint.");
+                }
+
+                if (value == null ||
+                    m_endpoint == null ||
+                    value.EndpointUrl != m_endpoint.EndpointUrl)
+                {
+                    AdminCredentials = null;
+                }
+
+                m_endpoint = value;
+            }
+        }
+
+        /// <summary>
         /// Gets or sets the preferred locales.
         /// </summary>
         /// <value>
