@@ -5,13 +5,13 @@ parameters:
 - name: upload
   type: string
   default: False
-  values: 
+  values:
   - False
   - True
 - name: config
   type: string
   default: Release
-  values: 
+  values:
   - Debug
   - Release
 
@@ -38,7 +38,7 @@ jobs:
     inputs:
       packageType: 'sdk'
       version: '9.0.x'
-      includePreviewVersions: false  
+      includePreviewVersions: false
   - task: DownloadSecureFile@1
     name: strongnamefile
     displayName: 'Download Strong Name Key'
@@ -129,8 +129,8 @@ jobs:
     continueOnError: true
     inputs:
       script: |
-        NuGetKeyVaultSignTool sign $(Build.ArtifactStagingDirectory)/**/OPCFoundation.*.nupkg --file-digest sha256 --timestamp-rfc3161 http://timestamp.digicert.com --timestamp-digest sha256 --azure-key-vault-url "$(SigningVaultURL)" --azure-key-vault-client-id "$(SigningClientId)" --azure-key-vault-tenant-id "$(SigningTenantId)" --azure-key-vault-client-secret "$(SigningClientSecret)" --azure-key-vault-certificate "$(SigningCertName)" 
-        NuGetKeyVaultSignTool sign $(Build.ArtifactStagingDirectory)/**/OPCFoundation.*.snupkg --file-digest sha256 --timestamp-rfc3161 http://timestamp.digicert.com --timestamp-digest sha256 --azure-key-vault-url "$(SigningVaultURL)" --azure-key-vault-client-id "$(SigningClientId)" --azure-key-vault-tenant-id "$(SigningTenantId)" --azure-key-vault-client-secret "$(SigningClientSecret)" --azure-key-vault-certificate "$(SigningCertName)" 
+        NuGetKeyVaultSignTool sign $(Build.ArtifactStagingDirectory)/**/OPCFoundation.*.nupkg --file-digest sha256 --timestamp-rfc3161 http://timestamp.digicert.com --timestamp-digest sha256 --azure-key-vault-url "$(SigningVaultURL)" --azure-key-vault-client-id "$(SigningClientId)" --azure-key-vault-tenant-id "$(SigningTenantId)" --azure-key-vault-client-secret "$(SigningClientSecret)" --azure-key-vault-certificate "$(SigningCertName)"
+        NuGetKeyVaultSignTool sign $(Build.ArtifactStagingDirectory)/**/OPCFoundation.*.snupkg --file-digest sha256 --timestamp-rfc3161 http://timestamp.digicert.com --timestamp-digest sha256 --azure-key-vault-url "$(SigningVaultURL)" --azure-key-vault-client-id "$(SigningClientId)" --azure-key-vault-tenant-id "$(SigningTenantId)" --azure-key-vault-client-secret "$(SigningClientSecret)" --azure-key-vault-certificate "$(SigningCertName)"
   - ${{ if eq(parameters.upload, 'True') }}:
     - task: NuGetCommand@2
       displayName: Upload Nuget Preview
@@ -144,7 +144,7 @@ jobs:
     displayName: 'Remove Quickstarts.Servers'
     inputs:
       script: |
-        del /q /s $(Build.ArtifactStagingDirectory)\OPCFoundation.NetStandard.Opc.Ua.Quickstarts.Servers.*.*nupkg 
+        del /q /s $(Build.ArtifactStagingDirectory)\OPCFoundation.NetStandard.Opc.Ua.Quickstarts.Servers.*.*nupkg
   - task: PublishPipelineArtifact@1
     displayName: 'Publish Artifacts'
     inputs:

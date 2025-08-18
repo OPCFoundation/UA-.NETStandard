@@ -1124,7 +1124,7 @@ namespace Opc.Ua.PubSub.Transport
                 // each entry of this list will generate a network message
                 var dataSetMessagesList = new List<List<Encoding.JsonDataSetMessage>>();
                 if (((int)jsonMessageSettings.NetworkMessageContentMask &
-                        (int)JsonNetworkMessageContentMask.SingleDataSetMessage) != 0)
+                    (int)JsonNetworkMessageContentMask.SingleDataSetMessage) != 0)
                 {
                     // create a new network message for each dataset
                     foreach (Encoding.JsonDataSetMessage dataSetMessage in jsonDataSetMessages)
@@ -1152,7 +1152,7 @@ namespace Opc.Ua.PubSub.Transport
                     jsonNetworkMessage.WriterGroupId = writerGroupConfiguration.WriterGroupId;
 
                     if (((int)jsonNetworkMessage.NetworkMessageContentMask &
-                            (int)JsonNetworkMessageContentMask.SingleDataSetMessage) != 0)
+                        (int)JsonNetworkMessageContentMask.SingleDataSetMessage) != 0)
                     {
                         jsonNetworkMessage.DataSetClassId = dataSetMessagesToUse[0]
                             .DataSet?.DataSetMetaData?.DataSetClassId.ToString();
