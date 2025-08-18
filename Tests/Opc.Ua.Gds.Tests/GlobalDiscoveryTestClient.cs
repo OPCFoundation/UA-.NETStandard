@@ -57,7 +57,7 @@ namespace Opc.Ua.Gds.Tests
         public ApplicationTestData OwnApplicationTestData { get; private set; }
         public ApplicationConfiguration Configuration { get; private set; }
 
-        public async Task LoadClientConfigurationAsync(int port = -1)
+        public async Task LoadClientConfigurationAsync(int port = -1, bool clean = true)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
 
@@ -120,6 +120,37 @@ namespace Opc.Ua.Gds.Tests
                 .Create()
                 .ConfigureAwait(false);
 #endif
+
+            if (clean)
+            {
+                string thumbprint = Configuration.SecurityConfiguration.ApplicationCertificate.Thumbprint;
+                if (thumbprint != null)
+                {
+                    using ICertificateStore store = Configuration.SecurityConfiguration
+                        .ApplicationCertificate
+                        .OpenStore();
+                    await store.DeleteAsync(thumbprint).ConfigureAwait(false);
+                }
+
+                // always start with clean cert store
+                await TestUtils
+                    .CleanupTrustListAsync(
+                        Configuration.SecurityConfiguration.ApplicationCertificate.OpenStore())
+                    .ConfigureAwait(false);
+                await TestUtils
+                    .CleanupTrustListAsync(
+                        Configuration.SecurityConfiguration.TrustedIssuerCertificates.OpenStore())
+                    .ConfigureAwait(false);
+                await TestUtils
+                    .CleanupTrustListAsync(
+                        Configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore())
+                    .ConfigureAwait(false);
+                await TestUtils
+                    .CleanupTrustListAsync(
+                        Configuration.SecurityConfiguration.RejectedCertificateStore.OpenStore())
+                    .ConfigureAwait(false);
+            }
+
             // check the application certificate.
             bool haveAppCertificate = await m_application
                 .CheckApplicationInstanceCertificatesAsync(true)

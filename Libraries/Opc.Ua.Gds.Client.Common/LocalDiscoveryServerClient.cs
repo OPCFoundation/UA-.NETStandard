@@ -73,24 +73,21 @@ namespace Opc.Ua.Gds.Client
         public Task<List<ApplicationDescription>> FindServersAsync(
             CancellationToken ct = default)
         {
-            return FindServersAsync(null, null, null, null, null, ct);
+            return FindServersAsync(null, null, ct);
         }
 
         public async Task<List<ApplicationDescription>> FindServersAsync(
-            string endpointUrl = null,
-            string endpointTransportProfileUri = null,
-            string actualEndpointUrl = null,
-            IList<string> preferredLocales = null,
-            IList<string> serverUris = null,
+            string endpointUrl,
+            string endpointTransportProfileUri,
             CancellationToken ct = default)
         {
             DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
 
             FindServersResponse response = await client.FindServersAsync(
                 null,
-                (actualEndpointUrl) ?? endpointUrl,
-                [.. (preferredLocales) ?? PreferredLocales],
-                serverUris != null ? [.. serverUris] : null,
+                endpointUrl,
+                PreferredLocales,
+                null,
                 ct).ConfigureAwait(false);
 
             return response.Servers;

@@ -669,7 +669,7 @@ namespace Opc.Ua.Gds.Tests
             if (success)
             {
                 TestContext.Out.WriteLine("Apply Changes");
-                await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
+                await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
             }
             TestContext.Out.WriteLine("Verify Cert Update");
             await VerifyNewPushServerCertAsync(certificate).ConfigureAwait(false);
@@ -989,13 +989,14 @@ namespace Opc.Ua.Gds.Tests
                 .GetResult();
             m_pushClient.PushClient.ConnectAsync(m_pushClient.PushClient.EndpointUrl).GetAwaiter()
                 .GetResult();
-            // compare leaf certificates, ServerCertificate might be a chain if sendCertChain is sets
+            // compare leaf certificates, ServerCertificate might be a chain if sendCertChain is set
             X509Certificate2 serverCertificate = Utils.ParseCertificateBlob(
                 m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
             //validation currently only works for RSA certificates
             if (m_certificateType == OpcUa.ObjectTypeIds.RsaSha256ApplicationCertificateType)
             {
-                Assert.AreEqual(certificateBlob, serverCertificate.RawData);
+                Assert.AreEqual(certificateBlob, serverCertificate.RawData,
+                    "New Server Certificate needs to be equal to Certificate pushed by the GDS");
             }
         }
 

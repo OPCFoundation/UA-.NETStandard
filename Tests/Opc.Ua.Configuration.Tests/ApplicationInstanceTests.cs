@@ -394,11 +394,13 @@ namespace Opc.Ua.Configuration.Tests
                 .ApplicationConfiguration
                 .SecurityConfiguration
                 .ApplicationCertificate;
-            bool deleteAfterUse = applicationCertificate.Certificate != null;
 
             bool certOK = await applicationInstance
                 .CheckApplicationInstanceCertificatesAsync(true)
                 .ConfigureAwait(false);
+
+            bool deleteAfterUse = applicationCertificate.Certificate != null;
+
             Assert.True(certOK);
             using (
                 ICertificateStore store =
