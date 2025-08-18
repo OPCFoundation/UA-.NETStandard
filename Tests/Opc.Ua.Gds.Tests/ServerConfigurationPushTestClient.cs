@@ -151,7 +151,7 @@ namespace Opc.Ua.Gds.Tests
             TempStorePath = clientConfiguration.TempStorePath;
         }
 
-        public void DisconnectClient()
+        public async Task DisconnectClientAsync()
         {
             Console.WriteLine("Disconnect Session. Waiting for exit...");
 
@@ -159,7 +159,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 ServerPushConfigurationClient pushClient = PushClient;
                 PushClient = null;
-                pushClient.Disconnect();
+                await pushClient.DisconnectAsync().ConfigureAwait(false);
             }
         }
 

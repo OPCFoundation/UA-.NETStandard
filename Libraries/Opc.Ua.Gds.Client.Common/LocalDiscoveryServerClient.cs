@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Gds.Client
 {
@@ -68,12 +70,37 @@ namespace Opc.Ua.Gds.Client
 
         public int DefaultOperationTimeout { get; set; }
 
+        public Task<List<ApplicationDescription>> FindServersAsync(
+            CancellationToken ct = default)
+        {
+            return FindServersAsync(null, null, ct);
+        }
+
+        public async Task<List<ApplicationDescription>> FindServersAsync(
+            string endpointUrl,
+            string endpointTransportProfileUri,
+            CancellationToken ct = default)
+        {
+            DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
+
+            FindServersResponse response = await client.FindServersAsync(
+                null,
+                endpointUrl,
+                PreferredLocales,
+                null,
+                ct).ConfigureAwait(false);
+
+            return response.Servers;
+        }
+
+        [Obsolete("Use FindServersAsync instead.")]
         public List<ApplicationDescription> FindServers()
         {
             IAsyncResult result = BeginFindServers(null, null, null, null, null, null, null);
             return EndFindServers(result);
         }
 
+        [Obsolete("Use FindServersAsync instead.")]
         public List<ApplicationDescription> FindServers(
             string endpointUrl,
             string endpointTransportProfileUri)
@@ -89,11 +116,15 @@ namespace Opc.Ua.Gds.Client
             return EndFindServers(result);
         }
 
-        public IAsyncResult BeginFindServers(AsyncCallback callback, object callbackData)
+        [Obsolete("Use FindServersAsync instead.")]
+        public IAsyncResult BeginFindServers(
+            AsyncCallback callback,
+            object callbackData)
         {
             return BeginFindServers(null, null, null, null, null, callback, callbackData);
         }
 
+        [Obsolete("Use FindServersAsync instead.")]
         public IAsyncResult BeginFindServers(
             string endpointUrl,
             string endpointTransportProfileUri,
@@ -121,6 +152,7 @@ namespace Opc.Ua.Gds.Client
             return data;
         }
 
+        [Obsolete("Use FindServersAsync instead.")]
         public List<ApplicationDescription> EndFindServers(IAsyncResult result)
         {
             if (result is not FindServersData data)
@@ -145,6 +177,7 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
+        [Obsolete("Use FindServersAsync instead.")]
         private class FindServersData : AsyncResultBase
         {
             public FindServersData(AsyncCallback callback, object callbackData, int timeout)
@@ -156,6 +189,7 @@ namespace Opc.Ua.Gds.Client
             public List<ApplicationDescription> Servers;
         }
 
+        [Obsolete("Use FindServersAsync instead.")]
         private void OnFindServersComplete(IAsyncResult result)
         {
             var data = result.AsyncState as FindServersData;
@@ -175,12 +209,37 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
+        public Task<List<EndpointDescription>> GetEndpointsAsync(string endpointUrl, CancellationToken ct = default)
+        {
+            return GetEndpointsAsync(endpointUrl, null, ct);
+        }
+
+        public async Task<List<EndpointDescription>> GetEndpointsAsync(
+            string endpointUrl,
+            string endpointTransportProfileUri,
+            CancellationToken ct = default)
+        {
+            DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
+
+            GetEndpointsResponse response = await client.GetEndpointsAsync(
+                null,
+                endpointUrl,
+                [.. PreferredLocales],
+                null,
+                ct)
+                .ConfigureAwait(false);
+
+            return response.Endpoints;
+        }
+
+        [Obsolete("Use GetEndpointsAsync instead.")]
         public List<EndpointDescription> GetEndpoints(string endpointUrl)
         {
             IAsyncResult result = BeginGetEndpoints(endpointUrl, null, null, null);
             return EndGetEndpoints(result);
         }
 
+        [Obsolete("Use GetEndpointsAsync instead.")]
         public List<EndpointDescription> GetEndpoints(
             string endpointUrl,
             string endpointTransportProfileUri)
@@ -193,6 +252,7 @@ namespace Opc.Ua.Gds.Client
             return EndGetEndpoints(result);
         }
 
+        [Obsolete("Use GetEndpointsAsync instead.")]
         public IAsyncResult BeginGetEndpoints(
             string endpointUrl,
             string endpointTransportProfileUri,
@@ -217,6 +277,7 @@ namespace Opc.Ua.Gds.Client
             return data;
         }
 
+        [Obsolete("Use GetEndpointsAsync instead.")]
         public List<EndpointDescription> EndGetEndpoints(IAsyncResult result)
         {
             if (result is not GetEndpointsData data)
@@ -241,6 +302,7 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
+        [Obsolete("Use GetEndpointsAsync instead.")]
         private class GetEndpointsData : AsyncResultBase
         {
             public GetEndpointsData(AsyncCallback callback, object callbackData, int timeout)
@@ -252,6 +314,7 @@ namespace Opc.Ua.Gds.Client
             public List<EndpointDescription> Endpoints;
         }
 
+        [Obsolete("Use GetEndpointsAsync instead.")]
         private void OnGetEndpointsComplete(IAsyncResult result)
         {
             var data = result.AsyncState as GetEndpointsData;
@@ -271,6 +334,41 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
+        public Task<(List<ServerOnNetwork>, DateTime lastCounterResetTime)> FindServersOnNetworkAsync(
+            uint startingRecordId,
+            uint maxRecordsToReturn,
+            CancellationToken ct = default)
+        {
+            return FindServersOnNetworkAsync(
+                null,
+                null,
+                startingRecordId,
+                maxRecordsToReturn,
+                null,
+                ct);
+        }
+
+        public async Task<(List<ServerOnNetwork>, DateTime lastCounterResetTime)> FindServersOnNetworkAsync(
+            string endpointUrl,
+            string endpointTransportProfileUri,
+            uint startingRecordId,
+            uint maxRecordsToReturn,
+            IList<string> serverCapabilityFilters,
+            CancellationToken ct = default)
+        {
+            DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
+
+            FindServersOnNetworkResponse response = await client.FindServersOnNetworkAsync(
+                null,
+                startingRecordId,
+                maxRecordsToReturn,
+                serverCapabilityFilters != null ? [.. serverCapabilityFilters] : [],
+                ct).ConfigureAwait(false);
+
+            return (response.Servers, response.LastCounterResetTime);
+        }
+
+        [Obsolete("Use FindServersOnNetworkAsync instead.")]
         public List<ServerOnNetwork> FindServersOnNetwork(
             uint startingRecordId,
             uint maxRecordsToReturn,
@@ -287,6 +385,7 @@ namespace Opc.Ua.Gds.Client
             return EndFindServersOnNetwork(result, out lastCounterResetTime);
         }
 
+        [Obsolete("Use FindServersOnNetworkAsync instead.")]
         public List<ServerOnNetwork> FindServersOnNetwork(
             string endpointUrl,
             string endpointTransportProfileUri,
@@ -306,6 +405,7 @@ namespace Opc.Ua.Gds.Client
             return EndFindServersOnNetwork(result, out lastCounterResetTime);
         }
 
+        [Obsolete("Use FindServersOnNetworkAsync instead.")]
         public IAsyncResult BeginFindServersOnNetwork(
             uint startingRecordId,
             uint maxRecordsToReturn,
@@ -322,6 +422,7 @@ namespace Opc.Ua.Gds.Client
                 callbackData);
         }
 
+        [Obsolete("Use FindServersOnNetworkAsync instead.")]
         public IAsyncResult BeginFindServersOnNetwork(
             string endpointUrl,
             string endpointTransportProfileUri,
@@ -349,6 +450,7 @@ namespace Opc.Ua.Gds.Client
             return data;
         }
 
+        [Obsolete("Use FindServersOnNetworkAsync instead.")]
         public List<ServerOnNetwork> EndFindServersOnNetwork(
             IAsyncResult result,
             out DateTime lastCounterResetTime)
@@ -376,6 +478,7 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
+        [Obsolete("Use FindServersOnNetworkAsync instead.")]
         private class FindServersOnNetworkData : AsyncResultBase
         {
             public FindServersOnNetworkData(
@@ -391,6 +494,7 @@ namespace Opc.Ua.Gds.Client
             public List<ServerOnNetwork> Servers;
         }
 
+        [Obsolete("Use FindServersOnNetworkAsync instead.")]
         private void OnFindServersOnNetworkComplete(IAsyncResult result)
         {
             var data = result.AsyncState as FindServersOnNetworkData;
