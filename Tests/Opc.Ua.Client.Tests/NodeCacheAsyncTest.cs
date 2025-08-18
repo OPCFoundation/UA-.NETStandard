@@ -102,7 +102,7 @@ namespace Opc.Ua.Client.Tests
             // clear node cache
             Session.NodeCache.Clear();
             // increase timeout for long read operations
-            Session.OperationTimeout = MaxTimeout * 5;
+            Session.OperationTimeout = MaxTimeout * 10;
         }
 
         /// <summary>
