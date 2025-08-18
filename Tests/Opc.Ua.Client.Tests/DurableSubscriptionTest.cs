@@ -139,7 +139,7 @@ namespace Opc.Ua.Client.Tests
             {
                 try
                 {
-                    ClientFixture.SessionTimeout = 1500;
+                    ClientFixture.SessionTimeout = 10000;
                     Session = await ClientFixture
                         .ConnectAsync(
                             ServerUrl,
