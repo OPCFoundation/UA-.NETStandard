@@ -24,7 +24,7 @@
     <NuGetAuditMode>all</NuGetAuditMode>
     <NuGetAudit>true</NuGetAudit>
   </PropertyGroup>
-  <ItemGroup>
+  <ItemGroup Condition="'$(SignAssembly)' == 'true'">
     <PackageReference Include="StrongNamer" />
   </ItemGroup>
   <PropertyGroup>
