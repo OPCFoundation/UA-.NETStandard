@@ -57,7 +57,7 @@ namespace Opc.Ua.Gds.Tests
         public ApplicationTestData OwnApplicationTestData { get; private set; }
         public ApplicationConfiguration Configuration { get; private set; }
 
-        public async Task LoadClientConfigurationAsync(int port = -1)
+        public async Task LoadClientConfigurationAsync(int port = -1, bool clean = true)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
 
@@ -120,6 +120,37 @@ namespace Opc.Ua.Gds.Tests
                 .Create()
                 .ConfigureAwait(false);
 #endif
+
+            if (clean)
+            {
+                string thumbprint = Configuration.SecurityConfiguration.ApplicationCertificate.Thumbprint;
+                if (thumbprint != null)
+                {
+                    using ICertificateStore store = Configuration.SecurityConfiguration
+                        .ApplicationCertificate
+                        .OpenStore();
+                    await store.DeleteAsync(thumbprint).ConfigureAwait(false);
+                }
+
+                // always start with clean cert store
+                await TestUtils
+                    .CleanupTrustListAsync(
+                        Configuration.SecurityConfiguration.ApplicationCertificate.OpenStore())
+                    .ConfigureAwait(false);
+                await TestUtils
+                    .CleanupTrustListAsync(
+                        Configuration.SecurityConfiguration.TrustedIssuerCertificates.OpenStore())
+                    .ConfigureAwait(false);
+                await TestUtils
+                    .CleanupTrustListAsync(
+                        Configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore())
+                    .ConfigureAwait(false);
+                await TestUtils
+                    .CleanupTrustListAsync(
+                        Configuration.SecurityConfiguration.RejectedCertificateStore.OpenStore())
+                    .ConfigureAwait(false);
+            }
+
             // check the application certificate.
             bool haveAppCertificate = await m_application
                 .CheckApplicationInstanceCertificatesAsync(true)
@@ -186,10 +217,8 @@ namespace Opc.Ua.Gds.Tests
 
                 OwnApplicationTestData.CertificateRequestId = req_id;
                 //Finish KeyPairRequest
-                FinishKeyPair(
-                    OwnApplicationTestData,
-                    out byte[] certificate,
-                    out byte[] privateKey);
+                (byte[] certificate, byte[] privateKey) = await FinishKeyPairAsync(
+                    OwnApplicationTestData).ConfigureAwait(false);
                 if (certificate == null || privateKey == null)
                 {
                     return false;
@@ -210,7 +239,7 @@ namespace Opc.Ua.Gds.Tests
             return true;
         }
 
-        public void DisconnectClient()
+        public async Task DisconnectClientAsync()
         {
             Console.WriteLine("Disconnect Session. Waiting for exit...");
 
@@ -218,7 +247,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 GlobalDiscoveryServerClient gdsClient = GDSClient;
                 GDSClient = null;
-                gdsClient.Disconnect();
+                await gdsClient.DisconnectAsync().ConfigureAwait(false);
             }
         }
 
@@ -246,43 +275,41 @@ namespace Opc.Ua.Gds.Tests
             await store.AddAsync(certWithPrivateKey).ConfigureAwait(false);
         }
 
-        private void FinishKeyPair(
-            ApplicationTestData ownApplicationTestData,
-            out byte[] certificate,
-            out byte[] privateKey)
+        private async Task<(byte[] certificate, byte[] privateKey)> FinishKeyPairAsync(
+            ApplicationTestData ownApplicationTestData)
         {
             GDSClient.ConnectAsync(GDSClient.EndpointUrl).GetAwaiter().GetResult();
             //get cert
-            certificate = GDSClient.FinishRequest(
+            (byte[] certificate, byte[] privateKey, _) = await GDSClient.FinishRequestAsync(
                 ownApplicationTestData.ApplicationRecord.ApplicationId,
-                ownApplicationTestData.CertificateRequestId,
-                out privateKey,
-                out _);
-            GDSClient.Disconnect();
+                ownApplicationTestData.CertificateRequestId).ConfigureAwait(false);
+            await GDSClient.DisconnectAsync().ConfigureAwait(false);
+
+            return (certificate, privateKey);
         }
 
         private async Task<NodeId> StartNewKeyPairAsync(ApplicationTestData ownApplicationTestData)
         {
             await GDSClient.ConnectAsync(GDSClient.EndpointUrl).ConfigureAwait(false);
             //request new Cert
-            NodeId req_id = GDSClient.StartNewKeyPairRequest(
+            NodeId req_id = await GDSClient.StartNewKeyPairRequestAsync(
                 ownApplicationTestData.ApplicationRecord.ApplicationId,
                 ownApplicationTestData.CertificateGroupId,
                 ownApplicationTestData.CertificateTypeId,
                 ownApplicationTestData.Subject,
                 ownApplicationTestData.DomainNames,
                 ownApplicationTestData.PrivateKeyFormat,
-                ownApplicationTestData.PrivateKeyPassword);
+                ownApplicationTestData.PrivateKeyPassword).ConfigureAwait(false);
 
-            GDSClient.Disconnect();
+            await GDSClient.DisconnectAsync().ConfigureAwait(false);
             return req_id;
         }
 
         private async Task<NodeId> RegisterAsync(ApplicationTestData ownApplicationTestData)
         {
             await GDSClient.ConnectAsync(GDSClient.EndpointUrl).ConfigureAwait(false);
-            NodeId id = GDSClient.RegisterApplication(ownApplicationTestData.ApplicationRecord);
-            GDSClient.Disconnect();
+            NodeId id = await GDSClient.RegisterApplicationAsync(ownApplicationTestData.ApplicationRecord).ConfigureAwait(false);
+            await GDSClient.DisconnectAsync().ConfigureAwait(false);
             return id;
         }
 

@@ -402,6 +402,144 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        public Task ChangePreferredLocalesAsync(
+            StringCollection preferredLocales,
+            CancellationToken ct)
+        {
+            return UpdateSessionAsync(Identity, preferredLocales, ct);
+        }
+
+        /// <inheritdoc/>
+        public async Task UpdateSessionAsync(
+            IUserIdentity identity,
+            StringCollection preferredLocales,
+            CancellationToken ct = default)
+        {
+            byte[] serverNonce = null;
+
+            lock (SyncRoot)
+            {
+                // check connection state.
+                if (!Connected)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState,
+                        "Not connected to server.");
+                }
+
+                // get current nonce.
+                serverNonce = m_serverNonce;
+
+                preferredLocales ??= m_preferredLocales;
+            }
+
+            // get the identity token.
+            string securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
+
+            // create the client signature.
+            byte[] dataToSign = Utils.Append(m_serverCertificate?.RawData, serverNonce);
+            SignatureData clientSignature = SecurityPolicies.Sign(
+                m_instanceCertificate,
+                securityPolicyUri,
+                dataToSign);
+
+            // choose a default token.
+            identity ??= new UserIdentity();
+
+            // check that the user identity is supported by the endpoint.
+            UserTokenPolicy identityPolicy =
+                m_endpoint.Description.FindUserTokenPolicy(
+                    identity.TokenType,
+                    identity.IssuedTokenType,
+                    securityPolicyUri)
+                ?? throw ServiceResultException.Create(
+                    StatusCodes.BadUserAccessDenied,
+                    "Endpoint does not support the user identity type provided.");
+
+            // select the security policy for the user token.
+            string tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
+
+            if (string.IsNullOrEmpty(tokenSecurityPolicyUri))
+            {
+                tokenSecurityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
+            }
+
+            bool requireEncryption = tokenSecurityPolicyUri != SecurityPolicies.None;
+
+            // validate the server certificate before encrypting tokens.
+            if (m_serverCertificate != null &&
+                requireEncryption &&
+                identity.TokenType != UserTokenType.Anonymous)
+            {
+                m_configuration.CertificateValidator.Validate(m_serverCertificate);
+            }
+
+            // validate server nonce and security parameters for user identity.
+            ValidateServerNonce(
+                identity,
+                serverNonce,
+                tokenSecurityPolicyUri,
+                m_previousServerNonce,
+                m_endpoint.Description.SecurityMode);
+
+            // sign data with user token.
+            UserIdentityToken identityToken = identity.GetIdentityToken();
+            identityToken.PolicyId = identityPolicy.PolicyId;
+            SignatureData userTokenSignature = identityToken.Sign(
+                dataToSign,
+                tokenSecurityPolicyUri);
+
+            m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
+
+            // encrypt token.
+            identityToken.Encrypt(
+                m_serverCertificate,
+                serverNonce,
+                m_userTokenSecurityPolicyUri,
+                m_eccServerEphemeralKey,
+                m_instanceCertificate,
+                m_instanceCertificateChain,
+                m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
+
+            // send the software certificates assigned to the client.
+            SignedSoftwareCertificateCollection clientSoftwareCertificates
+                = GetSoftwareCertificates();
+
+            ActivateSessionResponse response = await ActivateSessionAsync(
+                null,
+                clientSignature,
+                clientSoftwareCertificates,
+                preferredLocales,
+                new ExtensionObject(identityToken),
+                userTokenSignature,
+                ct).ConfigureAwait(false);
+
+            serverNonce = response.ServerNonce;
+
+            ProcessResponseAdditionalHeader(response.ResponseHeader, m_serverCertificate);
+
+            // save nonce and new values.
+            lock (SyncRoot)
+            {
+                if (identity != null)
+                {
+                    m_identity = identity;
+                }
+
+                m_previousServerNonce = m_serverNonce;
+                m_serverNonce = serverNonce;
+                m_preferredLocales = preferredLocales;
+
+                // update system context.
+                m_systemContext.PreferredLocales = m_preferredLocales;
+                m_systemContext.SessionId = SessionId;
+                m_systemContext.UserIdentity = identity;
+            }
+
+            IndicateSessionConfigurationChanged();
+        }
+
+        /// <inheritdoc/>
         public async Task<bool> RemoveSubscriptionAsync(
             Subscription subscription,
             CancellationToken ct = default)

@@ -607,6 +607,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        [Obsolete("Use ChangePreferredLocalesAsync instead.")]
         public void ChangePreferredLocales(StringCollection preferredLocales)
         {
             using Activity activity = ActivitySource.StartActivity();
@@ -614,10 +615,32 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        public async Task ChangePreferredLocalesAsync(
+            StringCollection preferredLocales,
+            CancellationToken ct)
+        {
+            using Activity activity = ActivitySource.StartActivity();
+            await Session.ChangePreferredLocalesAsync(preferredLocales, ct)
+                .ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        [Obsolete("Use UpdateSessionAsync instead.")]
         public void UpdateSession(IUserIdentity identity, StringCollection preferredLocales)
         {
             using Activity activity = ActivitySource.StartActivity();
             Session.UpdateSession(identity, preferredLocales);
+        }
+
+        /// <inheritdoc/>
+        public async Task UpdateSessionAsync(
+            IUserIdentity identity,
+            StringCollection preferredLocales,
+            CancellationToken ct)
+        {
+            using Activity activity = ActivitySource.StartActivity();
+            await Session.UpdateSessionAsync(identity, preferredLocales, ct)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
