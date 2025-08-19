@@ -50,7 +50,7 @@ jobs:
       projects: '**/@(Console|NetCore)*.csproj'
       arguments: '--framework ${{ parameters.framework }} --configuration Release ${{ parameters.buildoption }} /p:RCS=true'
   - task: DotNetCoreCLI@2
-    displayName: Release Pack 
+    displayName: Release Pack
     condition: eq(variables['poolImage'], 'windows-2025')
     inputs:
       command: pack
@@ -64,7 +64,7 @@ jobs:
       projects: '**/@(Console|NetCore)*.csproj'
       arguments: '--framework ${{ parameters.framework }} --configuration Debug ${{ parameters.buildoption }} /p:RCS=true'
   - task: DotNetCoreCLI@2
-    displayName: Debug Pack 
+    displayName: Debug Pack
     condition: eq(variables['poolImage'], 'windows-2025')
     inputs:
       command: pack
