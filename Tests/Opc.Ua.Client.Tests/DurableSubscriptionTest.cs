@@ -457,7 +457,7 @@ namespace Opc.Ua.Client.Tests
             DateTime closeTime = DateTime.UtcNow;
             TestContext.Out.WriteLine("Session Id {0} Closed at {1}", Session.SessionId, closeTime);
 
-            Session.Close(closeChannel: false);
+            await Session.CloseAsync(closeChannel: false).ConfigureAwait(false);
 
             if (restartServer)
             {
