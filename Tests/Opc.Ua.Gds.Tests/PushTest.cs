@@ -30,6 +30,7 @@
 using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -111,6 +112,13 @@ namespace Opc.Ua.Gds.Tests
             if (curve != null && !IsCurveSupported(curve.Value))
             {
                 NUnit.Framework.Assert.Ignore("ECC curve is not supported on this platform.");
+            }
+
+            // Skip brainpool curves on Mac OS
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) &&
+                (securityPolicyUri == SecurityPolicies.ECC_brainpoolP256r1 || securityPolicyUri == SecurityPolicies.ECC_brainpoolP384r1))
+            {
+                NUnit.Framework.Assert.Ignore("Brainpool curve is not supported on Mac OS.");
             }
 
             m_certificateType = certificateType;
