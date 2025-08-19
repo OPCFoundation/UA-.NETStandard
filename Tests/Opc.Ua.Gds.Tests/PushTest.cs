@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -995,11 +996,9 @@ namespace Opc.Ua.Gds.Tests
 
             const int maxWaitSeconds = 10;
             const int retryIntervalMs = 2000;
-            var startTime = DateTime.UtcNow;
-
-            while ((DateTime.UtcNow - startTime).TotalSeconds < maxWaitSeconds)
+            var stopwatch = Stopwatch.StartNew();
+            while (stopwatch.Elapsed.TotalSeconds < maxWaitSeconds)
             {
-
                 await m_gdsClient.GDSClient.ConnectAsync(m_gdsClient.GDSClient.EndpointUrl).ConfigureAwait(false);
                 await m_pushClient.ConnectAsync(m_securityPolicyUri).ConfigureAwait(false);
 
@@ -1013,11 +1012,11 @@ namespace Opc.Ua.Gds.Tests
                 }
 
                 await DisconnectPushClientAsync().ConfigureAwait(false);
-                Thread.Sleep(retryIntervalMs);
-
+                await Task.Delay(retryIntervalMs).ConfigureAwait(false);
             }
 
-            Assert.Fail("Server certificate did not match with the Certificate pushed by the GDS within the allowed time.");
+            Assert.Fail("Server certificate did not match with the Certificate pushed by " +
+                "the GDS within the allowed time.");
         }
 
         private static async Task<bool> AddTrustListToStoreAsync(
