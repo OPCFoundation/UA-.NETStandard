@@ -55,7 +55,8 @@ namespace Opc.Ua.Gds.Tests
     public class PushTest
     {
         /// <summary>
-        /// CertificateTypes to run the Test with
+        /// CertificateTypes to run the Test with.
+        /// For ECC types, the additional fourth element is the expected curve friendly name.
         /// </summary>
         public static readonly object[] FixtureArgs =
         [
@@ -63,37 +64,42 @@ namespace Opc.Ua.Gds.Tests
             {
                 nameof(OpcUa.ObjectTypeIds.RsaSha256ApplicationCertificateType),
                 OpcUa.ObjectTypeIds.RsaSha256ApplicationCertificateType,
-                SecurityPolicies.Aes256_Sha256_RsaPss
+                SecurityPolicies.Aes256_Sha256_RsaPss,
+                null
             },
 #if ECC_SUPPORT
             new object[]
             {
                 nameof(OpcUa.ObjectTypeIds.EccNistP256ApplicationCertificateType),
                 OpcUa.ObjectTypeIds.EccNistP256ApplicationCertificateType,
-                SecurityPolicies.ECC_nistP256
+                SecurityPolicies.ECC_nistP256,
+                ECCurve.NamedCurves.nistP256
             },
             new object[]
             {
                 nameof(OpcUa.ObjectTypeIds.EccNistP384ApplicationCertificateType),
                 OpcUa.ObjectTypeIds.EccNistP384ApplicationCertificateType,
-                SecurityPolicies.ECC_nistP384
+                SecurityPolicies.ECC_nistP384,
+                ECCurve.NamedCurves.nistP384
             },
             new object[]
             {
                 nameof(OpcUa.ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType),
                 OpcUa.ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType,
-                SecurityPolicies.ECC_brainpoolP256r1
+                SecurityPolicies.ECC_brainpoolP256r1,
+                ECCurve.NamedCurves.brainpoolP256r1
             },
             new object[]
             {
                 nameof(OpcUa.ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType),
                 OpcUa.ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType,
-                SecurityPolicies.ECC_brainpoolP384r1
+                SecurityPolicies.ECC_brainpoolP384r1,
+                ECCurve.NamedCurves.brainpoolP384r1
             }
 #endif
         ];
 
-        public PushTest(string certificateTypeString, NodeId certificateType, string securityPolicyUri)
+        public PushTest(string certificateTypeString, NodeId certificateType, string securityPolicyUri, ECCurve? curve)
         {
             if (!Utils.IsSupportedCertificateType(certificateType))
             {
@@ -101,8 +107,32 @@ namespace Opc.Ua.Gds.Tests
                     $"Certificate type {certificateTypeString} is not supported on this platform.");
             }
 
+            // If a curve name is provided, perform extra check if ecc is supported
+            if (curve != null && !IsCurveSupported(curve.Value))
+            {
+                NUnit.Framework.Assert.Ignore("ECC curve is not supported on this platform.");
+            }
+
             m_certificateType = certificateType;
             m_securityPolicyUri = securityPolicyUri;
+        }
+
+        private static bool IsCurveSupported(ECCurve curve)
+        {
+            ECDsa key = null;
+            try
+            {
+                key = ECDsa.Create(curve);
+            }
+            catch
+            {
+                return false;
+            }
+            finally
+            {
+                Utils.SilentDispose(key);
+            }
+            return true;
         }
 
         /// <summary>

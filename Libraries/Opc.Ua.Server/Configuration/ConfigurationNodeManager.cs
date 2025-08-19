@@ -839,6 +839,7 @@ namespace Opc.Ua.Server
 
             return new CreateSigningRequestMethodStateResult
             {
+                ServiceResult = ServiceResult.Good,
                 CertificateRequest = certificateRequest
             };
         }

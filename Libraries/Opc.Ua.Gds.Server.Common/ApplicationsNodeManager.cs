@@ -45,7 +45,7 @@ namespace Opc.Ua.Gds.Server
     /// <summary>
     /// A node manager for a global discovery server
     /// </summary>
-    public class ApplicationsNodeManager : CustomNodeManager2
+    public class ApplicationsNodeManager : CustomNodeManager2, IAsyncNodeManager
     {
         private readonly NodeId m_defaultApplicationGroupId;
         private readonly NodeId m_defaultHttpsGroupId;
@@ -810,7 +810,7 @@ namespace Opc.Ua.Gds.Server
             MethodState method,
             NodeId objectId,
             byte[] certificate,
-            CancellationToken cancellation)
+            CancellationToken cancellationToken)
         {
             AuthorizationHelper.HasAuthenticatedSecureChannel(context);
 
@@ -837,7 +837,7 @@ namespace Opc.Ua.Gds.Server
                     try
                     {
                         chain.ChainPolicy.ExtraStore
-                            .AddRange(await store.EnumerateAsync(cancellation)
+                            .AddRange(await store.EnumerateAsync(cancellationToken)
                                 .ConfigureAwait(false));
                     }
                     finally
@@ -1263,7 +1263,7 @@ namespace Opc.Ua.Gds.Server
             NodeId certificateGroupId,
             NodeId certificateTypeId,
             byte[] certificateRequest,
-            CancellationToken cancellation)
+            CancellationToken cancellationToken)
         {
             AuthorizationHelper.HasAuthorization(
                 context,
@@ -1356,7 +1356,7 @@ namespace Opc.Ua.Gds.Server
             NodeId objectId,
             NodeId applicationId,
             NodeId requestId,
-            CancellationToken cancellation)
+            CancellationToken cancellationToken)
         {
             AuthorizationHelper.HasAuthorization(
                 context,
@@ -1535,7 +1535,7 @@ namespace Opc.Ua.Gds.Server
             {
                 if (store != null)
                 {
-                    await store.AddAsync(certificate, null, cancellation).ConfigureAwait(false);
+                    await store.AddAsync(certificate, null, cancellationToken).ConfigureAwait(false);
                 }
             }
 
