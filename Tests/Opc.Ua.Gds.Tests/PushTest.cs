@@ -108,17 +108,17 @@ namespace Opc.Ua.Gds.Tests
                     $"Certificate type {certificateTypeString} is not supported on this platform.");
             }
 
+            // Skip brainpool curves on Mac OS
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) &&
+                (securityPolicyUri == SecurityPolicies.ECC_brainpoolP256r1 || securityPolicyUri == SecurityPolicies.ECC_brainpoolP384r1))
+            {
+                NUnit.Framework.Assert.Ignore("Brainpool curve is not supported on Mac OS.");
+            }
+
             // If a curve name is provided, perform extra check if ecc is supported
             if (curve != null && !IsCurveSupported(curve.Value))
             {
                 NUnit.Framework.Assert.Ignore("ECC curve is not supported on this platform.");
-            }
-
-            // Skip brainpool curves on Mac OS
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) &&
-                EccUtils.IsEccPolicy(securityPolicyUri))
-            {
-                NUnit.Framework.Assert.Ignore("ECC Curves cause test issues on Mac OS.");
             }
 
             m_certificateTypeString = certificateTypeString;
