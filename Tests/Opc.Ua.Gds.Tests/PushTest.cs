@@ -1046,20 +1046,28 @@ namespace Opc.Ua.Gds.Tests
             var stopwatch = Stopwatch.StartNew();
             while (stopwatch.Elapsed.TotalSeconds < maxWaitSeconds)
             {
-                await m_gdsClient.GDSClient.ConnectAsync(m_gdsClient.GDSClient.EndpointUrl).ConfigureAwait(false);
-                await m_pushClient.ConnectAsync(m_securityPolicyUri).ConfigureAwait(false);
-
-                X509Certificate2 serverCertificate = Utils.ParseCertificateBlob(
-                    m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
-
-                if (Utils.IsEqual(serverCertificate.RawData, certificateBlob))
+                try
                 {
-                    // Success, exit early
-                    return;
+                    await m_gdsClient.GDSClient.ConnectAsync(m_gdsClient.GDSClient.EndpointUrl).ConfigureAwait(false);
+                    await m_pushClient.ConnectAsync(m_securityPolicyUri).ConfigureAwait(false);
+
+                    X509Certificate2 serverCertificate = Utils.ParseCertificateBlob(
+                        m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
+
+                    if (Utils.IsEqual(serverCertificate.RawData, certificateBlob))
+                    {
+                        // Success, exit early
+                        return;
+                    }
+
+                    await DisconnectPushClientAsync().ConfigureAwait(false);
+                    await Task.Delay(retryIntervalMs).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Utils.LogError(ex, "Failure while verifying new Push Server certificate.");
                 }
 
-                await DisconnectPushClientAsync().ConfigureAwait(false);
-                await Task.Delay(retryIntervalMs).ConfigureAwait(false);
             }
 
             Assert.Fail("Server certificate did not match with the Certificate pushed by " +
