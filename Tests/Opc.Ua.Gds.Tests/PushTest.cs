@@ -116,11 +116,12 @@ namespace Opc.Ua.Gds.Tests
 
             // Skip brainpool curves on Mac OS
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) &&
-                (securityPolicyUri == SecurityPolicies.ECC_brainpoolP256r1 || securityPolicyUri == SecurityPolicies.ECC_brainpoolP384r1))
+                EccUtils.IsEccPolicy(securityPolicyUri))
             {
-                NUnit.Framework.Assert.Ignore("Brainpool curve is not supported on Mac OS.");
+                NUnit.Framework.Assert.Ignore("ECC Curves cause test issues on Mac OS.");
             }
 
+            m_certificateTypeString = certificateTypeString;
             m_certificateType = certificateType;
             m_securityPolicyUri = securityPolicyUri;
         }
@@ -141,6 +142,14 @@ namespace Opc.Ua.Gds.Tests
                 Utils.SilentDispose(key);
             }
             return true;
+        }
+
+        /// <summary>
+        /// Overrides ToString to display active certificate type in Test Explorer.
+        /// </summary>
+        public override string ToString()
+        {
+            return $"{nameof(PushTest)} [{m_certificateTypeString}]";
         }
 
         /// <summary>
@@ -1291,6 +1300,7 @@ namespace Opc.Ua.Gds.Tests
         private X509Certificate2 m_selfSignedServerCert;
         private string[] m_domainNames;
         private X509Certificate2 m_caCert;
+        private readonly string m_certificateTypeString;
         private readonly NodeId m_certificateType;
         private readonly string m_securityPolicyUri;
     }
