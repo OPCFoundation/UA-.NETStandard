@@ -1158,10 +1158,313 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        public async Task<(IList<string>, IList<ServiceResult>)> ReadDisplayNameAsync(
+            IList<NodeId> nodeIds,
+            CancellationToken ct = default)
+        {
+            var displayNames = new List<string>();
+            var errors = new List<ServiceResult>();
+
+            // build list of values to read.
+            var valuesToRead = new ReadValueIdCollection();
+
+            for (int ii = 0; ii < nodeIds.Count; ii++)
+            {
+                var valueToRead = new ReadValueId
+                {
+                    NodeId = nodeIds[ii],
+                    AttributeId = Attributes.DisplayName,
+                    IndexRange = null,
+                    DataEncoding = null
+                };
+
+                valuesToRead.Add(valueToRead);
+            }
+
+            // read the values.
+
+            ReadResponse response = await ReadAsync(
+                null,
+                int.MaxValue,
+                TimestampsToReturn.Neither,
+                valuesToRead,
+                ct).ConfigureAwait(false);
+
+            DataValueCollection results = response.Results;
+            DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+            ResponseHeader responseHeader = response.ResponseHeader;
+
+            // verify that the server returned the correct number of results.
+            ValidateResponse(results, valuesToRead);
+            ValidateDiagnosticInfos(diagnosticInfos, valuesToRead);
+
+            for (int ii = 0; ii < nodeIds.Count; ii++)
+            {
+                displayNames.Add(string.Empty);
+                errors.Add(ServiceResult.Good);
+
+                // process any diagnostics associated with bad or uncertain data.
+                if (StatusCode.IsNotGood(results[ii].StatusCode))
+                {
+                    errors[ii] = new ServiceResult(
+                        results[ii].StatusCode,
+                        ii,
+                        diagnosticInfos,
+                        responseHeader.StringTable);
+                    continue;
+                }
+
+                // extract the name.
+                LocalizedText displayName = results[ii].GetValue<LocalizedText>(null);
+
+                if (!LocalizedText.IsNullOrEmpty(displayName))
+                {
+                    displayNames[ii] = displayName.Text;
+                }
+            }
+
+            return (displayNames, errors);
+        }
+
+        /// <inheritdoc/>
+        public async Task<ReferenceDescriptionCollection> ReadAvailableEncodingsAsync(
+            NodeId variableId,
+            CancellationToken ct = default)
+        {
+            if (await NodeCache.FindAsync(variableId).ConfigureAwait(false)
+                is not VariableNode variable)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdInvalid,
+                    "NodeId does not refer to a valid variable node.");
+            }
+
+            // no encodings available if there was a problem reading the
+            // data type for the node.
+            if (NodeId.IsNull(variable.DataType))
+            {
+                return [];
+            }
+
+            // no encodings for non-structures.
+            if (!await NodeCache.IsTypeOfAsync(
+                variable.DataType,
+                DataTypes.Structure,
+                ct).ConfigureAwait(false))
+            {
+                return [];
+            }
+
+            // look for cached values.
+            IList<INode> encodings = await NodeCache.FindAsync(
+                variableId,
+                ReferenceTypeIds.HasEncoding,
+                false,
+                true,
+                ct).ConfigureAwait(false);
+
+            if (encodings.Count > 0)
+            {
+                var references = new ReferenceDescriptionCollection();
+
+                foreach (INode encoding in encodings)
+                {
+                    var reference = new ReferenceDescription
+                    {
+                        ReferenceTypeId = ReferenceTypeIds.HasEncoding,
+                        IsForward = true,
+                        NodeId = encoding.NodeId,
+                        NodeClass = encoding.NodeClass,
+                        BrowseName = encoding.BrowseName,
+                        DisplayName = encoding.DisplayName,
+                        TypeDefinition = encoding.TypeDefinitionId
+                    };
+
+                    references.Add(reference);
+                }
+
+                return references;
+            }
+
+            var browser = new Browser(this)
+            {
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = ReferenceTypeIds.HasEncoding,
+                IncludeSubtypes = false,
+                NodeClassMask = 0
+            };
+
+            return browser.Browse(variable.DataType); // Todo: Make async
+        }
+
+        /// <inheritdoc/>
+        public Task<ReferenceDescription> FindDataDescriptionAsync(NodeId encodingId,
+            CancellationToken ct = default)
+        {
+            var browser = new Browser(this)
+            {
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = ReferenceTypeIds.HasDescription,
+                IncludeSubtypes = false,
+                NodeClassMask = 0
+            };
+
+            ReferenceDescriptionCollection references = browser.Browse(encodingId); // Todo: Make async
+
+            if (references.Count == 0)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdInvalid,
+                    "Encoding does not refer to a valid data description.");
+            }
+
+            return Task.FromResult(references[0]);
+        }
+
+        /// <inheritdoc/>
+        public async Task<(NodeIdCollection, IList<ServiceResult>)> FindComponentIdsAsync(
+            NodeId instanceId,
+            IList<string> componentPaths,
+            CancellationToken ct = default)
+        {
+            var componentIds = new NodeIdCollection();
+            var errors = new List<ServiceResult>();
+
+            // build list of paths to translate.
+            var pathsToTranslate = new BrowsePathCollection();
+
+            for (int ii = 0; ii < componentPaths.Count; ii++)
+            {
+                var pathToTranslate = new BrowsePath
+                {
+                    StartingNode = instanceId,
+                    RelativePath = RelativePath.Parse(componentPaths[ii], TypeTree)
+                };
+
+                pathsToTranslate.Add(pathToTranslate);
+            }
+
+            // translate the paths.
+
+            TranslateBrowsePathsToNodeIdsResponse response = await TranslateBrowsePathsToNodeIdsAsync(
+                null,
+                pathsToTranslate,
+                ct).ConfigureAwait(false);
+
+            BrowsePathResultCollection results = response.Results;
+            DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+            ResponseHeader responseHeader = response.ResponseHeader;
+
+            // verify that the server returned the correct number of results.
+            ValidateResponse(results, pathsToTranslate);
+            ValidateDiagnosticInfos(diagnosticInfos, pathsToTranslate);
+
+            for (int ii = 0; ii < componentPaths.Count; ii++)
+            {
+                componentIds.Add(NodeId.Null);
+                errors.Add(ServiceResult.Good);
+
+                // process any diagnostics associated with any error.
+                if (StatusCode.IsBad(results[ii].StatusCode))
+                {
+                    errors[ii] = new ServiceResult(
+                        results[ii].StatusCode,
+                        ii,
+                        diagnosticInfos,
+                        responseHeader.StringTable);
+                    continue;
+                }
+
+                // Expecting exact one NodeId for a local node.
+                // Report an error if the server returns anything other than that.
+
+                if (results[ii].Targets.Count == 0)
+                {
+                    errors[ii] = ServiceResult.Create(
+                        StatusCodes.BadTargetNodeIdInvalid,
+                        "Could not find target for path: {0}.",
+                        componentPaths[ii]);
+
+                    continue;
+                }
+
+                if (results[ii].Targets.Count != 1)
+                {
+                    errors[ii] = ServiceResult.Create(
+                        StatusCodes.BadTooManyMatches,
+                        "Too many matches found for path: {0}.",
+                        componentPaths[ii]);
+
+                    continue;
+                }
+
+                if (results[ii].Targets[0].RemainingPathIndex != uint.MaxValue)
+                {
+                    errors[ii] = ServiceResult.Create(
+                        StatusCodes.BadTargetNodeIdInvalid,
+                        "Cannot follow path to external server: {0}.",
+                        componentPaths[ii]);
+
+                    continue;
+                }
+
+                if (NodeId.IsNull(results[ii].Targets[0].TargetId))
+                {
+                    errors[ii] = ServiceResult.Create(
+                        StatusCodes.BadUnexpectedError,
+                        "Server returned a null NodeId for path: {0}.",
+                        componentPaths[ii]);
+
+                    continue;
+                }
+
+                if (results[ii].Targets[0].TargetId.IsAbsolute)
+                {
+                    errors[ii] = ServiceResult.Create(
+                        StatusCodes.BadUnexpectedError,
+                        "Server returned a remote node for path: {0}.",
+                        componentPaths[ii]);
+
+                    continue;
+                }
+
+                // suitable target found.
+                componentIds[ii] = ExpandedNodeId.ToNodeId(
+                    results[ii].Targets[0].TargetId,
+                    NamespaceUris);
+            }
+            return (componentIds, errors);
+        }
+
+        /// <inheritdoc/>
+        public async Task<T> ReadValueAsync<T>(NodeId nodeId, CancellationToken ct = default)
+        {
+            DataValue dataValue = await ReadValueAsync(nodeId).ConfigureAwait(false);
+            object value = dataValue.Value;
+
+            if (value is ExtensionObject extension)
+            {
+                value = extension.Body;
+            }
+
+            if (!typeof(T).IsInstanceOfType(value))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeMismatch,
+                    "Server returned value unexpected type: {0}",
+                    value != null ? value.GetType().Name : "(null)");
+            }
+            return (T)value;
+        }
+
+        /// <inheritdoc/>
         public async Task<DataValue> ReadValueAsync(NodeId nodeId, CancellationToken ct = default)
         {
-            var itemToRead = new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value };
-
+            var itemToRead = new ReadValueId
+            {
+                NodeId = nodeId,
+                AttributeId = Attributes.Value
+            };
             var itemsToRead = new ReadValueIdCollection { itemToRead };
 
             // read from server.

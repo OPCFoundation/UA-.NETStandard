@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Client
 {
@@ -904,7 +905,9 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Returns value of the field name containing the event type.
         /// </summary>
-        public INode GetEventType(EventFieldList eventFields)
+        public async ValueTask<INode> GetEventTypeAsync(
+            EventFieldList eventFields,
+            CancellationToken ct = default)
         {
             // get event type.
             var eventTypeId = GetFieldValue(
@@ -912,9 +915,13 @@ namespace Opc.Ua.Client
                 ObjectTypes.BaseEventType,
                 BrowseNames.EventType) as NodeId;
 
-            if (eventTypeId != null && Subscription != null && Subscription.Session != null)
+            if (eventTypeId != null &&
+                Subscription != null &&
+                Subscription.Session != null)
             {
-                return Subscription.Session.NodeCache.Find(eventTypeId);
+                return await Subscription.Session.NodeCache.FindAsync(
+                    eventTypeId,
+                    ct).ConfigureAwait(false);
             }
 
             // no event type in event field list.

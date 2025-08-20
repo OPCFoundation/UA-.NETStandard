@@ -189,7 +189,7 @@ namespace Opc.Ua.Client.Tests
             TestName = "Test Lifetime Reduce Count",
             Description = "Expected MaxLifetimeCount matches what the demo server does"
         )]
-        public void TestLifetime(
+        public async Task TestLifetime(
             int publishingInterval,
             uint keepAliveCount,
             uint lifetimeCount,
@@ -205,18 +205,18 @@ namespace Opc.Ua.Client.Tests
             };
 
             Assert.True(Session.AddSubscription(subscription));
-            subscription.Create();
+            await subscription.CreateAsync().ConfigureAwait(false);
 
-            Dictionary<string, NodeId> desiredNodeIds = GetDesiredNodeIds(subscription.Id);
+            Dictionary<string, NodeId> desiredNodeIds =
+                await GetDesiredNodeIdsAsync(subscription.Id).ConfigureAwait(false);
 
-            Assert.True(
-                subscription.SetSubscriptionDurable(
-                    requestedHours,
-                    out uint revisedLifetimeInHours));
-
+            (bool success, uint revisedLifetimeInHours) =
+                await subscription.SetSubscriptionDurableAsync(requestedHours).ConfigureAwait(false);
+            Assert.True(success);
             Assert.AreEqual(expectedHours, revisedLifetimeInHours);
 
-            Dictionary<string, object> modifiedValues = GetValues(desiredNodeIds);
+            Dictionary<string, object> modifiedValues =
+                await GetValuesAsync(desiredNodeIds).ConfigureAwait(false);
 
             var maxLifetimeCountValue = modifiedValues["MaxLifetimeCount"] as DataValue;
             Assert.IsNotNull(maxLifetimeCountValue);
@@ -225,7 +225,7 @@ namespace Opc.Ua.Client.Tests
                 expectedLifetime,
                 Convert.ToUInt32(maxLifetimeCountValue.Value, CultureInfo.InvariantCulture));
 
-            Assert.True(Session.RemoveSubscription(subscription));
+            Assert.True(await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false));
         }
 
         [Test]
@@ -277,8 +277,7 @@ namespace Opc.Ua.Client.Tests
 
             subscription.AddItem(mi);
 
-            IList<MonitoredItem> result = await subscription.CreateItemsAsync()
-                .ConfigureAwait(false);
+            IList<MonitoredItem> result = await subscription.CreateItemsAsync().ConfigureAwait(false);
             NUnit.Framework.Assert.That(ServiceResult.IsGood(result[0].Status.Error), Is.True);
             NUnit.Framework.Assert
                 .That(result[0].Status.QueueSize, Is.EqualTo(expectedRevisedQueueSize));
@@ -292,14 +291,15 @@ namespace Opc.Ua.Client.Tests
             NUnit.Framework.Assert
                 .That(resultModify[0].Status.QueueSize, Is.EqualTo(expectedModifiedQueueSize));
 
-            Assert.True(subscription.GetMonitoredItems(out _, out _));
+            (bool success, _, _) = await subscription.GetMonitoredItemsAsync().ConfigureAwait(false);
+            Assert.True(success);
 
             Assert.True(await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false));
         }
 
         [Test]
         [Order(160)]
-        public void SetSubscriptionDurableFailsWhenMIExists()
+        public async Task SetSubscriptionDurableFailsWhenMIExistsAsync()
         {
             var subscription = new TestableSubscription(Session.DefaultSubscription)
             {
@@ -309,7 +309,7 @@ namespace Opc.Ua.Client.Tests
             };
 
             Assert.True(Session.AddSubscription(subscription));
-            subscription.Create();
+            await subscription.CreateAsync().ConfigureAwait(false);
 
             uint id = subscription.Id;
 
@@ -327,18 +327,18 @@ namespace Opc.Ua.Client.Tests
 
             subscription.AddItem(mi);
 
-            IList<MonitoredItem> result = subscription.CreateItems();
+            IList<MonitoredItem> result = await subscription.CreateItemsAsync().ConfigureAwait(false);
             NUnit.Framework.Assert.That(ServiceResult.IsGood(result[0].Status.Error), Is.True);
 
-            NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                Session.Call(ObjectIds.Server, MethodIds.Server_SetSubscriptionDurable, id, 1));
+            NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() =>
+                Session.CallAsync(ObjectIds.Server, MethodIds.Server_SetSubscriptionDurable, default, id, 1));
 
-            Assert.True(Session.RemoveSubscription(subscription));
+            Assert.True(await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false));
         }
 
         [Test]
         [Order(180)]
-        public void SetSubscriptionDurableFailsWhenSubscriptionDoesNotExist()
+        public async Task SetSubscriptionDurableFailsWhenSubscriptionDoesNotExistAsync()
         {
             var subscription = new TestableSubscription(Session.DefaultSubscription)
             {
@@ -348,14 +348,14 @@ namespace Opc.Ua.Client.Tests
             };
 
             Assert.True(Session.AddSubscription(subscription));
-            subscription.Create();
+            await subscription.CreateAsync().ConfigureAwait(false);
 
             uint id = subscription.Id;
 
-            Assert.True(Session.RemoveSubscription(subscription));
+            Assert.True(await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false));
 
-            NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                Session.Call(ObjectIds.Server, MethodIds.Server_SetSubscriptionDurable, id, 1));
+            NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() =>
+                Session.CallAsync(ObjectIds.Server, MethodIds.Server_SetSubscriptionDurable, default, id, 1));
         }
 
         [Test]
@@ -389,27 +389,30 @@ namespace Opc.Ua.Client.Tests
                 TestContext.Out.WriteLine($"StateChanged: {s.Session.SessionId}-{s.Id}-{e.Status}");
 
             Assert.True(Session.AddSubscription(subscription));
-            subscription.Create();
+            await subscription.CreateAsync().ConfigureAwait(false);
 
             // Give some time to allow for the true browse of items
             await Task.Delay(500).ConfigureAwait(false);
 
-            Dictionary<string, NodeId> desiredNodeIds = GetDesiredNodeIds(subscription.Id);
-            Dictionary<string, object> initialValues = GetValues(desiredNodeIds);
+            Dictionary<string, NodeId> desiredNodeIds =
+                await GetDesiredNodeIdsAsync(subscription.Id).ConfigureAwait(false);
+            Dictionary<string, object> initialValues =
+                await GetValuesAsync(desiredNodeIds).ConfigureAwait(false);
 
             if (setSubscriptionDurable)
             {
-                Assert.True(subscription.SetSubscriptionDurable(
-                    requestedHours,
-                    out uint revisedLifetimeInHours));
-
+                (bool success, uint revisedLifetimeInHours) =
+                    await subscription.SetSubscriptionDurableAsync(requestedHours).ConfigureAwait(false);
+                Assert.True(success);
                 Assert.AreEqual(expectedHours, revisedLifetimeInHours);
 
-                ValidateDataValue(desiredNodeIds, "MaxLifetimeCount", expectedLifetime);
+                await ValidateDataValueAsync(desiredNodeIds, "MaxLifetimeCount", expectedLifetime)
+                    .ConfigureAwait(false);
             }
             else
             {
-                ValidateDataValue(desiredNodeIds, "MaxLifetimeCount", lifetimeCount);
+                await ValidateDataValueAsync(desiredNodeIds, "MaxLifetimeCount", lifetimeCount)
+                    .ConfigureAwait(false);
             }
 
             var testSet = new List<NodeId>();
@@ -448,16 +451,18 @@ namespace Opc.Ua.Client.Tests
             DateTime startTime = DateTime.UtcNow;
 
             subscription.AddItems(monitoredItemsList);
-            subscription.ApplyChanges();
+            await subscription.ApplyChangesAsync().ConfigureAwait(false);
             await Task.Delay(2000).ConfigureAwait(false);
 
-            Dictionary<string, object> closeValues = GetValues(desiredNodeIds);
+            Dictionary<string, object> closeValues =
+                await GetValuesAsync(desiredNodeIds).ConfigureAwait(false);
 
             var subscriptions = new SubscriptionCollection(Session.Subscriptions);
             DateTime closeTime = DateTime.UtcNow;
-            TestContext.Out.WriteLine("Session Id {0} Closed at {1}", Session.SessionId, closeTime);
+            TestContext.Out.WriteLine("Session Id {0} Closed at {1}",
+                Session.SessionId, closeTime);
 
-            Session.Close(closeChannel: false);
+            await Session.CloseAsync(closeChannel: false).ConfigureAwait(false);
 
             if (restartServer)
             {
@@ -500,7 +505,7 @@ namespace Opc.Ua.Client.Tests
 
                 DateTime completionTime = DateTime.UtcNow;
 
-                subscription.SetPublishingMode(false);
+                await subscription.SetPublishingModeAsync(false).ConfigureAwait(false);
 
                 const double tolerance = 1500;
 
@@ -520,7 +525,9 @@ namespace Opc.Ua.Client.Tests
 
                         TimeSpan timeSpan = timestamp - previous;
                         TestContext.Out.WriteLine(
-                            $"Node: {pair.Key} Index: {index} Time: {DateTimeMs(timestamp)} Previous: {DateTimeMs(previous)} Timespan {timeSpan.TotalMilliseconds.ToString("000.", CultureInfo.InvariantCulture)}");
+                            $"Node: {pair.Key} Index: {index} Time: {DateTimeMs(timestamp)} " +
+                            $"Previous: {DateTimeMs(previous)} " +
+                            $"Timespan {timeSpan.TotalMilliseconds.ToString("000.", CultureInfo.InvariantCulture)}");
 
                         Assert.Less(
                             Math.Abs(timeSpan.TotalMilliseconds),
@@ -547,12 +554,13 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
-        private Dictionary<string, object> ValidateDataValue(
+        private async Task<Dictionary<string, object>> ValidateDataValueAsync(
             Dictionary<string, NodeId> nodeIds,
             string desiredValue,
             uint expectedValue)
         {
-            Dictionary<string, object> modifiedValues = GetValues(nodeIds);
+            Dictionary<string, object> modifiedValues =
+                await GetValuesAsync(nodeIds).ConfigureAwait(false);
 
             var dataValue = modifiedValues[desiredValue] as DataValue;
             Assert.IsNotNull(dataValue);
@@ -574,7 +582,7 @@ namespace Opc.Ua.Client.Tests
             };
 
             Assert.True(Session.AddSubscription(subscription));
-            subscription.Create();
+            await subscription.CreateAsync().ConfigureAwait(false);
 
             (bool success, _) = await subscription.SetSubscriptionDurableAsync(1)
                 .ConfigureAwait(false);
@@ -583,7 +591,8 @@ namespace Opc.Ua.Client.Tests
             return subscription;
         }
 
-        private Dictionary<string, NodeId> GetDesiredNodeIds(uint subscriptionId)
+        private async Task<Dictionary<string, NodeId>> GetDesiredNodeIdsAsync(
+            uint subscriptionId)
         {
             var desiredNodeIds = new Dictionary<string, NodeId>();
 
@@ -596,7 +605,7 @@ namespace Opc.Ua.Client.Tests
             NodeId currentLifetimeCountNodeId = null;
             NodeId publishingIntervalNodeId = null;
 
-            Session.Browse(
+            (_, _, ReferenceDescriptionCollection references) = await Session.BrowseAsync(
                 null,
                 null,
                 serverDiags,
@@ -604,9 +613,7 @@ namespace Opc.Ua.Client.Tests
                 BrowseDirection.Forward,
                 ReferenceTypeIds.HierarchicalReferences,
                 true,
-                0,
-                out _,
-                out ReferenceDescriptionCollection references);
+                0).ConfigureAwait(false);
 
             Assert.NotNull(references, "Initial Browse has no references");
             Assert.Greater(references.Count, 0, "Initial Browse has zero references");
@@ -624,7 +631,11 @@ namespace Opc.Ua.Client.Tests
                 if (reference.BrowseName.Name == subscriptionId.ToString(
                     CultureInfo.InvariantCulture))
                 {
-                    Session.Browse(
+                    (
+                        _,
+                        byte[] anotherContinuationPoint,
+                        ReferenceDescriptionCollection desiredReferences
+                    ) = await Session.BrowseAsync(
                         null,
                         null,
                         (NodeId)reference.NodeId,
@@ -632,9 +643,7 @@ namespace Opc.Ua.Client.Tests
                         BrowseDirection.Forward,
                         ReferenceTypeIds.HierarchicalReferences,
                         true,
-                        0,
-                        out byte[] anotherContinuationPoint,
-                        out ReferenceDescriptionCollection desiredReferences);
+                        0).ConfigureAwait(false);
 
                     Assert.NotNull(desiredReferences, "Secondary Browse has no references");
                     Assert.Greater(
@@ -734,13 +743,14 @@ namespace Opc.Ua.Client.Tests
             return desiredNodeIds;
         }
 
-        private Dictionary<string, object> GetValues(Dictionary<string, NodeId> ids)
+        private async Task<Dictionary<string, object>> GetValuesAsync(Dictionary<string, NodeId> ids)
         {
             var values = new Dictionary<string, object>();
 
             foreach (KeyValuePair<string, NodeId> id in ids)
             {
-                values.Add(id.Key, Session.ReadValue(id.Value));
+                values.Add(id.Key,
+                    await Session.ReadValueAsync(id.Value).ConfigureAwait(false));
                 TestContext.Out.WriteLine($"{id.Key}: {values[id.Key]}");
             }
 

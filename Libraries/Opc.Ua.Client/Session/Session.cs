@@ -190,12 +190,13 @@ namespace Opc.Ua.Client
             }
 
             // initialize the NodeCache late, it needs references to the namespaceUris
-            m_nodeCache = new NodeCache(this);
+            NodeCache = new NodeCache(this);
 
             // set the default preferred locales.
             m_preferredLocales = new string[] { CultureInfo.CurrentCulture.Name };
 
             // create a context to use.
+#pragma warning disable CS0618 // Type or member is obsolete
             m_systemContext = new SystemContext
             {
                 SystemHandle = this,
@@ -207,6 +208,7 @@ namespace Opc.Ua.Client
                 SessionId = null,
                 UserIdentity = null
             };
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         /// <summary>
@@ -362,8 +364,8 @@ namespace Opc.Ua.Client
                 Utils.SilentDispose(DefaultSubscription);
                 DefaultSubscription = null;
 
-                Utils.SilentDispose(m_nodeCache);
-                m_nodeCache = null;
+                Utils.SilentDispose(NodeCache);
+                NodeCache = null;
 
                 List<Subscription> subscriptions = null;
                 lock (SyncRoot)
@@ -486,7 +488,8 @@ namespace Opc.Ua.Client
         public string SessionName => m_sessionName;
 
         /// <summary>
-        /// Gets the period for wich the server will maintain the session if there is no communication from the client.
+        /// Gets the period for wich the server will maintain the session if
+        /// there is no communication from the client.
         /// </summary>
         public double SessionTimeout => m_sessionTimeout;
 
@@ -528,18 +531,19 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the cache of the server's type tree.
         /// </summary>
-        public ITypeTable TypeTree => m_nodeCache.TypeTree;
+        [Obsolete("Use NodeCache interfaces instead.")]
+        public ITypeTable TypeTree => new TypeTableAdapter(NodeCache);
 
         /// <summary>
         /// Gets the cache of nodes fetched from the server.
         /// </summary>
-        public INodeCache NodeCache => m_nodeCache;
+        public INodeCache NodeCache { get; private set; }
 
         /// <summary>
         /// Gets the context to use for filter operations.
         /// </summary>
         public FilterContext FilterContext
-            => new(NamespaceUris, m_nodeCache.TypeTree, m_preferredLocales);
+            => new(NamespaceUris, TypeTree, m_preferredLocales);
 
         /// <summary>
         /// Gets the locales that the server should use when returning localized text.
@@ -623,8 +627,10 @@ namespace Opc.Ua.Client
         /// Returns true if the session is not receiving keep alives.
         /// </summary>
         /// <remarks>
-        /// Set to true if the server does not respond for the KeepAliveInterval * 1 (KeepAliveIntervalFactor) + 1 Second (KeepAliveGuardBand) *
-        /// To change the sensitivity of the keep alive check, set the <see cref="m_keepAliveIntervalFactor"/> / <see cref="m_keepAliveGuardBand"/> fields.
+        /// Set to true if the server does not respond for the
+        /// KeepAliveInterval * 1 (KeepAliveIntervalFactor) + 1 Second (KeepAliveGuardBand) *
+        /// To change the sensitivity of the keep alive check, set the
+        /// <see cref="m_keepAliveIntervalFactor"/> / <see cref="m_keepAliveGuardBand"/> fields.
         /// or if another error was reported.
         /// Set to false is communication is ok or recovered.
         /// </remarks>
@@ -801,13 +807,15 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="configuration">The configuration for the client application.</param>
         /// <param name="endpoint">The endpoint for the server.</param>
-        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
+        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is
+        /// used to update the endpoint description before connecting.</param>
         /// <param name="sessionName">The name to assign to the session.</param>
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="identity">The identity.</param>
         /// <param name="preferredLocales">The user identity to associate with the session.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object</returns>
+        [Obsolete("Use ISessionFactory.CreateAsync")]
         public static Task<Session> Create(
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
@@ -835,14 +843,17 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="configuration">The configuration for the client application.</param>
         /// <param name="endpoint">The endpoint for the server.</param>
-        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
-        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is
+        /// used to update the endpoint description before connecting.</param>
+        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate
+        /// must match the endpoint used.</param>
         /// <param name="sessionName">The name to assign to the session.</param>
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="identity">The user identity to associate with the session.</param>
         /// <param name="preferredLocales">The preferred locales.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
+        [Obsolete("Use ISessionFactory.CreateAsync")]
         public static Task<Session> Create(
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
@@ -868,14 +879,18 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Creates a new session with a server using the specified channel by invoking the CreateSession service
+        /// Creates a new session with a server using the specified channel by invoking
+        /// the CreateSession service
         /// </summary>
         /// <param name="configuration">The configuration for the client application.</param>
         /// <param name="channel">The channel for the server.</param>
         /// <param name="endpoint">The endpoint for the server.</param>
         /// <param name="clientCertificate">The certificate to use for the client.</param>
-        /// <param name="availableEndpoints">The list of available endpoints returned by server in GetEndpoints() response.</param>
-        /// <param name="discoveryProfileUris">The value of profileUris used in GetEndpoints() request.</param>
+        /// <param name="availableEndpoints">The list of available endpoints returned by server
+        /// in GetEndpoints() response.</param>
+        /// <param name="discoveryProfileUris">The value of profileUris used in GetEndpoints()
+        /// request.</param>
+        [Obsolete("Use ISessionFactory.CreateAsync")]
         public static Session Create(
             ApplicationConfiguration configuration,
             ITransportChannel channel,
@@ -895,16 +910,188 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Creates a new session with a server using the specified channel by invoking the CreateSession service.
-        /// With the sessionInstantiator subclasses of Sessions can be created.
+        /// Recreates a session based on a specified template.
+        /// </summary>
+        /// <param name="template">The Session object to use as template</param>
+        /// <returns>The new session object.</returns>
+        [Obsolete("Use ISessionFactory.RecreateAsync")]
+        public static Session Recreate(Session template)
+        {
+            return RecreateAsync(template).GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Recreates a session based on a specified template.
+        /// </summary>
+        /// <param name="template">The Session object to use as template</param>
+        /// <param name="connection">The waiting reverse connection.</param>
+        /// <returns>The new session object.</returns>
+        [Obsolete("Use ISessionFactory.RecreateAsync")]
+        public static Session Recreate(Session template, ITransportWaitingConnection connection)
+        {
+            return RecreateAsync(template, connection).GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Recreates a session based on a specified template using the provided channel.
+        /// </summary>
+        /// <param name="template">The Session object to use as template</param>
+        /// <param name="transportChannel">The waiting reverse connection.</param>
+        /// <returns>The new session object.</returns>
+        [Obsolete("Use ISessionFactory.RecreateAsync")]
+        public static Session Recreate(Session template, ITransportChannel transportChannel)
+        {
+            return RecreateAsync(template, transportChannel).GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Creates a new communication session with a server using a reverse connection.
+        /// </summary>
+        /// <param name="configuration">The configuration for the client application.</param>
+        /// <param name="connection">The client endpoint for the reverse connect.</param>
+        /// <param name="endpoint">The endpoint for the server.</param>
+        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is
+        /// used to update the endpoint description before connecting.</param>
+        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate
+        /// must match the endpoint used.</param>
+        /// <param name="sessionName">The name to assign to the session.</param>
+        /// <param name="sessionTimeout">The timeout period for the session.</param>
+        /// <param name="identity">The user identity to associate with the session.</param>
+        /// <param name="preferredLocales">The preferred locales.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>The new session object.</returns>
+        [Obsolete("Use ISessionFactory.CreateAsync")]
+        public static Task<Session> Create(
+            ApplicationConfiguration configuration,
+            ITransportWaitingConnection connection,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string> preferredLocales,
+            CancellationToken ct = default)
+        {
+            return CreateAsync(
+                DefaultSessionFactory.Instance,
+                configuration,
+                connection,
+                endpoint,
+                updateBeforeConnect,
+                checkDomain,
+                sessionName,
+                sessionTimeout,
+                identity,
+                preferredLocales,
+                ct);
+        }
+
+        /// <summary>
+        /// Create a session
+        /// </summary>
+        [Obsolete("Use ISessionFactory.CreateAsync")]
+        public static Task<Session> Create(
+            ISessionInstantiator sessionInstantiator,
+            ApplicationConfiguration configuration,
+            ITransportWaitingConnection connection,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string> preferredLocales,
+            CancellationToken ct = default)
+        {
+            return CreateAsync(
+                sessionInstantiator,
+                configuration,
+                connection,
+                endpoint,
+                updateBeforeConnect,
+                checkDomain,
+                sessionName,
+                sessionTimeout,
+                identity,
+                preferredLocales,
+                ct);
+        }
+
+        /// <summary>
+        /// Create a session
+        /// </summary>
+        [Obsolete("Use ISessionFactory.CreateAsync")]
+        public static Task<Session> Create(
+            ISessionInstantiator sessionInstantiator,
+            ApplicationConfiguration configuration,
+            ReverseConnectManager reverseConnectManager,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity userIdentity,
+            IList<string> preferredLocales,
+            CancellationToken ct = default)
+        {
+            return CreateAsync(
+                sessionInstantiator,
+                configuration,
+                reverseConnectManager,
+                endpoint,
+                updateBeforeConnect,
+                checkDomain,
+                sessionName,
+                sessionTimeout,
+                userIdentity,
+                preferredLocales,
+                ct);
+        }
+
+        /// <summary>
+        /// Create a session
+        /// </summary>
+        [Obsolete("Use ISessionFactory.CreateAsync")]
+        public static Task<Session> Create(
+            ApplicationConfiguration configuration,
+            ReverseConnectManager reverseConnectManager,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity userIdentity,
+            IList<string> preferredLocales,
+            CancellationToken ct = default)
+        {
+            return CreateAsync(
+                configuration,
+                reverseConnectManager,
+                endpoint,
+                updateBeforeConnect,
+                checkDomain,
+                sessionName,
+                sessionTimeout,
+                userIdentity,
+                preferredLocales,
+                ct);
+        }
+
+        /// <summary>
+        /// Creates a new session with a server using the specified channel by invoking the
+        /// CreateSession service. With the sessionInstantiator subclasses of Sessions can
+        /// be created.
         /// </summary>
         /// <param name="sessionInstantiator">The Session constructor to use to create the session.</param>
         /// <param name="configuration">The configuration for the client application.</param>
         /// <param name="channel">The channel for the server.</param>
         /// <param name="endpoint">The endpoint for the server.</param>
         /// <param name="clientCertificate">The certificate to use for the client.</param>
-        /// <param name="availableEndpoints">The list of available endpoints returned by server in GetEndpoints() response.</param>
-        /// <param name="discoveryProfileUris">The value of profileUris used in GetEndpoints() request.</param>
+        /// <param name="availableEndpoints">The list of available endpoints returned by
+        /// server in GetEndpoints() response.</param>
+        /// <param name="discoveryProfileUris">The value of profileUris used in GetEndpoints()
+        /// request.</param>
         public static Session Create(
             ISessionInstantiator sessionInstantiator,
             ApplicationConfiguration configuration,
@@ -1014,143 +1201,14 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates a new communication session with a server using a reverse connection.
         /// </summary>
-        /// <param name="configuration">The configuration for the client application.</param>
-        /// <param name="connection">The client endpoint for the reverse connect.</param>
-        /// <param name="endpoint">The endpoint for the server.</param>
-        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
-        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
-        /// <param name="sessionName">The name to assign to the session.</param>
-        /// <param name="sessionTimeout">The timeout period for the session.</param>
-        /// <param name="identity">The user identity to associate with the session.</param>
-        /// <param name="preferredLocales">The preferred locales.</param>
-        /// <param name="ct">The cancellation token.</param>
-        /// <returns>The new session object.</returns>
-        public static Task<Session> Create(
-            ApplicationConfiguration configuration,
-            ITransportWaitingConnection connection,
-            ConfiguredEndpoint endpoint,
-            bool updateBeforeConnect,
-            bool checkDomain,
-            string sessionName,
-            uint sessionTimeout,
-            IUserIdentity identity,
-            IList<string> preferredLocales,
-            CancellationToken ct = default)
-        {
-            return CreateAsync(
-                DefaultSessionFactory.Instance,
-                configuration,
-                connection,
-                endpoint,
-                updateBeforeConnect,
-                checkDomain,
-                sessionName,
-                sessionTimeout,
-                identity,
-                preferredLocales,
-                ct);
-        }
-
-        /// <summary>
-        /// Create a session
-        /// </summary>
-        [Obsolete("Use ISessionFactory.CreateAsync")]
-        public static Task<Session> Create(
-            ISessionInstantiator sessionInstantiator,
-            ApplicationConfiguration configuration,
-            ITransportWaitingConnection connection,
-            ConfiguredEndpoint endpoint,
-            bool updateBeforeConnect,
-            bool checkDomain,
-            string sessionName,
-            uint sessionTimeout,
-            IUserIdentity identity,
-            IList<string> preferredLocales,
-            CancellationToken ct = default)
-        {
-            return CreateAsync(
-                sessionInstantiator,
-                configuration,
-                connection,
-                endpoint,
-                updateBeforeConnect,
-                checkDomain,
-                sessionName,
-                sessionTimeout,
-                identity,
-                preferredLocales,
-                ct);
-        }
-
-        /// <summary>
-        /// Create a session
-        /// </summary>
-        [Obsolete("Use ISessionFactory.CreateAsync")]
-        public static Task<Session> Create(
-            ISessionInstantiator sessionInstantiator,
-            ApplicationConfiguration configuration,
-            ReverseConnectManager reverseConnectManager,
-            ConfiguredEndpoint endpoint,
-            bool updateBeforeConnect,
-            bool checkDomain,
-            string sessionName,
-            uint sessionTimeout,
-            IUserIdentity userIdentity,
-            IList<string> preferredLocales,
-            CancellationToken ct = default)
-        {
-            return CreateAsync(
-                sessionInstantiator,
-                configuration,
-                reverseConnectManager,
-                endpoint,
-                updateBeforeConnect,
-                checkDomain,
-                sessionName,
-                sessionTimeout,
-                userIdentity,
-                preferredLocales,
-                ct);
-        }
-
-        /// <summary>
-        /// Create a session
-        /// </summary>
-        [Obsolete("Use ISessionFactory.CreateAsync")]
-        public static Task<Session> Create(
-            ApplicationConfiguration configuration,
-            ReverseConnectManager reverseConnectManager,
-            ConfiguredEndpoint endpoint,
-            bool updateBeforeConnect,
-            bool checkDomain,
-            string sessionName,
-            uint sessionTimeout,
-            IUserIdentity userIdentity,
-            IList<string> preferredLocales,
-            CancellationToken ct = default)
-        {
-            return CreateAsync(
-                configuration,
-                reverseConnectManager,
-                endpoint,
-                updateBeforeConnect,
-                checkDomain,
-                sessionName,
-                sessionTimeout,
-                userIdentity,
-                preferredLocales,
-                ct);
-        }
-
-        /// <summary>
-        /// Creates a new communication session with a server using a reverse connection.
-        /// </summary>
         /// <param name="sessionInstantiator">The Session constructor to use to create the session.</param>
         /// <param name="configuration">The configuration for the client application.</param>
         /// <param name="connection">The client endpoint for the reverse connect.</param>
         /// <param name="endpoint">The endpoint for the server.</param>
-        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
-        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to
+        /// update the endpoint description before connecting.</param>
+        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match
+        /// the endpoint used.</param>
         /// <param name="sessionName">The name to assign to the session.</param>
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="identity">The user identity to associate with the session.</param>
@@ -1211,8 +1269,10 @@ namespace Opc.Ua.Client
         /// <param name="configuration">The configuration for the client application.</param>
         /// <param name="reverseConnectManager">The reverse connect manager for the client connection.</param>
         /// <param name="endpoint">The endpoint for the server.</param>
-        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
-        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to
+        /// update the endpoint description before connecting.</param>
+        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match
+        /// the endpoint used.</param>
         /// <param name="sessionName">The name to assign to the session.</param>
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="userIdentity">The user identity to associate with the session.</param>
@@ -1252,8 +1312,10 @@ namespace Opc.Ua.Client
         /// <param name="configuration">The configuration for the client application.</param>
         /// <param name="reverseConnectManager">The reverse connect manager for the client connection.</param>
         /// <param name="endpoint">The endpoint for the server.</param>
-        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
-        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to
+        /// update the endpoint description before connecting.</param>
+        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must
+        /// match the endpoint used.</param>
         /// <param name="sessionName">The name to assign to the session.</param>
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="userIdentity">The user identity to associate with the session.</param>
@@ -1330,141 +1392,6 @@ namespace Opc.Ua.Client
                 .ConfigureAwait(false);
         }
 
-        /// <summary>
-        /// Recreates a session based on a specified template.
-        /// </summary>
-        /// <param name="template">The Session object to use as template</param>
-        /// <returns>The new session object.</returns>
-        public static Session Recreate(Session template)
-        {
-            ServiceMessageContext messageContext = template.m_configuration.CreateMessageContext();
-            messageContext.Factory = template.Factory;
-
-            // create the channel object used to connect to the server.
-            ITransportChannel channel = SessionChannel.Create(
-                template.m_configuration,
-                template.ConfiguredEndpoint.Description,
-                template.ConfiguredEndpoint.Configuration,
-                template.m_instanceCertificate,
-                template.m_configuration.SecurityConfiguration.SendCertificateChain
-                    ? template.m_instanceCertificateChain
-                    : null,
-                messageContext);
-
-            // create the session object.
-            Session session = template.CloneSession(channel, true);
-
-            try
-            {
-                session.RecreateRenewUserIdentity();
-                // open the session.
-                session.Open(
-                    template.SessionName,
-                    (uint)template.SessionTimeout,
-                    session.Identity,
-                    template.PreferredLocales,
-                    template.m_checkDomain);
-
-                session.RecreateSubscriptions(template.Subscriptions);
-            }
-            catch (Exception e)
-            {
-                session.Dispose();
-                ThrowCouldNotRecreateSessionException(e, template.SessionName);
-            }
-
-            return session;
-        }
-
-        /// <summary>
-        /// Recreates a session based on a specified template.
-        /// </summary>
-        /// <param name="template">The Session object to use as template</param>
-        /// <param name="connection">The waiting reverse connection.</param>
-        /// <returns>The new session object.</returns>
-        public static Session Recreate(Session template, ITransportWaitingConnection connection)
-        {
-            ServiceMessageContext messageContext = template.m_configuration.CreateMessageContext();
-            messageContext.Factory = template.Factory;
-
-            // create the channel object used to connect to the server.
-            ITransportChannel channel = SessionChannel.Create(
-                template.m_configuration,
-                connection,
-                template.m_endpoint.Description,
-                template.m_endpoint.Configuration,
-                template.m_instanceCertificate,
-                template.m_configuration.SecurityConfiguration.SendCertificateChain
-                    ? template.m_instanceCertificateChain
-                    : null,
-                messageContext);
-
-            // create the session object.
-            Session session = template.CloneSession(channel, true);
-
-            try
-            {
-                session.RecreateRenewUserIdentity();
-                // open the session.
-                session.Open(
-                    template.m_sessionName,
-                    (uint)template.m_sessionTimeout,
-                    session.Identity,
-                    template.m_preferredLocales,
-                    template.m_checkDomain);
-
-                session.RecreateSubscriptions(template.Subscriptions);
-            }
-            catch (Exception e)
-            {
-                session.Dispose();
-                ThrowCouldNotRecreateSessionException(e, template.m_sessionName);
-            }
-
-            return session;
-        }
-
-        /// <summary>
-        /// Recreates a session based on a specified template using the provided channel.
-        /// </summary>
-        /// <param name="template">The Session object to use as template</param>
-        /// <param name="transportChannel">The waiting reverse connection.</param>
-        /// <returns>The new session object.</returns>
-        public static Session Recreate(Session template, ITransportChannel transportChannel)
-        {
-            ServiceMessageContext messageContext = template.m_configuration.CreateMessageContext();
-            messageContext.Factory = template.Factory;
-
-            // create the session object.
-            Session session = template.CloneSession(transportChannel, true);
-
-            try
-            {
-                session.RecreateRenewUserIdentity();
-                // open the session.
-                session.Open(
-                    template.m_sessionName,
-                    (uint)template.m_sessionTimeout,
-                    session.Identity,
-                    template.m_preferredLocales,
-                    template.m_checkDomain,
-                    false);
-
-                // create the subscriptions.
-                foreach (Subscription subscription in session.Subscriptions)
-                {
-                    subscription.Create();
-                }
-            }
-            catch (Exception e)
-            {
-                session.Dispose();
-                ThrowCouldNotRecreateSessionException(e, template.m_sessionName);
-            }
-
-            return session;
-        }
-
         /// <inheritdoc/>
         public event RenewUserIdentityEventHandler RenewUserIdentity
         {
@@ -1522,107 +1449,6 @@ namespace Opc.Ua.Client
                 serializer.WriteObject(writer, sessionConfiguration);
             }
             return sessionConfiguration;
-        }
-
-        /// <inheritdoc/>
-        public void Reconnect()
-        {
-            Reconnect(null, null);
-        }
-
-        /// <inheritdoc/>
-        public void Reconnect(ITransportWaitingConnection connection)
-        {
-            Reconnect(connection, null);
-        }
-
-        /// <inheritdoc/>
-        public void Reconnect(ITransportChannel channel)
-        {
-            Reconnect(null, channel);
-        }
-
-        /// <summary>
-        /// Reconnects to the server after a network failure using a waiting connection.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        private void Reconnect(
-            ITransportWaitingConnection connection,
-            ITransportChannel transportChannel)
-        {
-            bool resetReconnect = false;
-            try
-            {
-                m_reconnectLock.Wait();
-                bool reconnecting = m_reconnecting;
-                m_reconnecting = true;
-                resetReconnect = true;
-                m_reconnectLock.Release();
-
-                // check if already connecting.
-                if (reconnecting)
-                {
-                    Utils.LogWarning("Session is already attempting to reconnect.");
-
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadInvalidState,
-                        "Session is already attempting to reconnect.");
-                }
-
-                StopKeepAliveTimer();
-
-                IAsyncResult result = PrepareReconnectBeginActivate(connection, transportChannel);
-
-                if (!result.AsyncWaitHandle.WaitOne(kReconnectTimeout / 2))
-                {
-                    var error = ServiceResult.Create(
-                        StatusCodes.BadRequestTimeout,
-                        "ACTIVATE SESSION timed out. {0}/{1}",
-                        GoodPublishRequestCount,
-                        OutstandingRequestCount);
-                    Utils.LogWarning("WARNING: {0}", error.ToString());
-                    var operation = result as ChannelAsyncOperation<int>;
-                    operation?.Fault(false, error);
-                }
-
-                // reactivate session.
-
-                ResponseHeader responseHeader = EndActivateSession(
-                    result,
-                    out byte[] serverNonce,
-                    out StatusCodeCollection certificateResults,
-                    out DiagnosticInfoCollection certificateDiagnosticInfos);
-
-                ProcessResponseAdditionalHeader(responseHeader, m_serverCertificate);
-
-                Utils.LogInfo("Session RECONNECT {0} completed successfully.", SessionId);
-
-                lock (SyncRoot)
-                {
-                    m_previousServerNonce = m_serverNonce;
-                    m_serverNonce = serverNonce;
-                }
-
-                m_reconnectLock.Wait();
-                m_reconnecting = false;
-                resetReconnect = false;
-                m_reconnectLock.Release();
-
-                StartPublishing(OperationTimeout, true);
-
-                StartKeepAliveTimer();
-
-                IndicateSessionConfigurationChanged();
-            }
-            finally
-            {
-                if (resetReconnect)
-                {
-                    m_reconnectLock.Wait();
-                    m_reconnecting = false;
-                    m_reconnectLock.Release();
-                }
-            }
         }
 
         /// <inheritdoc/>
@@ -1695,1275 +1521,6 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public void FetchNamespaceTables()
-        {
-            ReadValueIdCollection nodesToRead = PrepareNamespaceTableNodesToRead();
-
-            // read from server.
-            ResponseHeader responseHeader = base.Read(
-                null,
-                0,
-                TimestampsToReturn.Neither,
-                nodesToRead,
-                out DataValueCollection values,
-                out DiagnosticInfoCollection diagnosticInfos);
-
-            ValidateResponse(values, nodesToRead);
-            ValidateDiagnosticInfos(diagnosticInfos, nodesToRead);
-
-            UpdateNamespaceTable(values, diagnosticInfos, responseHeader);
-        }
-
-        /// <summary>
-        /// Fetch the operation limits of the server.
-        /// </summary>
-        public void FetchOperationLimits()
-        {
-            try
-            {
-                var operationLimitsProperties = typeof(OperationLimits).GetProperties()
-                    .Select(p => p.Name)
-                    .ToList();
-
-                var nodeIds = new NodeIdCollection(
-                    operationLimitsProperties.Select(name =>
-                        (NodeId)
-                            typeof(VariableIds)
-                                .GetField(
-                                    "Server_ServerCapabilities_OperationLimits_" + name,
-                                    BindingFlags.Public | BindingFlags.Static)
-                                .GetValue(null)))
-                {
-                    // add the server capability MaxContinuationPointPerBrowse. Add further capabilities
-                    // later (when support for them will be implemented and in a more generic fashion)
-                    VariableIds.Server_ServerCapabilities_MaxBrowseContinuationPoints
-                };
-                int maxBrowseContinuationPointIndex = nodeIds.Count - 1;
-
-                // add the server transport quota MaxByteStringLength.
-                nodeIds.Add(VariableIds.Server_ServerCapabilities_MaxByteStringLength);
-                int maxByteStringLengthIndex = nodeIds.Count - 1;
-
-                ReadValues(
-                    nodeIds,
-                    [.. Enumerable.Repeat(typeof(uint), nodeIds.Count)],
-                    out IList<object> values,
-                    out IList<ServiceResult> errors);
-
-                OperationLimits configOperationLimits =
-                    m_configuration?.ClientConfiguration?.OperationLimits ?? new OperationLimits();
-                var operationLimits = new OperationLimits();
-
-                for (int ii = 0; ii < operationLimitsProperties.Count; ii++)
-                {
-                    PropertyInfo property = typeof(OperationLimits).GetProperty(
-                        operationLimitsProperties[ii]);
-                    uint value = (uint)property.GetValue(configOperationLimits);
-                    if (values[ii] != null && ServiceResult.IsNotBad(errors[ii]))
-                    {
-                        uint serverValue = (uint)values[ii];
-                        if (serverValue > 0 && (value == 0 || serverValue < value))
-                        {
-                            value = serverValue;
-                        }
-                    }
-                    property.SetValue(operationLimits, value);
-                }
-                OperationLimits = operationLimits;
-
-                if (values[
-                    maxBrowseContinuationPointIndex] is ushort serverMaxContinuationPointsPerBrowse &&
-                    ServiceResult.IsNotBad(errors[maxBrowseContinuationPointIndex]))
-                {
-                    ServerMaxContinuationPointsPerBrowse = serverMaxContinuationPointsPerBrowse;
-                }
-
-                if (values[maxByteStringLengthIndex] is uint serverMaxByteStringLength &&
-                    ServiceResult.IsNotBad(errors[maxByteStringLengthIndex]))
-                {
-                    ServerMaxByteStringLength = serverMaxByteStringLength;
-                }
-            }
-            catch (Exception ex)
-            {
-                Utils.LogError(
-                    ex,
-                    "Failed to read operation limits from server. Using configuration defaults.");
-                OperationLimits operationLimits = m_configuration?.ClientConfiguration?
-                    .OperationLimits;
-                if (operationLimits != null)
-                {
-                    OperationLimits = operationLimits;
-                }
-            }
-        }
-
-        /// <inheritdoc/>
-        public void FetchTypeTree(ExpandedNodeId typeId)
-        {
-            if (NodeCache.Find(typeId) is Node node)
-            {
-                var subTypes = new ExpandedNodeIdCollection();
-                foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
-                {
-                    subTypes.Add(reference.TargetId);
-                }
-                if (subTypes.Count > 0)
-                {
-                    FetchTypeTree(subTypes);
-                }
-            }
-        }
-
-        /// <inheritdoc/>
-        public void FetchTypeTree(ExpandedNodeIdCollection typeIds)
-        {
-            var referenceTypeIds = new NodeIdCollection { ReferenceTypeIds.HasSubtype };
-            IList<INode> nodes = NodeCache.FindReferences(typeIds, referenceTypeIds, false, false);
-            var subTypes = new ExpandedNodeIdCollection();
-            foreach (INode inode in nodes)
-            {
-                if (inode is Node node)
-                {
-                    foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
-                    {
-                        if (!typeIds.Contains(reference.TargetId))
-                        {
-                            subTypes.Add(reference.TargetId);
-                        }
-                    }
-                }
-            }
-            if (subTypes.Count > 0)
-            {
-                FetchTypeTree(subTypes);
-            }
-        }
-
-        /// <inheritdoc/>
-        public ReferenceDescriptionCollection ReadAvailableEncodings(NodeId variableId)
-        {
-            if (NodeCache.Find(variableId) is not VariableNode variable)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadNodeIdInvalid,
-                    "NodeId does not refer to a valid variable node.");
-            }
-
-            // no encodings available if there was a problem reading the data type for the node.
-            if (NodeId.IsNull(variable.DataType))
-            {
-                return [];
-            }
-
-            // no encodings for non-structures.
-            if (!TypeTree.IsTypeOf(variable.DataType, DataTypes.Structure))
-            {
-                return [];
-            }
-
-            // look for cached values.
-            IList<INode> encodings = NodeCache.Find(
-                variableId,
-                ReferenceTypeIds.HasEncoding,
-                false,
-                true);
-
-            if (encodings.Count > 0)
-            {
-                var references = new ReferenceDescriptionCollection();
-
-                foreach (INode encoding in encodings)
-                {
-                    var reference = new ReferenceDescription
-                    {
-                        ReferenceTypeId = ReferenceTypeIds.HasEncoding,
-                        IsForward = true,
-                        NodeId = encoding.NodeId,
-                        NodeClass = encoding.NodeClass,
-                        BrowseName = encoding.BrowseName,
-                        DisplayName = encoding.DisplayName,
-                        TypeDefinition = encoding.TypeDefinitionId
-                    };
-
-                    references.Add(reference);
-                }
-
-                return references;
-            }
-
-            var browser = new Browser(this)
-            {
-                BrowseDirection = BrowseDirection.Forward,
-                ReferenceTypeId = ReferenceTypeIds.HasEncoding,
-                IncludeSubtypes = false,
-                NodeClassMask = 0
-            };
-
-            return browser.Browse(variable.DataType);
-        }
-
-        /// <inheritdoc/>
-        public ReferenceDescription FindDataDescription(NodeId encodingId)
-        {
-            var browser = new Browser(this)
-            {
-                BrowseDirection = BrowseDirection.Forward,
-                ReferenceTypeId = ReferenceTypeIds.HasDescription,
-                IncludeSubtypes = false,
-                NodeClassMask = 0
-            };
-
-            ReferenceDescriptionCollection references = browser.Browse(encodingId);
-
-            if (references.Count == 0)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadNodeIdInvalid,
-                    "Encoding does not refer to a valid data description.");
-            }
-
-            return references[0];
-        }
-
-        /// <inheritdoc/>
-        public void ReadNodes(
-            IList<NodeId> nodeIds,
-            NodeClass nodeClass,
-            out IList<Node> nodeCollection,
-            out IList<ServiceResult> errors,
-            bool optionalAttributes = false)
-        {
-            if (nodeIds.Count == 0)
-            {
-                nodeCollection = [];
-                errors = [];
-                return;
-            }
-
-            if (nodeClass == NodeClass.Unspecified)
-            {
-                ReadNodes(nodeIds, out nodeCollection, out errors, optionalAttributes);
-                return;
-            }
-
-            // determine attributes to read for nodeclass
-            var attributesPerNodeId = new List<IDictionary<uint, DataValue>>(nodeIds.Count);
-            var attributesToRead = new ReadValueIdCollection();
-            nodeCollection = new NodeCollection(nodeIds.Count);
-
-            CreateNodeClassAttributesReadNodesRequest(
-                nodeIds,
-                nodeClass,
-                attributesToRead,
-                attributesPerNodeId,
-                nodeCollection,
-                optionalAttributes);
-
-            ResponseHeader responseHeader = Read(
-                null,
-                0,
-                TimestampsToReturn.Neither,
-                attributesToRead,
-                out DataValueCollection values,
-                out DiagnosticInfoCollection diagnosticInfos);
-
-            ValidateResponse(values, attributesToRead);
-            ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
-
-            errors = new ServiceResult[nodeIds.Count].ToList();
-            ProcessAttributesReadNodesResponse(
-                responseHeader,
-                attributesToRead,
-                attributesPerNodeId,
-                values,
-                diagnosticInfos,
-                nodeCollection,
-                errors);
-        }
-
-        /// <inheritdoc/>
-        public void ReadNodes(
-            IList<NodeId> nodeIds,
-            out IList<Node> nodeCollection,
-            out IList<ServiceResult> errors,
-            bool optionalAttributes = false)
-        {
-            int count = nodeIds.Count;
-            nodeCollection = new NodeCollection(count);
-            errors = new List<ServiceResult>(count);
-
-            if (count == 0)
-            {
-                return;
-            }
-
-            // first read only nodeclasses for nodes from server.
-            var itemsToRead = new ReadValueIdCollection(
-                nodeIds.Select(nodeId => new ReadValueId
-                {
-                    NodeId = nodeId,
-                    AttributeId = Attributes.NodeClass
-                }));
-
-            DataValueCollection nodeClassValues = null;
-            DiagnosticInfoCollection diagnosticInfos = null;
-            ResponseHeader responseHeader = null;
-
-            if (count > 1)
-            {
-                responseHeader = Read(
-                    null,
-                    0,
-                    TimestampsToReturn.Neither,
-                    itemsToRead,
-                    out nodeClassValues,
-                    out diagnosticInfos);
-
-                ValidateResponse(nodeClassValues, itemsToRead);
-                ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
-            }
-            else
-            {
-                // for a single node read all attributes to skip the first service call
-                nodeClassValues =
-                [
-                    new DataValue(
-                        new Variant((int)NodeClass.Unspecified),
-                        statusCode: StatusCodes.Good)
-                ];
-            }
-
-            // second determine attributes to read per nodeclass
-            var attributesPerNodeId = new List<IDictionary<uint, DataValue>>(count);
-            var attributesToRead = new ReadValueIdCollection();
-
-            CreateAttributesReadNodesRequest(
-                responseHeader,
-                itemsToRead,
-                nodeClassValues,
-                diagnosticInfos,
-                attributesToRead,
-                attributesPerNodeId,
-                nodeCollection,
-                errors,
-                optionalAttributes);
-
-            if (attributesToRead.Count > 0)
-            {
-                responseHeader = Read(
-                    null,
-                    0,
-                    TimestampsToReturn.Neither,
-                    attributesToRead,
-                    out DataValueCollection values,
-                    out diagnosticInfos);
-
-                ValidateResponse(values, attributesToRead);
-                ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
-
-                ProcessAttributesReadNodesResponse(
-                    responseHeader,
-                    attributesToRead,
-                    attributesPerNodeId,
-                    values,
-                    diagnosticInfos,
-                    nodeCollection,
-                    errors);
-            }
-        }
-
-        /// <inheritdoc/>
-        public Node ReadNode(NodeId nodeId)
-        {
-            return ReadNode(nodeId, NodeClass.Unspecified, true);
-        }
-
-        /// <inheritdoc/>
-        public Node ReadNode(NodeId nodeId, NodeClass nodeClass, bool optionalAttributes = true)
-        {
-            // build list of attributes.
-            Dictionary<uint, DataValue> attributes = CreateAttributes(
-                nodeClass,
-                optionalAttributes);
-
-            // build list of values to read.
-            var itemsToRead = new ReadValueIdCollection();
-            foreach (uint attributeId in attributes.Keys)
-            {
-                var itemToRead = new ReadValueId { NodeId = nodeId, AttributeId = attributeId };
-                itemsToRead.Add(itemToRead);
-            }
-
-            // read from server.
-
-            ResponseHeader responseHeader = Read(
-                null,
-                0,
-                TimestampsToReturn.Neither,
-                itemsToRead,
-                out DataValueCollection values,
-                out DiagnosticInfoCollection diagnosticInfos);
-
-            ValidateResponse(values, itemsToRead);
-            ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
-
-            return ProcessReadResponse(
-                responseHeader,
-                attributes,
-                itemsToRead,
-                values,
-                diagnosticInfos);
-        }
-
-        /// <inheritdoc/>
-        public DataValue ReadValue(NodeId nodeId)
-        {
-            var itemToRead = new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value };
-
-            var itemsToRead = new ReadValueIdCollection { itemToRead };
-
-            // read from server.
-
-            ResponseHeader responseHeader = Read(
-                null,
-                0,
-                TimestampsToReturn.Both,
-                itemsToRead,
-                out DataValueCollection values,
-                out DiagnosticInfoCollection diagnosticInfos);
-
-            ValidateResponse(values, itemsToRead);
-            ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
-
-            if (StatusCode.IsBad(values[0].StatusCode))
-            {
-                ServiceResult result = GetResult(
-                    values[0].StatusCode,
-                    0,
-                    diagnosticInfos,
-                    responseHeader);
-                throw new ServiceResultException(result);
-            }
-
-            return values[0];
-        }
-
-        /// <inheritdoc/>
-        public void ReadValues(
-            IList<NodeId> nodeIds,
-            out DataValueCollection values,
-            out IList<ServiceResult> errors)
-        {
-            if (nodeIds.Count == 0)
-            {
-                values = [];
-                errors = [];
-                return;
-            }
-
-            // read all values from server.
-            var itemsToRead = new ReadValueIdCollection(
-                nodeIds.Select(
-                    nodeId => new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }));
-
-            // read from server.
-            errors = new List<ServiceResult>(itemsToRead.Count);
-
-            ResponseHeader responseHeader = Read(
-                null,
-                0,
-                TimestampsToReturn.Both,
-                itemsToRead,
-                out values,
-                out DiagnosticInfoCollection diagnosticInfos);
-
-            ValidateResponse(values, itemsToRead);
-            ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
-
-            int ii = 0;
-            foreach (DataValue value in values)
-            {
-                ServiceResult result = ServiceResult.Good;
-                if (StatusCode.IsNotGood(value.StatusCode))
-                {
-                    result = GetResult(value.StatusCode, ii, diagnosticInfos, responseHeader);
-                }
-                errors.Add(result);
-                ii++;
-            }
-        }
-
-        /// <inheritdoc/>
-        public object ReadValue(NodeId nodeId, Type expectedType)
-        {
-            DataValue dataValue = ReadValue(nodeId);
-
-            object value = dataValue.Value;
-
-            if (expectedType != null)
-            {
-                if (value is ExtensionObject extension)
-                {
-                    value = extension.Body;
-                }
-
-                if (!expectedType.IsInstanceOfType(value))
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadTypeMismatch,
-                        "Server returned value unexpected type: {0}",
-                        value != null ? value.GetType().Name : "(null)");
-                }
-            }
-
-            return value;
-        }
-
-        /// <inheritdoc/>
-        public ReferenceDescriptionCollection FetchReferences(NodeId nodeId)
-        {
-            ManagedBrowse(
-                requestHeader: null,
-                view: null,
-                nodesToBrowse: [nodeId],
-                maxResultsToReturn: 0,
-                browseDirection: BrowseDirection.Both,
-                referenceTypeId: null,
-                includeSubtypes: true,
-                nodeClassMask: 0,
-                out IList<ReferenceDescriptionCollection> descriptionsList,
-                out _);
-            return descriptionsList[0];
-        }
-
-        /// <inheritdoc/>
-        public void FetchReferences(
-            IList<NodeId> nodeIds,
-            out IList<ReferenceDescriptionCollection> referenceDescriptions,
-            out IList<ServiceResult> errors)
-        {
-            ManagedBrowse(
-                requestHeader: null,
-                view: null,
-                nodesToBrowse: nodeIds,
-                maxResultsToReturn: 0,
-                browseDirection: BrowseDirection.Both,
-                referenceTypeId: null,
-                includeSubtypes: true,
-                nodeClassMask: 0,
-                out IList<ReferenceDescriptionCollection> result,
-                out IList<ServiceResult> errors01);
-
-            errors = errors01;
-            referenceDescriptions = result;
-        }
-
-        /// <inheritdoc/>
-        public void Open(string sessionName, IUserIdentity identity)
-        {
-            Open(sessionName, 0, identity, null);
-        }
-
-        /// <inheritdoc/>
-        public void Open(
-            string sessionName,
-            uint sessionTimeout,
-            IUserIdentity identity,
-            IList<string> preferredLocales)
-        {
-            Open(sessionName, sessionTimeout, identity, preferredLocales, true);
-        }
-
-        /// <inheritdoc/>
-        public void Open(
-            string sessionName,
-            uint sessionTimeout,
-            IUserIdentity identity,
-            IList<string> preferredLocales,
-            bool checkDomain)
-        {
-            Open(sessionName, sessionTimeout, identity, preferredLocales, checkDomain, true);
-        }
-
-        /// <inheritdoc/>
-        public void Open(
-            string sessionName,
-            uint sessionTimeout,
-            IUserIdentity identity,
-            IList<string> preferredLocales,
-            bool checkDomain,
-            bool closeChannel)
-        {
-            OpenValidateIdentity(
-                ref identity,
-                out UserIdentityToken identityToken,
-                out UserTokenPolicy identityPolicy,
-                out string securityPolicyUri,
-                out bool requireEncryption);
-
-            // validate the server certificate /certificate chain.
-            X509Certificate2 serverCertificate = null;
-            byte[] certificateData = m_endpoint.Description.ServerCertificate;
-
-            if (certificateData != null && certificateData.Length > 0)
-            {
-                X509Certificate2Collection serverCertificateChain = Utils.ParseCertificateChainBlob(
-                    certificateData);
-
-                if (serverCertificateChain.Count > 0)
-                {
-                    serverCertificate = serverCertificateChain[0];
-                }
-
-                if (requireEncryption)
-                {
-                    // validation skipped until IOP isses are resolved.
-                    // ValidateServerCertificateApplicationUri(serverCertificate);
-                    if (checkDomain)
-                    {
-                        m_configuration.CertificateValidator
-                            .Validate(serverCertificateChain, m_endpoint);
-                    }
-                    else
-                    {
-                        m_configuration.CertificateValidator.Validate(serverCertificateChain);
-                    }
-                    // save for reconnect
-                    m_checkDomain = checkDomain;
-                }
-            }
-
-            // create a nonce.
-            uint length = (uint)m_configuration.SecurityConfiguration.NonceLength;
-            byte[] clientNonce = Nonce.CreateRandomNonceData(length);
-            NodeId sessionId = null;
-            NodeId sessionCookie = null;
-            byte[] serverNonce = [];
-            byte[] serverCertificateData = [];
-            SignatureData serverSignature = null;
-            EndpointDescriptionCollection serverEndpoints = null;
-            SignedSoftwareCertificateCollection serverSoftwareCertificates = null;
-
-            // send the application instance certificate for the client.
-            BuildCertificateData(
-                out byte[] clientCertificateData,
-                out byte[] clientCertificateChainData);
-
-            var clientDescription = new ApplicationDescription
-            {
-                ApplicationUri = m_configuration.ApplicationUri,
-                ApplicationName = m_configuration.ApplicationName,
-                ApplicationType = ApplicationType.Client,
-                ProductUri = m_configuration.ProductUri
-            };
-
-            if (sessionTimeout == 0)
-            {
-                sessionTimeout = (uint)m_configuration.ClientConfiguration.DefaultSessionTimeout;
-            }
-
-            // select the security policy for the user token.
-            RequestHeader requestHeader = CreateRequestHeaderPerUserTokenPolicy(
-                identityPolicy.SecurityPolicyUri,
-                m_endpoint.Description.SecurityPolicyUri);
-
-            bool successCreateSession = false;
-            ResponseHeader responseHeader = null;
-
-            //if security none, first try to connect without certificate
-            if (m_endpoint.Description.SecurityPolicyUri == SecurityPolicies.None)
-            {
-                //first try to connect with client certificate NULL
-                try
-                {
-                    responseHeader = base.CreateSession(
-                        null,
-                        clientDescription,
-                        m_endpoint.Description.Server.ApplicationUri,
-                        m_endpoint.EndpointUrl.ToString(),
-                        sessionName,
-                        clientNonce,
-                        null,
-                        sessionTimeout,
-                        (uint)MessageContext.MaxMessageSize,
-                        out sessionId,
-                        out sessionCookie,
-                        out m_sessionTimeout,
-                        out serverNonce,
-                        out serverCertificateData,
-                        out serverEndpoints,
-                        out serverSoftwareCertificates,
-                        out serverSignature,
-                        out m_maxRequestMessageSize);
-
-                    successCreateSession = true;
-                }
-                catch (Exception ex)
-                {
-                    Utils.LogInfo(
-                        "Create session failed with client certificate NULL. " + ex.Message);
-                    successCreateSession = false;
-                }
-            }
-
-            if (!successCreateSession)
-            {
-                responseHeader = base.CreateSession(
-                    requestHeader,
-                    clientDescription,
-                    m_endpoint.Description.Server.ApplicationUri,
-                    m_endpoint.EndpointUrl.ToString(),
-                    sessionName,
-                    clientNonce,
-                    clientCertificateChainData ?? clientCertificateData,
-                    sessionTimeout,
-                    (uint)MessageContext.MaxMessageSize,
-                    out sessionId,
-                    out sessionCookie,
-                    out m_sessionTimeout,
-                    out serverNonce,
-                    out serverCertificateData,
-                    out serverEndpoints,
-                    out serverSoftwareCertificates,
-                    out serverSignature,
-                    out m_maxRequestMessageSize);
-            }
-
-            // save session id.
-            lock (SyncRoot)
-            {
-                // save session id and cookie in base
-                base.SessionCreated(sessionId, sessionCookie);
-            }
-
-            Utils.LogInfo("Revised session timeout value: {0}. ", m_sessionTimeout);
-            Utils.LogInfo(
-                "Max response message size value: {0}. Max request message size: {1} ",
-                MessageContext.MaxMessageSize,
-                m_maxRequestMessageSize);
-
-            //we need to call CloseSession if CreateSession was successful but some other exception is thrown
-            try
-            {
-                // verify that the server returned the same instance certificate.
-                ValidateServerCertificateData(serverCertificateData);
-
-                ValidateServerEndpoints(serverEndpoints);
-
-                ValidateServerSignature(
-                    serverCertificate,
-                    serverSignature,
-                    clientCertificateData,
-                    clientCertificateChainData,
-                    clientNonce);
-
-                HandleSignedSoftwareCertificates(serverSoftwareCertificates);
-
-                // process additional header
-                ProcessResponseAdditionalHeader(responseHeader, serverCertificate);
-
-                // create the client signature.
-                byte[] dataToSign = Utils.Append(serverCertificate?.RawData, serverNonce);
-                SignatureData clientSignature = SecurityPolicies.Sign(
-                    m_instanceCertificate,
-                    securityPolicyUri,
-                    dataToSign);
-
-                // select the security policy for the user token.
-                string tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
-
-                if (string.IsNullOrEmpty(tokenSecurityPolicyUri))
-                {
-                    tokenSecurityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
-                }
-
-                // save previous nonce
-                byte[] previousServerNonce = GetCurrentTokenServerNonce();
-
-                // validate server nonce and security parameters for user identity.
-                ValidateServerNonce(
-                    identity,
-                    serverNonce,
-                    tokenSecurityPolicyUri,
-                    previousServerNonce,
-                    m_endpoint.Description.SecurityMode);
-
-                // sign data with user token.
-                SignatureData userTokenSignature = identityToken.Sign(
-                    dataToSign,
-                    tokenSecurityPolicyUri);
-
-                // encrypt token.
-                identityToken.Encrypt(
-                    serverCertificate,
-                    serverNonce,
-                    m_userTokenSecurityPolicyUri,
-                    m_eccServerEphemeralKey,
-                    m_instanceCertificate,
-                    m_instanceCertificateChain,
-                    m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
-
-                // send the software certificates assigned to the client.
-                SignedSoftwareCertificateCollection clientSoftwareCertificates
-                    = GetSoftwareCertificates();
-
-                // copy the preferred locales if provided.
-                if (preferredLocales != null && preferredLocales.Count > 0)
-                {
-                    m_preferredLocales = [.. preferredLocales];
-                }
-
-                // activate session.
-                responseHeader = ActivateSession(
-                    null,
-                    clientSignature,
-                    clientSoftwareCertificates,
-                    m_preferredLocales,
-                    new ExtensionObject(identityToken),
-                    userTokenSignature,
-                    out serverNonce,
-                    out StatusCodeCollection certificateResults,
-                    out DiagnosticInfoCollection certificateDiagnosticInfos);
-
-                ProcessResponseAdditionalHeader(responseHeader, serverCertificate);
-
-                if (certificateResults != null)
-                {
-                    for (int i = 0; i < certificateResults.Count; i++)
-                    {
-                        Utils.LogInfo(
-                            "ActivateSession result[{0}] = {1}",
-                            i,
-                            certificateResults[i]);
-                    }
-                }
-
-                if (certificateResults == null || certificateResults.Count == 0)
-                {
-                    Utils.LogInfo("Empty results were received for the ActivateSession call.");
-                }
-
-                // fetch namespaces.
-                FetchNamespaceTables();
-
-                lock (SyncRoot)
-                {
-                    // save nonces.
-                    m_sessionName = sessionName;
-                    m_identity = identity;
-                    m_previousServerNonce = previousServerNonce;
-                    m_serverNonce = serverNonce;
-                    m_serverCertificate = serverCertificate;
-
-                    // update system context.
-                    m_systemContext.PreferredLocales = m_preferredLocales;
-                    m_systemContext.SessionId = SessionId;
-                    m_systemContext.UserIdentity = identity;
-                }
-
-                // fetch operation limits
-                FetchOperationLimits();
-
-                // start keep alive thread.
-                StartKeepAliveTimer();
-
-                // raise event that session configuration changed.
-                IndicateSessionConfigurationChanged();
-
-                // notify session created callback, which was already set in base class only.
-                SessionCreated(sessionId, sessionCookie);
-            }
-            catch (Exception)
-            {
-                try
-                {
-                    Close(closeChannel);
-                }
-                catch (Exception e)
-                {
-                    Utils.LogError(
-                        "Cleanup: CloseSession() or CloseChannel() raised exception. " + e.Message);
-                }
-                finally
-                {
-                    SessionCreated(null, null);
-                }
-
-                throw;
-            }
-        }
-
-        /// <inheritdoc/>
-        [Obsolete("Use ChangePreferredLocalesAsync instead.")]
-        public void ChangePreferredLocales(StringCollection preferredLocales)
-        {
-            UpdateSessionAsync(Identity, preferredLocales)
-                .GetAwaiter()
-                .GetResult();
-        }
-
-        /// <inheritdoc/>
-        [Obsolete("Use UpdateSessionAsync instead.")]
-        public void UpdateSession(IUserIdentity identity, StringCollection preferredLocales)
-        {
-            UpdateSessionAsync(identity, preferredLocales)
-                .GetAwaiter()
-                .GetResult();
-        }
-
-        /// <inheritdoc/>
-        public void FindComponentIds(
-            NodeId instanceId,
-            IList<string> componentPaths,
-            out NodeIdCollection componentIds,
-            out IList<ServiceResult> errors)
-        {
-            componentIds = [];
-            errors = [];
-
-            // build list of paths to translate.
-            var pathsToTranslate = new BrowsePathCollection();
-
-            for (int ii = 0; ii < componentPaths.Count; ii++)
-            {
-                var pathToTranslate = new BrowsePath
-                {
-                    StartingNode = instanceId,
-                    RelativePath = RelativePath.Parse(componentPaths[ii], TypeTree)
-                };
-
-                pathsToTranslate.Add(pathToTranslate);
-            }
-
-            // translate the paths.
-
-            ResponseHeader responseHeader = TranslateBrowsePathsToNodeIds(
-                null,
-                pathsToTranslate,
-                out BrowsePathResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
-
-            // verify that the server returned the correct number of results.
-            ValidateResponse(results, pathsToTranslate);
-            ValidateDiagnosticInfos(diagnosticInfos, pathsToTranslate);
-
-            for (int ii = 0; ii < componentPaths.Count; ii++)
-            {
-                componentIds.Add(NodeId.Null);
-                errors.Add(ServiceResult.Good);
-
-                // process any diagnostics associated with any error.
-                if (StatusCode.IsBad(results[ii].StatusCode))
-                {
-                    errors[ii] = new ServiceResult(
-                        results[ii].StatusCode,
-                        ii,
-                        diagnosticInfos,
-                        responseHeader.StringTable);
-                    continue;
-                }
-
-                // Expecting exact one NodeId for a local node.
-                // Report an error if the server returns anything other than that.
-
-                if (results[ii].Targets.Count == 0)
-                {
-                    errors[ii] = ServiceResult.Create(
-                        StatusCodes.BadTargetNodeIdInvalid,
-                        "Could not find target for path: {0}.",
-                        componentPaths[ii]);
-
-                    continue;
-                }
-
-                if (results[ii].Targets.Count != 1)
-                {
-                    errors[ii] = ServiceResult.Create(
-                        StatusCodes.BadTooManyMatches,
-                        "Too many matches found for path: {0}.",
-                        componentPaths[ii]);
-
-                    continue;
-                }
-
-                if (results[ii].Targets[0].RemainingPathIndex != uint.MaxValue)
-                {
-                    errors[ii] = ServiceResult.Create(
-                        StatusCodes.BadTargetNodeIdInvalid,
-                        "Cannot follow path to external server: {0}.",
-                        componentPaths[ii]);
-
-                    continue;
-                }
-
-                if (NodeId.IsNull(results[ii].Targets[0].TargetId))
-                {
-                    errors[ii] = ServiceResult.Create(
-                        StatusCodes.BadUnexpectedError,
-                        "Server returned a null NodeId for path: {0}.",
-                        componentPaths[ii]);
-
-                    continue;
-                }
-
-                if (results[ii].Targets[0].TargetId.IsAbsolute)
-                {
-                    errors[ii] = ServiceResult.Create(
-                        StatusCodes.BadUnexpectedError,
-                        "Server returned a remote node for path: {0}.",
-                        componentPaths[ii]);
-
-                    continue;
-                }
-
-                // suitable target found.
-                componentIds[ii] = ExpandedNodeId.ToNodeId(
-                    results[ii].Targets[0].TargetId,
-                    NamespaceUris);
-            }
-        }
-
-        /// <inheritdoc/>
-        public void ReadValues(
-            IList<NodeId> variableIds,
-            IList<Type> expectedTypes,
-            out IList<object> values,
-            out IList<ServiceResult> errors)
-        {
-            values = [];
-            errors = [];
-
-            // build list of values to read.
-            var valuesToRead = new ReadValueIdCollection();
-
-            for (int ii = 0; ii < variableIds.Count; ii++)
-            {
-                var valueToRead = new ReadValueId
-                {
-                    NodeId = variableIds[ii],
-                    AttributeId = Attributes.Value,
-                    IndexRange = null,
-                    DataEncoding = null
-                };
-
-                valuesToRead.Add(valueToRead);
-            }
-
-            // read the values.
-
-            ResponseHeader responseHeader = Read(
-                null,
-                0,
-                TimestampsToReturn.Both,
-                valuesToRead,
-                out DataValueCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
-
-            // verify that the server returned the correct number of results.
-            ValidateResponse(results, valuesToRead);
-            ValidateDiagnosticInfos(diagnosticInfos, valuesToRead);
-
-            for (int ii = 0; ii < variableIds.Count; ii++)
-            {
-                values.Add(null);
-                errors.Add(ServiceResult.Good);
-
-                // process any diagnostics associated with bad or uncertain data.
-                if (StatusCode.IsNotGood(results[ii].StatusCode))
-                {
-                    errors[ii] = new ServiceResult(
-                        results[ii].StatusCode,
-                        ii,
-                        diagnosticInfos,
-                        responseHeader.StringTable);
-                    if (StatusCode.IsBad(results[ii].StatusCode))
-                    {
-                        continue;
-                    }
-                }
-
-                object value = results[ii].Value;
-
-                // extract the body from extension objects.
-
-                if (value is ExtensionObject extension && extension.Body is IEncodeable)
-                {
-                    value = extension.Body;
-                }
-
-                // check expected type.
-                if (expectedTypes[ii] != null && !expectedTypes[ii].IsInstanceOfType(value))
-                {
-                    errors[ii] = ServiceResult.Create(
-                        StatusCodes.BadTypeMismatch,
-                        "Value {0} does not have expected type: {1}.",
-                        value,
-                        expectedTypes[ii].Name);
-
-                    continue;
-                }
-
-                // suitable value found.
-                values[ii] = value;
-            }
-        }
-
-        /// <inheritdoc/>
-        public byte[] ReadByteStringInChunks(NodeId nodeId)
-        {
-            int count = (int)ServerMaxByteStringLength;
-
-            int maxByteStringLength = m_configuration.TransportQuotas.MaxByteStringLength;
-            if (maxByteStringLength > 0)
-            {
-                count =
-                    ServerMaxByteStringLength > maxByteStringLength
-                        ? maxByteStringLength
-                        : (int)ServerMaxByteStringLength;
-            }
-
-            if (count <= 1)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadIndexRangeNoData,
-                    "The MaxByteStringLength is not known or too small for reading data in chunks.");
-            }
-
-            int offset = 0;
-            using var bytes = new MemoryStream();
-            while (true)
-            {
-                var valueToRead = new ReadValueId
-                {
-                    NodeId = nodeId,
-                    AttributeId = Attributes.Value,
-                    IndexRange = new NumericRange(offset, offset + count - 1).ToString(),
-                    DataEncoding = null
-                };
-                var readValueIds = new ReadValueIdCollection { valueToRead };
-
-                ResponseHeader responseHeader = Read(
-                    null,
-                    0,
-                    TimestampsToReturn.Neither,
-                    readValueIds,
-                    out DataValueCollection results,
-                    out DiagnosticInfoCollection diagnosticInfos);
-
-                ValidateResponse(results, readValueIds);
-                ValidateDiagnosticInfos(diagnosticInfos, readValueIds);
-
-                if (offset == 0)
-                {
-                    Variant wrappedValue = results[0].WrappedValue;
-                    if (wrappedValue.TypeInfo.BuiltInType != BuiltInType.ByteString ||
-                        wrappedValue.TypeInfo.ValueRank != ValueRanks.Scalar)
-                    {
-                        throw new ServiceResultException(
-                            StatusCodes.BadTypeMismatch,
-                            "Value is not a ByteString scalar.");
-                    }
-                }
-
-                if (StatusCode.IsBad(results[0].StatusCode))
-                {
-                    if (results[0].StatusCode == StatusCodes.BadIndexRangeNoData)
-                    {
-                        // this happens when the previous read has fetched all remaining data
-                        break;
-                    }
-                    ServiceResult serviceResult = GetResult(
-                        results[0].StatusCode,
-                        0,
-                        diagnosticInfos,
-                        responseHeader);
-                    throw new ServiceResultException(serviceResult);
-                }
-
-                if (results[0].Value is not byte[] chunk || chunk.Length == 0)
-                {
-                    break;
-                }
-
-                bytes.Write(chunk, 0, chunk.Length);
-
-                if (chunk.Length < count)
-                {
-                    break;
-                }
-                offset += count;
-            }
-
-            return bytes.ToArray();
-        }
-
-        /// <inheritdoc/>
-        public void ReadDisplayName(
-            IList<NodeId> nodeIds,
-            out IList<string> displayNames,
-            out IList<ServiceResult> errors)
-        {
-            displayNames = [];
-            errors = [];
-
-            // build list of values to read.
-            var valuesToRead = new ReadValueIdCollection();
-
-            for (int ii = 0; ii < nodeIds.Count; ii++)
-            {
-                var valueToRead = new ReadValueId
-                {
-                    NodeId = nodeIds[ii],
-                    AttributeId = Attributes.DisplayName,
-                    IndexRange = null,
-                    DataEncoding = null
-                };
-
-                valuesToRead.Add(valueToRead);
-            }
-
-            // read the values.
-
-            ResponseHeader responseHeader = Read(
-                null,
-                int.MaxValue,
-                TimestampsToReturn.Neither,
-                valuesToRead,
-                out DataValueCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
-
-            // verify that the server returned the correct number of results.
-            ValidateResponse(results, valuesToRead);
-            ValidateDiagnosticInfos(diagnosticInfos, valuesToRead);
-
-            for (int ii = 0; ii < nodeIds.Count; ii++)
-            {
-                displayNames.Add(string.Empty);
-                errors.Add(ServiceResult.Good);
-
-                // process any diagnostics associated with bad or uncertain data.
-                if (StatusCode.IsNotGood(results[ii].StatusCode))
-                {
-                    errors[ii] = new ServiceResult(
-                        results[ii].StatusCode,
-                        ii,
-                        diagnosticInfos,
-                        responseHeader.StringTable);
-                    continue;
-                }
-
-                // extract the name.
-                LocalizedText displayName = results[ii].GetValue<LocalizedText>(null);
-
-                if (!LocalizedText.IsNullOrEmpty(displayName))
-                {
-                    displayNames[ii] = displayName.Text;
-                }
-            }
-        }
-
-        /// <inheritdoc/>
         public override bool Equals(object obj)
         {
             if (ReferenceEquals(this, obj))
@@ -3010,103 +1567,6 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public override StatusCode Close()
-        {
-            return Close(m_keepAliveInterval, true);
-        }
-
-        /// <inheritdoc/>
-        public StatusCode Close(bool closeChannel)
-        {
-            return Close(m_keepAliveInterval, closeChannel);
-        }
-
-        /// <inheritdoc/>
-        public StatusCode Close(int timeout)
-        {
-            return Close(timeout, true);
-        }
-
-        /// <inheritdoc/>
-        public virtual StatusCode Close(int timeout, bool closeChannel)
-        {
-            // check if already called.
-            if (Disposed)
-            {
-                return StatusCodes.Good;
-            }
-
-            StatusCode result = StatusCodes.Good;
-
-            // stop the keep alive timer.
-            StopKeepAliveTimer();
-
-            // check if correctly connected.
-            bool connected = Connected;
-
-            // halt all background threads.
-            if (connected)
-            {
-                if (m_SessionClosing != null)
-                {
-                    try
-                    {
-                        m_SessionClosing(this, null);
-                    }
-                    catch (Exception e)
-                    {
-                        Utils.LogError(
-                            e,
-                            "Session: Unexpected error raising SessionClosing event.");
-                    }
-                }
-
-                // close the session with the server.
-                if (!KeepAliveStopped)
-                {
-                    try
-                    {
-                        // close the session and delete all subscriptions if specified.
-                        var requestHeader = new RequestHeader
-                        {
-                            TimeoutHint =
-                                timeout > 0
-                                    ? (uint)timeout
-                                    : (uint)(OperationTimeout > 0 ? OperationTimeout : 0)
-                        };
-                        CloseSession(requestHeader, DeleteSubscriptionsOnClose);
-
-                        if (closeChannel)
-                        {
-                            CloseChannel();
-                        }
-
-                        // raised notification indicating the session is closed.
-                        SessionCreated(null, null);
-                    }
-                    // don't throw errors on disconnect, but return them
-                    // so the caller can log the error.
-                    catch (ServiceResultException sre)
-                    {
-                        result = sre.StatusCode;
-                    }
-                    catch (Exception)
-                    {
-                        result = StatusCodes.Bad;
-                    }
-                }
-            }
-
-            // clean up.
-            if (closeChannel)
-            {
-                Dispose();
-            }
-
-            return result;
-        }
-
-        /// <inheritdoc/>
         public bool AddSubscription(Subscription subscription)
         {
             if (subscription == null)
@@ -3128,58 +1588,6 @@ namespace Opc.Ua.Client
             m_SubscriptionsChanged?.Invoke(this, null);
 
             return true;
-        }
-
-        /// <inheritdoc/>
-        public bool RemoveSubscription(Subscription subscription)
-        {
-            if (subscription == null)
-            {
-                throw new ArgumentNullException(nameof(subscription));
-            }
-
-            if (subscription.Created)
-            {
-                subscription.Delete(false);
-            }
-
-            lock (SyncRoot)
-            {
-                if (!m_subscriptions.Remove(subscription))
-                {
-                    return false;
-                }
-
-                subscription.Session = null;
-            }
-
-            m_SubscriptionsChanged?.Invoke(this, null);
-
-            return true;
-        }
-
-        /// <inheritdoc/>
-        public bool RemoveSubscriptions(IEnumerable<Subscription> subscriptions)
-        {
-            if (subscriptions == null)
-            {
-                throw new ArgumentNullException(nameof(subscriptions));
-            }
-
-            var subscriptionsToDelete = new List<Subscription>();
-            bool removed = PrepareSubscriptionsToDelete(subscriptions, subscriptionsToDelete);
-
-            foreach (Subscription subscription in subscriptionsToDelete)
-            {
-                subscription.Delete(true);
-            }
-
-            if (removed)
-            {
-                m_SubscriptionsChanged?.Invoke(this, null);
-            }
-
-            return removed;
         }
 
         /// <inheritdoc/>
@@ -3208,564 +1616,6 @@ namespace Opc.Ua.Client
             m_SubscriptionsChanged?.Invoke(this, null);
 
             return true;
-        }
-
-        /// <inheritdoc/>
-        public bool ReactivateSubscriptions(
-            SubscriptionCollection subscriptions,
-            bool sendInitialValues)
-        {
-            int failedSubscriptions = 0;
-            UInt32Collection subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
-
-            if (subscriptionIds.Count > 0)
-            {
-                try
-                {
-                    m_reconnectLock.Wait();
-                    m_reconnecting = true;
-
-                    for (int ii = 0; ii < subscriptions.Count; ii++)
-                    {
-                        if (!subscriptions[ii].Transfer(this, subscriptionIds[ii], []))
-                        {
-                            Utils.LogError(
-                                "SubscriptionId {0} failed to reactivate.",
-                                subscriptionIds[ii]);
-                            failedSubscriptions++;
-                        }
-                    }
-
-                    if (sendInitialValues)
-                    {
-                        if (!ResendData(subscriptions, out IList<ServiceResult> resendResults))
-                        {
-                            Utils.LogError("Failed to call resend data for subscriptions.");
-                        }
-                        else if (resendResults != null)
-                        {
-                            for (int ii = 0; ii < resendResults.Count; ii++)
-                            {
-                                // no need to try for subscriptions which do not exist
-                                if (StatusCode.IsNotGood(resendResults[ii].StatusCode))
-                                {
-                                    Utils.LogError(
-                                        "SubscriptionId {0} failed to resend data.",
-                                        subscriptionIds[ii]);
-                                }
-                            }
-                        }
-                    }
-
-                    Utils.LogInfo(
-                        "Session REACTIVATE of {0} subscriptions completed. {1} failed.",
-                        subscriptions.Count,
-                        failedSubscriptions);
-                }
-                finally
-                {
-                    m_reconnecting = false;
-                    m_reconnectLock.Release();
-                }
-
-                StartPublishing(OperationTimeout, false);
-            }
-            else
-            {
-                Utils.LogInfo("No subscriptions. TransferSubscription skipped.");
-            }
-
-            return failedSubscriptions == 0;
-        }
-
-        /// <inheritdoc/>
-        public bool TransferSubscriptions(
-            SubscriptionCollection subscriptions,
-            bool sendInitialValues)
-        {
-            int failedSubscriptions = 0;
-            UInt32Collection subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
-
-            if (subscriptionIds.Count > 0)
-            {
-                if (m_reconnecting)
-                {
-                    Utils.LogWarning("Already Reconnecting. Can not transfer subscriptions.");
-                    return false;
-                }
-
-                try
-                {
-                    m_reconnectLock.Wait();
-                    m_reconnecting = true;
-
-                    ResponseHeader responseHeader = base.TransferSubscriptions(
-                        null,
-                        subscriptionIds,
-                        sendInitialValues,
-                        out TransferResultCollection results,
-                        out DiagnosticInfoCollection diagnosticInfos);
-                    if (!StatusCode.IsGood(responseHeader.ServiceResult))
-                    {
-                        Utils.LogError(
-                            "TransferSubscription failed: {0}",
-                            responseHeader.ServiceResult);
-                        return false;
-                    }
-                    ValidateResponse(results, subscriptionIds);
-                    ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
-
-                    for (int ii = 0; ii < subscriptions.Count; ii++)
-                    {
-                        if (StatusCode.IsGood(results[ii].StatusCode))
-                        {
-                            if (subscriptions[ii].Transfer(
-                                this,
-                                subscriptionIds[ii],
-                                results[ii].AvailableSequenceNumbers))
-                            {
-                                lock (m_acknowledgementsToSendLock)
-                                {
-                                    // create ack for available sequence numbers
-                                    foreach (uint sequenceNumber in results[ii]
-                                        .AvailableSequenceNumbers)
-                                    {
-                                        AddAcknowledgementToSend(
-                                            m_acknowledgementsToSend,
-                                            subscriptionIds[ii],
-                                            sequenceNumber);
-                                    }
-                                }
-                            }
-                        }
-                        else if (results[ii].StatusCode == StatusCodes.BadNothingToDo)
-                        {
-                            Utils.LogInfo(
-                                "SubscriptionId {0} is already member of the session.",
-                                subscriptionIds[ii]);
-                            failedSubscriptions++;
-                        }
-                        else
-                        {
-                            Utils.LogError(
-                                "SubscriptionId {0} failed to transfer, StatusCode={1}",
-                                subscriptionIds[ii],
-                                results[ii].StatusCode);
-                            failedSubscriptions++;
-                        }
-                    }
-
-                    Utils.LogInfo(
-                        "Session TRANSFER of {0} subscriptions completed. {1} failed.",
-                        subscriptions.Count,
-                        failedSubscriptions);
-                }
-                finally
-                {
-                    m_reconnecting = false;
-                    m_reconnectLock.Release();
-                }
-
-                StartPublishing(OperationTimeout, false);
-            }
-            else
-            {
-                Utils.LogInfo("No subscriptions. TransferSubscription skipped.");
-            }
-
-            return failedSubscriptions == 0;
-        }
-
-        /// <inheritdoc/>
-        public virtual ResponseHeader Browse(
-            RequestHeader requestHeader,
-            ViewDescription view,
-            NodeId nodeToBrowse,
-            uint maxResultsToReturn,
-            BrowseDirection browseDirection,
-            NodeId referenceTypeId,
-            bool includeSubtypes,
-            uint nodeClassMask,
-            out byte[] continuationPoint,
-            out ReferenceDescriptionCollection references)
-        {
-            var description = new BrowseDescription
-            {
-                NodeId = nodeToBrowse,
-                BrowseDirection = browseDirection,
-                ReferenceTypeId = referenceTypeId,
-                IncludeSubtypes = includeSubtypes,
-                NodeClassMask = nodeClassMask,
-                ResultMask = (uint)BrowseResultMask.All
-            };
-
-            var nodesToBrowse = new BrowseDescriptionCollection { description };
-
-            ResponseHeader responseHeader = Browse(
-                requestHeader,
-                view,
-                maxResultsToReturn,
-                nodesToBrowse,
-                out BrowseResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
-
-            ValidateResponse(results, nodesToBrowse);
-            ValidateDiagnosticInfos(diagnosticInfos, nodesToBrowse);
-
-            if (StatusCode.IsBad(results[0].StatusCode))
-            {
-                throw new ServiceResultException(
-                    new ServiceResult(
-                        results[0].StatusCode,
-                        0,
-                        diagnosticInfos,
-                        responseHeader.StringTable));
-            }
-
-            continuationPoint = results[0].ContinuationPoint;
-            references = results[0].References;
-
-            return responseHeader;
-        }
-
-        /// <inheritdoc/>
-        public virtual ResponseHeader Browse(
-            RequestHeader requestHeader,
-            ViewDescription view,
-            IList<NodeId> nodesToBrowse,
-            uint maxResultsToReturn,
-            BrowseDirection browseDirection,
-            NodeId referenceTypeId,
-            bool includeSubtypes,
-            uint nodeClassMask,
-            out ByteStringCollection continuationPoints,
-            out IList<ReferenceDescriptionCollection> referencesList,
-            out IList<ServiceResult> errors)
-        {
-            var browseDescriptions = new BrowseDescriptionCollection();
-            foreach (NodeId nodeToBrowse in nodesToBrowse)
-            {
-                var description = new BrowseDescription
-                {
-                    NodeId = nodeToBrowse,
-                    BrowseDirection = browseDirection,
-                    ReferenceTypeId = referenceTypeId,
-                    IncludeSubtypes = includeSubtypes,
-                    NodeClassMask = nodeClassMask,
-                    ResultMask = (uint)BrowseResultMask.All
-                };
-
-                browseDescriptions.Add(description);
-            }
-
-            ResponseHeader responseHeader = Browse(
-                requestHeader,
-                view,
-                maxResultsToReturn,
-                browseDescriptions,
-                out BrowseResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
-
-            ValidateResponse(results, browseDescriptions);
-            ValidateDiagnosticInfos(diagnosticInfos, browseDescriptions);
-
-            int ii = 0;
-            errors = [];
-            continuationPoints = [];
-            referencesList = [];
-            foreach (BrowseResult result in results)
-            {
-                if (StatusCode.IsBad(result.StatusCode))
-                {
-                    errors.Add(new ServiceResult(
-                        result.StatusCode,
-                        ii,
-                        diagnosticInfos,
-                        responseHeader.StringTable));
-                }
-                else
-                {
-                    errors.Add(ServiceResult.Good);
-                }
-                continuationPoints.Add(result.ContinuationPoint);
-                referencesList.Add(result.References);
-                ii++;
-            }
-
-            return responseHeader;
-        }
-
-        /// <inheritdoc/>
-        public IAsyncResult BeginBrowse(
-            RequestHeader requestHeader,
-            ViewDescription view,
-            NodeId nodeToBrowse,
-            uint maxResultsToReturn,
-            BrowseDirection browseDirection,
-            NodeId referenceTypeId,
-            bool includeSubtypes,
-            uint nodeClassMask,
-            AsyncCallback callback,
-            object asyncState)
-        {
-            var description = new BrowseDescription
-            {
-                NodeId = nodeToBrowse,
-                BrowseDirection = browseDirection,
-                ReferenceTypeId = referenceTypeId,
-                IncludeSubtypes = includeSubtypes,
-                NodeClassMask = nodeClassMask,
-                ResultMask = (uint)BrowseResultMask.All
-            };
-
-            var nodesToBrowse = new BrowseDescriptionCollection { description };
-
-            return BeginBrowse(
-                requestHeader,
-                view,
-                maxResultsToReturn,
-                nodesToBrowse,
-                callback,
-                asyncState);
-        }
-
-        /// <inheritdoc/>
-        public ResponseHeader EndBrowse(
-            IAsyncResult result,
-            out byte[] continuationPoint,
-            out ReferenceDescriptionCollection references)
-        {
-            ResponseHeader responseHeader = EndBrowse(
-                result,
-                out BrowseResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
-
-            if (results == null || results.Count != 1)
-            {
-                throw new ServiceResultException(StatusCodes.BadUnknownResponse);
-            }
-
-            if (StatusCode.IsBad(results[0].StatusCode))
-            {
-                throw new ServiceResultException(
-                    new ServiceResult(
-                        results[0].StatusCode,
-                        0,
-                        diagnosticInfos,
-                        responseHeader.StringTable));
-            }
-
-            continuationPoint = results[0].ContinuationPoint;
-            references = results[0].References;
-
-            return responseHeader;
-        }
-
-        /// <inheritdoc/>
-        public virtual ResponseHeader BrowseNext(
-            RequestHeader requestHeader,
-            bool releaseContinuationPoint,
-            byte[] continuationPoint,
-            out byte[] revisedContinuationPoint,
-            out ReferenceDescriptionCollection references)
-        {
-            var continuationPoints = new ByteStringCollection { continuationPoint };
-
-            ResponseHeader responseHeader = BrowseNext(
-                requestHeader,
-                releaseContinuationPoint,
-                continuationPoints,
-                out BrowseResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
-
-            ValidateResponse(results, continuationPoints);
-            ValidateDiagnosticInfos(diagnosticInfos, continuationPoints);
-
-            if (StatusCode.IsBad(results[0].StatusCode))
-            {
-                throw new ServiceResultException(
-                    new ServiceResult(
-                        results[0].StatusCode,
-                        0,
-                        diagnosticInfos,
-                        responseHeader.StringTable));
-            }
-
-            revisedContinuationPoint = results[0].ContinuationPoint;
-            references = results[0].References;
-
-            return responseHeader;
-        }
-
-        /// <inheritdoc/>
-        public virtual ResponseHeader BrowseNext(
-            RequestHeader requestHeader,
-            bool releaseContinuationPoint,
-            ByteStringCollection continuationPoints,
-            out ByteStringCollection revisedContinuationPoints,
-            out IList<ReferenceDescriptionCollection> referencesList,
-            out IList<ServiceResult> errors)
-        {
-            ResponseHeader responseHeader = BrowseNext(
-                requestHeader,
-                releaseContinuationPoint,
-                continuationPoints,
-                out BrowseResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
-
-            ValidateResponse(results, continuationPoints);
-            ValidateDiagnosticInfos(diagnosticInfos, continuationPoints);
-
-            int ii = 0;
-            errors = [];
-            revisedContinuationPoints = [];
-            referencesList = [];
-            foreach (BrowseResult result in results)
-            {
-                if (StatusCode.IsBad(result.StatusCode))
-                {
-                    errors.Add(new ServiceResult(
-                        result.StatusCode,
-                        ii,
-                        diagnosticInfos,
-                        responseHeader.StringTable));
-                }
-                else
-                {
-                    errors.Add(ServiceResult.Good);
-                }
-                revisedContinuationPoints.Add(result.ContinuationPoint);
-                referencesList.Add(result.References);
-                ii++;
-            }
-
-            return responseHeader;
-        }
-
-        /// <inheritdoc/>
-        public IAsyncResult BeginBrowseNext(
-            RequestHeader requestHeader,
-            bool releaseContinuationPoint,
-            byte[] continuationPoint,
-            AsyncCallback callback,
-            object asyncState)
-        {
-            var continuationPoints = new ByteStringCollection { continuationPoint };
-
-            return BeginBrowseNext(
-                requestHeader,
-                releaseContinuationPoint,
-                continuationPoints,
-                callback,
-                asyncState);
-        }
-
-        /// <inheritdoc/>
-        public ResponseHeader EndBrowseNext(
-            IAsyncResult result,
-            out byte[] revisedContinuationPoint,
-            out ReferenceDescriptionCollection references)
-        {
-            ResponseHeader responseHeader = EndBrowseNext(
-                result,
-                out BrowseResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
-
-            if (results == null || results.Count != 1)
-            {
-                throw new ServiceResultException(StatusCodes.BadUnknownResponse);
-            }
-
-            if (StatusCode.IsBad(results[0].StatusCode))
-            {
-                throw new ServiceResultException(
-                    new ServiceResult(
-                        results[0].StatusCode,
-                        0,
-                        diagnosticInfos,
-                        responseHeader.StringTable));
-            }
-
-            revisedContinuationPoint = results[0].ContinuationPoint;
-            references = results[0].References;
-
-            return responseHeader;
-        }
-
-        /// <inheritdoc/>
-        public void ManagedBrowse(
-            RequestHeader requestHeader,
-            ViewDescription view,
-            IList<NodeId> nodesToBrowse,
-            uint maxResultsToReturn,
-            BrowseDirection browseDirection,
-            NodeId referenceTypeId,
-            bool includeSubtypes,
-            uint nodeClassMask,
-            out IList<ReferenceDescriptionCollection> result,
-            out IList<ServiceResult> errors)
-        {
-            (result, errors) = ManagedBrowseAsync(
-                    requestHeader,
-                    view,
-                    nodesToBrowse,
-                    maxResultsToReturn,
-                    browseDirection,
-                    referenceTypeId,
-                    includeSubtypes,
-                    nodeClassMask)
-                .GetAwaiter()
-                .GetResult();
-        }
-
-        /// <inheritdoc/>
-        public IList<object> Call(NodeId objectId, NodeId methodId, params object[] args)
-        {
-            var inputArguments = new VariantCollection();
-
-            if (args != null)
-            {
-                for (int ii = 0; ii < args.Length; ii++)
-                {
-                    inputArguments.Add(new Variant(args[ii]));
-                }
-            }
-
-            var request = new CallMethodRequest
-            {
-                ObjectId = objectId,
-                MethodId = methodId,
-                InputArguments = inputArguments
-            };
-
-            var requests = new CallMethodRequestCollection { request };
-
-            ResponseHeader responseHeader = Call(
-                null,
-                requests,
-                out CallMethodResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
-
-            ValidateResponse(results, requests);
-            ValidateDiagnosticInfos(diagnosticInfos, requests);
-
-            if (StatusCode.IsBad(results[0].StatusCode))
-            {
-                throw ServiceResultException.Create(
-                    results[0].StatusCode,
-                    0,
-                    diagnosticInfos,
-                    responseHeader.StringTable);
-            }
-
-            var outputArguments = new List<object>();
-
-            foreach (Variant arg in results[0].OutputArguments)
-            {
-                outputArguments.Add(arg.Value);
-            }
-
-            return outputArguments;
         }
 
         /// <summary>
@@ -4256,7 +2106,8 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Updates the NamespaceTable with the result of the <see cref="PrepareNamespaceTableNodesToRead"/> read operation.
+        /// Updates the NamespaceTable with the result of the
+        /// <see cref="PrepareNamespaceTableNodesToRead"/> read operation.
         /// </summary>
         private void UpdateNamespaceTable(
             DataValueCollection values,
@@ -6334,52 +4185,6 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Recreate the subscriptions in a reconnected session.
-        /// Uses Transfer service if <see cref="TransferSubscriptionsOnReconnect"/> is set to <c>true</c>.
-        /// </summary>
-        /// <param name="subscriptionsTemplate">The template for the subscriptions.</param>
-        private void RecreateSubscriptions(IEnumerable<Subscription> subscriptionsTemplate)
-        {
-            bool transferred = false;
-            if (TransferSubscriptionsOnReconnect)
-            {
-                try
-                {
-                    transferred = TransferSubscriptions([.. subscriptionsTemplate], false);
-                }
-                catch (ServiceResultException sre)
-                {
-                    if (sre.StatusCode == StatusCodes.BadServiceUnsupported)
-                    {
-                        TransferSubscriptionsOnReconnect = false;
-                        Utils.LogWarning(
-                            "Transfer subscription unsupported, TransferSubscriptionsOnReconnect set to false.");
-                    }
-                    else
-                    {
-                        Utils.LogError(sre, "Transfer subscriptions failed.");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Utils.LogError(ex, "Unexpected Transfer subscriptions error.");
-                }
-            }
-
-            if (!transferred)
-            {
-                // Create the subscriptions which were not transferred.
-                foreach (Subscription subscription in Subscriptions)
-                {
-                    if (!subscription.Created)
-                    {
-                        subscription.Create();
-                    }
-                }
-            }
-        }
-
-        /// <summary>
         /// Raises an event indicating that publish has returned a notification.
         /// </summary>
         private void OnRaisePublishNotification(
@@ -6859,7 +4664,6 @@ namespace Opc.Ua.Client
         private List<Subscription> m_subscriptions;
         private uint m_maxRequestMessageSize;
         private SystemContext m_systemContext;
-        private NodeCache m_nodeCache;
         private List<IUserIdentity> m_identityHistory;
         private byte[] m_serverNonce;
         private byte[] m_previousServerNonce;

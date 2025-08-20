@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if CLIENT_ASYNC
-
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -74,7 +72,8 @@ namespace Opc.Ua.Client
 
             await CreateItemsAsync(ct).ConfigureAwait(false);
 
-            // only enable publishing afer CreateSubscription is called to avoid race conditions with subscription cleanup.
+            // only enable publishing afer CreateSubscription is called
+            // to avoid race conditions with subscription cleanup.
             if (PublishingEnabled)
             {
                 await SetPublishingModeAsync(PublishingEnabled, ct).ConfigureAwait(false);
@@ -241,7 +240,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Resolves all relative paths to nodes on the server.
         /// </summary>
-        public async Task ResolveItemNodeIdsAsync(CancellationToken ct)
+        public async Task ResolveItemNodeIdsAsync(CancellationToken ct = default)
         {
             VerifySubscriptionState(true);
 
@@ -285,8 +284,11 @@ namespace Opc.Ua.Client
         /// </summary>
         public async Task<IList<MonitoredItem>> CreateItemsAsync(CancellationToken ct = default)
         {
-            MonitoredItemCreateRequestCollection requestItems = PrepareItemsToCreate(
-                out List<MonitoredItem> itemsToCreate);
+            MonitoredItemCreateRequestCollection requestItems;
+            List<MonitoredItem> itemsToCreate;
+
+            (requestItems, itemsToCreate) = await PrepareItemsToCreateAsync(ct)
+                .ConfigureAwait(false);
 
             if (requestItems.Count == 0)
             {
@@ -369,7 +371,8 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Deletes all items that have been marked for deletion.
         /// </summary>
-        public async Task<IList<MonitoredItem>> DeleteItemsAsync(CancellationToken ct)
+        public async Task<IList<MonitoredItem>> DeleteItemsAsync(
+            CancellationToken ct = default)
         {
             VerifySubscriptionState(true);
 
@@ -416,7 +419,8 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Set monitoring mode of items.
         /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="monitoredItems"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="monitoredItems"/>
+        /// is <c>null</c>.</exception>
         public async Task<List<ServiceResult>> SetMonitoringModeAsync(
             MonitoringMode monitoringMode,
             IList<MonitoredItem> monitoredItems,
@@ -475,7 +479,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Tells the server to refresh all conditions being monitored by the subscription.
         /// </summary>
-        public async Task ConditionRefreshAsync(CancellationToken ct = default)
+        public async Task<bool> ConditionRefreshAsync(CancellationToken ct = default)
         {
             VerifySubscriptionState(true);
 
@@ -489,14 +493,22 @@ namespace Opc.Ua.Client
                 }
             };
 
-            _ = await Session.CallAsync(null, methodsToCall, ct).ConfigureAwait(false);
+            try
+            {
+                await Session.CallAsync(null, methodsToCall, ct).ConfigureAwait(false);
+                return true;
+            }
+            catch (ServiceResultException)
+            {
+                return false;
+            }
         }
 
         /// <summary>
         /// Tells the server to refresh all conditions being monitored by the subscription for a specific
         /// monitoredItem for events.
         /// </summary>
-        public async Task ConditionRefresh2Async(
+        public async Task<bool> ConditionRefresh2Async(
             uint monitoredItemId,
             CancellationToken ct = default)
         {
@@ -512,8 +524,15 @@ namespace Opc.Ua.Client
                 }
             };
 
-            _ = await Session.CallAsync(null, methodsToCall, ct).ConfigureAwait(false);
+            try
+            {
+                await Session.CallAsync(null, methodsToCall, ct).ConfigureAwait(false);
+                return true;
+            }
+            catch (ServiceResultException)
+            {
+                return false;
+            }
         }
     }
 }
-#endif
