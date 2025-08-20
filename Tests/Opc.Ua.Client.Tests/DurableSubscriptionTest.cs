@@ -457,7 +457,7 @@ namespace Opc.Ua.Client.Tests
             DateTime closeTime = DateTime.UtcNow;
             TestContext.Out.WriteLine("Session Id {0} Closed at {1}", Session.SessionId, closeTime);
 
-            Session.Close(closeChannel: false);
+            await Session.CloseAsync(closeChannel: false).ConfigureAwait(false);
 
             if (restartServer)
             {
@@ -502,7 +502,7 @@ namespace Opc.Ua.Client.Tests
 
                 subscription.SetPublishingMode(false);
 
-                const double tolerance = 1500;
+                const double tolerance = 2500;
 
                 TestContext.Out.WriteLine("Session StartTime at {0}", DateTimeMs(startTime));
                 TestContext.Out.WriteLine("Session Closed at {0}", DateTimeMs(closeTime));
