@@ -157,7 +157,7 @@ namespace Opc.Ua.Security.Certificates
             X509KeyStorageFlags defaultStorageSet = X509KeyStorageFlags.DefaultKeySet;
             if (!noEphemeralKeySet)
             {
-#if !NETSTANDARD2_0
+#if NETSTANDARD2_1_OR_GREATER || NET472_OR_GREATER || NET5_0_OR_GREATER
                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                 {
                     defaultStorageSet |= X509KeyStorageFlags.EphemeralKeySet;

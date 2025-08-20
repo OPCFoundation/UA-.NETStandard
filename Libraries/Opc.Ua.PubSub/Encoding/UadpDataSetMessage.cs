@@ -134,20 +134,18 @@ namespace Opc.Ua.PubSub.Encoding
                 // 00 Variant Field Encoding
                 fieldType = FieldTypeEncodingMask.Variant;
             }
-            else if ((FieldContentMask & DataSetFieldContentMask.RawData) != 0)
+            else if (((int)FieldContentMask &
+                (int)DataSetFieldContentMask.RawData) != 0)
             {
                 // 01 RawData Field Encoding
                 fieldType = FieldTypeEncodingMask.RawData;
             }
-            else if ((
-                    FieldContentMask &
-                    (
-                        DataSetFieldContentMask.StatusCode |
-                        DataSetFieldContentMask.SourceTimestamp |
-                        DataSetFieldContentMask.ServerTimestamp |
-                        DataSetFieldContentMask.SourcePicoSeconds |
-                        DataSetFieldContentMask.ServerPicoSeconds)
-                ) != 0)
+            else if (((int)FieldContentMask &
+                ((int)DataSetFieldContentMask.StatusCode |
+                    (int)DataSetFieldContentMask.SourceTimestamp |
+                    (int)DataSetFieldContentMask.ServerTimestamp |
+                    (int)DataSetFieldContentMask.SourcePicoSeconds |
+                    (int)DataSetFieldContentMask.ServerPicoSeconds)) != 0)
             {
                 // 10 DataValue Field Encoding
                 fieldType = FieldTypeEncodingMask.DataValue;

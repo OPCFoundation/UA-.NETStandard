@@ -654,12 +654,12 @@ namespace Opc.Ua.Client.Tests
             const string newIdentityToken = "fakeTokenStringNew";
             session.RenewUserIdentity += (_, _) => CreateUserIdentity(newIdentityToken);
 
-            session.Reconnect();
+            await session.ReconnectAsync().ConfigureAwait(false);
             receivedToken = Encoding.UTF8
                 .GetString(TokenValidator.LastIssuedToken.DecryptedTokenData);
             Assert.AreEqual(newIdentityToken, receivedToken);
 
-            StatusCode result = session.Close();
+            StatusCode result = await session.CloseAsync().ConfigureAwait(false);
             Assert.NotNull(result);
 
             session.Dispose();
@@ -679,20 +679,20 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(channel);
 
             ISession session1 = ClientFixture.CreateSession(channel, endpoint);
-            session1.Open("Session1", null);
+            await session1.OpenAsync("Session1", null, CancellationToken.None).ConfigureAwait(false);
 
             ISession session2 = ClientFixture.CreateSession(channel, endpoint);
-            session2.Open("Session2", null);
+            await session2.OpenAsync("Session2", null, CancellationToken.None).ConfigureAwait(false);
 
             _ = session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
 
-            session1.Close(closeChannel: false);
+            await session1.CloseAsync(closeChannel: false).ConfigureAwait(false);
             session1.DetachChannel();
             session1.Dispose();
 
             _ = session2.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
 
-            session2.Close(closeChannel: false);
+            await session2.CloseAsync(closeChannel: false).ConfigureAwait(false);
             session2.DetachChannel();
             session2.Dispose();
 
@@ -977,11 +977,11 @@ namespace Opc.Ua.Client.Tests
             }
 
             session1.DeleteSubscriptionsOnClose = true;
-            session1.Close(1000);
+            await session1.CloseAsync(1000).ConfigureAwait(false);
             Utils.SilentDispose(session1);
 
             session2.DeleteSubscriptionsOnClose = true;
-            session2.Close(1000);
+            await session2.CloseAsync(1000).ConfigureAwait(false);
             Utils.SilentDispose(session2);
         }
 
@@ -1067,15 +1067,15 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(value2);
 
             session1.DeleteSubscriptionsOnClose = true;
-            session1.Close(1000);
+            await session1.CloseAsync(1000).ConfigureAwait(false);
             Utils.SilentDispose(session1);
 
             session2.DeleteSubscriptionsOnClose = true;
-            session2.Close(1000);
+            await session2.CloseAsync(1000).ConfigureAwait(false);
             Utils.SilentDispose(session2);
 
             session3.DeleteSubscriptionsOnClose = true;
-            session3.Close(1000);
+            await session3.CloseAsync(1000).ConfigureAwait(false);
             Utils.SilentDispose(session3);
         }
 
