@@ -541,93 +541,93 @@ namespace Opc.Ua.PubSub.Encoding
             ExtendedFlags2 = 0;
             GroupFlags = 0;
 
-            if ((
-                    NetworkMessageContentMask &
-                    (UadpNetworkMessageContentMask.PublisherId |
-                        UadpNetworkMessageContentMask.DataSetClassId)
-                ) != 0)
+            if (((int)NetworkMessageContentMask &
+                ((int)UadpNetworkMessageContentMask.PublisherId |
+                    (int)UadpNetworkMessageContentMask.DataSetClassId)) != 0)
             {
                 //  UADPFlags: The ExtendedFlags1 shall be omitted if bit 7 of the UADPFlags is false.
                 // Enable ExtendedFlags1 usage
                 UADPFlags |= UADPFlagsEncodingMask.ExtendedFlags1;
             }
 
-            if ((NetworkMessageContentMask & UadpNetworkMessageContentMask.PublisherId) != 0)
+            if (((int)NetworkMessageContentMask &
+                (int)UadpNetworkMessageContentMask.PublisherId) != 0)
             {
                 // UADPFlags: Bit 4: PublisherId enabled
                 UADPFlags |= UADPFlagsEncodingMask.PublisherId;
             }
 
-            if ((NetworkMessageContentMask & UadpNetworkMessageContentMask.DataSetClassId) != 0)
+            if (((int)NetworkMessageContentMask &
+                (int)UadpNetworkMessageContentMask.DataSetClassId) != 0)
             {
                 // ExtendedFlags1 Bit 3: DataSetClassId enabled
                 ExtendedFlags1 |= ExtendedFlags1EncodingMask.DataSetClassId;
             }
 
-            if ((
-                    NetworkMessageContentMask &
-                    (
-                        UadpNetworkMessageContentMask.GroupHeader |
-                        UadpNetworkMessageContentMask.WriterGroupId |
-                        UadpNetworkMessageContentMask.GroupVersion |
-                        UadpNetworkMessageContentMask.NetworkMessageNumber |
-                        UadpNetworkMessageContentMask.SequenceNumber)
-                ) != UadpNetworkMessageContentMask.None)
+            if (((int)NetworkMessageContentMask &
+                ((int)UadpNetworkMessageContentMask.GroupHeader |
+                    (int)UadpNetworkMessageContentMask.WriterGroupId |
+                    (int)UadpNetworkMessageContentMask.GroupVersion |
+                    (int)UadpNetworkMessageContentMask.NetworkMessageNumber |
+                    (int)UadpNetworkMessageContentMask.SequenceNumber)) != 0)
             {
                 // UADPFlags: Bit 5: GroupHeader enabled
                 UADPFlags |= UADPFlagsEncodingMask.GroupHeader;
             }
 
-            if ((NetworkMessageContentMask & UadpNetworkMessageContentMask.WriterGroupId) != 0)
+            if (((int)NetworkMessageContentMask &
+                (int)UadpNetworkMessageContentMask.WriterGroupId) != 0)
             {
                 // GroupFlags: Bit 0: WriterGroupId enabled
                 GroupFlags |= GroupFlagsEncodingMask.WriterGroupId;
             }
 
-            if ((NetworkMessageContentMask & UadpNetworkMessageContentMask.GroupVersion) != 0)
+            if (((int)NetworkMessageContentMask &
+                (int)UadpNetworkMessageContentMask.GroupVersion) != 0)
             {
                 // GroupFlags: Bit 1: GroupVersion enabled
                 GroupFlags |= GroupFlagsEncodingMask.GroupVersion;
             }
 
-            if ((NetworkMessageContentMask &
-                UadpNetworkMessageContentMask.NetworkMessageNumber) != 0)
+            if (((int)NetworkMessageContentMask &
+                (int)UadpNetworkMessageContentMask.NetworkMessageNumber) != 0)
             {
                 // GroupFlags: Bit 2: NetworkMessageNumber enabled
                 GroupFlags |= GroupFlagsEncodingMask.NetworkMessageNumber;
             }
 
-            if ((NetworkMessageContentMask & UadpNetworkMessageContentMask.SequenceNumber) != 0)
+            if (((int)NetworkMessageContentMask &
+                (int)UadpNetworkMessageContentMask.SequenceNumber) != 0)
             {
                 // GroupFlags: Bit 3: SequenceNumber enabled
                 GroupFlags |= GroupFlagsEncodingMask.SequenceNumber;
             }
 
-            if ((
-                    NetworkMessageContentMask &
-                    (
-                        UadpNetworkMessageContentMask.Timestamp |
-                        UadpNetworkMessageContentMask.PicoSeconds |
-                        UadpNetworkMessageContentMask.PromotedFields)
-                ) != 0)
+            if (((int)NetworkMessageContentMask &
+                ((int)UadpNetworkMessageContentMask.Timestamp |
+                    (int)UadpNetworkMessageContentMask.PicoSeconds |
+                    (int)UadpNetworkMessageContentMask.PromotedFields)) != 0)
             {
                 // Enable ExtendedFlags1 usage
                 UADPFlags |= UADPFlagsEncodingMask.ExtendedFlags1;
             }
 
-            if ((NetworkMessageContentMask & UadpNetworkMessageContentMask.Timestamp) != 0)
+            if (((int)NetworkMessageContentMask &
+                (int)UadpNetworkMessageContentMask.Timestamp) != 0)
             {
                 // ExtendedFlags1: Bit 5: Timestamp enabled
                 ExtendedFlags1 |= ExtendedFlags1EncodingMask.Timestamp;
             }
 
-            if ((NetworkMessageContentMask & UadpNetworkMessageContentMask.PicoSeconds) != 0)
+            if (((int)NetworkMessageContentMask &
+                (int)UadpNetworkMessageContentMask.PicoSeconds) != 0)
             {
                 // ExtendedFlags1: Bit 6: PicoSeconds enabled
                 ExtendedFlags1 |= ExtendedFlags1EncodingMask.PicoSeconds;
             }
 
-            if ((NetworkMessageContentMask & UadpNetworkMessageContentMask.PromotedFields) != 0)
+            if (((int)NetworkMessageContentMask &
+                (int)UadpNetworkMessageContentMask.PromotedFields) != 0)
             {
                 // ExtendedFlags1: Bit 7: ExtendedFlags2 enabled
                 ExtendedFlags1 |= ExtendedFlags1EncodingMask.ExtendedFlags2;
@@ -641,7 +641,8 @@ namespace Opc.Ua.PubSub.Encoding
                 // 000 NetworkMessage with DataSetMessage payload for now
             }
 
-            if ((NetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0)
+            if (((int)NetworkMessageContentMask &
+                (int)UadpNetworkMessageContentMask.PayloadHeader) != 0)
             {
                 // UADPFlag: Bit 6: PayloadHeader enabled
                 UADPFlags |= UADPFlagsEncodingMask.PayloadHeader;

@@ -90,7 +90,8 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <summary>
-        /// NetworkMessageContentMask contains the mask that will be used to check NetworkMessage options selected for usage
+        /// NetworkMessageContentMask contains the mask that will be used to check
+        /// NetworkMessage options selected for usage
         /// </summary>
         public JsonNetworkMessageContentMask NetworkMessageContentMask { get; private set; }
 
@@ -98,19 +99,22 @@ namespace Opc.Ua.PubSub.Encoding
         /// Get flag that indicates if message has network message header
         /// </summary>
         public bool HasNetworkMessageHeader =>
-            (NetworkMessageContentMask & JsonNetworkMessageContentMask.NetworkMessageHeader) != 0;
+            ((int)NetworkMessageContentMask &
+                (int)JsonNetworkMessageContentMask.NetworkMessageHeader) != 0;
 
         /// <summary>
         /// Flag that indicates if the Network message contains a single dataset message
         /// </summary>
         public bool HasSingleDataSetMessage =>
-            (NetworkMessageContentMask & JsonNetworkMessageContentMask.SingleDataSetMessage) != 0;
+            ((int)NetworkMessageContentMask &
+                (int)JsonNetworkMessageContentMask.SingleDataSetMessage) != 0;
 
         /// <summary>
         /// Flag that indicates if the Network message dataSets have header
         /// </summary>
         public bool HasDataSetMessageHeader =>
-            (NetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0;
+            ((int)NetworkMessageContentMask &
+                (int)JsonNetworkMessageContentMask.DataSetMessageHeader) != 0;
 
         /// <summary>
         /// A globally unique identifier for the message.

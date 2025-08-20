@@ -76,21 +76,19 @@ namespace Opc.Ua.PubSub.Encoding
                 // 00 Variant Field Encoding
                 m_fieldTypeEncoding = FieldTypeEncodingMask.Variant;
             }
-            else if ((FieldContentMask & DataSetFieldContentMask.RawData) != 0)
+            else if (((int)FieldContentMask &
+                (int)DataSetFieldContentMask.RawData) != 0)
             {
                 // If the RawData flag is set, all other bits are ignored.
                 // 01 RawData Field Encoding
                 m_fieldTypeEncoding = FieldTypeEncodingMask.RawData;
             }
-            else if ((
-                    FieldContentMask &
-                    (
-                        DataSetFieldContentMask.StatusCode |
-                        DataSetFieldContentMask.SourceTimestamp |
-                        DataSetFieldContentMask.ServerTimestamp |
-                        DataSetFieldContentMask.SourcePicoSeconds |
-                        DataSetFieldContentMask.ServerPicoSeconds)
-                ) != 0)
+            else if (((int)FieldContentMask &
+                ((int)DataSetFieldContentMask.StatusCode |
+                    (int)DataSetFieldContentMask.SourceTimestamp |
+                    (int)DataSetFieldContentMask.ServerTimestamp |
+                    (int)DataSetFieldContentMask.SourcePicoSeconds |
+                    (int)DataSetFieldContentMask.ServerPicoSeconds)) != 0)
             {
                 // 10 DataValue Field Encoding
                 m_fieldTypeEncoding = FieldTypeEncodingMask.DataValue;

@@ -24,6 +24,9 @@
     <NuGetAuditMode>all</NuGetAuditMode>
     <NuGetAudit>true</NuGetAudit>
   </PropertyGroup>
+  <ItemGroup Condition="'$(SignAssembly)' == 'true'">
+    <PackageReference Include="StrongNamer" />
+  </ItemGroup>
   <PropertyGroup>
     <AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
@@ -46,14 +49,6 @@
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <PackageTags>OPCFoundation OPC UA netstandard ios linux dotnet net netcore uwp</PackageTags>
   </PropertyGroup>
-  <Choose>
-    <When Condition="'$(TargetFramework)' == 'net8.0' OR '$(TargetFramework)' == 'net9.0'">
-      <PropertyGroup>
-        <!-- Disable strongname warning as that's not been enforced since .net 5.-->
-        <NoWarn>$(NoWarn);CS8002</NoWarn>
-      </PropertyGroup>
-    </When>
-  </Choose>
   <ItemGroup Condition="'$(IsPackable)' != 'false' AND '$(PackageLicenseExpression)' == 'MIT'">
     <None
       Include="$(MSBuildThisFileDirectory)/licenses/OPC Foundation MIT license.txt"

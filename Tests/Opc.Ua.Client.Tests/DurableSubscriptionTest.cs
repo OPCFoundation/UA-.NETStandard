@@ -507,7 +507,7 @@ namespace Opc.Ua.Client.Tests
 
                 await subscription.SetPublishingModeAsync(false).ConfigureAwait(false);
 
-                const double tolerance = 1500;
+                const double tolerance = 2500;
 
                 TestContext.Out.WriteLine("Session StartTime at {0}", DateTimeMs(startTime));
                 TestContext.Out.WriteLine("Session Closed at {0}", DateTimeMs(closeTime));

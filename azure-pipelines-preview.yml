@@ -10,8 +10,8 @@ trigger:
     - master
   paths:
     include:
-    - 'Stack/' 
-    - 'Libraries/' 
+    - 'Stack/'
+    - 'Libraries/'
 
 stages:
 - stage: nugetpreview

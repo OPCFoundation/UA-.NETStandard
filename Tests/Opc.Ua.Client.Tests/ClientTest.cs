@@ -660,7 +660,7 @@ namespace Opc.Ua.Client.Tests
                 .GetString(TokenValidator.LastIssuedToken.DecryptedTokenData);
             Assert.AreEqual(newIdentityToken, receivedToken);
 
-            StatusCode result = session.Close();
+            StatusCode result = await session.CloseAsync().ConfigureAwait(false);
             Assert.NotNull(result);
 
             session.Dispose();
@@ -680,10 +680,10 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(channel);
 
             ISession session1 = ClientFixture.CreateSession(channel, endpoint);
-            await session1.OpenAsync("Session1", null).ConfigureAwait(false);
+            await session1.OpenAsync("Session1", null, CancellationToken.None).ConfigureAwait(false);
 
             ISession session2 = ClientFixture.CreateSession(channel, endpoint);
-            await session2.OpenAsync("Session2", null).ConfigureAwait(false);
+            await session2.OpenAsync("Session2", null, CancellationToken.None).ConfigureAwait(false);
 
             await session1.ReadValueAsync<ServerStatusDataType>(
                 VariableIds.Server_ServerStatus).ConfigureAwait(false);
