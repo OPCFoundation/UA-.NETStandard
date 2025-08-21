@@ -244,6 +244,7 @@ namespace Opc.Ua.Server.Tests
             if (writer != null)
             {
                 m_traceLogger = NUnitTestLogger<T>.Create(writer);
+                m_traceLogger.MinimumLogLevel = LogLevel.Debug;
             }
 
             // check the application certificate.

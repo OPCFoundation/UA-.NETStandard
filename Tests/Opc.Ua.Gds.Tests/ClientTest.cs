@@ -98,13 +98,9 @@ namespace Opc.Ua.Gds.Tests
         [OneTimeSetUp]
         protected async Task OneTimeSetUpAsync()
         {
-            // Enable trace logging to test context
-            var writer = TestContext.Out;
             
             // start GDS with new fixture that supports trace logging
-            m_server = await TestUtils.StartGDSAsync(true, m_storeType, writer).ConfigureAwait(false);
-
-            m_server.SetTraceOutput(writer);
+            m_server = await TestUtils.StartGDSAsync(true, m_storeType, TestContext.Out).ConfigureAwait(false);
 
             // load client
             m_gdsClient = new GlobalDiscoveryTestClient(true, m_storeType);

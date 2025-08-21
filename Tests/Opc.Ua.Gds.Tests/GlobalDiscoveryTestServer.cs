@@ -257,7 +257,7 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        private async Task<ApplicationConfiguration> LoadAsync(
+        private static async Task<ApplicationConfiguration> LoadAsync(
             ApplicationInstance application,
             int basePort)
         {
