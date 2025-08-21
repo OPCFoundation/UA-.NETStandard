@@ -891,7 +891,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Fetch the operation limits of the server.
         /// </summary>
-        public async Task FetchOperationLimitsAsync(CancellationToken ct)
+        public async Task FetchOperationLimitsAsync(CancellationToken ct = default)
         {
             try
             {
@@ -1231,7 +1231,7 @@ namespace Opc.Ua.Client
             NodeId variableId,
             CancellationToken ct = default)
         {
-            if (await NodeCache.FindAsync(variableId).ConfigureAwait(false)
+            if (await NodeCache.FindAsync(variableId, ct).ConfigureAwait(false)
                 is not VariableNode variable)
             {
                 throw ServiceResultException.Create(
@@ -1294,11 +1294,11 @@ namespace Opc.Ua.Client
                 NodeClassMask = 0
             };
 
-            return browser.Browse(variable.DataType); // Todo: Make async
+            return await browser.BrowseAsync(variable.DataType).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        public Task<ReferenceDescription> FindDataDescriptionAsync(NodeId encodingId,
+        public async Task<ReferenceDescription> FindDataDescriptionAsync(NodeId encodingId,
             CancellationToken ct = default)
         {
             var browser = new Browser(this)
@@ -1309,7 +1309,8 @@ namespace Opc.Ua.Client
                 NodeClassMask = 0
             };
 
-            ReferenceDescriptionCollection references = browser.Browse(encodingId); // Todo: Make async
+            ReferenceDescriptionCollection references =
+                await browser.BrowseAsync(encodingId).ConfigureAwait(false);
 
             if (references.Count == 0)
             {
@@ -1318,7 +1319,7 @@ namespace Opc.Ua.Client
                     "Encoding does not refer to a valid data description.");
             }
 
-            return Task.FromResult(references[0]);
+            return references[0];
         }
 
         /// <inheritdoc/>
@@ -1439,7 +1440,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<T> ReadValueAsync<T>(NodeId nodeId, CancellationToken ct = default)
         {
-            DataValue dataValue = await ReadValueAsync(nodeId).ConfigureAwait(false);
+            DataValue dataValue = await ReadValueAsync(nodeId, ct).ConfigureAwait(false);
             object value = dataValue.Value;
 
             if (value is ExtensionObject extension)

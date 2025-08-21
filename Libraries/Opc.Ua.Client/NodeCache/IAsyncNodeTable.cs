@@ -51,6 +51,11 @@ namespace Opc.Ua.Client
         StringTable ServerUris { get; }
 
         /// <summary>
+        /// The type model that describes the nodes in the table.
+        /// </summary>
+        IAsyncTypeTable TypeTree { get; }
+
+        /// <summary>
         /// Returns true if the node is in the table.
         /// </summary>
         /// <param name="nodeId">The node identifier.</param>
@@ -109,5 +114,78 @@ namespace Opc.Ua.Client
             bool isInverse,
             bool includeSubtypes,
             CancellationToken ct = default);
+    }
+
+    internal sealed class NodeTableAdapter : INodeTable
+    {
+        public NodeTableAdapter(IAsyncNodeTable nodeTable)
+        {
+            m_table = nodeTable;
+        }
+
+        /// <inheritdoc/>
+        public NamespaceTable NamespaceUris => m_table.NamespaceUris;
+
+        /// <inheritdoc/>
+        public StringTable ServerUris => m_table.ServerUris;
+
+        /// <inheritdoc/>
+        public ITypeTable TypeTree => new TypeTableAdapter(m_table.TypeTree);
+
+        /// <inheritdoc/>
+        public bool Exists(ExpandedNodeId nodeId)
+        {
+            return m_table.ExistsAsync(nodeId)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+        }
+
+        /// <inheritdoc/>
+        public INode Find(ExpandedNodeId nodeId)
+        {
+            return m_table.FindAsync(nodeId)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+        }
+
+        /// <inheritdoc/>
+        public INode Find(
+            ExpandedNodeId sourceId,
+            NodeId referenceTypeId,
+            bool isInverse,
+            bool includeSubtypes,
+            QualifiedName browseName)
+        {
+            return m_table.FindAsync(
+                sourceId,
+                referenceTypeId,
+                isInverse,
+                includeSubtypes,
+                browseName)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+        }
+
+        /// <inheritdoc/>
+        public IList<INode> Find(
+            ExpandedNodeId sourceId,
+            NodeId referenceTypeId,
+            bool isInverse,
+            bool includeSubtypes)
+        {
+            return m_table.FindAsync(
+                sourceId,
+                referenceTypeId,
+                isInverse,
+                includeSubtypes)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+        }
+
+        private readonly IAsyncNodeTable m_table;
     }
 }

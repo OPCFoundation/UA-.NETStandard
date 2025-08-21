@@ -188,7 +188,6 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the cache of the server's type tree.
         /// </summary>
-        [Obsolete("Use NodeCache interfaces instead.")]
         ITypeTable TypeTree { get; }
 
         /// <summary>

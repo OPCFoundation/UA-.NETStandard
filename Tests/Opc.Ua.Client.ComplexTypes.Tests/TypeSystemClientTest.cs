@@ -306,7 +306,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     if (type == null)
                     {
                         // check for opaque type
-                        NodeId superType = Session.NodeCache.FindSuperType(fullTypeId);
+                        NodeId superType =
+                            await Session.NodeCache.FindSuperTypeAsync(fullTypeId).ConfigureAwait(false);
                         NodeId lastGoodType = variableNode.DataType;
                         while (!superType.IsNullNodeId && superType != DataTypes.BaseDataType)
                         {
@@ -316,7 +317,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                                 break;
                             }
                             lastGoodType = superType;
-                            superType = Session.NodeCache.FindSuperType(superType);
+                            superType =
+                                await Session.NodeCache.FindSuperTypeAsync(superType).ConfigureAwait(false);
                         }
 
                         if (testFailed)

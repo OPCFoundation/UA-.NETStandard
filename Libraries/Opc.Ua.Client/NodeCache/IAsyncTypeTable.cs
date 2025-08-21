@@ -215,4 +215,166 @@ namespace Opc.Ua.Client
             NodeId encodingId,
             CancellationToken ct = default);
     }
+
+
+    /// <summary>
+    /// Type table adapter for synchronous access to the table.
+    /// We need to keep the sync interface for now as it is shared
+    /// between the client and the server. However, we want to
+    /// minimize use of it where we can on the client side.
+    /// </summary>
+    internal sealed class TypeTableAdapter : ITypeTable
+    {
+        public TypeTableAdapter(IAsyncTypeTable table)
+        {
+            m_table = table;
+        }
+
+        /// <inheritdoc/>
+        public bool IsKnown(ExpandedNodeId typeId)
+        {
+            return m_table.IsKnownAsync(typeId)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+        }
+
+        /// <inheritdoc/>
+        public bool IsKnown(NodeId typeId)
+        {
+            return m_table.IsKnownAsync(typeId)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+        }
+
+        /// <inheritdoc/>
+        public NodeId FindSuperType(ExpandedNodeId typeId)
+        {
+            return m_table.FindSuperTypeAsync(typeId)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+        }
+
+        /// <inheritdoc/>
+        public NodeId FindSuperType(NodeId typeId)
+        {
+            return m_table.FindSuperTypeAsync(typeId)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+        }
+
+        /// <inheritdoc/>
+        public Task<NodeId> FindSuperTypeAsync(
+            ExpandedNodeId typeId,
+            CancellationToken ct = default)
+        {
+            return m_table.FindSuperTypeAsync(typeId, ct)
+                .AsTask();
+        }
+
+        /// <inheritdoc/>
+        public Task<NodeId> FindSuperTypeAsync(
+            NodeId typeId,
+            CancellationToken ct = default)
+        {
+            return m_table.FindSuperTypeAsync(typeId, ct)
+                .AsTask();
+        }
+
+        /// <inheritdoc/>
+        public IList<NodeId> FindSubTypes(ExpandedNodeId typeId)
+        {
+            return m_table.FindSubTypesAsync(typeId)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+        }
+
+        /// <inheritdoc/>
+        public bool IsTypeOf(ExpandedNodeId subTypeId, ExpandedNodeId superTypeId)
+        {
+            return m_table.IsTypeOfAsync(subTypeId, superTypeId)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+        }
+
+        /// <inheritdoc/>
+        public bool IsTypeOf(NodeId subTypeId, NodeId superTypeId)
+        {
+            return m_table.IsTypeOfAsync(subTypeId, superTypeId)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+        }
+
+        /// <inheritdoc/>
+        public QualifiedName FindReferenceTypeName(NodeId referenceTypeId)
+        {
+            return m_table.FindReferenceTypeNameAsync(referenceTypeId)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+        }
+
+        /// <inheritdoc/>
+        public NodeId FindReferenceType(QualifiedName browseName)
+        {
+            return m_table.FindReferenceTypeAsync(browseName)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+        }
+
+        /// <inheritdoc/>
+        public bool IsEncodingOf(ExpandedNodeId encodingId, ExpandedNodeId datatypeId)
+        {
+            return m_table.IsEncodingOfAsync(encodingId, datatypeId)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+        }
+
+        /// <inheritdoc/>
+        public bool IsEncodingFor(NodeId expectedTypeId, ExtensionObject value)
+        {
+            return m_table.IsEncodingForAsync(expectedTypeId, value)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+        }
+
+        /// <inheritdoc/>
+        public bool IsEncodingFor(NodeId expectedTypeId, object value)
+        {
+            return m_table.IsEncodingForAsync(expectedTypeId, value)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+        }
+
+        /// <inheritdoc/>
+        public NodeId FindDataTypeId(ExpandedNodeId encodingId)
+        {
+            return m_table.FindDataTypeIdAsync(encodingId)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+        }
+
+        /// <inheritdoc/>
+        public NodeId FindDataTypeId(NodeId encodingId)
+        {
+            return m_table.FindDataTypeIdAsync(encodingId)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+        }
+
+        private readonly IAsyncTypeTable m_table;
+    }
+
 }

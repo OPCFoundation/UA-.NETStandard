@@ -909,7 +909,7 @@ namespace Opc.Ua.Client.Tests
                 originSubscriptionCounters,
                 originSubscriptionFastDataCounters,
                 kTestSubscriptions,
-                kQueueSize);
+                kQueueSize).ConfigureAwait(false);
 
             if (TransferType.KeepOpen == transferType)
             {

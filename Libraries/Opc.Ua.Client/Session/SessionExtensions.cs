@@ -45,7 +45,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Reads the values for a set of variables.
         /// </summary>
-        public static async Task<(
+        public static async ValueTask<(
             IList<object>,
             IList<ServiceResult>
             )> ReadValuesAsync(
@@ -93,7 +93,7 @@ namespace Opc.Ua.Client
         /// Invokes the Browse service.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public static async Task<(
+        public static async ValueTask<(
             ResponseHeader,
             byte[],
             ReferenceDescriptionCollection
@@ -139,7 +139,7 @@ namespace Opc.Ua.Client
         /// Invokes the BrowseNext service.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public static async Task<(
+        public static async ValueTask<(
             ResponseHeader,
             byte[],
             ReferenceDescriptionCollection

@@ -80,6 +80,14 @@ namespace Opc.Ua.Client
         public StringTable ServerUris => m_session.ServerUris;
 
         /// <inheritdoc/>
+        IAsyncTypeTable IAsyncNodeTable.TypeTree => this;
+
+        /// <summary>
+        /// Legacy type table adapter for backwards compatibility.
+        /// </summary>
+        public ITypeTable TypeTree => new TypeTableAdapter(this);
+
+        /// <inheritdoc/>
         public async ValueTask<INode> FindAsync(
             ExpandedNodeId nodeId,
             CancellationToken ct = default)

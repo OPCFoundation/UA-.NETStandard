@@ -1034,9 +1034,9 @@ namespace Opc.Ua.Client.Tests
 
         [Test]
         [Order(300)]
-        public new void GetOperationLimits()
+        public async Task GetOperationLimitsTestAsync()
         {
-            base.GetOperationLimits();
+            await base.GetOperationLimitsAsync().ConfigureAwait(false);
 
             ValidateOperationLimit(
                 OperationLimits.MaxNodesPerRead,
@@ -1222,7 +1222,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (OperationLimits == null)
             {
-                GetOperationLimits();
+                await GetOperationLimitsAsync().ConfigureAwait(false);
             }
 
             var requestHeader = new RequestHeader

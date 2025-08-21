@@ -190,13 +190,12 @@ namespace Opc.Ua.Client
             }
 
             // initialize the NodeCache late, it needs references to the namespaceUris
-            NodeCache = new NodeCache(this);
+            m_nodeCache = new NodeCache(this);
 
             // set the default preferred locales.
             m_preferredLocales = new string[] { CultureInfo.CurrentCulture.Name };
 
             // create a context to use.
-#pragma warning disable CS0618 // Type or member is obsolete
             m_systemContext = new SystemContext
             {
                 SystemHandle = this,
@@ -208,7 +207,6 @@ namespace Opc.Ua.Client
                 SessionId = null,
                 UserIdentity = null
             };
-#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         /// <summary>
@@ -364,8 +362,8 @@ namespace Opc.Ua.Client
                 Utils.SilentDispose(DefaultSubscription);
                 DefaultSubscription = null;
 
-                Utils.SilentDispose(NodeCache);
-                NodeCache = null;
+                Utils.SilentDispose(m_nodeCache);
+                m_nodeCache = null;
 
                 List<Subscription> subscriptions = null;
                 lock (SyncRoot)
@@ -531,19 +529,18 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the cache of the server's type tree.
         /// </summary>
-        [Obsolete("Use NodeCache interfaces instead.")]
-        public ITypeTable TypeTree => new TypeTableAdapter(NodeCache);
+        public ITypeTable TypeTree => m_nodeCache.TypeTree;
 
         /// <summary>
         /// Gets the cache of nodes fetched from the server.
         /// </summary>
-        public INodeCache NodeCache { get; private set; }
+        public INodeCache NodeCache => m_nodeCache;
 
         /// <summary>
         /// Gets the context to use for filter operations.
         /// </summary>
         public FilterContext FilterContext
-            => new(NamespaceUris, TypeTree, m_preferredLocales);
+            => new(NamespaceUris, m_nodeCache.TypeTree, m_preferredLocales);
 
         /// <summary>
         /// Gets the locales that the server should use when returning localized text.
@@ -4664,6 +4661,7 @@ namespace Opc.Ua.Client
         private List<Subscription> m_subscriptions;
         private uint m_maxRequestMessageSize;
         private SystemContext m_systemContext;
+        private NodeCache m_nodeCache;
         private List<IUserIdentity> m_identityHistory;
         private byte[] m_serverNonce;
         private byte[] m_previousServerNonce;

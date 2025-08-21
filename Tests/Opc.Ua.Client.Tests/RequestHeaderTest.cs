@@ -118,15 +118,13 @@ namespace Opc.Ua.Client.Tests
 
         [Test]
         [Benchmark]
-        public void ReadValuesWithoutTracing()
+        public async Task ReadValuesWithoutTracingAsync()
         {
             NamespaceTable namespaceUris = Session.NamespaceUris;
             var testSet = new NodeIdCollection(GetTestSetStatic(namespaceUris));
             testSet.AddRange(GetTestSetFullSimulation(namespaceUris));
-            Session.ReadValues(
-                testSet,
-                out DataValueCollection values,
-                out IList<ServiceResult> errors);
+            (DataValueCollection values, IList<ServiceResult> errors) =
+                await Session.ReadValuesAsync(testSet).ConfigureAwait(false);
             Assert.AreEqual(testSet.Count, values.Count);
             Assert.AreEqual(testSet.Count, errors.Count);
         }

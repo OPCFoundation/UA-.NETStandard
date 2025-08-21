@@ -247,7 +247,7 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         [Test]
         [Order(500)]
-        public void NodeCacheReferences()
+        public async Task NodeCacheReferencesAsync()
         {
             INodeCache nodeCache = Session.NodeCache;
             Assert.IsNotNull(nodeCache);
@@ -267,28 +267,33 @@ namespace Opc.Ua.Client.Tests
                 TestContext.Out
                     .WriteLine("FindReferenceTypeName({0})={1}", property.Value, property.Key);
                 // find the Qualified Name
-                QualifiedName qn = nodeCache.FindReferenceTypeName(property.Value);
+                QualifiedName qn = await nodeCache.FindReferenceTypeNameAsync(property.Value)
+                    .ConfigureAwait(false);
                 Assert.NotNull(qn);
                 Assert.AreEqual(property.Key, qn.Name);
                 // find the node by name
-                NodeId refId = nodeCache.FindReferenceType(new QualifiedName(property.Key));
+                NodeId refId = await nodeCache.FindReferenceTypeAsync(new QualifiedName(property.Key))
+                    .ConfigureAwait(false);
                 Assert.NotNull(refId);
                 Assert.AreEqual(property.Value, refId);
                 // is the node id known?
-                bool isKnown = nodeCache.IsKnown(property.Value);
+                bool isKnown = await nodeCache.IsKnownAsync(property.Value).ConfigureAwait(false);
                 Assert.IsTrue(isKnown);
                 // is it a reference?
-                bool isTypeOf = nodeCache.IsTypeOf(
+                bool isTypeOf = await nodeCache.IsTypeOfAsync(
                     NodeId.ToExpandedNodeId(refId, Session.NamespaceUris),
-                    NodeId.ToExpandedNodeId(ReferenceTypeIds.References, Session.NamespaceUris));
+                    NodeId.ToExpandedNodeId(ReferenceTypeIds.References, Session.NamespaceUris))
+                    .ConfigureAwait(false);
                 Assert.IsTrue(isTypeOf);
                 // negative test
-                isTypeOf = nodeCache.IsTypeOf(
+                isTypeOf = await nodeCache.IsTypeOfAsync(
                     NodeId.ToExpandedNodeId(refId, Session.NamespaceUris),
-                    NodeId.ToExpandedNodeId(DataTypeIds.Byte, Session.NamespaceUris));
+                    NodeId.ToExpandedNodeId(DataTypeIds.Byte, Session.NamespaceUris))
+                    .ConfigureAwait(false);
                 Assert.IsFalse(isTypeOf);
-                IList<NodeId> subTypes = nodeCache.FindSubTypes(
-                    NodeId.ToExpandedNodeId(refId, Session.NamespaceUris));
+                IList<NodeId> subTypes = await nodeCache.FindSubTypesAsync(
+                    NodeId.ToExpandedNodeId(refId, Session.NamespaceUris))
+                    .ConfigureAwait(false);
                 Assert.NotNull(subTypes);
             }
         }
@@ -554,7 +559,7 @@ namespace Opc.Ua.Client.Tests
                                 result2 = await Session.NodeCache.FetchNodesAsync(testSet3)
                                     .ConfigureAwait(false);
                                 string displayText = await Session.NodeCache.GetDisplayTextAsync(
-                                    result2[0]);
+                                    result2[0]).ConfigureAwait(false);
                                 break;
                             case 3:
                                 _ = await Session
@@ -582,16 +587,16 @@ namespace Opc.Ua.Client.Tests
                                     .ConfigureAwait(false);
                                 break;
                             case 6:
-                                string text = await Session.NodeCache.GetDisplayTextAsync(testSet2[0]);
+                                string text = await Session.NodeCache.GetDisplayTextAsync(testSet2[0]).ConfigureAwait(false);
                                 Assert.NotNull(text);
                                 break;
                             case 7:
                                 var number = new NodeId((int)BuiltInType.Number);
-                                bool isKnown = Session.NodeCache
-                                    .IsKnown(new ExpandedNodeId((int)BuiltInType.Int64));
+                                bool isKnown = await Session.NodeCache
+                                    .IsKnownAsync(new ExpandedNodeId((int)BuiltInType.Int64)).ConfigureAwait(false);
                                 Assert.True(isKnown);
-                                bool isKnown2 = Session.NodeCache
-                                    .IsKnown(TestData.DataTypeIds.ScalarStructureDataType);
+                                bool isKnown2 = await Session.NodeCache
+                                    .IsKnownAsync(TestData.DataTypeIds.ScalarStructureDataType).ConfigureAwait(false);
                                 Assert.True(isKnown2);
                                 NodeId nodeId;
                                 NodeId nodeId2;
@@ -606,27 +611,27 @@ namespace Opc.Ua.Client.Tests
                                     .ConfigureAwait(false);
                                 Assert.AreEqual(DataTypeIds.Structure, nodeId);
                                 Assert.AreEqual(DataTypeIds.Structure, nodeId2);
-                                IList<NodeId> subTypes = Session.NodeCache.FindSubTypes(
-                                    new ExpandedNodeId((int)BuiltInType.Number));
-                                bool isTypeOf = Session.NodeCache.IsTypeOf(
+                                IList<NodeId> subTypes = await Session.NodeCache.FindSubTypesAsync(
+                                    new ExpandedNodeId((int)BuiltInType.Number)).ConfigureAwait(false);
+                                bool isTypeOf = await Session.NodeCache.IsTypeOfAsync(
                                     new ExpandedNodeId((int)BuiltInType.Int32),
-                                    new ExpandedNodeId((int)BuiltInType.Number));
-                                bool isTypeOf2 = Session.NodeCache.IsTypeOf(
+                                    new ExpandedNodeId((int)BuiltInType.Number)).ConfigureAwait(false);
+                                bool isTypeOf2 = await Session.NodeCache.IsTypeOfAsync(
                                     new NodeId((int)BuiltInType.UInt32),
-                                    number);
+                                    number).ConfigureAwait(false);
                                 break;
                             case 8:
-                                bool isEncodingOf = Session.NodeCache.IsEncodingOf(
+                                bool isEncodingOf = await Session.NodeCache.IsEncodingOfAsync(
                                     new ExpandedNodeId((int)BuiltInType.Int32),
-                                    DataTypeIds.Structure);
+                                    DataTypeIds.Structure).ConfigureAwait(false);
                                 Assert.False(isEncodingOf);
-                                bool isEncodingFor = Session.NodeCache.IsEncodingFor(
+                                bool isEncodingFor = await Session.NodeCache.IsEncodingForAsync(
                                     DataTypeIds.Structure,
-                                    new TestData.ScalarStructureDataType());
+                                    new TestData.ScalarStructureDataType()).ConfigureAwait(false);
                                 Assert.True(isEncodingFor);
-                                bool isEncodingFor2 = Session.NodeCache.IsEncodingFor(
+                                bool isEncodingFor2 = await Session.NodeCache.IsEncodingForAsync(
                                     new NodeId((int)BuiltInType.UInt32),
-                                    new NodeId((int)BuiltInType.UInteger));
+                                    new NodeId((int)BuiltInType.UInteger)).ConfigureAwait(false);
                                 Assert.False(isEncodingFor2);
                                 break;
                             case 9:

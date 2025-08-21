@@ -563,7 +563,7 @@ namespace Opc.Ua.Client
                 session.BrowseAsync(
                     requestHeader,
                     view,
-                    new NodeIdCollection { nodeToBrowse },
+                    [nodeToBrowse],
                     maxResultsToReturn,
                     browseDirection,
                     referenceTypeId,

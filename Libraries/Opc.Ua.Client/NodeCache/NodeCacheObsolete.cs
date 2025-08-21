@@ -29,8 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Opc.Ua.Client
 {
@@ -255,6 +253,7 @@ namespace Opc.Ua.Client
             ExpandedNodeId nodeId)
         {
             return nodeCache.FindAsync(nodeId)
+                .AsTask()
                 .GetAwaiter()
                 .GetResult();
         }
@@ -451,116 +450,5 @@ namespace Opc.Ua.Client
                 .GetAwaiter()
                 .GetResult();
         }
-    }
-
-    [Obsolete("Do not use this class as it is just a legacy wrapper")]
-    internal sealed class TypeTableAdapter : ITypeTable
-    {
-        public TypeTableAdapter(INodeCache table)
-        {
-            m_table = table;
-        }
-
-        /// <inheritdoc/>
-        public bool IsKnown(ExpandedNodeId typeId)
-        {
-            return m_table.IsKnown(typeId);
-        }
-
-        /// <inheritdoc/>
-        public bool IsKnown(NodeId typeId)
-        {
-            return m_table.IsKnown(typeId);
-        }
-
-        /// <inheritdoc/>
-        public NodeId FindSuperType(ExpandedNodeId typeId)
-        {
-            return m_table.FindSuperType(typeId);
-        }
-
-        /// <inheritdoc/>
-        public NodeId FindSuperType(NodeId typeId)
-        {
-            return m_table.FindSuperType(typeId);
-        }
-
-        /// <inheritdoc/>
-        public Task<NodeId> FindSuperTypeAsync(
-            ExpandedNodeId typeId,
-            CancellationToken ct = default)
-        {
-            return m_table.FindSuperTypeAsync(typeId, ct).AsTask();
-        }
-
-        /// <inheritdoc/>
-        public Task<NodeId> FindSuperTypeAsync(
-            NodeId typeId,
-            CancellationToken ct = default)
-        {
-            return m_table.FindSuperTypeAsync(typeId, ct).AsTask();
-        }
-
-        /// <inheritdoc/>
-        public IList<NodeId> FindSubTypes(ExpandedNodeId typeId)
-        {
-            return m_table.FindSubTypes(typeId);
-        }
-
-        /// <inheritdoc/>
-        public bool IsTypeOf(ExpandedNodeId subTypeId, ExpandedNodeId superTypeId)
-        {
-            return m_table.IsTypeOf(subTypeId, superTypeId);
-        }
-
-        /// <inheritdoc/>
-        public bool IsTypeOf(NodeId subTypeId, NodeId superTypeId)
-        {
-            return m_table.IsTypeOf(subTypeId, superTypeId);
-        }
-
-        /// <inheritdoc/>
-        public QualifiedName FindReferenceTypeName(NodeId referenceTypeId)
-        {
-            return m_table.FindReferenceTypeName(referenceTypeId);
-        }
-
-        /// <inheritdoc/>
-        public NodeId FindReferenceType(QualifiedName browseName)
-        {
-            return m_table.FindReferenceType(browseName);
-        }
-
-        /// <inheritdoc/>
-        public bool IsEncodingOf(ExpandedNodeId encodingId, ExpandedNodeId datatypeId)
-        {
-            return m_table.IsEncodingOf(encodingId, datatypeId);
-        }
-
-        /// <inheritdoc/>
-        public bool IsEncodingFor(NodeId expectedTypeId, ExtensionObject value)
-        {
-            return m_table.IsEncodingFor(expectedTypeId, value);
-        }
-
-        /// <inheritdoc/>
-        public bool IsEncodingFor(NodeId expectedTypeId, object value)
-        {
-            return m_table.IsEncodingFor(expectedTypeId, value);
-        }
-
-        /// <inheritdoc/>
-        public NodeId FindDataTypeId(ExpandedNodeId encodingId)
-        {
-            return m_table.FindDataTypeId(encodingId);
-        }
-
-        /// <inheritdoc/>
-        public NodeId FindDataTypeId(NodeId encodingId)
-        {
-            return m_table.FindDataTypeId(encodingId);
-        }
-
-        private readonly INodeCache m_table;
     }
 }

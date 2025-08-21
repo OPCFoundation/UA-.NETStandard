@@ -138,7 +138,7 @@ namespace Quickstarts
                     0,
                     TimestampsToReturn.Both,
                     nodesToRead,
-                    ct);
+                    ct).ConfigureAwait(false);
 
                 DataValueCollection resultsValues = response.Results;
                 DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
@@ -245,7 +245,7 @@ namespace Quickstarts
         /// <summary>
         /// Browse Server nodes
         /// </summary>
-        public void Browse(ISession session)
+        public async Task BrowseAsync(ISession session)
         {
             if (session == null || !session.Connected)
             {
@@ -269,7 +269,8 @@ namespace Quickstarts
 
                 // Call Browse service
                 m_output.WriteLine("Browsing {0} node...", nodeToBrowse);
-                ReferenceDescriptionCollection browseResults = browser.Browse(nodeToBrowse);
+                ReferenceDescriptionCollection browseResults =
+                    await browser.BrowseAsync(nodeToBrowse).ConfigureAwait(false);
 
                 // Display the results
                 m_output.WriteLine("Browse returned {0} results:", browseResults.Count);
