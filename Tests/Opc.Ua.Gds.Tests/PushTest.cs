@@ -102,12 +102,15 @@ namespace Opc.Ua.Gds.Tests
         [OneTimeSetUp]
         protected async Task OneTimeSetUpAsync()
         {
+            // Enable trace logging to test context
+            System.IO.TextWriter writer = TestContext.Out;
+            
             // start GDS first clean, then restart server
             // to ensure the application cert is not 'fresh'
-            m_server = await TestUtils.StartGDSAsync(true).ConfigureAwait(false);
+            m_server = await TestUtils.StartGDSAsync(true, CertificateStoreType.Directory, writer).ConfigureAwait(false);
             m_server.StopServer();
             await Task.Delay(1000).ConfigureAwait(false);
-            m_server = await TestUtils.StartGDSAsync(false).ConfigureAwait(false);
+            m_server = await TestUtils.StartGDSAsync(false, CertificateStoreType.Directory, writer).ConfigureAwait(false);
 
             m_randomSource = new RandomSource(kRandomStart);
 
@@ -159,7 +162,8 @@ namespace Opc.Ua.Gds.Tests
         [SetUp]
         protected void SetUp()
         {
-            m_server.ResetLogFile();
+            m_server.SetTraceOutput(TestContext.Out);
+            m_server.SetTraceOutputLevel(Microsoft.Extensions.Logging.LogLevel.Debug);
         }
 
         [TearDown]

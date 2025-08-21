@@ -31,15 +31,18 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database.Linq;
+using Opc.Ua.Server.Tests;
 using Opc.Ua.Server.UserDatabase;
 
 namespace Opc.Ua.Gds.Tests
 {
     public class GlobalDiscoveryTestServer
     {
+        private NUnitTestLogger<GlobalDiscoverySampleServer> m_traceLogger;
         public GlobalDiscoverySampleServer Server { get; private set; }
         public ApplicationInstance Application { get; private set; }
         public ApplicationConfiguration Config { get; private set; }
@@ -53,8 +56,15 @@ namespace Opc.Ua.Gds.Tests
         public async Task StartServerAsync(
             bool clean,
             int basePort = -1,
-            string storeType = CertificateStoreType.Directory)
+            string storeType = CertificateStoreType.Directory,
+            TextWriter writer = null)
         {
+            if (writer != null)
+            {
+                m_traceLogger = NUnitTestLogger<GlobalDiscoverySampleServer>.Create(writer);
+                m_traceLogger.MinimumLogLevel = LogLevel.Debug;
+            }
+
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
 
             string configSectionName = "Opc.Ua.GlobalDiscoveryTestServer";
@@ -185,6 +195,25 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
+        /// <summary>
+        /// Connect the nunit writer with the logger.
+        /// </summary>
+        public void SetTraceOutput(TextWriter writer)
+        {
+            m_traceLogger?.SetWriter(writer);
+        }
+
+        /// <summary>
+        /// Adjust the Log level for the tracer
+        /// </summary>
+        public void SetTraceOutputLevel(LogLevel logLevel = LogLevel.Debug)
+        {
+            if (m_traceLogger != null)
+            {
+                m_traceLogger.MinimumLogLevel = logLevel;
+            }
+        }
+
         public string ReadLogFile()
         {
             return File.ReadAllText(
@@ -228,7 +257,7 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        private static async Task<ApplicationConfiguration> LoadAsync(
+        private async Task<ApplicationConfiguration> LoadAsync(
             ApplicationInstance application,
             int basePort)
         {

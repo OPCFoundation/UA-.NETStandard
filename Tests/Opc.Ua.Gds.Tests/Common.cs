@@ -408,7 +408,8 @@ namespace Opc.Ua.Gds.Tests
 
         public static async Task<GlobalDiscoveryTestServer> StartGDSAsync(
             bool clean,
-            string storeType = CertificateStoreType.Directory)
+            string storeType = CertificateStoreType.Directory,
+            TextWriter writer = null)
         {
             GlobalDiscoveryTestServer server = null;
             int testPort = ServerFixtureUtils.GetNextFreeIPPort();
@@ -419,7 +420,7 @@ namespace Opc.Ua.Gds.Tests
                 try
                 {
                     server = new GlobalDiscoveryTestServer(true);
-                    await server.StartServerAsync(clean, testPort, storeType).ConfigureAwait(false);
+                    await server.StartServerAsync(clean, testPort, storeType, writer).ConfigureAwait(false);
                 }
                 catch (ServiceResultException sre)
                 {

@@ -56,10 +56,7 @@ namespace Opc.Ua.Server.Tests
         public bool AllNodeManagers { get; set; }
 
         public int TraceMasks { get; set; } =
-            Utils.TraceMasks.Error |
-            Utils.TraceMasks.StackTrace |
-            Utils.TraceMasks.Security |
-            Utils.TraceMasks.Information;
+            Utils.TraceMasks.All;
 
         public bool SecurityNone { get; set; }
         public string UriScheme { get; set; } = Utils.UriSchemeOpcTcp;
