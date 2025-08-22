@@ -828,7 +828,6 @@ namespace Opc.Ua.Client.Tests
             theSession.ServerMaxContinuationPointsPerBrowse = pass2ExpectedResults
                 .InputMaxNumberOfContinuationPoints;
 
-
             ByteStringCollection continuationPoints2ndBrowse;
             IList<ReferenceDescriptionCollection> referenceDescriptionCollections2ndBrowse;
             IList<ServiceResult> errors2ndBrowse;

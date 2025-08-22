@@ -589,6 +589,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Reads the value for a node of type T or throws if not matching the type.
         /// </summary>
+        /// <typeparam name="T"></typeparam>
         /// <param name="nodeId">The node Id.</param>
         /// <param name="ct">The cancellation token for the request.</param>
         Task<T> ReadValueAsync<T>(NodeId nodeId, CancellationToken ct = default);

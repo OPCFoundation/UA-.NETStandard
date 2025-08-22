@@ -122,7 +122,8 @@ namespace Opc.Ua.Client
                     browseDirection,
                     referenceTypeId,
                     includeSubtypes,
-                    nodeClassMask).ConfigureAwait(false);
+                    nodeClassMask,
+                    ct).ConfigureAwait(false);
 
             Debug.Assert(errors.Count <= 1);
             if (errors.Count > 0 && StatusCode.IsBad(errors[0].StatusCode))
@@ -156,10 +157,7 @@ namespace Opc.Ua.Client
 
             ByteStringCollection revisedContinuationPoints;
             (responseHeader, revisedContinuationPoints, referencesList, errors) =
-                await session.BrowseNextAsync(
-                    requestHeader,
-                    [continuationPoint],
-                    releaseContinuationPoint).ConfigureAwait(false);
+                await session.BrowseNextAsync(requestHeader, [continuationPoint], releaseContinuationPoint, ct).ConfigureAwait(false);
             Debug.Assert(errors.Count <= 1);
             if (errors.Count > 0 && StatusCode.IsBad(errors[0].StatusCode))
             {

@@ -157,8 +157,7 @@ namespace Quickstarts
 
                 // Read Server NamespaceArray
                 m_output.WriteLine("Reading Value of NamespaceArray node...");
-                DataValue namespaceArray = await session.ReadValueAsync(
-                    Variables.Server_NamespaceArray).ConfigureAwait(false);
+                DataValue namespaceArray = await session.ReadValueAsync(Variables.Server_NamespaceArray, ct).ConfigureAwait(false);
                 // Display the result
                 m_output.WriteLine($"NamespaceArray Value = {namespaceArray}");
             }
@@ -245,7 +244,7 @@ namespace Quickstarts
         /// <summary>
         /// Browse Server nodes
         /// </summary>
-        public async Task BrowseAsync(ISession session)
+        public async Task BrowseAsync(ISession session, CancellationToken ct = default)
         {
             if (session == null || !session.Connected)
             {
@@ -270,7 +269,7 @@ namespace Quickstarts
                 // Call Browse service
                 m_output.WriteLine("Browsing {0} node...", nodeToBrowse);
                 ReferenceDescriptionCollection browseResults =
-                    await browser.BrowseAsync(nodeToBrowse).ConfigureAwait(false);
+                    await browser.BrowseAsync(nodeToBrowse, ct).ConfigureAwait(false);
 
                 // Display the results
                 m_output.WriteLine("Browse returned {0} results:", browseResults.Count);
@@ -434,7 +433,7 @@ namespace Quickstarts
                 session.AddSubscription(subscription);
 
                 // Create the subscription on Server side
-                await subscription.CreateAsync().ConfigureAwait(false);
+                await subscription.CreateAsync(ct).ConfigureAwait(false);
                 m_output.WriteLine(
                     "New Subscription created with SubscriptionId = {0}, Sampling Interval {1}, Publishing Interval {2}.",
                     subscription.Id,
@@ -444,7 +443,7 @@ namespace Quickstarts
                 if (enableDurableSubscriptions)
                 {
                     (bool success, uint revisedLifetimeInHours) =
-                        await subscription.SetSubscriptionDurableAsync(1).ConfigureAwait(false);
+                        await subscription.SetSubscriptionDurableAsync(1, ct).ConfigureAwait(false);
                     if (success)
                     {
                         isDurable = true;
@@ -550,7 +549,7 @@ namespace Quickstarts
                 subscription.AddItem(eventMonitoredItem);
 
                 // Create the monitored items on Server side
-                await subscription.ApplyChangesAsync().ConfigureAwait(false);
+                await subscription.ApplyChangesAsync(ct).ConfigureAwait(false);
                 m_output.WriteLine(
                     "MonitoredItems created for SubscriptionId = {0}.",
                     subscription.Id);
@@ -593,13 +592,13 @@ namespace Quickstarts
             {
                 // clear NodeCache to fetch all nodes from server
                 uaClient.Session.NodeCache.Clear();
-                await FetchReferenceIdTypesAsync(uaClient.Session).ConfigureAwait(false);
+                await FetchReferenceIdTypesAsync(uaClient.Session, ct).ConfigureAwait(false);
             }
 
             // add root node
             if (addRootNode)
             {
-                INode rootNode = await uaClient.Session.NodeCache.FindAsync(startingNode)
+                INode rootNode = await uaClient.Session.NodeCache.FindAsync(startingNode, ct)
                     .ConfigureAwait(false);
                 nodeDictionary[rootNode.NodeId] = rootNode;
             }
@@ -620,7 +619,7 @@ namespace Quickstarts
                     nodesToBrowse.Count,
                     stopwatch.ElapsedMilliseconds);
                 IList<INode> response = await uaClient
-                    .Session.NodeCache.FindReferencesAsync(nodesToBrowse, references, false, true)
+                    .Session.NodeCache.FindReferencesAsync(nodesToBrowse, references, false, true, ct)
                     .ConfigureAwait(false);
 
                 var nextNodesToBrowse = new ExpandedNodeIdCollection();
@@ -1125,7 +1124,7 @@ namespace Quickstarts
             stopWatch.Start();
 
             var complexTypeSystem = new ComplexTypeSystem(session);
-            await complexTypeSystem.LoadAsync().ConfigureAwait(false);
+            await complexTypeSystem.LoadAsync(ct: ct).ConfigureAwait(false);
 
             stopWatch.Stop();
 
@@ -1182,7 +1181,7 @@ namespace Quickstarts
                 .GetFields(bindingFlags)
                 .Select(
                     field => NodeId.ToExpandedNodeId((NodeId)field.GetValue(null), namespaceUris));
-            return session.FetchTypeTreeAsync([.. referenceTypes]);
+            return session.FetchTypeTreeAsync([.. referenceTypes], ct);
         }
 
         /// <summary>
@@ -1212,7 +1211,7 @@ namespace Quickstarts
                             {
                                 m_output.WriteLine("Read {0}", variableId);
                                 DataValue value = await uaClient
-                                    .Session.ReadValueAsync(variableId)
+                                    .Session.ReadValueAsync(variableId, ct)
                                     .ConfigureAwait(false);
                                 values.Add(value);
                                 errors.Add(value.StatusCode);
@@ -1241,7 +1240,7 @@ namespace Quickstarts
                     }
                     else
                     {
-                        (values, errors) = await uaClient.Session.ReadValuesAsync(variableIds)
+                        (values, errors) = await uaClient.Session.ReadValuesAsync(variableIds, ct)
                             .ConfigureAwait(false);
 
                         int ii = 0;
@@ -1328,7 +1327,7 @@ namespace Quickstarts
                 session.AddSubscription(subscription);
 
                 // Create the subscription on Server side
-                await subscription.CreateAsync().ConfigureAwait(false);
+                await subscription.CreateAsync(ct).ConfigureAwait(false);
                 m_output.WriteLine(
                     "New Subscription created with SubscriptionId = {0}.",
                     subscription.Id);
@@ -1354,7 +1353,7 @@ namespace Quickstarts
                 }
 
                 // Create the monitored items on Server side
-                await subscription.ApplyChangesAsync().ConfigureAwait(false);
+                await subscription.ApplyChangesAsync(ct).ConfigureAwait(false);
                 m_output.WriteLine(
                     "MonitoredItems {0} created for SubscriptionId = {1}.",
                     subscription.MonitoredItemCount,

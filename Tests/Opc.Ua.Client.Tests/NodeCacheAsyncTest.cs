@@ -165,8 +165,7 @@ namespace Opc.Ua.Client.Tests
                 {
                     try
                     {
-                        IList<INode> organizers;
-                        organizers = await Session
+                        IList<INode> organizers = await Session
                             .NodeCache.FindReferencesAsync(
                                 node,
                                 ReferenceTypeIds.HierarchicalReferences,
@@ -213,8 +212,7 @@ namespace Opc.Ua.Client.Tests
                 var nextNodesToBrowse = new ExpandedNodeIdCollection();
                 try
                 {
-                    IList<INode> organizers;
-                    organizers = await Session
+                    IList<INode> organizers = await Session
                         .NodeCache.FindReferencesAsync(
                             nodesToBrowse,
                             referenceTypeIds,
@@ -328,8 +326,7 @@ namespace Opc.Ua.Client.Tests
             foreach (ReferenceDescription reference in ReferenceDescriptions.Take(MaxReferences))
             {
                 var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
-                INode node;
-                node = await Session.NodeCache.FetchNodeAsync(reference.NodeId)
+                INode node = await Session.NodeCache.FetchNodeAsync(reference.NodeId)
                     .ConfigureAwait(false);
                 TestContext.Out.WriteLine("NodeId: {0} Node: {1}", nodeId, node);
             }
@@ -345,8 +342,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             var testSet = ReferenceDescriptions.Take(MaxReferences).Select(r => r.NodeId).ToList();
-            IList<Node> nodeCollection;
-            nodeCollection = await Session.NodeCache.FetchNodesAsync(testSet)
+            IList<Node> nodeCollection = await Session.NodeCache.FetchNodesAsync(testSet)
                 .ConfigureAwait(false);
             foreach (Node node in nodeCollection)
             {
@@ -365,8 +361,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             var testSet = ReferenceDescriptions.Take(MaxReferences).Select(r => r.NodeId).ToList();
-            IList<INode> nodes;
-            nodes = await Session
+            IList<INode> nodes = await Session
                 .NodeCache.FindReferencesAsync(
                     testSet,
                     [ReferenceTypeIds.NonHierarchicalReferences],
@@ -430,8 +425,7 @@ namespace Opc.Ua.Client.Tests
             // test concurrent access of FetchNodes
             for (int i = 0; i < 10; i++)
             {
-                Task t;
-                t = Session.NodeCache.FetchNodesAsync(testSet);
+                Task t = Session.NodeCache.FetchNodesAsync(testSet);
                 taskList.Add(t);
             }
 
@@ -461,8 +455,7 @@ namespace Opc.Ua.Client.Tests
             // test concurrent access of FetchNodes
             for (int i = 0; i < 10; i++)
             {
-                Task t;
-                t = Session.NodeCache.FindAsync(testSet);
+                Task t = Session.NodeCache.FindAsync(testSet);
                 taskList.Add(t);
             }
             await Task.WhenAll([.. taskList]).ConfigureAwait(false);
@@ -494,8 +487,7 @@ namespace Opc.Ua.Client.Tests
             // test concurrent access of FetchNodes
             for (int i = 0; i < 10; i++)
             {
-                Task t;
-                t = Session.NodeCache.FindReferencesAsync(testSet, refTypeIds, false, true);
+                Task t = Session.NodeCache.FindReferencesAsync(testSet, refTypeIds, false, true);
                 taskList.Add(t);
             }
             await Task.WhenAll([.. taskList]).ConfigureAwait(false);
@@ -555,8 +547,7 @@ namespace Opc.Ua.Client.Tests
                                     .ConfigureAwait(false);
                                 break;
                             case 2:
-                                IList<Node> result2;
-                                result2 = await Session.NodeCache.FetchNodesAsync(testSet3)
+                                IList<Node> result2 = await Session.NodeCache.FetchNodesAsync(testSet3)
                                     .ConfigureAwait(false);
                                 string displayText = await Session.NodeCache.GetDisplayTextAsync(
                                     result2[0]).ConfigureAwait(false);
@@ -571,8 +562,7 @@ namespace Opc.Ua.Client.Tests
                                     .ConfigureAwait(false);
                                 break;
                             case 4:
-                                INode result4;
-                                result4 = await Session.NodeCache.FindAsync(testSet2[0])
+                                INode result4 = await Session.NodeCache.FindAsync(testSet2[0])
                                     .ConfigureAwait(false);
                                 Assert.NotNull(result4);
                                 Assert.True(result4 is VariableNode);

@@ -40,7 +40,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// An implementation of a client side nodecache.
     /// </summary>
-    public partial class NodeCache : INodeCache, IDisposable
+    public class NodeCache : INodeCache, IDisposable
     {
         /// <summary>
         /// Initializes the object with default values.
@@ -302,7 +302,7 @@ namespace Opc.Ua.Client
             var hits = new List<INode>();
 
             // find the source.
-            if (await FindAsync(sourceId).ConfigureAwait(false)
+            if (await FindAsync(sourceId, ct).ConfigureAwait(false)
                 is not Node source)
             {
                 return hits;
@@ -801,8 +801,8 @@ namespace Opc.Ua.Client
                     return true;
                 }
 
-                supertype = await FindAsync(currentId, ct).ConfigureAwait(false)
-                    as ILocalNode;
+                supertype = await FindAsync(currentId, ct).ConfigureAwait(false) as
+                    ILocalNode;
             }
 
             return false;

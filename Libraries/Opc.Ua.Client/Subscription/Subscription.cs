@@ -1100,7 +1100,6 @@ namespace Opc.Ua.Client
             }
         }
 
-
         /// <summary>
         /// Call the ResendData method on the server for this subscription.
         /// </summary>
@@ -1119,7 +1118,6 @@ namespace Opc.Ua.Client
             }
             return false;
         }
-
 
         /// <summary>
         /// Call the GetMonitoredItems method on the server.

@@ -194,6 +194,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Reads the value for a node an checks that it is the specified type.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         [Obsolete("Use ReadValueAsync instead.")]
         public static object ReadValue(this ISession session, NodeId nodeId, Type expectedType)
         {

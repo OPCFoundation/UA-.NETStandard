@@ -216,7 +216,6 @@ namespace Opc.Ua.Client
             CancellationToken ct = default);
     }
 
-
     /// <summary>
     /// Type table adapter for synchronous access to the table.
     /// We need to keep the sync interface for now as it is shared
@@ -376,5 +375,4 @@ namespace Opc.Ua.Client
 
         private readonly IAsyncTypeTable m_table;
     }
-
 }
