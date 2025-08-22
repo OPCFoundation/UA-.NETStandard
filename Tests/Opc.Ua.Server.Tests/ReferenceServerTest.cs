@@ -49,7 +49,7 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
-    [Timeout(600_000)]
+    [CancelAfter(600_000)]
     public class ReferenceServerTests
     {
         private const double kMaxAge = 10000;
