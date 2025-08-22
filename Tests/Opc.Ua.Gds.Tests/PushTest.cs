@@ -28,7 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -54,38 +56,51 @@ namespace Opc.Ua.Gds.Tests
     public class PushTest
     {
         /// <summary>
-        /// CertificateTypes to run the Test with
+        /// CertificateTypes to run the Test with.
+        /// For ECC types, the additional fourth element is the expected curve friendly name.
         /// </summary>
         public static readonly object[] FixtureArgs =
         [
             new object[]
             {
                 nameof(OpcUa.ObjectTypeIds.RsaSha256ApplicationCertificateType),
-                OpcUa.ObjectTypeIds.RsaSha256ApplicationCertificateType
+                OpcUa.ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                SecurityPolicies.Aes256_Sha256_RsaPss,
+                null
             },
+#if ECC_SUPPORT
             new object[]
             {
                 nameof(OpcUa.ObjectTypeIds.EccNistP256ApplicationCertificateType),
-                OpcUa.ObjectTypeIds.EccNistP256ApplicationCertificateType
+                OpcUa.ObjectTypeIds.EccNistP256ApplicationCertificateType,
+                SecurityPolicies.ECC_nistP256,
+                ECCurve.NamedCurves.nistP256
             },
             new object[]
             {
                 nameof(OpcUa.ObjectTypeIds.EccNistP384ApplicationCertificateType),
-                OpcUa.ObjectTypeIds.EccNistP384ApplicationCertificateType
+                OpcUa.ObjectTypeIds.EccNistP384ApplicationCertificateType,
+                SecurityPolicies.ECC_nistP384,
+                ECCurve.NamedCurves.nistP384
             },
             new object[]
             {
                 nameof(OpcUa.ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType),
-                OpcUa.ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType
+                OpcUa.ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType,
+                SecurityPolicies.ECC_brainpoolP256r1,
+                ECCurve.NamedCurves.brainpoolP256r1
             },
             new object[]
             {
                 nameof(OpcUa.ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType),
-                OpcUa.ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType
+                OpcUa.ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType,
+                SecurityPolicies.ECC_brainpoolP384r1,
+                ECCurve.NamedCurves.brainpoolP384r1
             }
+#endif
         ];
 
-        public PushTest(string certificateTypeString, NodeId certificateType)
+        public PushTest(string certificateTypeString, NodeId certificateType, string securityPolicyUri, ECCurve? curve)
         {
             if (!Utils.IsSupportedCertificateType(certificateType))
             {
@@ -93,7 +108,48 @@ namespace Opc.Ua.Gds.Tests
                     $"Certificate type {certificateTypeString} is not supported on this platform.");
             }
 
+            // Skip brainpool curves on Mac OS
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) &&
+                (securityPolicyUri == SecurityPolicies.ECC_brainpoolP256r1 || securityPolicyUri == SecurityPolicies.ECC_brainpoolP384r1))
+            {
+                NUnit.Framework.Assert.Ignore("Brainpool curve is not supported on Mac OS.");
+            }
+
+            // If a curve name is provided, perform extra check if ecc is supported
+            if (curve != null && !IsCurveSupported(curve.Value))
+            {
+                NUnit.Framework.Assert.Ignore("ECC curve is not supported on this platform.");
+            }
+
+            m_certificateTypeString = certificateTypeString;
             m_certificateType = certificateType;
+            m_securityPolicyUri = securityPolicyUri;
+        }
+
+        private static bool IsCurveSupported(ECCurve curve)
+        {
+            ECDsa key = null;
+            try
+            {
+                key = ECDsa.Create(curve);
+            }
+            catch
+            {
+                return false;
+            }
+            finally
+            {
+                Utils.SilentDispose(key);
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Overrides ToString to display active certificate type in Test Explorer.
+        /// </summary>
+        public override string ToString()
+        {
+            return $"{nameof(PushTest)} [{m_certificateTypeString}]";
         }
 
         /// <summary>
@@ -121,7 +177,8 @@ namespace Opc.Ua.Gds.Tests
             // connect once
             await m_gdsClient.GDSClient.ConnectAsync(m_gdsClient.GDSClient.EndpointUrl)
                 .ConfigureAwait(false);
-            await m_pushClient.PushClient.ConnectAsync(m_pushClient.PushClient.EndpointUrl)
+
+            await m_pushClient.ConnectAsync(m_securityPolicyUri)
                 .ConfigureAwait(false);
 
             await ConnectGDSClientAsync(true).ConfigureAwait(false);
@@ -182,7 +239,7 @@ namespace Opc.Ua.Gds.Tests
         [Order(100)]
         public async Task GetSupportedKeyFormatsAsync()
         {
-            ConnectPushClient(true);
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
             string[] keyFormats = await m_pushClient.PushClient.GetSupportedKeyFormatsAsync().ConfigureAwait(false);
             Assert.IsNotNull(keyFormats);
         }
@@ -191,7 +248,7 @@ namespace Opc.Ua.Gds.Tests
         [Order(200)]
         public async Task ReadTrustListAsync()
         {
-            ConnectPushClient(true);
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
             TrustListDataType allTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
             Assert.IsNotNull(allTrustList);
             Assert.IsNotNull(allTrustList.IssuerCertificates);
@@ -242,7 +299,7 @@ namespace Opc.Ua.Gds.Tests
         [Order(300)]
         public async Task UpdateTrustListAsync()
         {
-            ConnectPushClient(true);
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
             TrustListDataType fullTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
             TrustListDataType emptyTrustList = await m_pushClient.PushClient
                 .ReadTrustListAsync(TrustListMasks.None).ConfigureAwait(false);
@@ -267,7 +324,7 @@ namespace Opc.Ua.Gds.Tests
             using X509Certificate2 issuerCert = CertificateFactory
                 .CreateCertificate("uri:x:y:z", "IssuerCert", "CN=Push Server Test", null)
                 .CreateForRSA();
-            ConnectPushClient(true);
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
             TrustListDataType beforeTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
             await m_pushClient.PushClient.AddCertificateAsync(trustedCert, true).ConfigureAwait(false);
             await m_pushClient.PushClient.AddCertificateAsync(issuerCert, false).ConfigureAwait(false);
@@ -289,7 +346,7 @@ namespace Opc.Ua.Gds.Tests
         [Order(302)]
         public async Task AddRemoveCATrustedCertAsync()
         {
-            ConnectPushClient(true);
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
             TrustListDataType beforeTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
             await m_pushClient.PushClient.AddCertificateAsync(m_caCert, true).ConfigureAwait(false);
             TrustListDataType afterAddTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
@@ -316,7 +373,7 @@ namespace Opc.Ua.Gds.Tests
         [Order(303)]
         public async Task AddRemoveCAIssuerCertAsync()
         {
-            ConnectPushClient(true);
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
             TrustListDataType beforeTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
             await m_pushClient.PushClient.AddCertificateAsync(m_caCert, false).ConfigureAwait(false);
             TrustListDataType afterAddTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
@@ -339,7 +396,7 @@ namespace Opc.Ua.Gds.Tests
         [Order(400)]
         public async Task CreateSigningRequestBadParmsAsync()
         {
-            ConnectPushClient(true);
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
             var invalidCertGroup = new NodeId(333);
             var invalidCertType = new NodeId(Guid.NewGuid());
             await NUnit.Framework.Assert.ThatAsync(
@@ -364,7 +421,7 @@ namespace Opc.Ua.Gds.Tests
         [Order(401)]
         public async Task CreateSigningRequestNullParmsAsync()
         {
-            ConnectPushClient(true);
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
             byte[] csr = await m_pushClient.PushClient
                 .CreateSigningRequestAsync(null, m_certificateType, null, false, null).ConfigureAwait(false);
             Assert.IsNotNull(csr);
@@ -378,7 +435,7 @@ namespace Opc.Ua.Gds.Tests
             NUnit.Framework.Assert
                 .Ignore("SHA1 not supported on .NET Standard 2.1 and .NET 5.0 or greater");
 #endif
-            ConnectPushClient(true);
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
             await NUnit.Framework.Assert.ThatAsync(
                 () =>
                     m_pushClient.PushClient.CreateSigningRequestAsync(
@@ -395,7 +452,7 @@ namespace Opc.Ua.Gds.Tests
         [Order(409)]
         public async Task CreateSigningRequestAllParmsAsync()
         {
-            ConnectPushClient(true);
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
             byte[] nonce = [];
             byte[] csr = await m_pushClient.PushClient.CreateSigningRequestAsync(
                 m_pushClient.PushClient.DefaultApplicationGroup,
@@ -410,7 +467,7 @@ namespace Opc.Ua.Gds.Tests
         [Order(410)]
         public async Task CreateSigningRequestNullParmsWithNewPrivateKeyAsync()
         {
-            ConnectPushClient(true);
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
             byte[] csr = await m_pushClient.PushClient.CreateSigningRequestAsync(
                 null,
                 m_certificateType,
@@ -424,7 +481,7 @@ namespace Opc.Ua.Gds.Tests
         [Order(419)]
         public async Task CreateSigningRequestAllParmsWithNewPrivateKeyAsync()
         {
-            ConnectPushClient(true);
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
             byte[] nonce = new byte[32];
             m_randomSource.NextBytes(nonce, 0, nonce.Length);
             byte[] csr = await m_pushClient.PushClient.CreateSigningRequestAsync(
@@ -440,7 +497,7 @@ namespace Opc.Ua.Gds.Tests
         [Order(500)]
         public async Task UpdateCertificateSelfSignedNoPrivateKeyAssertsAsync()
         {
-            ConnectPushClient(true);
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
             using X509Certificate2 invalidCert = CertificateFactory
                 .CreateCertificate("uri:x:y:z", "TestApp", "CN=Push Server Test", null)
                 .CreateForRSA();
@@ -571,7 +628,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 NUnit.Framework.Assert.Ignore("Test only supported for RSA");
             }
-            ConnectPushClient(true);
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
             using X509Certificate2 serverCert = X509CertificateLoader.LoadCertificate(
                 m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
             if (!X509Utils.CompareDistinguishedName(serverCert.Subject, serverCert.Issuer))
@@ -608,7 +665,7 @@ namespace Opc.Ua.Gds.Tests
 
         public async Task UpdateCertificateCASignedAsync(bool regeneratePrivateKey)
         {
-            ConnectPushClient(true);
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
             await ConnectGDSClientAsync(true).ConfigureAwait(false);
             TestContext.Out.WriteLine("Create Signing Request");
             byte[] csr = await m_pushClient.PushClient.CreateSigningRequestAsync(
@@ -691,7 +748,7 @@ namespace Opc.Ua.Gds.Tests
 
         public async Task UpdateCertificateSelfSignedAsync(string keyFormat)
         {
-            ConnectPushClient(true);
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
             string[] keyFormats = await m_pushClient.PushClient.GetSupportedKeyFormatsAsync().ConfigureAwait(false);
             if (!keyFormats.Contains(keyFormat))
             {
@@ -777,7 +834,7 @@ namespace Opc.Ua.Gds.Tests
 
         public async Task UpdateCertificateWithNewKeyPairAsync(string keyFormat)
         {
-            ConnectPushClient(true);
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
             string[] keyFormats = await m_pushClient.PushClient.GetSupportedKeyFormatsAsync().ConfigureAwait(false);
             if (!keyFormats.Contains(keyFormat))
             {
@@ -844,7 +901,7 @@ namespace Opc.Ua.Gds.Tests
         [Order(600)]
         public async Task GetRejectedListAsync()
         {
-            ConnectPushClient(true);
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
             X509Certificate2Collection collection = await m_pushClient.PushClient.GetRejectedListAsync().ConfigureAwait(false);
             Assert.NotNull(collection);
         }
@@ -853,7 +910,7 @@ namespace Opc.Ua.Gds.Tests
         [Order(610)]
         public async Task GetCertificatesAsync()
         {
-            ConnectPushClient(true);
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
 
             await NUnit.Framework.Assert.ThatAsync(
                 () => m_pushClient.PushClient.GetCertificatesAsync(null),
@@ -872,7 +929,7 @@ namespace Opc.Ua.Gds.Tests
         [Order(700)]
         public async Task ApplyChangesAsync()
         {
-            ConnectPushClient(true);
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
             await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
         }
 
@@ -880,7 +937,7 @@ namespace Opc.Ua.Gds.Tests
         [Order(800)]
         public async Task VerifyNoUserAccessAsync()
         {
-            ConnectPushClient(false);
+            await ConnectPushClientAsync(false).ConfigureAwait(false);
             await NUnit.Framework.Assert.ThatAsync(() => m_pushClient.PushClient.ApplyChangesAsync(), Throws.Exception).ConfigureAwait(false);
             await NUnit.Framework.Assert.ThatAsync(() => m_pushClient.PushClient.GetRejectedListAsync(), Throws.Exception).ConfigureAwait(false);
             await NUnit.Framework.Assert.ThatAsync(
@@ -904,15 +961,14 @@ namespace Opc.Ua.Gds.Tests
                 .ThatAsync(() => m_pushClient.PushClient.ReadTrustListAsync(), Throws.Exception).ConfigureAwait(false);
         }
 
-        private void ConnectPushClient(
+        private async Task ConnectPushClientAsync(
             bool sysAdmin,
             [System.Runtime.CompilerServices.CallerMemberName] string memberName = "")
         {
             m_pushClient.PushClient.AdminCredentials = sysAdmin
                 ? m_pushClient.SysAdminUser
                 : m_pushClient.AppUser;
-            m_pushClient.PushClient.ConnectAsync(m_pushClient.PushClient.EndpointUrl).GetAwaiter()
-                .GetResult();
+            await m_pushClient.ConnectAsync(m_securityPolicyUri).ConfigureAwait(false);
             TestContext.Progress.WriteLine($"GDS Push({sysAdmin}) Connected -- {memberName}");
         }
 
@@ -984,20 +1040,38 @@ namespace Opc.Ua.Gds.Tests
         private async Task VerifyNewPushServerCertAsync(byte[] certificateBlob)
         {
             await DisconnectPushClientAsync().ConfigureAwait(false);
-            Thread.Sleep(10000);
-            m_gdsClient.GDSClient.ConnectAsync(m_gdsClient.GDSClient.EndpointUrl).GetAwaiter()
-                .GetResult();
-            m_pushClient.PushClient.ConnectAsync(m_pushClient.PushClient.EndpointUrl).GetAwaiter()
-                .GetResult();
-            // compare leaf certificates, ServerCertificate might be a chain if sendCertChain is set
-            X509Certificate2 serverCertificate = Utils.ParseCertificateBlob(
-                m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
-            //validation currently only works for RSA certificates
-            if (m_certificateType == OpcUa.ObjectTypeIds.RsaSha256ApplicationCertificateType)
+
+            const int maxWaitSeconds = 10;
+            const int retryIntervalMs = 2000;
+            var stopwatch = Stopwatch.StartNew();
+            while (stopwatch.Elapsed.TotalSeconds < maxWaitSeconds)
             {
-                Assert.AreEqual(certificateBlob, serverCertificate.RawData,
-                    "New Server Certificate needs to be equal to Certificate pushed by the GDS");
+                try
+                {
+                    await m_gdsClient.GDSClient.ConnectAsync(m_gdsClient.GDSClient.EndpointUrl).ConfigureAwait(false);
+                    await m_pushClient.ConnectAsync(m_securityPolicyUri).ConfigureAwait(false);
+
+                    X509Certificate2 serverCertificate = Utils.ParseCertificateBlob(
+                        m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
+
+                    if (Utils.IsEqual(serverCertificate.RawData, certificateBlob))
+                    {
+                        // Success, exit early
+                        return;
+                    }
+
+                    await DisconnectPushClientAsync().ConfigureAwait(false);
+                    await Task.Delay(retryIntervalMs).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Utils.LogError(ex, "Failure while verifying new Push Server certificate.");
+                }
+
             }
+
+            Assert.Fail("Server certificate did not match with the Certificate pushed by " +
+                "the GDS within the allowed time.");
         }
 
         private static async Task<bool> AddTrustListToStoreAsync(
@@ -1234,6 +1308,8 @@ namespace Opc.Ua.Gds.Tests
         private X509Certificate2 m_selfSignedServerCert;
         private string[] m_domainNames;
         private X509Certificate2 m_caCert;
+        private readonly string m_certificateTypeString;
         private readonly NodeId m_certificateType;
+        private readonly string m_securityPolicyUri;
     }
 }

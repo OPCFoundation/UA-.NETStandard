@@ -283,8 +283,8 @@ namespace Opc.Ua.Server
             m_serverConfigurationNode.UpdateCertificate.OnCallAsync
                 = new UpdateCertificateMethodStateMethodAsyncCallHandler(
                 UpdateCertificateAsync);
-            m_serverConfigurationNode.CreateSigningRequest.OnCall =
-                new CreateSigningRequestMethodStateMethodCallHandler(CreateSigningRequest);
+            m_serverConfigurationNode.CreateSigningRequest.OnCallAsync =
+                new CreateSigningRequestMethodStateMethodAsyncCallHandler(CreateSigningRequestAsync);
             m_serverConfigurationNode.ApplyChanges.OnCallMethod2
                 = new GenericMethodCalledEventHandler2(ApplyChanges);
             m_serverConfigurationNode.GetRejectedList.OnCall
@@ -599,13 +599,12 @@ namespace Opc.Ua.Server
                             }
                             else
                             {
-                                X509Certificate2 certWithPrivateKey = existingCertIdentifier
+                                X509Certificate2 certWithPrivateKey = await existingCertIdentifier
                                     .LoadPrivateKeyExAsync(
                                         passwordProvider,
                                         m_configuration.ApplicationUri,
                                         cancellation)
-                                    .GetAwaiter()
-                                    .GetResult();
+                                    .ConfigureAwait(false);
                                 exportableKey = X509Utils.CreateCopyWithPrivateKey(
                                     certWithPrivateKey,
                                     false);
@@ -774,7 +773,7 @@ namespace Opc.Ua.Server
             };
         }
 
-        private ServiceResult CreateSigningRequest(
+        private async ValueTask<CreateSigningRequestMethodStateResult> CreateSigningRequestAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -783,7 +782,7 @@ namespace Opc.Ua.Server
             string subjectName,
             bool regeneratePrivateKey,
             byte[] nonce,
-            ref byte[] certificateRequest)
+            CancellationToken cancellationToken)
         {
             HasApplicationSecureAdminAccess(context);
 
@@ -818,10 +817,11 @@ namespace Opc.Ua.Server
                 ICertificatePasswordProvider passwordProvider = m_configuration
                     .SecurityConfiguration
                     .CertificatePasswordProvider;
-                certWithPrivateKey = existingCertIdentifier
-                    .LoadPrivateKeyExAsync(passwordProvider, m_configuration.ApplicationUri)
-                    .GetAwaiter()
-                    .GetResult();
+                certWithPrivateKey = await existingCertIdentifier
+                    .LoadPrivateKeyExAsync(passwordProvider,
+                                           m_configuration.ApplicationUri,
+                                           cancellationToken)
+                    .ConfigureAwait(false);
 
                 if (certWithPrivateKey == null)
                 {
@@ -833,11 +833,15 @@ namespace Opc.Ua.Server
                 Utils.TraceMasks.Security,
                 "Create signing request: ",
                 certWithPrivateKey);
-            certificateRequest = CertificateFactory.CreateSigningRequest(
+            byte[] certificateRequest = CertificateFactory.CreateSigningRequest(
                 certWithPrivateKey,
                 X509Utils.GetDomainsFromCertificate(certWithPrivateKey));
 
-            return ServiceResult.Good;
+            return new CreateSigningRequestMethodStateResult
+            {
+                ServiceResult = ServiceResult.Good,
+                CertificateRequest = certificateRequest
+            };
         }
 
         private X509Certificate2 GenerateTemporaryApplicationCertificate(
