@@ -157,7 +157,8 @@ namespace Quickstarts
 
                 // Read Server NamespaceArray
                 m_output.WriteLine("Reading Value of NamespaceArray node...");
-                DataValue namespaceArray = await session.ReadValueAsync(Variables.Server_NamespaceArray, ct).ConfigureAwait(false);
+                DataValue namespaceArray = await session.ReadValueAsync(Variables.Server_NamespaceArray, ct)
+                    .ConfigureAwait(false);
                 // Display the result
                 m_output.WriteLine($"NamespaceArray Value = {namespaceArray}");
             }

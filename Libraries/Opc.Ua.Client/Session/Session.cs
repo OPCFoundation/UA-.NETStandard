@@ -47,7 +47,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Manages a session with a server.
     /// </summary>
-    public partial class Session : SessionClientBatched, ISession
+    public class Session : SessionClientBatched, ISession
     {
         private const int kReconnectTimeout = 15000;
         private const int kMinPublishRequestCountMax = 100;
@@ -1562,6 +1562,7 @@ namespace Opc.Ua.Client
         {
             return new Session(channel, this, copyEventHandlers);
         }
+
         /// <inheritdoc/>
         public Task OpenAsync(string sessionName, IUserIdentity identity, CancellationToken ct)
         {
