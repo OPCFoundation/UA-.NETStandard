@@ -19,9 +19,7 @@
   </PropertyGroup>
   <!-- select ECC support -->
   <Choose>
-    <When
-      Condition="'$(TargetFramework)' == 'net462' OR '$(TargetFramework)' == 'netstandard2.0'"
-    ></When>
+    <When Condition="'$(TargetFramework)' == 'net462' OR '$(TargetFramework)' == 'netstandard2.0'"></When>
     <Otherwise>
       <PropertyGroup>
         <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
@@ -29,7 +27,6 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
-    <PackageReference Include="Nito.AsyncEx" />
     <PackageReference Include="BitFaster.Caching" />
   </ItemGroup>
   <ItemGroup>
