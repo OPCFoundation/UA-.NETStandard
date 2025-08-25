@@ -384,7 +384,8 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         [Theory]
         [Order(200)]
-        public async Task ManagedBrowseWithManyContinuationPoints(ManagedBrowseTestDataProvider testData)
+        public async Task ManagedBrowseWithManyContinuationPointsAsync(
+            ManagedBrowseTestDataProvider testData)
         {
             var memoryWriter = new CPBatchTestMemoryWriter();
             ClientFixture.SetTraceOutput(memoryWriter);
@@ -798,7 +799,7 @@ namespace Opc.Ua.Client.Tests
                         0).ConfigureAwait(false)
             ];
 
-            await Task.WhenAll(tasks.Select(t => t.Invoke()).ToArray()).ConfigureAwait(false);
+            await Task.WhenAll([.. tasks.Select(t => t.Invoke())]).ConfigureAwait(false);
 
             Assert.AreEqual(nodeIds1.Count, referenceDescriptionCollectionsPass1.Count);
             Assert.AreEqual(nodeIds2.Count, referenceDescriptionCollectionsPass2.Count);
@@ -949,76 +950,6 @@ namespace Opc.Ua.Client.Tests
             }
 
             TestContext.Out.WriteLine("Found {0} variables", result.Count);
-        }
-
-        /// <summary>
-        /// same as the ManagedBrowseWithManyContinuationPoints, but
-        /// with the ContinuationPointPolicy set to 'Default'. Instead of calling
-        /// ManagedBrowse, ManagedBrowseAsync is called directly.
-        /// </summary>
-        [Theory]
-        [Order(420)]
-        public async Task ManagedBrowseWithManyContinuationPointsAsync(
-            ManagedBrowseTestDataProvider testData)
-        {
-            var memoryWriter = new CPBatchTestMemoryWriter();
-            ClientFixture.SetTraceOutput(memoryWriter);
-            var theSession = (Session)((TraceableSession)Session).Session;
-
-            theSession.ContinuationPointPolicy = ContinuationPointPolicy.Default;
-
-            var pass1ExpectedResults = new ManagedBrowseExpectedResultValues
-            {
-                InputMaxNumberOfContinuationPoints = testData.MaxNumberOfContinuationPoints,
-                InputMaxNumberOfReferencesPerNode = testData.MaxNumberOfReferencesPerNode,
-                ExpectedNumberOfPasses = testData.ExpectedNumberOfPasses,
-                ExpectedNumberOfBadNoCPSCs = testData.ExpectedNumberOfBadNoCPSCs
-            };
-
-            var pass2ExpectedResults = new ManagedBrowseExpectedResultValues
-            {
-                InputMaxNumberOfContinuationPoints = 0,
-                InputMaxNumberOfReferencesPerNode = 1000,
-                ExpectedNumberOfPasses = 1,
-                ExpectedNumberOfBadNoCPSCs = []
-            };
-
-            ReferenceServerWithLimits.TestMaxBrowseReferencesPerNode =
-                pass1ExpectedResults.InputMaxNumberOfReferencesPerNode;
-
-            ReferenceServerWithLimits.SetMaxNumberOfContinuationPoints(
-                pass1ExpectedResults.InputMaxNumberOfContinuationPoints);
-            theSession.ServerMaxContinuationPointsPerBrowse = pass1ExpectedResults
-                .InputMaxNumberOfContinuationPoints;
-
-            List<NodeId> nodeIds = GetMassFolderNodesToBrowse();
-            // browse with test settings
-            (
-                IList<ReferenceDescriptionCollection> referenceDescriptionCollectionPass1,
-                IList<ServiceResult> errorsPass1
-            ) = await theSession
-                .ManagedBrowseAsync(
-                    null,
-                    null,
-                    nodeIds,
-                    0,
-                    BrowseDirection.Forward,
-                    ReferenceTypeIds.Organizes,
-                    true,
-                    0,
-                    new CancellationToken())
-                .ConfigureAwait(false);
-
-            Assert.AreEqual(nodeIds.Count, referenceDescriptionCollectionPass1.Count);
-
-#if DEBUG
-            List<string> memoryLogPass1 = memoryWriter.GetEntries();
-            WriteMemoryLogToTextOut(memoryLogPass1, "memoryLogPass1");
-            VerifyExpectedResults(memoryLogPass1, pass1ExpectedResults);
-#endif
-
-            memoryWriter.Close();
-            memoryWriter.Dispose();
         }
 
         private void WriteMemoryLogToTextOut(List<string> memoryLog, string contextInfo)

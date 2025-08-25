@@ -30,10 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Opc.Ua.Client
 {
@@ -400,7 +396,7 @@ namespace Opc.Ua.Client
                 variableIds)
                 .GetAwaiter()
                 .GetResult();
-            values = new object [dataValues.Count];
+            values = new object[dataValues.Count];
 
             for (int ii = 0; ii < variableIds.Count; ii++)
             {

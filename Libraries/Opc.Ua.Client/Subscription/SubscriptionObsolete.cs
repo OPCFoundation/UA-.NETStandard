@@ -29,12 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Runtime.Serialization;
-using System.Threading;
-using System.Threading.Tasks;
-using Nito.AsyncEx;
 
 namespace Opc.Ua.Client
 {
@@ -251,6 +245,7 @@ namespace Opc.Ua.Client
             EventFieldList eventFields)
         {
             return monitoredItem.GetEventTypeAsync(eventFields)
+                .AsTask()
                 .GetAwaiter()
                 .GetResult();
         }

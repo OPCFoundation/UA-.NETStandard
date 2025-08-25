@@ -342,10 +342,7 @@ namespace Opc.Ua.Client
                 }
                 catch (OperationCanceledException) when (continuationPoint?.Length > 0)
                 {
-                    (_, continuationPoint) = await BrowseNextAsync(
-                        continuationPoint,
-                        true,
-                        default).ConfigureAwait(false);
+                    (_, _) = await BrowseNextAsync(continuationPoint, true, default).ConfigureAwait(false);
                 }
                 // return the results.
                 return references;

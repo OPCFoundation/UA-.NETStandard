@@ -187,11 +187,11 @@ namespace Opc.Ua.Client.Tests
                     .ConfigureAwait(false);
                 Assert.NotNull(connection, "Failed to get connection.");
             }
-            EndpointDescription selectedEndpoint = CoreClientUtils.SelectEndpoint(
+            EndpointDescription selectedEndpoint = await CoreClientUtils.SelectEndpointAsync(
                 config,
                 connection,
                 true,
-                MaxTimeout);
+                MaxTimeout).ConfigureAwait(false);
             Assert.NotNull(selectedEndpoint);
         }
 

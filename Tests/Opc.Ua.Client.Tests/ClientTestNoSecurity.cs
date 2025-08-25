@@ -106,9 +106,9 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         [Test]
         [Order(105)]
-        public void GetEndpointsOnDiscoveryChannel()
+        public Task GetEndpointsOnDiscoveryChannelAsync()
         {
-            m_clientTest.GetEndpointsOnDiscoveryChannel(true);
+            return m_clientTest.GetEndpointsOnDiscoveryChannelAsync(true);
         }
 
         [Test]

@@ -152,6 +152,7 @@ namespace Opc.Ua
         /// Invokes the GetEndpoints service.
         /// </summary>
         /// <param name="profileUris">The collection of profile URIs.</param>
+        [Obsolete("Use GetEndpointsAsync instead.")]
         public virtual EndpointDescriptionCollection GetEndpoints(StringCollection profileUris)
         {
             GetEndpoints(
@@ -164,7 +165,6 @@ namespace Opc.Ua
             return PatchEndpointUrls(endpoints);
         }
 
-#if NET_STANDARD_ASYNC
         /// <summary>
         /// Invokes the GetEndpoints service async.
         /// </summary>
@@ -183,12 +183,12 @@ namespace Opc.Ua
                 .ConfigureAwait(false);
             return PatchEndpointUrls(response.Endpoints);
         }
-#endif
 
         /// <summary>
         /// Invokes the FindServers service.
         /// </summary>
         /// <param name="serverUris">The collection of server URIs.</param>
+        [Obsolete("Use FindServersAsync instead.")]
         public virtual ApplicationDescriptionCollection FindServers(StringCollection serverUris)
         {
             FindServers(
@@ -201,7 +201,6 @@ namespace Opc.Ua
             return servers;
         }
 
-#if NET_STANDARD_ASYNC
         /// <summary>
         /// Invokes the FindServers service async.
         /// </summary>
@@ -220,11 +219,11 @@ namespace Opc.Ua
                 .ConfigureAwait(false);
             return response.Servers;
         }
-#endif
 
         /// <summary>
         /// Invokes the FindServersOnNetwork service.
         /// </summary>
+        [Obsolete("Use FindServersOnNetworkAsync instead.")]
         public virtual ServerOnNetworkCollection FindServersOnNetwork(
             uint startingRecordId,
             uint maxRecordsToReturn,
@@ -240,6 +239,29 @@ namespace Opc.Ua
                 out ServerOnNetworkCollection servers);
 
             return servers;
+        }
+
+        /// <summary>
+        /// Invokes the FindServersOnNetwork service.
+        /// </summary>
+        public virtual async Task<(
+            ServerOnNetworkCollection servers,
+            DateTime lastCounterResetTime
+            )> FindServersOnNetworkAsync(
+                uint startingRecordId,
+                uint maxRecordsToReturn,
+                StringCollection serverCapabilityFilter,
+                CancellationToken ct = default)
+        {
+            FindServersOnNetworkResponse response = await FindServersOnNetworkAsync(
+                null,
+                startingRecordId,
+                maxRecordsToReturn,
+                serverCapabilityFilter,
+                ct)
+                .ConfigureAwait(false);
+
+            return (response.Servers, response.LastCounterResetTime);
         }
 
         /// <summary>

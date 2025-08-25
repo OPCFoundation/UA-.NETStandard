@@ -304,7 +304,7 @@ namespace Opc.Ua.Client.Tests
         /// This test should be re-implemented with a Session that deterministically
         /// provides the wrong order of messages to Subscription.
         ///</summary>
-        public async Task SequentialPublishingSubscription(bool enabled)
+        public async Task SequentialPublishingSubscriptionAsync(bool enabled)
         {
             var subscriptionList = new List<Subscription>();
             var subscriptionIds = new UInt32Collection();
@@ -386,12 +386,11 @@ namespace Opc.Ua.Client.Tests
             var stopwatch = Stopwatch.StartNew();
 
             // start
-            Session.SetPublishingMode(
+            await Session.SetPublishingModeAsync(
                 null,
                 true,
                 subscriptionIds,
-                out StatusCodeCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
+                default).ConfigureAwait(false);
 
             // Wait for out-of-order to occur
             bool failed = sequenceBroken.WaitOne(testWaitTime);
@@ -402,12 +401,11 @@ namespace Opc.Ua.Client.Tests
             }
 
             // stop
-            Session.SetPublishingMode(
+            await Session.SetPublishingModeAsync(
                 null,
                 false,
                 subscriptionIds,
-                out results,
-                out diagnosticInfos);
+                default).ConfigureAwait(false);
 
             //Log information
             double elapsed = stopwatch.Elapsed.TotalMilliseconds / 1000.0;
@@ -539,8 +537,8 @@ namespace Opc.Ua.Client.Tests
             int session1ConfigChanged = 0;
             session1.SessionConfigurationChanged += (sender, e) => session1ConfigChanged++;
 
-            var value1 = session1.ReadValueAsync<ServerStatusDataType>(
-                VariableIds.Server_ServerStatus);
+            ServerStatusDataType value1 = await session1.ReadValueAsync<ServerStatusDataType>(
+                VariableIds.Server_ServerStatus).ConfigureAwait(false);
             Assert.NotNull(value1);
 
             var originSubscriptions = new SubscriptionCollection(kTestSubscriptions);

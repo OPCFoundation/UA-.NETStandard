@@ -994,14 +994,15 @@ namespace Opc.Ua.Gds.Tests
             await m_gdsClient.GDSClient.DisconnectAsync().ConfigureAwait(false);
         }
 
-        private async Task RegisterPushServerApplicationAsync(string discoveryUrl)
+        private async Task RegisterPushServerApplicationAsync(string discoveryUrl, CancellationToken ct = default)
         {
             if (m_applicationRecord == null && discoveryUrl != null)
             {
-                EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(
+                EndpointDescription endpointDescription = await CoreClientUtils.SelectEndpointAsync(
                     m_gdsClient.Configuration,
                     discoveryUrl,
-                    true);
+                    true,
+                    ct).ConfigureAwait(false);
                 ApplicationDescription description = endpointDescription.Server;
                 m_applicationRecord = new ApplicationRecordDataType
                 {
@@ -1067,9 +1068,7 @@ namespace Opc.Ua.Gds.Tests
                 {
                     Utils.LogError(ex, "Failure while verifying new Push Server certificate.");
                 }
-
             }
-
             Assert.Fail("Server certificate did not match with the Certificate pushed by " +
                 "the GDS within the allowed time.");
         }

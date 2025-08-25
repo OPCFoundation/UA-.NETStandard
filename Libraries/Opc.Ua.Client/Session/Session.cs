@@ -4017,7 +4017,7 @@ namespace Opc.Ua.Client
                     {
                         if (sre.StatusCode == StatusCodes.BadRequestInterrupted)
                         {
-                            ServiceResult error = ServiceResult.Create(
+                            var error = ServiceResult.Create(
                                 StatusCodes.BadRequestTimeout,
                                 timeoutMessage,
                                 GoodPublishRequestCount,
@@ -4665,7 +4665,7 @@ namespace Opc.Ua.Client
             NodeClass nodeClass,
             ReadValueIdCollection attributesToRead,
             List<IDictionary<uint, DataValue>> attributesPerNodeId,
-            IList<Node> nodeCollection,
+            NodeCollection nodeCollection,
             bool optionalAttributes)
         {
             for (int ii = 0; ii < nodeIdCollection.Count; ii++)
@@ -4776,8 +4776,8 @@ namespace Opc.Ua.Client
             DiagnosticInfoCollection diagnosticInfos,
             ReadValueIdCollection attributesToRead,
             List<IDictionary<uint, DataValue>> attributesPerNodeId,
-            IList<Node> nodeCollection,
-            IList<ServiceResult> errors,
+            NodeCollection nodeCollection,
+            List<ServiceResult> errors,
             bool optionalAttributes)
         {
             int? nodeClass;
@@ -4849,8 +4849,8 @@ namespace Opc.Ua.Client
             List<IDictionary<uint, DataValue>> attributesPerNodeId,
             DataValueCollection values,
             DiagnosticInfoCollection diagnosticInfos,
-            IList<Node> nodeCollection,
-            IList<ServiceResult> errors)
+            NodeCollection nodeCollection,
+            List<ServiceResult> errors)
         {
             int readIndex = 0;
             for (int ii = 0; ii < nodeCollection.Count; ii++)
@@ -5793,96 +5793,6 @@ namespace Opc.Ua.Client
             QueueBeginPublish();
         }
 
-        /// <inheritdoc/>
-        public bool Republish(uint subscriptionId, uint sequenceNumber, out ServiceResult error)
-        {
-            bool result = true;
-            error = ServiceResult.Good;
-
-            // send republish request.
-            var requestHeader = new RequestHeader
-            {
-                TimeoutHint = (uint)OperationTimeout,
-                ReturnDiagnostics = (uint)(int)ReturnDiagnostics,
-                RequestHandle = Utils.IncrementIdentifier(ref m_publishCounter)
-            };
-
-            try
-            {
-                Utils.LogInfo("Requesting Republish for {0}-{1}", subscriptionId, sequenceNumber);
-
-                // request republish.
-
-                ResponseHeader responseHeader = Republish(
-                    requestHeader,
-                    subscriptionId,
-                    sequenceNumber,
-                    out NotificationMessage notificationMessage);
-
-                Utils.LogInfo(
-                    "Received Republish for {0}-{1}-{2}",
-                    subscriptionId,
-                    sequenceNumber,
-                    responseHeader.ServiceResult);
-
-                // process response.
-                ProcessPublishResponse(
-                    responseHeader,
-                    subscriptionId,
-                    null,
-                    false,
-                    notificationMessage);
-            }
-            catch (Exception e)
-            {
-                (result, error) = ProcessRepublishResponseError(e, subscriptionId, sequenceNumber);
-            }
-
-            return result;
-        }
-
-        /// <inheritdoc/>
-        public bool ResendData(
-            IEnumerable<Subscription> subscriptions,
-            out IList<ServiceResult> errors)
-        {
-            CallMethodRequestCollection requests = CreateCallRequestsForResendData(subscriptions);
-
-            errors = new List<ServiceResult>(requests.Count);
-
-            try
-            {
-                ResponseHeader responseHeader = Call(
-                    null,
-                    requests,
-                    out CallMethodResultCollection results,
-                    out DiagnosticInfoCollection diagnosticInfos);
-
-                ValidateResponse(results, requests);
-                ValidateDiagnosticInfos(diagnosticInfos, requests);
-
-                int ii = 0;
-                foreach (CallMethodResult value in results)
-                {
-                    ServiceResult result = ServiceResult.Good;
-                    if (StatusCode.IsNotGood(value.StatusCode))
-                    {
-                        result = GetResult(value.StatusCode, ii, diagnosticInfos, responseHeader);
-                    }
-                    errors.Add(result);
-                    ii++;
-                }
-
-                return true;
-            }
-            catch (ServiceResultException sre)
-            {
-                Utils.LogError(sre, "Failed to call ResendData on server.");
-            }
-
-            return false;
-        }
-
         /// <summary>
         /// Helper to refresh the identity (reprompt for password, refresh token) in case of a Recreate of the Session.
         /// </summary>
@@ -5924,7 +5834,8 @@ namespace Opc.Ua.Client
             else
             {
                 Utils.LogDebug(
-                    "PUBLISH - Did not send another publish request. GoodPublishRequestCount={0}, MinPublishRequestCount={1}",
+                    "PUBLISH - Did not send another publish request. " +
+                    "GoodPublishRequestCount={0}, MinPublishRequestCount={1}",
                     requestCount,
                     minPublishRequestCount);
             }
@@ -6786,7 +6697,7 @@ namespace Opc.Ua.Client
                     "Received Publish Response for Unknown SubscriptionId={0}. Deleting abandoned subscription from server.",
                     subscriptionId);
 
-                Task.Run(() => DeleteSubscription(subscriptionId));
+                Task.Run(() => DeleteSubscriptionAsync(subscriptionId));
             }
             else
             {
@@ -6821,7 +6732,9 @@ namespace Opc.Ua.Client
         /// Invokes a DeleteSubscriptions call for the specified subscriptionId.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void DeleteSubscription(uint subscriptionId)
+        private async ValueTask DeleteSubscriptionAsync(
+            uint subscriptionId,
+            CancellationToken ct = default)
         {
             try
             {
@@ -6832,11 +6745,14 @@ namespace Opc.Ua.Client
                 // delete the subscription.
                 UInt32Collection subscriptionIds = new uint[] { subscriptionId };
 
-                ResponseHeader responseHeader = DeleteSubscriptions(
+                DeleteSubscriptionsResponse response = await DeleteSubscriptionsAsync(
                     null,
                     subscriptionIds,
-                    out StatusCodeCollection results,
-                    out DiagnosticInfoCollection diagnosticInfos);
+                    ct).ConfigureAwait(false);
+
+                ResponseHeader responseHeader = response.ResponseHeader;
+                StatusCodeCollection results = response.Results;
+                DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
 
                 // validate response.
                 ValidateResponse(results, subscriptionIds);

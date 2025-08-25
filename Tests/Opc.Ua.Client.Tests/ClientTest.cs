@@ -246,13 +246,14 @@ namespace Opc.Ua.Client.Tests
         [Order(105)]
         [TestCase(1000)]
         [TestCase(10000)]
-        public void ReadOnDiscoveryChannel(int readCount)
+        public async Task ReadOnDiscoveryChannelAsync(int readCount)
         {
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
 
             using var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration);
-            EndpointDescriptionCollection endpoints = client.GetEndpoints(null);
+            EndpointDescriptionCollection endpoints =
+                await client.GetEndpointsAsync(null).ConfigureAwait(false);
             Assert.NotNull(endpoints);
 
             // cast Innerchannel to ISessionChannel
@@ -280,14 +281,13 @@ namespace Opc.Ua.Client.Tests
             }
 
             // try to read nodes using discovery channel
-            ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
-                sessionClient.Read(
+            ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() =>
+                sessionClient.ReadAsync(
                     null,
                     0,
                     TimestampsToReturn.Neither,
                     readValues,
-                    out DataValueCollection results,
-                    out DiagnosticInfoCollection diagnosticInfos));
+                    default));
             StatusCode statusCode = StatusCodes.BadSecurityPolicyRejected;
             // race condition, if socket closed is detected before the error was returned,
             // client may report channel closed instead of security policy rejected
@@ -309,7 +309,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         [Order(105)]
         [TestCase(false)]
-        public void GetEndpointsOnDiscoveryChannel(bool securityNoneEnabled)
+        public async Task GetEndpointsOnDiscoveryChannelAsync(bool securityNoneEnabled)
         {
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
@@ -326,13 +326,13 @@ namespace Opc.Ua.Client.Tests
             {
                 // test can pass, there is no limit for discovery messages
                 // because the server supports security None
-                client.GetEndpoints(profileUris);
+                await client.GetEndpointsAsync(profileUris).ConfigureAwait(false);
             }
             else
             {
                 ServiceResultException sre = NUnit.Framework.Assert
-                    .Throws<ServiceResultException>(() =>
-                        client.GetEndpoints(profileUris));
+                    .ThrowsAsync<ServiceResultException>(() =>
+                        client.GetEndpointsAsync(profileUris));
                 // race condition, if socket closed is detected before the error was returned,
                 // client may report channel closed instead of security policy rejected
                 if (StatusCodes.BadSecureChannelClosed == sre.StatusCode)
@@ -1036,7 +1036,7 @@ namespace Opc.Ua.Client.Tests
         [Order(300)]
         public async Task GetOperationLimitsTestAsync()
         {
-            await base.GetOperationLimitsAsync().ConfigureAwait(false);
+            await GetOperationLimitsAsync().ConfigureAwait(false);
 
             ValidateOperationLimit(
                 OperationLimits.MaxNodesPerRead,

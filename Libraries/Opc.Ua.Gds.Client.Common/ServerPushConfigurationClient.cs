@@ -220,10 +220,11 @@ namespace Opc.Ua.Gds.Client
                     nameof(endpointUrl));
             }
 
-            EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(
+            EndpointDescription endpointDescription = await CoreClientUtils.SelectEndpointAsync(
                 Configuration,
                 endpointUrl,
-                true);
+                true,
+                ct).ConfigureAwait(false);
             var endpointConfiguration = EndpointConfiguration.Create(Configuration);
             var endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 

@@ -189,7 +189,7 @@ namespace Opc.Ua.Client.Tests
             TestName = "Test Lifetime Reduce Count",
             Description = "Expected MaxLifetimeCount matches what the demo server does"
         )]
-        public async Task TestLifetime(
+        public async Task TestLifetimeAsync(
             int publishingInterval,
             uint keepAliveCount,
             uint lifetimeCount,
