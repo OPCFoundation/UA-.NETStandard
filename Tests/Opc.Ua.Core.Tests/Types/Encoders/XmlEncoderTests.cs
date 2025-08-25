@@ -45,7 +45,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     [SetUICulture("en-us")]
     [Parallelizable]
     public
-#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET8_0_OR_GREATER
     partial
 #endif
     class XmlEncoderTests
