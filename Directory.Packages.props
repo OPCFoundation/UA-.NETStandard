@@ -33,7 +33,6 @@
     <PackageVersion Include="MQTTnet" Version="5.0.1.1416" />
     <PackageVersion Include="Nerdbank.GitVersioning" Version="3.7.115" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageVersion Include="Nito.AsyncEx" Version="5.1.2" />
     <PackageVersion Include="NUnit" Version="4.4.0" />
     <PackageVersion Include="NUnit.Console" Version="3.20.1" />
     <PackageVersion Include="NUnit3TestAdapter" Version="5.1.0" />
@@ -47,7 +46,6 @@
     <PackageVersion Include="Serilog.Sinks.Console" Version="6.0.0" />
     <PackageVersion Include="Serilog.Sinks.Debug" Version="3.0.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
-    <PackageVersion Include="StrongNamer" Version="0.2.5" />
     <PackageVersion Include="System.Diagnostics.DiagnosticSource" Version="9.0.8" />
     <PackageVersion Include="System.Memory" Version="4.6.3" />
     <PackageVersion Include="System.Formats.Asn1" Version="9.0.8" />
