@@ -162,7 +162,7 @@ namespace Opc.Ua.Gds.Tests
         {
             m_server.ResetLogFile();
             m_server.SetTraceOutput(TestContext.Out);
-            m_server.SetTraceOutputLevel(Microsoft.Extensions.Logging.LogLevel.Debug);
+            m_server.SetTraceOutputLevel(Microsoft.Extensions.Logging.LogLevel.Error);
         }
 
         [TearDown]
