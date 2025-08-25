@@ -65,6 +65,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
         /// <summary>
         /// Initializes the type system with a session to load the custom types.
+        /// May cause a handle leak when called repeatedly; to avoid it, use the form which takes IComplexTypeFactory and create ComplexTypeBuilderFactory just once (see bug #3173).
         /// </summary>
         public ComplexTypeSystem(ISession session)
         {
