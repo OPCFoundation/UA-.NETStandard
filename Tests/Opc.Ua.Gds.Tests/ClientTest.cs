@@ -99,7 +99,7 @@ namespace Opc.Ua.Gds.Tests
         protected async Task OneTimeSetUpAsync()
         {
             // start GDS
-            m_server = await TestUtils.StartGDSAsync(true, m_storeType).ConfigureAwait(false);
+            m_server = await TestUtils.StartGDSAsync(true, m_storeType, TestContext.Out).ConfigureAwait(false);
 
             // load client
             m_gdsClient = new GlobalDiscoveryTestClient(true, m_storeType);
@@ -148,6 +148,8 @@ namespace Opc.Ua.Gds.Tests
         protected void SetUp()
         {
             m_server.ResetLogFile();
+            //m_server.SetTraceOutput(TestContext.Out);
+            //m_server.SetTraceOutputLevel(Microsoft.Extensions.Logging.LogLevel.Debug);
         }
 
         [TearDown]

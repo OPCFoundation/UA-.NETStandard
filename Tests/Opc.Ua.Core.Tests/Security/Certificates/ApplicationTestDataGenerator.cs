@@ -36,12 +36,12 @@ using Opc.Ua.Test;
 namespace Opc.Ua.Core.Tests
 {
     public
-#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET8_0_OR_GREATER
     partial
 #endif
     class ApplicationTestDataGenerator
     {
-#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET8_0_OR_GREATER
         [GeneratedRegex(@"[^\w\d\s]")]
         private static partial Regex Regex1();
 
