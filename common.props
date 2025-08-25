@@ -24,9 +24,6 @@
     <NuGetAuditMode>all</NuGetAuditMode>
     <NuGetAudit>true</NuGetAudit>
   </PropertyGroup>
-  <ItemGroup Condition="'$(SignAssembly)' == 'true'">
-    <PackageReference Include="StrongNamer" />
-  </ItemGroup>
   <PropertyGroup>
     <AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
