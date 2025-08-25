@@ -14,14 +14,6 @@
   <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
     <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
   </PropertyGroup>
-  <Choose>
-    <When Condition="'$(TargetFramework)' == 'net8.0' OR '$(TargetFramework)' == 'net9.0'">
-      <PropertyGroup>
-        <!-- Disable strongname warning as that has not been enforced since .net 5.-->
-        <NoWarn>$(NoWarn);CS8002</NoWarn>
-      </PropertyGroup>
-    </When>
-  </Choose>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>

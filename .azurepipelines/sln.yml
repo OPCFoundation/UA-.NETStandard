@@ -28,10 +28,10 @@ jobs:
   - task: MSBuild@1
     displayName: MS Build Release
     inputs:
-      solution: '**/*.sln' 
+      solution: '**/*.sln'
       configuration: 'Release'
       platform: 'Any CPU'
-      msbuildArguments: 
+      msbuildArguments:
   - task: NuGetCommand@2
     displayName: Restore Debug
     inputs:
@@ -44,4 +44,4 @@ jobs:
       solution: '**/*.sln'
       configuration: 'Debug'
       platform: 'Any CPU'
-      msbuildArguments: 
+      msbuildArguments:

@@ -1735,7 +1735,7 @@ namespace Opc.Ua.Gds.Tests
                     ? m_gdsClient.AdminUser
                     : m_gdsClient.AppUser;
             }
-            await m_gdsClient.GDSClient.ConnectAsync(m_gdsClient.GDSClient.EndpointUrl).ConfigureAwait(false);
+            await m_gdsClient.GDSClient.ConnectAsync().ConfigureAwait(false);
             TestContext.Progress.WriteLine($"GDS Client({admin}) connected -- {memberName}");
         }
 

@@ -33,9 +33,9 @@ jobs:
     DOTNET_CLI_TELEMETRY_OPTOUT: true
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
     CustomTestTarget: ${{ parameters.customtestarget }}
-    ${{ if eq( parameters.customtestarget, '' ) }}: 
+    ${{ if eq( parameters.customtestarget, '' ) }}:
       DotCliCommandline: '--framework ${{ parameters.framework }}'
-    ${{ else }}: 
+    ${{ else }}:
       DotCliCommandline: '/p:CustomTestTarget=${{ parameters.customtestarget }}'
   pool:
     vmImage: $(poolImage)

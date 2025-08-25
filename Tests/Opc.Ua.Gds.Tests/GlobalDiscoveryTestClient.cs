@@ -174,6 +174,10 @@ namespace Opc.Ua.Gds.Tests
                     gdsClientConfiguration.GlobalDiscoveryServerUrl,
                     port)
             };
+
+            await SetEndpointAsync(SecurityPolicies.Aes256_Sha256_RsaPss)
+                .ConfigureAwait(false);
+
             if (string.IsNullOrEmpty(gdsClientConfiguration.AppUserName))
             {
                 AppUser = new UserIdentity(new AnonymousIdentityToken());
@@ -278,7 +282,7 @@ namespace Opc.Ua.Gds.Tests
         private async Task<(byte[] certificate, byte[] privateKey)> FinishKeyPairAsync(
             ApplicationTestData ownApplicationTestData)
         {
-            GDSClient.ConnectAsync(GDSClient.EndpointUrl).GetAwaiter().GetResult();
+            GDSClient.ConnectAsync().GetAwaiter().GetResult();
             //get cert
             (byte[] certificate, byte[] privateKey, _) = await GDSClient.FinishRequestAsync(
                 ownApplicationTestData.ApplicationRecord.ApplicationId,
@@ -290,7 +294,7 @@ namespace Opc.Ua.Gds.Tests
 
         private async Task<NodeId> StartNewKeyPairAsync(ApplicationTestData ownApplicationTestData)
         {
-            await GDSClient.ConnectAsync(GDSClient.EndpointUrl).ConfigureAwait(false);
+            await GDSClient.ConnectAsync().ConfigureAwait(false);
             //request new Cert
             NodeId req_id = await GDSClient.StartNewKeyPairRequestAsync(
                 ownApplicationTestData.ApplicationRecord.ApplicationId,
@@ -307,7 +311,7 @@ namespace Opc.Ua.Gds.Tests
 
         private async Task<NodeId> RegisterAsync(ApplicationTestData ownApplicationTestData)
         {
-            await GDSClient.ConnectAsync(GDSClient.EndpointUrl).ConfigureAwait(false);
+            await GDSClient.ConnectAsync().ConfigureAwait(false);
             NodeId id = await GDSClient.RegisterApplicationAsync(ownApplicationTestData.ApplicationRecord).ConfigureAwait(false);
             await GDSClient.DisconnectAsync().ConfigureAwait(false);
             return id;
@@ -346,6 +350,41 @@ namespace Opc.Ua.Gds.Tests
                 PrivateKeyFormat = "PEM",
                 Subject = $"CN={GDSClient.Configuration.ApplicationName},DC={Utils.GetHostName()},O=OPC Foundation"
             };
+        }
+
+        /// <summary>
+        /// Sets the GDSClient's endpoint by SecurityPolicy URI.
+        /// </summary>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
+        public async Task SetEndpointAsync(string securityPolicyUri)
+        {
+            if (Configuration == null)
+            {
+                throw new InvalidOperationException("Client configuration must be loaded before setting endpoint.");
+            }
+            if (GDSClient == null)
+            {
+                throw new InvalidOperationException("GDSClient must be initialized before setting endpoint.");
+            }
+            var endpointConfiguration = EndpointConfiguration.Create(Configuration);
+            var discoveryClient = DiscoveryClient.Create(new Uri(GDSClient.EndpointUrl), endpointConfiguration);
+            EndpointDescriptionCollection endpoints = await discoveryClient.GetEndpointsAsync(null).ConfigureAwait(false);
+            await discoveryClient.CloseAsync().ConfigureAwait(false);
+            EndpointDescription selectedEndpoint = null;
+            foreach (EndpointDescription ep in endpoints)
+            {
+                if (ep.SecurityPolicyUri == securityPolicyUri)
+                {
+                    selectedEndpoint = ep;
+                    break;
+                }
+            }
+            if (selectedEndpoint == null)
+            {
+                throw new ArgumentException($"No endpoint found for SecurityPolicyUri '{securityPolicyUri}'.");
+            }
+            GDSClient.Endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
         }
 
         private ApplicationInstance m_application;

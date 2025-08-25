@@ -314,6 +314,8 @@ namespace Opc.Ua.Gds.Tests
                     "urn:localhost:opcfoundation.org:GlobalDiscoveryTestServer",
                     "http://opcfoundation.org/UA/GlobalDiscoveryTestServer")
                 .AsServer(baseAddresses)
+                .AddEccSignAndEncryptPolicies()
+                .AddSignAndEncryptPolicies()
                 .AddUserTokenPolicy(UserTokenType.Anonymous)
                 .AddUserTokenPolicy(UserTokenType.UserName)
                 .SetDiagnosticsEnabled(true)

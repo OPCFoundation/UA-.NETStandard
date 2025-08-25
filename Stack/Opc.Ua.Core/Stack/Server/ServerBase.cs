@@ -1833,7 +1833,7 @@ namespace Opc.Ua
                         }
 
                         //process request from queue
-                        if (m_queue.TryDequeue(out var request))
+                        if (m_queue.TryDequeue(out IEndpointIncomingRequest request))
                         {
                             try
                             {

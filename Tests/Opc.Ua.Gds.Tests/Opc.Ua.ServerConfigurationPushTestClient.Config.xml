@@ -16,6 +16,30 @@
         <SubjectName>CN=Server Configuration Push Test Client, O=OPC Foundation</SubjectName>
         <CertificateTypeString>RsaSha256</CertificateTypeString>
       </CertificateIdentifier>
+      <CertificateIdentifier>
+        <StoreType>Directory</StoreType>
+        <StorePath>%LocalApplicationData%/OPC/pki/own</StorePath>
+        <SubjectName>CN=Server Configuration Push Test Client, O=OPC Foundation</SubjectName>
+        <CertificateTypeString>NistP256</CertificateTypeString>
+      </CertificateIdentifier>
+      <CertificateIdentifier>
+        <StoreType>Directory</StoreType>
+        <StorePath>%LocalApplicationData%/OPC/pki/own</StorePath>
+        <SubjectName>CN=Server Configuration Push Test Client, O=OPC Foundation</SubjectName>
+        <CertificateTypeString>NistP384</CertificateTypeString>
+      </CertificateIdentifier>
+      <CertificateIdentifier>
+        <StoreType>Directory</StoreType>
+        <StorePath>%LocalApplicationData%/OPC/pki/own</StorePath>
+        <SubjectName>CN=Server Configuration Push Test Client, O=OPC Foundation</SubjectName>
+        <CertificateTypeString>BrainpoolP256r1</CertificateTypeString>
+      </CertificateIdentifier>
+      <CertificateIdentifier>
+        <StoreType>Directory</StoreType>
+        <StorePath>%LocalApplicationData%/OPC/pki/own</StorePath>
+        <SubjectName>CN=Server Configuration Push Test Client, O=OPC Foundation</SubjectName>
+        <CertificateTypeString>BrainpoolP384r1</CertificateTypeString>
+      </CertificateIdentifier>
     </ApplicationCertificates>
     <TrustedIssuerCertificates>
       <StoreType>Directory</StoreType>

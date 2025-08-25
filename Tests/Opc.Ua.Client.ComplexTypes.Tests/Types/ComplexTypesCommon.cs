@@ -161,7 +161,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             };
 
             IComplexTypeFieldBuilder fieldBuilder = m_complexTypeBuilder.AddStructuredType(
-                structureType.ToString() + "." + testFunc,
+                structureType + "." + testFunc,
                 complexTypeStructure);
             nodeId = new ExpandedNodeId(typeId++, m_complexTypeBuilder.TargetNamespace);
             var binaryEncodingId = new ExpandedNodeId(

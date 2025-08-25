@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <AssemblyName>$(AssemblyPrefix).Gds.Server.Common</AssemblyName>
+    <DefineConstants>$(DefineConstants);OPCUA_INCLUDE_ASYNC</DefineConstants>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
     <PackageId>$(PackagePrefix).Opc.Ua.Gds.Server.Common</PackageId>
     <RootNamespace>Opc.Ua.Gds.Server</RootNamespace>
@@ -15,7 +16,7 @@
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
   <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
-    <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
+    <DefineConstants>$(DefineConstants);SIGNASSEMBLY;OPCUA_INCLUDE_ASYNC</DefineConstants>
   </PropertyGroup>
   <!-- select ECC support -->
   <Choose>

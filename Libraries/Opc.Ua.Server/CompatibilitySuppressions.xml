@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!-- https://learn.microsoft.com/dotnet/fundamentals/package-validation/diagnostic-ids -->
+<Suppressions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <Suppression>
+    <DiagnosticId>CP0006</DiagnosticId>
+    <Target>M:Opc.Ua.Server.ISession.GetNewEccKey</Target>
+    <Left>lib/netstandard2.0/Opc.Ua.Server.dll</Left>
+    <Right>lib/net472/Opc.Ua.Server.dll</Right>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0006</DiagnosticId>
+    <Target>M:Opc.Ua.Server.ISession.GetNewEccKey</Target>
+    <Left>lib/netstandard2.0/Opc.Ua.Server.dll</Left>
+    <Right>lib/netstandard2.1/Opc.Ua.Server.dll</Right>
+  </Suppression>
+</Suppressions>
