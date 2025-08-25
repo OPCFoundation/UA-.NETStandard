@@ -85,9 +85,4 @@ jobs:
     inputs:
       command: test
       projects: $(file)
-      arguments: >-
-        --no-restore
-        ${{ variables.DotCliCommandline }}
-        --configuration ${{ parameters.configuration }}
-        --logger "trx;LogFileName=testresults.trx"
-        --logger "console;verbosity=detailed"
+      arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }}'

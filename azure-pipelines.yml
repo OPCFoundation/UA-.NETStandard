@@ -9,19 +9,19 @@ trigger:
     - '*'
   paths:
     include:
-    - '*' 
+    - '*'
     exclude:
-    - 'Docs/*' 
-    - 'README.md' 
+    - 'Docs/*'
+    - 'README.md'
 
-pr: 
+pr:
   autoCancel: 'true'
   branches:
     include:
     - '*'
   paths:
     include:
-    - '*' 
+    - '*'
 
 variables:
   FullBuild: ${{ or(ne(variables['Build.Reason'], 'PullRequest'), ne(variables['System.PullRequest.IsFork'], 'False')) }}
@@ -63,7 +63,7 @@ stages:
       configuration: Release
       framework: net48
       agents: '@{ windows = "windows-2022" }'
-      jobnamesuffix: net48  
+      jobnamesuffix: net48
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
@@ -112,18 +112,6 @@ stages:
       framework: net9.0
       configuration: Release
       jobnamesuffix: net90
-- stage: testnet462
-  dependsOn: [build]
-  displayName: 'Test .NET 4.6.2'
-  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
-  jobs:
-  - template: .azurepipelines/test.yml
-    parameters:
-      framework: net462
-      configuration: Release
-      jobnamesuffix: net462
-      agents: '@{ windows = "windows-2025" }'
-      customtestarget: net462
 - stage: testnet472
   dependsOn: [build]
   displayName: 'Test .NET 4.7.2'

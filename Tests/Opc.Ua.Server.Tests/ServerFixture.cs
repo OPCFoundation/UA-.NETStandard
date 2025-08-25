@@ -56,7 +56,10 @@ namespace Opc.Ua.Server.Tests
         public bool AllNodeManagers { get; set; }
 
         public int TraceMasks { get; set; } =
-            Utils.TraceMasks.All;
+            Utils.TraceMasks.Error |
+            Utils.TraceMasks.StackTrace |
+            Utils.TraceMasks.Security |
+            Utils.TraceMasks.Information;
 
         public bool SecurityNone { get; set; }
         public string UriScheme { get; set; } = Utils.UriSchemeOpcTcp;
@@ -244,7 +247,6 @@ namespace Opc.Ua.Server.Tests
             if (writer != null)
             {
                 m_traceLogger = NUnitTestLogger<T>.Create(writer);
-                m_traceLogger.MinimumLogLevel = LogLevel.Debug;
             }
 
             // check the application certificate.

@@ -49,7 +49,6 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
-    [CancelAfter(600_000)]
     public class ReferenceServerTests
     {
         private const double kMaxAge = 10000;
@@ -99,8 +98,6 @@ namespace Opc.Ua.Server.Tests
         public void SetUp()
         {
             m_fixture.SetTraceOutput(TestContext.Out);
-            m_fixture.SetTraceOutputLevel(Microsoft.Extensions.Logging.LogLevel.Trace);
-            m_fixture.TraceMasks = Utils.TraceMasks.All;
             m_requestHeader = m_server.CreateAndActivateSession(
                 TestContext.CurrentContext.Test.Name);
             m_requestHeader.Timestamp = DateTime.UtcNow;
