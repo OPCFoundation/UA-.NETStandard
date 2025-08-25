@@ -98,8 +98,7 @@ namespace Opc.Ua.Gds.Tests
         [OneTimeSetUp]
         protected async Task OneTimeSetUpAsync()
         {
-            
-            // start GDS with new fixture that supports trace logging
+            // start GDS
             m_server = await TestUtils.StartGDSAsync(true, m_storeType, TestContext.Out).ConfigureAwait(false);
 
             // load client
@@ -149,8 +148,8 @@ namespace Opc.Ua.Gds.Tests
         protected void SetUp()
         {
             m_server.ResetLogFile();
-            m_server.SetTraceOutput(TestContext.Out);
-            m_server.SetTraceOutputLevel(Microsoft.Extensions.Logging.LogLevel.Debug);
+            //m_server.SetTraceOutput(TestContext.Out);
+            //m_server.SetTraceOutputLevel(Microsoft.Extensions.Logging.LogLevel.Debug);
         }
 
         [TearDown]
