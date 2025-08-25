@@ -382,15 +382,14 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Test Teardown.
         /// </summary>
-        public virtual Task TearDownAsync()
+        public virtual async Task TearDownAsync()
         {
             if (!SingleSession && Session != null)
             {
-                Session.Close();
+                await Session.CloseAsync().ConfigureAwait(false);
                 Session.Dispose();
                 Session = null;
             }
-            return Task.CompletedTask;
         }
 
         /// <summary>

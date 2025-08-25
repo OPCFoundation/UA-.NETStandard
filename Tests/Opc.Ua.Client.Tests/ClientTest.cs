@@ -584,7 +584,7 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(reconnectAbort ? 0 : 1, sessionConfigChanged);
             Assert.AreEqual(0, sessionClosing);
 
-            StatusCode result = session.Close();
+            StatusCode result = await session.CloseAsync().ConfigureAwait(false);
             Assert.NotNull(result);
             reconnectHandler.Dispose();
             session.Dispose();
@@ -617,7 +617,7 @@ namespace Opc.Ua.Client.Tests
                 .GetString(TokenValidator.LastIssuedToken.DecryptedTokenData);
             Assert.AreEqual(identityToken, receivedToken);
 
-            StatusCode result = session.Close();
+            StatusCode result = await session.CloseAsync().ConfigureAwait(false);
             Assert.NotNull(result);
 
             session.Dispose();
@@ -803,7 +803,7 @@ namespace Opc.Ua.Client.Tests
             channel2.Dispose();
 
             // cannot read using a closed channel, validate the status code
-            sre = NUnit.Framework.Assert.Throws<ServiceResultException>(async () =>
+            sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await session1.ReadValueAsync<ServerStatusDataType>(
                     VariableIds.Server_ServerStatus).ConfigureAwait(false));
 
@@ -929,7 +929,7 @@ namespace Opc.Ua.Client.Tests
             if (endpoint.EndpointUrl.ToString()
                 .StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
             {
-                sre = NUnit.Framework.Assert.Throws<ServiceResultException>(
+                sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(
                     async () => await session1.ReadValueAsync<ServerStatusDataType>(
                         VariableIds.Server_ServerStatus).ConfigureAwait(false));
                 Assert.AreEqual(
@@ -1257,7 +1257,7 @@ namespace Opc.Ua.Client.Tests
 
             if (securityPolicy != null)
             {
-                session.Close();
+                await session.CloseAsync().ConfigureAwait(false);
                 session.Dispose();
             }
         }
@@ -1629,7 +1629,7 @@ namespace Opc.Ua.Client.Tests
                     subscriptionIds,
                     true);
 
-                transferSession.Close();
+               await transferSession.CloseAsync().ConfigureAwait(false);
             }
             finally
             {

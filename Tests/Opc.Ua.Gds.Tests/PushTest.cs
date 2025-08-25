@@ -1022,7 +1022,9 @@ namespace Opc.Ua.Gds.Tests
 
             // add issuer and trusted certs to client stores
             NodeId trustListId = await m_gdsClient.GDSClient.GetTrustListAsync(id, null).ConfigureAwait(false);
-            TrustListDataType trustList = await m_gdsClient.GDSClient.ReadTrustListAsync(trustListId).ConfigureAwait(false);
+            TrustListDataType trustList = await m_gdsClient.GDSClient.ReadTrustListAsync(
+                trustListId,
+                ct).ConfigureAwait(false);
             bool result = AddTrustListToStoreAsync(
                 m_gdsClient.Configuration.SecurityConfiguration,
                 trustList).Result;

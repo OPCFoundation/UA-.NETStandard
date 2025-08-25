@@ -41,7 +41,7 @@ namespace Opc.Ua.Client
     /// A subscription.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public partial class Subscription : IDisposable, ICloneable
+    public class Subscription : IDisposable, ICloneable
     {
         private const int kMinKeepAliveTimerInterval = 1000;
         private const int kKeepAliveTimerMargin = 1000;

@@ -56,10 +56,9 @@ namespace Opc.Ua.Client.Tests
 
         public static readonly object[] AsyncFixtureArgs =
         [
-            new object[] { Utils.UriSchemeOpcTcp, false },
-            new object[] { Utils.UriSchemeOpcTcp, true },
-            new object[] { Utils.UriSchemeHttps, false },
-            new object[] { Utils.UriSchemeOpcHttps, true }
+            new object[] { Utils.UriSchemeOpcTcp },
+            new object[] { Utils.UriSchemeHttps },
+            new object[] { Utils.UriSchemeOpcHttps }
         ];
 
         public NodeCacheAsyncTest(string uriScheme = Utils.UriSchemeOpcTcp)

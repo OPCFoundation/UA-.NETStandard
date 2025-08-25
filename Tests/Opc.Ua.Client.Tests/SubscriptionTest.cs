@@ -710,7 +710,7 @@ namespace Opc.Ua.Client.Tests
                 if (endpoint.EndpointUrl.ToString()
                     .StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
                 {
-                    sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+                    sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() =>
                         session1.ReadValueAsync<ServerStatusDataType>(
                             VariableIds.Server_ServerStatus));
                     Assert.AreEqual(
@@ -943,7 +943,7 @@ namespace Opc.Ua.Client.Tests
                 if (transferType == TransferType.CloseSession)
                 {
                     // graceful close
-                    StatusCode close = originSession.Close();
+                    StatusCode close = await originSession.CloseAsync().ConfigureAwait(false);
                     Assert.True(ServiceResult.IsGood(close));
                 }
                 else

@@ -442,6 +442,15 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Closes the client object and the underlying channel.
+        /// </summary>
+        [Obsolete("Use CloseAsync instead.")]
+        public static StatusCode Close(this IClientBase client)
+        {
+            return client.CloseAsync().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
         /// Disconnects from the server and frees any network resources
         /// with the specified timeout.
         /// </summary>

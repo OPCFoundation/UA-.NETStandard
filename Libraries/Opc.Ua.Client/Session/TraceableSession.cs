@@ -2717,13 +2717,6 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public StatusCode Close()
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            return Session.Close();
-        }
-
-        /// <inheritdoc/>
         public uint NewRequestHandle()
         {
             return Session.NewRequestHandle();

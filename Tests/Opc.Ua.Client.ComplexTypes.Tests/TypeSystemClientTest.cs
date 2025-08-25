@@ -147,7 +147,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         {
             if (Session != null)
             {
-                Session.Close();
+                await Session.CloseAsync().ConfigureAwait(false);
                 Session.Dispose();
                 Session = null;
             }

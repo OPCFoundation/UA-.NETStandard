@@ -258,7 +258,7 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(referenceDescriptions);
 
             // close session
-            StatusCode result = session.Close();
+            StatusCode result = await session.CloseAsync().ConfigureAwait(false);
             Assert.NotNull(result);
             session.Dispose();
         }
@@ -321,7 +321,7 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(referenceDescriptions);
 
             // close session
-            StatusCode result = session.Close();
+            StatusCode result = await session.CloseAsync().ConfigureAwait(false);
             Assert.NotNull(result);
             session.Dispose();
         }
