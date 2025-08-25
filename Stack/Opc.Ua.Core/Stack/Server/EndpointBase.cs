@@ -1030,6 +1030,16 @@ namespace Opc.Ua
                 object state,
                 CancellationToken cancellationToken = default)
             {
+                int timeoutHint = (int)Request.RequestHeader.TimeoutHint;
+
+                using CancellationTokenSource timeoutHintCts = timeoutHint > 0 ?
+                     new CancellationTokenSource(timeoutHint)
+                    : new CancellationTokenSource();
+
+                using var combinedCts = CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken,
+                    timeoutHintCts.Token);
+
                 try
                 {
                     // set the context.
@@ -1049,25 +1059,29 @@ namespace Opc.Ua
                                 ActivityKind.Server,
                                 activityContext);
                             // call the service.
-                            m_response = await m_service.InvokeAsync(Request, cancellationToken)
+                            m_response = await m_service.InvokeAsync(Request, combinedCts.Token)
                                 .ConfigureAwait(false);
                         }
                         else
                         {
                             // call the service even when there is no trace information
-                            m_response = await m_service.InvokeAsync(Request, cancellationToken)
+                            m_response = await m_service.InvokeAsync(Request, combinedCts.Token)
                                 .ConfigureAwait(false);
                         }
                     }
                     else
                     {
                         // no listener, directly call the service.
-                        m_response = await m_service.InvokeAsync(Request, cancellationToken)
+                        m_response = await m_service.InvokeAsync(Request, combinedCts.Token)
                             .ConfigureAwait(false);
                     }
                 }
                 catch (Exception e)
                 {
+                    if (e is OperationCanceledException && timeoutHintCts.IsCancellationRequested)
+                    {
+                        e = new ServiceResultException(StatusCodes.BadTimeout);
+                    }
                     // save any error.
                     m_error = e;
                     m_response = SaveExceptionAsResponse(e);
