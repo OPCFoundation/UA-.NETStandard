@@ -991,7 +991,7 @@ namespace Opc.Ua.Gds.Tests
                         TestContext.Progress.WriteLine($"GDS Push({sysAdmin}) Connection failed after multiple retries -- {memberName}");
                         throw; // Re-throw the exception if all retries failed
                     }
-                    await Task.Delay(retryInterval);
+                    await Task.Delay(retryInterval).ConfigureAwait(false);
                 }
             }
             
