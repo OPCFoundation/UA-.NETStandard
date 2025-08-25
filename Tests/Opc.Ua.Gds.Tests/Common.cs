@@ -41,7 +41,7 @@ using Opc.Ua.Test;
 namespace Opc.Ua.Gds.Tests
 {
     public
-#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET8_0_OR_GREATER
     partial
 #endif
     class ApplicationTestDataGenerator
