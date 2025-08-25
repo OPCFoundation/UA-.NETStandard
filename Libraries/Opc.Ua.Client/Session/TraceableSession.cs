@@ -308,27 +308,6 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public void Reconnect()
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            Session.Reconnect();
-        }
-
-        /// <inheritdoc/>
-        public void Reconnect(ITransportWaitingConnection connection)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            Session.Reconnect(connection);
-        }
-
-        /// <inheritdoc/>
-        public void Reconnect(ITransportChannel channel)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            Session.Reconnect(channel);
-        }
-
-        /// <inheritdoc/>
         public async Task ReconnectAsync(CancellationToken ct = default)
         {
             using Activity activity = ActivitySource.StartActivity();
@@ -406,27 +385,6 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public void FetchNamespaceTables()
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            Session.FetchNamespaceTables();
-        }
-
-        /// <inheritdoc/>
-        public void FetchTypeTree(ExpandedNodeId typeId)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            Session.FetchTypeTree(typeId);
-        }
-
-        /// <inheritdoc/>
-        public void FetchTypeTree(ExpandedNodeIdCollection typeIds)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            Session.FetchTypeTree(typeIds);
-        }
-
-        /// <inheritdoc/>
         public async Task FetchTypeTreeAsync(ExpandedNodeId typeId, CancellationToken ct = default)
         {
             using Activity activity = ActivitySource.StartActivity();
@@ -440,103 +398,6 @@ namespace Opc.Ua.Client
         {
             using Activity activity = ActivitySource.StartActivity();
             await Session.FetchTypeTreeAsync(typeIds, ct).ConfigureAwait(false);
-        }
-
-        /// <inheritdoc/>
-        public ReferenceDescriptionCollection ReadAvailableEncodings(NodeId variableId)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            return Session.ReadAvailableEncodings(variableId);
-        }
-
-        /// <inheritdoc/>
-        public ReferenceDescription FindDataDescription(NodeId encodingId)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            return Session.FindDataDescription(encodingId);
-        }
-
-        /// <inheritdoc/>
-        public Node ReadNode(NodeId nodeId)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            return Session.ReadNode(nodeId);
-        }
-
-        /// <inheritdoc/>
-        public Node ReadNode(NodeId nodeId, NodeClass nodeClass, bool optionalAttributes = true)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            return Session.ReadNode(nodeId, nodeClass, optionalAttributes);
-        }
-
-        /// <inheritdoc/>
-        public void ReadNodes(
-            IList<NodeId> nodeIds,
-            out IList<Node> nodeCollection,
-            out IList<ServiceResult> errors,
-            bool optionalAttributes = false)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            Session.ReadNodes(nodeIds, out nodeCollection, out errors, optionalAttributes);
-        }
-
-        /// <inheritdoc/>
-        public void ReadNodes(
-            IList<NodeId> nodeIds,
-            NodeClass nodeClass,
-            out IList<Node> nodeCollection,
-            out IList<ServiceResult> errors,
-            bool optionalAttributes = false)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            Session.ReadNodes(
-                nodeIds,
-                nodeClass,
-                out nodeCollection,
-                out errors,
-                optionalAttributes);
-        }
-
-        /// <inheritdoc/>
-        public DataValue ReadValue(NodeId nodeId)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            return Session.ReadValue(nodeId);
-        }
-
-        /// <inheritdoc/>
-        public object ReadValue(NodeId nodeId, Type expectedType)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            return Session.ReadValue(nodeId, expectedType);
-        }
-
-        /// <inheritdoc/>
-        public void ReadValues(
-            IList<NodeId> nodeIds,
-            out DataValueCollection values,
-            out IList<ServiceResult> errors)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            Session.ReadValues(nodeIds, out values, out errors);
-        }
-
-        /// <inheritdoc/>
-        public ReferenceDescriptionCollection FetchReferences(NodeId nodeId)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            return Session.FetchReferences(nodeId);
-        }
-
-        /// <inheritdoc/>
-        public void FetchReferences(
-            IList<NodeId> nodeIds,
-            out IList<ReferenceDescriptionCollection> referenceDescriptions,
-            out IList<ServiceResult> errors)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            Session.FetchReferences(nodeIds, out referenceDescriptions, out errors);
         }
 
         /// <inheritdoc/>
@@ -558,63 +419,6 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public void Open(string sessionName, IUserIdentity identity)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            Session.Open(sessionName, identity);
-        }
-
-        /// <inheritdoc/>
-        public void Open(
-            string sessionName,
-            uint sessionTimeout,
-            IUserIdentity identity,
-            IList<string> preferredLocales)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            Session.Open(sessionName, sessionTimeout, identity, preferredLocales);
-        }
-
-        /// <inheritdoc/>
-        public void Open(
-            string sessionName,
-            uint sessionTimeout,
-            IUserIdentity identity,
-            IList<string> preferredLocales,
-            bool checkDomain)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            Session.Open(sessionName, sessionTimeout, identity, preferredLocales, checkDomain);
-        }
-
-        /// <inheritdoc/>
-        public void Open(
-            string sessionName,
-            uint sessionTimeout,
-            IUserIdentity identity,
-            IList<string> preferredLocales,
-            bool checkDomain,
-            bool closeChannel)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            Session.Open(
-                sessionName,
-                sessionTimeout,
-                identity,
-                preferredLocales,
-                checkDomain,
-                closeChannel);
-        }
-
-        /// <inheritdoc/>
-        [Obsolete("Use ChangePreferredLocalesAsync instead.")]
-        public void ChangePreferredLocales(StringCollection preferredLocales)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            Session.ChangePreferredLocales(preferredLocales);
-        }
-
-        /// <inheritdoc/>
         public async Task ChangePreferredLocalesAsync(
             StringCollection preferredLocales,
             CancellationToken ct)
@@ -622,14 +426,6 @@ namespace Opc.Ua.Client
             using Activity activity = ActivitySource.StartActivity();
             await Session.ChangePreferredLocalesAsync(preferredLocales, ct)
                 .ConfigureAwait(false);
-        }
-
-        /// <inheritdoc/>
-        [Obsolete("Use UpdateSessionAsync instead.")]
-        public void UpdateSession(IUserIdentity identity, StringCollection preferredLocales)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            Session.UpdateSession(identity, preferredLocales);
         }
 
         /// <inheritdoc/>
@@ -655,38 +451,10 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public void ReadValues(
-            IList<NodeId> variableIds,
-            IList<Type> expectedTypes,
-            out IList<object> values,
-            out IList<ServiceResult> errors)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            Session.ReadValues(variableIds, expectedTypes, out values, out errors);
-        }
-
-        /// <inheritdoc/>
-        public byte[] ReadByteStringInChunks(NodeId nodeId)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            return Session.ReadByteStringInChunks(nodeId);
-        }
-
-        /// <inheritdoc/>
         public async Task<byte[]> ReadByteStringInChunksAsync(NodeId nodeId, CancellationToken ct)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.ReadByteStringInChunksAsync(nodeId, ct).ConfigureAwait(false);
-        }
-
-        /// <inheritdoc/>
-        public void ReadDisplayName(
-            IList<NodeId> nodeIds,
-            out IList<string> displayNames,
-            out IList<ServiceResult> errors)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            Session.ReadDisplayName(nodeIds, out displayNames, out errors);
         }
 
         /// <inheritdoc/>
@@ -816,27 +584,6 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public StatusCode Close(int timeout)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            return Session.Close(timeout);
-        }
-
-        /// <inheritdoc/>
-        public StatusCode Close(bool closeChannel)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            return Session.Close(closeChannel);
-        }
-
-        /// <inheritdoc/>
-        public StatusCode Close(int timeout, bool closeChannel)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            return Session.Close(timeout, closeChannel);
-        }
-
-        /// <inheritdoc/>
         public async Task<StatusCode> CloseAsync(CancellationToken ct = default)
         {
             using Activity activity = ActivitySource.StartActivity();
@@ -875,29 +622,6 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public bool RemoveSubscription(Subscription subscription)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            return Session.RemoveSubscription(subscription);
-        }
-
-        /// <inheritdoc/>
-        public bool RemoveSubscriptions(IEnumerable<Subscription> subscriptions)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            return Session.RemoveSubscriptions(subscriptions);
-        }
-
-        /// <inheritdoc/>
-        public bool TransferSubscriptions(
-            SubscriptionCollection subscriptions,
-            bool sendInitialValues)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            return Session.TransferSubscriptions(subscriptions, sendInitialValues);
-        }
-
-        /// <inheritdoc/>
         public bool RemoveTransferredSubscription(Subscription subscription)
         {
             using Activity activity = ActivitySource.StartActivity();
@@ -919,117 +643,6 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public ResponseHeader Browse(
-            RequestHeader requestHeader,
-            ViewDescription view,
-            NodeId nodeToBrowse,
-            uint maxResultsToReturn,
-            BrowseDirection browseDirection,
-            NodeId referenceTypeId,
-            bool includeSubtypes,
-            uint nodeClassMask,
-            out byte[] continuationPoint,
-            out ReferenceDescriptionCollection references)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            return Session.Browse(
-                requestHeader,
-                view,
-                nodeToBrowse,
-                maxResultsToReturn,
-                browseDirection,
-                referenceTypeId,
-                includeSubtypes,
-                nodeClassMask,
-                out continuationPoint,
-                out references);
-        }
-
-        /// <inheritdoc/>
-        public IAsyncResult BeginBrowse(
-            RequestHeader requestHeader,
-            ViewDescription view,
-            NodeId nodeToBrowse,
-            uint maxResultsToReturn,
-            BrowseDirection browseDirection,
-            NodeId referenceTypeId,
-            bool includeSubtypes,
-            uint nodeClassMask,
-            AsyncCallback callback,
-            object asyncState)
-        {
-            return Session.BeginBrowse(
-                requestHeader,
-                view,
-                nodeToBrowse,
-                maxResultsToReturn,
-                browseDirection,
-                referenceTypeId,
-                includeSubtypes,
-                nodeClassMask,
-                callback,
-                asyncState);
-        }
-
-        /// <inheritdoc/>
-        public ResponseHeader EndBrowse(
-            IAsyncResult result,
-            out byte[] continuationPoint,
-            out ReferenceDescriptionCollection references)
-        {
-            return Session.EndBrowse(result, out continuationPoint, out references);
-        }
-
-        /// <inheritdoc/>
-        public ResponseHeader BrowseNext(
-            RequestHeader requestHeader,
-            bool releaseContinuationPoint,
-            byte[] continuationPoint,
-            out byte[] revisedContinuationPoint,
-            out ReferenceDescriptionCollection references)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            return Session.BrowseNext(
-                requestHeader,
-                releaseContinuationPoint,
-                continuationPoint,
-                out revisedContinuationPoint,
-                out references);
-        }
-
-        /// <inheritdoc/>
-        public IAsyncResult BeginBrowseNext(
-            RequestHeader requestHeader,
-            bool releaseContinuationPoint,
-            byte[] continuationPoint,
-            AsyncCallback callback,
-            object asyncState)
-        {
-            return Session.BeginBrowseNext(
-                requestHeader,
-                releaseContinuationPoint,
-                continuationPoint,
-                callback,
-                asyncState);
-        }
-
-        /// <inheritdoc/>
-        public ResponseHeader EndBrowseNext(
-            IAsyncResult result,
-            out byte[] revisedContinuationPoint,
-            out ReferenceDescriptionCollection references)
-        {
-            return Session.EndBrowseNext(result, out revisedContinuationPoint, out references);
-        }
-
-        /// <inheritdoc/>
-        public IList<object> Call(NodeId objectId, NodeId methodId, params object[] args)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            return Session.Call(objectId, methodId, args);
-        }
-
-        /// <inheritdoc/>
         public IAsyncResult BeginPublish(int timeout)
         {
             return Session.BeginPublish(timeout);
@@ -1040,13 +653,6 @@ namespace Opc.Ua.Client
         {
             using Activity activity = ActivitySource.StartActivity();
             Session.StartPublishing(timeout, fullQueue);
-        }
-
-        /// <inheritdoc/>
-        public bool Republish(uint subscriptionId, uint sequenceNumber, out ServiceResult error)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            return Session.Republish(subscriptionId, sequenceNumber, out error);
         }
 
         /// <inheritdoc/>
@@ -1637,33 +1243,6 @@ namespace Opc.Ua.Client
             return await Session
                 .BrowseNextAsync(requestHeader, releaseContinuationPoints, continuationPoints, ct)
                 .ConfigureAwait(false);
-        }
-
-        /// <inheritdoc/>
-        public void ManagedBrowse(
-            RequestHeader requestHeader,
-            ViewDescription view,
-            IList<NodeId> nodesToBrowse,
-            uint maxResultsToReturn,
-            BrowseDirection browseDirection,
-            NodeId referenceTypeId,
-            bool includeSubtypes,
-            uint nodeClassMask,
-            out IList<ReferenceDescriptionCollection> result,
-            out IList<ServiceResult> errors)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            Session.ManagedBrowse(
-                requestHeader,
-                view,
-                nodesToBrowse,
-                maxResultsToReturn,
-                browseDirection,
-                referenceTypeId,
-                includeSubtypes,
-                nodeClassMask,
-                out result,
-                out errors);
         }
 
         /// <inheritdoc/>
@@ -3090,15 +2669,6 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public bool ReactivateSubscriptions(
-            SubscriptionCollection subscriptions,
-            bool sendInitialValues)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            return Session.ReactivateSubscriptions(subscriptions, sendInitialValues);
-        }
-
-        /// <inheritdoc/>
         public async Task<bool> RemoveSubscriptionAsync(
             Subscription subscription,
             CancellationToken ct = default)
@@ -3151,21 +2721,119 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public bool ResendData(
-            IEnumerable<Subscription> subscriptions,
-            out IList<ServiceResult> errors)
-        {
-            using Activity activity = ActivitySource.StartActivity();
-            return Session.ResendData(subscriptions, out errors);
-        }
-
-        /// <inheritdoc/>
         public async Task<(bool, IList<ServiceResult>)> ResendDataAsync(
             IEnumerable<Subscription> subscriptions,
             CancellationToken ct = default)
         {
             using Activity activity = ActivitySource.StartActivity();
             return await Session.ResendDataAsync(subscriptions, ct).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public async Task<(IList<string>, IList<ServiceResult>)> ReadDisplayNameAsync(
+            IList<NodeId> nodeIds,
+            CancellationToken ct = default)
+        {
+            using Activity activity = ActivitySource.StartActivity();
+            return await Session.ReadDisplayNameAsync(
+                nodeIds,
+                ct).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public async Task<(NodeIdCollection, IList<ServiceResult>)> FindComponentIdsAsync(
+            NodeId instanceId,
+            IList<string> componentPaths,
+            CancellationToken ct = default)
+        {
+            using Activity activity = ActivitySource.StartActivity();
+            return await Session.FindComponentIdsAsync(
+                instanceId,
+                componentPaths,
+                ct).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public async Task<ReferenceDescriptionCollection> ReadAvailableEncodingsAsync(
+            NodeId variableId,
+            CancellationToken ct = default)
+        {
+            using Activity activity = ActivitySource.StartActivity();
+            return await Session.ReadAvailableEncodingsAsync(
+                variableId,
+                ct).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public async Task<ReferenceDescription> FindDataDescriptionAsync(
+            NodeId encodingId,
+            CancellationToken ct = default)
+        {
+            using Activity activity = ActivitySource.StartActivity();
+            return await Session.FindDataDescriptionAsync(
+                encodingId,
+                ct).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public async Task<T> ReadValueAsync<T>(
+            NodeId nodeId,
+            CancellationToken ct = default)
+        {
+            using Activity activity = ActivitySource.StartActivity();
+            return await Session.ReadValueAsync<T>(nodeId, ct).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public async Task<(
+            ResponseHeader responseHeader,
+            ByteStringCollection continuationPoints,
+            IList<ReferenceDescriptionCollection> referencesList,
+            IList<ServiceResult> errors
+            )> BrowseAsync(
+                RequestHeader requestHeader,
+                ViewDescription view,
+                IList<NodeId> nodesToBrowse,
+                uint maxResultsToReturn,
+                BrowseDirection browseDirection,
+                NodeId referenceTypeId,
+                bool includeSubtypes,
+                uint nodeClassMask,
+                CancellationToken ct = default)
+        {
+            using Activity activity = ActivitySource.StartActivity();
+            return await Session.BrowseAsync(
+                requestHeader,
+                view,
+                nodesToBrowse,
+                maxResultsToReturn,
+                browseDirection,
+                referenceTypeId,
+                includeSubtypes,
+                nodeClassMask,
+                ct)
+                .ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public async Task<(
+            ResponseHeader responseHeader,
+            ByteStringCollection revisedContinuationPoints,
+            IList<ReferenceDescriptionCollection> referencesList,
+            IList<ServiceResult> errors)>
+            BrowseNextAsync(
+                RequestHeader requestHeader,
+                ByteStringCollection continuationPoints,
+                bool releaseContinuationPoint,
+                CancellationToken ct = default)
+        {
+            using Activity activity = ActivitySource.StartActivity();
+            return await Session.BrowseNextAsync(
+                requestHeader,
+                continuationPoints,
+                releaseContinuationPoint,
+                ct)
+                .ConfigureAwait(false);
         }
     }
 }

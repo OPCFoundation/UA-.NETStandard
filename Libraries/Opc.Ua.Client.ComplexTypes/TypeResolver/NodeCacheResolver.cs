@@ -453,21 +453,13 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <inheritdoc/>
         public Task<NodeId> FindSuperTypeAsync(NodeId typeId, CancellationToken ct = default)
         {
-            return GetSuperTypeAsync(typeId, ct)
-#if USE_LRU_CACHE
-            .AsTask()
-#endif
-            ;
+            return GetSuperTypeAsync(typeId, ct).AsTask();
         }
 
         /// <inheritdoc/>
         public Task<INode> FindAsync(ExpandedNodeId nodeId, CancellationToken ct = default)
         {
-            return GetNodeAsync(nodeId, ct)
-#if USE_LRU_CACHE
-            .AsTask()
-#endif
-            ;
+            return GetNodeAsync(nodeId, ct).AsTask();
         }
 
         /// <summary>
@@ -811,7 +803,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Get the super type of the specified type id.
         /// </summary>
-        private Task<NodeId> GetSuperTypeAsync(NodeId typeId, CancellationToken ct)
+        private ValueTask<NodeId> GetSuperTypeAsync(NodeId typeId, CancellationToken ct)
         {
             return m_session.NodeCache.FindSuperTypeAsync(typeId, ct);
         }
@@ -819,7 +811,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Get the node identified by the expanded node id.
         /// </summary>
-        private Task<INode> GetNodeAsync(ExpandedNodeId nodeId, CancellationToken ct)
+        private ValueTask<INode> GetNodeAsync(ExpandedNodeId nodeId, CancellationToken ct)
         {
             return m_session.NodeCache.FindAsync(nodeId, ct);
         }

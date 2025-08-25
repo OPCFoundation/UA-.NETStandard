@@ -143,7 +143,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 NodeClassMask = 0
             };
 
-            ReferenceDescriptionCollection references = browser.Browse(dataTypeSystem);
+            ReferenceDescriptionCollection references =
+                await browser.BrowseAsync(dataTypeSystem).ConfigureAwait(false);
             Assert.NotNull(references);
 
             TestContext.Out.WriteLine("  Found {0} references", references.Count);

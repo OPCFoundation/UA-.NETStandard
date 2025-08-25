@@ -77,6 +77,7 @@ namespace Quickstarts
             m_verbose = verbose;
             m_desiredEventFields = [];
             int eventIndexCounter = 0;
+
             m_desiredEventFields.Add(
                 eventIndexCounter++,
                 [.. new QualifiedName[] { BrowseNames.Time }]);
@@ -97,7 +98,7 @@ namespace Quickstarts
         /// <summary>
         /// Read a list of nodes from Server
         /// </summary>
-        public void ReadNodes(ISession session)
+        public async Task ReadNodesAsync(ISession session, CancellationToken ct = default)
         {
             if (session == null || !session.Connected)
             {
@@ -132,13 +133,15 @@ namespace Quickstarts
                 m_output.WriteLine("Reading nodes...");
 
                 // Call Read Service
-                session.Read(
+                ReadResponse response = await session.ReadAsync(
                     null,
                     0,
                     TimestampsToReturn.Both,
                     nodesToRead,
-                    out DataValueCollection resultsValues,
-                    out DiagnosticInfoCollection diagnosticInfos);
+                    ct).ConfigureAwait(false);
+
+                DataValueCollection resultsValues = response.Results;
+                DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
 
                 // Validate the results
                 m_validateResponse(resultsValues, nodesToRead);
@@ -154,7 +157,8 @@ namespace Quickstarts
 
                 // Read Server NamespaceArray
                 m_output.WriteLine("Reading Value of NamespaceArray node...");
-                DataValue namespaceArray = session.ReadValue(Variables.Server_NamespaceArray);
+                DataValue namespaceArray = await session.ReadValueAsync(Variables.Server_NamespaceArray, ct)
+                    .ConfigureAwait(false);
                 // Display the result
                 m_output.WriteLine($"NamespaceArray Value = {namespaceArray}");
             }
@@ -168,7 +172,7 @@ namespace Quickstarts
         /// <summary>
         /// Write a list of nodes to the Server.
         /// </summary>
-        public void WriteNodes(ISession session)
+        public async Task WriteNodesAsync(ISession session, CancellationToken ct = default)
         {
             if (session == null || !session.Connected)
             {
@@ -212,11 +216,13 @@ namespace Quickstarts
                 m_output.WriteLine("Writing nodes...");
 
                 // Call Write Service
-                session.Write(
+                WriteResponse response = await session.WriteAsync(
                     null,
                     nodesToWrite,
-                    out StatusCodeCollection results,
-                    out DiagnosticInfoCollection diagnosticInfos);
+                    ct).ConfigureAwait(false);
+
+                StatusCodeCollection results = response.Results;
+                DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
 
                 // Validate the response
                 m_validateResponse(results, nodesToWrite);
@@ -239,7 +245,7 @@ namespace Quickstarts
         /// <summary>
         /// Browse Server nodes
         /// </summary>
-        public void Browse(ISession session)
+        public async Task BrowseAsync(ISession session, CancellationToken ct = default)
         {
             if (session == null || !session.Connected)
             {
@@ -263,7 +269,8 @@ namespace Quickstarts
 
                 // Call Browse service
                 m_output.WriteLine("Browsing {0} node...", nodeToBrowse);
-                ReferenceDescriptionCollection browseResults = browser.Browse(nodeToBrowse);
+                ReferenceDescriptionCollection browseResults =
+                    await browser.BrowseAsync(nodeToBrowse, ct).ConfigureAwait(false);
 
                 // Display the results
                 m_output.WriteLine("Browse returned {0} results:", browseResults.Count);
@@ -286,7 +293,7 @@ namespace Quickstarts
         /// <summary>
         /// Call UA method
         /// </summary>
-        public void CallMethod(ISession session)
+        public async Task CallMethodAsync(ISession session, CancellationToken ct = default)
         {
             if (session == null || !session.Connected)
             {
@@ -309,7 +316,11 @@ namespace Quickstarts
 
                 // Invoke Call service
                 m_output.WriteLine("Calling UAMethod for node {0} ...", methodId);
-                outputArguments = session.Call(objectId, methodId, inputArguments);
+                outputArguments = await session.CallAsync(
+                    objectId,
+                    methodId,
+                    ct,
+                    inputArguments).ConfigureAwait(false);
 
                 // Display results
                 m_output.WriteLine(
@@ -330,7 +341,10 @@ namespace Quickstarts
         /// <summary>
         /// Call the Start method for Alarming to enable events
         /// </summary>
-        public void EnableEvents(ISession session, uint timeToRun)
+        public async Task EnableEventsAsync(
+            ISession session,
+            uint timeToRun,
+            CancellationToken ct = default)
         {
             if (session == null || !session.Connected)
             {
@@ -353,7 +367,11 @@ namespace Quickstarts
 
                 // Invoke Call service
                 m_output.WriteLine("Calling UAMethod for node {0} ...", methodId);
-                outputArguments = session.Call(objectId, methodId, inputArguments);
+                outputArguments = await session.CallAsync(
+                    objectId,
+                    methodId,
+                    ct,
+                    inputArguments).ConfigureAwait(false);
 
                 // Display results
                 m_output.WriteLine(
@@ -374,10 +392,11 @@ namespace Quickstarts
         /// <summary>
         /// Create Subscription and MonitoredItems for DataChanges
         /// </summary>
-        public bool SubscribeToDataChanges(
+        public async Task<bool> SubscribeToDataChangesAsync(
             ISession session,
             uint minLifeTime,
-            bool enableDurableSubscriptions)
+            bool enableDurableSubscriptions,
+            CancellationToken ct = default)
         {
             bool isDurable = false;
 
@@ -415,7 +434,7 @@ namespace Quickstarts
                 session.AddSubscription(subscription);
 
                 // Create the subscription on Server side
-                subscription.Create();
+                await subscription.CreateAsync(ct).ConfigureAwait(false);
                 m_output.WriteLine(
                     "New Subscription created with SubscriptionId = {0}, Sampling Interval {1}, Publishing Interval {2}.",
                     subscription.Id,
@@ -424,7 +443,9 @@ namespace Quickstarts
 
                 if (enableDurableSubscriptions)
                 {
-                    if (subscription.SetSubscriptionDurable(1, out uint revisedLifetimeInHours))
+                    (bool success, uint revisedLifetimeInHours) =
+                        await subscription.SetSubscriptionDurableAsync(1, ct).ConfigureAwait(false);
+                    if (success)
                     {
                         isDurable = true;
 
@@ -529,7 +550,7 @@ namespace Quickstarts
                 subscription.AddItem(eventMonitoredItem);
 
                 // Create the monitored items on Server side
-                subscription.ApplyChanges();
+                await subscription.ApplyChangesAsync(ct).ConfigureAwait(false);
                 m_output.WriteLine(
                     "MonitoredItems created for SubscriptionId = {0}.",
                     subscription.Id);
@@ -557,7 +578,8 @@ namespace Quickstarts
             bool fetchTree = false,
             bool addRootNode = false,
             bool filterUATypes = true,
-            bool clearNodeCache = true)
+            bool clearNodeCache = true,
+            CancellationToken ct = default)
         {
             var stopwatch = new Stopwatch();
             var nodeDictionary = new Dictionary<ExpandedNodeId, INode>();
@@ -571,13 +593,13 @@ namespace Quickstarts
             {
                 // clear NodeCache to fetch all nodes from server
                 uaClient.Session.NodeCache.Clear();
-                await FetchReferenceIdTypesAsync(uaClient.Session).ConfigureAwait(false);
+                await FetchReferenceIdTypesAsync(uaClient.Session, ct).ConfigureAwait(false);
             }
 
             // add root node
             if (addRootNode)
             {
-                INode rootNode = await uaClient.Session.NodeCache.FindAsync(startingNode)
+                INode rootNode = await uaClient.Session.NodeCache.FindAsync(startingNode, ct)
                     .ConfigureAwait(false);
                 nodeDictionary[rootNode.NodeId] = rootNode;
             }
@@ -598,7 +620,7 @@ namespace Quickstarts
                     nodesToBrowse.Count,
                     stopwatch.ElapsedMilliseconds);
                 IList<INode> response = await uaClient
-                    .Session.NodeCache.FindReferencesAsync(nodesToBrowse, references, false, true)
+                    .Session.NodeCache.FindReferencesAsync(nodesToBrowse, references, false, true, ct)
                     .ConfigureAwait(false);
 
                 var nextNodesToBrowse = new ExpandedNodeIdCollection();
@@ -1093,7 +1115,9 @@ namespace Quickstarts
         /// Outputs elapsed time information for perf testing and lists all
         /// types that were successfully added to the session encodeable type factory.
         /// </remarks>
-        public async Task<ComplexTypeSystem> LoadTypeSystemAsync(ISession session)
+        public async Task<ComplexTypeSystem> LoadTypeSystemAsync(
+            ISession session,
+            CancellationToken ct = default)
         {
             m_output.WriteLine("Load the server type system.");
 
@@ -1101,7 +1125,7 @@ namespace Quickstarts
             stopWatch.Start();
 
             var complexTypeSystem = new ComplexTypeSystem(session);
-            await complexTypeSystem.LoadAsync().ConfigureAwait(false);
+            await complexTypeSystem.LoadAsync(ct: ct).ConfigureAwait(false);
 
             stopWatch.Stop();
 
@@ -1140,12 +1164,16 @@ namespace Quickstarts
         /// known reference types to reduce the number of FetchReferences/FetchNodes calls.
         /// </summary>
         /// <remarks>
-        /// The NodeCache needs this information to function properly with subtypes of hierarchical calls.
+        /// The NodeCache needs this information to function properly with subtypes
+        /// of hierarchical calls.
         /// </remarks>
         /// <param name="session">The session to use</param>
-        private static Task FetchReferenceIdTypesAsync(ISession session)
+        private static Task FetchReferenceIdTypesAsync(
+            ISession session,
+            CancellationToken ct = default)
         {
-            // fetch the reference types first, otherwise browse for e.g. hierarchical references with subtypes won't work
+            // fetch the reference types first, otherwise browse for e.g. hierarchical
+            // references with subtypes won't work
             const BindingFlags bindingFlags = BindingFlags.Instance |
                 BindingFlags.Static |
                 BindingFlags.Public;
@@ -1154,7 +1182,7 @@ namespace Quickstarts
                 .GetFields(bindingFlags)
                 .Select(
                     field => NodeId.ToExpandedNodeId((NodeId)field.GetValue(null), namespaceUris));
-            return session.FetchTypeTreeAsync([.. referenceTypes]);
+            return session.FetchTypeTreeAsync([.. referenceTypes], ct);
         }
 
         /// <summary>
@@ -1162,7 +1190,8 @@ namespace Quickstarts
         /// </summary>
         public async Task<(DataValueCollection, IList<ServiceResult>)> ReadAllValuesAsync(
             IUAClient uaClient,
-            NodeIdCollection variableIds)
+            NodeIdCollection variableIds,
+            CancellationToken ct = default)
         {
             bool retrySingleRead = false;
             DataValueCollection values = null;
@@ -1183,7 +1212,7 @@ namespace Quickstarts
                             {
                                 m_output.WriteLine("Read {0}", variableId);
                                 DataValue value = await uaClient
-                                    .Session.ReadValueAsync(variableId)
+                                    .Session.ReadValueAsync(variableId, ct)
                                     .ConfigureAwait(false);
                                 values.Add(value);
                                 errors.Add(value.StatusCode);
@@ -1212,7 +1241,7 @@ namespace Quickstarts
                     }
                     else
                     {
-                        (values, errors) = await uaClient.Session.ReadValuesAsync(variableIds)
+                        (values, errors) = await uaClient.Session.ReadValuesAsync(variableIds, ct)
                             .ConfigureAwait(false);
 
                         int ii = 0;
@@ -1260,7 +1289,8 @@ namespace Quickstarts
             int publishingInterval,
             uint queueSize,
             uint lifetimeCount,
-            uint keepAliveCount)
+            uint keepAliveCount,
+            CancellationToken ct = default)
         {
             if (uaClient.Session == null || !uaClient.Session.Connected)
             {
@@ -1298,7 +1328,7 @@ namespace Quickstarts
                 session.AddSubscription(subscription);
 
                 // Create the subscription on Server side
-                await subscription.CreateAsync().ConfigureAwait(false);
+                await subscription.CreateAsync(ct).ConfigureAwait(false);
                 m_output.WriteLine(
                     "New Subscription created with SubscriptionId = {0}.",
                     subscription.Id);
@@ -1324,7 +1354,7 @@ namespace Quickstarts
                 }
 
                 // Create the monitored items on Server side
-                await subscription.ApplyChangesAsync().ConfigureAwait(false);
+                await subscription.ApplyChangesAsync(ct).ConfigureAwait(false);
                 m_output.WriteLine(
                     "MonitoredItems {0} created for SubscriptionId = {1}.",
                     subscription.MonitoredItemCount,

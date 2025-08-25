@@ -151,42 +151,6 @@ namespace Opc.Ua.Client.Tests
 
         [Test]
         [Order(200)]
-        public void TestBoundaryCaseForReadingChunks()
-        {
-            var theSession = (Session)((TraceableSession)Session).Session;
-
-            int namespaceIndex = theSession.NamespaceUris.GetIndex(
-                "http://opcfoundation.org/Quickstarts/ReferenceServer");
-            var nodeId = new NodeId($"ns={namespaceIndex};s=Scalar_Static_ByteString");
-
-            var random = new Random();
-
-            byte[] chunk = new byte[MaxByteStringLengthForTest];
-            random.NextBytes(chunk);
-
-            var writeValue = new WriteValue
-            {
-                NodeId = nodeId,
-                AttributeId = Attributes.Value,
-                Value = new DataValue { WrappedValue = new Variant(chunk) },
-                IndexRange = null
-            };
-            var writeValues = new WriteValueCollection { writeValue };
-
-            theSession.Write(null, writeValues, out StatusCodeCollection results, out _);
-
-            if (results[0] != StatusCodes.Good)
-            {
-                NUnit.Framework.Assert.Fail($"Write failed with status code {results[0]}");
-            }
-
-            byte[] readData = theSession.ReadByteStringInChunks(nodeId);
-
-            Assert.IsTrue(Utils.IsEqual(chunk, readData));
-        }
-
-        [Test]
-        [Order(210)]
         public async Task TestBoundaryCaseForReadingChunksAsync()
         {
             var theSession = (Session)((TraceableSession)Session).Session;
