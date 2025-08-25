@@ -968,10 +968,33 @@ namespace Opc.Ua.Gds.Tests
             bool sysAdmin,
             [System.Runtime.CompilerServices.CallerMemberName] string memberName = "")
         {
-            m_pushClient.PushClient.AdminCredentials = sysAdmin
-                ? m_pushClient.SysAdminUser
-                : m_pushClient.AppUser;
-            await m_pushClient.ConnectAsync(m_securityPolicyUri).ConfigureAwait(false);
+            int retryCount = 3;
+            TimeSpan retryInterval = TimeSpan.FromSeconds(2);
+
+            while (retryCount > 0)
+            {
+                try
+                {
+                    m_pushClient.PushClient.AdminCredentials = sysAdmin
+                        ? m_pushClient.SysAdminUser
+                        : m_pushClient.AppUser;
+                    await m_pushClient.ConnectAsync(m_securityPolicyUri).ConfigureAwait(false);
+                    TestContext.Progress.WriteLine($"GDS Push({sysAdmin}) Connected -- {memberName}");
+                    return; // Connection successful, exit the loop
+                }
+                catch (Exception ex)
+                {
+                    TestContext.Progress.WriteLine($"Connection attempt failed: {ex.Message}. Retrying in {retryInterval}...");
+                    retryCount--;
+                    if (retryCount == 0)
+                    {
+                        TestContext.Progress.WriteLine($"GDS Push({sysAdmin}) Connection failed after multiple retries -- {memberName}");
+                        throw; // Re-throw the exception if all retries failed
+                    }
+                    await Task.Delay(retryInterval);
+                }
+            }
+            
             TestContext.Progress.WriteLine($"GDS Push({sysAdmin}) Connected -- {memberName}");
         }
 
