@@ -27,9 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Collections.Generic;
-using System.Text;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -57,14 +54,13 @@ namespace MemoryBuffer
             uint clientHandle,
             MonitoringFilter originalFilter,
             MonitoringFilter filterToUse,
-            Opc.Ua.Range range,
+            Range range,
             double samplingInterval,
             uint queueSize,
             bool discardOldest,
             double minimumSamplingInterval,
             bool createDurable)
-        :
-            base(
+            : base(
                 server,
                 nodeManager,
                 managerHandle,
@@ -84,7 +80,7 @@ namespace MemoryBuffer
                 minimumSamplingInterval,
                 createDurable)
         {
-            m_offset = offset;
+            Offset = offset;
         }
 
         /// <summary>
@@ -96,14 +92,9 @@ namespace MemoryBuffer
             object managerHandle,
             uint offset,
             IStoredMonitoredItem storedMonitoredItem)
-        :
-            base(
-                server,
-                nodeManager,
-                managerHandle,
-                storedMonitoredItem)
+            : base(server, nodeManager, managerHandle, storedMonitoredItem)
         {
-            m_offset = offset;
+            Offset = offset;
         }
 
         /// <summary>
@@ -115,7 +106,8 @@ namespace MemoryBuffer
             uint clientHandle,
             double samplingInterval)
         {
-            return base.ModifyAttributes(diagnosticsMasks,
+            return ModifyAttributes(
+                diagnosticsMasks,
                 timestampsToReturn,
                 clientHandle,
                 null,
@@ -129,14 +121,6 @@ namespace MemoryBuffer
         /// <summary>
         /// The offset in the memory buffer.
         /// </summary>
-        public uint Offset
-        {
-            get
-            {
-                return m_offset;
-            }
-        }
-
-        private uint m_offset;
+        public uint Offset { get; }
     }
 }

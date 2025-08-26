@@ -16,38 +16,50 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
-    #region CertificateTrustList Class
     /// <summary>
     /// A list of trusted certificates.
     /// </summary>
     /// <remarks>
-    /// Administrators can create a list of trusted certificates by designating all certificates 
-    /// in a particular certificate store as trusted and/or by explictly specifying a list of 
+    /// <para>
+    /// Administrators can create a list of trusted certificates by designating all certificates
+    /// in a particular certificate store as trusted and/or by explictly specifying a list of
     /// individual certificates.
-    /// 
+    /// </para>
+    /// <para>
     /// A trust list can contain either instance certificates or certification authority certificates.
     /// If the list contains instance certificates the application will trust peers that use the
     /// instance certificate (provided the ApplicationUri and HostName match the certificate).
-    /// 
+    /// </para>
+    /// <para>
     /// If the list contains certification authority certificates then the application will trust
     /// peers that have certificates issued by one of the authorities.
-    /// 
+    /// </para>
+    /// <para>
     /// Any certificate could be revoked by the issuer (CAs may issue certificates for other CAs).
     /// The RevocationMode specifies whether this check should be done each time a certificate
     /// in the list are used.
+    /// </para>
     /// </remarks>
     public partial class CertificateTrustList : CertificateStoreIdentifier
     {
-        #region Public Methods
         /// <summary>
         /// Returns the certificates in the trust list.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
-        public async Task<X509Certificate2Collection> GetCertificates()
+        [Obsolete("Use GetCertificatesAsync() instead.")]
+        public Task<X509Certificate2Collection> GetCertificates()
         {
-            X509Certificate2Collection collection = new X509Certificate2Collection();
+            return GetCertificatesAsync();
+        }
 
-            if (!string.IsNullOrEmpty(this.StorePath))
+        /// <summary>
+        /// Returns the certificates in the trust list.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public async Task<X509Certificate2Collection> GetCertificatesAsync()
+        {
+            var collection = new X509Certificate2Collection();
+
+            if (!string.IsNullOrEmpty(StorePath))
             {
                 ICertificateStore store = null;
                 try
@@ -56,26 +68,27 @@ namespace Opc.Ua
 
                     if (store == null)
                     {
-                        throw new ServiceResultException(StatusCodes.BadConfigurationError, "Failed to open certificate store.");
+                        throw new ServiceResultException(
+                            StatusCodes.BadConfigurationError,
+                            "Failed to open certificate store.");
                     }
 
-                    collection = await store.Enumerate().ConfigureAwait(false);
-
+                    collection = await store.EnumerateAsync().ConfigureAwait(false);
                 }
                 catch (Exception)
                 {
-                    Utils.LogError("Could not load certificates from store: {0}.", this.StorePath);
+                    Utils.LogError("Could not load certificates from store: {0}.", StorePath);
                 }
                 finally
                 {
                     store?.Close();
                 }
-
             }
 
             foreach (CertificateIdentifier trustedCertificate in TrustedCertificates)
             {
-                X509Certificate2 certificate = await trustedCertificate.Find().ConfigureAwait(false);
+                X509Certificate2 certificate = await trustedCertificate.FindAsync()
+                    .ConfigureAwait(false);
 
                 if (certificate != null)
                 {
@@ -85,7 +98,5 @@ namespace Opc.Ua
 
             return collection;
         }
-        #endregion
     }
-    #endregion
 }

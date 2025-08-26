@@ -11,7 +11,6 @@
 */
 
 using System;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua.Security
 {
@@ -35,7 +34,6 @@ namespace Opc.Ua.Security
         void WriteConfiguration(string filePath, SecuredApplication configuration);
     }
 
-    #region SecurityConfigurationManagerFactory Class
     /// <summary>
     /// A class used to create instances of ISecurityConfigurationManager.
     /// </summary>
@@ -46,25 +44,22 @@ namespace Opc.Ua.Security
         /// </summary>
         /// <param name="typeName">Name of the type.</param>
         /// <returns>The new instance.</returns>
+        /// <exception cref="ServiceResultException"></exception>
         public static ISecurityConfigurationManager CreateInstance(string typeName)
         {
-            if (String.IsNullOrEmpty(typeName))
+            if (string.IsNullOrEmpty(typeName))
             {
                 return new SecurityConfigurationManager();
             }
 
-            Type type = Type.GetType(typeName);
-
-            if (type == null)
-            {
-                throw ServiceResultException.Create(
+            Type type =
+                Type.GetType(typeName)
+                ?? throw ServiceResultException.Create(
                     StatusCodes.BadNotSupported,
                     "Cannot load type: {0}",
                     typeName);
-            }
 
-
-            if (!(Activator.CreateInstance(type) is ISecurityConfigurationManager configuration))
+            if (Activator.CreateInstance(type) is not ISecurityConfigurationManager configuration)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadNotSupported,
@@ -75,5 +70,4 @@ namespace Opc.Ua.Security
             return configuration;
         }
     }
-    #endregion
 }

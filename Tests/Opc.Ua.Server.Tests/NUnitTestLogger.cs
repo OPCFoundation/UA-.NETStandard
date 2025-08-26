@@ -36,15 +36,12 @@ using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server.Tests
 {
-    public class NUnitTestLogger<T> : ILogger<T>
+    public sealed class NUnitTestLogger<T> : ILogger<T>
     {
         /// <summary>
         /// Create a nunit trace logger which replaces the default logging.
         /// </summary>
-        public static NUnitTestLogger<T> Create(
-            TextWriter writer,
-            ApplicationConfiguration config,
-            int traceMasks)
+        public static NUnitTestLogger<T> Create(TextWriter writer)
         {
             var traceLogger = new NUnitTestLogger<T>(writer);
 
@@ -78,7 +75,12 @@ namespace Opc.Ua.Server.Tests
             Interlocked.Exchange(ref m_outputWriter, outputWriter);
         }
 
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception exception,
+            Func<TState, Exception, string> formatter)
         {
             if (logLevel < MinimumLogLevel)
             {
@@ -88,10 +90,13 @@ namespace Opc.Ua.Server.Tests
             try
             {
                 var sb = new StringBuilder();
-                sb.AppendFormat(CultureInfo.InvariantCulture, "{0:yy-MM-dd HH:mm:ss.fff}: ", DateTime.UtcNow);
-                sb.Append(formatter(state, exception));
+                sb.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    "{0:yy-MM-dd HH:mm:ss.fff}: ",
+                    DateTime.UtcNow)
+                    .Append(formatter(state, exception));
 
-                var logEntry = sb.ToString();
+                string logEntry = sb.ToString();
 
                 m_outputWriter.WriteLine(logEntry);
             }
@@ -103,6 +108,4 @@ namespace Opc.Ua.Server.Tests
 
         private TextWriter m_outputWriter;
     }
-
-
 }

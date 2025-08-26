@@ -10,50 +10,21 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-using System.Collections.Generic;
-using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
-
 namespace Opc.Ua
 {
-    #region BrowseDescription Class
     public partial class BrowseDescription
     {
-        #region Supporting Properties and Methods
         /// <summary>
         /// A handle assigned to the item during processing.
         /// </summary>
-        public object Handle
-        {
-            get { return m_handle; }
-            set { m_handle = value; }
-        }
-        #endregion
-
-        #region Private Fields
-        private object m_handle;
-        #endregion
+        public object Handle { get; set; }
     }
-    #endregion
 
-    #region ViewDescription Class
     public partial class ViewDescription
     {
-        #region Supporting Properties and Methods
         /// <summary>
         /// A handle assigned to the item during processing.
         /// </summary>
-        public object Handle
-        {
-            get { return m_handle; }
-            set { m_handle = value; }
-        }
-        #endregion
-
-        #region Private Fields
-        private object m_handle;
-        #endregion
+        public object Handle { get; set; }
     }
-    #endregion
 }

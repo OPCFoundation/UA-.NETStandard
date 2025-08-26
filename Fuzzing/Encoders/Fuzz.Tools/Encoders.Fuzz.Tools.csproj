@@ -1,12 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>$(AppTargetFramework)</TargetFramework>
     <AssemblyName>Encoders.Fuzz.Tools</AssemblyName>
     <RootNamespace>Encoders.Fuzz.Tools</RootNamespace>
   </PropertyGroup>
-
   <ItemGroup>
     <Compile Include="..\Fuzz\FuzzableCode.cs" Link="FuzzableCode.cs" />
     <Compile Include="..\Fuzz\FuzzableCode.BinaryDecoder.cs" Link="FuzzableCode.BinaryDecoder.cs" />
@@ -18,22 +16,19 @@
     <Compile Include="..\..\common\Fuzz.Tools\Testcases.cs" Link="Testcases.cs" />
     <Compile Include="..\..\common\Fuzz.Tools\Logging.cs" Link="Logging.cs" />
   </ItemGroup>
-
   <ItemGroup>
-    <PackageReference Include="SharpFuzz" Version="2.2.0" />
-    <PackageReference Include="Mono.Options" Version="6.12.0.148" />
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.4" />
-    <PackageReference Include="Serilog" Version="4.2.0" />
-    <PackageReference Include="Serilog.Expressions" Version="5.0.0" />
-    <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
-    <PackageReference Include="Serilog.Extensions.Logging" Version="3.1.0" />
-    <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
-    <PackageReference Include="Serilog.Sinks.Debug" Version="3.0.0" />
+    <PackageReference Include="SharpFuzz" />
+    <PackageReference Include="Mono.Options" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Expressions" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+    <PackageReference Include="Serilog.Extensions.Logging" />
+    <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="Serilog.Sinks.Debug" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\..\Libraries\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
   </ItemGroup>
-
 </Project>

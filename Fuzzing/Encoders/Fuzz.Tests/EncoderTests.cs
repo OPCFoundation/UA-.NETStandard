@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -27,35 +27,55 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 using System.Text;
 using NUnit.Framework;
-using System.Linq;
-using System;
 using Opc.Ua.Tests;
-using System.Reflection;
 
 namespace Opc.Ua.Fuzzing
 {
-
     [TestFixture]
     [Category("Fuzzing")]
     public class EncoderTests
     {
-        #region DataPointSources
-        public static readonly TestcaseAsset[] GoodTestcases = new AssetCollection<TestcaseAsset>(TestUtils.EnumerateTestAssets("Testcases", "*.*")).ToArray();
-        public static readonly TestcaseAsset[] CrashAssets = new AssetCollection<TestcaseAsset>(TestUtils.EnumerateTestAssets("Assets", "crash*.*")).ToArray();
-        public static readonly TestcaseAsset[] TimeoutAssets = new AssetCollection<TestcaseAsset>(TestUtils.EnumerateTestAssets("Assets", "timeout*.*")).ToArray();
-        public static readonly TestcaseAsset[] SlowAssets = new AssetCollection<TestcaseAsset>(TestUtils.EnumerateTestAssets("Assets", "slow*.*")).ToArray();
+        public static readonly TestcaseAsset[] GoodTestcases =
+        [
+            .. AssetCollection<TestcaseAsset>.CreateFromFiles(
+                TestUtils.EnumerateTestAssets("Testcases", "*.*"))
+        ];
+
+        public static readonly TestcaseAsset[] CrashAssets =
+        [
+            .. AssetCollection<TestcaseAsset>.CreateFromFiles(
+                TestUtils.EnumerateTestAssets("Assets", "crash*.*"))
+        ];
+
+        public static readonly TestcaseAsset[] TimeoutAssets =
+        [
+            .. AssetCollection<TestcaseAsset>.CreateFromFiles(
+                TestUtils.EnumerateTestAssets("Assets", "timeout*.*"))
+        ];
+
+        public static readonly TestcaseAsset[] SlowAssets =
+        [
+            .. AssetCollection<TestcaseAsset>.CreateFromFiles(
+                TestUtils.EnumerateTestAssets("Assets", "slow*.*"))
+        ];
 
         [DatapointSource]
-        public static readonly string[] TestcaseEncoderSuffixes = new string[] { ".Binary", ".Json", ".Xml" };
+        public static readonly string[] TestcaseEncoderSuffixes = [".Binary", ".Json", ".Xml"];
 
         [DatapointSource]
-        public static readonly FuzzTargetFunction[] FuzzableFunctions = typeof(FuzzableCode).GetMethods(BindingFlags.Static | BindingFlags.Public)
-            .Where(f => f.GetParameters().Length == 1)
-            .Select(f => new FuzzTargetFunction(f)).ToArray();
-        #endregion
+        public static readonly FuzzTargetFunction[] FuzzableFunctions =
+        [
+            .. typeof(FuzzableCode)
+                .GetMethods(BindingFlags.Static | BindingFlags.Public)
+                .Where(f => f.GetParameters().Length == 1)
+                .Select(f => new FuzzTargetFunction(f))
+        ];
 
         [Theory]
         public void FuzzGoodTestcases(
@@ -68,7 +88,7 @@ namespace Opc.Ua.Fuzzing
         [Theory]
         public void FuzzEmptyByteArray(FuzzTargetFunction fuzzableCode)
         {
-            FuzzTarget(fuzzableCode, Array.Empty<byte>());
+            FuzzTarget(fuzzableCode, []);
         }
 
         [Theory]
@@ -76,7 +96,7 @@ namespace Opc.Ua.Fuzzing
         {
             // note: too many crash files can take forever to create
             // all permutations with nunit, so just run all in one batch
-            foreach (var messageEncoder in CrashAssets)
+            foreach (TestcaseAsset messageEncoder in CrashAssets)
             {
                 FuzzTarget(fuzzableCode, messageEncoder.Testcase);
             }
@@ -100,31 +120,36 @@ namespace Opc.Ua.Fuzzing
             FuzzTarget(fuzzableCode, messageEncoder.Testcase);
         }
 
-        delegate void LibFuzzTemplate(ReadOnlySpan<byte> span);
+        public delegate void LibFuzzTemplate(ReadOnlySpan<byte> span);
 
-        private void FuzzTarget(FuzzTargetFunction fuzzableCode, byte[] blob)
+        private static void FuzzTarget(FuzzTargetFunction fuzzableCode, byte[] blob)
         {
-            var parameters = fuzzableCode.MethodInfo.GetParameters();
+            ParameterInfo[] parameters = fuzzableCode.MethodInfo.GetParameters();
             if (parameters.Length != 1)
             {
-                throw new InvalidOperationException("Fuzzable function must have exactly one parameter.");
+                throw new InvalidOperationException(
+                    "Fuzzable function must have exactly one parameter.");
             }
             if (parameters[0].ParameterType == typeof(string))
             {
                 string text = Encoding.UTF8.GetString(blob);
-                _ = fuzzableCode.MethodInfo.Invoke(null, new object[] { text });
+                _ = fuzzableCode.MethodInfo.Invoke(null, [text]);
             }
             else if (typeof(Stream).IsAssignableFrom(parameters[0].ParameterType))
             {
-                using (var stream = new MemoryStream(blob))
-                {
-                    _ = fuzzableCode.MethodInfo.Invoke(null, new object[] { stream });
-                }
+                using var stream = new MemoryStream(blob);
+                _ = fuzzableCode.MethodInfo.Invoke(null, [stream]);
             }
             else if (parameters[0].ParameterType == typeof(ReadOnlySpan<byte>))
             {
                 var span = new ReadOnlySpan<byte>(blob);
-                LibFuzzTemplate fuzzFunction = (LibFuzzTemplate)fuzzableCode.MethodInfo.CreateDelegate(typeof(LibFuzzTemplate));
+#if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+                LibFuzzTemplate fuzzFunction = fuzzableCode.MethodInfo
+                    .CreateDelegate<LibFuzzTemplate>();
+#else
+                var fuzzFunction = (LibFuzzTemplate)fuzzableCode.MethodInfo
+                    .CreateDelegate(typeof(LibFuzzTemplate));
+#endif
                 fuzzFunction(span);
             }
         }
@@ -135,8 +160,6 @@ namespace Opc.Ua.Fuzzing
     /// </summary>
     public class TestcaseAsset : IAsset, IFormattable
     {
-        public TestcaseAsset() { }
-
         public string Path { get; private set; }
         public byte[] Testcase { get; private set; }
 
@@ -148,7 +171,7 @@ namespace Opc.Ua.Fuzzing
 
         public string ToString(string format, IFormatProvider formatProvider)
         {
-            var file = System.IO.Path.GetFileName(Path);
+            string file = System.IO.Path.GetFileName(Path);
             return $"{file}";
         }
     }
@@ -163,11 +186,11 @@ namespace Opc.Ua.Fuzzing
             MethodInfo = methodInfo;
         }
 
-        public MethodInfo MethodInfo { get; private set; }
+        public MethodInfo MethodInfo { get; }
 
         public string ToString(string format, IFormatProvider formatProvider)
         {
-            var name = MethodInfo.Name;
+            string name = MethodInfo.Name;
             return $"{name}";
         }
     }

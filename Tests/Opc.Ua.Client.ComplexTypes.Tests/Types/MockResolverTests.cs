@@ -44,30 +44,40 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
     /// <summary>
     /// Build custom types with a DataTypeDefinition.
     /// </summary>
-    [TestFixture, Category("ComplexTypes")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("ComplexTypes")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class MockResolverTests : ComplexTypesCommon
     {
         public IServiceMessageContext EncoderContext;
         public Dictionary<StructureType, (ExpandedNodeId, Type)> TypeDictionary;
 
-        public readonly string[] DefaultEncodings = new string[] { BrowseNames.DefaultBinary, BrowseNames.DefaultJson, BrowseNames.DefaultXml };
+        public readonly string[] DefaultEncodings =
+        [
+            BrowseNames.DefaultBinary,
+            BrowseNames.DefaultJson,
+            BrowseNames.DefaultXml
+        ];
 
-        #region TestDataSource
         public enum TestRanks
         {
             Scalar = ValueRanks.Scalar,
             One = ValueRanks.OneDimension,
             Two = ValueRanks.TwoDimensions,
-            Five = 5,
+            Five = 5
         }
 
         public class TestType : IFormattable
         {
             public TestType(BuiltInType builtInType)
             {
-                Name = Enum.GetName(typeof(BuiltInType), builtInType);
+                Name = Enum.GetName(
+#if !NET8_0_OR_GREATER
+                    typeof(BuiltInType),
+#endif
+                    builtInType);
                 TypeId = new NodeId((uint)builtInType);
             }
 
@@ -88,12 +98,23 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
         public class TestTypeCollection : List<TestType>
         {
-            public TestTypeCollection() { }
-            public TestTypeCollection(IEnumerable<TestType> collection) : base(collection) { }
-            public TestTypeCollection(int capacity) : base(capacity) { }
+            public TestTypeCollection()
+            {
+            }
+
+            public TestTypeCollection(IEnumerable<TestType> collection)
+                : base(collection)
+            {
+            }
+
+            public TestTypeCollection(int capacity)
+                : base(capacity)
+            {
+            }
+
             public static TestTypeCollection ToTestTypeCollection(TestType[] values)
             {
-                return values != null ? new TestTypeCollection(values) : new TestTypeCollection();
+                return values != null ? [.. values] : [];
             }
 
             public void Add(BuiltInType builtInType)
@@ -108,18 +129,22 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
 
         [DatapointSource]
-        public static TestType[] TypeSource = new TestTypeCollection(
-            ((BuiltInType[])Enum.GetValues(typeof(BuiltInType)))
-            .Where(b => b > BuiltInType.Null && b <= BuiltInType.DiagnosticInfo)
-            .Select(b => new TestType(b))) {
+        public static readonly TestType[] TypeSource = new TestTypeCollection(
+#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+            Enum.GetValues<BuiltInType>()
+#else
+            Enum.GetValues(typeof(BuiltInType))
+                .Cast<BuiltInType>()
+#endif
+                .Where(b => b is > BuiltInType.Null and <= BuiltInType.DiagnosticInfo)
+                .Select(b => new TestType(b)))
+        {
             { nameof(DataTypeIds.BuildInfo), DataTypeIds.BuildInfo },
             { nameof(DataTypeIds.Duration), DataTypeIds.Duration },
             { nameof(DataTypeIds.BaseDataType), DataTypeIds.BaseDataType },
-            { nameof(DataTypeIds.Structure), DataTypeIds.Structure },
+            { nameof(DataTypeIds.Structure), DataTypeIds.Structure }
         }.ToArray();
-        #endregion
 
-        #region Test Setup
         [OneTimeSetUp]
         protected new void OneTimeSetUp()
         {
@@ -143,70 +168,72 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         {
             base.TearDown();
         }
-        #endregion
 
-        #region Test Methods
         /// <summary>
         /// Test the functionality to create a custom complex type.
         /// </summary>
         [Theory]
         public async Task CreateMockTypeAsync(
-            [ValueSource(nameof(EncodingTypesReversibleCompact))]
-            EncodingTypeGroup encoderTypeGroup,
+            [ValueSource(
+                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType)
         {
             var mockResolver = new MockResolver();
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
 
-            var nameSpaceIndex = mockResolver.NamespaceUris.GetIndexOrAppend(Namespaces.MockResolverUrl);
+            ushort nameSpaceIndex = mockResolver.NamespaceUris
+                .GetIndexOrAppend(Namespaces.MockResolverUrl);
             uint nodeId = 100;
 
-            var structure = new StructureDefinition() {
-                BaseDataType = DataTypeIds.Structure
-            };
-            var field = new StructureField() {
+            var structure = new StructureDefinition { BaseDataType = DataTypeIds.Structure };
+            var field = new StructureField
+            {
                 Name = "Make",
                 Description = new LocalizedText("The make"),
                 DataType = DataTypeIds.String,
                 ValueRank = ValueRanks.Scalar,
-                ArrayDimensions = Array.Empty<UInt32>(),
+                ArrayDimensions = Array.Empty<uint>(),
                 MaxStringLength = 0,
                 IsOptional = false
             };
             structure.Fields.Add(field);
-            field = new StructureField() {
+            field = new StructureField
+            {
                 Name = "Model",
                 Description = new LocalizedText("The model"),
                 DataType = DataTypeIds.String,
                 ValueRank = ValueRanks.Scalar,
-                ArrayDimensions = Array.Empty<UInt32>(),
+                ArrayDimensions = Array.Empty<uint>(),
                 MaxStringLength = 0,
                 IsOptional = false
             };
             structure.Fields.Add(field);
-            field = new StructureField() {
+            field = new StructureField
+            {
                 Name = "Engine",
                 Description = new LocalizedText("The engine"),
                 DataType = DataTypeIds.String,
                 ValueRank = ValueRanks.Scalar,
-                ArrayDimensions = Array.Empty<UInt32>(),
+                ArrayDimensions = Array.Empty<uint>(),
                 MaxStringLength = 0,
                 IsOptional = false
             };
             structure.Fields.Add(field);
-            field = new StructureField() {
+            field = new StructureField
+            {
                 Name = "NoOfPassengers",
                 Description = new LocalizedText("The number of passengers"),
                 DataType = DataTypeIds.UInt32,
                 ValueRank = ValueRanks.Scalar,
-                ArrayDimensions = Array.Empty<UInt32>(),
+                ArrayDimensions = Array.Empty<uint>(),
                 MaxStringLength = 0,
                 IsOptional = false
             };
             structure.Fields.Add(field);
 
-            var dataTypeNode = new DataTypeNode() {
+            var dataTypeNode = new DataTypeNode
+            {
                 NodeId = new NodeId(nodeId++, nameSpaceIndex),
                 NodeClass = NodeClass.DataType,
                 BrowseName = new QualifiedName("CarType", nameSpaceIndex),
@@ -215,10 +242,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 DataTypeDefinition = new ExtensionObject(structure)
             };
 
-            foreach (var encodingName in DefaultEncodings)
+            foreach (string encodingName in DefaultEncodings)
             {
                 // binary encoding
-                var description = new ReferenceDescription() {
+                var description = new ReferenceDescription
+                {
                     NodeId = new NodeId(nodeId++, nameSpaceIndex),
                     ReferenceTypeId = new NodeId(nodeId++, nameSpaceIndex),
                     BrowseName = encodingName,
@@ -229,7 +257,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 var encoding = new Node(description);
 
                 // add reference to encoding
-                var reference = new ReferenceNode() {
+                var reference = new ReferenceNode
+                {
                     ReferenceTypeId = ReferenceTypeIds.HasEncoding,
                     IsInverse = false,
                     TargetId = description.NodeId
@@ -242,29 +271,35 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             mockResolver.DataTypeNodes[dataTypeNode.NodeId] = dataTypeNode;
 
             var cts = new ComplexTypeSystem(mockResolver);
-            var carType = await cts.LoadType(dataTypeNode.NodeId, false, true).ConfigureAwait(false);
+            Type carType = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
+                .ConfigureAwait(false);
             Assert.NotNull(carType);
 
-            BaseComplexType car = (BaseComplexType)Activator.CreateInstance(carType);
+            var car = (BaseComplexType)Activator.CreateInstance(carType);
 
             TestContext.Out.WriteLine(car.ToString());
 
             car["Make"] = "Toyota";
             car["Model"] = "Land Cruiser";
             car["Engine"] = "Diesel";
-            car["NoOfPassengers"] = (UInt32)5;
+            car["NoOfPassengers"] = (uint)5;
 
             TestContext.Out.WriteLine(car.ToString());
 
-            ServiceMessageContext encoderContext = new ServiceMessageContext {
+            var encoderContext = new ServiceMessageContext
+            {
                 Factory = mockResolver.Factory,
-                NamespaceUris = mockResolver.NamespaceUris,
+                NamespaceUris = mockResolver.NamespaceUris
             };
 
             byte[] buffer;
-            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
+            using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
-                using (IEncoder encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, carType))
+                using (IEncoder encoder = CreateEncoder(
+                    EncodingType.Json,
+                    encoderContext,
+                    encoderStream,
+                    carType))
                 {
                     encoder.WriteEncodeable("Car", car, carType);
                 }
@@ -274,11 +309,20 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             _ = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
 
             // test encoder/decoder
-            EncodeDecodeComplexType(encoderContext, memoryStreamType, encoderType, jsonEncodingType, StructureType.Structure, dataTypeNode.NodeId, car);
+            EncodeDecodeComplexType(
+                encoderContext,
+                memoryStreamType,
+                encoderType,
+                jsonEncodingType,
+                StructureType.Structure,
+                dataTypeNode.NodeId,
+                car);
 
             // Test extracting type definition
 
-            var definitions = cts.GetDataTypeDefinitionsForDataType(dataTypeNode.NodeId);
+            NodeIdDictionary<DataTypeDefinition> definitions = cts
+                .GetDataTypeDefinitionsForDataType(
+                    dataTypeNode.NodeId);
             Assert.IsNotEmpty(definitions);
             Assert.AreEqual(1, definitions.Count);
             Assert.AreEqual(structure, definitions[dataTypeNode.NodeId]);
@@ -289,8 +333,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// </summary>
         [Theory]
         public async Task CreateMockArrayTypeAsync(
-            [ValueSource(nameof(EncodingTypesReversibleCompact))]
-            EncodingTypeGroup encoderTypeGroup,
+            [ValueSource(
+                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType)
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
@@ -298,81 +342,91 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var mockResolver = new MockResolver();
 
             // only enumerable types in the encodeable factory are stored as Enum in a structure.
-            AddEncodeableType(mockResolver.Factory, mockResolver.NamespaceUris, DataTypeIds.NamingRuleType, typeof(NamingRuleType));
+            AddEncodeableType(
+                mockResolver.Factory,
+                mockResolver.NamespaceUris,
+                DataTypeIds.NamingRuleType,
+                typeof(NamingRuleType));
 
-            var nameSpaceIndex = mockResolver.NamespaceUris.GetIndexOrAppend("http://opcfoundation.org/MockResolver");
+            ushort nameSpaceIndex = mockResolver.NamespaceUris.GetIndexOrAppend(
+                "http://opcfoundation.org/MockResolver");
             uint nodeId = 100;
 
-            var structure = new StructureDefinition() {
-                BaseDataType = DataTypeIds.Structure
-            };
-            var field = new StructureField() {
+            var structure = new StructureDefinition { BaseDataType = DataTypeIds.Structure };
+            var field = new StructureField
+            {
                 Name = "ArrayOfInteger",
                 Description = new LocalizedText("Array of Integer"),
                 DataType = DataTypeIds.Int32,
                 ValueRank = ValueRanks.OneDimension,
-                ArrayDimensions = Array.Empty<UInt32>(),
+                ArrayDimensions = Array.Empty<uint>(),
                 MaxStringLength = 0,
                 IsOptional = false
             };
             structure.Fields.Add(field);
 
-            field = new StructureField() {
+            field = new StructureField
+            {
                 Name = "Array2DOfInteger",
                 Description = new LocalizedText("2D Array of Integer"),
                 DataType = DataTypeIds.Int32,
                 ValueRank = ValueRanks.TwoDimensions,
-                ArrayDimensions = Array.Empty<UInt32>(),
+                ArrayDimensions = Array.Empty<uint>(),
                 MaxStringLength = 0,
                 IsOptional = false
             };
             structure.Fields.Add(field);
 
-            field = new StructureField() {
+            field = new StructureField
+            {
                 Name = "Array3DOfInteger",
                 Description = new LocalizedText("3D Array of Integer"),
                 DataType = DataTypeIds.Int32,
                 ValueRank = 3,
-                ArrayDimensions = Array.Empty<UInt32>(),
+                ArrayDimensions = Array.Empty<uint>(),
                 MaxStringLength = 0,
                 IsOptional = false
             };
             structure.Fields.Add(field);
 
-            field = new StructureField() {
+            field = new StructureField
+            {
                 Name = "ArrayOfNamingRuleType",
                 Description = new LocalizedText("Array of NamingRuleType"),
                 DataType = DataTypeIds.NamingRuleType,
                 ValueRank = ValueRanks.OneDimension,
-                ArrayDimensions = Array.Empty<UInt32>(),
+                ArrayDimensions = Array.Empty<uint>(),
                 MaxStringLength = 0,
                 IsOptional = false
             };
             structure.Fields.Add(field);
 
-            field = new StructureField() {
+            field = new StructureField
+            {
                 Name = "Array2DOfNamingRuleType",
                 Description = new LocalizedText("Array 2D of NamingRuleType"),
                 DataType = DataTypeIds.NamingRuleType,
                 ValueRank = ValueRanks.TwoDimensions,
-                ArrayDimensions = Array.Empty<UInt32>(),
+                ArrayDimensions = Array.Empty<uint>(),
                 MaxStringLength = 0,
                 IsOptional = false
             };
             structure.Fields.Add(field);
 
-            field = new StructureField() {
+            field = new StructureField
+            {
                 Name = "Array3DOfNamingRuleType",
                 Description = new LocalizedText("Array 3D of NamingRuleType"),
                 DataType = DataTypeIds.NamingRuleType,
                 ValueRank = 3,
-                ArrayDimensions = Array.Empty<UInt32>(),
+                ArrayDimensions = Array.Empty<uint>(),
                 MaxStringLength = 0,
                 IsOptional = false
             };
             structure.Fields.Add(field);
 
-            var dataTypeNode = new DataTypeNode() {
+            var dataTypeNode = new DataTypeNode
+            {
                 NodeId = new NodeId(nodeId++, nameSpaceIndex),
                 NodeClass = NodeClass.DataType,
                 BrowseName = new QualifiedName("ArrayTypes", nameSpaceIndex),
@@ -381,10 +435,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 DataTypeDefinition = new ExtensionObject(structure)
             };
 
-            foreach (var encodingName in DefaultEncodings)
+            foreach (string encodingName in DefaultEncodings)
             {
                 // encoding
-                var description = new ReferenceDescription() {
+                var description = new ReferenceDescription
+                {
                     NodeId = new NodeId(nodeId++, nameSpaceIndex),
                     ReferenceTypeId = new NodeId(nodeId++, nameSpaceIndex),
                     BrowseName = encodingName,
@@ -395,7 +450,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 var encoding = new Node(description);
 
                 // add reference to encoding
-                var reference = new ReferenceNode() {
+                var reference = new ReferenceNode
+                {
                     ReferenceTypeId = ReferenceTypeIds.HasEncoding,
                     IsInverse = false,
                     TargetId = description.NodeId
@@ -408,43 +464,79 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             mockResolver.DataTypeNodes[dataTypeNode.NodeId] = dataTypeNode;
 
             var cts = new ComplexTypeSystem(mockResolver);
-            var arraysTypes = await cts.LoadType(dataTypeNode.NodeId, false, true).ConfigureAwait(false);
+            Type arraysTypes = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
+                .ConfigureAwait(false);
             Assert.NotNull(arraysTypes);
 
-            BaseComplexType arrays = (BaseComplexType)Activator.CreateInstance(arraysTypes);
+            var arrays = (BaseComplexType)Activator.CreateInstance(arraysTypes);
 
             TestContext.Out.WriteLine(arrays.ToString());
 
-            arrays["ArrayOfInteger"] = new Int32[] { 1, 4, 8, 12, 22 };
-            arrays["Array2DOfInteger"] = new Int32[,] {
-                { 11, 12, 13, 14, 15 }, { 21, 22, 23, 24, 25 }, { 31, 32, 33, 34, 35 } };
-            arrays["Array3DOfInteger"] = new Int32[,,] {
-                { { 11, 12, 13, 14, 15 }, { 21, 22, 23, 24, 25 }, { 31, 32, 33, 34, 35 } },
-                { { 41, 42, 43, 44, 45 }, { 51, 52, 53, 54, 55 }, { 61, 62, 63, 64, 65 } } };
-            arrays["ArrayOfNamingRuleType"] = new NamingRuleType[] { NamingRuleType.Mandatory, NamingRuleType.Optional, NamingRuleType.Constraint };
+            arrays["ArrayOfInteger"] = new int[] { 1, 4, 8, 12, 22 };
+            arrays["Array2DOfInteger"] = new int[,]
+            {
+                { 11, 12, 13, 14, 15 },
+                { 21, 22, 23, 24, 25 },
+                { 31, 32, 33, 34, 35 }
+            };
+            arrays["Array3DOfInteger"] = new int[,,]
+            {
+                {
+                    { 11, 12, 13, 14, 15 },
+                    { 21, 22, 23, 24, 25 },
+                    { 31, 32, 33, 34, 35 }
+                },
+                {
+                    { 41, 42, 43, 44, 45 },
+                    { 51, 52, 53, 54, 55 },
+                    { 61, 62, 63, 64, 65 }
+                }
+            };
+            arrays["ArrayOfNamingRuleType"] = new NamingRuleType[]
+            {
+                NamingRuleType.Mandatory,
+                NamingRuleType.Optional,
+                NamingRuleType.Constraint
+            };
             // note: an assignement of the Int32[] to an enum type is a supported cast,
             // but the Encode/Decode test would fail because the int/Enum compare different
             // arrays["ArrayOfNamingRuleType"] = new Int32[] { 0,2,1 };
             arrays["Array2DOfNamingRuleType"] = new NamingRuleType[,]
-                {{ NamingRuleType.Mandatory, NamingRuleType.Optional, NamingRuleType.Constraint },
-                { NamingRuleType.Optional, NamingRuleType.Mandatory, NamingRuleType.Constraint }};
-            arrays["Array3DOfNamingRuleType"] = new NamingRuleType[,,] { {
-                { NamingRuleType.Mandatory, NamingRuleType.Optional, NamingRuleType.Mandatory },
-                { NamingRuleType.Optional, NamingRuleType.Mandatory, NamingRuleType.Mandatory }},
-                { { NamingRuleType.Mandatory, NamingRuleType.Optional, NamingRuleType.Constraint },
-                { NamingRuleType.Optional, NamingRuleType.Mandatory, NamingRuleType.Constraint }}};
+            {
+                { NamingRuleType.Mandatory, NamingRuleType.Optional, NamingRuleType.Constraint },
+                { NamingRuleType.Optional, NamingRuleType.Mandatory, NamingRuleType.Constraint }
+            };
+            arrays["Array3DOfNamingRuleType"] = new NamingRuleType[,,]
+            {
+                {
+                    { NamingRuleType.Mandatory, NamingRuleType.Optional, NamingRuleType.Mandatory },
+                    { NamingRuleType.Optional, NamingRuleType.Mandatory, NamingRuleType.Mandatory }
+                },
+                {
+                    {
+                        NamingRuleType.Mandatory,
+                        NamingRuleType.Optional,
+                        NamingRuleType.Constraint },
+                    { NamingRuleType.Optional, NamingRuleType.Mandatory, NamingRuleType.Constraint }
+                }
+            };
 
             TestContext.Out.WriteLine(arrays.ToString());
 
-            ServiceMessageContext encoderContext = new ServiceMessageContext {
+            var encoderContext = new ServiceMessageContext
+            {
                 Factory = mockResolver.Factory,
-                NamespaceUris = mockResolver.NamespaceUris,
+                NamespaceUris = mockResolver.NamespaceUris
             };
 
             byte[] buffer;
-            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
+            using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
-                using (IEncoder encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, arraysTypes))
+                using (IEncoder encoder = CreateEncoder(
+                    EncodingType.Json,
+                    encoderContext,
+                    encoderStream,
+                    arraysTypes))
                 {
                     encoder.WriteEncodeable("Arrays", arrays, arraysTypes);
                 }
@@ -454,11 +546,20 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             _ = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
 
             // test encoder/decoder
-            EncodeDecodeComplexType(encoderContext, memoryStreamType, encoderType, jsonEncodingType, StructureType.Structure, dataTypeNode.NodeId, arrays);
+            EncodeDecodeComplexType(
+                encoderContext,
+                memoryStreamType,
+                encoderType,
+                jsonEncodingType,
+                StructureType.Structure,
+                dataTypeNode.NodeId,
+                arrays);
 
             // Test extracting type definition
 
-            var definitions = cts.GetDataTypeDefinitionsForDataType(dataTypeNode.NodeId);
+            NodeIdDictionary<DataTypeDefinition> definitions = cts
+                .GetDataTypeDefinitionsForDataType(
+                    dataTypeNode.NodeId);
             Assert.IsNotEmpty(definitions);
             Assert.AreEqual(1, definitions.Count);
             Assert.AreEqual(structure, definitions[dataTypeNode.NodeId]);
@@ -469,9 +570,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// </summary>
         [Theory]
         public async Task CreateMockSingleTypeAsync(
-            [ValueSource(nameof(EncodingTypesReversibleCompact))]
-            EncodingTypeGroup encoderTypeGroup,
-            MemoryStreamType memoryStreamType, TestType typeDescription, bool randomValues, TestRanks testRank)
+            [ValueSource(
+                nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
+            MemoryStreamType memoryStreamType,
+            TestType typeDescription,
+            bool randomValues,
+            TestRanks testRank)
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
@@ -480,31 +584,36 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var mockResolver = new MockResolver();
 
             // only enumerable types in the encodeable factory are stored as Enum in a structure.
-            AddEncodeableType(mockResolver.Factory, mockResolver.NamespaceUris, DataTypeIds.NamingRuleType, typeof(NamingRuleType));
+            AddEncodeableType(
+                mockResolver.Factory,
+                mockResolver.NamespaceUris,
+                DataTypeIds.NamingRuleType,
+                typeof(NamingRuleType));
 
-            var nameSpaceIndex = mockResolver.NamespaceUris.GetIndexOrAppend("http://opcfoundation.org/MockResolver");
+            ushort nameSpaceIndex = mockResolver.NamespaceUris.GetIndexOrAppend(
+                "http://opcfoundation.org/MockResolver");
             uint nodeId = 100;
 
-            var structure = new StructureDefinition() {
-                BaseDataType = DataTypeIds.Structure
-            };
+            var structure = new StructureDefinition { BaseDataType = DataTypeIds.Structure };
 
-            var valueRank = (int)testRank;
-            var typeName = typeDescription.Name;
-            var arrayPrefix = Enum.GetName(typeof(TestRanks), valueRank);
-            var seperator = valueRank > 0 ? "Of" : string.Empty;
-            var field = new StructureField() {
+            int valueRank = (int)testRank;
+            string typeName = typeDescription.Name;
+            string arrayPrefix = Enum.GetName(typeof(TestRanks), valueRank);
+            string seperator = valueRank > 0 ? "Of" : string.Empty;
+            var field = new StructureField
+            {
                 Name = arrayPrefix + seperator + typeName,
                 Description = new LocalizedText(arrayPrefix + " " + seperator + " " + typeName),
                 DataType = typeDescription.TypeId,
-                ValueRank = (int)valueRank,
-                ArrayDimensions = Array.Empty<UInt32>(),
+                ValueRank = valueRank,
+                ArrayDimensions = Array.Empty<uint>(),
                 MaxStringLength = 0,
                 IsOptional = false
             };
             structure.Fields.Add(field);
 
-            var dataTypeNode = new DataTypeNode() {
+            var dataTypeNode = new DataTypeNode
+            {
                 NodeId = new NodeId(nodeId++, nameSpaceIndex),
                 NodeClass = NodeClass.DataType,
                 BrowseName = new QualifiedName(field.Name + "TestType", nameSpaceIndex),
@@ -513,10 +622,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 DataTypeDefinition = new ExtensionObject(structure)
             };
 
-            foreach (var encodingName in DefaultEncodings)
+            foreach (string encodingName in DefaultEncodings)
             {
                 // encoding
-                var description = new ReferenceDescription() {
+                var description = new ReferenceDescription
+                {
                     NodeId = new NodeId(nodeId++, nameSpaceIndex),
                     ReferenceTypeId = new NodeId(nodeId++, nameSpaceIndex),
                     BrowseName = encodingName,
@@ -527,7 +637,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 var encoding = new Node(description);
 
                 // add reference to encoding
-                var reference = new ReferenceNode() {
+                var reference = new ReferenceNode
+                {
                     ReferenceTypeId = ReferenceTypeIds.HasEncoding,
                     IsInverse = false,
                     TargetId = description.NodeId
@@ -540,10 +651,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             mockResolver.DataTypeNodes[dataTypeNode.NodeId] = dataTypeNode;
 
             var cts = new ComplexTypeSystem(mockResolver);
-            var arraysTypes = await cts.LoadType(dataTypeNode.NodeId, false, true).ConfigureAwait(false);
+            Type arraysTypes = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
+                .ConfigureAwait(false);
             Assert.NotNull(arraysTypes);
 
-            BaseComplexType testType = (BaseComplexType)Activator.CreateInstance(arraysTypes);
+            var testType = (BaseComplexType)Activator.CreateInstance(arraysTypes);
             Assert.NotNull(testType);
 
             TestContext.Out.WriteLine(testType.ToString());
@@ -563,8 +675,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     {
                         switch (builtInType)
                         {
-                            case BuiltInType.DataValue: value = new DataValue(); break;
-                            case BuiltInType.DiagnosticInfo: value = new DiagnosticInfo(); break;
+                            case BuiltInType.DataValue:
+                                value = new DataValue();
+                                break;
+                            case BuiltInType.DiagnosticInfo:
+                                value = new DiagnosticInfo();
+                                break;
                             default:
                                 value = TypeInfo.GetDefaultValue(builtInType);
                                 break;
@@ -585,7 +701,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     {
                         for (int ii = 0; ii < dimensions.Length; ii++)
                         {
-                            dimensions[ii] = (DataGenerator.GetRandom<Int32>(false) & 3) + 1;
+                            dimensions[ii] = (DataGenerator.GetRandom<int>(false) & 3) + 1;
                         }
                         Array array = TypeInfo.CreateArray(builtInType, dimensions);
                         int[] indices = new int[valueRank];
@@ -603,7 +719,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 }
                 else
                 {
-                    Array array = Array.CreateInstance(valueType, dimensions);
+                    var array = Array.CreateInstance(valueType, dimensions);
 
                     if (randomValues)
                     {
@@ -622,15 +738,20 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             TestContext.Out.WriteLine(testType.ToString());
 
-            ServiceMessageContext encoderContext = new ServiceMessageContext {
+            var encoderContext = new ServiceMessageContext
+            {
                 Factory = mockResolver.Factory,
-                NamespaceUris = mockResolver.NamespaceUris,
+                NamespaceUris = mockResolver.NamespaceUris
             };
 
-            byte [] buffer;
-            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
+            byte[] buffer;
+            using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
-                using (IEncoder encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, arraysTypes))
+                using (IEncoder encoder = CreateEncoder(
+                    EncodingType.Json,
+                    encoderContext,
+                    encoderStream,
+                    arraysTypes))
                 {
                     encoder.WriteEncodeable("TestType", testType, arraysTypes);
                 }
@@ -640,11 +761,20 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             _ = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
 
             // test encoder/decoder
-            EncodeDecodeComplexType(encoderContext, memoryStreamType, encoderType, jsonEncodingType, StructureType.Structure, dataTypeNode.NodeId, testType);
+            EncodeDecodeComplexType(
+                encoderContext,
+                memoryStreamType,
+                encoderType,
+                jsonEncodingType,
+                StructureType.Structure,
+                dataTypeNode.NodeId,
+                testType);
 
             // Test extracting type definition
 
-            var definitions = cts.GetDataTypeDefinitionsForDataType(dataTypeNode.NodeId);
+            NodeIdDictionary<DataTypeDefinition> definitions = cts
+                .GetDataTypeDefinitionsForDataType(
+                    dataTypeNode.NodeId);
             Assert.IsNotEmpty(definitions);
             Assert.AreEqual(1, definitions.Count);
             Assert.AreEqual(structure, definitions[dataTypeNode.NodeId]);
@@ -653,30 +783,88 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Test]
         public void CreateBaseComplexTypeTest()
         {
-            var testDataComplexType = new TestDataComplexType() {
+            _ = new TestDataComplexType
+            {
                 PropertyInt8 = 1,
                 PropertyInt16 = 2,
                 PropertyInt32 = 3,
                 PropertyInt64 = 4,
-                PropertyInt32Array = new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 },
-                PropertyInt322DArray = new[,] { { 1, 2, 3, }, { 4, 5, 6 } },
-                PropertyInt325DArray = new[, , , ,] {
+                PropertyInt32Array = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+                PropertyInt322DArray = new[,]
+                {
+                    { 1, 2, 3 },
+                    { 4, 5, 6 }
+                },
+                PropertyInt325DArray = new[, , , ,]
+                {
                     {
-                        { { { 1, 2, 3, }, { 4, 5, 6 } }, { { 7, 8, 9 }, { 10, 11, 12 } } },
-                        { { { 111, 112, 113, }, { 114, 115, 116 } }, { { 117, 118, 119 }, { 1110, 1111, 1112 } } },
-                        { { { 311, 312, 313, }, { 314, 315, 316 } }, { { 317, 318, 319 }, { 3110, 3111, 3112 } } },
+                        {
+                            {
+                                { 1, 2, 3 },
+                                { 4, 5, 6 }
+                            },
+                            {
+                                { 7, 8, 9 },
+                                { 10, 11, 12 }
+                            }
+                        },
+                        {
+                            {
+                                { 111, 112, 113 },
+                                { 114, 115, 116 }
+                            },
+                            {
+                                { 117, 118, 119 },
+                                { 1110, 1111, 1112 }
+                            }
+                        },
+                        {
+                            {
+                                { 311, 312, 313 },
+                                { 314, 315, 316 }
+                            },
+                            {
+                                { 317, 318, 319 },
+                                { 3110, 3111, 3112 }
+                            }
+                        }
                     },
                     {
-                        { { { 71, 72, 73, }, { 74, 75, 76 } }, { { 77, 78, 79 }, { 710, 711, 712 } } },
-                        { { { 7111, 7112, 7113, }, { 7114, 7115, 7116 } }, { { 7117, 7118, 7119 }, { 71110, 71111, 71112 } } },
-                        { { { 7311, 7312, 7313, }, { 7314, 7315, 7316 } }, { { 7317, 7318, 7319 }, { 73110, 73111, 73112 } } },
+                        {
+                            {
+                                { 71, 72, 73 },
+                                { 74, 75, 76 }
+                            },
+                            {
+                                { 77, 78, 79 },
+                                { 710, 711, 712 }
+                            }
+                        },
+                        {
+                            {
+                                { 7111, 7112, 7113 },
+                                { 7114, 7115, 7116 }
+                            },
+                            {
+                                { 7117, 7118, 7119 },
+                                { 71110, 71111, 71112 }
+                            }
+                        },
+                        {
+                            {
+                                { 7311, 7312, 7313 },
+                                { 7314, 7315, 7316 }
+                            },
+                            {
+                                { 7317, 7318, 7319 },
+                                { 73110, 73111, 73112 }
+                            }
+                        }
                     }
-                },
+                }
             };
         }
-        #endregion
 
-        #region Private Methods
         private object GetRandom(NodeId valueType)
         {
             BuiltInType builtInType = TypeInfo.GetBuiltInType(valueType);
@@ -686,26 +874,24 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             }
             if (valueType == DataTypeIds.BuildInfo)
             {
-                var buildInfo = new BuildInfo() {
+                return new BuildInfo
+                {
                     BuildDate = DataGenerator.GetRandomDateTime(),
-                    BuildNumber = "1.4." + DataGenerator.GetRandomByte().ToString(CultureInfo.InvariantCulture),
+                    BuildNumber = "1.4." +
+                        DataGenerator.GetRandomByte().ToString(CultureInfo.InvariantCulture),
                     ManufacturerName = "OPC Foundation",
                     ProductName = "Complex Type Client",
-                    ProductUri = "http://opcfoundation.org/ComplexTypeClient",
+                    ProductUri = "http://opcfoundation.org/ComplexTypeClient"
                 };
-                return buildInfo;
             }
-            else
-            {
-                Assert.Fail($"Unexpected ValueType {valueType}");
-            }
+
+            NUnit.Framework.Assert.Fail($"Unexpected ValueType {valueType}");
             return null;
         }
 
-        private void Iterate(int[] dimensions, int[] indices)
+        private static void Iterate(int[] dimensions, int[] indices)
         {
-            int i = 0;
-            while (i < dimensions.Length)
+            for (int i = 0; i < dimensions.Length; i++)
             {
                 indices[i]++;
                 if (indices[i] < dimensions[i])
@@ -713,65 +899,66 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     break;
                 }
                 indices[i] = 0;
-                i++;
             }
         }
 
-        protected void AddEncodeableType(IEncodeableFactory factory, NamespaceTable namespaceUris, ExpandedNodeId typeId, Type enumType)
+        protected void AddEncodeableType(
+            IEncodeableFactory factory,
+            NamespaceTable namespaceUris,
+            ExpandedNodeId typeId,
+            Type enumType)
         {
             if (NodeId.IsNull(typeId) || enumType == null)
             {
                 return;
             }
-            var internalNodeId = NormalizeExpandedNodeId(typeId, namespaceUris);
+            ExpandedNodeId internalNodeId = NormalizeExpandedNodeId(typeId, namespaceUris);
             TestContext.Out.WriteLine("Adding Type {0} as: {1}", enumType.FullName, internalNodeId);
             factory.AddEncodeableType(internalNodeId, enumType);
         }
 
-        private ExpandedNodeId NormalizeExpandedNodeId(ExpandedNodeId expandedNodeId, NamespaceTable namespaceUris)
+        private static ExpandedNodeId NormalizeExpandedNodeId(
+            ExpandedNodeId expandedNodeId,
+            NamespaceTable namespaceUris)
         {
             var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, namespaceUris);
             return NodeId.ToExpandedNodeId(nodeId, namespaceUris);
         }
-        #endregion Private Methods
     }
 
-    #region TestDataComplexType
     [StructureDefinition(BaseDataType = StructureBaseDataType.Structure)]
-    [StructureTypeId(ComplexTypeId = "i=10000", BinaryEncodingId = "i=10001", XmlEncodingId = "i=10002")]
+    [StructureTypeId(
+        ComplexTypeId = "i=10000",
+        BinaryEncodingId = "i=10001",
+        XmlEncodingId = "i=10002")]
     public class TestDataComplexType : BaseComplexType
     {
-        public TestDataComplexType()
-        {
-        }
-
         [DataMember(Order = 0)]
         [StructureField(BuiltInType = (int)BuiltInType.SByte)]
-        public SByte PropertyInt8 { get; set; }
+        public sbyte PropertyInt8 { get; set; }
 
         [DataMember(Order = 1)]
         [StructureField(BuiltInType = (int)BuiltInType.Int16)]
-        public Int16 PropertyInt16 { get; set; }
+        public short PropertyInt16 { get; set; }
 
         [DataMember(Order = 2)]
         [StructureField(BuiltInType = (int)BuiltInType.Int32)]
-        public Int32 PropertyInt32 { get; set; }
+        public int PropertyInt32 { get; set; }
 
         [DataMember(Order = 3)]
         [StructureField(BuiltInType = (int)BuiltInType.Int64)]
-        public Int64 PropertyInt64 { get; set; }
+        public long PropertyInt64 { get; set; }
 
         [DataMember(Order = 4)]
         [StructureField(BuiltInType = (int)BuiltInType.Int32, ValueRank = 1, IsOptional = false)]
-        public Int32[] PropertyInt32Array { get; set; }
+        public int[] PropertyInt32Array { get; set; }
 
         [DataMember(Order = 5)]
         [StructureField(BuiltInType = (int)BuiltInType.Int32, ValueRank = 2, IsOptional = false)]
-        public Int32[,] PropertyInt322DArray { get; set; }
+        public int[,] PropertyInt322DArray { get; set; }
 
         [DataMember(Order = 6)]
         [StructureField(BuiltInType = (int)BuiltInType.Int32, ValueRank = 5, IsOptional = false)]
-        public Int32[,,,,] PropertyInt325DArray { get; set; }
+        public int[,,,,] PropertyInt325DArray { get; set; }
     }
-    #endregion
 }

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -162,16 +162,15 @@ namespace Opc.Ua.Server
             m_connectInterval = DefaultReverseConnectInterval;
             m_connectTimeout = DefaultReverseConnectTimeout;
             m_rejectTimeout = DefaultReverseConnectRejectTimeout;
-            m_connections = new Dictionary<Uri, ReverseConnectProperty>();
+            m_connections = [];
         }
 
-        #region StandardServer overrides
         /// <inheritdoc/>
         protected override void OnServerStarted(IServerInternal server)
         {
             base.OnServerStarted(server);
 
-            UpdateConfiguration(base.Configuration);
+            UpdateConfiguration(Configuration);
             StartTimer(true);
         }
 
@@ -188,28 +187,36 @@ namespace Opc.Ua.Server
             DisposeTimer();
             base.OnServerStopping();
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// Add a reverse connection url.
         /// </summary>
-        public virtual void AddReverseConnection(Uri url, int timeout = 0, int maxSessionCount = 0, bool enabled = true)
+        /// <exception cref="ArgumentException"></exception>
+        public virtual void AddReverseConnection(
+            Uri url,
+            int timeout = 0,
+            int maxSessionCount = 0,
+            bool enabled = true)
         {
             if (m_connections.ContainsKey(url))
             {
-                throw new ArgumentException("Connection for specified clientUrl is already configured", nameof(url));
+                throw new ArgumentException(
+                    "Connection for specified clientUrl is already configured",
+                    nameof(url));
             }
-            else
-            {
-                var reverseConnection = new ReverseConnectProperty(url, timeout, maxSessionCount, false, enabled);
-                lock (m_connectionsLock)
-                {
-                    m_connections[url] = reverseConnection;
-                    Utils.LogInfo("Reverse Connection added for EndpointUrl: {0}.", url);
+            var reverseConnection = new ReverseConnectProperty(
+                url,
+                timeout,
+                maxSessionCount,
+                false,
+                enabled);
 
-                    StartTimer(false);
-                }
+            lock (m_connectionsLock)
+            {
+                m_connections[url] = reverseConnection;
+                Utils.LogInfo("Reverse Connection added for EndpointUrl: {0}.", url);
+
+                StartTimer(false);
             }
         }
 
@@ -217,9 +224,14 @@ namespace Opc.Ua.Server
         /// Remove a reverse connection url.
         /// </summary>
         /// <returns>true if the reverse connection is found and removed</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="url"/> is <c>null</c>.</exception>
         public virtual bool RemoveReverseConnection(Uri url)
         {
-            if (url == null) throw new ArgumentNullException(nameof(url));
+            if (url == null)
+            {
+                throw new ArgumentNullException(nameof(url));
+            }
+
             lock (m_connectionsLock)
             {
                 bool connectionRemoved = m_connections.Remove(url);
@@ -248,9 +260,7 @@ namespace Opc.Ua.Server
                 return new ReadOnlyDictionary<Uri, ReverseConnectProperty>(m_connections);
             }
         }
-        #endregion
 
-        #region Private Properties
         /// <summary>
         /// Timer callback to establish new reverse connections.
         /// </summary>
@@ -260,34 +270,50 @@ namespace Opc.Ua.Server
             {
                 lock (m_connectionsLock)
                 {
-                    foreach (var reverseConnection in m_connections.Values)
+                    foreach (ReverseConnectProperty reverseConnection in m_connections.Values)
                     {
                         // recharge a rejected connection after timeout
                         if (reverseConnection.LastState == ReverseConnectState.Rejected &&
-                            reverseConnection.RejectTime + TimeSpan.FromMilliseconds(m_rejectTimeout) < DateTime.UtcNow)
+                            reverseConnection.RejectTime +
+                            TimeSpan.FromMilliseconds(m_rejectTimeout) <
+                                DateTime.UtcNow)
                         {
                             reverseConnection.LastState = ReverseConnectState.Closed;
                         }
 
                         // try the reverse connect
-                        if ((reverseConnection.Enabled) &&
-                            (reverseConnection.MaxSessionCount == 0 ||
-                            (reverseConnection.MaxSessionCount == 1 && reverseConnection.LastState == ReverseConnectState.Closed) ||
-                             reverseConnection.MaxSessionCount > ServerInternal.SessionManager.GetSessions().Count))
+                        if (reverseConnection.Enabled &&
+                            (
+                                reverseConnection.MaxSessionCount == 0 ||
+                                (
+                                    reverseConnection.MaxSessionCount == 1 &&
+                                    reverseConnection.LastState == ReverseConnectState.Closed
+                                ) ||
+                                reverseConnection.MaxSessionCount > ServerInternal.SessionManager
+                                    .GetSessions()
+                                    .Count))
                         {
                             try
                             {
                                 reverseConnection.LastState = ReverseConnectState.Connecting;
-                                base.CreateConnection(reverseConnection.ClientUrl,
-                                    reverseConnection.Timeout > 0 ? reverseConnection.Timeout : m_connectTimeout);
-                                Utils.LogInfo("Create Connection! [{0}][{1}]", reverseConnection.LastState, reverseConnection.ClientUrl);
+                                CreateConnection(
+                                    reverseConnection.ClientUrl,
+                                    reverseConnection.Timeout > 0
+                                        ? reverseConnection.Timeout
+                                        : m_connectTimeout);
+                                Utils.LogInfo(
+                                    "Create Connection! [{0}][{1}]",
+                                    reverseConnection.LastState,
+                                    reverseConnection.ClientUrl);
                             }
                             catch (Exception e)
                             {
                                 reverseConnection.LastState = ReverseConnectState.Errored;
                                 reverseConnection.ServiceResult = new ServiceResult(e);
-                                Utils.LogError("Create Connection failed! [{0}][{1}]",
-                                    reverseConnection.LastState, reverseConnection.ClientUrl);
+                                Utils.LogError(
+                                    "Create Connection failed! [{0}][{1}]",
+                                    reverseConnection.LastState,
+                                    reverseConnection.ClientUrl);
                             }
                         }
                     }
@@ -306,14 +332,16 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Track reverse connection status.
         /// </summary>
-        protected override void OnConnectionStatusChanged(object sender, ConnectionStatusEventArgs e)
+        protected override void OnConnectionStatusChanged(
+            object sender,
+            ConnectionStatusEventArgs e)
         {
             lock (m_connectionsLock)
             {
-                ReverseConnectProperty reverseConnection = null;
-                if (m_connections.TryGetValue(e.EndpointUrl, out reverseConnection))
+                if (m_connections.TryGetValue(
+                    e.EndpointUrl,
+                    out ReverseConnectProperty reverseConnection))
                 {
-                    ServiceResult priorStatus = reverseConnection.ServiceResult;
                     if (ServiceResult.IsBad(e.ChannelStatus))
                     {
                         reverseConnection.ServiceResult = e.ChannelStatus;
@@ -321,23 +349,34 @@ namespace Opc.Ua.Server
                         {
                             reverseConnection.LastState = ReverseConnectState.Rejected;
                             reverseConnection.RejectTime = DateTime.UtcNow;
-                            Utils.LogWarning("Client Rejected Connection! [{0}][{1}]", reverseConnection.LastState, e.EndpointUrl);
+                            Utils.LogWarning(
+                                "Client Rejected Connection! [{0}][{1}]",
+                                reverseConnection.LastState,
+                                e.EndpointUrl);
                             return;
                         }
-                        else
-                        {
-                            reverseConnection.LastState = ReverseConnectState.Closed;
-                            Utils.LogError("Connection Error! [{0}][{1}]", reverseConnection.LastState, e.EndpointUrl);
-                            return;
-                        }
+                        reverseConnection.LastState = ReverseConnectState.Closed;
+                        Utils.LogError(
+                            "Connection Error! [{0}][{1}]",
+                            reverseConnection.LastState,
+                            e.EndpointUrl);
+
+                        return;
                     }
-                    reverseConnection.LastState = e.Closed ? ReverseConnectState.Closed : ReverseConnectState.Connected;
-                    Utils.LogInfo("New Connection State! [{0}][{1}]", reverseConnection.LastState, e.EndpointUrl);
+                    reverseConnection.LastState = e.Closed
+                        ? ReverseConnectState.Closed
+                        : ReverseConnectState.Connected;
+                    Utils.LogInfo(
+                        "New Connection State! [{0}][{1}]",
+                        reverseConnection.LastState,
+                        e.EndpointUrl);
                 }
                 else
                 {
-                    Utils.LogWarning("Warning: Status changed for unknown reverse connection: [{0}][{1}]",
-                        e.ChannelStatus, e.EndpointUrl);
+                    Utils.LogWarning(
+                        "Warning: Status changed for unknown reverse connection: [{0}][{1}]",
+                        e.ChannelStatus,
+                        e.EndpointUrl);
                 }
             }
 
@@ -345,7 +384,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Restart the timer. 
+        /// Restart the timer.
         /// </summary>
         private void StartTimer(bool forceRestart)
         {
@@ -359,7 +398,11 @@ namespace Opc.Ua.Server
                     m_connections.Count > 0 &&
                     m_reverseConnectTimer == null)
                 {
-                    m_reverseConnectTimer = new Timer(OnReverseConnect, this, forceRestart ? m_connectInterval : 1000, Timeout.Infinite);
+                    m_reverseConnectTimer = new Timer(
+                        OnReverseConnect,
+                        this,
+                        forceRestart ? m_connectInterval : 1000,
+                        Timeout.Infinite);
                 }
             }
         }
@@ -387,8 +430,9 @@ namespace Opc.Ua.Server
         {
             lock (m_connectionsLock)
             {
-                var toRemove = m_connections.Where(r => r.Value.ConfigEntry == configEntry);
-                foreach (var entry in toRemove)
+                foreach (
+                    KeyValuePair<Uri, ReverseConnectProperty> entry in m_connections.Where(r =>
+                        r.Value.ConfigEntry == configEntry))
                 {
                     m_connections.Remove(entry.Key);
                 }
@@ -403,31 +447,50 @@ namespace Opc.Ua.Server
             ClearConnections(true);
 
             // get the configuration for the reverse connections.
-            var reverseConnect = configuration?.ServerConfiguration?.ReverseConnect;
+            ReverseConnectServerConfiguration reverseConnect = configuration?.ServerConfiguration?
+                .ReverseConnect;
 
             // add configuration reverse client connection properties.
             if (reverseConnect != null)
             {
                 lock (m_connectionsLock)
                 {
-                    m_connectInterval = reverseConnect.ConnectInterval > 0 ? reverseConnect.ConnectInterval : DefaultReverseConnectInterval;
-                    m_connectTimeout = reverseConnect.ConnectTimeout > 0 ? reverseConnect.ConnectTimeout : DefaultReverseConnectTimeout;
-                    m_rejectTimeout = reverseConnect.RejectTimeout > 0 ? reverseConnect.RejectTimeout : DefaultReverseConnectRejectTimeout;
+                    m_connectInterval =
+                        reverseConnect.ConnectInterval > 0
+                            ? reverseConnect.ConnectInterval
+                            : DefaultReverseConnectInterval;
+                    m_connectTimeout =
+                        reverseConnect.ConnectTimeout > 0
+                            ? reverseConnect.ConnectTimeout
+                            : DefaultReverseConnectTimeout;
+                    m_rejectTimeout =
+                        reverseConnect.RejectTimeout > 0
+                            ? reverseConnect.RejectTimeout
+                            : DefaultReverseConnectRejectTimeout;
                     if (reverseConnect.Clients != null)
                     {
-                        foreach (var client in reverseConnect.Clients)
+                        foreach (ReverseConnectClient client in reverseConnect.Clients)
                         {
-                            var uri = Utils.ParseUri(client.EndpointUrl);
+                            Uri uri = Utils.ParseUri(client.EndpointUrl);
                             if (uri != null)
                             {
                                 if (m_connections.ContainsKey(uri))
                                 {
-                                    Utils.LogWarning("Warning: ServerConfiguration.ReverseConnect contains duplicate EndpointUrl: {0}.", uri);
+                                    Utils.LogWarning(
+                                        "Warning: ServerConfiguration.ReverseConnect contains duplicate EndpointUrl: {0}.",
+                                        uri);
                                 }
                                 else
                                 {
-                                    m_connections[uri] = new ReverseConnectProperty(uri, client.Timeout, client.MaxSessionCount, true, client.Enabled);
-                                    Utils.LogInfo("Reverse Connection added for EndpointUrl: {0}.", uri);
+                                    m_connections[uri] = new ReverseConnectProperty(
+                                        uri,
+                                        client.Timeout,
+                                        client.MaxSessionCount,
+                                        true,
+                                        client.Enabled);
+                                    Utils.LogInfo(
+                                        "Reverse Connection added for EndpointUrl: {0}.",
+                                        uri);
                                 }
                             }
                         }
@@ -435,15 +498,12 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
 
-        #region Private Fields
         private Timer m_reverseConnectTimer;
         private int m_connectInterval;
         private int m_connectTimeout;
         private int m_rejectTimeout;
-        private Dictionary<Uri, ReverseConnectProperty> m_connections;
-        private readonly object m_connectionsLock = new object();
-        #endregion
+        private readonly Dictionary<Uri, ReverseConnectProperty> m_connections;
+        private readonly Lock m_connectionsLock = new();
     }
 }

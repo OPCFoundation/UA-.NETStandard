@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -47,7 +47,7 @@ namespace Opc.Ua.Security.Certificates
         {
             if (buffer == null || buffer.Length == 0)
             {
-                return String.Empty;
+                return string.Empty;
             }
 
 #if NET6_0_OR_GREATER
@@ -58,7 +58,7 @@ namespace Opc.Ua.Security.Certificates
             else
 #endif
             {
-                StringBuilder builder = new StringBuilder(buffer.Length * 2);
+                var builder = new StringBuilder(buffer.Length * 2);
 
 #if !NET6_0_OR_GREATER
                 if (!invertEndian)
@@ -93,7 +93,7 @@ namespace Opc.Ua.Security.Certificates
 
             if (buffer.Length == 0)
             {
-                return Array.Empty<byte>();
+                return [];
             }
 
 #if NET6_0_OR_GREATER
@@ -107,7 +107,7 @@ namespace Opc.Ua.Security.Certificates
 
             while (ii < bytes.Length * 2)
             {
-                int index = digits.IndexOf(buffer[ii]);
+                int index = digits.IndexOf(buffer[ii], StringComparison.Ordinal);
 
                 if (index == -1)
                 {
@@ -119,7 +119,7 @@ namespace Opc.Ua.Security.Certificates
 
                 if (ii < buffer.Length - 1)
                 {
-                    index = digits.IndexOf(buffer[ii + 1]);
+                    index = digits.IndexOf(buffer[ii + 1], StringComparison.Ordinal);
 
                     if (index == -1)
                     {
@@ -146,7 +146,9 @@ namespace Opc.Ua.Security.Certificates
         /// </remarks>
         /// <param name="writer">The writer</param>
         /// <param name="integer">The key parameter</param>
-        internal static void WriteKeyParameterInteger(this AsnWriter writer, ReadOnlySpan<byte> integer)
+        internal static void WriteKeyParameterInteger(
+            this AsnWriter writer,
+            ReadOnlySpan<byte> integer)
         {
             if (integer[0] == 0)
             {
@@ -173,7 +175,7 @@ namespace Opc.Ua.Security.Certificates
                     newStart--;
                 }
 
-                integer = integer.Slice(newStart);
+                integer = integer[newStart..];
             }
 
             writer.WriteIntegerUnsigned(integer);
@@ -184,12 +186,14 @@ namespace Opc.Ua.Security.Certificates
         /// return the byte array which contains the X509 blob.
         /// </summary>
         /// <param name="blob">The encoded CRL or certificate sequence.</param>
+        /// <exception cref="CryptographicException"></exception>
+        /// <exception cref="AsnContentException"></exception>
         public static ReadOnlyMemory<byte> ParseX509Blob(ReadOnlyMemory<byte> blob)
         {
             try
             {
                 var x509Reader = new AsnReader(blob, AsnEncodingRules.DER);
-                ReadOnlyMemory<byte> peekBlob = blob.Slice(0, x509Reader.PeekContentBytes().Length + 4);
+                ReadOnlyMemory<byte> peekBlob = blob[..(x509Reader.PeekContentBytes().Length + 4)];
                 AsnReader seqReader = x509Reader.ReadSequence(Asn1Tag.Sequence);
                 if (seqReader != null)
                 {
@@ -202,8 +206,7 @@ namespace Opc.Ua.Security.Certificates
                     HashAlgorithmName name = Oids.GetHashAlgorithmName(signatureAlgorithm);
 
                     // Signature
-                    int unusedBitCount;
-                    byte[] signature = seqReader.ReadBitString(out unusedBitCount);
+                    byte[] signature = seqReader.ReadBitString(out int unusedBitCount);
                     if (unusedBitCount != 0)
                     {
                         throw new AsnContentException("Unexpected data in signature.");

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -27,28 +27,33 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using System.Text.RegularExpressions;
-using Opc.Ua;
-using System.Linq;
-using System.Threading;
 
 namespace Quickstarts.Servers
 {
     /// <inheritdoc/>
     public class BatchPersistor : IBatchPersistor
     {
-        private static readonly JsonSerializerSettings s_settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
-        private static readonly string s_storage_path = Path.Combine(Environment.CurrentDirectory, "Durable Subscriptions", "Batches");
-        private static readonly string s_baseFilename = "_batch.txt";
+        private static readonly JsonSerializerSettings s_settings = new()
+        {
+            TypeNameHandling = TypeNameHandling.All
+        };
 
-        #region IBatchPersistor Members
+        private static readonly string s_storage_path = Path.Combine(
+            Environment.CurrentDirectory,
+            "Durable Subscriptions",
+            "Batches");
+
+        private const string kBaseFilename = "_batch.txt";
+
         /// <inheritdoc/>
         public void RequestBatchPersist(BatchBase batch)
         {
@@ -79,7 +84,6 @@ namespace Quickstarts.Servers
                         batch.CancelBatchPersist?.Cancel();
                     }
                     return;
-
                 }
 
                 batch.RestoreInProgress = true;
@@ -94,7 +98,9 @@ namespace Quickstarts.Servers
         /// <inheritdoc/>
         public void RestoreSynchronously(BatchBase batch)
         {
-            string filePath = Path.Combine(s_storage_path, $"{batch.MonitoredItemId}_{batch.Id}{s_baseFilename}");
+            string filePath = Path.Combine(
+                s_storage_path,
+                $"{batch.MonitoredItemId}_{batch.Id}{kBaseFilename}");
             object result = null;
             try
             {
@@ -145,7 +151,9 @@ namespace Quickstarts.Servers
                     Directory.CreateDirectory(s_storage_path);
                 }
 
-                string filePath = Path.Combine(s_storage_path, $"{batch.MonitoredItemId}_{batch.Id}{s_baseFilename}");
+                string filePath = Path.Combine(
+                    s_storage_path,
+                    $"{batch.MonitoredItemId}_{batch.Id}{kBaseFilename}");
 
                 File.WriteAllText(filePath, result);
 
@@ -178,7 +186,6 @@ namespace Quickstarts.Servers
                 }
             }
         }
-        #endregion
 
         /// <inheritdoc/>
         public void DeleteBatches(IEnumerable<uint> batchesToKeep)
@@ -190,10 +197,12 @@ namespace Quickstarts.Servers
                     var directory = new DirectoryInfo(s_storage_path);
 
                     // Create a single regex pattern that matches any of the batches to keep
-                    var pattern = string.Join("|", batchesToKeep.Select(batch => $@"{batch}_.*{s_baseFilename}$"));
+                    string pattern = string.Join(
+                        "|",
+                        batchesToKeep.Select(batch => $"{batch}_.*{kBaseFilename}$"));
                     var regex = new Regex(pattern, RegexOptions.Compiled);
 
-                    foreach (var file in directory.GetFiles())
+                    foreach (FileInfo file in directory.GetFiles())
                     {
                         if (!regex.IsMatch(file.Name))
                         {
@@ -206,7 +215,6 @@ namespace Quickstarts.Servers
             {
                 Opc.Ua.Utils.LogWarning(ex, "Failed to clean up batches");
             }
-
         }
 
         public void DeleteBatch(BatchBase batchToRemove)
@@ -216,9 +224,11 @@ namespace Quickstarts.Servers
                 if (Directory.Exists(s_storage_path))
                 {
                     var directory = new DirectoryInfo(s_storage_path);
-                    var regex = new Regex($@"{batchToRemove.MonitoredItemId}_.{batchToRemove.Id}._{s_baseFilename}$", RegexOptions.Compiled);
+                    var regex = new Regex(
+                        $"{batchToRemove.MonitoredItemId}_.{batchToRemove.Id}._{kBaseFilename}$",
+                        RegexOptions.Compiled);
 
-                    foreach (var file in directory.GetFiles())
+                    foreach (FileInfo file in directory.GetFiles())
                     {
                         if (!regex.IsMatch(file.Name))
                         {
@@ -232,10 +242,9 @@ namespace Quickstarts.Servers
             {
                 Opc.Ua.Utils.LogWarning(ex, "Failed to clean up single batch");
             }
-
         }
 
-        private readonly ConcurrentDictionary<Guid, BatchBase> m_batchesToRestore = new ConcurrentDictionary<Guid, BatchBase>();
-        private readonly ConcurrentDictionary<Guid, BatchBase> m_batchesToPersist = new ConcurrentDictionary<Guid, BatchBase>();
+        private readonly ConcurrentDictionary<Guid, BatchBase> m_batchesToRestore = new();
+        private readonly ConcurrentDictionary<Guid, BatchBase> m_batchesToPersist = new();
     }
 }

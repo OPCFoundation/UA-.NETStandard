@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -29,16 +29,14 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Calculates the value of an aggregate. 
+    /// Calculates the value of an aggregate.
     /// </summary>
     public class StartEndAggregateCalculator : AggregateCalculator
     {
-        #region Constructors
         /// <summary>
         /// Initializes the aggregate calculator.
         /// </summary>
@@ -55,14 +53,11 @@ namespace Opc.Ua.Server
             double processingInterval,
             bool stepped,
             AggregateConfiguration configuration)
-        : 
-            base(aggregateId, startTime, endTime, processingInterval, stepped, configuration)
+            : base(aggregateId, startTime, endTime, processingInterval, stepped, configuration)
         {
             SetPartialBit = true;
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Computes the value for the timeslice.
         /// </summary>
@@ -75,42 +70,23 @@ namespace Opc.Ua.Server
                 switch (id.Value)
                 {
                     case Objects.AggregateFunction_Start:
-                    {
                         return ComputeStartEnd(slice, false);
-                    }
-
                     case Objects.AggregateFunction_End:
-                    {
                         return ComputeStartEnd(slice, true);
-                    }
-
                     case Objects.AggregateFunction_Delta:
-                    {
                         return ComputeDelta(slice);
-                    }
-
                     case Objects.AggregateFunction_StartBound:
-                    {
                         return ComputeStartEnd2(slice, false);
-                    }
-
                     case Objects.AggregateFunction_EndBound:
-                    {
                         return ComputeStartEnd2(slice, true);
-                    }
-
                     case Objects.AggregateFunction_DeltaBounds:
-                    {
                         return ComputeDelta2(slice);
-                    }
                 }
             }
 
             return base.ComputeValue(slice);
         }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Calculate the Start and End aggregates for the timeslice.
         /// </summary>
@@ -131,11 +107,7 @@ namespace Opc.Ua.Server
                 return values[0];
             }
 
-            // return end value.
-            else
-            {
-                return values[values.Count - 1];
-            }
+            return values[^1];
         }
 
         /// <summary>
@@ -152,15 +124,14 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            // find start value.
-            DataValue start = null;
-            double startValue = Double.NaN;
+            double startValue = double.NaN;
             TypeInfo originalType = null;
             bool badDataSkipped = false;
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                start = values[ii];
+                // find start value.
+                DataValue start = values[ii];
 
                 if (IsGood(start))
                 {
@@ -172,23 +143,21 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception)
                     {
-                        startValue = Double.NaN;
+                        startValue = double.NaN;
                     }
                 }
 
-                start = null;
                 badDataSkipped = true;
             }
 
-            // find end value.
-            DataValue end = null;
-            double endValue = Double.NaN;
+            double endValue = double.NaN;
 
             for (int ii = values.Count - 1; ii >= 0; ii--)
             {
-                end = values[ii];
+                // find end value.
+                DataValue end = values[ii];
 
-                if (IsGood(end))    
+                if (IsGood(end))
                 {
                     try
                     {
@@ -197,40 +166,44 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception)
                     {
-                        endValue = Double.NaN;
+                        endValue = double.NaN;
                     }
 
                     break;
                 }
 
-                end = null;
                 badDataSkipped = true;
             }
 
             // check if no good data.
-            if (Double.IsNaN(startValue) || Double.IsNaN(endValue))
+            if (double.IsNaN(startValue) || double.IsNaN(endValue))
             {
                 return GetNoDataValue(slice);
             }
-            
-            DataValue value = new DataValue();
-            value.SourceTimestamp = GetTimestamp(slice);
-            value.ServerTimestamp = GetTimestamp(slice);
+
+            var value = new DataValue
+            {
+                SourceTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
+            };
 
             // set status code.
             if (badDataSkipped)
             {
                 value.StatusCode = StatusCodes.UncertainDataSubNormal;
             }
-            
+
             value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
-            
+
             // calculate delta.
             double delta = endValue - startValue;
 
             if (originalType != null && originalType.BuiltInType != BuiltInType.Double)
             {
-                object delta2 = TypeInfo.Cast(delta, TypeInfo.Scalars.Double, originalType.BuiltInType);
+                object delta2 = TypeInfo.Cast(
+                    delta,
+                    TypeInfo.Scalars.Double,
+                    originalType.BuiltInType);
                 value.WrappedValue = new Variant(delta2, originalType);
             }
             else
@@ -256,18 +229,17 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            DataValue value = null;
+            DataValue value;
 
             // return start bound.
             if ((!returnEnd && !TimeFlowsBackward) || (returnEnd && TimeFlowsBackward))
             {
                 value = values[0];
             }
-
             // return end bound.
             else
             {
-                value = values[values.Count - 1];
+                value = values[^1];
             }
 
             if (!IsGood(value))
@@ -304,7 +276,7 @@ namespace Opc.Ua.Server
             }
 
             DataValue start = values[0];
-            DataValue end = values[values.Count-1];
+            DataValue end = values[^1];
 
             // check for bad bounds.
             if (!IsGood(start) || !IsGood(end))
@@ -312,10 +284,10 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            // convert to doubles.
-            double startValue = 0;
             TypeInfo originalType = null;
 
+            // convert to doubles.
+            double startValue;
             try
             {
                 startValue = CastToDouble(start);
@@ -323,29 +295,30 @@ namespace Opc.Ua.Server
             }
             catch (Exception)
             {
-                startValue = Double.NaN;
+                startValue = double.NaN;
             }
 
-            double endValue = 0;
-
+            double endValue;
             try
             {
                 endValue = CastToDouble(end);
             }
             catch (Exception)
             {
-                endValue = Double.NaN;
+                endValue = double.NaN;
             }
 
             // check for bad bounds.
-            if (Double.IsNaN(startValue) || Double.IsNaN(endValue))
+            if (double.IsNaN(startValue) || double.IsNaN(endValue))
             {
                 return GetNoDataValue(slice);
             }
 
-            DataValue value = new DataValue();
-            value.SourceTimestamp = GetTimestamp(slice);
-            value.ServerTimestamp = GetTimestamp(slice);
+            var value = new DataValue
+            {
+                SourceTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
+            };
 
             if (!IsGood(start) || !IsGood(end))
             {
@@ -359,7 +332,10 @@ namespace Opc.Ua.Server
 
             if (originalType != null && originalType.BuiltInType != BuiltInType.Double)
             {
-                object delta2 = TypeInfo.Cast(delta, TypeInfo.Scalars.Double, originalType.BuiltInType);
+                object delta2 = TypeInfo.Cast(
+                    delta,
+                    TypeInfo.Scalars.Double,
+                    originalType.BuiltInType);
                 value.WrappedValue = new Variant(delta2, originalType);
             }
             else
@@ -370,6 +346,5 @@ namespace Opc.Ua.Server
             // return result.
             return value;
         }
-        #endregion
     }
 }

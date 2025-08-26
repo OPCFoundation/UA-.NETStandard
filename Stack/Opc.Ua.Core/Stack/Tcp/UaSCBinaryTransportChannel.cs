@@ -25,7 +25,6 @@ namespace Opc.Ua.Bindings
     {
         private const int kChannelCloseDefault = 1_000;
 
-        #region Constructors
         /// <summary>
         /// Create a transport channel from a message socket factory.
         /// </summary>
@@ -34,9 +33,7 @@ namespace Opc.Ua.Bindings
         {
             m_messageSocketFactory = messageSocketFactory;
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -53,23 +50,15 @@ namespace Opc.Ua.Bindings
         {
             if (disposing)
             {
-                var channel = Interlocked.Exchange(ref m_channel, null);
+                UaSCUaBinaryClientChannel channel = Interlocked.Exchange(ref m_channel, null);
                 Utils.SilentDispose(channel);
             }
         }
-        #endregion
 
-        #region IMessageSocketChannel Members
         /// <summary>
         /// Returns the channel's underlying message socket if connected / available.
         /// </summary>
-        public IMessageSocket Socket
-        {
-            get { return m_channel?.Socket; }
-        }
-        #endregion
-
-        #region ITransportChannel Members
+        public IMessageSocket Socket => m_channel?.Socket;
 
         /// <summary>
         /// Called when the token changes
@@ -84,8 +73,10 @@ namespace Opc.Ua.Bindings
         /// A masking indicating which features are implemented.
         /// </summary>
         public TransportChannelFeatures SupportedFeatures =>
-            TransportChannelFeatures.Open | TransportChannelFeatures.BeginOpen |
-            TransportChannelFeatures.BeginSendRequest | TransportChannelFeatures.SendRequestAsync |
+            TransportChannelFeatures.Open |
+            TransportChannelFeatures.BeginOpen |
+            TransportChannelFeatures.BeginSendRequest |
+            TransportChannelFeatures.SendRequestAsync |
             (Socket?.MessageSocketFeatures ?? 0);
 
         /// <summary>
@@ -104,21 +95,14 @@ namespace Opc.Ua.Bindings
         public IServiceMessageContext MessageContext => m_quotas.MessageContext;
 
         /// <summary>
-        ///  Gets the the channel's current security token.
+        ///  Gets the channel's current security token.
         /// </summary>
-        public ChannelToken CurrentToken
-        {
-            get { return m_channel?.CurrentToken; }
-        }
+        public ChannelToken CurrentToken => m_channel?.CurrentToken;
 
         /// <summary>
         /// Gets or sets the default timeout for requests send via the channel.
         /// </summary>
-        public int OperationTimeout
-        {
-            get { return m_operationTimeout; }
-            set { m_operationTimeout = value; }
-        }
+        public int OperationTimeout { get; set; }
 
         /// <summary>
         /// Initializes a secure channel with the endpoint identified by the URL.
@@ -126,9 +110,7 @@ namespace Opc.Ua.Bindings
         /// <param name="url">The URL for the endpoint.</param>
         /// <param name="settings">The settings to use when creating the channel.</param>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        public void Initialize(
-            Uri url,
-            TransportChannelSettings settings)
+        public void Initialize(Uri url, TransportChannelSettings settings)
         {
             SaveSettings(url, settings);
             Interlocked.Exchange(ref m_channel, CreateChannel());
@@ -175,7 +157,7 @@ namespace Opc.Ua.Bindings
                 Interlocked.Exchange(ref m_channel, CreateChannel(null));
 
                 // begin connect operation.
-                return m_channel.BeginConnect(this.m_url, m_operationTimeout, callback, callbackData);
+                return m_channel.BeginConnect(m_url, OperationTimeout, callback, callbackData);
             }
         }
 
@@ -197,7 +179,10 @@ namespace Opc.Ua.Bindings
         /// <remarks>
         /// Calling this method will cause outstanding requests over the current secure channel to fail.
         /// </remarks>
-        public void Reconnect() => Reconnect(null);
+        public void Reconnect()
+        {
+            Reconnect(null);
+        }
 
         /// <summary>
         /// Closes any existing secure channel and opens a new one.
@@ -224,7 +209,11 @@ namespace Opc.Ua.Bindings
                     Interlocked.Exchange(ref m_channel, CreateChannel(connection));
 
                     // begin connect operation.
-                    IAsyncResult result = m_channel.BeginConnect(m_url, m_operationTimeout, null, null);
+                    IAsyncResult result = m_channel.BeginConnect(
+                        m_url,
+                        OperationTimeout,
+                        null,
+                        null);
                     m_channel.EndConnect(result);
                 }
                 finally
@@ -260,6 +249,7 @@ namespace Opc.Ua.Bindings
         /// </returns>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
         /// <seealso cref="Reconnect()"/>
+        /// <exception cref="NotImplementedException"></exception>
         public IAsyncResult BeginReconnect(AsyncCallback callback, object callbackData)
         {
             throw new NotImplementedException();
@@ -271,6 +261,7 @@ namespace Opc.Ua.Bindings
         /// <param name="result">The result returned from the BeginReconnect call.</param>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
         /// <seealso cref="Reconnect()"/>
+        /// <exception cref="NotImplementedException"></exception>
         public void EndReconnect(IAsyncResult result)
         {
             throw new NotImplementedException();
@@ -310,6 +301,7 @@ namespace Opc.Ua.Bindings
         /// </returns>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
         /// <seealso cref="Close"/>
+        /// <exception cref="NotImplementedException"></exception>
         public IAsyncResult BeginClose(AsyncCallback callback, object callbackData)
         {
             throw new NotImplementedException();
@@ -321,6 +313,7 @@ namespace Opc.Ua.Bindings
         /// <param name="result">The result returned from the BeginClose call.</param>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
         /// <seealso cref="Close"/>
+        /// <exception cref="NotImplementedException"></exception>
         public void EndClose(IAsyncResult result)
         {
             throw new NotImplementedException();
@@ -345,9 +338,11 @@ namespace Opc.Ua.Bindings
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The response returned by the server.</returns>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        public Task<IServiceResponse> SendRequestAsync(IServiceRequest request, CancellationToken ct)
+        public Task<IServiceResponse> SendRequestAsync(
+            IServiceRequest request,
+            CancellationToken ct)
         {
-            var operation = BeginSendRequest(request, null, null);
+            IAsyncResult operation = BeginSendRequest(request, null, null);
             return EndSendRequestAsync(operation, ct);
         }
 
@@ -362,14 +357,20 @@ namespace Opc.Ua.Bindings
         /// </returns>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
         /// <seealso cref="SendRequest"/>
-        public IAsyncResult BeginSendRequest(IServiceRequest request, AsyncCallback callback, object callbackData)
+        public IAsyncResult BeginSendRequest(
+            IServiceRequest request,
+            AsyncCallback callback,
+            object callbackData)
         {
             UaSCUaBinaryClientChannel channel = m_channel;
 
             if (channel == null)
             {
                 channel = CreateChannel();
-                var currentChannel = Interlocked.CompareExchange(ref m_channel, channel, null);
+                UaSCUaBinaryClientChannel currentChannel = Interlocked.CompareExchange(
+                    ref m_channel,
+                    channel,
+                    null);
                 if (currentChannel != null)
                 {
                     Utils.SilentDispose(channel);
@@ -377,24 +378,22 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            return channel.BeginSendRequest(request, m_operationTimeout, callback, callbackData);
+            return channel.BeginSendRequest(request, OperationTimeout, callback, callbackData);
         }
 
         /// <summary>
         /// Completes an asynchronous operation to send a request over the secure channel.
         /// </summary>
         /// <param name="result">The result returned from the BeginSendRequest call.</param>
-        /// <returns></returns>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
         /// <seealso cref="SendRequest"/>
         public IServiceResponse EndSendRequest(IAsyncResult result)
         {
-            UaSCUaBinaryClientChannel channel = m_channel;
-
-            if (channel == null)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadSecureChannelClosed, "Channel has been closed.");
-            }
+            UaSCUaBinaryClientChannel channel =
+                m_channel
+                ?? throw ServiceResultException.Create(
+                    StatusCodes.BadSecureChannelClosed,
+                    "Channel has been closed.");
 
             return channel.EndSendRequest(result);
         }
@@ -403,18 +402,16 @@ namespace Opc.Ua.Bindings
         /// Completes an asynchronous operation to send a request over the secure channel.
         /// </summary>
         /// <param name="result">The result returned from the BeginSendRequest call.</param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
         /// <seealso cref="SendRequest"/>
         public Task<IServiceResponse> EndSendRequestAsync(IAsyncResult result, CancellationToken ct)
         {
-            UaSCUaBinaryClientChannel channel = m_channel;
-
-            if (channel == null)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadSecureChannelClosed, "Channel has been closed.");
-            }
+            UaSCUaBinaryClientChannel channel =
+                m_channel
+                ?? throw ServiceResultException.Create(
+                    StatusCodes.BadSecureChannelClosed,
+                    "Channel has been closed.");
 
             return channel.EndSendRequestAsync(result, ct);
         }
@@ -429,19 +426,23 @@ namespace Opc.Ua.Bindings
             // save the settings.
             m_url = url;
             m_settings = settings;
-            m_operationTimeout = settings.Configuration.OperationTimeout;
+            OperationTimeout = settings.Configuration.OperationTimeout;
 
             // initialize the quotas.
             EndpointConfiguration configuration = m_settings.Configuration;
-            m_quotas = new ChannelQuotas {
+            m_quotas = new ChannelQuotas
+            {
                 MaxBufferSize = configuration.MaxBufferSize,
-                MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(configuration.MaxMessageSize),
+                MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(
+                    configuration.MaxMessageSize),
                 ChannelLifetime = configuration.ChannelLifetime,
                 SecurityTokenLifetime = configuration.SecurityTokenLifetime,
-                MessageContext = new ServiceMessageContext() {
+                MessageContext = new ServiceMessageContext
+                {
                     MaxArrayLength = configuration.MaxArrayLength,
                     MaxByteStringLength = configuration.MaxByteStringLength,
-                    MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(configuration.MaxMessageSize),
+                    MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(
+                        configuration.MaxMessageSize),
                     MaxStringLength = configuration.MaxStringLength,
                     MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
                     MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
@@ -461,7 +462,9 @@ namespace Opc.Ua.Bindings
         /// Opens the channel before sending the request.
         /// </summary>
         /// <param name="connection">A reverse connection, null otherwise.</param>
-        private UaSCUaBinaryClientChannel CreateChannel(ITransportWaitingConnection connection = null)
+        /// <exception cref="ArgumentException"></exception>
+        private UaSCUaBinaryClientChannel CreateChannel(
+            ITransportWaitingConnection connection = null)
         {
             IMessageSocket socket = null;
             if (connection != null)
@@ -493,22 +496,20 @@ namespace Opc.Ua.Bindings
             }
 
             // Register the token changed event handler with the internal channel
-            channel.OnTokenActivated =
-                (current, previous) => m_OnTokenActivated?.Invoke(this, current, previous);
+            channel.OnTokenActivated = (current, previous) => m_OnTokenActivated?.Invoke(
+                this,
+                current,
+                previous);
             return channel;
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
+        private readonly Lock m_lock = new();
         private Uri m_url;
-        private int m_operationTimeout;
         private TransportChannelSettings m_settings;
         private ChannelQuotas m_quotas;
         private BufferManager m_bufferManager;
         private UaSCUaBinaryClientChannel m_channel;
         private event ChannelTokenActivatedEventHandler m_OnTokenActivated;
-        private IMessageSocketFactory m_messageSocketFactory;
-        #endregion
+        private readonly IMessageSocketFactory m_messageSocketFactory;
     }
 }

@@ -11,27 +11,22 @@
 */
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Text;
-using System.Xml;
-using System.IO;
-using System.Runtime.Serialization;
-using System.Reflection;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
-    /// <summary> 
+    /// <summary>
     /// The base class for all method nodes.
     /// </summary>
     public class MethodState : BaseInstanceState
     {
-        #region Constructors
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        public MethodState(NodeState parent) : base(NodeClass.Method, parent)
+        public MethodState(NodeState parent)
+            : base(NodeClass.Method, parent)
         {
             m_executable = true;
             m_userExecutable = true;
@@ -46,9 +41,7 @@ namespace Opc.Ua
         {
             return new MethodState(parent);
         }
-        #endregion
 
-        #region Initialization
         /// <summary>
         /// Initializes the instance with the default values.
         /// </summary>
@@ -73,13 +66,11 @@ namespace Opc.Ua
 
             base.Initialize(context, source);
         }
-        #endregion
 
-        #region ICloneable Members
         /// <inheritdoc/>
         public override object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -90,26 +81,17 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            MethodState clone = (MethodState)Activator.CreateInstance(this.GetType(), this.Parent);
+            var clone = (MethodState)Activator.CreateInstance(GetType(), Parent);
             return CloneChildren(clone);
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// The identifier for the declaration of the method in the type model.
         /// </summary>
         public NodeId MethodDeclarationId
         {
-            get
-            {
-                return base.TypeDefinitionId;
-            }
-
-            set
-            {
-                base.TypeDefinitionId = value;
-            }
+            get => TypeDefinitionId;
+            set => TypeDefinitionId = value;
         }
 
         /// <summary>
@@ -117,11 +99,7 @@ namespace Opc.Ua
         /// </summary>
         public bool Executable
         {
-            get
-            {
-                return m_executable;
-            }
-
+            get => m_executable;
             set
             {
                 if (m_executable != value)
@@ -138,11 +116,7 @@ namespace Opc.Ua
         /// </summary>
         public bool UserExecutable
         {
-            get
-            {
-                return m_userExecutable;
-            }
-
+            get => m_userExecutable;
             set
             {
                 if (m_userExecutable != value)
@@ -153,9 +127,7 @@ namespace Opc.Ua
                 m_userExecutable = value;
             }
         }
-        #endregion
 
-        #region Event Callbacks
         /// <summary>
         /// Raised when the Executable attribute is read.
         /// </summary>
@@ -185,9 +157,14 @@ namespace Opc.Ua
         /// Raised when the method is called.
         /// </summary>
         public GenericMethodCalledEventHandler2 OnCallMethod2;
-        #endregion
 
-        #region Serialization Functions
+        /// <summary>
+        /// Raised when the method is called.
+        /// Takes a Task delegate to allow for asynchronous processing.
+        /// Only works if the server / node managers supports async method calls.
+        /// </summary>
+        public GenericMethodCalledEventHandler2Async OnCallMethod2Async;
+
         /// <summary>
         /// Exports a copy of the node to a node table.
         /// </summary>
@@ -197,11 +174,10 @@ namespace Opc.Ua
         {
             base.Export(context, node);
 
-
             if (node is MethodNode methodNode)
             {
-                methodNode.Executable = this.Executable;
-                methodNode.UserExecutable = this.UserExecutable;
+                methodNode.Executable = Executable;
+                methodNode.UserExecutable = UserExecutable;
             }
         }
 
@@ -281,7 +257,10 @@ namespace Opc.Ua
         /// <param name="context">The context user.</param>
         /// <param name="encoder">The encoder to write to.</param>
         /// <param name="attributesToSave">The masks indicating what attributes to write.</param>
-        public override void Save(ISystemContext context, BinaryEncoder encoder, AttributesToSave attributesToSave)
+        public override void Save(
+            ISystemContext context,
+            BinaryEncoder encoder,
+            AttributesToSave attributesToSave)
         {
             base.Save(context, encoder, attributesToSave);
 
@@ -302,7 +281,10 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         /// <param name="decoder">The decoder.</param>
         /// <param name="attributesToLoad">The attributes to load.</param>
-        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attributesToLoad)
+        public override void Update(
+            ISystemContext context,
+            BinaryDecoder decoder,
+            AttributesToSave attributesToLoad)
         {
             base.Update(context, decoder, attributesToLoad);
 
@@ -316,9 +298,7 @@ namespace Opc.Ua
                 m_userExecutable = decoder.ReadBoolean(null);
             }
         }
-        #endregion
 
-        #region Read Support Functions
         /// <summary>
         /// Reads the value for any non-value attribute.
         /// </summary>
@@ -332,7 +312,6 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.Executable:
-                {
                     bool executable = m_executable;
 
                     NodeAttributeEventHandler<bool> onReadExecutable = OnReadExecutable;
@@ -348,10 +327,7 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
-
                 case Attributes.UserExecutable:
-                {
                     bool userExecutable = m_userExecutable;
 
                     NodeAttributeEventHandler<bool> onReadUserExecutable = OnReadUserExecutable;
@@ -367,14 +343,11 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
             }
 
             return base.ReadNonValueAttribute(context, attributeId, ref value);
         }
-        #endregion
 
-        #region Write Support Functions
         /// <summary>
         /// Write the value for any non-value attribute.
         /// </summary>
@@ -388,7 +361,6 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.Executable:
-                {
                     bool? executableRef = value as bool?;
 
                     if (executableRef == null)
@@ -416,10 +388,7 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
-
                 case Attributes.UserExecutable:
-                {
                     bool? userExecutableRef = value as bool?;
 
                     if (userExecutableRef == null)
@@ -447,27 +416,20 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
             }
 
             return base.WriteNonValueAttribute(context, attributeId, value);
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The input arguments for the method.
         /// </summary>
         public PropertyState<Argument[]> InputArguments
         {
-            get
-            {
-                return m_inputArguments;
-            }
-
+            get => m_inputArguments;
             set
             {
-                if (!Object.ReferenceEquals(m_inputArguments, value))
+                if (!ReferenceEquals(m_inputArguments, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.Children;
                 }
@@ -481,14 +443,10 @@ namespace Opc.Ua
         /// </summary>
         public PropertyState<Argument[]> OutputArguments
         {
-            get
-            {
-                return m_outputArguments;
-            }
-
+            get => m_outputArguments;
             set
             {
-                if (!Object.ReferenceEquals(m_outputArguments, value))
+                if (!ReferenceEquals(m_outputArguments, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.Children;
                 }
@@ -496,17 +454,13 @@ namespace Opc.Ua
                 m_outputArguments = value;
             }
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Populates a list with the children that belong to the node.
         /// </summary>
         /// <param name="context">The context for the system being accessed.</param>
         /// <param name="children">The list of children to populate.</param>
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
+        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
             PropertyState<Argument[]> inputArguments = m_inputArguments;
 
@@ -544,58 +498,68 @@ namespace Opc.Ua
             switch (browseName.Name)
             {
                 case BrowseNames.InputArguments:
-                {
-                    if (createOrReplace)
+                    if (createOrReplace && InputArguments == null)
                     {
-                        if (InputArguments == null)
+                        if (replacement == null)
                         {
-                            if (replacement == null)
-                            {
-                                InputArguments = new PropertyState<Argument[]>(this);
-                            }
-                            else
-                            {
-                                InputArguments = (PropertyState<Argument[]>)replacement;
-                            }
+                            InputArguments = new PropertyState<Argument[]>(this);
+                        }
+                        else
+                        {
+                            InputArguments = (PropertyState<Argument[]>)replacement;
                         }
                     }
 
                     instance = InputArguments;
                     break;
-                }
-
                 case BrowseNames.OutputArguments:
-                {
-                    if (createOrReplace)
+                    if (createOrReplace && OutputArguments == null)
                     {
-                        if (OutputArguments == null)
+                        if (replacement == null)
                         {
-                            if (replacement == null)
-                            {
-                                OutputArguments = new PropertyState<Argument[]>(this);
-                            }
-                            else
-                            {
-                                OutputArguments = (PropertyState<Argument[]>)replacement;
-                            }
+                            OutputArguments = new PropertyState<Argument[]>(this);
+                        }
+                        else
+                        {
+                            OutputArguments = (PropertyState<Argument[]>)replacement;
                         }
                     }
 
                     instance = OutputArguments;
                     break;
-                }
             }
 
-            if (instance != null)
-            {
-                return instance;
-            }
-
-            return base.FindChild(context, browseName, createOrReplace, replacement);
+            return instance ?? base.FindChild(context, browseName, createOrReplace, replacement);
         }
-        #endregion
 
-        #region Method Invocation
+        /// <summary>
+        /// Invokes the methods and returns the output parameters.
+        /// </summary>
+        /// <param name="context">The context to use.</param>
+        /// <param name="objectId">The object being called.</param>
+        /// <param name="inputArguments">The input arguments.</param>
+        /// <param name="argumentErrors">Any errors for the input arguments.</param>
+        /// <param name="outputArguments">The output arguments.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The result of the method call.</returns>
+        public virtual ValueTask<ServiceResult> CallAsync(
+            ISystemContext context,
+            NodeId objectId,
+            IList<Variant> inputArguments,
+            IList<ServiceResult> argumentErrors,
+            IList<Variant> outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            return CallInternalSyncOrAsync(
+                context,
+                objectId,
+                inputArguments,
+                argumentErrors,
+                outputArguments,
+                sync: false,
+                cancellationToken);
+        }
+
         /// <summary>
         /// Invokes the methods and returns the output parameters.
         /// </summary>
@@ -612,11 +576,42 @@ namespace Opc.Ua
             IList<ServiceResult> argumentErrors,
             IList<Variant> outputArguments)
         {
+            // safe to access result directly as sync = true
+            ValueTask<ServiceResult> syncResult = CallInternalSyncOrAsync(
+                context,
+                objectId,
+                inputArguments,
+                argumentErrors,
+                outputArguments,
+                sync: true);
+            return syncResult.Result;
+        }
+
+        /// <summary>
+        /// Invokes the methods and returns the output parameters.
+        /// </summary>
+        /// <param name="context">The context to use.</param>
+        /// <param name="objectId">The object being called.</param>
+        /// <param name="inputArguments">The input arguments.</param>
+        /// <param name="argumentErrors">Any errors for the input arguments.</param>
+        /// <param name="outputArguments">The output arguments.</param>
+        /// <param name="sync">If the method shall execute synchronously.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The result of the method call.</returns>
+        protected virtual async ValueTask<ServiceResult> CallInternalSyncOrAsync(
+            ISystemContext context,
+            NodeId objectId,
+            IList<Variant> inputArguments,
+            IList<ServiceResult> argumentErrors,
+            IList<Variant> outputArguments,
+            bool sync,
+            CancellationToken cancellationToken = default)
+        {
             // check if executable.
             object executable = null;
             ReadNonValueAttribute(context, Attributes.Executable, ref executable);
 
-            if (executable is bool && (bool)executable == false)
+            if (executable is bool exec && !exec)
             {
                 return StatusCodes.BadNotExecutable;
             }
@@ -625,13 +620,13 @@ namespace Opc.Ua
             object userExecutable = null;
             ReadNonValueAttribute(context, Attributes.UserExecutable, ref userExecutable);
 
-            if (userExecutable is bool && (bool)userExecutable == false)
+            if (userExecutable is bool userExec && !userExec)
             {
                 return StatusCodes.BadUserAccessDenied;
             }
 
             // validate input arguments.
-            List<object> inputs = new List<object>();
+            var inputs = new List<object>();
 
             // check for too few or too many arguments.
             int expectedCount = 0;
@@ -658,7 +653,10 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < inputArguments.Count; ii++)
             {
-                ServiceResult argumentError = ValidateInputArgument(context, inputArguments[ii], ii);
+                ServiceResult argumentError = ValidateInputArgument(
+                    context,
+                    inputArguments[ii],
+                    ii);
 
                 if (ServiceResult.IsBad(argumentError))
                 {
@@ -676,17 +674,17 @@ namespace Opc.Ua
             }
 
             // set output arguments to default values.
-            List<object> outputs = new List<object>();
+            var outputs = new List<object>();
 
             PropertyState<Argument[]> expectedOutputArguments = OutputArguments;
 
             if (expectedOutputArguments != null)
             {
-                IList<Argument> arguments = expectedOutputArguments.Value;
+                Argument[] arguments = expectedOutputArguments.Value;
 
-                if (arguments != null && arguments.Count > 0)
+                if (arguments != null && arguments.Length > 0)
                 {
-                    for (int ii = 0; ii < arguments.Count; ii++)
+                    for (int ii = 0; ii < arguments.Length; ii++)
                     {
                         outputs.Add(GetArgumentDefaultValue(context, arguments[ii]));
                     }
@@ -694,11 +692,18 @@ namespace Opc.Ua
             }
 
             // invoke method.
-            ServiceResult result = null;
-
+            ServiceResult result;
             try
             {
-                result = Call(context, objectId, inputs, outputs);
+                if (sync)
+                {
+                    result = Call(context, objectId, inputs, outputs);
+                }
+                else
+                {
+                    result = await CallAsync(context, objectId, inputs, outputs, cancellationToken)
+                        .ConfigureAwait(false);
+                }
             }
             catch (Exception e)
             {
@@ -731,11 +736,22 @@ namespace Opc.Ua
         /// <summary>
         /// Invokes the method, returns the result and output argument.
         /// </summary>
+        protected virtual ValueTask<ServiceResult> CallAsync(
+            ISystemContext context,
+            IList<object> inputArguments,
+            IList<object> outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            return CallAsync(context, null, inputArguments, outputArguments, cancellationToken);
+        }
+
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
         /// <param name="context">The current context.</param>
         /// <param name="objectId">The id of the object.</param>
         /// <param name="inputArguments">The input arguments which have been already validated.</param>
         /// <param name="outputArguments">The output arguments which have initialized with thier default values.</param>
-        /// <returns></returns>
         protected virtual ServiceResult Call(
             ISystemContext context,
             NodeId objectId,
@@ -749,7 +765,7 @@ namespace Opc.Ua
                 return onCallMethod2(context, this, objectId, inputArguments, outputArguments);
             }
 
-            GenericMethodCalledEventHandler onCallMethod = this.OnCallMethod;
+            GenericMethodCalledEventHandler onCallMethod = OnCallMethod;
 
             if (onCallMethod != null)
             {
@@ -765,11 +781,43 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Asynchonously invokes the method, returns the result and output argument.
+        /// </summary>
+        /// <param name="context">The current context.</param>
+        /// <param name="objectId">The id of the object.</param>
+        /// <param name="inputArguments">The input arguments which have been already validated.</param>
+        /// <param name="outputArguments">The output arguments which have initialized with thier default values.</param>
+        /// <param name="cancellationToken">The cancellation token</param>
+        /// <returns></returns>
+        protected virtual async ValueTask<ServiceResult> CallAsync(
+            ISystemContext context,
+            NodeId objectId,
+            IList<object> inputArguments,
+            IList<object> outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            GenericMethodCalledEventHandler2Async onCallMethod2Async = OnCallMethod2Async;
+
+            if (OnCallMethod2Async != null)
+            {
+                return await onCallMethod2Async(
+                    context,
+                    this,
+                    objectId,
+                    inputArguments,
+                    outputArguments,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            return Call(context, null, inputArguments, outputArguments);
+        }
+
+        /// <summary>
         /// Validates the input argument.
         /// </summary>
         /// <param name="context">The context to use.</param>
         /// <param name="inputArgument">The input argument.</param>
-        /// <param name="index">The index in the the list of input argument.</param>
+        /// <param name="index">The index in the list of input argument.</param>
         /// <returns>Any error.</returns>
         protected ServiceResult ValidateInputArgument(
             ISystemContext context,
@@ -783,16 +831,16 @@ namespace Opc.Ua
                 return StatusCodes.BadInvalidArgument;
             }
 
-            IList<Argument> arguments = inputArguments.Value;
+            Argument[] arguments = inputArguments.Value;
 
-            if (arguments == null || index < 0 || index >= arguments.Count)
+            if (arguments == null || index < 0 || index >= arguments.Length)
             {
                 return StatusCodes.BadInvalidArgument;
             }
 
             Argument expectedArgument = arguments[index];
 
-            TypeInfo typeInfo = TypeInfo.IsInstanceOfDataType(
+            var typeInfo = TypeInfo.IsInstanceOfDataType(
                 inputArgument.Value,
                 expectedArgument.DataType,
                 expectedArgument.ValueRank,
@@ -813,20 +861,18 @@ namespace Opc.Ua
         /// <param name="context">The context to use.</param>
         /// <param name="outputArgument">The output argument description.</param>
         /// <returns>The default value.</returns>
-        protected object GetArgumentDefaultValue(
-            ISystemContext context,
-            Argument outputArgument)
+        protected object GetArgumentDefaultValue(ISystemContext context, Argument outputArgument)
         {
-            return TypeInfo.GetDefaultValue(outputArgument.DataType, outputArgument.ValueRank, context.TypeTable);
+            return TypeInfo.GetDefaultValue(
+                outputArgument.DataType,
+                outputArgument.ValueRank,
+                context.TypeTable);
         }
-        #endregion
 
-        #region Private Fields
         private bool m_executable;
         private bool m_userExecutable;
         private PropertyState<Argument[]> m_inputArguments;
         private PropertyState<Argument[]> m_outputArguments;
-        #endregion
     }
 
     /// <summary>
@@ -847,4 +893,15 @@ namespace Opc.Ua
         NodeId objectId,
         IList<object> inputArguments,
         IList<object> outputArguments);
+
+    /// <summary>
+    /// Used to process a method call.
+    /// </summary>
+    public delegate ValueTask<ServiceResult> GenericMethodCalledEventHandler2Async(
+        ISystemContext context,
+        MethodState method,
+        NodeId objectId,
+        IList<object> inputArguments,
+        IList<object> outputArguments,
+        CancellationToken cancellationToken = default);
 }

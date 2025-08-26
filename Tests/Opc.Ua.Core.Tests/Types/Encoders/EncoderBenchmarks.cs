@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -26,8 +26,6 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-
-#pragma warning disable CA5394 // Do not use insecure randomness
 
 using System;
 using System.Collections.Generic;
@@ -49,27 +47,31 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             m_random = new Random(0x62541);
             m_nodeId = new NodeId((uint)m_random.Next(50000));
-            m_list = new List<int>();
+            m_list = [];
             for (int i = 0; i < DataValueCount; i++)
             {
                 m_list.Add(m_random.Next());
             }
-            m_values = new List<DataValue>();
-            DateTime now = new DateTime(2024, 03, 01, 06, 05, 59, DateTimeKind.Utc);
+            m_values = [];
+            var now = new DateTime(2024, 03, 01, 06, 05, 59, DateTimeKind.Utc);
             now += TimeSpan.FromTicks(456789);
             for (int i = 0; i < DataValueCount; i++)
             {
-                m_values.Add(new DataValue(new Variant((m_random.NextDouble() - 0.5) * 1000.0), m_random.NextDouble() > 0.1 ? StatusCodes.Good : StatusCodes.BadDataLost, now, now));
+                m_values.Add(
+                    new DataValue(
+                        new Variant((m_random.NextDouble() - 0.5) * 1000.0),
+                        m_random.NextDouble() > 0.1 ? StatusCodes.Good : StatusCodes.BadDataLost,
+                        now,
+                        now));
             }
         }
 
         [Params(64, 1024)]
         public int PayLoadSize { get; set; } = 64;
 
-        #region Private Methods
         protected void TestEncoding(IEncoder encoder)
         {
-            var now = DateTime.UtcNow;
+            DateTime now = DateTime.UtcNow;
             int payLoadSize = PayLoadSize;
             encoder.WriteInt32("PayloadSize", payLoadSize);
             while (payLoadSize-- > 0)
@@ -96,7 +98,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         protected void TestDecoding(IDecoder decoder)
         {
-            var payLoadSize = decoder.ReadInt32("PayloadSize");
+            int payLoadSize = decoder.ReadInt32("PayloadSize");
             while (payLoadSize-- > 0)
             {
                 _ = decoder.ReadBoolean("Boolean");
@@ -118,57 +120,52 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 _ = decoder.ReadDataValueArray("DataValues");
             }
         }
-        #endregion
 
-        #region Test Setup
-        public void OneTimeSetUp()
+        public virtual void OneTimeSetUp()
         {
             // for validating benchmark tests
             m_context = new ServiceMessageContext();
-            m_memoryManager = new RecyclableMemoryStreamManager(new RecyclableMemoryStreamManager.Options { BlockSize = StreamBufferSize });
+            m_memoryManager = new RecyclableMemoryStreamManager(
+                new RecyclableMemoryStreamManager.Options { BlockSize = StreamBufferSize });
             m_bufferManager = new BufferManager(nameof(BinaryEncoder), StreamBufferSize);
         }
 
-        public void OneTimeTearDown()
+        public virtual void OneTimeTearDown()
         {
             m_context = null;
             m_memoryManager = null;
             m_bufferManager = null;
         }
-        #endregion
 
-        #region Benchmark Setup
         /// <summary>
         /// Set up some variables for benchmarks.
         /// </summary>
-        public void GlobalSetup()
+        public virtual void GlobalSetup()
         {
             // for validating benchmark tests
             m_context = new ServiceMessageContext();
-            m_memoryManager = new RecyclableMemoryStreamManager(new RecyclableMemoryStreamManager.Options { BlockSize = StreamBufferSize });
+            m_memoryManager = new RecyclableMemoryStreamManager(
+                new RecyclableMemoryStreamManager.Options { BlockSize = StreamBufferSize });
             m_bufferManager = new BufferManager(nameof(BinaryEncoder), StreamBufferSize);
         }
 
         /// <summary>
         /// Tear down benchmark variables.
         /// </summary>
-        public void GlobalCleanup()
+        public virtual void GlobalCleanup()
         {
             m_context = null;
             m_memoryManager = null;
             m_bufferManager = null;
         }
-        #endregion
 
-        #region Protected Fields
         protected Random m_random;
-        protected NodeId m_nodeId = new NodeId(1234);
-        protected List<Int32> m_list;
+        protected NodeId m_nodeId = new(1234);
+        protected List<int> m_list;
         protected List<DataValue> m_values;
         protected IServiceMessageContext m_context;
         protected RecyclableMemoryStreamManager m_memoryManager;
         protected BufferManager m_bufferManager;
-        #endregion
     }
 
 #if NET6_0_OR_GREATER && ECC_SUPPORT
@@ -189,12 +186,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         public override int Read(Span<byte> buffer)
         {
-            return base.ReadMemoryStream(buffer);
+            return ReadMemoryStream(buffer);
         }
 
         public override void Write(ReadOnlySpan<byte> buffer)
         {
-            base.WriteMemoryStream(buffer);
+            WriteMemoryStream(buffer);
         }
     }
 #endif

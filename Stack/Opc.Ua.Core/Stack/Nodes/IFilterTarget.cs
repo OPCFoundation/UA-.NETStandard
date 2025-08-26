@@ -16,7 +16,7 @@ using System.Collections.Generic;
 namespace Opc.Ua
 {
     /// <summary>
-    /// This interface is used by ContentFilterOperation to get values from the 
+    /// This interface is used by ContentFilterOperation to get values from the
     /// NodeSet for use by the various filter operators. All NodeSets used in a
     /// ContentFilter must implement this interface.
     /// </summary>
@@ -30,9 +30,7 @@ namespace Opc.Ua
         /// <returns>
         /// True if the object is an instance of the specified type.
         /// </returns>
-        bool IsTypeOf(
-            FilterContext context,
-            NodeId typeDefinitionId);
+        bool IsTypeOf(FilterContext context, NodeId typeDefinitionId);
 
         /// <summary>
         /// Returns the value of an attribute identified by the operand.
@@ -54,7 +52,7 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// This interface is used by ContentFilterOperation to get values from the 
+    /// This interface is used by ContentFilterOperation to get values from the
     /// NodeSet for use by the various filter operators. All NodeSets used in a
     /// ContentFilter must implement this interface.
     /// </summary>
@@ -66,9 +64,7 @@ namespace Opc.Ua
         /// <param name="context">The context to use when checking the biew.</param>
         /// <param name="viewId">The identifier for the view.</param>
         /// <returns>True if the instance is in the view.</returns>
-        bool IsInView(
-            FilterContext context,
-            NodeId viewId);
+        bool IsInView(FilterContext context, NodeId viewId);
 
         /// <summary>
         /// Returns TRUE if the node is related to the current target.
@@ -120,20 +116,19 @@ namespace Opc.Ua
     /// </summary>
     public class FilterContext : IOperationContext
     {
-        #region Constructors
         /// <summary>
         /// Initializes the context.
         /// </summary>
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="typeTree">The type tree.</param>
         /// <param name="context">The context.</param>
-        public FilterContext(NamespaceTable namespaceUris, ITypeTable typeTree, IOperationContext context)
+        public FilterContext(
+            NamespaceTable namespaceUris,
+            ITypeTable typeTree,
+            IOperationContext context)
         {
-            if (namespaceUris == null) throw new ArgumentNullException(nameof(namespaceUris));
-            if (typeTree == null) throw new ArgumentNullException(nameof(typeTree));
-
-            m_namespaceUris = namespaceUris;
-            m_typeTree = typeTree;
+            NamespaceUris = namespaceUris ?? throw new ArgumentNullException(nameof(namespaceUris));
+            TypeTree = typeTree ?? throw new ArgumentNullException(nameof(typeTree));
             m_context = context;
         }
 
@@ -143,8 +138,7 @@ namespace Opc.Ua
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="typeTree">The type tree.</param>
         public FilterContext(NamespaceTable namespaceUris, ITypeTable typeTree)
-        :
-            this(namespaceUris, typeTree, (IList<string>)null)
+            : this(namespaceUris, typeTree, (IList<string>)null)
         {
         }
 
@@ -154,39 +148,29 @@ namespace Opc.Ua
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="typeTree">The type tree.</param>
         /// <param name="preferredLocales">The preferred locales.</param>
-        public FilterContext(NamespaceTable namespaceUris, ITypeTable typeTree, IList<string> preferredLocales)
+        public FilterContext(
+            NamespaceTable namespaceUris,
+            ITypeTable typeTree,
+            IList<string> preferredLocales)
         {
-            if (namespaceUris == null) throw new ArgumentNullException(nameof(namespaceUris));
-            if (typeTree == null) throw new ArgumentNullException(nameof(typeTree));
-
-            m_namespaceUris = namespaceUris;
-            m_typeTree = typeTree;
+            NamespaceUris = namespaceUris ?? throw new ArgumentNullException(nameof(namespaceUris));
+            TypeTree = typeTree ?? throw new ArgumentNullException(nameof(typeTree));
             m_context = null;
             m_preferredLocales = preferredLocales;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The namespace table to use when evaluating filters.
         /// </summary>
         /// <value>The namespace URIs.</value>
-        public NamespaceTable NamespaceUris
-        {
-            get { return m_namespaceUris; }
-        }
+        public NamespaceTable NamespaceUris { get; }
 
         /// <summary>
         /// The type tree to use when evaluating filters.
         /// </summary>
         /// <value>The type tree.</value>
-        public ITypeTable TypeTree
-        {
-            get { return m_typeTree; }
-        }
-        #endregion
+        public ITypeTable TypeTree { get; }
 
-        #region IOperationContext Members
         /// <summary>
         /// The identifier for the session (null if multiple sessions are associated with the operation).
         /// </summary>
@@ -290,7 +274,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The current status of the the operation (bad if the operation has been aborted).
+        /// The current status of the operation (bad if the operation has been aborted).
         /// </summary>
         /// <value>The operation status.</value>
         public StatusCode OperationStatus
@@ -322,13 +306,8 @@ namespace Opc.Ua
                 return null;
             }
         }
-        #endregion
 
-        #region Private Fields
-        private NamespaceTable m_namespaceUris;
-        private ITypeTable m_typeTree;
-        private IOperationContext m_context;
-        private IList<string> m_preferredLocales;
-        #endregion
+        private readonly IOperationContext m_context;
+        private readonly IList<string> m_preferredLocales;
     }
 }

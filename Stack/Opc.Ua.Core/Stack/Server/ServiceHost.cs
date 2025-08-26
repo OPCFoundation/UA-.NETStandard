@@ -28,35 +28,33 @@ namespace Opc.Ua
         /// The service host is in open state.
         /// </summary>
         Opened
-    };
+    }
 
     /// <summary>
     /// A host for a UA service.
     /// </summary>
     public class ServiceHost : IServiceHostBase, IDisposable
     {
-        #region Constructors
         /// <summary>
         /// Initializes the service host.
         /// </summary>
         /// <param name="server">The server.</param>
         /// <param name="endpointType">Type of the endpoint.</param>
         /// <param name="addresses">The addresses.</param>
-		public ServiceHost(ServerBase server, Type endpointType, params Uri[] addresses)
+        public ServiceHost(ServerBase server, Type endpointType, params Uri[] addresses)
         {
             m_server = server;
-            m_endpointType = endpointType;
-            m_addresses = addresses;
+            EndpointType = endpointType;
+            Addresses = addresses;
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -69,14 +67,10 @@ namespace Opc.Ua
                 Close();
             }
         }
-        #endregion
 
-        #region IServerHostBase Members
         /// <inheritdoc/>
         public IServerBase Server => m_server;
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Called when the service host is opened.
         /// </summary>
@@ -104,12 +98,17 @@ namespace Opc.Ua
         /// State of the service host.
         /// </summary>
         public ServiceHostState State { get; private set; }
-        #endregion
 
-        #region Private Fields
-        private ServerBase m_server;
-        private Type m_endpointType;
-        private Uri[] m_addresses;
-        #endregion
+        /// <summary>
+        /// Endpoint type
+        /// </summary>
+        internal Type EndpointType { get; }
+
+        /// <summary>
+        /// Addresses
+        /// </summary>
+        internal Uri[] Addresses { get; }
+
+        private readonly ServerBase m_server;
     }
 }

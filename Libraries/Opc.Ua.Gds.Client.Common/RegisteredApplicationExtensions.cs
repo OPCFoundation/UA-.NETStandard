@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -31,29 +31,28 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Client
 {
     public partial class RegisteredApplication
     {
-        [System.Xml.Serialization.XmlIgnore()]
+        [System.Xml.Serialization.XmlIgnore]
         public string ApplicationId { get; set; }
 
         /// <summary>
         /// Gets the name of the HTTPS domain for the application.
         /// </summary>
-        /// <returns></returns>
         public string GetHttpsDomainName()
         {
-            if (this.DiscoveryUrl != null)
+            if (DiscoveryUrl != null)
             {
-                foreach (string discoveryUrl in this.DiscoveryUrl)
+                foreach (string discoveryUrl in DiscoveryUrl)
                 {
                     if (Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
                     {
-                        Uri url = new Uri(discoveryUrl);
-                        return url.DnsSafeHost.Replace("localhost", Utils.GetHostName());
+                        var url = new Uri(discoveryUrl);
+                        return url.DnsSafeHost
+                            .Replace("localhost", Utils.GetHostName(), StringComparison.Ordinal);
                     }
                 }
             }
@@ -67,20 +66,15 @@ namespace Opc.Ua.Gds.Client
 
             if (RegistrationType != RegistrationType.ServerPush)
             {
-                if (!String.IsNullOrEmpty(CertificatePrivateKeyPath))
-                {
-                    if (CertificatePrivateKeyPath.EndsWith("PEM", StringComparison.OrdinalIgnoreCase))
-                    {
-                        privateKeyFormat = "PEM";
-                    }
-                }
-            }
-            else
-            {
-                if (privateKeyFormats == null || !privateKeyFormats.Contains("PFX"))
+                if (!string.IsNullOrEmpty(CertificatePrivateKeyPath) &&
+                    CertificatePrivateKeyPath.EndsWith("PEM", StringComparison.OrdinalIgnoreCase))
                 {
                     privateKeyFormat = "PEM";
                 }
+            }
+            else if (privateKeyFormats == null || !privateKeyFormats.Contains("PFX"))
+            {
+                privateKeyFormat = "PEM";
             }
 
             return privateKeyFormat;
@@ -88,17 +82,17 @@ namespace Opc.Ua.Gds.Client
 
         public List<string> GetDomainNames(X509Certificate2 certificate)
         {
-            List<string> domainNames = new List<string>();
+            var domainNames = new List<string>();
 
-            if (!String.IsNullOrEmpty(Domains))
+            if (!string.IsNullOrEmpty(Domains))
             {
-                var domains = Domains.Split(',');
+                string[] domains = Domains.Split(',');
 
-                List<string> trimmedDomains = new List<string>();
+                var trimmedDomains = new List<string>();
 
-                foreach (var domain in domains)
+                foreach (string domain in domains)
                 {
-                    var d = domain.Trim();
+                    string d = domain.Trim();
 
                     if (d.Length > 0)
                     {
@@ -114,7 +108,7 @@ namespace Opc.Ua.Gds.Client
 
             if (DiscoveryUrl != null)
             {
-                foreach (var discoveryUrl in DiscoveryUrl)
+                foreach (string discoveryUrl in DiscoveryUrl)
                 {
                     if (Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
                     {
@@ -128,9 +122,9 @@ namespace Opc.Ua.Gds.Client
                         bool found = false;
 
                         //domainNames.Any(n => String.Compare(n, name, StringComparison.OrdinalIgnoreCase) == 0);
-                        foreach (var domainName in domainNames)
+                        foreach (string domainName in domainNames)
                         {
-                            if (String.Equals(domainName, name, StringComparison.OrdinalIgnoreCase))
+                            if (string.Equals(domainName, name, StringComparison.OrdinalIgnoreCase))
                             {
                                 found = true;
                                 break;
@@ -152,7 +146,7 @@ namespace Opc.Ua.Gds.Client
 
             if (certificate != null)
             {
-                var names = X509Utils.GetDomainsFromCertificate(certificate);
+                IList<string> names = X509Utils.GetDomainsFromCertificate(certificate);
 
                 if (names != null && names.Count > 0)
                 {
@@ -160,11 +154,11 @@ namespace Opc.Ua.Gds.Client
                     return domainNames;
                 }
 
-                var fields = X509Utils.ParseDistinguishedName(certificate.Subject);
+                List<string> fields = X509Utils.ParseDistinguishedName(certificate.Subject);
 
                 string name = null;
 
-                foreach (var field in fields)
+                foreach (string field in fields)
                 {
                     if (field.StartsWith("DC=", StringComparison.Ordinal))
                     {
@@ -173,7 +167,7 @@ namespace Opc.Ua.Gds.Client
                             name += ".";
                         }
 
-                        name += field.Substring(3);
+                        name += field[3..];
                     }
                 }
 
@@ -187,6 +181,5 @@ namespace Opc.Ua.Gds.Client
             domainNames.Add(Utils.GetHostName());
             return domainNames;
         }
-
     }
 }

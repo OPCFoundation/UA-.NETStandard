@@ -11,9 +11,7 @@
 */
 
 using System;
-using System.Linq;
 using System.Xml;
-using Opc.Ua.Security;
 
 namespace Opc.Ua
 {
@@ -22,7 +20,6 @@ namespace Opc.Ua
     /// </summary>
     public partial class EndpointDescription
     {
-        #region Constructors
         /// <summary>
         /// Creates an endpoint configuration from a url.
         /// </summary>
@@ -30,14 +27,14 @@ namespace Opc.Ua
         {
             Initialize();
 
-            UriBuilder parsedUrl = new UriBuilder(url);
+            var parsedUrl = new UriBuilder(url);
 
-            if (Utils.IsUriHttpRelatedScheme(parsedUrl.Scheme))
+            if (Utils.IsUriHttpRelatedScheme(parsedUrl.Scheme) &&
+                !parsedUrl.Path.EndsWith(
+                    ConfiguredEndpoint.DiscoverySuffix,
+                    StringComparison.OrdinalIgnoreCase))
             {
-                if (!parsedUrl.Path.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))
-                {
-                    parsedUrl.Path += ConfiguredEndpoint.DiscoverySuffix;
-                }
+                parsedUrl.Path += ConfiguredEndpoint.DiscoverySuffix;
             }
 
             Server.DiscoveryUrls.Add(parsedUrl.ToString());
@@ -48,9 +45,7 @@ namespace Opc.Ua
             SecurityMode = MessageSecurityMode.None;
             SecurityPolicyUri = SecurityPolicies.None;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The encodings supported by the configuration.
         /// </summary>
@@ -58,7 +53,8 @@ namespace Opc.Ua
         {
             get
             {
-                if (!String.IsNullOrEmpty(EndpointUrl) && EndpointUrl.StartsWith(Utils.UriSchemeOpcTcp))
+                if (!string.IsNullOrEmpty(EndpointUrl) &&
+                    EndpointUrl.StartsWith(Utils.UriSchemeOpcTcp))
                 {
                     return BinaryEncodingSupport.Required;
                 }
@@ -68,9 +64,7 @@ namespace Opc.Ua
                 switch (TransportProfileUri)
                 {
                     case Profiles.HttpsBinaryTransport:
-                    {
                         return BinaryEncodingSupport.Required;
-                    }
                 }
 
                 return BinaryEncodingSupport.None;
@@ -80,30 +74,7 @@ namespace Opc.Ua
         /// <summary>
         /// The proxy url to use when connecting to the endpoint.
         /// </summary>
-        public Uri ProxyUrl
-        {
-            get { return m_proxyUrl; }
-            set { m_proxyUrl = value; }
-        }
-        #endregion
-
-        #region Public Methods
-        /// <summary>
-        /// Finds the user token policy with the specified id.
-        /// </summary>
-        [Obsolete]
-        public UserTokenPolicy FindUserTokenPolicy(string policyId)
-        {
-            foreach (UserTokenPolicy policy in m_userIdentityTokens)
-            {
-                if (policy.PolicyId == policyId)
-                {
-                    return policy;
-                }
-            }
-
-            return null;
-        }
+        public Uri ProxyUrl { get; set; }
 
         /// <summary>
         /// Finds the user token policy with the specified id and securtyPolicyUri
@@ -121,16 +92,17 @@ namespace Opc.Ua
                     {
                         return policy;
                     }
-                    else if (
-                        policy.SecurityPolicyUri != null && tokenSecurityPolicyUri != null &&
-                        (EccUtils.IsEccPolicy(policy.SecurityPolicyUri) && EccUtils.IsEccPolicy(tokenSecurityPolicyUri)) ||
-                        (!EccUtils.IsEccPolicy(policy.SecurityPolicyUri) && !EccUtils.IsEccPolicy(tokenSecurityPolicyUri))
-                        )
+                    else if ((
+                            policy.SecurityPolicyUri != null &&
+                            tokenSecurityPolicyUri != null &&
+                            EccUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
+                            EccUtils.IsEccPolicy(tokenSecurityPolicyUri)
+                        ) ||
+                        (
+                            !EccUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
+                            !EccUtils.IsEccPolicy(tokenSecurityPolicyUri)))
                     {
-                        if (sameEncryptionAlgorithm == null)
-                        {
-                            sameEncryptionAlgorithm = policy;
-                        }
+                        sameEncryptionAlgorithm ??= policy;
                     }
                     else if (policy.SecurityPolicyUri == null)
                     {
@@ -150,21 +122,8 @@ namespace Opc.Ua
         /// <summary>
         /// Finds a token policy that matches the user identity specified.
         /// </summary>
-        [Obsolete]
-        public UserTokenPolicy FindUserTokenPolicy(UserTokenType tokenType, XmlQualifiedName issuedTokenType)
-        {
-            if (issuedTokenType == null)
-            {
-                return FindUserTokenPolicy(tokenType, (string)null);
-            }
-
-            return FindUserTokenPolicy(tokenType, issuedTokenType.Namespace);
-        }
-
-        /// <summary>
-        /// Finds a token policy that matches the user identity specified.
-        /// </summary>
-        public UserTokenPolicy FindUserTokenPolicy(UserTokenType tokenType,
+        public UserTokenPolicy FindUserTokenPolicy(
+            UserTokenType tokenType,
             XmlQualifiedName issuedTokenType,
             string tokenSecurityPolicyUri)
         {
@@ -173,44 +132,17 @@ namespace Opc.Ua
                 return FindUserTokenPolicy(tokenType, (string)null, tokenSecurityPolicyUri);
             }
 
-            return FindUserTokenPolicy(tokenType, issuedTokenType.Namespace, tokenSecurityPolicyUri);
+            return FindUserTokenPolicy(
+                tokenType,
+                issuedTokenType.Namespace,
+                tokenSecurityPolicyUri);
         }
 
         /// <summary>
         /// Finds a token policy that matches the user identity specified.
         /// </summary>
-        [Obsolete]
-        public UserTokenPolicy FindUserTokenPolicy(UserTokenType tokenType, string issuedTokenType)
-        {
-            // construct issuer type.
-            string issuedTokenTypeText = issuedTokenType;
-
-            // find matching policy, return most secure matching policy first.
-            foreach (UserTokenPolicy policy in m_userIdentityTokens.OrderByDescending(token => SecuredApplication.CalculateSecurityLevel(MessageSecurityMode.Sign, token.SecurityPolicyUri)))
-            {
-                // check token type.
-                if (tokenType != policy.TokenType)
-                {
-                    continue;
-                }
-
-                // check issuer token type.
-                if (issuedTokenTypeText != policy.IssuedTokenType)
-                {
-                    continue;
-                }
-
-                return policy;
-            }
-
-            // no policy found
-            return null;
-        }
-
-        /// <summary>
-        /// Finds a token policy that matches the user identity specified.
-        /// </summary>
-        public UserTokenPolicy FindUserTokenPolicy(UserTokenType tokenType,
+        public UserTokenPolicy FindUserTokenPolicy(
+            UserTokenType tokenType,
             string issuedTokenType,
             string tokenSecurityPolicyUri)
         {
@@ -222,22 +154,25 @@ namespace Opc.Ua
             // The specified security policies take precedence
             foreach (UserTokenPolicy policy in m_userIdentityTokens)
             {
-                if ((policy.TokenType == tokenType) && (issuedTokenTypeText == policy.IssuedTokenType))
+                if ((policy.TokenType == tokenType) &&
+                    (issuedTokenTypeText == policy.IssuedTokenType))
                 {
-                    if ((policy.SecurityPolicyUri == tokenSecurityPolicyUri) || (tokenType == UserTokenType.Anonymous))
+                    if ((policy.SecurityPolicyUri == tokenSecurityPolicyUri) ||
+                        (tokenType == UserTokenType.Anonymous))
                     {
                         return policy;
                     }
-                    else if (
-                        policy.SecurityPolicyUri != null && tokenSecurityPolicyUri != null &&
-                        (EccUtils.IsEccPolicy(policy.SecurityPolicyUri) && EccUtils.IsEccPolicy(tokenSecurityPolicyUri)) ||
-                        (!EccUtils.IsEccPolicy(policy.SecurityPolicyUri) && !EccUtils.IsEccPolicy(tokenSecurityPolicyUri))
-                        )
+                    else if ((
+                            policy.SecurityPolicyUri != null &&
+                            tokenSecurityPolicyUri != null &&
+                            EccUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
+                            EccUtils.IsEccPolicy(tokenSecurityPolicyUri)
+                        ) ||
+                        (
+                            !EccUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
+                            !EccUtils.IsEccPolicy(tokenSecurityPolicyUri)))
                     {
-                        if (sameEncryptionAlgorithm == null)
-                        {
-                            sameEncryptionAlgorithm = policy;
-                        }
+                        sameEncryptionAlgorithm ??= policy;
                     }
                     else if (policy.SecurityPolicyUri == null)
                     {
@@ -255,12 +190,6 @@ namespace Opc.Ua
             }
             // The first token with unspecified security policy follows / no policy
             return unspecifiedSecPolicy;
-
         }
-        #endregion
-
-        #region Private Fields
-        private Uri m_proxyUrl;
-        #endregion
     }
 }

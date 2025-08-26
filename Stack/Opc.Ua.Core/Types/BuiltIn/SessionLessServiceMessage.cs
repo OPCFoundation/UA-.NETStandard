@@ -22,7 +22,7 @@ namespace Opc.Ua
         /// <summary>
         /// The VersionTime of the namespaces URIs on the server.
         /// </summary>
-        public UInt32 UriVersion;
+        public uint UriVersion;
 
         /// <summary>
         /// The namespaces URIs referenced by the message.
@@ -95,7 +95,10 @@ namespace Opc.Ua
 
                 if (Message.TypeId == null || Message.TypeId.IdType != IdType.Numeric)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadEncodingError, "SessionLessServiceMessage message body must have a numeric TypeId defined. ({0})", Message.TypeId);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingError,
+                        "SessionLessServiceMessage message body must have a numeric TypeId defined. ({0})",
+                        Message.TypeId);
                 }
 
                 encoder.WriteUInt32("ServiceId", (uint)Message.TypeId.Identifier);
@@ -103,7 +106,7 @@ namespace Opc.Ua
             }
             else
             {
-                encoder.WriteUInt32("TypeId", (uint)0);
+                encoder.WriteUInt32("TypeId", 0);
             }
         }
 
@@ -113,11 +116,11 @@ namespace Opc.Ua
             UriVersion = decoder.ReadUInt32("UriVersion");
 
             NamespaceUris = new NamespaceTable();
-            var uris = decoder.ReadStringArray("NamespaceUris");
+            StringCollection uris = decoder.ReadStringArray("NamespaceUris");
 
             if (uris != null && uris.Count > 0)
             {
-                foreach (var uri in uris)
+                foreach (string uri in uris)
                 {
                     NamespaceUris.Append(uri);
                 }
@@ -128,7 +131,7 @@ namespace Opc.Ua
 
             if (uris != null && uris.Count > 0)
             {
-                foreach (var uri in uris)
+                foreach (string uri in uris)
                 {
                     ServerUris.Append(uri);
                 }
@@ -138,7 +141,7 @@ namespace Opc.Ua
             uris = decoder.ReadStringArray("LocaleIds");
             if (uris != null && uris.Count > 0)
             {
-                foreach (var uri in uris)
+                foreach (string uri in uris)
                 {
                     LocaleIds.Append(uri);
                 }
@@ -150,15 +153,15 @@ namespace Opc.Ua
 
             if (typeId > 0)
             {
-                var systemType = decoder.Context.Factory.GetSystemType(new ExpandedNodeId(typeId, 0));
-
-                if (systemType == null)
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadDecodingError, "SessionLessServiceMessage message body has an unknown TypeId. {0}", typeId);
-                }
+                Type systemType =
+                    decoder.Context.Factory.GetSystemType(new ExpandedNodeId(typeId, 0))
+                    ?? throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "SessionLessServiceMessage message body has an unknown TypeId. {0}",
+                        typeId);
 
                 Message = decoder.ReadEncodeable("Body", systemType);
             }
         }
     }
-}//namespace
+}

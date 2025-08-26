@@ -11,7 +11,6 @@
 */
 
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.Xml;
 
@@ -164,6 +163,7 @@ namespace Opc.Ua
         /// </summary>
         void WriteByteString(string fieldName, ReadOnlySpan<byte> value);
 #endif
+
         /// <summary>
         /// Writes a XmlElement to the stream.
         /// </summary>
@@ -357,7 +357,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an encodeable object array to the stream.
         /// </summary>
-        void WriteEncodeableArray(string fieldName, IList<IEncodeable> values, System.Type systemType);
+        void WriteEncodeableArray(string fieldName, IList<IEncodeable> values, Type systemType);
 
         /// <summary>
         /// Writes an enumerated value array to the stream.

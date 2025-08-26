@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2023 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Buffers;
 using System.Threading;
 using BenchmarkDotNet.Attributes;
@@ -36,19 +35,27 @@ using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Core.Tests.Stack.Bindings
 {
-    [TestFixture, Category("BufferManager")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("BufferManager")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [MemoryDiagnoser]
     [BenchmarkCategory("BufferManager")]
     public class BufferManagerBenchmarks
     {
-        //[Params(8192, 65535, 1024 * 1024 - 1)]
+        /// <summary>
+        /// [Params(8192, 65535, 1024 * 1024 - 1)]
+        /// </summary>
         public int BufferSize { get; set; } = TcpMessageLimits.DefaultMaxBufferSize;
 
-        //[Params( /*8,*/ 64, 256, 1024)]
+        /// <summary>
+        /// [Params( /*8,*/ 64, 256, 1024)]
+        /// </summary>
         public int Allocations { get; set; } = 256;
 
-        //[Params(4, 32, 256)]
+        /// <summary>
+        /// [Params(4, 32, 256)]
+        /// </summary>
         public int BucketSize { get; set; } = 32;
 
         /// <summary>
@@ -69,7 +76,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
             }
         }
 
-#if NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER && !NET_STANDARD_TESTS
         /// <summary>
         /// Benchmark allocation with new.
         /// </summary>
@@ -79,7 +86,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
         {
             for (int i = 0; i < Allocations; i++)
             {
-                m_bufferArray[i] = GC.AllocateUninitializedArray<byte>(BufferSize+1);
+                m_bufferArray[i] = System.GC.AllocateUninitializedArray<byte>(BufferSize + 1);
                 m_bufferArray[i][i] = (byte)i;
             }
             for (int i = 0; i < Allocations; i++)
@@ -101,7 +108,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                 m_bufferArray[i] = m_arrayPoolTooSmall.Rent(BufferSize + 1);
                 m_bufferArray[i][i] = (byte)i;
             }
-            foreach (var buffer in m_bufferArray)
+            foreach (byte[] buffer in m_bufferArray)
             {
                 m_arrayPoolTooSmall.Return(buffer);
             }
@@ -116,14 +123,15 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
         {
             for (int i = 0; i < Allocations; i++)
             {
-                m_bufferArray[i] = (m_arrayPool.Rent(BufferSize + 1));
+                m_bufferArray[i] = m_arrayPool.Rent(BufferSize + 1);
                 m_bufferArray[i][i] = (byte)i;
             }
-            foreach (var buffer in m_bufferArray)
+            foreach (byte[] buffer in m_bufferArray)
             {
                 m_arrayPool.Return(buffer);
             }
         }
+
         /// <summary>
         /// Benchmark Buffer allocation.
         /// </summary>
@@ -136,7 +144,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                 m_bufferArray[i] = m_arrayPoolShared.Rent(BufferSize + 1);
                 m_bufferArray[i][i] = (byte)i;
             }
-            foreach (var buffer in m_bufferArray)
+            foreach (byte[] buffer in m_bufferArray)
             {
                 m_arrayPoolShared.Return(buffer);
             }
@@ -154,7 +162,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                 m_bufferArray[i] = m_bufferManager.TakeBuffer(BufferSize, nameof(BufferManager));
                 m_bufferArray[i][i] = (byte)i;
             }
-            foreach (var buffer in m_bufferArray)
+            foreach (byte[] buffer in m_bufferArray)
             {
                 m_bufferManager.ReturnBuffer(buffer, nameof(BufferManager));
             }
@@ -168,7 +176,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
             try
             {
                 m_readerWriterLockSlim.EnterReadLock();
-                readValue = maxBufferSize;
+                readValue = m_maxBufferSize;
             }
             finally
             {
@@ -181,16 +189,12 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
         public void Lock()
         {
             int readValue;
-            lock(m_lock)
+            lock (m_lock)
             {
-                readValue = maxBufferSize;
+                readValue = m_maxBufferSize;
             }
         }
 
-        #region Private Methods
-        #endregion
-
-        #region Test Setup
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
@@ -209,9 +213,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
             m_arrayPoolShared = null;
             m_bufferManager = null;
         }
-        #endregion
 
-        #region Benchmark Setup
         /// <summary>
         /// Set up some variables for benchmarks.
         /// </summary>
@@ -236,17 +238,14 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
             m_arrayPoolShared = null;
             m_bufferManager = null;
         }
-        #endregion
 
-        #region Private Fields
-        byte[][] m_bufferArray;
-        ArrayPool<byte> m_arrayPoolTooSmall;
-        ArrayPool<byte> m_arrayPool;
-        ArrayPool<byte> m_arrayPoolShared;
-        BufferManager m_bufferManager;
-        int maxBufferSize = 1234;
-        ReaderWriterLockSlim m_readerWriterLockSlim = new ReaderWriterLockSlim();
-        readonly object m_lock = new object();
-        #endregion
+        private byte[][] m_bufferArray;
+        private ArrayPool<byte> m_arrayPoolTooSmall;
+        private ArrayPool<byte> m_arrayPool;
+        private ArrayPool<byte> m_arrayPoolShared;
+        private BufferManager m_bufferManager;
+        private readonly int m_maxBufferSize = 1234;
+        private readonly ReaderWriterLockSlim m_readerWriterLockSlim = new();
+        private readonly Lock m_lock = new();
     }
 }

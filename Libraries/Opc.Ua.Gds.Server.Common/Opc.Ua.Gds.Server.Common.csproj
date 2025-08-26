@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <AssemblyName>$(AssemblyPrefix).Gds.Server.Common</AssemblyName>
+    <DefineConstants>$(DefineConstants);OPCUA_INCLUDE_ASYNC</DefineConstants>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
     <PackageId>$(PackagePrefix).Opc.Ua.Gds.Server.Common</PackageId>
     <RootNamespace>Opc.Ua.Gds.Server</RootNamespace>
@@ -12,37 +12,31 @@
     <PackageLicenseFile></PackageLicenseFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
-  
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
-  
   <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
-    <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
+    <DefineConstants>$(DefineConstants);SIGNASSEMBLY;OPCUA_INCLUDE_ASYNC</DefineConstants>
   </PropertyGroup>
-
   <!-- select ECC support -->
   <Choose>
-    <When Condition="'$(TargetFramework)' == 'net462' OR '$(TargetFramework)' == 'netstandard2.0'">
-    </When>
+    <When
+      Condition="'$(TargetFramework)' == 'net462' OR '$(TargetFramework)' == 'netstandard2.0'"
+    ></When>
     <Otherwise>
       <PropertyGroup>
         <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
       </PropertyGroup>
     </Otherwise>
   </Choose>
-
   <ItemGroup>
     <EmbeddedResource Include="Model\Opc.Ua.Gds.PredefinedNodes.uanodes" />
   </ItemGroup>
-
   <ItemGroup>
-    <PackageReference Include="BouncyCastle.Cryptography" Version="2.5.1" />
+    <PackageReference Include="BouncyCastle.Cryptography" />
   </ItemGroup>
-  
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server\Opc.Ua.Server.csproj" />
   </ItemGroup>
-  
 </Project>

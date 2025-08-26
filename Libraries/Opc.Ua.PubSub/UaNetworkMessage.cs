@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.IO;
 
 namespace Opc.Ua.PubSub
@@ -41,16 +40,11 @@ namespace Opc.Ua.PubSub
     {
         private ushort m_dataSetWriterId;
 
-        #region Public Events
-
         /// <summary>
         /// The Default event for an error encountered during decoding the dataset messages
         /// </summary>
         public event EventHandler<DataSetDecodeErrorEventArgs> DataSetDecodeErrorOccurred;
 
-        #endregion
-
-        #region Protected Fields
         /// <summary>
         /// The DataSetMetaData
         /// </summary>
@@ -60,15 +54,15 @@ namespace Opc.Ua.PubSub
         /// List of DataSet messages
         /// </summary>
         protected List<UaDataSetMessage> m_uaDataSetMessages;
-        #endregion
 
-        #region Constructor
         /// <summary>
         /// Create instance of <see cref="UaNetworkMessage"/>.
         /// </summary>
         /// <param name="writerGroupConfiguration">The <see cref="WriterGroupDataType"/> configuration object that produced this message.</param>
         /// <param name="uaDataSetMessages">The containing data set messages.</param>
-        protected UaNetworkMessage(WriterGroupDataType writerGroupConfiguration, List<UaDataSetMessage> uaDataSetMessages)
+        protected UaNetworkMessage(
+            WriterGroupDataType writerGroupConfiguration,
+            List<UaDataSetMessage> uaDataSetMessages)
         {
             WriterGroupConfiguration = writerGroupConfiguration;
             m_uaDataSetMessages = uaDataSetMessages;
@@ -78,24 +72,24 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Create instance of <see cref="UaNetworkMessage"/>.
         /// </summary>
-        protected UaNetworkMessage(WriterGroupDataType writerGroupConfiguration, DataSetMetaDataType metadata)
+        protected UaNetworkMessage(
+            WriterGroupDataType writerGroupConfiguration,
+            DataSetMetaDataType metadata)
         {
             WriterGroupConfiguration = writerGroupConfiguration;
-            m_uaDataSetMessages = new List<UaDataSetMessage>();
+            m_uaDataSetMessages = [];
             m_metadata = metadata;
         }
-        #endregion
 
-        #region Properties
         /// <summary>
         /// Get and Set WriterGroupId
         /// </summary>
-        public UInt16 WriterGroupId { get; set; }
+        public ushort WriterGroupId { get; set; }
 
         /// <summary>
         /// Get and Set DataSetWriterId if a single value exists for the message.
         /// </summary>
-        public UInt16? DataSetWriterId
+        public ushort? DataSetWriterId
         {
             get
             {
@@ -109,52 +103,31 @@ namespace Opc.Ua.PubSub
                     return null;
                 }
 
-                return ((m_dataSetWriterId != 0) ? m_dataSetWriterId : (UInt16?)null);
+                return m_dataSetWriterId != 0 ? m_dataSetWriterId : null;
             }
-
-            set
-            {
-                m_dataSetWriterId = (value != null) ? value.Value : (ushort)0;
-            }
+            set => m_dataSetWriterId = value ?? 0;
         }
 
         /// <summary>
         /// DataSet messages
         /// </summary>
-        public List<UaDataSetMessage> DataSetMessages
-        {
-            get
-            {
-                return m_uaDataSetMessages;
-            }
-        }
+        public List<UaDataSetMessage> DataSetMessages => m_uaDataSetMessages;
 
         /// <summary>
         /// DataSetMetaData messages
         /// </summary>
-        public DataSetMetaDataType DataSetMetaData
-        {
-            get
-            {
-                return m_metadata;
-            }
-        }
+        public DataSetMetaDataType DataSetMetaData => m_metadata;
 
         /// <summary>
         /// TRUE if it is a metadata message.
         /// </summary>
-        public bool IsMetaDataMessage
-        {
-            get { return m_metadata != null; }
-        }
+        public bool IsMetaDataMessage => m_metadata != null;
 
         /// <summary>
         /// Get the writer group configuration for this network message
         /// </summary>
         internal WriterGroupDataType WriterGroupConfiguration { get; set; }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Encodes the object and returns the resulting byte array.
         /// </summary>
@@ -171,22 +144,17 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Decodes the message
         /// </summary>
-        /// <param name="messageContext"></param>
-        /// <param name="message"></param>
-        /// <param name="dataSetReaders"></param>
-        public abstract void Decode(IServiceMessageContext messageContext, byte[] message, IList<DataSetReaderDataType> dataSetReaders);
-        #endregion
+        public abstract void Decode(
+            IServiceMessageContext messageContext,
+            byte[] message,
+            IList<DataSetReaderDataType> dataSetReaders);
 
-        #region Protected Methods
         /// <summary>
         /// The DataSetDecodeErrorOccurred event handler
         /// </summary>
-        /// <param name="e"></param>
         protected virtual void OnDataSetDecodeErrorOccurred(DataSetDecodeErrorEventArgs e)
         {
             DataSetDecodeErrorOccurred?.Invoke(this, e);
         }
-        #endregion
-
     }
 }

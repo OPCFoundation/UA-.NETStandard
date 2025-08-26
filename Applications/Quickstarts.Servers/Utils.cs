@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -40,35 +40,39 @@ namespace Quickstarts.Servers
     /// <summary>
     /// Helpers to find node managers implemented in this library.
     /// </summary>
-
     public static class Utils
     {
         /// <summary>
         /// Applies custom settings to quickstart servers for CTT run.
         /// </summary>
-        /// <param name="server"></param>
         public static void ApplyCTTMode(TextWriter output, StandardServer server)
         {
             var methodsToCall = new CallMethodRequestCollection();
-            var index = server.CurrentInstance.NamespaceUris.GetIndex(Alarms.Namespaces.Alarms);
+            int index = server.CurrentInstance.NamespaceUris.GetIndex(Alarms.Namespaces.Alarms);
             if (index > 0)
             {
                 try
                 {
                     methodsToCall.Add(
                         // Start the Alarms with infinite runtime
-                        new CallMethodRequest {
+                        new CallMethodRequest
+                        {
                             MethodId = new NodeId("Alarms.Start", (ushort)index),
                             ObjectId = new NodeId("Alarms", (ushort)index),
-                            InputArguments = new VariantCollection() { new Variant((UInt32)UInt32.MaxValue) }
+                            InputArguments = [new Variant(uint.MaxValue)]
                         });
-                    var requestHeader = new RequestHeader() {
+                    var requestHeader = new RequestHeader
+                    {
                         Timestamp = DateTime.UtcNow,
                         TimeoutHint = 10000
                     };
                     var context = new OperationContext(requestHeader, RequestType.Call);
-                    server.CurrentInstance.NodeManager.Call(context, methodsToCall, out CallMethodResultCollection results, out DiagnosticInfoCollection diagnosticInfos);
-                    foreach (var result in results)
+                    server.CurrentInstance.NodeManager.Call(
+                        context,
+                        methodsToCall,
+                        out CallMethodResultCollection results,
+                        out DiagnosticInfoCollection diagnosticInfos);
+                    foreach (CallMethodResult result in results)
                     {
                         if (ServiceResult.IsBad(result.StatusCode))
                         {
@@ -83,7 +87,8 @@ namespace Quickstarts.Servers
                     Opc.Ua.Utils.LogError(ex, "Failed to start alarms for CTT.");
                 }
             }
-            output.WriteLine("The alarms could not be enabled for CTT, the namespace does not exist.");
+            output.WriteLine(
+                "The alarms could not be enabled for CTT, the namespace does not exist.");
         }
 
         /// <summary>
@@ -91,10 +96,19 @@ namespace Quickstarts.Servers
         /// </summary>
         public static void AddDefaultNodeManagers(StandardServer server)
         {
-            foreach (var nodeManagerFactory in NodeManagerFactories)
+            foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)
             {
                 server.AddNodeManager(nodeManagerFactory);
             }
+        }
+
+        /// <summary>
+        /// Add all available node manager factories to the server.
+        /// </summary>
+        public static void UseSamplingGroupsInReferenceNodeManager(
+            ReferenceServer.ReferenceServer server)
+        {
+            server.UseSamplingGroupsInReferenceNodeManager = true;
         }
 
         /// <summary>
@@ -104,11 +118,8 @@ namespace Quickstarts.Servers
         {
             get
             {
-                if (m_nodeManagerFactories == null)
-                {
-                    m_nodeManagerFactories = GetNodeManagerFactories();
-                }
-                return new ReadOnlyList<INodeManagerFactory>(m_nodeManagerFactories);
+                s_nodeManagerFactories ??= GetNodeManagerFactories();
+                return new ReadOnlyList<INodeManagerFactory>(s_nodeManagerFactories);
             }
         }
 
@@ -117,7 +128,7 @@ namespace Quickstarts.Servers
         /// </summary>
         private static INodeManagerFactory IsINodeManagerFactoryType(Type type)
         {
-            var nodeManagerTypeInfo = type.GetTypeInfo();
+            System.Reflection.TypeInfo nodeManagerTypeInfo = type.GetTypeInfo();
             if (nodeManagerTypeInfo.IsAbstract ||
                 !typeof(INodeManagerFactory).IsAssignableFrom(type))
             {
@@ -129,14 +140,16 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Enumerates all node manager factories.
         /// </summary>
-        /// <returns></returns>
-        private static IList<INodeManagerFactory> GetNodeManagerFactories()
+        private static List<INodeManagerFactory> GetNodeManagerFactories()
         {
-            var assembly = typeof(Utils).Assembly;
-            var nodeManagerFactories = assembly.GetExportedTypes().Select(type => IsINodeManagerFactoryType(type)).Where(type => type != null);
-            return nodeManagerFactories.ToList();
+            Assembly assembly = typeof(Utils).Assembly;
+            IEnumerable<INodeManagerFactory> nodeManagerFactories = assembly
+                .GetExportedTypes()
+                .Select(IsINodeManagerFactoryType)
+                .Where(type => type != null);
+            return [.. nodeManagerFactories];
         }
 
-        private static IList<INodeManagerFactory> m_nodeManagerFactories;
+        private static IList<INodeManagerFactory> s_nodeManagerFactories;
     }
 }

@@ -27,10 +27,16 @@ namespace Opc.Ua
         public LogLevel LogLevel { get; set; } = LogLevel.Trace;
 
         /// <inheritdoc/>
-        public IDisposable BeginScope<TState>(TState state) => default;
+        public IDisposable BeginScope<TState>(TState state)
+        {
+            return default;
+        }
 
         /// <inheritdoc/>
-        public bool IsEnabled(LogLevel logLevel) => logLevel >= LogLevel;
+        public bool IsEnabled(LogLevel logLevel)
+        {
+            return logLevel >= LogLevel;
+        }
 
         /// <inheritdoc/>
         public void Log<TState>(

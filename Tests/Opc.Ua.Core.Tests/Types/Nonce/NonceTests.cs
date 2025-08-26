@@ -29,7 +29,6 @@
 
 using System;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
@@ -38,13 +37,13 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
     /// <summary>
     /// Tests for the Binary Schema Validator class.
     /// </summary>
-    [TestFixture, Category("NonceTests")]
+    [TestFixture]
+    [Category("NonceTests")]
     [Parallelizable]
     public class NonceTests
     {
-        #region Test Methods
         /// <summary>
-        /// Test the CreateNonce - securitypolicy and valid nonceLength 
+        /// Test the CreateNonce - securitypolicy and valid nonceLength
         /// </summary>
         [Theory]
         [TestCase(SecurityPolicies.ECC_nistP256)]
@@ -61,7 +60,7 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
             {
                 uint nonceLength = Ua.Nonce.GetNonceLength(securityPolicyUri);
 
-                Ua.Nonce nonce = Ua.Nonce.CreateNonce(securityPolicyUri);
+                var nonce = Ua.Nonce.CreateNonce(securityPolicyUri);
 
                 Assert.IsNotNull(nonce);
                 Assert.IsNotNull(nonce.Data);
@@ -86,9 +85,9 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
             if (IsSupportedByPlatform(securityPolicyUri))
             {
                 uint nonceLength = Ua.Nonce.GetNonceLength(securityPolicyUri);
-                Ua.Nonce nonceByLen = Ua.Nonce.CreateNonce(securityPolicyUri);
+                var nonceByLen = Ua.Nonce.CreateNonce(securityPolicyUri);
 
-                Ua.Nonce nonceByData = Ua.Nonce.CreateNonce(securityPolicyUri, nonceByLen.Data);
+                var nonceByData = Ua.Nonce.CreateNonce(securityPolicyUri, nonceByLen.Data);
 
                 Assert.IsNotNull(nonceByData);
                 Assert.IsNotNull(nonceByData.Data);
@@ -109,7 +108,8 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
         [TestCase(SecurityPolicies.Basic256Sha256)]
         [TestCase(SecurityPolicies.Aes128_Sha256_RsaOaep)]
         [TestCase(SecurityPolicies.Aes256_Sha256_RsaPss)]
-        public void ValidateCreateEccNoncePolicyInvalidNonceDataCorrectLength(string securityPolicyUri)
+        public void ValidateCreateEccNoncePolicyInvalidNonceDataCorrectLength(
+            string securityPolicyUri)
         {
             if (IsSupportedByPlatform(securityPolicyUri))
             {
@@ -117,54 +117,60 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
 
                 byte[] randomValue = Ua.Nonce.CreateRandomNonceData(nonceLength);
 
-                if (securityPolicyUri.Contains("ECC_"))
+                if (securityPolicyUri.Contains("ECC_", StringComparison.Ordinal))
                 {
                     if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) &&
-                        (securityPolicyUri == SecurityPolicies.ECC_nistP256 || securityPolicyUri == SecurityPolicies.ECC_nistP384))
+                        (
+                            securityPolicyUri == SecurityPolicies.ECC_nistP256 ||
+                            securityPolicyUri == SecurityPolicies.ECC_nistP384))
                     {
-                        Assert.Ignore("No exception is thrown on OSX with NIST curves");
+                        NUnit.Framework.Assert
+                            .Ignore("No exception is thrown on OSX with NIST curves");
                     }
-                    Assert.Throws(typeof(ArgumentException), () => Ua.Nonce.CreateNonce(securityPolicyUri, randomValue));
+                    NUnit.Framework.Assert.Throws<ArgumentException>(() =>
+                        Ua.Nonce.CreateNonce(securityPolicyUri, randomValue));
                 }
                 else
                 {
-                    Ua.Nonce rsaNonce = Ua.Nonce.CreateNonce(securityPolicyUri, randomValue);
+                    var rsaNonce = Ua.Nonce.CreateNonce(securityPolicyUri, randomValue);
                     Assert.AreEqual(rsaNonce.Data, randomValue);
                 }
             }
         }
-        #endregion
-
-        #region Helper
 
         /// <summary>
         /// Determines if security policy is supported by platform
         /// </summary>
-        /// <param name="securityPolicyUri"></param>
-        /// <returns></returns>
-        private bool IsSupportedByPlatform(string securityPolicyUri)
+        private static bool IsSupportedByPlatform(string securityPolicyUri)
         {
             if (securityPolicyUri.Equals(SecurityPolicies.ECC_nistP256, StringComparison.Ordinal))
             {
-                return Utils.IsSupportedCertificateType(ObjectTypeIds.EccNistP256ApplicationCertificateType);
+                return Utils.IsSupportedCertificateType(
+                    ObjectTypeIds.EccNistP256ApplicationCertificateType);
             }
-            else if (securityPolicyUri.Equals(SecurityPolicies.ECC_nistP384, StringComparison.Ordinal))
+            else if (securityPolicyUri.Equals(
+                SecurityPolicies.ECC_nistP384,
+                StringComparison.Ordinal))
             {
-                return Utils.IsSupportedCertificateType(ObjectTypeIds.EccNistP384ApplicationCertificateType);
+                return Utils.IsSupportedCertificateType(
+                    ObjectTypeIds.EccNistP384ApplicationCertificateType);
             }
-            else if (securityPolicyUri.Equals(SecurityPolicies.ECC_brainpoolP256r1, StringComparison.Ordinal))
+            else if (securityPolicyUri.Equals(
+                SecurityPolicies.ECC_brainpoolP256r1,
+                StringComparison.Ordinal))
             {
-                return Utils.IsSupportedCertificateType(ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType);
+                return Utils.IsSupportedCertificateType(
+                    ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType);
             }
-            else if (securityPolicyUri.Equals(SecurityPolicies.ECC_brainpoolP384r1, StringComparison.Ordinal))
+            else if (securityPolicyUri.Equals(
+                SecurityPolicies.ECC_brainpoolP384r1,
+                StringComparison.Ordinal))
             {
-                return Utils.IsSupportedCertificateType(ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType);
+                return Utils.IsSupportedCertificateType(
+                    ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType);
             }
 
             return true;
         }
-
-        #endregion
     }
-
 }

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -26,8 +26,6 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-
-#pragma warning disable CS1591 // self describing enum values, suppress warning
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -52,16 +50,34 @@ namespace Opc.Ua.Security.Certificates
     /// </remarks>
     public enum CRLReason
     {
+        /// <summary> Unspecified </summary>
         Unspecified = 0,
-        KeyCompromise = 1,
-        CACompromise = 2,
-        AffiliationChanged = 3,
-        Superseded = 4,
-        CessationOfOperation = 5,
-        CertificateHold = 6,
-        RemoveFromCRL = 8,
-        PrivilegeWithdrawn = 9,
-        AACompromise = 10
-    };
 
+        /// <summary> KeyCompromise </summary>
+        KeyCompromise = 1,
+
+        /// <summary> CACompromise </summary>
+        CACompromise = 2,
+
+        /// <summary> AffiliationChanged </summary>
+        AffiliationChanged = 3,
+
+        /// <summary> Superseded </summary>
+        Superseded = 4,
+
+        /// <summary> CessationOfOperation </summary>
+        CessationOfOperation = 5,
+
+        /// <summary> CertificateHold </summary>
+        CertificateHold = 6,
+
+        /// <summary> RemoveFromCRL </summary>
+        RemoveFromCRL = 8,
+
+        /// <summary> PrivilegeWithdrawn </summary>
+        PrivilegeWithdrawn = 9,
+
+        /// <summary> AACompromise </summary>
+        AACompromise = 10
+    }
 }

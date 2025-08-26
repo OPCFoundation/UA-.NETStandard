@@ -10,13 +10,11 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Security.Certificates;
-
 
 namespace Opc.Ua.Bindings
 {
@@ -48,8 +46,7 @@ namespace Opc.Ua.Bindings
             IList<string> baseAddresses,
             ApplicationDescription serverDescription,
             List<ServerSecurityPolicy> securityPolicies,
-            CertificateTypesProvider certificateTypesProvider
-            )
+            CertificateTypesProvider certificateTypesProvider)
         {
             // generate a unique host name.
             string hostName = hostName = "/Https";
@@ -60,11 +57,11 @@ namespace Opc.Ua.Bindings
             }
 
             // build list of uris.
-            List<Uri> uris = new List<Uri>();
-            EndpointDescriptionCollection endpoints = new EndpointDescriptionCollection();
+            var uris = new List<Uri>();
+            var endpoints = new EndpointDescriptionCollection();
 
             // create the endpoint configuration to use.
-            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(configuration);
+            var endpointConfiguration = EndpointConfiguration.Create(configuration);
             string computerName = Utils.GetHostName();
 
             for (int ii = 0; ii < baseAddresses.Count; ii++)
@@ -79,14 +76,14 @@ namespace Opc.Ua.Bindings
                     continue;
                 }
 
-                UriBuilder uri = new UriBuilder(baseAddresses[ii]);
+                var uri = new UriBuilder(baseAddresses[ii]);
 
-                if (uri.Path[uri.Path.Length - 1] != '/')
+                if (uri.Path[^1] != '/')
                 {
                     uri.Path += "/";
                 }
 
-                if (String.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase))
                 {
                     uri.Host = computerName;
                 }
@@ -100,7 +97,8 @@ namespace Opc.Ua.Bindings
                     // Only use security None without mutual TLS authentication!
                     // When the mutual TLS authentication is not used, anonymous access is disabled
                     // Then the only protection against unauthorized access is user authorization
-                    bestPolicy = new ServerSecurityPolicy() {
+                    bestPolicy = new ServerSecurityPolicy
+                    {
                         SecurityMode = MessageSecurityMode.None,
                         SecurityPolicyUri = SecurityPolicies.None
                     };
@@ -121,46 +119,60 @@ namespace Opc.Ua.Bindings
                     }
 
                     // Pick the first policy from the list if no policies with sign and encrypt defined
-                    if (bestPolicy == null)
-                    {
-                        bestPolicy = securityPolicies[0];
-                    }
+                    bestPolicy ??= securityPolicies[0];
                 }
 
-                var description = new EndpointDescription {
+                var description = new EndpointDescription
+                {
                     EndpointUrl = uri.ToString(),
                     Server = serverDescription
                 };
 
                 if (certificateTypesProvider != null)
                 {
-                    var instanceCertificate = certificateTypesProvider.GetInstanceCertificate(bestPolicy.SecurityPolicyUri);
+                    X509Certificate2 instanceCertificate = certificateTypesProvider
+                        .GetInstanceCertificate(
+                            bestPolicy.SecurityPolicyUri);
                     description.ServerCertificate = instanceCertificate.RawData;
 
                     // check if complete chain should be sent.
                     if (certificateTypesProvider.SendCertificateChain)
                     {
-                        description.ServerCertificate = certificateTypesProvider.LoadCertificateChainRaw(instanceCertificate);
+                        description.ServerCertificate = certificateTypesProvider
+                            .LoadCertificateChainRaw(
+                                instanceCertificate);
                     }
                 }
 
                 description.SecurityMode = bestPolicy.SecurityMode;
                 description.SecurityPolicyUri = bestPolicy.SecurityPolicyUri;
-                description.SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(bestPolicy.SecurityMode, bestPolicy.SecurityPolicyUri);
-                description.UserIdentityTokens = serverBase.GetUserTokenPolicies(configuration, description);
+                description.SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(
+                    bestPolicy.SecurityMode,
+                    bestPolicy.SecurityPolicyUri);
+                description.UserIdentityTokens = serverBase.GetUserTokenPolicies(
+                    configuration,
+                    description);
                 description.TransportProfileUri = Profiles.HttpsBinaryTransport;
 
                 // if no mutual TLS authentication is used, anonymous user tokens are not allowed
                 if (!httpsMutualTls)
                 {
-                    description.UserIdentityTokens = new UserTokenPolicyCollection(description.UserIdentityTokens.Where(token => token.TokenType != UserTokenType.Anonymous));
+                    description.UserIdentityTokens =
+                    [
+                        .. description.UserIdentityTokens
+                            .Where(token => token.TokenType != UserTokenType.Anonymous)
+                    ];
                 }
 
                 ITransportListener listener = Create();
                 if (listener != null)
                 {
                     endpoints.Add(description);
-                    serverBase.CreateServiceHostEndpoint(uri.Uri, endpoints, endpointConfiguration, listener,
+                    serverBase.CreateServiceHostEndpoint(
+                        uri.Uri,
+                        endpoints,
+                        endpointConfiguration,
+                        listener,
                         configuration.CertificateValidator.GetChannelValidator());
                 }
                 else
@@ -170,11 +182,9 @@ namespace Opc.Ua.Bindings
             }
 
             // create the host.
-            hosts[hostName] = serverBase.CreateServiceHost(serverBase, uris.ToArray());
-
+            hosts[hostName] = serverBase.CreateServiceHost(serverBase, [.. uris]);
 
             return endpoints;
-
-        }    
-    } 
+        }
+    }
 }

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -31,57 +31,68 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using static FuzzMethods;
+using static Opc.Ua.Fuzzing.FuzzMethods;
 
-public static class Playback
+namespace Opc.Ua.Fuzzing
 {
-    /// <summary>
-    /// Test the libfuzz methods on the files in the directory.
-    /// </summary>
-    /// <param name="directoryPath">The directory where to find the crash data.</param>
-    /// <param name="stackTrace">If the stack trace should be written to output.</param>
-    public static void Run(string directoryPath, bool stackTrace)
+    public static class Playback
     {
-        string path = Path.GetDirectoryName(directoryPath);
-        string searchPattern = Path.GetFileName(directoryPath);
-        List<Delegate> libFuzzMethods = FindFuzzMethods(typeof(LibFuzzSpan));
-
-        IEnumerable<string> crashFiles;
-        try
+        /// <summary>
+        /// Test the libfuzz methods on the files in the directory.
+        /// </summary>
+        /// <param name="directoryPath">The directory where to find the crash data.</param>
+        /// <param name="stackTrace">If the stack trace should be written to output.</param>
+        public static void Run(string directoryPath, bool stackTrace)
         {
-            crashFiles = Directory.EnumerateFiles(path, searchPattern);
-        }
-        catch (Exception)
-        {
-            Console.WriteLine("Directory not found: {0}", path);
-            return;
-        }
+            string path = Path.GetDirectoryName(directoryPath);
+            string searchPattern = Path.GetFileName(directoryPath);
+            List<Delegate> libFuzzMethods = FindFuzzMethods(typeof(LibFuzzSpan));
 
-        foreach (string crashFile in crashFiles)
-        {
-            Console.WriteLine("### Crash data {0:20} ###", Path.GetFileName(crashFile));
-            byte[] crashData = File.ReadAllBytes(crashFile);
-
-            foreach (Delegate method in libFuzzMethods)
+            IEnumerable<string> crashFiles;
+            try
             {
-                if (method is LibFuzzSpan libFuzzMethod)
+                crashFiles = Directory.EnumerateFiles(path, searchPattern);
+            }
+            catch (Exception)
+            {
+                Console.WriteLine("Directory not found: {0}", path);
+                return;
+            }
+
+            foreach (string crashFile in crashFiles)
+            {
+                Console.WriteLine("### Crash data {0:20} ###", Path.GetFileName(crashFile));
+                byte[] crashData = File.ReadAllBytes(crashFile);
+
+                foreach (Delegate method in libFuzzMethods)
                 {
-                    var stopWatch = new Stopwatch();
-                    try
+                    if (method is LibFuzzSpan libFuzzMethod)
                     {
-                        stopWatch.Start();
-                        libFuzzMethod(crashData);
-                        stopWatch.Stop();
-                        Console.WriteLine("Target: {0:30} Elapsed: {1}ms", libFuzzMethod.Method.Name, stopWatch.ElapsedMilliseconds);
-                    }
-                    catch (Exception ex)
-                    {
-                        stopWatch.Stop();
-                        Console.WriteLine("Target: {0:30} Elapsed: {1}ms", libFuzzMethod.Method.Name, stopWatch.ElapsedMilliseconds);
-                        Console.WriteLine("{0}:{1}", ex.GetType().Name, ex.Message);
-                        if (stackTrace)
+                        var stopWatch = new Stopwatch();
+                        try
                         {
-                            Console.WriteLine(ex.StackTrace);
+                            stopWatch.Start();
+                            libFuzzMethod(crashData);
+                            stopWatch.Stop();
+                            Console.WriteLine(
+                                "Target: {0:30} Elapsed: {1}ms",
+                                libFuzzMethod.Method.Name,
+                                stopWatch.ElapsedMilliseconds
+                            );
+                        }
+                        catch (Exception ex)
+                        {
+                            stopWatch.Stop();
+                            Console.WriteLine(
+                                "Target: {0:30} Elapsed: {1}ms",
+                                libFuzzMethod.Method.Name,
+                                stopWatch.ElapsedMilliseconds
+                            );
+                            Console.WriteLine("{0}:{1}", ex.GetType().Name, ex.Message);
+                            if (stackTrace)
+                            {
+                                Console.WriteLine(ex.StackTrace);
+                            }
                         }
                     }
                 }

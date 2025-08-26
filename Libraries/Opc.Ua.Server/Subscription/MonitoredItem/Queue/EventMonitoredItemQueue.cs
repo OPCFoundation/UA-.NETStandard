@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Opc.Ua.Server
 {
@@ -38,7 +37,7 @@ namespace Opc.Ua.Server
     /// </summary>
     public class EventMonitoredItemQueue : IEventMonitoredItemQueue
     {
-        private const UInt32 kMaxNoOfEntriesCheckedForDuplicateEvents = 1000;
+        private const uint kMaxNoOfEntriesCheckedForDuplicateEvents = 1000;
 
         /// <summary>
         /// Creates an empty queue.
@@ -47,17 +46,19 @@ namespace Opc.Ua.Server
         {
             if (createDurable)
             {
-                Utils.LogError("EventMonitoredItemQueue does not support durable queues, please provide full implementation of IDurableMonitoredItemQueue using Server.CreateDurableMonitoredItemQueueFactory to supply own factory");
-                throw new ArgumentException("DataChangeMonitoredItemQueue does not support durable Queues", nameof(createDurable));
+                Utils.LogError(
+                    "EventMonitoredItemQueue does not support durable queues, please provide full implementation of IDurableMonitoredItemQueue using Server.CreateDurableMonitoredItemQueueFactory to supply own factory");
+                throw new ArgumentException(
+                    "DataChangeMonitoredItemQueue does not support durable Queues",
+                    nameof(createDurable));
             }
-            m_events = new List<EventFieldList>();
-            m_monitoredItemId = monitoredItemId;
+            m_events = [];
+            MonitoredItemId = monitoredItemId;
             QueueSize = 0;
         }
 
-        #region Public Methods
         /// <inheritdoc/>
-        public uint MonitoredItemId => m_monitoredItemId;
+        public uint MonitoredItemId { get; }
 
         /// <inheritdoc/>
         public virtual bool IsDurable => false;
@@ -72,9 +73,9 @@ namespace Opc.Ua.Server
         public bool Dequeue(out EventFieldList value)
         {
             value = null;
-            if (m_events.Any())
+            if (m_events.Count != 0)
             {
-                value = m_events.First();
+                value = m_events[0];
                 m_events.RemoveAt(0);
                 return true;
             }
@@ -82,9 +83,17 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual void Dispose()
+        public void Dispose()
         {
-            //Only needed for unmanaged resources
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// An overrideable version of the Dispose.
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
         }
 
         /// <inheritdoc/>
@@ -92,13 +101,15 @@ namespace Opc.Ua.Server
         {
             if (QueueSize == 0)
             {
-                throw new ServiceResultException(StatusCodes.BadInternalError, "Error queueing Event. Queue size is set to 0");
+                throw new ServiceResultException(
+                    StatusCodes.BadInternalError,
+                    "Error queueing Event. Queue size is set to 0");
             }
 
             //Discard oldest
             if (m_events.Count == QueueSize)
             {
-                Dequeue(out var _);
+                Dequeue(out EventFieldList _);
             }
 
             m_events.Add(value);
@@ -107,16 +118,17 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public bool IsEventContainedInQueue(IFilterTarget instance)
         {
-            int maxCount = m_events.Count > kMaxNoOfEntriesCheckedForDuplicateEvents ? (int)kMaxNoOfEntriesCheckedForDuplicateEvents : m_events.Count;
+            int maxCount =
+                m_events.Count > kMaxNoOfEntriesCheckedForDuplicateEvents
+                    ? (int)kMaxNoOfEntriesCheckedForDuplicateEvents
+                    : m_events.Count;
 
             for (int i = 0; i < maxCount; i++)
             {
-                if (m_events[i] is EventFieldList processedEvent)
+                if (m_events[i] is EventFieldList processedEvent &&
+                    ReferenceEquals(instance, processedEvent.Handle))
                 {
-                    if (ReferenceEquals(instance, processedEvent.Handle))
-                    {
-                        return true;
-                    }
+                    return true;
                 }
             }
             return false;
@@ -139,15 +151,10 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
 
-        #region Private Fields
         /// <summary>
         /// the contained in the queue
         /// </summary>
         protected List<EventFieldList> m_events;
-        private readonly uint m_monitoredItemId;
-        #endregion
     }
-
 }

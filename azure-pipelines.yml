@@ -9,19 +9,19 @@ trigger:
     - '*'
   paths:
     include:
-    - '*' 
+    - '*'
     exclude:
-    - 'Docs/*' 
-    - 'README.md' 
+    - 'Docs/*'
+    - 'README.md'
 
-pr: 
+pr:
   autoCancel: 'true'
   branches:
     include:
     - '*'
   paths:
     include:
-    - '*' 
+    - '*'
 
 variables:
   FullBuild: ${{ or(ne(variables['Build.Reason'], 'PullRequest'), ne(variables['System.PullRequest.IsFork'], 'False')) }}
@@ -40,19 +40,19 @@ stages:
   - template: .azurepipelines/ci.yml
     parameters:
       buildoption: '-p:NoHttps=true'
-      agents: '@{ linux = "ubuntu-22.04" }'
+      agents: '@{ linux = "ubuntu-24.04" }'
 - stage: solutions
   dependsOn: []
   displayName: 'Build Solutions'
   jobs:
   - template: .azurepipelines/sln.yml
     parameters:
-      poolImage: 'windows-2022'
-      jobnamesuffix: win2022
+      poolImage: 'windows-2025'
+      jobnamesuffix: win2025
   - template: .azurepipelines/sln.yml
     parameters:
-      poolImage: 'windows-2019'
-      jobnamesuffix: win2019
+      poolImage: 'windows-2022'
+      jobnamesuffix: win2022
 - stage: testrelease
   dependsOn: [build]
   displayName: 'Test Core and SDK Release'
@@ -62,15 +62,15 @@ stages:
     parameters:
       configuration: Release
       framework: net48
-      agents: '@{ windows = "windows-2019" }'
-      jobnamesuffix: net48  
+      agents: '@{ windows = "windows-2022" }'
+      jobnamesuffix: net48
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
-      framework: net6.0
-      agents: '@{ windows = "windows-2022"; linux="ubuntu-22.04"; mac = "macOS-15"}'
-      jobnamesuffix: net60
-      customtestarget: net6.0
+      framework: net8.0
+      agents: '@{ windows = "windows-2025"; linux="ubuntu-24.04"; mac = "macOS-15"}'
+      jobnamesuffix: net80
+      customtestarget: net8.0
 - stage: testreleasepr
   dependsOn: []
   displayName: 'Fast .NET 8.0 PR Test'
@@ -80,7 +80,7 @@ stages:
     parameters:
       configuration: Release
       framework: net8.0
-      agents: '@{ windows = "windows-2022"; linux="ubuntu-20.04"}'
+      agents: '@{ windows = "windows-2025"; linux="ubuntu-22.04"}'
       jobnamesuffix: net80pr
 - stage: testdebug
   dependsOn: [build]
@@ -122,7 +122,7 @@ stages:
       framework: net462
       configuration: Release
       jobnamesuffix: net462
-      agents: '@{ windows = "windows-2022" }'
+      agents: '@{ windows = "windows-2025" }'
       customtestarget: net462
 - stage: testnet472
   dependsOn: [build]
@@ -134,7 +134,7 @@ stages:
       framework: net472
       configuration: Release
       jobnamesuffix: net472
-      agents: '@{ windows = "windows-2022" }'
+      agents: '@{ windows = "windows-2025" }'
       customtestarget: net472
 - stage: testnetstandard20
   dependsOn: [build]
@@ -143,10 +143,10 @@ stages:
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
-      framework: net6.0
+      framework: net8.0
       configuration: Release
       jobnamesuffix: netstandard20
-      agents: '@{ windows = "windows-2019"; linux="ubuntu-20.04"}'
+      agents: '@{ windows = "windows-2022"; linux="ubuntu-22.04"}'
       customtestarget: netstandard2.0
 - stage: testnetstandard21
   dependsOn: [build]
@@ -155,7 +155,7 @@ stages:
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
-      framework: net6.0
+      framework: net8.0
       configuration: Release
       jobnamesuffix: netstandard21
       customtestarget: netstandard2.1

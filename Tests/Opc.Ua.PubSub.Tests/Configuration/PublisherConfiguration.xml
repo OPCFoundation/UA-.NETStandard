@@ -1,5 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<PubSubConfigurationDataType xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+<PubSubConfigurationDataType
+  xmlns:i="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
+>
   <PublishedDataSets>
     <PublishedDataSetDataType>
       <Name>Simple</Name>
@@ -126,7 +129,9 @@
           </Key>
           <Value>
             <Value>
-              <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2019-04-04T00:00:00+03:00</DateTime>
+              <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"
+                >2019-04-04T00:00:00+03:00</DateTime
+              >
             </Value>
           </Value>
         </KeyValuePair>
@@ -3898,8 +3903,7 @@
           </DataSetWriters>
         </WriterGroupDataType>
       </WriterGroups>
-      <ReaderGroups>
-      </ReaderGroups>
+      <ReaderGroups></ReaderGroups>
     </PubSubConnectionDataType>
     <PubSubConnectionDataType>
       <Name>UADPConnection2</Name>
@@ -4160,8 +4164,7 @@
           </DataSetWriters>
         </WriterGroupDataType>
       </WriterGroups>
-      <ReaderGroups>
-      </ReaderGroups>
+      <ReaderGroups></ReaderGroups>
     </PubSubConnectionDataType>
   </Connections>
   <Enabled>true</Enabled>

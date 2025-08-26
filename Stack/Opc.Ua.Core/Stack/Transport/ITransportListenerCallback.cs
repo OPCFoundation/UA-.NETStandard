@@ -45,5 +45,17 @@ namespace Opc.Ua
         /// <returns>The response to return over the secure channel.</returns>
         /// <seealso cref="BeginProcessRequest" />
         IServiceResponse EndProcessRequest(IAsyncResult result);
+
+        /// <summary>
+        /// Trys to get the secure channel id for an authentication token.
+        /// The ChannelId is known to the sessions of the Server.
+        /// Each session has an AuthenticationToken which can be used to identify the session.
+        /// </summary>
+        /// <param name="authenticationToken">The AuthenticationToken from the RequestHeader</param>
+        /// <param name="channelId">The Channel id</param>
+        /// <returns>returns true if a channelId was found for the provided AuthenticationToken</returns>
+        bool TryGetSecureChannelIdForAuthenticationToken(
+            NodeId authenticationToken,
+            out uint channelId);
     }
 }

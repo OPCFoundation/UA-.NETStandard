@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -36,18 +36,14 @@ namespace Opc.Ua.PubSub.PublishedData
     /// </summary>
     public class DataSet : ICloneable
     {
-        #region Constructor
         /// <summary>
         /// Create new instance of <see cref="DataSet"/>
         /// </summary>
-        /// <param name="name"></param>
         public DataSet(string name = null)
         {
             Name = name;
         }
-        #endregion
 
-        #region Properties
         /// <summary>
         /// Get/Set data set name
         /// </summary>
@@ -77,13 +73,11 @@ namespace Opc.Ua.PubSub.PublishedData
         /// Get/Set data set fields for this data set
         /// </summary>
         public Field[] Fields { get; set; }
-        #endregion
 
-        #region ICloneable method
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -91,28 +85,21 @@ namespace Opc.Ua.PubSub.PublishedData
         /// </summary>
         public new object MemberwiseClone()
         {
-            DataSet copy = base.MemberwiseClone() as DataSet;
-            if (DataSetMetaData != null)
+            var copy = base.MemberwiseClone() as DataSet;
+            if (DataSetMetaData != null && copy != null)
             {
-                if (copy != null)
-                {
-                    copy.DataSetMetaData = DataSetMetaData.Clone() as DataSetMetaDataType;
-                }
+                copy.DataSetMetaData = DataSetMetaData.Clone() as DataSetMetaDataType;
             }
 
-            if (Fields != null)
+            if (Fields != null && copy != null)
             {
-                if (copy != null)
+                copy.Fields = new Field[Fields.Length];
+                for (int i = 0; i < Fields.Length; i++)
                 {
-                    copy.Fields = new Field[Fields.Length];
-                    for (int i = 0; i < Fields.Length; i++)
-                    {
-                        copy.Fields[i] = Fields[i].Clone() as Field;
-                    }
+                    copy.Fields[i] = Fields[i].Clone() as Field;
                 }
             }
             return copy;
         }
-        #endregion
     }
 }

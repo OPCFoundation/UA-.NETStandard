@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -34,10 +34,12 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+#if NET472_OR_GREATER
 using System.Text.RegularExpressions;
 using Org.BouncyCastle.Asn1;
-using Org.BouncyCastle.Asn1.X509;
 using Org.BouncyCastle.Asn1.X9;
+#endif
+using Org.BouncyCastle.Asn1.X509;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Math;
@@ -51,9 +53,8 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
     /// </summary>
     internal static class X509Utils
     {
-        #region Internal Methods
         /// <summary>
-        /// Create a Pfx blob with a private key by combining 
+        /// Create a Pfx blob with a private key by combining
         /// a bouncy castle X509Certificate and a private key.
         /// </summary>
         internal static byte[] CreatePfxWithPrivateKey(
@@ -64,26 +65,25 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             SecureRandom random)
         {
             // create pkcs12 store for cert and private key
-            using (var pfxData = new MemoryStream())
+            using var pfxData = new MemoryStream();
+            var builder = new Pkcs12StoreBuilder();
+            builder.SetUseDerEncoding(true);
+            Pkcs12Store pkcsStore = builder.Build();
+            var chain = new X509CertificateEntry[1];
+            chain[0] = new X509CertificateEntry(certificate);
+            if (string.IsNullOrEmpty(friendlyName))
             {
-                var builder = new Pkcs12StoreBuilder();
-                builder.SetUseDerEncoding(true);
-                Pkcs12Store pkcsStore = builder.Build();
-                var chain = new X509CertificateEntry[1];
-                chain[0] = new X509CertificateEntry(certificate);
-                if (string.IsNullOrEmpty(friendlyName))
-                {
-                    friendlyName = GetCertificateCommonName(certificate);
-                }
-                pkcsStore.SetKeyEntry(friendlyName, new AsymmetricKeyEntry(privateKey), chain);
-                pkcsStore.Save(pfxData, passcode.ToCharArray(), random);
-                return pfxData.ToArray();
+                friendlyName = GetCertificateCommonName(certificate);
             }
+            pkcsStore.SetKeyEntry(friendlyName, new AsymmetricKeyEntry(privateKey), chain);
+            pkcsStore.Save(pfxData, passcode.ToCharArray(), random);
+            return pfxData.ToArray();
         }
 
         /// <summary>
         /// Helper to get the Bouncy Castle hash algorithm name by .NET name .
         /// </summary>
+        /// <exception cref="CryptographicException"></exception>
         internal static string GetRSAHashAlgorithm(HashAlgorithmName hashAlgorithmName)
         {
             if (hashAlgorithmName == HashAlgorithmName.SHA1)
@@ -102,7 +102,8 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             {
                 return "SHA512WITHRSA";
             }
-            throw new CryptographicException($"The hash algorithm {hashAlgorithmName} is not supported");
+            throw new CryptographicException(
+                $"The hash algorithm {hashAlgorithmName} is not supported");
         }
 
         /// <summary>
@@ -110,10 +111,8 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// </summary>
         internal static RsaKeyParameters GetRsaPublicKeyParameter(X509Certificate2 certificate)
         {
-            using (RSA rsa = certificate.GetRSAPublicKey())
-            {
-                return GetRsaPublicKeyParameter(rsa);
-            }
+            using RSA rsa = certificate.GetRSAPublicKey();
+            return GetRsaPublicKeyParameter(rsa);
         }
 
         /// <summary>
@@ -132,15 +131,14 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// Get RSA private key parameters from a X509Certificate2.
         /// The private key must be exportable.
         /// </summary>
-        internal static RsaPrivateCrtKeyParameters GetRsaPrivateKeyParameter(X509Certificate2 certificate)
+        internal static RsaPrivateCrtKeyParameters GetRsaPrivateKeyParameter(
+            X509Certificate2 certificate)
         {
             // try to get signing/private key from certificate passed in
-            using (RSA rsa = certificate.GetRSAPrivateKey())
+            using RSA rsa = certificate.GetRSAPrivateKey();
+            if (rsa != null)
             {
-                if (rsa != null)
-                {
-                    return GetRsaPrivateKeyParameter(rsa);
-                }
+                return GetRsaPrivateKeyParameter(rsa);
             }
             return null;
         }
@@ -168,15 +166,14 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// Get ECDsa private key parameters from a X509Certificate2.
         /// The private key must be exportable.
         /// </summary>
-        internal static ECPrivateKeyParameters GetECDsaPrivateKeyParameter(X509Certificate2 certificate)
+        internal static ECPrivateKeyParameters GetECDsaPrivateKeyParameter(
+            X509Certificate2 certificate)
         {
             // try to get signing/private key from certificate passed in
-            using (ECDsa ecdsa = certificate.GetECDsaPrivateKey())
+            using ECDsa ecdsa = certificate.GetECDsaPrivateKey();
+            if (ecdsa != null)
             {
-                if (ecdsa != null)
-                {
-                    return GetECDsaPrivateKeyParameter(ecdsa);
-                }
+                return GetECDsaPrivateKeyParameter(ecdsa);
             }
             return null;
         }
@@ -185,15 +182,16 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// Get BouncyCastle format private key parameters from a System.Security.Cryptography.ECDsa.
         /// The private key must be exportable.
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         internal static ECPrivateKeyParameters GetECDsaPrivateKeyParameter(ECDsa ec)
         {
             ECParameters ecParams = ec.ExportParameters(true);
-            BigInteger d = new BigInteger(1, ecParams.D);
+            var d = new BigInteger(1, ecParams.D);
 
             X9ECParameters curve = GetX9ECParameters(ecParams);
 
             string friendlyName = ecParams.Curve.Oid.FriendlyName;
-            if (!FriendlyNameToOidMap.TryGetValue(friendlyName, out var oidValue))
+            if (!s_friendlyNameToOidMap.TryGetValue(friendlyName, out string oidValue))
             {
                 throw new NotSupportedException($"Unknown friendly name: {friendlyName}");
             }
@@ -206,66 +204,64 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
                 curve.G,
                 curve.N,
                 curve.H,
-                curve.GetSeed()
-            );
+                curve.GetSeed());
 
             return new ECPrivateKeyParameters(d, namedDomainParameters);
-
         }
 
         /// <summary>
         /// Identifies a named curve by the provided coefficients A and B from their first 4 bytes
         /// </summary>
-        /// <param name="a"></param>
-        /// <param name="b"></param>
         /// <returns>The successfully identified named System.Security.Cryptography.ECCurve curve
         /// or throws if no curve is identified</returns>
+        /// <exception cref="ArgumentException"></exception>
         internal static ECCurve IdentifyEccCurveByCoefficients(byte[] a, byte[] b)
         {
-            byte[] brainpoolP256AStart = new byte[] { 0x7D, 0x5A, 0x09, 0x75 };
-            byte[] brainpoolP256BStart = new byte[] { 0x26, 0xDC, 0x5C, 0x6C };
-            byte[] brainpoolP384AStart = new byte[] { 0x7B, 0xC3, 0x82, 0xC6 };
-            byte[] brainpoolP384BStart = new byte[] { 0x04, 0xA8, 0xC7, 0xDD };
-            byte[] nistP256AStart = new byte[] { 0xFF, 0xFF, 0xFF, 0xFF };
-            byte[] nistP256BStart = new byte[] { 0x5A, 0xC6, 0x35, 0xD8 };
-            byte[] nistP384AStart = new byte[] { 0xFF, 0xFF, 0xFF, 0xFF };
-            byte[] nistP384BStart = new byte[] { 0xB3, 0x31, 0x2F, 0xA7 };
+            byte[] brainpoolP256AStart = [0x7D, 0x5A, 0x09, 0x75];
+            byte[] brainpoolP256BStart = [0x26, 0xDC, 0x5C, 0x6C];
+            byte[] brainpoolP384AStart = [0x7B, 0xC3, 0x82, 0xC6];
+            byte[] brainpoolP384BStart = [0x04, 0xA8, 0xC7, 0xDD];
+            byte[] nistP256AStart = [0xFF, 0xFF, 0xFF, 0xFF];
+            byte[] nistP256BStart = [0x5A, 0xC6, 0x35, 0xD8];
+            byte[] nistP384AStart = [0xFF, 0xFF, 0xFF, 0xFF];
+            byte[] nistP384BStart = [0xB3, 0x31, 0x2F, 0xA7];
 
-
-            if (a.Take(4).SequenceEqual(brainpoolP256AStart) && b.Take(4).SequenceEqual(brainpoolP256BStart))
+            if (a.Take(4).SequenceEqual(brainpoolP256AStart) &&
+                b.Take(4).SequenceEqual(brainpoolP256BStart))
             {
                 return ECCurve.NamedCurves.brainpoolP256r1;
             }
-            else if (a.Take(4).SequenceEqual(brainpoolP384AStart) && b.Take(4).SequenceEqual(brainpoolP384BStart))
+            else if (a.Take(4).SequenceEqual(brainpoolP384AStart) &&
+                b.Take(4).SequenceEqual(brainpoolP384BStart))
             {
                 return ECCurve.NamedCurves.brainpoolP384r1;
             }
-            else if (a.Take(4).SequenceEqual(nistP256AStart) && b.Take(4).SequenceEqual(nistP256BStart))
+            else if (a.Take(4).SequenceEqual(nistP256AStart) &&
+                b.Take(4).SequenceEqual(nistP256BStart))
             {
                 return ECCurve.NamedCurves.nistP256;
             }
-            else if (a.Take(4).SequenceEqual(nistP384AStart) && b.Take(4).SequenceEqual(nistP384BStart))
+            else if (a.Take(4).SequenceEqual(nistP384AStart) &&
+                b.Take(4).SequenceEqual(nistP384BStart))
             {
                 return ECCurve.NamedCurves.nistP384;
             }
 
             throw new ArgumentException("EccCurveByCoefficients cannot be identified");
-
         }
 
-        private static readonly Dictionary<string, string> FriendlyNameToOidMap
-            = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                { "nistP256", "1.2.840.10045.3.1.7"},
-                { "nistP384", "1.3.132.0.34" },
-                { "brainpoolP256r1", "1.3.36.3.3.2.8.1.1.7"},
-                { "brainpoolP384r1", "1.3.36.3.3.2.8.1.1.11"}
-            };
+        private static readonly Dictionary<string, string> s_friendlyNameToOidMap = new(
+            StringComparer.OrdinalIgnoreCase)
+        {
+            { "nistP256", "1.2.840.10045.3.1.7" },
+            { "nistP384", "1.3.132.0.34" },
+            { "brainpoolP256r1", "1.3.36.3.3.2.8.1.1.7" },
+            { "brainpoolP384r1", "1.3.36.3.3.2.8.1.1.11" }
+        };
 
         /// <summary>
         /// Return Bouncy Castle X9ECParameters value equivalent of System.Security.Cryptography.ECparameters
         /// </summary>
-        /// <param name="ecParams"></param>
         /// <returns>X9ECParameters value equivalent of System.Security.Cryptography.ECparameters if found else null</returns>
         internal static X9ECParameters GetX9ECParameters(ECParameters ecParams)
         {
@@ -277,19 +273,25 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             else if (!string.IsNullOrEmpty(ecParams.Curve.Oid.FriendlyName))
             {
                 // nist curve names do not contain "nist" in the bouncy castle ECNamedCurveTable
-                // for ex: the form is "P-256" while the microsoft is "nistP256" 
+                // for ex: the form is "P-256" while the microsoft is "nistP256"
                 // brainpool bouncy castle curve names are identic to the microsoft ones
                 string msFriendlyName = ecParams.Curve.Oid.FriendlyName;
                 string bcFriendlyName = msFriendlyName;
-                string nistCurveName = "nist";
+                const string nistCurveName = "nist";
                 if (msFriendlyName.StartsWith(nistCurveName))
                 {
-                    string patternMatch = @"(.*?)(\d+)$"; // divide string in two capture groups (string & numeric)
-                    bcFriendlyName = Regex.Replace(msFriendlyName, patternMatch, m => {
-                        string lastChar = m.Groups[1].Value.Length > 0 ? m.Groups[1].Value.Last().ToString() : "";
-                        string number = m.Groups[2].Value;
-                        return lastChar + "-" + number;
-                    });
+                    const string patternMatch = @"(.*?)(\d+)$"; // divide string in two capture groups (string & numeric)
+                    bcFriendlyName = Regex.Replace(
+                        msFriendlyName,
+                        patternMatch,
+                        m =>
+                        {
+                            string lastChar = m.Groups[1].Value.Length > 0
+                                ? m.Groups[1].Value[^1].ToString()
+                                : string.Empty;
+                            string number = m.Groups[2].Value;
+                            return lastChar + "-" + number;
+                        });
                 }
                 return ECNamedCurveTable.GetByName(bcFriendlyName);
             }
@@ -300,22 +302,29 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// <summary>
         /// Get BouncyCastle format public key parameters from a System.Security.Cryptography.ECDsa
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         internal static ECPublicKeyParameters GetECPublicKeyParameters(ECDsa ec)
         {
             ECParameters ecParams = ec.ExportParameters(false);
 
-            X9ECParameters curve = GetX9ECParameters(ecParams);
+            X9ECParameters curve =
+                GetX9ECParameters(ecParams)
+                ?? throw new ArgumentException(
+                    "Curve OID is not recognized ",
+                    ecParams.Curve.Oid.ToString());
 
-            if (curve == null) throw new ArgumentException("Curve OID is not recognized ", ecParams.Curve.Oid.ToString());
-
-            var q = curve.Curve.CreatePoint(
+            Org.BouncyCastle.Math.EC.ECPoint q = curve.Curve.CreatePoint(
                 new BigInteger(1, ecParams.Q.X),
                 new BigInteger(1, ecParams.Q.Y));
 
-            ECDomainParameters domainParameters = new ECDomainParameters(curve.Curve, curve.G, curve.N, curve.H, curve.GetSeed());
+            var domainParameters = new ECDomainParameters(
+                curve.Curve,
+                curve.G,
+                curve.N,
+                curve.H,
+                curve.GetSeed());
 
             return new ECPublicKeyParameters(q, domainParameters);
-
         }
 #endif
 
@@ -325,18 +334,19 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         internal static BigInteger GetSerialNumber(X509Certificate2 certificate)
         {
             byte[] serialNumber = certificate.GetSerialNumber();
-            return new BigInteger(1, serialNumber.Reverse().ToArray());
+            return new BigInteger(1, [.. serialNumber.Reverse()]);
         }
 
         /// <summary>
         /// Read the Common Name from a certificate.
         /// </summary>
-        internal static string GetCertificateCommonName(Org.BouncyCastle.X509.X509Certificate certificate)
+        internal static string GetCertificateCommonName(
+            Org.BouncyCastle.X509.X509Certificate certificate)
         {
-            System.Collections.Generic.IList<string> subjectDN = certificate.SubjectDN.GetValueList(X509Name.CN);
+            IList<string> subjectDN = certificate.SubjectDN.GetValueList(X509Name.CN);
             if (subjectDN.Count > 0)
             {
-                return subjectDN[0].ToString();
+                return subjectDN[0];
             }
             return string.Empty;
         }
@@ -347,12 +357,10 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         internal static string GeneratePasscode()
         {
             const int kLength = 18;
-            using (var rng = RandomNumberGenerator.Create())
-            {
-                byte[] tokenBuffer = new byte[kLength];
-                rng.GetBytes(tokenBuffer);
-                return Convert.ToBase64String(tokenBuffer);
-            }
+            using var rng = RandomNumberGenerator.Create();
+            byte[] tokenBuffer = new byte[kLength];
+            rng.GetBytes(tokenBuffer);
+            return Convert.ToBase64String(tokenBuffer);
         }
 
         /// <summary>
@@ -362,7 +370,8 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         {
             AsymmetricKeyParameter asymmetricKeyParameter = PublicKeyFactory.CreateKey(publicKey);
             var rsaKeyParameters = asymmetricKeyParameter as RsaKeyParameters;
-            var parameters = new RSAParameters {
+            var parameters = new RSAParameters
+            {
                 Exponent = rsaKeyParameters.Exponent.ToByteArrayUnsigned(),
                 Modulus = rsaKeyParameters.Modulus.ToByteArrayUnsigned()
             };
@@ -377,8 +386,8 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// </summary>
         /// <param name="arrayToPad">Provided array to pad</param>
         /// <param name="desiredSize">The desired total length of byte array after padding</param>
-        /// <returns></returns>
-        internal static byte[] PadWithLeadingZeros(byte[] arrayToPad,  int desiredSize)
+        /// <exception cref="ArgumentException"></exception>
+        internal static byte[] PadWithLeadingZeros(byte[] arrayToPad, int desiredSize)
         {
             if (arrayToPad.Length == desiredSize)
             {
@@ -388,18 +397,17 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             int paddingLength = desiredSize - arrayToPad.Length;
             if (paddingLength < 0)
             {
-                throw new ArgumentException($"Input byte array is larger than the desired size {desiredSize} bytes.");
+                throw new ArgumentException(
+                    $"Input byte array is larger than the desired size {desiredSize} bytes.");
             }
 
-            var paddedArray = new byte[desiredSize];
+            byte[] paddedArray = new byte[desiredSize];
 
             // Right-align the arrayToPad into paddedArray
             Buffer.BlockCopy(arrayToPad, 0, paddedArray, paddingLength, arrayToPad.Length);
 
             return paddedArray;
-
         }
-#endregion
     }
 }
 #endif

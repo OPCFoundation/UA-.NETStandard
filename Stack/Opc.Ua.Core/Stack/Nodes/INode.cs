@@ -187,7 +187,7 @@ namespace Opc.Ua
         NodeId DataType { get; set; }
 
         /// <summary>
-        /// Specifies whether the the value is an array or scalar.
+        /// Specifies whether the value is an array or scalar.
         /// </summary>
         /// <value>The value rank.</value>
         int ValueRank { get; set; }

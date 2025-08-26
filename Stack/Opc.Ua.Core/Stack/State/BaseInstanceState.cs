@@ -16,22 +16,20 @@ using System.Text;
 
 namespace Opc.Ua
 {
-    /// <summary> 
+    /// <summary>
     /// The base class for all instance nodes.
     /// </summary>
     public class BaseInstanceState : NodeState, IFilterTarget
     {
-        #region Constructors
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        protected BaseInstanceState(NodeClass nodeClass, NodeState parent) : base(nodeClass)
+        protected BaseInstanceState(NodeClass nodeClass, NodeState parent)
+            : base(nodeClass)
         {
-            m_parent = parent;
+            Parent = parent;
         }
-        #endregion
 
-        #region Initialization
         /// <summary>
         /// Initializes the instance from another instance.
         /// </summary>
@@ -42,7 +40,7 @@ namespace Opc.Ua
                 m_referenceTypeId = instance.m_referenceTypeId;
                 m_typeDefinitionId = instance.m_typeDefinitionId;
                 m_modellingRuleId = instance.m_modellingRuleId;
-                m_numericId = instance.m_numericId;
+                NumericId = instance.NumericId;
             }
 
             base.Initialize(context, source);
@@ -52,18 +50,15 @@ namespace Opc.Ua
         /// Returns the id of the default type definition node for the instance.
         /// </summary>
         /// <param name="namespaceUris">The namespace uris.</param>
-        /// <returns></returns>
         protected virtual NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return null;
         }
-        #endregion
 
-        #region ICloneable Members
         /// <inheritdoc/>
         public override object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -74,20 +69,14 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            BaseInstanceState clone = new BaseInstanceState(this.NodeClass, this.Parent);
+            var clone = new BaseInstanceState(NodeClass, Parent);
             return CloneChildren(clone);
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// The parent node.
         /// </summary>
-        public NodeState Parent
-        {
-            get { return m_parent; }
-            internal set { m_parent = value; }
-        }
+        public NodeState Parent { get; internal set; }
 
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
@@ -121,23 +110,23 @@ namespace Opc.Ua
         {
             string name = GetNonNullText(this);
 
-            NodeState stateParent = m_parent;
+            NodeState stateParent = Parent;
 
             if (stateParent == null)
             {
                 return name;
             }
 
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             if (maxLength > 2)
             {
                 NodeState parent = stateParent;
-                List<string> names = new List<string>();
+                var names = new List<string>();
 
                 while (parent != null)
                 {
-                    if (!(parent is BaseInstanceState instance))
+                    if (parent is not BaseInstanceState instance)
                     {
                         break;
                     }
@@ -155,14 +144,14 @@ namespace Opc.Ua
 
                 for (int ii = names.Count - 1; ii >= 0; ii--)
                 {
-                    buffer.Append(names[ii]);
-                    buffer.Append(seperator);
+                    buffer.Append(names[ii])
+                        .Append(seperator);
                 }
             }
 
-            buffer.Append(GetNonNullText(stateParent));
-            buffer.Append(seperator);
-            buffer.Append(name);
+            buffer.Append(GetNonNullText(stateParent))
+                .Append(seperator)
+                .Append(name);
 
             return buffer.ToString();
         }
@@ -170,7 +159,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns non-null text for the node.
         /// </summary>
-        private string GetNonNullText(NodeState node)
+        private static string GetNonNullText(NodeState node)
         {
             if (node == null)
             {
@@ -183,10 +172,8 @@ namespace Opc.Ua
                 {
                     return node.BrowseName.Name;
                 }
-                else
-                {
-                    return node.NodeClass.ToString();
-                }
+
+                return node.NodeClass.ToString();
             }
 
             return node.DisplayName.Text;
@@ -195,25 +182,17 @@ namespace Opc.Ua
         /// <summary>
         /// A numeric identifier for the instance that is unique within the parent.
         /// </summary>
-        public uint NumericId
-        {
-            get { return m_numericId; }
-            set { m_numericId = value; }
-        }
+        public uint NumericId { get; set; }
 
         /// <summary>
         /// The type of reference from the parent node to the instance.
         /// </summary>
         public NodeId ReferenceTypeId
         {
-            get
-            {
-                return m_referenceTypeId;
-            }
-
+            get => m_referenceTypeId;
             set
             {
-                if (!Object.ReferenceEquals(m_referenceTypeId, value))
+                if (!ReferenceEquals(m_referenceTypeId, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.References;
                 }
@@ -227,14 +206,10 @@ namespace Opc.Ua
         /// </summary>
         public NodeId TypeDefinitionId
         {
-            get
-            {
-                return m_typeDefinitionId;
-            }
-
+            get => m_typeDefinitionId;
             set
             {
-                if (!Object.ReferenceEquals(m_typeDefinitionId, value))
+                if (!ReferenceEquals(m_typeDefinitionId, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.References;
                 }
@@ -248,14 +223,10 @@ namespace Opc.Ua
         /// </summary>
         public NodeId ModellingRuleId
         {
-            get
-            {
-                return m_modellingRuleId;
-            }
-
+            get => m_modellingRuleId;
             set
             {
-                if (!Object.ReferenceEquals(m_modellingRuleId, value))
+                if (!ReferenceEquals(m_modellingRuleId, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.References;
                 }
@@ -274,8 +245,7 @@ namespace Opc.Ua
             base.ReportEvent(context, e);
 
             // recursively notify the parent.
-            m_parent?.ReportEvent(context, e);
-            
+            Parent?.ReportEvent(context, e);
         }
 
         /// <summary>
@@ -287,7 +257,7 @@ namespace Opc.Ua
         /// <remarks>
         /// This method creates components based on the browse paths in the event field and sets
         /// the NodeId or Value based on values in the event notification.
-        /// </remarks>  
+        /// </remarks>
         public void Update(
             ISystemContext context,
             SimpleAttributeOperandCollection fields,
@@ -305,30 +275,23 @@ namespace Opc.Ua
                 }
 
                 // extract the NodeId for the event.
-                if (field.BrowsePath.Count == 0)
+                if (field.BrowsePath.Count == 0 && field.AttributeId == Attributes.NodeId)
                 {
-                    if (field.AttributeId == Attributes.NodeId)
-                    {
-                        this.NodeId = value as NodeId;
-                        continue;
-                    }
+                    NodeId = value as NodeId;
+                    continue;
                 }
 
                 // extract the type definition for the event.
-                if (field.BrowsePath.Count == 1)
+                if (field.BrowsePath.Count == 1 &&
+                    field.AttributeId == Attributes.Value &&
+                    field.BrowsePath[0] == BrowseNames.EventType)
                 {
-                    if (field.AttributeId == Attributes.Value)
-                    {
-                        if (field.BrowsePath[0] == BrowseNames.EventType)
-                        {
-                            m_typeDefinitionId = value as NodeId;
-                            continue;
-                        }
-                    }
+                    m_typeDefinitionId = value as NodeId;
+                    continue;
                 }
 
                 // save value for child node.
-                NodeState parent = this;
+                BaseInstanceState parent = this;
 
                 for (int jj = 0; jj < field.BrowsePath.Count; jj++)
                 {
@@ -372,7 +335,8 @@ namespace Opc.Ua
                     // save the variable value.
                     if (field.AttributeId == Attributes.Value)
                     {
-                        if (child is BaseVariableState variable && field.AttributeId == Attributes.Value)
+                        if (child is BaseVariableState variable &&
+                            field.AttributeId == Attributes.Value)
                         {
                             try
                             {
@@ -398,14 +362,16 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="minimumSamplingInterval">The minimum sampling interval.</param>
-        public void SetMinimumSamplingInterval(ISystemContext context, double minimumSamplingInterval)
+        public void SetMinimumSamplingInterval(
+            ISystemContext context,
+            double minimumSamplingInterval)
         {
             if (this is BaseVariableState variable)
             {
                 variable.MinimumSamplingInterval = minimumSamplingInterval;
             }
 
-            List<BaseInstanceState> children = new List<BaseInstanceState>();
+            var children = new List<BaseInstanceState>();
             GetChildren(context, children);
 
             for (int ii = 0; ii < children.Count; ii++)
@@ -420,24 +386,15 @@ namespace Opc.Ua
                 children[ii].SetMinimumSamplingInterval(context, minimumSamplingInterval);
             }
         }
-        #endregion
 
-        #region IFilterTarget Members
-        /// <summary cref="IFilterTarget.IsTypeOf" />
+        /// <inheritdoc/>
         public virtual bool IsTypeOf(FilterContext context, NodeId typeDefinitionId)
         {
-            if (!NodeId.IsNull(typeDefinitionId))
-            {
-                if (!context.TypeTree.IsTypeOf(TypeDefinitionId, typeDefinitionId))
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            return NodeId.IsNull(typeDefinitionId) ||
+                context.TypeTree.IsTypeOf(TypeDefinitionId, typeDefinitionId);
         }
 
-        /// <summary cref="IFilterTarget.GetAttributeValue" />
+        /// <inheritdoc/>
         public virtual object GetAttributeValue(
             FilterContext context,
             NodeId typeDefinitionId,
@@ -446,16 +403,15 @@ namespace Opc.Ua
             NumericRange indexRange)
         {
             // check the type definition.
-            if (!NodeId.IsNull(typeDefinitionId) && typeDefinitionId != ObjectTypes.BaseEventType)
+            if (!NodeId.IsNull(typeDefinitionId) &&
+                typeDefinitionId != ObjectTypes.BaseEventType &&
+                !context.TypeTree.IsTypeOf(TypeDefinitionId, typeDefinitionId))
             {
-                if (!context.TypeTree.IsTypeOf(TypeDefinitionId, typeDefinitionId))
-                {
-                    return null;
-                }
+                return null;
             }
 
             // read the child attribute.
-            DataValue dataValue = new DataValue();
+            var dataValue = new DataValue();
 
             ServiceResult result = ReadChildAttribute(
                 null,
@@ -485,9 +441,7 @@ namespace Opc.Ua
             // return the result.
             return value;
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Exports a copy of the node to a node table.
         /// </summary>
@@ -497,26 +451,27 @@ namespace Opc.Ua
         {
             base.Export(context, node);
 
-            if (this.Parent != null)
+            if (Parent != null)
             {
-                NodeId referenceTypeId = this.ReferenceTypeId;
+                NodeId referenceTypeId = ReferenceTypeId;
 
                 if (NodeId.IsNull(referenceTypeId))
                 {
                     referenceTypeId = ReferenceTypeIds.HasComponent;
                 }
 
-                node.ReferenceTable.Add(referenceTypeId, true, this.Parent.NodeId);
+                node.ReferenceTable.Add(referenceTypeId, true, Parent.NodeId);
             }
 
             if (!NodeId.IsNull(m_typeDefinitionId) && IsObjectOrVariable)
             {
-                node.ReferenceTable.Add(ReferenceTypeIds.HasTypeDefinition, false, this.TypeDefinitionId);
+                node.ReferenceTable
+                    .Add(ReferenceTypeIds.HasTypeDefinition, false, TypeDefinitionId);
             }
 
-            if (!NodeId.IsNull(this.ModellingRuleId))
+            if (!NodeId.IsNull(ModellingRuleId))
             {
-                node.ReferenceTable.Add(ReferenceTypeIds.HasModellingRule, false, this.ModellingRuleId);
+                node.ReferenceTable.Add(ReferenceTypeIds.HasModellingRule, false, ModellingRuleId);
             }
         }
 
@@ -546,9 +501,9 @@ namespace Opc.Ua
                 encoder.WriteNodeId("ModellingRuleId", m_modellingRuleId);
             }
 
-            if (m_numericId != 0)
+            if (NumericId != 0)
             {
-                encoder.WriteUInt32("NumericId", m_numericId);
+                encoder.WriteUInt32("NumericId", NumericId);
             }
 
             encoder.PopNamespace();
@@ -578,7 +533,7 @@ namespace Opc.Ua
                 attributesToSave |= AttributesToSave.ModellingRuleId;
             }
 
-            if (m_numericId != 0)
+            if (NumericId != 0)
             {
                 attributesToSave |= AttributesToSave.NumericId;
             }
@@ -592,7 +547,10 @@ namespace Opc.Ua
         /// <param name="context">The context user.</param>
         /// <param name="encoder">The encoder to write to.</param>
         /// <param name="attributesToSave">The masks indicating what attributes to write.</param>
-        public override void Save(ISystemContext context, BinaryEncoder encoder, AttributesToSave attributesToSave)
+        public override void Save(
+            ISystemContext context,
+            BinaryEncoder encoder,
+            AttributesToSave attributesToSave)
         {
             base.Save(context, encoder, attributesToSave);
 
@@ -613,7 +571,7 @@ namespace Opc.Ua
 
             if ((attributesToSave & AttributesToSave.NumericId) != 0)
             {
-                encoder.WriteUInt32(null, m_numericId);
+                encoder.WriteUInt32(null, NumericId);
             }
         }
 
@@ -623,7 +581,10 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         /// <param name="decoder">The decoder.</param>
         /// <param name="attributesToLoad">The attributes to load.</param>
-        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attributesToLoad)
+        public override void Update(
+            ISystemContext context,
+            BinaryDecoder decoder,
+            AttributesToSave attributesToLoad)
         {
             base.Update(context, decoder, attributesToLoad);
 
@@ -644,7 +605,7 @@ namespace Opc.Ua
 
             if ((attributesToLoad & AttributesToSave.NumericId) != 0)
             {
-                m_numericId = decoder.ReadUInt32(null);
+                NumericId = decoder.ReadUInt32(null);
             }
         }
 
@@ -693,49 +654,39 @@ namespace Opc.Ua
 
             NodeId typeDefinitionId = m_typeDefinitionId;
 
-            if (!NodeId.IsNull(typeDefinitionId) && IsObjectOrVariable)
+            if (!NodeId.IsNull(typeDefinitionId) &&
+                IsObjectOrVariable &&
+                browser.IsRequired(ReferenceTypeIds.HasTypeDefinition, false))
             {
-                if (browser.IsRequired(ReferenceTypeIds.HasTypeDefinition, false))
-                {
-                    browser.Add(ReferenceTypeIds.HasTypeDefinition, false, typeDefinitionId);
-                }
+                browser.Add(ReferenceTypeIds.HasTypeDefinition, false, typeDefinitionId);
             }
 
             NodeId modellingRuleId = m_modellingRuleId;
 
-            if (!NodeId.IsNull(modellingRuleId))
+            if (!NodeId.IsNull(modellingRuleId) &&
+                browser.IsRequired(ReferenceTypeIds.HasModellingRule, false))
             {
-                if (browser.IsRequired(ReferenceTypeIds.HasModellingRule, false))
-                {
-                    browser.Add(ReferenceTypeIds.HasModellingRule, false, modellingRuleId);
-                }
+                browser.Add(ReferenceTypeIds.HasModellingRule, false, modellingRuleId);
             }
 
-            NodeState parent = m_parent;
+            NodeState parent = Parent;
 
             if (parent != null)
             {
-                NodeId referenceTypeId = this.m_referenceTypeId;
+                NodeId referenceTypeId = m_referenceTypeId;
 
-                if (!NodeId.IsNull(referenceTypeId))
+                if (!NodeId.IsNull(referenceTypeId) && browser.IsRequired(referenceTypeId, true))
                 {
-                    if (browser.IsRequired(referenceTypeId, true))
-                    {
-                        browser.Add(referenceTypeId, true, parent);
-                    }
+                    browser.Add(referenceTypeId, true, parent);
                 }
             }
         }
-        #endregion
 
-        private bool IsObjectOrVariable => ((this.NodeClass & (NodeClass.Variable | NodeClass.Object)) != 0);
+        private bool IsObjectOrVariable
+            => ((int)NodeClass & ((int)NodeClass.Variable | (int)NodeClass.Object)) != 0;
 
-        #region Private Fields
-        private NodeState m_parent;
         private NodeId m_referenceTypeId;
         private NodeId m_typeDefinitionId;
         private NodeId m_modellingRuleId;
-        private uint m_numericId;
-        #endregion
     }
 }

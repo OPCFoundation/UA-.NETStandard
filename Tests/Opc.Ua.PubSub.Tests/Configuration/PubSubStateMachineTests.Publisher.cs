@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -27,39 +27,55 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using NUnit.Framework;
-using System.Linq;
-using Opc.Ua.PubSub.Configuration;
 using System.IO;
+using NUnit.Framework;
+using Opc.Ua.PubSub.Configuration;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
 {
-    partial class PubSubStateMachineTests
+    public partial class PubSubStateMachineTests
     {
-        private string PublisherConfigurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
-        private string SubscriberConfigurationFileName = Path.Combine("Configuration", "SubscriberConfiguration.xml");
+        internal static readonly string PublisherConfigurationFileName = Path.Combine(
+            "Configuration",
+            "PublisherConfiguration.xml");
 
-        private string publisherConfigurationFile = null;
-        private string subscriberConfigurationFile = null;
+        internal static readonly string SubscriberConfigurationFileName = Path.Combine(
+            "Configuration",
+            "SubscriberConfiguration.xml");
 
-        [OneTimeSetUp()]
+        private string m_publisherConfigurationFile;
+        private string m_subscriberConfigurationFile;
+
+        [OneTimeSetUp]
         public void MyTestInitialize()
         {
-            publisherConfigurationFile = Utils.GetAbsoluteFilePath(PublisherConfigurationFileName, true, true, false);
-            subscriberConfigurationFile = Utils.GetAbsoluteFilePath(SubscriberConfigurationFileName, true, true, false);
+            m_publisherConfigurationFile = Utils.GetAbsoluteFilePath(
+                PublisherConfigurationFileName,
+                true,
+                true,
+                false);
+            m_subscriberConfigurationFile = Utils.GetAbsoluteFilePath(
+                SubscriberConfigurationFileName,
+                true,
+                true,
+                false);
         }
 
         [Test(Description = "Validate transition of state Disabled_0 to Paused_1 on Publisher")]
         public void ValidateDisabled_0ToPause_1_Publisher()
         {
-            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(publisherConfigurationFile);
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
 
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
             // The hierarchy PubSub -> PubSubConnection -> PubSubWriterGroup -> DataSetWriter brought to [Disabled, Disabled, Disabled, Disabled]
 
-            PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration;
-            PubSubConnectionDataType publisherConnection = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration.Connections[0];
+            PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator
+                .PubSubConfiguration;
+            PubSubConnectionDataType publisherConnection = uaPubSubApplication
+                .UaPubSubConfigurator
+                .PubSubConfiguration
+                .Connections[0];
             WriterGroupDataType writerGroup = publisherConnection.WriterGroups[0];
             DataSetWriterDataType datasetWriter = writerGroup.DataSetWriters[0];
 
@@ -68,10 +84,14 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             configurator.Disable(writerGroup);
             configurator.Disable(datasetWriter);
 
-            PubSubState psState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(pubSub);
-            PubSubState conState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(publisherConnection);
-            PubSubState wgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(writerGroup);
-            PubSubState dswState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetWriter);
+            PubSubState psState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(pubSub);
+            PubSubState conState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(publisherConnection);
+            PubSubState wgState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(writerGroup);
+            PubSubState dswState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(datasetWriter);
             Assert.That(psState == PubSubState.Disabled, Is.True);
             Assert.That(conState == PubSubState.Disabled, Is.True);
             Assert.That(wgState == PubSubState.Disabled, Is.True);
@@ -81,7 +101,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             configurator.Enable(publisherConnection);
 
             psState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(pubSub);
-            conState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(publisherConnection);
+            conState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(publisherConnection);
             wgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(writerGroup);
             dswState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetWriter);
             Assert.That(psState == PubSubState.Disabled, Is.True);
@@ -93,7 +114,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             configurator.Enable(writerGroup);
 
             psState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(pubSub);
-            conState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(publisherConnection);
+            conState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(publisherConnection);
             wgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(writerGroup);
             dswState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetWriter);
             Assert.That(psState == PubSubState.Disabled, Is.True);
@@ -105,7 +127,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             configurator.Enable(datasetWriter);
 
             psState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(pubSub);
-            conState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(publisherConnection);
+            conState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(publisherConnection);
             wgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(writerGroup);
             dswState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetWriter);
             Assert.That(psState == PubSubState.Disabled, Is.True);
@@ -114,28 +137,37 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.That(dswState == PubSubState.Paused, Is.True);
         }
 
-        [Test(Description = "Validate transition of state Disabled_0 to Operational_2 on Publisher")]
+        [Test(
+            Description = "Validate transition of state Disabled_0 to Operational_2 on Publisher")]
         public void ValidateDisabled_0ToOperational_2_Publisher()
         {
-            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(publisherConfigurationFile);
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
 
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
             // The hierarchy PubSub -> PubSubConnection -> PubSubWriterGroup -> DataSetWriter brought to [Disabled, Disabled, Disabled, Disabled]
-            PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration;
-            PubSubConnectionDataType publisherConnection = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration.Connections.First();
-            WriterGroupDataType writerGroup = publisherConnection.WriterGroups.First();
-            DataSetWriterDataType datasetWriter = writerGroup.DataSetWriters.First();
+            PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator
+                .PubSubConfiguration;
+            PubSubConnectionDataType publisherConnection = uaPubSubApplication
+                .UaPubSubConfigurator
+                .PubSubConfiguration
+                .Connections[0];
+            WriterGroupDataType writerGroup = publisherConnection.WriterGroups[0];
+            DataSetWriterDataType datasetWriter = writerGroup.DataSetWriters[0];
 
             configurator.Disable(pubSub);
             configurator.Disable(publisherConnection);
             configurator.Disable(writerGroup);
             configurator.Disable(datasetWriter);
 
-            PubSubState psState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(pubSub);
-            PubSubState conState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(publisherConnection);
-            PubSubState wgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(writerGroup);
-            PubSubState dswState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetWriter);
+            PubSubState psState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(pubSub);
+            PubSubState conState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(publisherConnection);
+            PubSubState wgState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(writerGroup);
+            PubSubState dswState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(datasetWriter);
             Assert.That(psState == PubSubState.Disabled, Is.True);
             Assert.That(conState == PubSubState.Disabled, Is.True);
             Assert.That(wgState == PubSubState.Disabled, Is.True);
@@ -144,7 +176,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             // Bring PubSub to Enabled
             configurator.Enable(pubSub);
             psState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(pubSub);
-            conState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(publisherConnection);
+            conState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(publisherConnection);
             wgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(writerGroup);
             dswState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetWriter);
             Assert.That(psState == PubSubState.Operational, Is.True);
@@ -155,7 +188,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             // Bring publisherConnection to Enabled
             configurator.Enable(publisherConnection);
             psState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(pubSub);
-            conState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(publisherConnection);
+            conState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(publisherConnection);
             wgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(writerGroup);
             dswState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetWriter);
             Assert.That(psState == PubSubState.Operational, Is.True);
@@ -166,7 +200,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             // Bring writerGroup to Enabled
             configurator.Enable(writerGroup);
             psState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(pubSub);
-            conState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(publisherConnection);
+            conState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(publisherConnection);
             wgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(writerGroup);
             dswState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetWriter);
             Assert.That(psState == PubSubState.Operational, Is.True);
@@ -177,7 +212,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             // Bring datasetWriter to Enabled
             configurator.Enable(datasetWriter);
             psState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(pubSub);
-            conState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(publisherConnection);
+            conState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(publisherConnection);
             wgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(writerGroup);
             dswState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetWriter);
             Assert.That(psState == PubSubState.Operational, Is.True);
@@ -189,13 +225,17 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate transition of state Paused_1 to Disabled_0 on Publisher")]
         public void ValidatePaused_1ToDisabled_0_Publisher()
         {
-            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(publisherConfigurationFile);
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
 
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
             // The hierarchy PubSub -> PubSubConnection -> PubSubWriterGroup -> DataSetWriter brought to [Disabled, Paused, Paused, Paused]
-            PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration;
-            PubSubConnectionDataType publisherConnection = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration.Connections.First();
+            PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator
+                .PubSubConfiguration;
+            PubSubConnectionDataType publisherConnection = uaPubSubApplication
+                .UaPubSubConfigurator
+                .PubSubConfiguration
+                .Connections[0];
             WriterGroupDataType writerGroup = publisherConnection.WriterGroups[0];
             DataSetWriterDataType datasetWriter = writerGroup.DataSetWriters[0];
 
@@ -208,10 +248,14 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             configurator.Enable(writerGroup);
             configurator.Enable(datasetWriter);
 
-            PubSubState psState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(pubSub);
-            PubSubState conState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(publisherConnection);
-            PubSubState wgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(writerGroup);
-            PubSubState dswState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetWriter);
+            PubSubState psState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(pubSub);
+            PubSubState conState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(publisherConnection);
+            PubSubState wgState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(writerGroup);
+            PubSubState dswState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(datasetWriter);
             Assert.That(psState == PubSubState.Disabled, Is.True);
             Assert.That(conState == PubSubState.Paused, Is.True);
             Assert.That(wgState == PubSubState.Paused, Is.True);
@@ -221,7 +265,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             configurator.Disable(publisherConnection);
 
             psState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(pubSub);
-            conState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(publisherConnection);
+            conState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(publisherConnection);
             wgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(writerGroup);
             dswState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetWriter);
             Assert.That(psState == PubSubState.Disabled, Is.True);
@@ -233,7 +278,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             configurator.Disable(writerGroup);
 
             psState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(pubSub);
-            conState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(publisherConnection);
+            conState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(publisherConnection);
             wgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(writerGroup);
             dswState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetWriter);
             Assert.That(psState == PubSubState.Disabled, Is.True);
@@ -245,7 +291,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             configurator.Disable(datasetWriter);
 
             psState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(pubSub);
-            conState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(publisherConnection);
+            conState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(publisherConnection);
             wgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(writerGroup);
             dswState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetWriter);
             Assert.That(psState == PubSubState.Disabled, Is.True);
@@ -257,14 +304,18 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate transition of state Paused_1 to Operational_2 on Publisher")]
         public void ValidatePaused_1ToOperational_2_Publisher()
         {
-            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(publisherConfigurationFile);
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
 
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
             // The hierarchy PubSub -> PubSubConnection -> PubSubWriterGroup -> DataSetWriter brought to [Disabled, Paused, Paused, Paused]
 
-            PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration;
-            PubSubConnectionDataType publisherConnection = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration.Connections.First();
+            PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator
+                .PubSubConfiguration;
+            PubSubConnectionDataType publisherConnection = uaPubSubApplication
+                .UaPubSubConfigurator
+                .PubSubConfiguration
+                .Connections[0];
             WriterGroupDataType writerGroup = publisherConnection.WriterGroups[0];
             DataSetWriterDataType datasetWriter = writerGroup.DataSetWriters[0];
 
@@ -277,10 +328,14 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             configurator.Enable(writerGroup);
             configurator.Enable(datasetWriter);
 
-            PubSubState psState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(pubSub);
-            PubSubState conState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(publisherConnection);
-            PubSubState wgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(writerGroup);
-            PubSubState dswState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetWriter);
+            PubSubState psState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(pubSub);
+            PubSubState conState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(publisherConnection);
+            PubSubState wgState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(writerGroup);
+            PubSubState dswState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(datasetWriter);
             Assert.That(psState == PubSubState.Disabled, Is.True);
             Assert.That(conState == PubSubState.Paused, Is.True);
             Assert.That(wgState == PubSubState.Paused, Is.True);
@@ -289,26 +344,31 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             // Bring pubSub to Enabled
             configurator.Enable(pubSub);
             psState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(pubSub);
-            conState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(publisherConnection);
+            conState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(publisherConnection);
             wgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(writerGroup);
             dswState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetWriter);
             Assert.That(psState == PubSubState.Operational, Is.True);
             Assert.That(conState == PubSubState.Operational, Is.True);
             Assert.That(wgState == PubSubState.Operational, Is.True);
             Assert.That(dswState == PubSubState.Operational, Is.True);
-
         }
 
-        [Test(Description = "Validate transition of state Operational_2 to Disabled_0 on Publisher")]
+        [Test(
+            Description = "Validate transition of state Operational_2 to Disabled_0 on Publisher")]
         public void ValidateOperational_2ToDisabled_0_Publisher()
         {
-            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(publisherConfigurationFile);
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
 
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
             // The hierarchy PubSub -> PubSubConnection -> PubSubWriterGroup -> DataSetWriter brought to [Disabled, Disabled, Disabled, Disabled]
-            PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration;
-            PubSubConnectionDataType publisherConnection = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration.Connections.First();
+            PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator
+                .PubSubConfiguration;
+            PubSubConnectionDataType publisherConnection = uaPubSubApplication
+                .UaPubSubConfigurator
+                .PubSubConfiguration
+                .Connections[0];
             WriterGroupDataType writerGroup = publisherConnection.WriterGroups[0];
             DataSetWriterDataType datasetWriter = writerGroup.DataSetWriters[0];
 
@@ -317,10 +377,14 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             configurator.Disable(writerGroup);
             configurator.Disable(datasetWriter);
 
-            PubSubState psState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(pubSub);
-            PubSubState conState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(publisherConnection);
-            PubSubState wgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(writerGroup);
-            PubSubState dswState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetWriter);
+            PubSubState psState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(pubSub);
+            PubSubState conState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(publisherConnection);
+            PubSubState wgState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(writerGroup);
+            PubSubState dswState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(datasetWriter);
             Assert.That(psState == PubSubState.Disabled, Is.True);
             Assert.That(conState == PubSubState.Disabled, Is.True);
             Assert.That(wgState == PubSubState.Disabled, Is.True);
@@ -333,7 +397,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             configurator.Enable(datasetWriter);
 
             psState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(pubSub);
-            conState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(publisherConnection);
+            conState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(publisherConnection);
             wgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(writerGroup);
             dswState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetWriter);
             Assert.That(psState == PubSubState.Operational, Is.True);
@@ -348,7 +413,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             configurator.Disable(datasetWriter);
 
             psState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(pubSub);
-            conState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(publisherConnection);
+            conState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(publisherConnection);
             wgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(writerGroup);
             dswState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetWriter);
             Assert.That(psState == PubSubState.Disabled, Is.True);
@@ -360,14 +426,18 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate transition of state Operational_2 to Paused_1 on Publisher")]
         public void ValidateOperational_2ToPaused_1_Publisher()
         {
-            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(publisherConfigurationFile);
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
 
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
             // The hierarchy PubSub -> PubSubConnection -> PubSubWriterGroup -> DataSetWriter brought to [Disabled, Disabled, Disabled, Disabled]
 
-            PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration;
-            PubSubConnectionDataType publisherConnection = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration.Connections.First();
+            PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator
+                .PubSubConfiguration;
+            PubSubConnectionDataType publisherConnection = uaPubSubApplication
+                .UaPubSubConfigurator
+                .PubSubConfiguration
+                .Connections[0];
             WriterGroupDataType writerGroup = publisherConnection.WriterGroups[0];
             DataSetWriterDataType datasetWriter = writerGroup.DataSetWriters[0];
 
@@ -376,10 +446,14 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             configurator.Disable(writerGroup);
             configurator.Disable(datasetWriter);
 
-            PubSubState psState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(pubSub);
-            PubSubState conState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(publisherConnection);
-            PubSubState wgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(writerGroup);
-            PubSubState dswState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetWriter);
+            PubSubState psState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(pubSub);
+            PubSubState conState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(publisherConnection);
+            PubSubState wgState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(writerGroup);
+            PubSubState dswState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(datasetWriter);
             Assert.That(psState == PubSubState.Disabled, Is.True);
             Assert.That(conState == PubSubState.Disabled, Is.True);
             Assert.That(wgState == PubSubState.Disabled, Is.True);
@@ -392,7 +466,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             configurator.Enable(datasetWriter);
 
             psState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(pubSub);
-            conState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(publisherConnection);
+            conState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(publisherConnection);
             wgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(writerGroup);
             dswState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetWriter);
             Assert.That(psState == PubSubState.Operational, Is.True);
@@ -403,7 +478,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             // The hierarchy PubSub -> PubSubConnection -> PubSubWriterGroup -> DataSetWriter brought to [Disabled, Pause, Pause, Pause]
             configurator.Disable(pubSub);
             psState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(pubSub);
-            conState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(publisherConnection);
+            conState = uaPubSubApplication.UaPubSubConfigurator
+                .FindStateForObject(publisherConnection);
             wgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(writerGroup);
             dswState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetWriter);
             Assert.That(psState == PubSubState.Disabled, Is.True);

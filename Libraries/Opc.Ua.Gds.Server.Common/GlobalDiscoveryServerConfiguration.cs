@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -27,45 +27,25 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Runtime.Serialization;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.Serialization;
 
 namespace Opc.Ua.Gds.Server
 {
     /// <summary>
     /// Stores the configuration the data access node manager.
     /// </summary>
-    [DataContract(Namespace = Opc.Ua.Gds.Namespaces.OpcUaGds + "Configuration.xsd")]
+    [DataContract(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
     public class GlobalDiscoveryServerConfiguration
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
         public GlobalDiscoveryServerConfiguration()
         {
-            Initialize();
         }
 
-        /// <summary>
-        /// Initializes the object during deserialization.
-        /// </summary>
-        [OnDeserializing()]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private void Initialize()
-        {
-        }
-        #endregion
-
-        #region Public Properties
         [DataMember(Order = 1)]
         public string AuthoritiesStorePath { get; set; }
 
@@ -89,19 +69,14 @@ namespace Opc.Ua.Gds.Server
 
         [DataMember(Order = 8)]
         public string UsersDatabaseStorePath { get; set; }
-        #endregion
-
-        #region Private Members
-        #endregion
     }
 
     /// <summary>
     /// Stores the configuration the data access node manager.
     /// </summary>
-    [DataContract(Namespace = Opc.Ua.Gds.Namespaces.OpcUaGds + "Configuration.xsd")]
+    [DataContract(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
     public class CertificateGroupConfiguration
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -113,7 +88,7 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
-        [OnDeserializing()]
+        [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
@@ -130,11 +105,9 @@ namespace Opc.Ua.Gds.Server
             CACertificateLifetime = CertificateFactory.DefaultLifeTime;
             CACertificateKeySize = CertificateFactory.DefaultKeySize;
             CACertificateHashSize = CertificateFactory.DefaultHashSize;
-            m_certificateTypes = new StringCollection();
+            CertificateTypes = [];
         }
-        #endregion
 
-        #region Public Properties
         [DataMember(IsRequired = true, Order = 10)]
         public string Id { get; set; }
 
@@ -143,34 +116,34 @@ namespace Opc.Ua.Gds.Server
         {
             get
             {
-                if (m_certificateTypes.Count > 0)
+                if (CertificateTypes.Count > 0)
                 {
-                    return m_certificateTypes[0];
+                    return CertificateTypes[0];
                 }
                 return null;
             }
             set
             {
-                if (m_certificateTypes.Count > 0)
+                if (CertificateTypes.Count > 0)
                 {
                     if (value == null)
                     {
-                        m_certificateTypes.RemoveAt(0);
+                        CertificateTypes.RemoveAt(0);
                     }
                     else
                     {
-                        m_certificateTypes[0] = value;
+                        CertificateTypes[0] = value;
                     }
                 }
                 else
                 {
-                    m_certificateTypes.Add(value);
+                    CertificateTypes.Add(value);
                 }
             }
         }
 
         [DataMember(IsRequired = false, Order = 21)]
-        public StringCollection CertificateTypes { get => m_certificateTypes; set => m_certificateTypes = value; }
+        public StringCollection CertificateTypes { get; set; }
 
         [DataMember(IsRequired = true, Order = 25)]
         public string SubjectName { get; set; }
@@ -196,22 +169,23 @@ namespace Opc.Ua.Gds.Server
         [DataMember(Order = 90)]
         public ushort CACertificateHashSize { get; set; }
 
-        public string TrustedListPath { get { return BaseStorePath + Path.DirectorySeparatorChar + "trusted"; } }
-        public string IssuerListPath { get { return BaseStorePath + Path.DirectorySeparatorChar + "issuer"; } }
-        #endregion
-
-        #region Private Members
-        private StringCollection m_certificateTypes;
-        #endregion
+        public string TrustedListPath => BaseStorePath + Path.DirectorySeparatorChar + "trusted";
+        public string IssuerListPath => BaseStorePath + Path.DirectorySeparatorChar + "issuer";
     }
 
-    [CollectionDataContract(Name = "ListOfCertificateGroupConfiguration", Namespace = Opc.Ua.Gds.Namespaces.OpcUaGds + "Configuration.xsd", ItemName = "CertificateGroupConfiguration")]
+    [CollectionDataContract(
+        Name = "ListOfCertificateGroupConfiguration",
+        Namespace = Namespaces.OpcUaGds + "Configuration.xsd",
+        ItemName = "CertificateGroupConfiguration"
+    )]
     public class CertificateGroupConfigurationCollection : List<CertificateGroupConfiguration>
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        public CertificateGroupConfigurationCollection() { }
+        public CertificateGroupConfigurationCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -220,12 +194,19 @@ namespace Opc.Ua.Gds.Server
         /// <exception cref="System.ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
-        public CertificateGroupConfigurationCollection(IEnumerable<CertificateGroupConfiguration> collection) : base(collection) { }
+        public CertificateGroupConfigurationCollection(
+            IEnumerable<CertificateGroupConfiguration> collection)
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The capacity.</param>
-        public CertificateGroupConfigurationCollection(int capacity) : base(capacity) { }
+        public CertificateGroupConfigurationCollection(int capacity)
+            : base(capacity)
+        {
+        }
     }
 }

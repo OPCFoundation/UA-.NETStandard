@@ -190,7 +190,10 @@ namespace Opc.Ua
         /// <param name="systemType">The system type of the encodeable object to be read</param>
         /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instance that will be read.</param>
         /// <returns>An <see cref="IEncodeable"/> object that was read from the stream.</returns>
-        IEncodeable ReadEncodeable(string fieldName, Type systemType, ExpandedNodeId encodeableTypeId = null);
+        IEncodeable ReadEncodeable(
+            string fieldName,
+            Type systemType,
+            ExpandedNodeId encodeableTypeId = null);
 
         /// <summary>
         ///  Reads an enumerated value from the stream.
@@ -329,7 +332,10 @@ namespace Opc.Ua
         /// <param name="systemType">The system type of the encodeable objects to be read object</param>
         /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instances that will be read.</param>
         /// <returns>An <see cref="IEncodeable"/> array that was read from the stream.</returns>
-        Array ReadEncodeableArray(string fieldName, Type systemType, ExpandedNodeId encodeableTypeId = null);
+        Array ReadEncodeableArray(
+            string fieldName,
+            Type systemType,
+            ExpandedNodeId encodeableTypeId = null);
 
         /// <summary>
         /// Reads an enumerated value array from the stream.

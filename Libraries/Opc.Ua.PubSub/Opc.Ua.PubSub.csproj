@@ -1,5 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <AssemblyName>$(AssemblyPrefix).PubSub</AssemblyName>
     <TargetFrameworks>$(LibxTargetFrameworks)</TargetFrameworks>
@@ -11,35 +10,32 @@
     <PackageLicenseFile></PackageLicenseFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
-  
-  <!-- override to tag PubSub library as beta until API surface is finalized -->
-  <PropertyGroup Condition="'$(NBGV_PublicRelease)' == 'True' AND '$(NBGV_PrereleaseVersion)' != '-preview'">
-    <Version>$(NBGV_Version)-beta</Version>
-    <VersionSuffix>$(NBGV_VersionRevision)-beta</VersionSuffix>
-    <PackageVersion>$(NBGV_Version)-beta</PackageVersion>
-  </PropertyGroup>
-
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
-  
   <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
     <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
   </PropertyGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
   </ItemGroup>
- 
   <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
-    <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
+    <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" />
   </ItemGroup>
-  
+  <Choose>
+    <When Condition="'$(TargetFramework)' == 'net8.0' OR '$(TargetFramework)' == 'net9.0'">
+      <ItemGroup>
+        <PackageReference Include="MQTTnet" />
+      </ItemGroup>
+    </When>
+    <Otherwise>
+      <ItemGroup>
+        <PackageReference Include="MQTTnet" VersionOverride="4.3.7.1207" />
+      </ItemGroup>
+    </Otherwise>
+  </Choose>
   <ItemGroup>
-    <PackageReference Include="MQTTnet" Version="4.3.7.1207" />
-    <PackageReference Include="System.Net.NetworkInformation" Version="4.3.0" />
+    <PackageReference Include="System.Net.NetworkInformation" />
   </ItemGroup>
-
   <Target Name="GetPackagingOutputs" />
-
 </Project>

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Xml;
 using NUnit.Framework;
@@ -44,7 +43,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
     /// <summary>
     /// Sample custom types
     /// </summary>
-    public static partial class Namespaces
+    public static class Namespaces
     {
         /// <summary>
         /// The URI for the OpcUa namespace (.NET code namespace is 'Opc.Ua').
@@ -76,7 +75,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         protected ComplexTypeBuilder m_complexTypeBuilder;
         protected int m_nodeIdCount;
 
-        #region Test Setup
         [OneTimeSetUp]
         protected new void OneTimeSetUp()
         {
@@ -86,8 +84,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 m_module,
                 Namespaces.OpcUaEncoderTests,
                 3,
-                "Tests"
-                );
+                "Tests");
         }
 
         [OneTimeTearDown]
@@ -104,9 +101,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         protected new void TearDown()
         {
         }
-        #endregion Test Setup
 
-        #region DataPointSources
         public class StructureFieldParameter : IFormattable
         {
             public StructureFieldParameter(StructureField structureField)
@@ -125,17 +120,24 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
 
         [DatapointSource]
-        public StructureType[] StructureTypes = (StructureType[])Enum.GetValues(typeof(StructureType));
+        public StructureType[] StructureTypes =
+#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+        Enum.GetValues<StructureType>();
+#else
+        (StructureType[])Enum.GetValues(typeof(StructureType));
+#endif
 
         [DatapointSource]
-        public StructureFieldParameter[] StructureField = GetAllBuiltInTypesFields().Select(s => new StructureFieldParameter(s)).ToArray();
-        #endregion DataPointSources
+        public StructureFieldParameter[] StructureField =
+        [
+            .. GetAllBuiltInTypesFields().Select(s => new StructureFieldParameter(s))
+        ];
 
-        #region Public Methods
         public Type BuildComplexTypeWithAllBuiltInTypes(
-            StructureType structureType, string testFunc)
+            StructureType structureType,
+            string testFunc)
         {
-            return BuildComplexTypeWithAllBuiltInTypes(null, structureType, testFunc, out ExpandedNodeId nodeId);
+            return BuildComplexTypeWithAllBuiltInTypes(null, structureType, testFunc, out _);
         }
 
         /// <summary>
@@ -148,31 +150,33 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             out ExpandedNodeId nodeId)
         {
             uint typeId = (uint)Interlocked.Add(ref m_nodeIdCount, 100);
-            var complexTypeStructure = new StructureDefinition() {
-                BaseDataType = structureType == StructureType.Union ?
-                    DataTypeIds.Union : DataTypeIds.Structure,
+            var complexTypeStructure = new StructureDefinition
+            {
+                BaseDataType = structureType == StructureType.Union
+                    ? DataTypeIds.Union
+                    : DataTypeIds.Structure,
                 DefaultEncodingId = null,
                 Fields = GetAllBuiltInTypesFields(),
                 StructureType = structureType
             };
 
-            var fieldBuilder = m_complexTypeBuilder.AddStructuredType(
-                structureType.ToString() + "." + testFunc,
+            IComplexTypeFieldBuilder fieldBuilder = m_complexTypeBuilder.AddStructuredType(
+                structureType + "." + testFunc,
                 complexTypeStructure);
             nodeId = new ExpandedNodeId(typeId++, m_complexTypeBuilder.TargetNamespace);
-            var binaryEncodingId = new ExpandedNodeId(typeId++, m_complexTypeBuilder.TargetNamespace);
+            var binaryEncodingId = new ExpandedNodeId(
+                typeId++,
+                m_complexTypeBuilder.TargetNamespace);
             var xmlEncodingId = new ExpandedNodeId(typeId++, m_complexTypeBuilder.TargetNamespace);
-            fieldBuilder.AddTypeIdAttribute(
-                nodeId, binaryEncodingId, xmlEncodingId
-                );
+            fieldBuilder.AddTypeIdAttribute(nodeId, binaryEncodingId, xmlEncodingId);
             int i = 1;
-            foreach (var field in complexTypeStructure.Fields)
+            foreach (StructureField field in complexTypeStructure.Fields)
             {
                 Type fieldType = TypeInfo.GetSystemType(field.DataType, null);
                 field.IsOptional = structureType == StructureType.StructureWithOptionalFields;
                 fieldBuilder.AddField(field, fieldType, i++);
             }
-            var complexType = fieldBuilder.CreateType();
+            Type complexType = fieldBuilder.CreateType();
             if (context != null)
             {
                 context.Factory.AddEncodeableType(nodeId, complexType);
@@ -188,27 +192,29 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public static StructureFieldCollection GetAllBuiltInTypesFields()
         {
             var collection = new StructureFieldCollection();
-            foreach (var builtInType in EncoderCommon.BuiltInTypes)
+            foreach (BuiltInType builtInType in BuiltInTypes)
             {
-                if (builtInType == BuiltInType.Null ||
-                    builtInType == BuiltInType.Variant ||
-                    builtInType == BuiltInType.DataValue ||
-                    builtInType == BuiltInType.ExtensionObject ||
-                    builtInType >= BuiltInType.Number
-                    )
+                if (builtInType
+                    is BuiltInType.Null
+                        or BuiltInType.Variant
+                        or BuiltInType.DataValue
+                        or BuiltInType.ExtensionObject
+                        or >= BuiltInType.Number)
                 {
                     continue;
                 }
 
-                collection.Add(new StructureField() {
-                    Name = builtInType.ToString(),
-                    DataType = new NodeId((uint)builtInType),
-                    ArrayDimensions = null,
-                    Description = $"A BuiltInType.{builtInType} property.",
-                    IsOptional = false,
-                    MaxStringLength = 0,
-                    ValueRank = -1
-                });
+                collection.Add(
+                    new StructureField
+                    {
+                        Name = builtInType.ToString(),
+                        DataType = new NodeId((uint)builtInType),
+                        ArrayDimensions = null,
+                        Description = $"A BuiltInType.{builtInType} property.",
+                        IsOptional = false,
+                        MaxStringLength = 0,
+                        ValueRank = -1
+                    });
             }
             return collection;
         }
@@ -221,9 +227,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             Dictionary<StructureType, (ExpandedNodeId, Type)> dict,
             string nameExtension)
         {
-            foreach (var structureType in StructureTypes)
+            foreach (StructureType structureType in StructureTypes)
             {
-                var type = BuildComplexTypeWithAllBuiltInTypes(
+                Type type = BuildComplexTypeWithAllBuiltInTypes(
                     context,
                     structureType,
                     nameof(CreateComplexTypes) + nameExtension,
@@ -238,10 +244,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public void FillStructWithValues(BaseComplexType structType, bool randomValues)
         {
             int index = 0;
-            foreach (var property in structType.GetPropertyEnumerator())
+            foreach (ComplexTypePropertyInfo property in structType.GetPropertyEnumerator())
             {
-                var builtInType = TypeInfo.GetBuiltInType(TypeInfo.GetDataTypeId(property.PropertyType));
-                var newObj = randomValues ? DataGenerator.GetRandom(builtInType) : TypeInfo.GetDefaultValue(builtInType);
+                BuiltInType builtInType = TypeInfo.GetBuiltInType(
+                    TypeInfo.GetDataTypeId(property.PropertyType));
+                object newObj = randomValues
+                    ? DataGenerator.GetRandom(builtInType)
+                    : TypeInfo.GetDefaultValue(builtInType);
                 if (newObj == null)
                 {
                     // fill known missing default values (by design)
@@ -261,7 +270,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                             newObj = ExtensionObject.Null;
                             break;
                         default:
-                            Assert.Fail("Unknown null default value");
+                            NUnit.Framework.Assert.Fail("Unknown null default value");
                             break;
                     }
                 }
@@ -282,8 +291,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             JsonEncodingType jsonEncodingType,
             StructureType structureType,
             ExpandedNodeId nodeId,
-            object data
-            )
+            object data)
         {
             string encodeInfo = $"Encoder: {encoderType} Type:{structureType}";
             TestContext.Out.WriteLine(encodeInfo);
@@ -294,51 +302,59 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             TestContext.Out.WriteLine(expected);
 
             byte[] buffer;
-            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
+            using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
-                using (IEncoder encoder = CreateEncoder(encoderType, encoderContext, encoderStream, typeof(DataValue), jsonEncodingType))
+                using (
+                    IEncoder encoder = CreateEncoder(
+                        encoderType,
+                        encoderContext,
+                        encoderStream,
+                        typeof(DataValue),
+                        jsonEncodingType))
                 {
                     encoder.WriteExtensionObject("ExtensionObject", expected);
                 }
                 buffer = encoderStream.ToArray();
             }
 
-            string formatted;
             switch (encoderType)
             {
                 case EncodingType.Json:
-                    formatted = PrettifyAndValidateJson(buffer);
+                    _ = PrettifyAndValidateJson(buffer);
                     break;
                 case EncodingType.Xml:
-                    formatted = PrettifyAndValidateXml(buffer);
+                    _ = PrettifyAndValidateXml(buffer);
                     break;
             }
 
-            using (var decoderStream = new MemoryStream(buffer))
-            using (IDecoder decoder = CreateDecoder(encoderType, encoderContext, decoderStream, typeof(DataValue)))
-            {
-                ExtensionObject result = decoder.ReadExtensionObject("ExtensionObject");
-                TestContext.Out.WriteLine("Result:");
-                TestContext.Out.WriteLine(result);
-                Assert.IsNotNull(result, "Resulting DataValue is Null, " + encodeInfo);
-                Assert.AreEqual(expected.Encoding, result.Encoding, encodeInfo);
-                //TODO: investigate why AreEqual cannot compare ExtensionObject and Body
-                //Assert.AreEqual(expected.Body, result.Body, encodeInfo);
-                Assert.IsTrue(Utils.IsEqual(expected.Body, result.Body), $"Opc.Ua.Utils.IsEqual failed to compare expected and result.\r\n{encodeInfo}.\r\n{expected.Body}!={result.Body}.");
-            }
+            using var decoderStream = new MemoryStream(buffer);
+            using IDecoder decoder = CreateDecoder(
+                encoderType,
+                encoderContext,
+                decoderStream,
+                typeof(DataValue));
+            ExtensionObject result = decoder.ReadExtensionObject("ExtensionObject");
+            TestContext.Out.WriteLine("Result:");
+            TestContext.Out.WriteLine(result);
+            Assert.IsNotNull(result, "Resulting DataValue is Null, " + encodeInfo);
+            Assert.AreEqual(expected.Encoding, result.Encoding, encodeInfo);
+            //TODO: investigate why AreEqual cannot compare ExtensionObject and Body
+            //Assert.AreEqual(expected.Body, result.Body, encodeInfo);
+            Assert.IsTrue(
+                Utils.IsEqual(expected.Body, result.Body),
+                $"Opc.Ua.Utils.IsEqual failed to compare expected and result.\r\n{encodeInfo}.\r\n{expected.Body}!={result.Body}.");
         }
 
         /// <summary>
         /// Create an ExtensionObject for a complex type.
         /// The complex type is the Body.
         /// </summary>
-        protected ExtensionObject CreateExtensionObject(StructureType structureType, ExpandedNodeId nodeId, object data)
+        protected ExtensionObject CreateExtensionObject(
+            StructureType structureType,
+            ExpandedNodeId nodeId,
+            object data)
         {
             return new ExtensionObject(nodeId, data);
         }
-        #endregion Public Methods
-
-        #region Private Field
-        #endregion Private Field
     }
 }

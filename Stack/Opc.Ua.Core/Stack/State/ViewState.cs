@@ -11,20 +11,19 @@
 */
 
 using System;
-using System.Collections.Generic;
 
 namespace Opc.Ua
 {
-    /// <summary> 
+    /// <summary>
     /// The base class for all view nodes.
     /// </summary>
     public class ViewState : NodeState
     {
-        #region Constructors
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        public ViewState() : base(NodeClass.View)
+        public ViewState()
+            : base(NodeClass.View)
         {
         }
 
@@ -37,9 +36,7 @@ namespace Opc.Ua
         {
             return new ViewState();
         }
-        #endregion
 
-        #region Initialization
         /// <summary>
         /// Initializes the instance with the default values.
         /// </summary>
@@ -69,13 +66,11 @@ namespace Opc.Ua
 
             base.Initialize(context, source);
         }
-        #endregion
 
-        #region ICloneable Members
         /// <inheritdoc/>
         public override object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -86,22 +81,16 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            ViewState clone = (ViewState)Activator.CreateInstance(this.GetType());
+            var clone = (ViewState)Activator.CreateInstance(GetType());
             return CloneChildren(clone);
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// The inverse name for the reference.
         /// </summary>
         public byte EventNotifier
         {
-            get
-            {
-                return m_eventNotifier;
-            }
-
+            get => m_eventNotifier;
             set
             {
                 if (m_eventNotifier != value)
@@ -118,11 +107,7 @@ namespace Opc.Ua
         /// </summary>
         public bool ContainsNoLoops
         {
-            get
-            {
-                return m_containsNoLoops;
-            }
-
+            get => m_containsNoLoops;
             set
             {
                 if (m_containsNoLoops != value)
@@ -133,9 +118,7 @@ namespace Opc.Ua
                 m_containsNoLoops = value;
             }
         }
-        #endregion
 
-        #region Event Callbacks
         /// <summary>
         /// Raised when the EventNotifier attribute is read.
         /// </summary>
@@ -155,9 +138,7 @@ namespace Opc.Ua
         /// Raised when the ContainsNoLoops attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<bool> OnWriteContainsNoLoops;
-        #endregion
 
-        #region Serialization Functions
         /// <summary>
         /// Exports a copy of the node to a node table.
         /// </summary>
@@ -167,11 +148,10 @@ namespace Opc.Ua
         {
             base.Export(context, node);
 
-
             if (node is ViewNode viewNode)
             {
-                viewNode.EventNotifier = this.EventNotifier;
-                viewNode.ContainsNoLoops = this.ContainsNoLoops;
+                viewNode.EventNotifier = EventNotifier;
+                viewNode.ContainsNoLoops = ContainsNoLoops;
             }
         }
 
@@ -251,7 +231,10 @@ namespace Opc.Ua
         /// <param name="context">The context user.</param>
         /// <param name="encoder">The encoder to write to.</param>
         /// <param name="attributesToSave">The masks indicating what attributes to write.</param>
-        public override void Save(ISystemContext context, BinaryEncoder encoder, AttributesToSave attributesToSave)
+        public override void Save(
+            ISystemContext context,
+            BinaryEncoder encoder,
+            AttributesToSave attributesToSave)
         {
             base.Save(context, encoder, attributesToSave);
 
@@ -272,7 +255,10 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         /// <param name="decoder">The decoder.</param>
         /// <param name="attributesToLoad">The attributes to load.</param>
-        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attributesToLoad)
+        public override void Update(
+            ISystemContext context,
+            BinaryDecoder decoder,
+            AttributesToSave attributesToLoad)
         {
             base.Update(context, decoder, attributesToLoad);
 
@@ -286,9 +272,7 @@ namespace Opc.Ua
                 m_containsNoLoops = decoder.ReadBoolean(null);
             }
         }
-        #endregion
 
-        #region Read Support Functions
         /// <summary>
         /// Reads the value for any non-value attribute.
         /// </summary>
@@ -302,7 +286,6 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.EventNotifier:
-                {
                     byte eventNotifier = m_eventNotifier;
 
                     NodeAttributeEventHandler<byte> onReadEventNotifier = OnReadEventNotifier;
@@ -318,10 +301,7 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
-
                 case Attributes.ContainsNoLoops:
-                {
                     bool containsNoLoops = m_containsNoLoops;
 
                     NodeAttributeEventHandler<bool> onReadContainsNoLoops = OnReadContainsNoLoops;
@@ -337,14 +317,11 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
             }
 
             return base.ReadNonValueAttribute(context, attributeId, ref value);
         }
-        #endregion
 
-        #region Write Support Functions
         /// <summary>
         /// Write the value for any non-value attribute.
         /// </summary>
@@ -358,7 +335,6 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.EventNotifier:
-                {
                     byte? eventNotifierRef = value as byte?;
 
                     if (eventNotifierRef == null)
@@ -386,10 +362,7 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
-
                 case Attributes.ContainsNoLoops:
-                {
                     bool? containsNoLoopsRef = value as bool?;
 
                     if (containsNoLoopsRef == null)
@@ -417,16 +390,12 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
             }
 
             return base.WriteNonValueAttribute(context, attributeId, value);
         }
-        #endregion
 
-        #region Private Fields
         private byte m_eventNotifier;
         private bool m_containsNoLoops;
-        #endregion
     }
 }

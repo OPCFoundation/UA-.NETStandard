@@ -1,5 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
@@ -7,7 +6,9 @@
     <RootNamespace>Encoders.Fuzz.Tests</RootNamespace>
     <GenerateProgramFile>false</GenerateProgramFile>
   </PropertyGroup>
-
+  <PropertyGroup Condition="'$(NetStandardTests)' == 'true'">
+    <DefineConstants>$(DefineConstants);NET_STANDARD_TESTS</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\Fuzz\FuzzableCode.cs" Link="FuzzableCode.cs" />
     <Compile Include="..\Fuzz\FuzzableCode.BinaryDecoder.cs" Link="FuzzableCode.BinaryDecoder.cs" />
@@ -16,33 +17,29 @@
     <Compile Include="..\..\common\Fuzz\FuzzMethods.cs" Link="FuzzMethods.cs" />
     <Compile Include="..\..\common\Fuzz.Tools\Testcases.cs" Link="Testcases.cs" />
   </ItemGroup>
-
   <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="NUnit" Version="4.3.2" />
-    <PackageReference Include="NUnit.Console" Version="3.20.0" />
-    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0">
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Newtonsoft.Json" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit.Console" />
+    <PackageReference Include="NUnit3TestAdapter">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="coverlet.collector" Version="6.0.4">
+    <PackageReference Include="coverlet.collector">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="SharpFuzz" Version="2.2.0" />
-    <PackageReference Include="BenchmarkDotNet" Version="0.13.12" />
+    <PackageReference Include="SharpFuzz" />
+    <PackageReference Include="BenchmarkDotNet" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\..\Libraries\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
   </ItemGroup>
-
   <ItemGroup>
     <Compile Include="..\..\..\Tests\Common\Main.cs" />
   </ItemGroup>
-
   <ItemGroup>
     <None Include="..\Fuzz\Testcases.Binary\**\*.*">
       <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
@@ -54,7 +51,6 @@
       <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
     </None>
   </ItemGroup>
-
   <ItemGroup>
     <None Update="..\Fuzz\Testcases.Binary\**\*.*">
       <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
@@ -72,5 +68,4 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-
 </Project>

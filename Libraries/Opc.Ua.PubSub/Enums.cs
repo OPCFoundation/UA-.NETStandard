@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -41,7 +41,7 @@ namespace Opc.Ua.PubSub
         Variant = 0,
         RawData = 1,
         DataValue = 2,
-        Reserved = 3
+        Reserved = RawData | DataValue
     }
 
     /// <summary>
@@ -54,27 +54,33 @@ namespace Opc.Ua.PubSub
         /// No dataset flags usage.
         /// </summary>
         None = 0,
+
         /// <summary>
         /// Dataset flag set as message is valid.
         /// </summary>
         MessageIsValid = 1,
+
         // Field type options (FieldTypeEncodingMask)
         /// <summary>
         /// Dataset flag SequenceNumber is set.
         /// </summary>
         SequenceNumber = 8,
+
         /// <summary>
         /// Dataset flag Status is set.
         /// </summary>
         Status = 16,
+
         /// <summary>
         /// Dataset flag ConfigurationVersionMajorVersion is set.
         /// </summary>
         ConfigurationVersionMajorVersion = 32,
+
         /// <summary>
         /// Dataset flags ConfigurationVersionMinorVersion is set.
         /// </summary>
         ConfigurationVersionMinorVersion = 64,
+
         /// <summary>
         /// DataSetFlags2 option is set.
         /// </summary>
@@ -91,26 +97,32 @@ namespace Opc.Ua.PubSub
         /// No dataset flag usage. Key Frame message
         /// </summary>
         DataKeyFrame = 0,
+
         /// <summary>
         /// Data Delta Frame message
         /// </summary>
         DataDeltaFrame = 1,
+
         /// <summary>
         /// Event DataSet message
         /// </summary>
         Event = 2,
+
         /// <summary>
         /// Dataset flag Timestamp is set.
         /// </summary>
         Timestamp = 16,
+
         /// <summary>
         /// Dataset flag PicoSeconds is set.
         /// </summary>
         PicoSeconds = 32,
+
         /// <summary>
         /// Dataset flag is reserved.
         /// </summary>
         Reserved = 64,
+
         /// <summary>
         /// Dataset flag is reserved for extended flags.
         /// </summary>
@@ -127,18 +139,22 @@ namespace Opc.Ua.PubSub
         /// No UADP flag usage.
         /// </summary>
         None = 0,
+
         /// <summary>
         /// UADP PublisherId option is used.
         /// </summary>
         PublisherId = 16,
+
         /// <summary>
         /// UADP GroupHeader option is used.
         /// </summary>
         GroupHeader = 32,
+
         /// <summary>
         /// UADP PayloadHeader option is used.
         /// </summary>
         PayloadHeader = 64,
+
         /// <summary>
         /// UADP ExtendedFlags1 option is used.
         /// </summary>
@@ -155,10 +171,12 @@ namespace Opc.Ua.PubSub
         /// DataSet message
         /// </summary>
         DataSetMessage = 0,
+
         /// <summary>
         /// Discovery Request message
         /// </summary>
         DiscoveryRequest = 4,
+
         /// <summary>
         /// Discovery Response message
         /// </summary>
@@ -172,13 +190,20 @@ namespace Opc.Ua.PubSub
     public enum UADPNetworkMessageDiscoveryType
     {
         /// <summary>
+        /// Default value, no discovery response type.
+        /// </summary>
+        None = 0,
+
+        /// <summary>
         /// Discovery Response message - PublisherEndpoint
         /// </summary>
         PublisherEndpoint = 2,
+
         /// <summary>
         /// Discovery Response message - MetaData
         /// </summary>
         DataSetMetaData = 4,
+
         /// <summary>
         /// Discovery Response message - MetaData
         /// </summary>
@@ -195,23 +220,28 @@ namespace Opc.Ua.PubSub
         /// No ExtendedFlags1 usage.
         /// </summary>
         None = 0,
+
         // PublishedId type merge
         /// <summary>
         /// UADP DataSetClassId option is used.
         /// </summary>
         DataSetClassId = 8,
+
         /// <summary>
         /// UADP Security option is used.
         /// </summary>
         Security = 16,
+
         /// <summary>
         /// UADP Timestamp option is used.
         /// </summary>
         Timestamp = 32,
+
         /// <summary>
         /// UADP PicoSeconds option is used.
         /// </summary>
         PicoSeconds = 64,
+
         /// <summary>
         /// UADP ExtendedFlags2 options are used.
         /// </summary>
@@ -228,22 +258,27 @@ namespace Opc.Ua.PubSub
         /// No ExtendedFlags2 usage.
         /// </summary>
         None = 0,
+
         /// <summary>
         /// UADP ChunkMessage type is used.
         /// </summary>
         ChunkMessage = 1,
+
         /// <summary>
         /// UADP PromotedFields type are used.
         /// </summary>
         PromotedFields = 2,
+
         /// <summary>
         /// UADP NetworkMessageWithDiscoveryRequest type is used.
         /// </summary>
         NetworkMessageWithDiscoveryRequest = 4,
+
         /// <summary>
         /// UADP NetworkMessageWithDiscoveryResponse type is used.
         /// </summary>
         NetworkMessageWithDiscoveryResponse = 8,
+
         /// <summary>
         /// UADP ExtendedFlags2 type is reserved.
         /// </summary>
@@ -259,9 +294,9 @@ namespace Opc.Ua.PubSub
         Byte = 0,
         UInt16 = 1,
         UInt32 = 2,
-        UInt64 = 3,
+        UInt64 = UInt16 | UInt32,
         String = 4,
-        Reserved = 5
+        Reserved = UInt16 | String
     }
 
     /// <summary>
@@ -274,18 +309,22 @@ namespace Opc.Ua.PubSub
         /// No ExtendedFlags2 usage.
         /// </summary>
         None = 0,
+
         /// <summary>
         /// UADP GroupFlags WriterGroupId is used.
         /// </summary>
         WriterGroupId = 1,
+
         /// <summary>
         /// UADP GroupFlags GroupVersion is used.
         /// </summary>
         GroupVersion = 2,
+
         /// <summary>
         /// UADP GroupFlags NetworkMessageNumber is used.
         /// </summary>
         NetworkMessageNumber = 4,
+
         /// <summary>
         /// UADP GroupFlags SequenceNumber is used.
         /// </summary>
@@ -302,22 +341,27 @@ namespace Opc.Ua.PubSub
         /// No SecurityFlags usage.
         /// </summary>
         None = 0,
+
         /// <summary>
         /// UADP SecurityFlags NetworkMessageSigned is used.
         /// </summary>
         NetworkMessageSigned = 1,
+
         /// <summary>
         /// UADP SecurityFlags NetworkMessageEncrypted is used.
         /// </summary>
         NetworkMessageEncrypted = 2,
+
         /// <summary>
         /// UADP SecurityFlags SecurityFooter is used.
         /// </summary>
         SecurityFooter = 4,
+
         /// <summary>
         /// UADP SecurityFlags ForceKeyReset is used.
         /// </summary>
         ForceKeyReset = 8,
+
         /// <summary>
         /// UADP SecurityFlags is reserved.
         /// </summary>
@@ -333,14 +377,17 @@ namespace Opc.Ua.PubSub
         /// Not available.
         /// </summary>
         NotAvailable,
+
         /// <summary>
         /// UDP protocol.
         /// </summary>
         UDP,
+
         /// <summary>
         /// MQTT protocol.
         /// </summary>
         MQTT,
+
         /// <summary>
         /// AMQP protocol.
         /// </summary>
@@ -356,14 +403,17 @@ namespace Opc.Ua.PubSub
         /// Unknown version
         /// </summary>
         Unknown = MqttProtocolVersion.Unknown,
+
         /// <summary>
         /// Mqtt V310
         /// </summary>
         V310 = MqttProtocolVersion.V310,
+
         /// <summary>
         /// Mqtt V311
         /// </summary>
         V311 = MqttProtocolVersion.V311,
+
         /// <summary>
         /// Mqtt V500
         /// </summary>
@@ -398,7 +448,7 @@ namespace Opc.Ua.PubSub
     }
 
     /// <summary>
-    /// Where is a method call used in 
+    /// Where is a method call used in
     /// </summary>
     internal enum UsedInContext
     {
@@ -406,15 +456,17 @@ namespace Opc.Ua.PubSub
         /// Publisher context call
         /// </summary>
         Publisher,
+
         /// <summary>
         /// Subscriber context call
         /// </summary>
         Subscriber,
+
         /// <summary>
         /// Discovery context call
         /// </summary>
-        Discovery,
-    };
+        Discovery
+    }
 
     /// <summary>
     /// The reason an error has been detected while decoding a DataSet
@@ -425,10 +477,11 @@ namespace Opc.Ua.PubSub
         /// There is no error detected
         /// </summary>
         NoError,
+
         /// <summary>
         /// The MetadataMajorVersion is different
         /// </summary>
-        MetadataMajorVersion,
+        MetadataMajorVersion
     }
 
     /// <summary>
@@ -440,6 +493,7 @@ namespace Opc.Ua.PubSub
         /// UADP message type
         /// </summary>
         Uadp,
+
         /// <summary>
         /// JSON message type
         /// </summary>
@@ -456,14 +510,16 @@ namespace Opc.Ua.PubSub
         /// The JSON message is invalid
         /// </summary>
         Invalid = 0,
+
         /// <summary>
         /// DataSet message
         /// </summary>
         DataSetMessage = 1,
+
         /// <summary>
         /// DataSetMetaData message
         /// </summary>
-        DataSetMetaData = 2,
+        DataSetMetaData = 2
     }
 
     /// <summary>
@@ -475,14 +531,15 @@ namespace Opc.Ua.PubSub
         /// None
         /// </summary>
         None,
+
         /// <summary>
         /// DataSetMetaData
         /// </summary>
         DataSetMetaData,
+
         /// <summary>
         /// ConfigurationVersion
         /// </summary>
-        ConfigurationVersion,
+        ConfigurationVersion
     }
-
 }

@@ -20,34 +20,34 @@ namespace Opc.Ua
     /// </summary>
     public class ReverseConnectHost
     {
-        #region Constructors
         /// <summary>
         /// Creates a new reverse listener host for a client.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="url"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public void CreateListener(
             Uri url,
-            ConnectionWaitingHandlerAsync OnConnectionWaiting,
-            EventHandler<ConnectionStatusEventArgs> OnConnectionStatusChanged
-            )
+            ConnectionWaitingHandlerAsync onConnectionWaiting,
+            EventHandler<ConnectionStatusEventArgs> onConnectionStatusChanged)
         {
-            if (url == null) throw new ArgumentNullException(nameof(url));
-
-            var listener = TransportBindings.Listeners.GetListener(url.Scheme);
-            if (listener == null)
+            if (url == null)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadProtocolVersionUnsupported,
-                    "Unsupported transport profile for scheme {0}.", url.Scheme);
+                throw new ArgumentNullException(nameof(url));
             }
 
-            m_listener = listener;
-            Url = url;
-            m_onConnectionWaiting = OnConnectionWaiting;
-            m_onConnectionStatusChanged = OnConnectionStatusChanged;
-        }
-        #endregion
+            ITransportListener listener = TransportBindings.Listeners.GetListener(url.Scheme);
 
-        #region Public Methods
+            m_listener =
+                listener
+                ?? throw ServiceResultException.Create(
+                    StatusCodes.BadProtocolVersionUnsupported,
+                    "Unsupported transport profile for scheme {0}.",
+                    url.Scheme);
+            Url = url;
+            m_onConnectionWaiting = onConnectionWaiting;
+            m_onConnectionStatusChanged = onConnectionStatusChanged;
+        }
+
         /// <summary>
         /// The Url which is used by the transport listener.
         /// </summary>
@@ -61,23 +61,20 @@ namespace Opc.Ua
             // create the UA listener.
             try
             {
-                var settings = new TransportListenerSettings {
+                var settings = new TransportListenerSettings
+                {
                     Descriptions = null,
                     Configuration = null,
                     CertificateValidator = null,
                     NamespaceUris = null,
                     Factory = null,
                     ReverseConnectListener = true,
-                    MaxChannelCount = 0,
+                    MaxChannelCount = 0
                 };
 
                 Utils.LogInfo("Open reverse connect listener for {0}.", Url);
 
-                m_listener.Open(
-                   Url,
-                   settings,
-                   null
-                   );
+                m_listener.Open(Url, settings, null);
 
                 m_listener.ConnectionWaiting += m_onConnectionWaiting;
                 m_listener.ConnectionStatusChanged += m_onConnectionStatusChanged;
@@ -98,12 +95,9 @@ namespace Opc.Ua
             m_listener.ConnectionStatusChanged -= m_onConnectionStatusChanged;
             m_listener.Close();
         }
-        #endregion
 
-        #region Private Fields
         private ITransportListener m_listener;
         private ConnectionWaitingHandlerAsync m_onConnectionWaiting;
         private EventHandler<ConnectionStatusEventArgs> m_onConnectionStatusChanged;
-        #endregion
     }
 }

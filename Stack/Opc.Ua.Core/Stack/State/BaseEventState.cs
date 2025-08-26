@@ -11,17 +11,11 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.Xml;
-using System.IO;
-using System.Reflection;
-using Opc.Ua;
 
 namespace Opc.Ua
 {
     public partial class BaseEventState
     {
-        #region Initialization
         /// <summary>
         /// Initializes a new event.
         /// </summary>
@@ -35,11 +29,12 @@ namespace Opc.Ua
             EventSeverity severity,
             LocalizedText message)
         {
-            m_eventId = new PropertyState<byte[]>(this);
-            m_eventId.Value = Guid.NewGuid().ToByteArray();
+            m_eventId = new PropertyState<byte[]>(this) { Value = Guid.NewGuid().ToByteArray() };
 
-            m_eventType = new PropertyState<NodeId>(this);
-            m_eventType.Value = GetDefaultTypeDefinitionId(context.NamespaceUris);
+            m_eventType = new PropertyState<NodeId>(this)
+            {
+                Value = GetDefaultTypeDefinitionId(context.NamespaceUris)
+            };
 
             TypeDefinitionId = m_eventType.Value;
 
@@ -47,39 +42,37 @@ namespace Opc.Ua
             {
                 if (!NodeId.IsNull(source.NodeId))
                 {
-                    m_sourceNode = new PropertyState<NodeId>(this);
-                    m_sourceNode.Value = source.NodeId;
-                    m_sourceNode.RolePermissions = source.RolePermissions;
-                    m_sourceNode.UserRolePermissions = source.UserRolePermissions;
-                    m_sourceNode.NodeId = source.NodeId;
+                    m_sourceNode = new PropertyState<NodeId>(this)
+                    {
+                        Value = source.NodeId,
+                        RolePermissions = source.RolePermissions,
+                        UserRolePermissions = source.UserRolePermissions,
+                        NodeId = source.NodeId
+                    };
                 }
 
                 if (!QualifiedName.IsNull(source.BrowseName))
                 {
-                    m_sourceName = new PropertyState<string>(this);
-                    m_sourceName.Value = source.BrowseName.Name;
+                    m_sourceName = new PropertyState<string>(this)
+                    {
+                        Value = source.BrowseName.Name
+                    };
                 }
             }
 
-            m_time = new PropertyState<DateTime>(this);
-            m_time.Value = DateTime.UtcNow;
+            m_time = new PropertyState<DateTime>(this) { Value = DateTime.UtcNow };
 
-            m_receiveTime = new PropertyState<DateTime>(this);
-            m_receiveTime.Value = DateTime.UtcNow;
+            m_receiveTime = new PropertyState<DateTime>(this) { Value = DateTime.UtcNow };
 
-            m_severity = new PropertyState<ushort>(this);
-            m_severity.Value = (ushort)severity;
+            m_severity = new PropertyState<ushort>(this) { Value = (ushort)severity };
 
-            m_message = new PropertyState<LocalizedText>(this);
-            m_message.Value = message;
+            m_message = new PropertyState<LocalizedText>(this) { Value = message };
         }
-        #endregion
 
-        #region ICloneable Members
         /// <inheritdoc/>
         public override object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -90,11 +83,9 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            BaseEventState clone = (BaseEventState)Activator.CreateInstance(this.GetType());
+            var clone = (BaseEventState)Activator.CreateInstance(GetType());
             return CloneChildren(clone);
         }
-        #endregion
-
     }
 
     /// <summary>
@@ -103,32 +94,12 @@ namespace Opc.Ua
     /// <remarks>
     /// Event severities can have any value between 1 and 1000. This enumeration provides default values.
     /// </remarks>
-    public enum EventSeverity : int
+    public enum EventSeverity
     {
         /// <summary>
-        /// The highest possible severity.
+        /// The lowest possible severity.
         /// </summary>
-        Max = 1000,
-
-        /// <summary>
-        /// The event has high severity.
-        /// </summary>
-        High = 900,
-
-        /// <summary>
-        /// The event has medium high severity.
-        /// </summary>
-        MediumHigh = 700,
-
-        /// <summary>
-        /// The event has medium severity.
-        /// </summary>
-        Medium = 500,
-
-        /// <summary>
-        /// The event has medium-low severity.
-        /// </summary>
-        MediumLow = 300,
+        Min = 1,
 
         /// <summary>
         /// The event has low severity.
@@ -136,8 +107,28 @@ namespace Opc.Ua
         Low = 100,
 
         /// <summary>
-        /// The lowest possible severity.
+        /// The event has medium-low severity.
         /// </summary>
-        Min = 1
+        MediumLow = 300,
+
+        /// <summary>
+        /// The event has medium severity.
+        /// </summary>
+        Medium = 500,
+
+        /// <summary>
+        /// The event has medium high severity.
+        /// </summary>
+        MediumHigh = 700,
+
+        /// <summary>
+        /// The event has high severity.
+        /// </summary>
+        High = 900,
+
+        /// <summary>
+        /// The highest possible severity.
+        /// </summary>
+        Max = 1000
     }
 }

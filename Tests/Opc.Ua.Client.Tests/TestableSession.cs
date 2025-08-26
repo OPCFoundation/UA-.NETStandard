@@ -33,16 +33,16 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua.Client.Tests
 {
-    #region Namespace Declarations
-    /// <remarks />
-    public static partial class Namespaces
+    /// <summary>
+    /// Namespaces
+    /// </summary>
+    public static class Namespaces
     {
         /// <summary>
         /// The URI for the OpcUaClient namespace (.NET code namespace is 'Opc.Ua.Client').
         /// </summary>
         public const string OpcUaClient = "http://opcfoundation.org/UA/Client/Types.xsd";
     }
-    #endregion
 
     /// <summary>
     /// A subclass of a session for testing purposes, e.g. to override some implementations.
@@ -52,7 +52,6 @@ namespace Opc.Ua.Client.Tests
     [KnownType(typeof(TestableMonitoredItem))]
     public class TestableSession : Session
     {
-        #region Constructors
         /// <summary>
         /// Constructs a new instance of the <see cref="Session"/> class.
         /// </summary>
@@ -63,8 +62,7 @@ namespace Opc.Ua.Client.Tests
             ISessionChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint)
-        :
-            this(channel as ITransportChannel, configuration, endpoint, null)
+            : this(channel as ITransportChannel, configuration, endpoint, null)
         {
         }
 
@@ -92,7 +90,13 @@ namespace Opc.Ua.Client.Tests
             X509Certificate2 clientCertificate,
             EndpointDescriptionCollection availableEndpoints = null,
             StringCollection discoveryProfileUris = null)
-            : base(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris)
+            : base(
+                channel,
+                configuration,
+                endpoint,
+                clientCertificate,
+                availableEndpoints,
+                discoveryProfileUris)
         {
         }
 
@@ -103,11 +107,9 @@ namespace Opc.Ua.Client.Tests
         /// <param name="template">The template session.</param>
         /// <param name="copyEventHandlers">if set to <c>true</c> the event handlers are copied.</param>
         public TestableSession(ITransportChannel channel, Session template, bool copyEventHandlers)
-        :
-            base(channel, template, copyEventHandlers)
+            : base(channel, template, copyEventHandlers)
         {
         }
-        #endregion
 
         /// <summary>
         /// The timespan offset to be used to modify the request header timestamp.
@@ -116,17 +118,21 @@ namespace Opc.Ua.Client.Tests
         public TimeSpan TimestampOffset { get; set; } = new TimeSpan(0);
 
         /// <inheritdoc/>
-        protected override void UpdateRequestHeader(IServiceRequest request, bool useDefaults, string serviceName)
+        protected override void UpdateRequestHeader(
+            IServiceRequest request,
+            bool useDefaults,
+            string serviceName)
         {
             base.UpdateRequestHeader(request, useDefaults, serviceName);
-            request.RequestHeader.Timestamp = request.RequestHeader.Timestamp + TimestampOffset;
+            request.RequestHeader.Timestamp += TimestampOffset;
         }
 
         /// <inheritdoc/>
         public override Session CloneSession(ITransportChannel channel, bool copyEventHandlers)
         {
-            return new TestableSession(channel, this, copyEventHandlers) {
-                TimestampOffset = this.TimestampOffset,
+            return new TestableSession(channel, this, copyEventHandlers)
+            {
+                TimestampOffset = TimestampOffset
             };
         }
     }
@@ -138,7 +144,6 @@ namespace Opc.Ua.Client.Tests
     [KnownType(typeof(TestableMonitoredItem))]
     public class TestableSubscription : Subscription
     {
-        #region Constructors
         /// <summary>
         /// Constructs a new instance of the <see cref="TestableSubscription"/> class.
         /// </summary>
@@ -150,7 +155,7 @@ namespace Opc.Ua.Client.Tests
         /// Constructs a new instance of the <see cref="TestableSubscription"/> class.
         /// </summary>
         public TestableSubscription(Subscription template)
-            : this (template, false)
+            : this(template, false)
         {
         }
 
@@ -160,7 +165,6 @@ namespace Opc.Ua.Client.Tests
         public TestableSubscription(Subscription template, bool copyEventHandlers)
             : base(template, copyEventHandlers)
         {
-            Initialize();
         }
 
         /// <summary>
@@ -170,16 +174,7 @@ namespace Opc.Ua.Client.Tests
         protected new void Initialize(StreamingContext context)
         {
             base.Initialize(context);
-            Initialize();
         }
-
-        /// <summary>
-        /// Sets the private members to default values.
-        /// </summary>
-        private void Initialize()
-        {
-        }
-        #endregion
 
         /// <inheritdoc/>
         public override Subscription CloneSubscription(bool copyEventHandlers)
@@ -195,7 +190,6 @@ namespace Opc.Ua.Client.Tests
     [KnownType(typeof(TestableMonitoredItem))]
     public class TestableMonitoredItem : MonitoredItem
     {
-        #region Constructors
         /// <summary>
         /// Constructs a new instance of the <see cref="TestableMonitoredItem"/> class.
         /// </summary>
@@ -209,13 +203,15 @@ namespace Opc.Ua.Client.Tests
         public TestableMonitoredItem(MonitoredItem template)
             : this(template, false, false)
         {
-
         }
 
         /// <summary>
         /// Constructs a new instance of the <see cref="TestableMonitoredItem"/> class.
         /// </summary>
-        public TestableMonitoredItem(MonitoredItem template, bool copyEventHandlers, bool copyClientHandle)
+        public TestableMonitoredItem(
+            MonitoredItem template,
+            bool copyEventHandlers,
+            bool copyClientHandle)
             : base(template, copyEventHandlers, copyClientHandle)
         {
         }
@@ -233,16 +229,16 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Sets the private members to default values.
         /// </summary>
-        private void Initialize()
+        private static void Initialize()
         {
         }
-        #endregion
 
         /// <inheritdoc/>
-        public override MonitoredItem CloneMonitoredItem(bool copyEventHandlers, bool copyClientHandle)
+        public override MonitoredItem CloneMonitoredItem(
+            bool copyEventHandlers,
+            bool copyClientHandle)
         {
             return new TestableMonitoredItem(this, copyEventHandlers, copyClientHandle);
         }
     }
-
 }

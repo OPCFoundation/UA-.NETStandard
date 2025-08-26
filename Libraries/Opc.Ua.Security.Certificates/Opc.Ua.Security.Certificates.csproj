@@ -13,17 +13,11 @@
     <EnablePackageValidation>false</EnablePackageValidation>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
-
   <!-- Choose which platforms support ECC -->
   <Choose>
-    <When Condition="'$(TargetFramework)' == 'net462'">
+    <When Condition="'$(TargetFramework)' == 'net462' Or '$(TargetFramework)' == 'netstandard2.0'">
       <ItemGroup>
-        <PackageReference Include="BouncyCastle.Cryptography" Version="2.5.0" />
-      </ItemGroup>
-    </When>
-    <When Condition="'$(TargetFramework)' == 'netstandard2.0'">
-      <ItemGroup>
-        <PackageReference Include="BouncyCastle.Cryptography" Version="2.5.0" />
+        <PackageReference Include="BouncyCastle.Cryptography" />
       </ItemGroup>
     </When>
     <Otherwise>
@@ -32,35 +26,29 @@
       </PropertyGroup>
     </Otherwise>
   </Choose>
-
+  <!-- Polyfills for .NET Standard 2.0 and .net 4.8 -->
+  <ItemGroup>
+    <PackageReference Include="PolySharp" PrivateAssets="All" />
+  </ItemGroup>
+  <PropertyGroup>
+    <PolySharpUsePublicAccessibilityForGeneratedTypes>true</PolySharpUsePublicAccessibilityForGeneratedTypes>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
-
   <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
     <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
   </PropertyGroup>
-
   <!-- Choose Asn1 encoder and additional crypto library version -->
   <Choose>
     <When Condition="'$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48'">
       <ItemGroup>
-        <PackageReference Include="BouncyCastle.Cryptography" Version="2.5.0" />
-        <PackageReference Include="System.Formats.Asn1" Version="8.0.1" />
+        <PackageReference Include="BouncyCastle.Cryptography" />
       </ItemGroup>
     </When>
-    <When Condition="'$(TargetFramework)' == 'net9.0'">
-      <ItemGroup>
-        <PackageReference Include="System.Formats.Asn1" Version="9.0.1" />
-      </ItemGroup>
-    </When>
-    <Otherwise>
-      <ItemGroup>
-        <PackageReference Include="System.Formats.Asn1" Version="8.0.1" />
-      </ItemGroup>
-    </Otherwise>
   </Choose>
-
+  <ItemGroup>
+    <PackageReference Include="System.Formats.Asn1" />
+  </ItemGroup>
   <Target Name="GetPackagingOutputs" />
-
 </Project>

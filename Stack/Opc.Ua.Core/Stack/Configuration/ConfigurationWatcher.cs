@@ -20,28 +20,30 @@ namespace Opc.Ua
     /// </summary>
     public class ConfigurationWatcher : IDisposable
     {
-        #region Constructors
         /// <summary>
         /// Creates the watcher for the configuration.
         /// </summary>
         public ConfigurationWatcher(ApplicationConfiguration configuration)
         {
-            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
+            if (configuration == null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
 
-            FileInfo fileInfo = new FileInfo(configuration.SourceFilePath);
+            var fileInfo = new FileInfo(configuration.SourceFilePath);
 
             if (!fileInfo.Exists)
             {
-                throw new FileNotFoundException("Could not load configuration file", configuration.SourceFilePath);
+                throw new FileNotFoundException(
+                    "Could not load configuration file",
+                    configuration.SourceFilePath);
             }
 
             m_configuration = configuration;
             m_lastWriteTime = fileInfo.LastWriteTimeUtc;
             m_watcher = new System.Threading.Timer(Watcher_Changed, null, 5000, 5000);
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -56,36 +58,22 @@ namespace Opc.Ua
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && m_watcher != null)
             {
-                if (m_watcher != null)
-                {
-                    m_watcher.Dispose();
-                    m_watcher = null;
-                }
+                m_watcher.Dispose();
+                m_watcher = null;
             }
         }
-        #endregion
 
-        #region Public Interface
         /// <summary>
         /// Raised when the configuration file changes.
         /// </summary>
         public event EventHandler<ConfigurationWatcherEventArgs> Changed
         {
-            add
-            {
-                m_Changed += value;
-            }
-
-            remove
-            {
-                m_Changed -= value;
-            }
+            add => m_Changed += value;
+            remove => m_Changed -= value;
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Handles a file changed event.
         /// </summary>
@@ -93,7 +81,7 @@ namespace Opc.Ua
         {
             try
             {
-                FileInfo fileInfo = new FileInfo(m_configuration.SourceFilePath);
+                var fileInfo = new FileInfo(m_configuration.SourceFilePath);
 
                 if (!fileInfo.Exists)
                 {
@@ -107,31 +95,31 @@ namespace Opc.Ua
 
                 m_lastWriteTime = fileInfo.LastWriteTimeUtc;
 
-                m_Changed?.Invoke(this, new ConfigurationWatcherEventArgs(m_configuration, m_configuration.SourceFilePath));
+                m_Changed?.Invoke(
+                    this,
+                    new ConfigurationWatcherEventArgs(
+                        m_configuration,
+                        m_configuration.SourceFilePath));
             }
             catch (Exception exception)
             {
-                Utils.LogError(exception, "Unexpected error raising configuration file changed event.");
+                Utils.LogError(
+                    exception,
+                    "Unexpected error raising configuration file changed event.");
             }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
-        private ApplicationConfiguration m_configuration;
+        private readonly ApplicationConfiguration m_configuration;
         private System.Threading.Timer m_watcher;
         private DateTime m_lastWriteTime;
         private event EventHandler<ConfigurationWatcherEventArgs> m_Changed;
-        #endregion
     }
 
-    #region ConfigurationWatcherEventArgs Class
     /// <summary>
     /// Stores the arguments passed when the configuration file changes.
     /// </summary>
     public class ConfigurationWatcherEventArgs : EventArgs
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with a configuration and a file path.
         /// </summary>
@@ -139,33 +127,18 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             string filePath)
         {
-            m_configuration = configuration;
-            m_filePath = filePath;
+            Configuration = configuration;
+            FilePath = filePath;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The application configuration which changed.
         /// </summary>
-        public ApplicationConfiguration Configuration
-        {
-            get { return m_configuration; }
-        }
+        public ApplicationConfiguration Configuration { get; }
 
         /// <summary>
         /// The path to the application configuration file.
         /// </summary>
-        public string FilePath
-        {
-            get { return m_filePath; }
-        }
-        #endregion
-
-        #region Private Fields
-        private ApplicationConfiguration m_configuration;
-        private string m_filePath;
-        #endregion
+        public string FilePath { get; }
     }
-    #endregion
 }

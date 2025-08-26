@@ -30,47 +30,47 @@
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-
 namespace Opc.Ua.Client.Tests
 {
     /// <summary>
     /// Client tests which require security None and are otherwise skipped,
     /// starts the server with additional security None profile.
     /// </summary>
-    [TestFixture, Category("Client")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("Client")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [TestFixtureSource(nameof(FixtureArgs))]
-
     public class ClientTestNoSecurity
     {
-        private ClientTest _clientTest { get; set; }
+        private readonly ClientTest m_clientTest;
 
-        public static readonly object[] FixtureArgs = {
-            new object [] { Utils.UriSchemeOpcTcp},
+        public static readonly object[] FixtureArgs =
+        [
+            new object[] { Utils.UriSchemeOpcTcp }
             // https protocol security None is not supported
             // new object [] { Utils.UriSchemeHttps},
             // new object [] { Utils.UriSchemeOpcHttps},
-        };
+        ];
 
         public ClientTestNoSecurity()
         {
-            _clientTest = new ClientTest(Utils.UriSchemeOpcTcp);
+            m_clientTest = new ClientTest(Utils.UriSchemeOpcTcp);
         }
 
         public ClientTestNoSecurity(string uriScheme)
         {
-            _clientTest = new ClientTest(uriScheme);
+            m_clientTest = new ClientTest(uriScheme);
         }
 
-        #region Test Setup
         /// <summary>
         /// Set up a Server and a Client instance.
         /// </summary>
         [OneTimeSetUp]
-        public Task OneTimeSetUp()
+        public Task OneTimeSetUpAsync()
         {
-            _clientTest.SupportsExternalServerUrl = true;
-            return _clientTest.OneTimeSetUpAsync(null, true);
+            m_clientTest.SupportsExternalServerUrl = true;
+            return m_clientTest.OneTimeSetUpAsync(null, true);
         }
 
         /// <summary>
@@ -79,73 +79,83 @@ namespace Opc.Ua.Client.Tests
         [OneTimeTearDown]
         public Task OneTimeTearDownAsync()
         {
-            return _clientTest.OneTimeTearDownAsync();
+            return m_clientTest.OneTimeTearDownAsync();
         }
 
         /// <summary>
         /// Test setup.
         /// </summary>
         [SetUp]
-        public Task SetUp()
+        public Task SetUpAsync()
         {
-            return _clientTest.SetUp();
+            return m_clientTest.SetUpAsync();
         }
 
         /// <summary>
         /// Test teardown.
         /// </summary>
         [TearDown]
-        public Task TearDown()
+        public Task TearDownAsync()
         {
-            return _clientTest.TearDown();
+            return m_clientTest.TearDownAsync();
         }
-        #endregion
 
         /// <summary>
         /// GetEndpoints on the discovery channel,
         /// the oversized message can pass because security None is enabled.
         /// </summary>
-        [Test, Order(105)]
+        [Test]
+        [Order(105)]
         public void GetEndpointsOnDiscoveryChannel()
         {
-            _clientTest.GetEndpointsOnDiscoveryChannel(true);
+            m_clientTest.GetEndpointsOnDiscoveryChannel(true);
         }
 
-        [Test, Order(230)]
-        public Task ReconnectJWTSecurityNone()
+        [Test]
+        [Order(230)]
+        public Task ReconnectJWTSecurityNoneAsync()
         {
-            return _clientTest.ReconnectJWT(SecurityPolicies.None);
+            return m_clientTest.ReconnectJWTAsync(SecurityPolicies.None);
         }
 
-        [Test, Order(220)]
-        public Task ConnectJWT()
+        [Test]
+        [Order(220)]
+        public Task ConnectJWTAsync()
         {
-            return _clientTest.ConnectJWT(SecurityPolicies.None);
+            return m_clientTest.ConnectJWTAsync(SecurityPolicies.None);
         }
 
         /// <summary>
         /// Open a session on a channel, then reconnect (activate)
         /// the same session on a new channel with saved session secrets
         /// </summary>
-        [Test, Order(260)]
+        [Test]
+        [Order(260)]
         [TestCase(true, false)]
         [TestCase(false, false)]
         [TestCase(false, true)]
-        public Task ReconnectSessionOnAlternateChannelWithSavedSessionSecretsSecurityNone(bool anonymous, bool asyncReconnect)
+        public Task ReconnectSessionOnAlternateChannelWithSavedSessionSecretsSecurityNoneAsync(
+            bool anonymous,
+            bool asyncReconnect)
         {
-            return _clientTest.ReconnectSessionOnAlternateChannelWithSavedSessionSecrets(SecurityPolicies.None, anonymous, asyncReconnect);
+            return m_clientTest.ReconnectSessionOnAlternateChannelWithSavedSessionSecretsAsync(
+                SecurityPolicies.None,
+                anonymous,
+                asyncReconnect);
         }
 
-        [Theory, Order(400)]
-        public Task BrowseFullAddressSpaceSecurityNone(bool operationLimits)
+        [Theory]
+        [Order(400)]
+        public Task BrowseFullAddressSpaceSecurityNoneAsync(bool operationLimits)
         {
-            return _clientTest.BrowseFullAddressSpace(SecurityPolicies.None, operationLimits);
+            return m_clientTest.BrowseFullAddressSpaceAsync(SecurityPolicies.None, operationLimits);
         }
 
-        [Test, Order(201)]
-        public Task ConnectAndCloseAsyncNoSecurity()
+        [Test]
+        [Order(201)]
+        public Task ConnectAndCloseAsyncNoSecurityAsync()
         {
-            return _clientTest.ConnectAndCloseAsync(SecurityPolicies.None);
+            return m_clientTest.ConnectAndCloseAsync(SecurityPolicies.None);
         }
     }
 }

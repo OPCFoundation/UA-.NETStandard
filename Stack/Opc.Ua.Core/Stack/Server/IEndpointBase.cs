@@ -14,20 +14,22 @@ using System;
 
 namespace Opc.Ua
 {
-
 #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
     /// <summary>
-	/// The base interface for all services exposed by UA servers.
-	/// </summary>
+    /// The base interface for all services exposed by UA servers.
+    /// </summary>
     [ServiceContract(Namespace = Namespaces.OpcUaWsdl)]
     public interface IEndpointBase
-    {    
+    {
         /// <summary>
         /// The operation contract for the InvokeService service.
         /// </summary>
         /// <param name="request">The request.</param>
         /// <returns>Response message.</returns>
-        [OperationContract(Action = Namespaces.OpcUaWsdl + "/InvokeService", ReplyAction = Namespaces.OpcUaWsdl + "/InvokeServiceResponse")]
+        [OperationContract(
+            Action = Namespaces.OpcUaWsdl + "/InvokeService",
+            ReplyAction = Namespaces.OpcUaWsdl + "/InvokeServiceResponse"
+        )]
         InvokeServiceResponseMessage InvokeService(InvokeServiceMessage request);
     }
 #else
@@ -39,7 +41,10 @@ namespace Opc.Ua
         /// <summary>
         /// The operation contract for the InvokeService service.
         /// </summary>
-        IAsyncResult BeginInvokeService(InvokeServiceMessage request, AsyncCallback callback, object asyncState);
+        IAsyncResult BeginInvokeService(
+            InvokeServiceMessage request,
+            AsyncCallback callback,
+            object asyncState);
 
         /// <summary>
         /// The method used to retrieve the results of a InvokeService service request.

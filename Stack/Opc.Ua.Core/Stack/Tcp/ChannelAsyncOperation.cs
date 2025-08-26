@@ -20,9 +20,9 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Stores the results of an asynchronous operation.
     /// </summary>
+    /// <typeparam name="T"></typeparam>
     public class ChannelAsyncOperation<T> : IAsyncResult, IDisposable
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with a callback
         /// </summary>
@@ -33,14 +33,12 @@ namespace Opc.Ua.Bindings
             m_synchronous = false;
             m_completed = false;
 
-            if (timeout > 0 && timeout != Int32.MaxValue)
+            if (timeout is > 0 and not int.MaxValue)
             {
                 m_timer = new Timer(new TimerCallback(OnTimeout), null, timeout, Timeout.Infinite);
             }
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -80,9 +78,7 @@ namespace Opc.Ua.Bindings
                 }
             }
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Called when an asynchronous operation completes.
         /// </summary>
@@ -142,7 +138,12 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Called when an asynchronous operation completes.
         /// </summary>
-        public bool Fault(bool doNotBlock, Exception e, uint defaultCode, string format, params object[] args)
+        public bool Fault(
+            bool doNotBlock,
+            Exception e,
+            uint defaultCode,
+            string format,
+            params object[] args)
         {
             return InternalComplete(doNotBlock, ServiceResult.Create(e, defaultCode, format, args));
         }
@@ -150,6 +151,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The response returned from the server.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public T End(int timeout, bool throwOnError = true)
         {
             // check if the request has already completed.
@@ -179,7 +181,7 @@ namespace Opc.Ua.Bindings
                 {
                     lock (m_lock)
                     {
-                        // Dispose the event 
+                        // Dispose the event
                         if (m_event != null)
                         {
                             m_event.Dispose();
@@ -204,7 +206,11 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The awaitable response returned from the server.
         /// </summary>
-        public async Task<T> EndAsync(int timeout, bool throwOnError = true, CancellationToken ct = default)
+        /// <exception cref="ServiceResultException"></exception>
+        public async Task<T> EndAsync(
+            int timeout,
+            bool throwOnError = true,
+            CancellationToken ct = default)
         {
             // check if the request has already completed.
             bool mustWait = false;
@@ -215,7 +221,8 @@ namespace Opc.Ua.Bindings
 
                 if (mustWait)
                 {
-                    m_tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    m_tcs = new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
                 }
             }
 
@@ -227,18 +234,20 @@ namespace Opc.Ua.Bindings
                 {
                     Task<bool> awaitableTask = m_tcs.Task;
 #if NET6_0_OR_GREATER
-                    if (timeout != Int32.MaxValue)
+                    if (timeout != int.MaxValue)
                     {
-                        awaitableTask = m_tcs.Task.WaitAsync(TimeSpan.FromMilliseconds(timeout), ct);
+                        awaitableTask = m_tcs.Task
+                            .WaitAsync(TimeSpan.FromMilliseconds(timeout), ct);
                     }
                     else if (ct != default)
                     {
                         awaitableTask = m_tcs.Task.WaitAsync(ct);
                     }
 #else
-                    if (timeout != Int32.MaxValue || ct != default)
+                    if (timeout != int.MaxValue || ct != default)
                     {
-                        Task completedTask = await Task.WhenAny(m_tcs.Task, Task.Delay(timeout, ct)).ConfigureAwait(false);
+                        Task completedTask = await Task.WhenAny(m_tcs.Task, Task.Delay(timeout, ct))
+                            .ConfigureAwait(false);
                         if (m_tcs.Task == completedTask)
                         {
                             if (!m_tcs.Task.Result)
@@ -302,10 +311,7 @@ namespace Opc.Ua.Bindings
             {
                 lock (m_lock)
                 {
-                    if (m_properties == null)
-                    {
-                        m_properties = new Dictionary<string, object>();
-                    }
+                    m_properties ??= [];
 
                     return m_properties;
                 }
@@ -316,10 +322,8 @@ namespace Opc.Ua.Bindings
         /// Return the result of the operation.
         /// </summary>
         public ServiceResult Error => m_error ?? ServiceResult.Good;
-        #endregion
 
-        #region IAsyncResult Members
-        /// <summary cref="IAsyncResult.AsyncState" />
+        /// <inheritdoc/>
         public object AsyncState
         {
             get
@@ -331,24 +335,21 @@ namespace Opc.Ua.Bindings
             }
         }
 
-        /// <summary cref="IAsyncResult.AsyncWaitHandle" />
+        /// <inheritdoc/>
         public WaitHandle AsyncWaitHandle
         {
             get
             {
                 lock (m_lock)
                 {
-                    if (m_event == null)
-                    {
-                        m_event = new ManualResetEvent(m_completed);
-                    }
+                    m_event ??= new ManualResetEvent(m_completed);
 
                     return m_event;
                 }
             }
         }
 
-        /// <summary cref="IAsyncResult.CompletedSynchronously" />
+        /// <inheritdoc/>
         public bool CompletedSynchronously
         {
             get
@@ -360,7 +361,7 @@ namespace Opc.Ua.Bindings
             }
         }
 
-        /// <summary cref="IAsyncResult.IsCompleted" />
+        /// <inheritdoc/>
         public bool IsCompleted
         {
             get
@@ -371,9 +372,7 @@ namespace Opc.Ua.Bindings
                 }
             }
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Called when the operation times out.
         /// </summary>
@@ -398,9 +397,9 @@ namespace Opc.Ua.Bindings
                     return false;
                 }
 
-                if (result is T)
+                if (result is T typed)
                 {
-                    m_response = (T)result;
+                    m_response = typed;
                 }
                 else
                 {
@@ -415,15 +414,9 @@ namespace Opc.Ua.Bindings
                     m_timer = null;
                 }
 
-                if (m_event != null)
-                {
-                    m_event.Set();
-                }
+                m_event?.Set();
 
-                if (m_tcs != null)
-                {
-                    m_tcs.TrySetResult(true);
-                }
+                m_tcs?.TrySetResult(true);
             }
 
             AsyncCallback callback = m_callback;
@@ -431,9 +424,7 @@ namespace Opc.Ua.Bindings
             {
                 if (doNotBlock)
                 {
-                    Task.Run(() => {
-                        callback(this);
-                    });
+                    Task.Run(() => callback(this));
                 }
                 else
                 {
@@ -443,20 +434,20 @@ namespace Opc.Ua.Bindings
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(e, "ClientChannel: Unexpected error invoking AsyncCallback.");
+                        Utils.LogError(
+                            e,
+                            "ClientChannel: Unexpected error invoking AsyncCallback.");
                     }
                 }
             }
 
             return true;
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
-        private AsyncCallback m_callback;
-        private object m_asyncState;
-        private bool m_synchronous;
+        private readonly Lock m_lock = new();
+        private readonly AsyncCallback m_callback;
+        private readonly object m_asyncState;
+        private readonly bool m_synchronous;
         private bool m_completed;
         private ManualResetEvent m_event;
         private TaskCompletionSource<bool> m_tcs;
@@ -464,6 +455,5 @@ namespace Opc.Ua.Bindings
         private ServiceResult m_error;
         private Timer m_timer;
         private Dictionary<string, object> m_properties;
-        #endregion
     }
 }

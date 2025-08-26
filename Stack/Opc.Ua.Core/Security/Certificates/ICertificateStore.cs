@@ -12,6 +12,7 @@
 
 using System;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 
@@ -58,14 +59,32 @@ namespace Opc.Ua
         /// <summary>
         /// Enumerates the certificates in the store.
         /// </summary>
+        [Obsolete("Use EnumerateAsync instead.")]
         Task<X509Certificate2Collection> Enumerate();
+
+        /// <summary>
+        /// Enumerates the certificates in the store.
+        /// </summary>
+        Task<X509Certificate2Collection> EnumerateAsync(CancellationToken ct = default);
 
         /// <summary>
         /// Adds a certificate to the store.
         /// </summary>
         /// <param name="certificate">The certificate.</param>
         /// <param name="password">The certificate password.</param>
+        [Obsolete("Use AddAsync instead.")]
         Task Add(X509Certificate2 certificate, string password = null);
+
+        /// <summary>
+        /// Adds a certificate to the store.
+        /// </summary>
+        /// <param name="certificate">The certificate.</param>
+        /// <param name="password">The certificate password.</param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
+        Task AddAsync(
+            X509Certificate2 certificate,
+            string password = null,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Adds a rejected certificate chain to the store.
@@ -73,21 +92,54 @@ namespace Opc.Ua
         /// <param name="certificates">The certificate collection.</param>
         /// <param name="maxCertificates">The max number of rejected certificates to keep in the store.
         /// A negative number keeps no history, 0 is unlimited.</param>
+        [Obsolete("Use AddRejectedAsync instead.")]
         Task AddRejected(X509Certificate2Collection certificates, int maxCertificates);
+
+        /// <summary>
+        /// Adds a rejected certificate chain to the store.
+        /// </summary>
+        /// <param name="certificates">The certificate collection.</param>
+        /// <param name="maxCertificates">The max number of rejected certificates to keep in the store.
+        /// A negative number keeps no history, 0 is unlimited.</param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
+        Task AddRejectedAsync(
+            X509Certificate2Collection certificates,
+            int maxCertificates,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Deletes a certificate from the store.
         /// </summary>
         /// <param name="thumbprint">The thumbprint.</param>
         /// <returns>True if the certificate exists.</returns>
+        [Obsolete("Use DeleteAsync instead.")]
         Task<bool> Delete(string thumbprint);
+
+        /// <summary>
+        /// Deletes a certificate from the store.
+        /// </summary>
+        /// <param name="thumbprint">The thumbprint.</param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
+        /// <returns>True if the certificate exists.</returns>
+        Task<bool> DeleteAsync(string thumbprint, CancellationToken ct = default);
 
         /// <summary>
         /// Finds the certificate with the specified thumbprint.
         /// </summary>
         /// <param name="thumbprint">The thumbprint.</param>
         /// <returns>The matching certificate</returns>
+        [Obsolete("Use FindByThumbprintAsync instead.")]
         Task<X509Certificate2Collection> FindByThumbprint(string thumbprint);
+
+        /// <summary>
+        /// Finds the certificate with the specified thumbprint.
+        /// </summary>
+        /// <param name="thumbprint">The thumbprint.</param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
+        /// <returns>The matching certificate</returns>
+        Task<X509Certificate2Collection> FindByThumbprintAsync(
+            string thumbprint,
+            CancellationToken ct = default);
 
         /// <summary>
         /// If the store supports the LoadPrivateKey operation.
@@ -99,11 +151,18 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="thumbprint">The thumbprint.</param>
         /// <param name="subjectName">The certificate subject.</param>
+        /// <param name="applicationUri">The application uri in the cert extension.</param>
+        /// <param name="certificateType">The certificate type to load.</param>
         /// <param name="password">The certificate password.</param>
         /// <remarks>Returns always null if SupportsLoadPrivateKey returns false.</remarks>
         /// <returns>The matching certificate with private key</returns>
-        [Obsolete("Method is deprecated. Use only for RSA certificates, the replacing LoadPrivateKey with certificateType parameter should be used.")]
-        Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password);
+        [Obsolete("Use LoadPrivateKeyAsync instead.")]
+        Task<X509Certificate2> LoadPrivateKey(
+            string thumbprint,
+            string subjectName,
+            string applicationUri,
+            NodeId certificateType,
+            string password);
 
         /// <summary>
         /// Finds the certificate with the specified thumbprint.
@@ -113,14 +172,30 @@ namespace Opc.Ua
         /// <param name="applicationUri">The application uri in the cert extension.</param>
         /// <param name="certificateType">The certificate type to load.</param>
         /// <param name="password">The certificate password.</param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <remarks>Returns always null if SupportsLoadPrivateKey returns false.</remarks>
         /// <returns>The matching certificate with private key</returns>
-        Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string applicationUri, NodeId certificateType, string password);
+        Task<X509Certificate2> LoadPrivateKeyAsync(
+            string thumbprint,
+            string subjectName,
+            string applicationUri,
+            NodeId certificateType,
+            string password,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Checks if issuer has revoked the certificate.
         /// </summary>
+        [Obsolete("Use IsRevokedAsync instead.")]
         Task<StatusCode> IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate);
+
+        /// <summary>
+        /// Checks if issuer has revoked the certificate.
+        /// </summary>
+        Task<StatusCode> IsRevokedAsync(
+            X509Certificate2 issuer,
+            X509Certificate2 certificate,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Whether the store supports CRLs.
@@ -130,21 +205,50 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the CRLs in the store.
         /// </summary>
+        [Obsolete("Use EnumerateCRLsAsync instead.")]
         Task<X509CRLCollection> EnumerateCRLs();
+
+        /// <summary>
+        /// Returns the CRLs in the store.
+        /// </summary>
+        Task<X509CRLCollection> EnumerateCRLsAsync(CancellationToken ct = default);
 
         /// <summary>
         /// Returns the CRLs for the issuer.
         /// </summary>
-        Task<X509CRLCollection> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true);
+        [Obsolete("Use EnumerateCRLsAsync instead.")]
+        Task<X509CRLCollection> EnumerateCRLs(
+            X509Certificate2 issuer,
+            bool validateUpdateTime = true);
+
+        /// <summary>
+        /// Returns the CRLs for the issuer.
+        /// </summary>
+        Task<X509CRLCollection> EnumerateCRLsAsync(
+            X509Certificate2 issuer,
+            bool validateUpdateTime = true,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Adds a CRL to the store.
         /// </summary>
+        [Obsolete("Use AddCRLAsync instead.")]
         Task AddCRL(X509CRL crl);
+
+        /// <summary>
+        /// Adds a CRL to the store.
+        /// </summary>
+        Task AddCRLAsync(X509CRL crl, CancellationToken ct = default);
 
         /// <summary>
         /// Removes a CRL from the store.
         /// </summary>
+        [Obsolete("Use DeleteCRLAsync instead.")]
         Task<bool> DeleteCRL(X509CRL crl);
-    };
+
+        /// <summary>
+        /// Removes a CRL from the store.
+        /// </summary>
+        Task<bool> DeleteCRLAsync(X509CRL crl, CancellationToken ct = default);
+    }
 }

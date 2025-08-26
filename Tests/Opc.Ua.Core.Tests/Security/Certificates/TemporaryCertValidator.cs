@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -52,7 +52,7 @@ namespace Opc.Ua.Core.Tests
         /// </summary>
         private TemporaryCertValidator(bool rejectedStore)
         {
-            // pki directory root for test runs. 
+            // pki directory root for test runs.
             m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
             m_issuerStore = new DirectoryCertificateStore();
             m_issuerStore.Open(m_pkiRoot + "issuer", true);
@@ -70,21 +70,27 @@ namespace Opc.Ua.Core.Tests
         /// </summary>
         ~TemporaryCertValidator()
         {
-            Dispose();
+            Dispose(true);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
         /// Dispose the certificates and delete folders used.
         /// </summary>
-        public void Dispose()
+        protected virtual void Dispose(bool disposing)
         {
-            if (Interlocked.CompareExchange(ref m_disposed, 1, 0) == 0)
+            if (disposing && Interlocked.CompareExchange(ref m_disposed, 1, 0) == 0)
             {
                 CleanupValidatorAndStoresAsync(true).GetAwaiter().GetResult();
                 m_issuerStore = null;
                 m_trustedStore = null;
                 m_rejectedStore = null;
-                var path = Utils.ReplaceSpecialFolderNames(m_pkiRoot);
+                string path = Utils.ReplaceSpecialFolderNames(m_pkiRoot);
                 int retries = 5;
                 while (retries-- > 0)
                 {
@@ -108,14 +114,17 @@ namespace Opc.Ua.Core.Tests
         /// The certificate validator for the stores.
         /// </summary>
         public ICertificateValidator CertificateValidator => m_certificateValidator;
+
         /// <summary>
         /// The issuer store, contains certs used for chain validation.
         /// </summary>
         public ICertificateStore IssuerStore => m_issuerStore;
+
         /// <summary>
         /// The trusted store, used for trusted CA, Sub CA and leaf certificates.
         /// </summary>
         public ICertificateStore TrustedStore => m_trustedStore;
+
         /// <summary>
         /// The rejected store, used for rejected certificates.
         /// </summary>
@@ -127,18 +136,21 @@ namespace Opc.Ua.Core.Tests
         public CertificateValidator Update()
         {
             var certValidator = new CertificateValidator();
-            var issuerTrustList = new CertificateTrustList {
+            var issuerTrustList = new CertificateTrustList
+            {
                 StoreType = CertificateStoreType.Directory,
                 StorePath = m_issuerStore.Directory.FullName
             };
-            var trustedTrustList = new CertificateTrustList {
+            var trustedTrustList = new CertificateTrustList
+            {
                 StoreType = CertificateStoreType.Directory,
                 StorePath = m_trustedStore.Directory.FullName
             };
             CertificateStoreIdentifier rejectedList = null;
             if (m_rejectedStore != null)
             {
-                rejectedList = new CertificateStoreIdentifier {
+                rejectedList = new CertificateStoreIdentifier
+                {
                     StoreType = CertificateStoreType.Directory,
                     StorePath = m_rejectedStore.Directory.FullName
                 };
@@ -158,14 +170,11 @@ namespace Opc.Ua.Core.Tests
             await TestUtils.CleanupTrustListAsync(m_rejectedStore, dispose).ConfigureAwait(false);
         }
 
-
-        #region Private Fields
         private int m_disposed;
         private CertificateValidator m_certificateValidator;
         private DirectoryCertificateStore m_issuerStore;
         private DirectoryCertificateStore m_trustedStore;
         private DirectoryCertificateStore m_rejectedStore;
-        private string m_pkiRoot;
-        #endregion
-    };
+        private readonly string m_pkiRoot;
+    }
 }

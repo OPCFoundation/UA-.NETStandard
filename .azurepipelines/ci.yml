@@ -3,14 +3,14 @@
 #
 parameters:
   buildoption: ''
-  framework: net6.0
+  framework: net8.0
   jobnamesuffix: ''
   agents: '@{}'
 jobs:
 - job: buildprep${{ parameters.jobnamesuffix }}
   displayName: Prepare Build Jobs
   pool:
-    vmImage: 'windows-2022'
+    vmImage: 'windows-2025'
   variables:
     DOTNET_CLI_TELEMETRY_OPTOUT: true
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
@@ -50,8 +50,8 @@ jobs:
       projects: '**/@(Console|NetCore)*.csproj'
       arguments: '--framework ${{ parameters.framework }} --configuration Release ${{ parameters.buildoption }} /p:RCS=true'
   - task: DotNetCoreCLI@2
-    displayName: Release Pack 
-    condition: eq(variables['poolImage'], 'windows-2022')
+    displayName: Release Pack
+    condition: eq(variables['poolImage'], 'windows-2025')
     inputs:
       command: pack
       packagesToPack:  '**/Opc.Ua.*.csproj'
@@ -64,8 +64,8 @@ jobs:
       projects: '**/@(Console|NetCore)*.csproj'
       arguments: '--framework ${{ parameters.framework }} --configuration Debug ${{ parameters.buildoption }} /p:RCS=true'
   - task: DotNetCoreCLI@2
-    displayName: Debug Pack 
-    condition: eq(variables['poolImage'], 'windows-2022')
+    displayName: Debug Pack
+    condition: eq(variables['poolImage'], 'windows-2025')
     inputs:
       command: pack
       packagesToPack:  '**/Opc.Ua.*.csproj'

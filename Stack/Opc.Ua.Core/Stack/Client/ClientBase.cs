@@ -18,28 +18,29 @@ using System.Threading.Tasks;
 namespace Opc.Ua
 {
     /// <summary>
-	/// The client side interface with a UA server.
-	/// </summary>
-    public partial class ClientBase : IClientBase
+    /// The client side interface with a UA server.
+    /// </summary>
+    public class ClientBase : IClientBase
     {
-        #region Constructors
         /// <summary>
         /// Intializes the object with a channel and a message context.
         /// </summary>
         /// <param name="channel">The channel.</param>
         public ClientBase(ITransportChannel channel)
         {
-            if (channel == null) throw new ArgumentNullException(nameof(channel));
+            if (channel == null)
+            {
+                throw new ArgumentNullException(nameof(channel));
+            }
 
             InitializeChannel(channel);
         }
-        #endregion
 
-        #region IDisposable Members
         /// <inheritdoc/>
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -50,37 +51,18 @@ namespace Opc.Ua
         {
             CloseChannel();
 
-            m_disposed = true;
+            Disposed = true;
         }
-        #endregion
 
-        #region Public Properties
         /// <inheritdoc/>
-        public EndpointDescription Endpoint
-        {
-            get
-            {
-                return NullableTransportChannel?.EndpointDescription;
-            }
-        }
+        public EndpointDescription Endpoint => NullableTransportChannel?.EndpointDescription;
 
         /// <inheritdoc/>
         public EndpointConfiguration EndpointConfiguration
-        {
-            get
-            {
-                return NullableTransportChannel?.EndpointConfiguration;
-            }
-        }
+            => NullableTransportChannel?.EndpointConfiguration;
 
         /// <inheritdoc/>
-        public IServiceMessageContext MessageContext
-        {
-            get
-            {
-                return NullableTransportChannel?.MessageContext;
-            }
-        }
+        public IServiceMessageContext MessageContext => NullableTransportChannel?.MessageContext;
 
         /// <inheritdoc/>
         public ITransportChannel NullableTransportChannel
@@ -89,12 +71,11 @@ namespace Opc.Ua
             {
                 ITransportChannel channel = m_channel;
 
-                if (channel != null)
+                if (channel != null && Disposed)
                 {
-                    if (m_disposed)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadSecureChannelClosed, "Channel has been closed.");
-                    }
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecureChannelClosed,
+                        "Channel has been closed.");
                 }
 
                 return channel;
@@ -110,15 +91,18 @@ namespace Opc.Ua
 
                 if (channel != null)
                 {
-                    if (!m_disposed)
+                    if (!Disposed)
                     {
                         return channel;
                     }
-                    throw new ServiceResultException(StatusCodes.BadSecureChannelClosed, "Channel has been disposed.");
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecureChannelClosed,
+                        "Channel has been disposed.");
                 }
-                throw new ServiceResultException(StatusCodes.BadSecureChannelClosed, "Channel has been closed.");
+                throw new ServiceResultException(
+                    StatusCodes.BadSecureChannelClosed,
+                    "Channel has been closed.");
             }
-
             protected set
             {
                 ITransportChannel channel = Interlocked.Exchange(ref m_channel, value);
@@ -164,27 +148,12 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public DiagnosticsMasks ReturnDiagnostics
-        {
-            get
-            {
-                return m_returnDiagnostics;
-            }
-
-            set
-            {
-                m_returnDiagnostics = value;
-            }
-        }
+        public DiagnosticsMasks ReturnDiagnostics { get; set; }
 
         /// <inheritdoc/>
         public int OperationTimeout
         {
-            get
-            {
-                return NullableTransportChannel?.OperationTimeout ?? 0;
-            }
-
+            get => NullableTransportChannel?.OperationTimeout ?? 0;
             set
             {
                 ITransportChannel channel = NullableTransportChannel;
@@ -194,9 +163,7 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
 
-        #region Public Methods
         /// <inheritdoc/>
         public virtual void AttachChannel(ITransportChannel channel)
         {
@@ -215,12 +182,12 @@ namespace Opc.Ua
             ITransportChannel channel = Interlocked.Exchange(ref m_channel, null);
             channel?.Close();
 
-            m_authenticationToken = null;
+            AuthenticationToken = null;
             return StatusCodes.Good;
         }
 
         /// <inheritdoc/>
-        public async virtual Task<StatusCode> CloseAsync(CancellationToken ct = default)
+        public virtual async Task<StatusCode> CloseAsync(CancellationToken ct = default)
         {
             ITransportChannel channel = Interlocked.Exchange(ref m_channel, null);
             if (channel != null)
@@ -228,7 +195,7 @@ namespace Opc.Ua
                 await channel.CloseAsync(ct).ConfigureAwait(false);
             }
 
-            m_authenticationToken = null;
+            AuthenticationToken = null;
 
             return StatusCodes.Good;
         }
@@ -237,13 +204,7 @@ namespace Opc.Ua
         /// Whether the object has been disposed.
         /// </summary>
         /// <value><c>true</c> if disposed; otherwise, <c>false</c>.</value>
-        public bool Disposed
-        {
-            get
-            {
-                return m_disposed;
-            }
-        }
+        public bool Disposed { get; private set; }
 
         /// <summary>
         /// Generates a unique request handle.
@@ -252,23 +213,13 @@ namespace Opc.Ua
         {
             return (uint)Utils.IncrementIdentifier(ref m_nextRequestHandle);
         }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Initializes the channel.
         /// </summary>
-        /// <param name="channel"></param>
         protected void InitializeChannel(ITransportChannel channel)
         {
             Interlocked.Exchange(ref m_channel, channel);
-
-            m_useTransportChannel = true;
-
-            if (channel is UaChannelBase uaChannel)
-            {
-                m_useTransportChannel = uaChannel.m_uaBypassChannel != null || uaChannel.UseBinaryEncoding;
-            }
         }
 
         /// <summary>
@@ -334,37 +285,13 @@ namespace Opc.Ua
         /// An object used to synchronize access to the session state.
         /// </summary>
         /// <value>The synchronization object.</value>
-        protected object SyncRoot
-        {
-            get { return m_lock; }
-        }
+        protected object SyncRoot { get; } = new object();
 
         /// <summary>
         /// The authorization token used to connect to the server.
         /// </summary>
         /// <value>The authentication token.</value>
-        protected NodeId AuthenticationToken
-        {
-            get
-            {
-                return m_authenticationToken;
-            }
-
-            set
-            {
-                m_authenticationToken = value;
-            }
-        }
-
-        /// <summary>
-        /// Updates the header of a service request.
-        /// </summary>
-        /// <param name="request">The request.</param>
-        [Obsolete("Must override the version with useDefault parameter.")]
-        protected virtual void UpdateRequestHeader(IServiceRequest request)
-        {
-            UpdateRequestHeader(request, request == null);
-        }
+        protected NodeId AuthenticationToken { get; set; }
 
         /// <summary>
         /// Updates the header of a service request.
@@ -373,26 +300,24 @@ namespace Opc.Ua
         /// <param name="useDefaults">if set to <c>true</c> use defaults].</param>
         protected virtual void UpdateRequestHeader(IServiceRequest request, bool useDefaults)
         {
-            lock (m_lock)
+            lock (SyncRoot)
             {
-                if (request.RequestHeader == null)
-                {
-                    request.RequestHeader = new RequestHeader();
-                }
+                request.RequestHeader ??= new RequestHeader();
 
                 if (useDefaults)
                 {
-                    request.RequestHeader.ReturnDiagnostics = (uint)(int)m_returnDiagnostics;
+                    request.RequestHeader.ReturnDiagnostics = (uint)(int)ReturnDiagnostics;
                 }
 
                 if (request.RequestHeader.RequestHandle == 0)
                 {
-                    request.RequestHeader.RequestHandle = (uint)Utils.IncrementIdentifier(ref m_nextRequestHandle);
+                    request.RequestHeader.RequestHandle = (uint)Utils.IncrementIdentifier(
+                        ref m_nextRequestHandle);
                 }
 
                 if (NodeId.IsNull(request.RequestHeader.AuthenticationToken))
                 {
-                    request.RequestHeader.AuthenticationToken = m_authenticationToken;
+                    request.RequestHeader.AuthenticationToken = AuthenticationToken;
                 }
 
                 if (request.RequestHeader.TimeoutHint == 0)
@@ -411,11 +336,17 @@ namespace Opc.Ua
         /// <param name="request">The request.</param>
         /// <param name="useDefaults">if set to <c>true</c> the no request header was provided.</param>
         /// <param name="serviceName">The name of the service.</param>
-        protected virtual void UpdateRequestHeader(IServiceRequest request, bool useDefaults, string serviceName)
+        protected virtual void UpdateRequestHeader(
+            IServiceRequest request,
+            bool useDefaults,
+            string serviceName)
         {
             UpdateRequestHeader(request, useDefaults);
             int incrementedCount = Interlocked.Increment(ref m_pendingRequestCount);
-            Utils.EventLog.ServiceCallStart(serviceName, (int)request.RequestHeader.RequestHandle, incrementedCount);
+            Utils.EventLog.ServiceCallStart(
+                serviceName,
+                (int)request.RequestHeader.RequestHandle,
+                incrementedCount);
         }
 
         /// <summary>
@@ -424,7 +355,10 @@ namespace Opc.Ua
         /// <param name="request">The request.</param>
         /// <param name="response">The response.</param>
         /// <param name="serviceName">The name of the service.</param>
-        protected virtual void RequestCompleted(IServiceRequest request, IServiceResponse response, string serviceName)
+        protected virtual void RequestCompleted(
+            IServiceRequest request,
+            IServiceResponse response,
+            string serviceName)
         {
             uint requestHandle = 0;
             StatusCode statusCode = StatusCodes.Good;
@@ -448,11 +382,16 @@ namespace Opc.Ua
 
             if (statusCode != StatusCodes.Good)
             {
-                Utils.EventLog.ServiceCallBadStop(serviceName, (int)requestHandle, (int)statusCode.Code, pendingRequestCount);
+                Utils.EventLog.ServiceCallBadStop(
+                    serviceName,
+                    (int)requestHandle,
+                    (int)statusCode.Code,
+                    pendingRequestCount);
             }
             else
             {
-                Utils.EventLog.ServiceCallStop(serviceName, (int)requestHandle, pendingRequestCount);
+                Utils.EventLog
+                    .ServiceCallStop(serviceName, (int)requestHandle, pendingRequestCount);
             }
         }
 
@@ -470,36 +409,47 @@ namespace Opc.Ua
         /// Throws an exception if a response contains an error.
         /// </summary>
         /// <param name="header">The header.</param>
+        /// <exception cref="ServiceResultException"></exception>
         protected static void ValidateResponse(ResponseHeader header)
         {
             if (header == null)
             {
-                throw new ServiceResultException(StatusCodes.BadUnknownResponse, "Null header in response.");
+                throw new ServiceResultException(
+                    StatusCodes.BadUnknownResponse,
+                    "Null header in response.");
             }
 
             if (StatusCode.IsBad(header.ServiceResult))
             {
-                throw new ServiceResultException(new ServiceResult(header.ServiceResult, header.ServiceDiagnostics, header.StringTable));
+                throw new ServiceResultException(
+                    new ServiceResult(
+                        header.ServiceResult,
+                        header.ServiceDiagnostics,
+                        header.StringTable));
             }
         }
-        #endregion
 
-        #region Static Methods
         /// <summary>
         /// Validates a response returned by the server.
         /// </summary>
         /// <param name="response">The response.</param>
         /// <param name="request">The request.</param>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static void ValidateResponse(IList response, IList request)
         {
             if (response is DiagnosticInfoCollection)
             {
-                throw new ArgumentException("Must call ValidateDiagnosticInfos() for DiagnosticInfoCollections.", nameof(response));
+                throw new ArgumentException(
+                    "Must call ValidateDiagnosticInfos() for DiagnosticInfoCollections.",
+                    nameof(response));
             }
 
             if (response == null || response.Count != request.Count)
             {
-                throw new ServiceResultException(StatusCodes.BadUnexpectedError, "The server returned a list without the expected number of elements.");
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    "The server returned a list without the expected number of elements.");
             }
         }
 
@@ -508,12 +458,15 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="response">The response.</param>
         /// <param name="request">The request.</param>
+        /// <exception cref="ServiceResultException"></exception>
         public static void ValidateDiagnosticInfos(DiagnosticInfoCollection response, IList request)
         {
             // returning an empty list for diagnostic info arrays is allowed.
             if (response != null && response.Count != 0 && response.Count != request.Count)
             {
-                throw new ServiceResultException(StatusCodes.BadUnexpectedError, "The server forgot to fill in the DiagnosticInfos array correctly when returning an operation level error.");
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    "The server forgot to fill in the DiagnosticInfos array correctly when returning an operation level error.");
             }
         }
 
@@ -533,7 +486,10 @@ namespace Opc.Ua
         {
             if (diagnosticInfos != null && diagnosticInfos.Count > index)
             {
-                return new ServiceResult(statusCode.Code, diagnosticInfos[index], responseHeader.StringTable);
+                return new ServiceResult(
+                    statusCode.Code,
+                    diagnosticInfos[index],
+                    responseHeader.StringTable);
             }
 
             return new ServiceResult(statusCode.Code);
@@ -558,7 +514,9 @@ namespace Opc.Ua
             // check for null.
             if (value == null)
             {
-                return new ServiceResult(StatusCodes.BadUnexpectedError, "The server returned a value for a data value.");
+                return new ServiceResult(
+                    StatusCodes.BadUnexpectedError,
+                    "The server returned a value for a data value.");
             }
 
             // check status code.
@@ -568,31 +526,20 @@ namespace Opc.Ua
             }
 
             // check data type.
-            if (expectedType != null)
+            if (expectedType != null && !expectedType.IsInstanceOfType(value.Value))
             {
-                if (!expectedType.IsInstanceOfType(value.Value))
-                {
-                    return ServiceResult.Create(
-                        StatusCodes.BadUnexpectedError,
-                        "The server returned data value of type {0} when a value of type {1} was expected.",
-                        (value.Value != null) ? value.Value.GetType().Name : "(null)",
-                        expectedType.Name);
-                }
+                return ServiceResult.Create(
+                    StatusCodes.BadUnexpectedError,
+                    "The server returned data value of type {0} when a value of type {1} was expected.",
+                    value.Value != null ? value.Value.GetType().Name : "(null)",
+                    expectedType.Name);
             }
 
             return null;
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
         private ITransportChannel m_channel;
-        private NodeId m_authenticationToken;
-        private DiagnosticsMasks m_returnDiagnostics;
         private int m_nextRequestHandle;
         private int m_pendingRequestCount;
-        private bool m_disposed;
-        private bool m_useTransportChannel;
-        #endregion
     }
 }

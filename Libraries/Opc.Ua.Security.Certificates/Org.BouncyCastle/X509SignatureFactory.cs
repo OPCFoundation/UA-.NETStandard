@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -30,10 +30,10 @@
 #if !NETSTANDARD2_1 && !NET472_OR_GREATER && !NET5_0_OR_GREATER
 
 using System;
+using System.IO;
 using System.Security.Cryptography;
 using Org.BouncyCastle.Asn1.X509;
 using Org.BouncyCastle.Crypto;
-using System.IO;
 
 namespace Opc.Ua.Security.Certificates.BouncyCastle
 {
@@ -51,7 +51,9 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// </summary>
         /// <param name="hashAlgorithm">The name of the signature algorithm to use.</param>
         /// <param name="generator">The signature generator.</param>
-        public X509SignatureFactory(HashAlgorithmName hashAlgorithm, X509SignatureGenerator generator)
+        public X509SignatureFactory(
+            HashAlgorithmName hashAlgorithm,
+            X509SignatureGenerator generator)
         {
             Org.BouncyCastle.Asn1.DerObjectIdentifier sigOid;
             if (hashAlgorithm == HashAlgorithmName.SHA1)
@@ -80,7 +82,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         }
 
         /// <inheritdoc/>
-        public Object AlgorithmDetails => m_algID;
+        public object AlgorithmDetails => m_algID;
 
         /// <inheritdoc/>
         public IStreamCalculator<IBlockResult> CreateCalculator()
@@ -91,13 +93,13 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// <summary>
         /// Signs a Bouncy Castle digest stream with the .Net X509SignatureGenerator.
         /// </summary>
-        class X509StreamCalculator : IStreamCalculator<IBlockResult>
+        internal class X509StreamCalculator : IStreamCalculator<IBlockResult>
         {
-            private X509SignatureGenerator _generator;
-            private readonly HashAlgorithmName _hashAlgorithm;
+            private readonly X509SignatureGenerator m_generator;
+            private readonly HashAlgorithmName m_hashAlgorithm;
 
             /// <summary>
-            /// Ctor for the stream calculator. 
+            /// Ctor for the stream calculator.
             /// </summary>
             /// <param name="generator">The X509SignatureGenerator to sign the digest.</param>
             /// <param name="hashAlgorithm">The hash algorithm to use for the signature.</param>
@@ -106,8 +108,8 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
                 HashAlgorithmName hashAlgorithm)
             {
                 Stream = new MemoryStream();
-                _generator = generator;
-                _hashAlgorithm = hashAlgorithm;
+                m_generator = generator;
+                m_hashAlgorithm = hashAlgorithm;
             }
 
             /// <summary>
@@ -118,12 +120,17 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             /// <summary>
             /// Callback signs the digest with X509SignatureGenerator.
             /// </summary>
+            /// <exception cref="ArgumentNullException"></exception>
             public IBlockResult GetResult()
             {
-                if (!(Stream is MemoryStream memStream)) throw new ArgumentNullException(nameof(Stream));
+                if (Stream is not MemoryStream memStream)
+                {
+                    throw new ArgumentNullException(nameof(Stream));
+                }
+
                 byte[] digest = memStream.ToArray();
-                byte[] signature = _generator.SignData(digest, _hashAlgorithm);
-                return new Org.BouncyCastle.Crypto.SimpleBlockResult(signature);
+                byte[] signature = m_generator.SignData(digest, m_hashAlgorithm);
+                return new SimpleBlockResult(signature);
             }
         }
     }

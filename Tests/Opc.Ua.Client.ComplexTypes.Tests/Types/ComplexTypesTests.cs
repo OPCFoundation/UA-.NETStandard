@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -29,7 +29,6 @@
 
 using System;
 using NUnit.Framework;
-using Opc.Ua.Core.Tests.Types.Encoders;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
@@ -38,12 +37,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
     /// Main purpose of this test is to verify the
     /// system.emit functionality on a target platform.
     /// </summary>
-    [TestFixture, Category("ComplexTypes")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("ComplexTypes")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class ComplexSampleTypesBuilder : ComplexTypesCommon
     {
-        #region Tests
         /// <summary>
         /// Create a structure type from a DataTypeDefinition.
         /// Activate an object and verify it is the expected type
@@ -53,11 +53,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public void CreateComplexType(StructureType structureType)
         {
             // EncoderCommon.BuiltInTypes subtracted by the number of unused types.
-            int propertyBuiltInTypes = EncoderCommon.BuiltInTypes.Length - 3;
-            var complexType = BuildComplexTypeWithAllBuiltInTypes(
-                structureType, nameof(CreateComplexType));
+            int propertyBuiltInTypes = BuiltInTypes.Length - 3;
+            Type complexType = BuildComplexTypeWithAllBuiltInTypes(
+                structureType,
+                nameof(CreateComplexType));
             Assert.NotNull(complexType);
-            var emittedType = Activator.CreateInstance(complexType);
+            object emittedType = Activator.CreateInstance(complexType);
             var structType = emittedType as BaseComplexType;
             switch (structureType)
             {
@@ -70,8 +71,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     var structWithOptionalFieldsType = emittedType as OptionalFieldsComplexType;
                     Assert.NotNull(structWithOptionalFieldsType);
                     Assert.AreEqual(structWithOptionalFieldsType.EncodingMask, 0);
-                    Assert.AreEqual(structWithOptionalFieldsType.GetPropertyTypes().Count, propertyBuiltInTypes);
-                    Assert.AreEqual(structWithOptionalFieldsType.GetPropertyCount(), propertyBuiltInTypes);
+                    Assert.AreEqual(
+                        structWithOptionalFieldsType.GetPropertyTypes().Count,
+                        propertyBuiltInTypes);
+                    Assert.AreEqual(
+                        structWithOptionalFieldsType.GetPropertyCount(),
+                        propertyBuiltInTypes);
                     break;
                 case StructureType.Union:
                     var unionType = emittedType as UnionComplexType;
@@ -85,14 +90,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var encodeable = emittedType as IEncodeable;
             Assert.NotNull(encodeable);
             // try the accessor by name
-            foreach (var accessorname in structType.GetPropertyNames())
+            foreach (string accessorname in structType.GetPropertyNames())
             {
-                var obj = structType[accessorname];
+                object obj = structType[accessorname];
             }
             // try the accessor by index
             for (int i = 0; i < structType.GetPropertyCount(); i++)
             {
-                var obj = structType[i];
+                object obj = structType[i];
             }
         }
 
@@ -103,11 +108,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public void CreateComplexTypeWithData(StructureType structureType, bool randomValue)
         {
             // BuiltInTypes - Null type.
-            int propertyBuiltInTypes = EncoderCommon.BuiltInTypes.Length - 1;
-            var complexType = BuildComplexTypeWithAllBuiltInTypes(
-                structureType, nameof(CreateComplexTypeWithData) + "." + randomValue.ToString());
+            int propertyBuiltInTypes = BuiltInTypes.Length - 1;
+            Type complexType = BuildComplexTypeWithAllBuiltInTypes(
+                structureType,
+                nameof(CreateComplexTypeWithData) + "." + randomValue.ToString());
             Assert.NotNull(complexType);
-            var emittedType = Activator.CreateInstance(complexType);
+            object emittedType = Activator.CreateInstance(complexType);
             var baseType = emittedType as BaseComplexType;
 
             // fill struct with default values
@@ -115,9 +121,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             for (int i = 0; i < baseType.GetPropertyCount(); i++)
             {
-                var obj = baseType[i];
-                if (structureType == StructureType.Union ||
-                    structureType == StructureType.UnionWithSubtypedValues)
+                object obj = baseType[i];
+                if (structureType is StructureType.Union or StructureType.UnionWithSubtypedValues)
                 {
                     if (((UnionComplexType)baseType).SwitchField == i + 1)
                     {
@@ -134,9 +139,5 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 }
             }
         }
-        #endregion Tests
-
-        #region Private Methods
-        #endregion Private Methods
     }
 }

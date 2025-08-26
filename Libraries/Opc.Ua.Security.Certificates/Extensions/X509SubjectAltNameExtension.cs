@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -41,13 +41,11 @@ namespace Opc.Ua.Security.Certificates
     /// The subject alternate name extension.
     /// </summary>
     /// <remarks>
-    /// 
-    /// id-ce-subjectAltName OBJECT IDENTIFIER::=  { id-ce 17 }
-    /// 
-    /// SubjectAltName::= GeneralNames
-    /// 
-    ///    GeneralNames::= SEQUENCE SIZE(1..MAX) OF GeneralName
-    /// 
+    ///
+    /// <para>id-ce-subjectAltName OBJECT IDENTIFIER::=  { id-ce 17 }</para>
+    /// <para>SubjectAltName::= GeneralNames</para>
+    /// <para>   GeneralNames::= SEQUENCE SIZE(1..MAX) OF GeneralName</para>
+    /// <para>
     ///    GeneralName ::= CHOICE {
     ///        otherName                       [0] OtherName,
     ///        rfc822Name[1]                   IA5String,
@@ -59,21 +57,23 @@ namespace Opc.Ua.Security.Certificates
     ///        iPAddress[7]                    OCTET STRING,
     ///        registeredID[8]                 OBJECT IDENTIFIER
     ///        }
-    /// 
+    /// </para>
+    /// <para>
     ///    OtherName::= SEQUENCE {
     ///        type-id                         OBJECT IDENTIFIER,
     ///        value[0] EXPLICIT ANY DEFINED BY type - id
     ///        }
-    /// 
+    /// </para>
+    /// <para>
     ///    EDIPartyName::= SEQUENCE {
     ///        nameAssigner[0]                 DirectoryString OPTIONAL,
     ///        partyName[1]                    DirectoryString
     ///        }
-    /// 
+    /// </para>
+    ///
     /// </remarks>
     public class X509SubjectAltNameExtension : X509Extension
     {
-        #region Constructors
         /// <summary>
         /// Creates an empty extension.
         /// </summary>
@@ -101,8 +101,7 @@ namespace Opc.Ua.Security.Certificates
         /// Creates an extension from ASN.1 encoded data.
         /// </summary>
         public X509SubjectAltNameExtension(Oid oid, byte[] rawData, bool critical)
-        :
-            base(oid, rawData, critical)
+            : base(oid, rawData, critical)
         {
             m_decoded = false;
         }
@@ -112,9 +111,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="applicationUri">The application Uri</param>
         /// <param name="domainNames">The domain names. DNS Hostnames, IPv4 or IPv6 addresses</param>
-        public X509SubjectAltNameExtension(
-            string applicationUri,
-            IEnumerable<string> domainNames)
+        public X509SubjectAltNameExtension(string applicationUri, IEnumerable<string> domainNames)
         {
             Oid = new Oid(SubjectAltName2Oid, kFriendlyName);
             Critical = false;
@@ -122,9 +119,7 @@ namespace Opc.Ua.Security.Certificates
             RawData = Encode();
             m_decoded = true;
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Returns a formatted version of the Abstract Syntax Notation One (ASN.1)-encoded data as a string.
         /// </summary>
@@ -146,9 +141,9 @@ namespace Opc.Ua.Security.Certificates
                     }
                 }
 
-                buffer.Append(kUniformResourceIdentifier);
-                buffer.Append('=');
-                buffer.Append(m_uris[ii]);
+                buffer.Append(kUniformResourceIdentifier)
+                    .Append('=')
+                    .Append(m_uris[ii]);
             }
 
             for (int ii = 0; ii < m_domainNames.Count; ii++)
@@ -165,9 +160,9 @@ namespace Opc.Ua.Security.Certificates
                     }
                 }
 
-                buffer.Append(kDnsName);
-                buffer.Append('=');
-                buffer.Append(m_domainNames[ii]);
+                buffer.Append(kDnsName)
+                    .Append('=')
+                    .Append(m_domainNames[ii]);
             }
 
             for (int ii = 0; ii < m_ipAddresses.Count; ii++)
@@ -184,9 +179,9 @@ namespace Opc.Ua.Security.Certificates
                     }
                 }
 
-                buffer.Append(kIpAddress);
-                buffer.Append('=');
-                buffer.Append(m_ipAddresses[ii]);
+                buffer.Append(kIpAddress)
+                    .Append('=')
+                    .Append(m_ipAddresses[ii]);
             }
 
             return buffer.ToString();
@@ -195,16 +190,19 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Initializes the extension from ASN.1 encoded data.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="asnEncodedData"/> is <c>null</c>.</exception>
         public override void CopyFrom(AsnEncodedData asnEncodedData)
         {
-            if (asnEncodedData == null) throw new ArgumentNullException(nameof(asnEncodedData));
+            if (asnEncodedData == null)
+            {
+                throw new ArgumentNullException(nameof(asnEncodedData));
+            }
+
             Oid = asnEncodedData.Oid;
             RawData = asnEncodedData.RawData;
             m_decoded = false;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The OID for a Subject Alternate Name extension.
         /// </summary>
@@ -253,9 +251,7 @@ namespace Opc.Ua.Security.Certificates
                 return m_ipAddresses.AsReadOnly();
             }
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Create a normalized IPv4 or IPv6 address from a 4 byte or 16 byte array.
         /// </summary>
@@ -283,8 +279,8 @@ namespace Opc.Ua.Security.Certificates
             {
                 sanBuilder.AddUri(new Uri(uri));
             }
-            X509SubjectAltNameExtension.EncodeGeneralNames(sanBuilder, m_domainNames);
-            X509SubjectAltNameExtension.EncodeGeneralNames(sanBuilder, m_ipAddresses);
+            EncodeGeneralNames(sanBuilder, m_domainNames);
+            EncodeGeneralNames(sanBuilder, m_ipAddresses);
             X509Extension extension = sanBuilder.Build();
             return extension.RawData;
         }
@@ -294,16 +290,17 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="sanBuilder">The subject alternative name builder</param>
         /// <param name="generalNames">The general Names to add</param>
-        private static void EncodeGeneralNames(SubjectAlternativeNameBuilder sanBuilder, IList<string> generalNames)
+        private static void EncodeGeneralNames(
+            SubjectAlternativeNameBuilder sanBuilder,
+            IList<string> generalNames)
         {
             foreach (string generalName in generalNames)
             {
-                IPAddress ipAddr;
-                if (String.IsNullOrWhiteSpace(generalName))
+                if (string.IsNullOrWhiteSpace(generalName))
                 {
                     continue;
                 }
-                if (IPAddress.TryParse(generalName, out ipAddr))
+                if (IPAddress.TryParse(generalName, out IPAddress ipAddr))
                 {
                     sanBuilder.AddIpAddress(ipAddr);
                 }
@@ -313,13 +310,15 @@ namespace Opc.Ua.Security.Certificates
                 }
             }
         }
-#else  
+#else
         /// <summary>
         /// Encode the Subject Alternative name extension.
         /// </summary>
         private byte[] Encode()
         {
-            return BouncyCastle.X509Extensions.BuildSubjectAltNameExtension(m_uris, m_domainNames, m_ipAddresses).RawData;
+            return BouncyCastle
+                .X509Extensions.BuildSubjectAltNameExtension(m_uris, m_domainNames, m_ipAddresses)
+                .RawData;
         }
 #endif
 
@@ -340,10 +339,10 @@ namespace Opc.Ua.Security.Certificates
         /// <remarks>
         /// Only general names relevant for Opc.Ua are decoded.
         /// </remarks>
+        /// <exception cref="CryptographicException"></exception>
         private void Decode(byte[] data)
         {
-            if (base.Oid.Value == SubjectAltNameOid ||
-                base.Oid.Value == SubjectAltName2Oid)
+            if (Oid.Value is SubjectAltNameOid or SubjectAltName2Oid)
             {
                 try
                 {
@@ -364,20 +363,24 @@ namespace Opc.Ua.Security.Certificates
                             Asn1Tag peekTag = akiReader.PeekTag();
                             if (peekTag == uriTag)
                             {
-                                string uri = akiReader.ReadCharacterString(UniversalTagNumber.IA5String, uriTag);
+                                string uri = akiReader.ReadCharacterString(
+                                    UniversalTagNumber.IA5String,
+                                    uriTag);
                                 uris.Add(uri);
                             }
                             else if (peekTag == dnsTag)
                             {
-                                string dnsName = akiReader.ReadCharacterString(UniversalTagNumber.IA5String, dnsTag);
+                                string dnsName = akiReader.ReadCharacterString(
+                                    UniversalTagNumber.IA5String,
+                                    dnsTag);
                                 domainNames.Add(dnsName);
                             }
                             else if (peekTag == ipTag)
                             {
                                 byte[] ip = akiReader.ReadOctetString(ipTag);
-                                ipAddresses.Add(X509SubjectAltNameExtension.IPAddressToString(ip));
+                                ipAddresses.Add(IPAddressToString(ip));
                             }
-                            else  // skip over
+                            else // skip over
                             {
                                 akiReader.ReadEncodedValue();
                             }
@@ -393,7 +396,9 @@ namespace Opc.Ua.Security.Certificates
                 }
                 catch (AsnContentException ace)
                 {
-                    throw new CryptographicException("Failed to decode the SubjectAltName extension.", ace);
+                    throw new CryptographicException(
+                        "Failed to decode the SubjectAltName extension.",
+                        ace);
                 }
             }
             throw new CryptographicException("Invalid SubjectAltNameOid.");
@@ -415,22 +420,19 @@ namespace Opc.Ua.Security.Certificates
                 switch (Uri.CheckHostName(generalName))
                 {
                     case UriHostNameType.Dns:
-                        domainNames.Add(generalName); break;
+                        domainNames.Add(generalName);
+                        break;
                     case UriHostNameType.IPv4:
                     case UriHostNameType.IPv6:
-                        ipAddresses.Add(generalName); break;
-                    case UriHostNameType.Unknown:
-                    case UriHostNameType.Basic:
-                    default: continue;
+                        ipAddresses.Add(generalName);
+                        break;
                 }
             }
             m_uris = uris;
             m_domainNames = domainNames;
             m_ipAddresses = ipAddresses;
         }
-        #endregion
 
-        #region Private Fields
         /// <summary>
         /// Subject Alternate Name extension string
         /// definitions see RFC 5280 4.2.1.7
@@ -443,6 +445,5 @@ namespace Opc.Ua.Security.Certificates
         private List<string> m_domainNames;
         private List<string> m_ipAddresses;
         private bool m_decoded;
-        #endregion
     }
 }

@@ -40,12 +40,16 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The constructor to create the sequence of buffers.
         /// </summary>
-        public BufferSequence(BufferManager bufferManager, string owner, BufferSegment firstSegment, ReadOnlySequence<byte> sequence)
+        public BufferSequence(
+            BufferManager bufferManager,
+            string owner,
+            BufferSegment firstSegment,
+            ReadOnlySequence<byte> sequence)
         {
             m_bufferManager = bufferManager;
             m_owner = owner;
             m_firstSegment = firstSegment;
-            m_sequence = sequence;
+            Sequence = sequence;
         }
 
         /// <inheritdoc/>
@@ -57,7 +61,7 @@ namespace Opc.Ua.Bindings
                 m_bufferManager.ReturnBuffer(segment.Array(), m_owner);
                 segment = (BufferSegment)segment.Next;
             }
-            m_sequence = ReadOnlySequence<byte>.Empty;
+            Sequence = ReadOnlySequence<byte>.Empty;
             m_firstSegment = null;
             GC.SuppressFinalize(this);
         }
@@ -65,13 +69,10 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns a sequence which can be used to access the buffers.
         /// </summary>
-        public ReadOnlySequence<byte> Sequence => m_sequence;
+        public ReadOnlySequence<byte> Sequence { get; private set; }
 
-        #region Private 
-        private BufferManager m_bufferManager;
+        private readonly BufferManager m_bufferManager;
         private BufferSegment m_firstSegment;
-        private ReadOnlySequence<byte> m_sequence;
-        private string m_owner;
-        #endregion
+        private readonly string m_owner;
     }
 }

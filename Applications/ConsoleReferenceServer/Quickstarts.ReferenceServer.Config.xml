@@ -3,13 +3,12 @@
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
   xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
-> 
-<!-- xsi:schemaLocation="http://opcfoundation.org/UA/SDK/Configuration.xsd ./Configuration.xsd" -->
+>
+  <!-- xsi:schemaLocation="http://opcfoundation.org/UA/SDK/Configuration.xsd ./Configuration.xsd" -->
   <ApplicationName>Quickstart Reference Server</ApplicationName>
   <ApplicationUri>urn:localhost:UA:Quickstarts:ReferenceServer</ApplicationUri>
   <ProductUri>uri:opcfoundation.org:Quickstarts:ReferenceServer</ProductUri>
   <ApplicationType>Server_0</ApplicationType>
-
   <SecurityConfiguration>
     <!-- Which certificate types are supported  -->
     <ApplicationCertificates>
@@ -48,32 +47,26 @@
         <CertificateTypeString>BrainpoolP384r1</CertificateTypeString>
       </CertificateIdentifier>
     </ApplicationCertificates>
-
     <!-- Where the other application certificates are stored -->
-
     <!-- Where the issuer certificate are stored (certificate authorities) -->
     <TrustedIssuerCertificates>
       <StoreType>Directory</StoreType>
       <StorePath>%LocalApplicationData%/OPC Foundation/pki/issuer</StorePath>
     </TrustedIssuerCertificates>
-
     <!-- Where the trust list is stored -->
     <TrustedPeerCertificates>
       <StoreType>Directory</StoreType>
       <StorePath>%LocalApplicationData%/OPC Foundation/pki/trusted</StorePath>
     </TrustedPeerCertificates>
-
     <!-- The directory used to store invalid certificates for later review by the administrator. -->
     <RejectedCertificateStore>
       <StoreType>Directory</StoreType>
       <StorePath>%LocalApplicationData%/OPC Foundation/pki/rejected</StorePath>
     </RejectedCertificateStore>
     <MaxRejectedCertificates>5</MaxRejectedCertificates>
-
     <!-- WARNING: The following setting (to automatically accept untrusted certificates) should be used
     for easy debugging purposes ONLY and turned off for production deployments! -->
     <AutoAcceptUntrustedCertificates>false</AutoAcceptUntrustedCertificates>
-
     <!-- WARNING: SHA1 signed certificates are by default rejected and should be phased out. 
        only nano and embedded profiles are allowed to use sha1 signed certificates. -->
     <RejectSHA1SignedCertificates>true</RejectSHA1SignedCertificates>
@@ -81,20 +74,17 @@
     <MinimumCertificateKeySize>2048</MinimumCertificateKeySize>
     <AddAppCertToTrustedStore>false</AddAppCertToTrustedStore>
     <SendCertificateChain>true</SendCertificateChain>
-
     <!-- Where the User issuer certificates are stored -->
     <UserIssuerCertificates>
       <StoreType>Directory</StoreType>
       <StorePath>%LocalApplicationData%/OPC Foundation/pki/issuerUser</StorePath>
     </UserIssuerCertificates>
-
     <!-- Where the User trust list is stored-->
     <TrustedUserCertificates>
       <StoreType>Directory</StoreType>
       <StorePath>%LocalApplicationData%/OPC Foundation/pki/trustedUser</StorePath>
     </TrustedUserCertificates>
   </SecurityConfiguration>
-
   <TransportConfigurations></TransportConfigurations>
   <TransportQuotas>
     <OperationTimeout>120000</OperationTimeout>
@@ -191,11 +181,9 @@
       </ServerSecurityPolicy>
       -->
     </SecurityPolicies>
-
     <MinRequestThreadCount>5</MinRequestThreadCount>
     <MaxRequestThreadCount>100</MaxRequestThreadCount>
     <MaxQueuedRequestCount>2000</MaxQueuedRequestCount>
-
     <!-- The SDK expects the server to support the same set of user tokens for every endpoint. -->
     <UserTokenPolicies>
       <!-- Allows anonymous users -->
@@ -203,7 +191,6 @@
         <ua:TokenType>Anonymous_0</ua:TokenType>
         <!-- <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</ua:SecurityPolicyUri> -->
       </ua:UserTokenPolicy>
-
       <!-- Allows username/password -->
       <ua:UserTokenPolicy>
         <ua:TokenType>UserName_1</ua:TokenType>
@@ -211,7 +198,6 @@
         <!-- if no algorithm is specified, the active security policy is used -->
         <!-- <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</ua:SecurityPolicyUri> -->
       </ua:UserTokenPolicy>
-
       <!-- Allows user certificates -->
       <ua:UserTokenPolicy>
         <ua:TokenType>Certificate_2</ua:TokenType>
@@ -220,7 +206,6 @@
         <!-- <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</ua:SecurityPolicyUri> -->
       </ua:UserTokenPolicy>
     </UserTokenPolicies>
-    
     <DiagnosticsEnabled>true</DiagnosticsEnabled>
     <!-- Settings for CTT testing -->
     <MaxSessionCount>75</MaxSessionCount>
@@ -261,7 +246,6 @@
         <Count>20</Count>
       </SamplingRateGroup>
     </AvailableSamplingRates>
-
     <RegistrationEndpoint>
       <ua:EndpointUrl>opc.tcp://localhost:4840</ua:EndpointUrl>
       <ua:Server>
@@ -275,7 +259,6 @@
       <ua:SecurityPolicyUri />
       <ua:UserIdentityTokens />
     </RegistrationEndpoint>
-
     <MaxRegistrationInterval>0</MaxRegistrationInterval>
     <NodeManagerSaveFile>Quickstarts.ReferenceServer.nodes.xml</NodeManagerSaveFile>
     <MinSubscriptionLifetime>10000</MinSubscriptionLifetime>
@@ -286,7 +269,6 @@
     <MaxDurableNotificationQueueSize>10000</MaxDurableNotificationQueueSize>
     <MaxDurableEventQueueSize>10000</MaxDurableEventQueueSize>
     <MaxDurableSubscriptionLifetimeInHours>10</MaxDurableSubscriptionLifetimeInHours>
-
     <!-- see https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles -->
     <ServerProfileArray>
       <ua:String>http://opcfoundation.org/UA-Profile/Server/StandardUA2017</ua:String>
@@ -295,7 +277,6 @@
       <ua:String>http://opcfoundation.org/UA-Profile/Server/ReverseConnect</ua:String>
       <ua:String>http://opcfoundation.org/UA-Profile/Server/ClientRedundancy</ua:String>
     </ServerProfileArray>
-
     <ShutdownDelay>5</ShutdownDelay>
     <ServerCapabilities>
       <ua:String>DA</ua:String>
@@ -306,7 +287,6 @@
     </SupportedPrivateKeyFormats>
     <MaxTrustListSize>0</MaxTrustListSize>
     <MultiCastDnsEnabled>false</MultiCastDnsEnabled>
-
     <!--  Reverse connection parameters for aggregation server sample -->
     <!--
     <ReverseConnect>
@@ -322,7 +302,6 @@
       <RejectTimeout>60000</RejectTimeout>
     </ReverseConnect>
     -->
-
     <OperationLimits>
       <MaxNodesPerRead>2500</MaxNodesPerRead>
       <MaxNodesPerHistoryReadData>1000</MaxNodesPerHistoryReadData>
@@ -334,11 +313,9 @@
       <MaxNodesPerNodeManagement>2500</MaxNodesPerNodeManagement>
       <MaxMonitoredItemsPerCall>2500</MaxMonitoredItemsPerCall>
     </OperationLimits>
-
     <AuditingEnabled>true</AuditingEnabled>
     <HttpsMutualTls>true</HttpsMutualTls>
   </ServerConfiguration>
-
   <Extensions>
     <ua:XmlElement>
       <MemoryBufferConfiguration xmlns="http://samples.org/UA/MemoryBuffer">
@@ -357,7 +334,6 @@
       </MemoryBufferConfiguration>
     </ua:XmlElement>
   </Extensions>
-
   <TraceConfiguration>
     <OutputFilePath>%LocalApplicationData%/OPC Foundation/Logs/Quickstarts.ReferenceServer.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
@@ -374,5 +350,4 @@
     <!-- Show Only Security, ServiceResultExceptions, Errors and Trace -->
     <TraceMasks>519</TraceMasks>
   </TraceConfiguration>
-
 </ApplicationConfiguration>

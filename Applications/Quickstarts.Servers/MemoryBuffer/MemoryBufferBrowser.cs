@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -29,21 +29,15 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
-using System.IO;
-using System.Reflection;
-using System.Threading;
 using Opc.Ua;
-using Opc.Ua.Server;
 
 namespace MemoryBuffer
 {
     /// <summary>
-    /// A class to browse the references for a memory buffer. 
+    /// A class to browse the references for a memory buffer.
     /// </summary>
     public class MemoryBufferBrowser : NodeBrowser
     {
-        #region Constructors
         /// <summary>
         /// Creates a new browser object with a set of filters.
         /// </summary>
@@ -57,8 +51,7 @@ namespace MemoryBuffer
             IEnumerable<IReference> additionalReferences,
             bool internalOnly,
             MemoryBufferState buffer)
-        :
-            base(
+            : base(
                 context,
                 view,
                 referenceType,
@@ -71,22 +64,17 @@ namespace MemoryBuffer
             m_buffer = buffer;
             m_stage = Stage.Begin;
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Returns the next reference.
         /// </summary>
-        /// <returns></returns>
         public override IReference Next()
         {
             lock (DataLock)
             {
-                IReference reference = null;
-
                 // enumerate pre-defined references.
                 // always call first to ensure any pushed-back references are returned first.
-                reference = base.Next();
+                IReference reference = base.Next();
 
                 if (reference != null)
                 {
@@ -126,36 +114,34 @@ namespace MemoryBuffer
                 return null;
             }
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Returns the next child.
         /// </summary>
-        private IReference NextChild()
+        private NodeStateReference NextChild()
         {
-            MemoryTagState tag = null;
+            MemoryTagState tag;
 
             // check if a specific browse name is requested.
-            if (!QualifiedName.IsNull(base.BrowseName))
+            if (!QualifiedName.IsNull(BrowseName))
             {
                 // check if match found previously.
-                if (m_position == UInt32.MaxValue)
+                if (m_position == uint.MaxValue)
                 {
                     return null;
                 }
 
                 // browse name must be qualified by the correct namespace.
-                if (m_buffer.TypeDefinitionId.NamespaceIndex != base.BrowseName.NamespaceIndex)
+                if (m_buffer.TypeDefinitionId.NamespaceIndex != BrowseName.NamespaceIndex)
                 {
                     return null;
                 }
 
-                string name = base.BrowseName.Name;
+                string name = BrowseName.Name;
 
                 for (int ii = 0; ii < name.Length; ii++)
                 {
-                    if ("0123456789ABCDEF".IndexOf(name[ii]) == -1)
+                    if (!"0123456789ABCDEF".Contains(name[ii], StringComparison.Ordinal))
                     {
                         return null;
                     }
@@ -170,9 +156,8 @@ namespace MemoryBuffer
                 }
 
                 tag = new MemoryTagState(m_buffer, m_position);
-                m_position = UInt32.MaxValue;
+                m_position = uint.MaxValue;
             }
-
             // return the child at the next position.
             else
             {
@@ -193,9 +178,7 @@ namespace MemoryBuffer
 
             return new NodeStateReference(ReferenceTypeIds.HasComponent, false, tag);
         }
-        #endregion
 
-        #region Stage Enumeration
         /// <summary>
         /// The stages available in a browse operation.
         /// </summary>
@@ -206,12 +189,9 @@ namespace MemoryBuffer
             ModelParents,
             Done
         }
-        #endregion
 
-        #region Private Fields
         private Stage m_stage;
         private uint m_position;
-        private MemoryBufferState m_buffer;
-        #endregion
+        private readonly MemoryBufferState m_buffer;
     }
 }

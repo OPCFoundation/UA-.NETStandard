@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -46,39 +46,41 @@ namespace Opc.Ua.PubSub.Configuration
         /// </summary>
         /// <param name="pubSubConfiguration">The configuration object that shall be saved in the file.</param>
         /// <param name="filePath">The file path from where the configuration shall be saved.</param>
-        public static void SaveConfiguration(PubSubConfigurationDataType pubSubConfiguration, string filePath)
+        public static void SaveConfiguration(
+            PubSubConfigurationDataType pubSubConfiguration,
+            string filePath)
         {
             Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite);
 
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
 
-            using (XmlWriter writer = XmlWriter.Create(ostrm, settings))
-            {
-                DataContractSerializer serializer = new DataContractSerializer(typeof(PubSubConfigurationDataType));
-                serializer.WriteObject(writer, pubSubConfiguration);
-            }
+            using var writer = XmlWriter.Create(ostrm, settings);
+            var serializer = new DataContractSerializer(typeof(PubSubConfigurationDataType));
+            serializer.WriteObject(writer, pubSubConfiguration);
         }
 
         /// <summary>
         /// Load a <see cref="PubSubConfigurationDataType"/> instance from and XML File
         /// </summary>
         /// <param name="filePath">The file path from where the configuration shall be loaded.</param>
+        /// <exception cref="ServiceResultException"></exception>
         public static PubSubConfigurationDataType LoadConfiguration(string filePath)
         {
             try
             {
-                using (FileStream stream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
-                {
-                    DataContractSerializer serializer = new DataContractSerializer(typeof(PubSubConfigurationDataType));
-                    return (PubSubConfigurationDataType)serializer.ReadObject(stream);
-                }
+                using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+                var serializer = new DataContractSerializer(typeof(PubSubConfigurationDataType));
+                return (PubSubConfigurationDataType)serializer.ReadObject(stream);
             }
             catch (Exception e)
             {
-                StringBuilder buffer = new StringBuilder();
-                buffer.AppendFormat(CultureInfo.InvariantCulture, "Configuration file could not be loaded: {0}\r\n", filePath);
-                buffer.AppendFormat(CultureInfo.InvariantCulture, "Error: {0}", e.Message);
+                var buffer = new StringBuilder();
+                buffer.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    "Configuration file could not be loaded: {0}\r\n",
+                    filePath)
+                    .AppendFormat(CultureInfo.InvariantCulture, "Error: {0}", e.Message);
 
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,

@@ -15,8 +15,8 @@ using System;
 namespace Opc.Ua
 {
     /// <summary>
-	/// The base interface for client proxies.
-	/// </summary>
+    /// The base interface for client proxies.
+    /// </summary>
     public interface IChannelBase
     {
         /// <summary>
@@ -38,7 +38,10 @@ namespace Opc.Ua
         /// <summary>
         /// The operation contract for the InvokeService service.
         /// </summary>
-        IAsyncResult BeginInvokeService(InvokeServiceMessage request, AsyncCallback callback, object asyncState);
+        IAsyncResult BeginInvokeService(
+            InvokeServiceMessage request,
+            AsyncCallback callback,
+            object asyncState);
 
         /// <summary>
         /// The method used to retrieve the results of a InvokeService service request.
@@ -68,7 +71,7 @@ namespace Opc.Ua
         /// </summary>
         /// <remarks>
         /// This method may block the current thread so the caller must not call in the
-        /// thread that calls IServerBase.ScheduleIncomingRequest(). 
+        /// thread that calls IServerBase.ScheduleIncomingRequest().
         /// This method always traps any exceptions and reports them to the client as a fault.
         /// </remarks>
         void CallSynchronously();

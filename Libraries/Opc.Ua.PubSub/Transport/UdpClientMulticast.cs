@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -39,16 +39,15 @@ namespace Opc.Ua.PubSub.Transport
     /// </summary>
     internal class UdpClientMulticast : UdpClient
     {
-        #region Constructor
         /// <summary>
-        /// Initializes a new instance of the <see cref="UdpClient"/> class and binds it to the specified local endpoint 
+        /// Initializes a new instance of the <see cref="UdpClient"/> class and binds it to the specified local endpoint
         /// and joins the specified multicast group
         /// </summary>
         /// <param name="localAddress">An <see cref="IPAddress"/> that represents the local address.</param>
         /// <param name="multicastAddress">The multicast <see cref="IPAddress"/> of the group you want to join.</param>
-        /// <param name="port">The port.</param>       
+        /// <param name="port">The port.</param>
         /// <exception cref="SocketException">An error occurred when accessing the socket.</exception>
-        public UdpClientMulticast(IPAddress localAddress, IPAddress multicastAddress, int port) : base()
+        public UdpClientMulticast(IPAddress localAddress, IPAddress multicastAddress, int port)
         {
             Address = localAddress;
             MulticastAddress = multicastAddress;
@@ -57,11 +56,17 @@ namespace Opc.Ua.PubSub.Transport
             try
             {
                 // this might throw exception on some platforms
-                Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                Client.SetSocketOption(
+                    SocketOptionLevel.Socket,
+                    SocketOptionName.ReuseAddress,
+                    true);
             }
             catch (Exception ex)
             {
-                Utils.Trace(Utils.TraceMasks.Error, "UdpClientMulticast set SetSocketOption resulted in ex {0}", ex.Message);
+                Utils.Trace(
+                    Utils.TraceMasks.Error,
+                    "UdpClientMulticast set SetSocketOption resulted in ex {0}",
+                    ex.Message);
             }
             try
             {
@@ -70,7 +75,10 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.Trace(Utils.TraceMasks.Error, "UdpClientMulticast set ExclusiveAddressUse = false resulted in ex {0}", ex.Message);
+                Utils.Trace(
+                    Utils.TraceMasks.Error,
+                    "UdpClientMulticast set ExclusiveAddressUse = false resulted in ex {0}",
+                    ex.Message);
             }
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
@@ -84,12 +92,13 @@ namespace Opc.Ua.PubSub.Transport
                 JoinMulticastGroup(multicastAddress, localAddress);
             }
 
-            Utils.Trace("UdpClientMulticast was created for local Address: {0}:{1} and multicast address: {2}.",
-                localAddress, port, multicastAddress);
+            Utils.Trace(
+                "UdpClientMulticast was created for local Address: {0}:{1} and multicast address: {2}.",
+                localAddress,
+                port,
+                multicastAddress);
         }
-        #endregion
 
-        #region Properties
         /// <summary>
         /// The Local Address
         /// </summary>
@@ -104,6 +113,5 @@ namespace Opc.Ua.PubSub.Transport
         /// The local port
         /// </summary>
         internal int Port { get; }
-        #endregion
     }
 }

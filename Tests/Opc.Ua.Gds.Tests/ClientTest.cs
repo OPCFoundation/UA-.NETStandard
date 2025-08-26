@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -39,23 +39,25 @@ using NUnit.Framework;
 using Opc.Ua.Gds.Server;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-
-
 namespace Opc.Ua.Gds.Tests
 {
     /// <summary>
     /// Test GDS Registration and Client Pull.
     /// </summary>
-    [TestFixture, Category("GDSRegistrationAndPull"), Category("GDS")]
+    [TestFixture]
+    [Category("GDSRegistrationAndPull")]
+    [Category("GDS")]
     [TestFixtureSource(nameof(FixtureArgs))]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [NonParallelizable]
     public class ClientTest
     {
-        #region Test Setup
         public class ConnectionProfile : IFormattable
         {
-            public ConnectionProfile(string securityProfileUri, MessageSecurityMode messageSecurityMode)
+            public ConnectionProfile(
+                string securityProfileUri,
+                MessageSecurityMode messageSecurityMode)
             {
                 SecurityProfileUri = securityProfileUri;
                 MessageSecurityMode = messageSecurityMode;
@@ -73,16 +75,19 @@ namespace Opc.Ua.Gds.Tests
         /// <summary>
         /// store types to run the tests with
         /// </summary>
-        public static readonly object[] FixtureArgs = {
-            new object [] { CertificateStoreType.Directory},
-            new object [] { CertificateStoreType.X509Store}
-        };
+        public static readonly object[] FixtureArgs =
+        [
+            new object[] { CertificateStoreType.Directory },
+            new object[] { CertificateStoreType.X509Store }
+        ];
 
         public ClientTest(string storeType = CertificateStoreType.Directory)
         {
-            if (storeType == CertificateStoreType.X509Store && !RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            if (storeType == CertificateStoreType.X509Store &&
+                !RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                Assert.Ignore("X509 Store with crls is only supported on Windows, skipping test run");
+                NUnit.Framework.Assert
+                    .Ignore("X509 Store with crls is only supported on Windows, skipping test run");
             }
             m_storeType = storeType;
         }
@@ -91,19 +96,23 @@ namespace Opc.Ua.Gds.Tests
         /// Set up a Global Discovery Server and Client instance and connect the session
         /// </summary>
         [OneTimeSetUp]
-        protected async Task OneTimeSetUp()
+        protected async Task OneTimeSetUpAsync()
         {
             // start GDS
-            m_server = await TestUtils.StartGDS(true, m_storeType).ConfigureAwait(false);
+            m_server = await TestUtils.StartGDSAsync(true, m_storeType).ConfigureAwait(false);
 
             // load client
             m_gdsClient = new GlobalDiscoveryTestClient(true, m_storeType);
-            await m_gdsClient.LoadClientConfiguration(m_server.BasePort).ConfigureAwait(false);
+            await m_gdsClient.LoadClientConfigurationAsync(m_server.BasePort).ConfigureAwait(false);
 
             // good applications test set
             m_appTestDataGenerator = new ApplicationTestDataGenerator(1);
-            m_goodApplicationTestSet = m_appTestDataGenerator.ApplicationTestSet(kGoodApplicationsTestCount, false);
-            m_invalidApplicationTestSet = m_appTestDataGenerator.ApplicationTestSet(kInvalidApplicationsTestCount, true);
+            m_goodApplicationTestSet = m_appTestDataGenerator.ApplicationTestSet(
+                kGoodApplicationsTestCount,
+                false);
+            m_invalidApplicationTestSet = m_appTestDataGenerator.ApplicationTestSet(
+                kInvalidApplicationsTestCount,
+                true);
 
             m_goodRegistrationOk = false;
             m_invalidRegistrationOk = false;
@@ -111,21 +120,24 @@ namespace Opc.Ua.Gds.Tests
             m_gdsRegisteredTestClient = false;
 
             //get supported CertificateTypes from GDS
-            m_supportedCertificateTypes = m_server.Config.ParseExtension<GlobalDiscoveryServerConfiguration>().CertificateGroups
-                .Where(cg => cg.Id == "Default")
-                .SelectMany(cg => cg.CertificateTypes)
-                .Select(s => typeof(Ua.ObjectTypeIds).GetField(s).GetValue(null) as NodeId)
-                .Where(n => n != null && Utils.IsSupportedCertificateType(n))
-                .ToList();
+            m_supportedCertificateTypes =
+            [
+                .. m_server
+                    .Config.ParseExtension<GlobalDiscoveryServerConfiguration>()
+                    .CertificateGroups.Where(cg => cg.Id == "Default")
+                    .SelectMany(cg => cg.CertificateTypes)
+                    .Select(s => typeof(Ua.ObjectTypeIds).GetField(s).GetValue(null) as NodeId)
+                    .Where(n => n != null && Utils.IsSupportedCertificateType(n))
+            ];
         }
 
         /// <summary>
         /// Tear down the Global Discovery Server and disconnect the Client
         /// </summary>
         [OneTimeTearDown]
-        protected void OneTimeTearDown()
+        protected async Task OneTimeTearDownAsync()
         {
-            m_gdsClient.DisconnectClient();
+            await m_gdsClient.DisconnectClientAsync().ConfigureAwait(false);
             m_gdsClient = null;
             m_server.StopServer();
             m_server = null;
@@ -139,33 +151,39 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [TearDown]
-        protected void TearDown()
+        protected async Task TearDownAsync()
         {
-            DisconnectGDS();
+            await DisconnectGDSAsync().ConfigureAwait(false);
             try
             {
-                TestContext.AddTestAttachment(m_server.GetLogFilePath(), "GDS Client and Server logs");
+                TestContext.AddTestAttachment(
+                    m_server.GetLogFilePath(),
+                    "GDS Client and Server logs");
             }
-            catch { }
+            catch
+            {
+            }
         }
-        #endregion
 
-        #region Test Methods
         /// <summary>
         /// Clean the app database from application Uri used during test.
         /// </summary>
-        [Test, Order(10)]
-        public void CleanGoodApplications()
+        [Test]
+        [Order(10)]
+        public async Task CleanGoodApplicationsAsync()
         {
-            ConnectGDS(true);
-            foreach (var application in m_goodApplicationTestSet)
+            await ConnectGDSAsync(true).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                var applicationDataRecords = m_gdsClient.GDSClient.FindApplication(application.ApplicationRecord.ApplicationUri);
+                ApplicationRecordDataType[] applicationDataRecords = await m_gdsClient.GDSClient
+                    .FindApplicationAsync(
+                        application.ApplicationRecord.ApplicationUri).ConfigureAwait(false);
                 if (applicationDataRecords != null)
                 {
-                    foreach (var applicationDataRecord in applicationDataRecords)
+                    foreach (ApplicationRecordDataType applicationDataRecord in applicationDataRecords)
                     {
-                        m_gdsClient.GDSClient.UnregisterApplication(applicationDataRecord.ApplicationId);
+                        await m_gdsClient.GDSClient
+                            .UnregisterApplicationAsync(applicationDataRecord.ApplicationId).ConfigureAwait(false);
                     }
                 }
             }
@@ -174,47 +192,54 @@ namespace Opc.Ua.Gds.Tests
         /// <summary>
         /// Register the good applications in the database.
         /// </summary>
-        [Test, Order(100)]
-        public void RegisterGoodApplications()
+        [Test]
+        [Order(100)]
+        public async Task RegisterGoodApplicationsAsync()
         {
-            ConnectGDS(true);
-            foreach (var application in m_goodApplicationTestSet)
+            await ConnectGDSAsync(true).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                NodeId id = m_gdsClient.GDSClient.RegisterApplication(application.ApplicationRecord);
+                NodeId id = await m_gdsClient.GDSClient
+                    .RegisterApplicationAsync(application.ApplicationRecord).ConfigureAwait(false);
                 Assert.NotNull(id);
                 Assert.IsFalse(id.IsNullNodeId);
-                Assert.That(id.IdType == IdType.Guid || id.IdType == IdType.String);
+                NUnit.Framework.Assert.That(id.IdType is IdType.Guid or IdType.String);
                 application.ApplicationRecord.ApplicationId = id;
             }
             m_goodRegistrationOk = true;
         }
 
-        [Test, Order(105)]
-        public void RegisterDuplicateGoodApplications()
+        [Test]
+        [Order(105)]
+        public async Task RegisterDuplicateGoodApplicationsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
-            ConnectGDS(true);
-            foreach (var application in m_goodApplicationTestSet)
+            await ConnectGDSAsync(true).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                ApplicationRecordDataType newRecord = (ApplicationRecordDataType)application.ApplicationRecord.MemberwiseClone();
+                var newRecord = (ApplicationRecordDataType)application.ApplicationRecord
+                    .MemberwiseClone();
                 newRecord.ApplicationId = null;
-                NodeId id = m_gdsClient.GDSClient.RegisterApplication(newRecord);
+                NodeId id = await m_gdsClient.GDSClient.RegisterApplicationAsync(newRecord).ConfigureAwait(false);
                 Assert.NotNull(id);
                 Assert.IsFalse(id.IsNullNodeId);
-                Assert.That(id.IdType == IdType.Guid || id.IdType == IdType.String);
+                NUnit.Framework.Assert.That(id.IdType is IdType.Guid or IdType.String);
                 newRecord.ApplicationId = id;
-                var applicationDataRecords = m_gdsClient.GDSClient.FindApplication(newRecord.ApplicationUri);
+                ApplicationRecordDataType[] applicationDataRecords = await m_gdsClient.GDSClient
+                    .FindApplicationAsync(
+                        newRecord.ApplicationUri).ConfigureAwait(false);
                 Assert.NotNull(applicationDataRecords);
                 bool newIdFound = false;
                 bool registeredIdFound = false;
-                foreach (var applicationDataRecord in applicationDataRecords)
+                foreach (ApplicationRecordDataType applicationDataRecord in applicationDataRecords)
                 {
                     if (applicationDataRecord.ApplicationId == newRecord.ApplicationId)
                     {
-                        m_gdsClient.GDSClient.UnregisterApplication(id);
+                        await m_gdsClient.GDSClient.UnregisterApplicationAsync(id).ConfigureAwait(false);
                         newIdFound = true;
                     }
-                    else if (applicationDataRecord.ApplicationId == application.ApplicationRecord.ApplicationId)
+                    else if (applicationDataRecord.ApplicationId == application.ApplicationRecord
+                        .ApplicationId)
                     {
                         registeredIdFound = true;
                     }
@@ -224,103 +249,130 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        [Test, Order(110)]
-        public void RegisterInvalidApplications()
+        [Test]
+        [Order(110)]
+        public async Task RegisterInvalidApplicationsAsync()
         {
-            ConnectGDS(true);
-            foreach (var application in m_invalidApplicationTestSet)
+            await ConnectGDSAsync(true).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_invalidApplicationTestSet)
             {
-                Assert.That(() => { _ = m_gdsClient.GDSClient.RegisterApplication(application.ApplicationRecord); }, Throws.Exception);
+                await NUnit.Framework.Assert.ThatAsync(
+                    () => _ = m_gdsClient.GDSClient
+                        .RegisterApplicationAsync(application.ApplicationRecord),
+                    Throws.Exception).ConfigureAwait(false);
             }
             m_invalidRegistrationOk = true;
         }
 
-        [Test, Order(120)]
-        public void RegisterApplicationAsUser()
+        [Test]
+        [Order(120)]
+        public async Task RegisterApplicationAsUserAsync()
         {
             AssertIgnoreTestWithoutInvalidRegistration();
-            ConnectGDS(false);
-            foreach (var application in m_invalidApplicationTestSet)
+            await ConnectGDSAsync(false).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_invalidApplicationTestSet)
             {
-                Assert.That(() => { _ = m_gdsClient.GDSClient.RegisterApplication(application.ApplicationRecord); }, Throws.Exception);
+                await NUnit.Framework.Assert.ThatAsync(
+                    () => _ = m_gdsClient.GDSClient
+                        .RegisterApplicationAsync(application.ApplicationRecord),
+                    Throws.Exception).ConfigureAwait(false);
             }
         }
 
-        [Test, Order(200)]
-        public void UpdateGoodApplications()
+        [Test]
+        [Order(200)]
+        public async Task UpdateGoodApplicationsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
-            ConnectGDS(true);
-            foreach (var application in m_goodApplicationTestSet)
+            await ConnectGDSAsync(true).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                var updatedApplicationRecord = (ApplicationRecordDataType)application.ApplicationRecord.MemberwiseClone();
+                var updatedApplicationRecord = (ApplicationRecordDataType)
+                    application.ApplicationRecord.MemberwiseClone();
                 updatedApplicationRecord.ApplicationUri += "update";
-                m_gdsClient.GDSClient.UpdateApplication(updatedApplicationRecord);
-                var result = m_gdsClient.GDSClient.FindApplication(updatedApplicationRecord.ApplicationUri);
-                m_gdsClient.GDSClient.UpdateApplication(application.ApplicationRecord);
+                await m_gdsClient.GDSClient.UpdateApplicationAsync(updatedApplicationRecord).ConfigureAwait(false);
+                ApplicationRecordDataType[] result = await m_gdsClient.GDSClient.FindApplicationAsync(
+                    updatedApplicationRecord.ApplicationUri).ConfigureAwait(false);
+                await m_gdsClient.GDSClient.UpdateApplicationAsync(application.ApplicationRecord).ConfigureAwait(false);
                 Assert.NotNull(result);
                 Assert.GreaterOrEqual(1, result.Length, "Couldn't find updated application record");
             }
         }
 
-        [Test, Order(210)]
-        public void UpdateGoodApplicationsWithNewGuid()
+        [Test]
+        [Order(210)]
+        public async Task UpdateGoodApplicationsWithNewGuidAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
-            ConnectGDS(true);
-            foreach (var application in m_goodApplicationTestSet)
+            await ConnectGDSAsync(true).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                var testApplicationRecord = (ApplicationRecordDataType)application.ApplicationRecord.MemberwiseClone();
+                var testApplicationRecord = (ApplicationRecordDataType)application.ApplicationRecord
+                    .MemberwiseClone();
                 testApplicationRecord.ApplicationId = new NodeId(Guid.NewGuid());
-                Assert.That(() => { m_gdsClient.GDSClient.UpdateApplication(testApplicationRecord); }, Throws.Exception);
+                await NUnit.Framework.Assert.ThatAsync(
+                    () => m_gdsClient.GDSClient.UpdateApplicationAsync(testApplicationRecord),
+                    Throws.Exception).ConfigureAwait(false);
             }
         }
 
-        [Test, Order(210)]
-        public void UpdateGoodApplicationsWithNewString()
+        [Test]
+        [Order(210)]
+        public async Task UpdateGoodApplicationsWithNewStringAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
-            ConnectGDS(true);
-            foreach (var application in m_goodApplicationTestSet)
+            await ConnectGDSAsync(true).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                var testApplicationRecord = (ApplicationRecordDataType)application.ApplicationRecord.MemberwiseClone();
-                testApplicationRecord.ApplicationId = new NodeId("s=" + m_appTestDataGenerator.DataGenerator.GetRandomString("en"));
-                Assert.That(() => { m_gdsClient.GDSClient.UpdateApplication(testApplicationRecord); }, Throws.Exception);
+                var testApplicationRecord = (ApplicationRecordDataType)application.ApplicationRecord
+                    .MemberwiseClone();
+                testApplicationRecord.ApplicationId = new NodeId(
+                    "s=" + m_appTestDataGenerator.DataGenerator.GetRandomString("en"));
+                await NUnit.Framework.Assert.ThatAsync(
+                    () => m_gdsClient.GDSClient.UpdateApplicationAsync(testApplicationRecord),
+                    Throws.Exception).ConfigureAwait(false);
             }
         }
 
-        [Test, Order(220)]
-        public void UpdateInvalidApplications()
+        [Test]
+        [Order(220)]
+        public async Task UpdateInvalidApplicationsAsync()
         {
             AssertIgnoreTestWithoutInvalidRegistration();
-            ConnectGDS(true);
-            foreach (var application in m_invalidApplicationTestSet)
+            await ConnectGDSAsync(true).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_invalidApplicationTestSet)
             {
-                Assert.That(() => { m_gdsClient.GDSClient.UpdateApplication(application.ApplicationRecord); }, Throws.Exception);
+                await NUnit.Framework.Assert.ThatAsync(
+                    () => m_gdsClient.GDSClient.UpdateApplicationAsync(application.ApplicationRecord),
+                    Throws.Exception).ConfigureAwait(false);
             }
         }
 
-        [Test, Order(400)]
-        public void FindGoodApplications()
+        [Test]
+        [Order(400)]
+        public async Task FindGoodApplicationsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
-            ConnectGDS(false);
-            foreach (var application in m_goodApplicationTestSet)
+            await ConnectGDSAsync(false).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                var result = m_gdsClient.GDSClient.FindApplication(application.ApplicationRecord.ApplicationUri);
+                ApplicationRecordDataType[] result = await m_gdsClient.GDSClient.FindApplicationAsync(
+                    application.ApplicationRecord.ApplicationUri).ConfigureAwait(false);
                 Assert.NotNull(result);
                 Assert.GreaterOrEqual(result.Length, 1, "Couldn't find good application");
             }
         }
 
-        [Test, Order(400)]
-        public void FindInvalidApplications()
+        [Test]
+        [Order(400)]
+        public async Task FindInvalidApplicationsAsync()
         {
             AssertIgnoreTestWithoutInvalidRegistration();
-            ConnectGDS(true);
-            foreach (var application in m_invalidApplicationTestSet)
+            await ConnectGDSAsync(true).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_invalidApplicationTestSet)
             {
-                var result = m_gdsClient.GDSClient.FindApplication(application.ApplicationRecord.ApplicationUri);
+                ApplicationRecordDataType[] result = await m_gdsClient.GDSClient.FindApplicationAsync(
+                    application.ApplicationRecord.ApplicationUri).ConfigureAwait(false);
                 if (result != null)
                 {
                     Assert.NotNull(result);
@@ -329,14 +381,16 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        [Test, Order(400)]
-        public void GetGoodApplications()
+        [Test]
+        [Order(400)]
+        public async Task GetGoodApplicationsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
-            ConnectGDS(false);
-            foreach (var application in m_goodApplicationTestSet)
+            await ConnectGDSAsync(false).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                var result = m_gdsClient.GDSClient.GetApplication(application.ApplicationRecord.ApplicationId);
+                ApplicationRecordDataType result = await m_gdsClient.GDSClient.GetApplicationAsync(
+                    application.ApplicationRecord.ApplicationId).ConfigureAwait(false);
                 Assert.NotNull(result);
                 result.ServerCapabilities.Sort();
                 application.ApplicationRecord.ServerCapabilities.Sort();
@@ -344,126 +398,170 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        [Test, Order(401)]
-        public void GetGoodApplicationsTestApplicationId()
+        [Test]
+        [Order(401)]
+        public async Task GetGoodApplicationsTestApplicationIdAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
-            ConnectGDS(false);
-            foreach (var application in m_goodApplicationTestSet)
+            await ConnectGDSAsync(false).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                var result = m_gdsClient.GDSClient.GetApplication(application.ApplicationRecord.ApplicationId);
+                ApplicationRecordDataType result = await m_gdsClient.GDSClient.GetApplicationAsync(
+                    application.ApplicationRecord.ApplicationId).ConfigureAwait(false);
                 Assert.NotNull(result);
-                Assert.IsTrue(Utils.IsEqual(application.ApplicationRecord.ApplicationId, result.ApplicationId));
+                Assert.IsTrue(
+                    Utils.IsEqual(
+                        application.ApplicationRecord.ApplicationId,
+                        result.ApplicationId));
             }
         }
 
-        [Test, Order(401)]
-        public void GetGoodApplicationsTestApplicationNames()
+        [Test]
+        [Order(401)]
+        public async Task GetGoodApplicationsTestApplicationNamesAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
-            ConnectGDS(false);
-            foreach (var application in m_goodApplicationTestSet)
+            await ConnectGDSAsync(false).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                var result = m_gdsClient.GDSClient.GetApplication(application.ApplicationRecord.ApplicationId);
+                ApplicationRecordDataType result = await m_gdsClient.GDSClient.GetApplicationAsync(
+                    application.ApplicationRecord.ApplicationId).ConfigureAwait(false);
                 Assert.NotNull(result);
-                Assert.IsTrue(Utils.IsEqual(application.ApplicationRecord.ApplicationNames, result.ApplicationNames));
+                Assert.IsTrue(Utils.IsEqual(
+                    application.ApplicationRecord.ApplicationNames,
+                    result.ApplicationNames));
             }
         }
 
-        [Test, Order(401)]
-        public void GetGoodApplicationsTestApplicationType()
+        [Test]
+        [Order(401)]
+        public async Task GetGoodApplicationsTestApplicationTypeAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
-            ConnectGDS(false);
-            foreach (var application in m_goodApplicationTestSet)
+            await ConnectGDSAsync(false).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                var result = m_gdsClient.GDSClient.GetApplication(application.ApplicationRecord.ApplicationId);
+                ApplicationRecordDataType result = await m_gdsClient.GDSClient.GetApplicationAsync(
+                    application.ApplicationRecord.ApplicationId).ConfigureAwait(false);
                 Assert.NotNull(result);
-                Assert.IsTrue(Utils.IsEqual(application.ApplicationRecord.ApplicationType, result.ApplicationType));
+                Assert.IsTrue(Utils.IsEqual(
+                    application.ApplicationRecord.ApplicationType,
+                    result.ApplicationType));
             }
         }
 
-        [Test, Order(401)]
-        public void GetGoodApplicationsTestApplicationUri()
+        [Test]
+        [Order(401)]
+        public async Task GetGoodApplicationsTestApplicationUriAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
-            ConnectGDS(false);
-            foreach (var application in m_goodApplicationTestSet)
+            await ConnectGDSAsync(false).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                var result = m_gdsClient.GDSClient.GetApplication(application.ApplicationRecord.ApplicationId);
+                ApplicationRecordDataType result = await m_gdsClient.GDSClient.GetApplicationAsync(
+                    application.ApplicationRecord.ApplicationId).ConfigureAwait(false);
                 Assert.NotNull(result);
-                Assert.IsTrue(Utils.IsEqual(application.ApplicationRecord.ApplicationUri, result.ApplicationUri));
+                Assert.IsTrue(Utils.IsEqual(
+                    application.ApplicationRecord.ApplicationUri,
+                    result.ApplicationUri));
             }
         }
 
-        [Test, Order(401)]
-        public void GetGoodApplicationsTestDiscoveryUrls()
+        [Test]
+        [Order(401)]
+        public async Task GetGoodApplicationsTestDiscoveryUrlsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
-            ConnectGDS(false);
-            foreach (var application in m_goodApplicationTestSet)
+            await ConnectGDSAsync(false).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                var result = m_gdsClient.GDSClient.GetApplication(application.ApplicationRecord.ApplicationId);
+                ApplicationRecordDataType result = await m_gdsClient.GDSClient.GetApplicationAsync(
+                    application.ApplicationRecord.ApplicationId).ConfigureAwait(false);
                 Assert.NotNull(result);
-                Assert.IsTrue(Utils.IsEqual(application.ApplicationRecord.DiscoveryUrls, result.DiscoveryUrls));
+                Assert.IsTrue(
+                    Utils.IsEqual(
+                        application.ApplicationRecord.DiscoveryUrls,
+                        result.DiscoveryUrls));
             }
         }
 
-        [Test, Order(401)]
-        public void GetGoodApplicationsTestProductUri()
+        [Test]
+        [Order(401)]
+        public async Task GetGoodApplicationsTestProductUriAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
-            ConnectGDS(false);
-            foreach (var application in m_goodApplicationTestSet)
+            await ConnectGDSAsync(false).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                var result = m_gdsClient.GDSClient.GetApplication(application.ApplicationRecord.ApplicationId);
+                ApplicationRecordDataType result = await m_gdsClient.GDSClient.GetApplicationAsync(
+                    application.ApplicationRecord.ApplicationId).ConfigureAwait(false);
                 Assert.NotNull(result);
-                Assert.IsTrue(Utils.IsEqual(application.ApplicationRecord.ProductUri, result.ProductUri));
+                Assert.IsTrue(
+                    Utils.IsEqual(application.ApplicationRecord.ProductUri, result.ProductUri));
             }
         }
 
-        [Test, Order(401)]
-        public void GetGoodApplicationsTestServerCapabilities()
+        [Test]
+        [Order(401)]
+        public async Task GetGoodApplicationsTestServerCapabilitiesAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
-            ConnectGDS(false);
-            foreach (var application in m_goodApplicationTestSet)
+            await ConnectGDSAsync(false).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                var result = m_gdsClient.GDSClient.GetApplication(application.ApplicationRecord.ApplicationId);
+                ApplicationRecordDataType result = await m_gdsClient.GDSClient.GetApplicationAsync(
+                    application.ApplicationRecord.ApplicationId).ConfigureAwait(false);
                 Assert.NotNull(result);
                 result.ServerCapabilities.Sort();
                 application.ApplicationRecord.ServerCapabilities.Sort();
-                Assert.IsTrue(Utils.IsEqual(application.ApplicationRecord.ServerCapabilities, result.ServerCapabilities));
+                Assert.IsTrue(
+                    Utils.IsEqual(
+                        application.ApplicationRecord.ServerCapabilities,
+                        result.ServerCapabilities));
             }
         }
 
-        [Test, Order(400)]
-        public void GetInvalidApplications()
+        [Test]
+        [Order(400)]
+        public async Task GetInvalidApplicationsAsync()
         {
             AssertIgnoreTestWithoutInvalidRegistration();
-            ConnectGDS(true);
-            foreach (var application in m_invalidApplicationTestSet)
+            await ConnectGDSAsync(true).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_invalidApplicationTestSet)
             {
-                Assert.That(() => { var result = m_gdsClient.GDSClient.GetApplication(application.ApplicationRecord.ApplicationId); }, Throws.Exception);
+                await NUnit.Framework.Assert.ThatAsync(
+                    () => m_gdsClient.GDSClient.GetApplicationAsync(
+                            application.ApplicationRecord.ApplicationId)
+                    ,
+                    Throws.Exception).ConfigureAwait(false);
             }
         }
 
-        [Test, Order(410)]
-        public void QueryAllServers()
+        [Test]
+        [Order(410)]
+        public async Task QueryAllServersAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
-            ConnectGDS(false);
+            await ConnectGDSAsync(false).ConfigureAwait(false);
             // get all servers
-            var allServers = m_gdsClient.GDSClient.QueryServers(0, "", "", "", new List<string>());
+            IList<ServerOnNetwork> allServers = await m_gdsClient.GDSClient
+                .QueryServersAsync(0, string.Empty, string.Empty, string.Empty, []).ConfigureAwait(false);
             int totalCount = 0;
-            uint firstID = uint.MaxValue, lastID = 0;
+            uint firstID = uint.MaxValue;
+            uint lastID = 0;
             Assert.IsNotNull(allServers);
-            foreach (var server in allServers)
+            foreach (ServerOnNetwork server in allServers)
             {
-                var oneServers = m_gdsClient.GDSClient.QueryServers(server.RecordId, 1, "", "", "", new List<string>());
+                IList<ServerOnNetwork> oneServers = (await m_gdsClient.GDSClient.QueryServersAsync(
+                    server.RecordId,
+                    1,
+                    string.Empty,
+                    string.Empty,
+                    string.Empty,
+                    []).ConfigureAwait(false)).servers;
                 Assert.IsNotNull(oneServers);
                 Assert.GreaterOrEqual(oneServers.Count, 1);
-                foreach (var oneServer in oneServers)
+                foreach (ServerOnNetwork oneServer in oneServers)
                 {
                     Assert.AreEqual(oneServer.RecordId, server.RecordId);
                 }
@@ -478,22 +576,31 @@ namespace Opc.Ua.Gds.Tests
             Assert.GreaterOrEqual(firstID, 1);
         }
 
-        [Test, Order(411)]
-        public void QueryAllServersNull()
+        [Test]
+        [Order(411)]
+        public async Task QueryAllServersNullAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
-            ConnectGDS(false);
+            await ConnectGDSAsync(false).ConfigureAwait(false);
             // get all servers
-            var allServers = m_gdsClient.GDSClient.QueryServers(0, null, null, null, null);
+            IList<ServerOnNetwork> allServers = await m_gdsClient.GDSClient
+                .QueryServersAsync(0, null, null, null, null).ConfigureAwait(false);
             int totalCount = 0;
-            uint firstID = uint.MaxValue, lastID = 0;
+            uint firstID = uint.MaxValue;
+            uint lastID = 0;
             Assert.IsNotNull(allServers);
-            foreach (var server in allServers)
+            foreach (ServerOnNetwork server in allServers)
             {
-                var oneServers = m_gdsClient.GDSClient.QueryServers(server.RecordId, 1, null, null, null, null);
+                IList<ServerOnNetwork> oneServers = (await m_gdsClient.GDSClient.QueryServersAsync(
+                    server.RecordId,
+                    1,
+                    null,
+                    null,
+                    null,
+                    null).ConfigureAwait(false)).servers;
                 Assert.IsNotNull(oneServers);
                 Assert.GreaterOrEqual(oneServers.Count, 1);
-                foreach (var oneServer in oneServers)
+                foreach (ServerOnNetwork oneServer in oneServers)
                 {
                     Assert.AreEqual(oneServer.RecordId, server.RecordId);
                 }
@@ -508,8 +615,9 @@ namespace Opc.Ua.Gds.Tests
             Assert.GreaterOrEqual(firstID, 1);
         }
 
-        [Test, Order(420)]
-        public void QueryGoodServersBatches()
+        [Test]
+        [Order(420)]
+        public async Task QueryGoodServersBatchesAsync()
         {
             // repeating queries to get all servers
             uint nextID = 0;
@@ -518,7 +626,13 @@ namespace Opc.Ua.Gds.Tests
             int goodServersOnNetwork = GoodServersOnNetworkCount();
             while (true)
             {
-                var iterServers = m_gdsClient.GDSClient.QueryServers(nextID, iterationCount, "", "", "", null);
+                IList<ServerOnNetwork> iterServers = (await m_gdsClient.GDSClient.QueryServersAsync(
+                    nextID,
+                    iterationCount,
+                    string.Empty,
+                    string.Empty,
+                    string.Empty,
+                    null).ConfigureAwait(false)).servers;
                 Assert.IsNotNull(iterServers);
                 serversOnNetwork += iterServers.Count;
                 if (iterServers.Count == 0)
@@ -532,14 +646,20 @@ namespace Opc.Ua.Gds.Tests
             Assert.GreaterOrEqual(serversOnNetwork, goodServersOnNetwork);
         }
 
-        [Test, Order(430)]
-        public void QueryServersByName()
+        [Test]
+        [Order(430)]
+        public async Task QueryServersByNameAsync()
         {
             // search applications by name
             const int searchPatternLength = 5;
-            foreach (var application in m_goodApplicationTestSet)
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                var atLeastOneServer = m_gdsClient.GDSClient.QueryServers(1, application.ApplicationRecord.ApplicationNames[0].Text, "", "", null);
+                IList<ServerOnNetwork> atLeastOneServer = await m_gdsClient.GDSClient.QueryServersAsync(
+                    1,
+                    application.ApplicationRecord.ApplicationNames[0].Text,
+                    string.Empty,
+                    string.Empty,
+                    null).ConfigureAwait(false);
                 Assert.IsNotNull(atLeastOneServer);
                 if (application.ApplicationRecord.ApplicationType != ApplicationType.Client)
                 {
@@ -553,9 +673,10 @@ namespace Opc.Ua.Gds.Tests
                 string searchName = application.ApplicationRecord.ApplicationNames[0].Text.Trim();
                 if (searchName.Length > searchPatternLength)
                 {
-                    searchName = string.Concat(searchName.Substring(0, searchPatternLength), "%");
+                    searchName = $"{searchName[..searchPatternLength]}%";
                 }
-                atLeastOneServer = m_gdsClient.GDSClient.QueryServers(1, searchName, "", "", null);
+                atLeastOneServer = await m_gdsClient.GDSClient
+                    .QueryServersAsync(1, searchName, string.Empty, string.Empty, null).ConfigureAwait(false);
                 Assert.IsNotNull(atLeastOneServer);
                 if (application.ApplicationRecord.ApplicationType != ApplicationType.Client)
                 {
@@ -564,14 +685,20 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        [Test, Order(440)]
-        public void QueryServersByAppUri()
+        [Test]
+        [Order(440)]
+        public async Task QueryServersByAppUriAsync()
         {
             // search applications by name
             const int searchPatternLength = 5;
-            foreach (var application in m_goodApplicationTestSet)
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                var atLeastOneServer = m_gdsClient.GDSClient.QueryServers(1, null, application.ApplicationRecord.ApplicationUri, null, null);
+                IList<ServerOnNetwork> atLeastOneServer = await m_gdsClient.GDSClient.QueryServersAsync(
+                    1,
+                    null,
+                    application.ApplicationRecord.ApplicationUri,
+                    null,
+                    null).ConfigureAwait(false);
                 Assert.IsNotNull(atLeastOneServer);
                 if (application.ApplicationRecord.ApplicationType != ApplicationType.Client)
                 {
@@ -585,9 +712,10 @@ namespace Opc.Ua.Gds.Tests
                 string searchName = application.ApplicationRecord.ApplicationUri;
                 if (searchName.Length > searchPatternLength)
                 {
-                    searchName = string.Concat(searchName.Substring(0, searchPatternLength), "%");
+                    searchName = $"{searchName[..searchPatternLength]}%";
                 }
-                atLeastOneServer = m_gdsClient.GDSClient.QueryServers(1, null, searchName, null, null);
+                atLeastOneServer = await m_gdsClient.GDSClient
+                    .QueryServersAsync(1, null, searchName, null, null).ConfigureAwait(false);
                 Assert.IsNotNull(atLeastOneServer);
                 if (application.ApplicationRecord.ApplicationType != ApplicationType.Client)
                 {
@@ -596,14 +724,20 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        [Test, Order(450)]
-        public void QueryServersByProductUri()
+        [Test]
+        [Order(450)]
+        public async Task QueryServersByProductUriAsync()
         {
             // search applications by name
             const int searchPatternLength = 5;
-            foreach (var application in m_goodApplicationTestSet)
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                var atLeastOneServer = m_gdsClient.GDSClient.QueryServers(1, null, null, application.ApplicationRecord.ProductUri, null);
+                IList<ServerOnNetwork> atLeastOneServer = await m_gdsClient.GDSClient.QueryServersAsync(
+                    1,
+                    null,
+                    null,
+                    application.ApplicationRecord.ProductUri,
+                    null).ConfigureAwait(false);
                 Assert.IsNotNull(atLeastOneServer);
                 if (application.ApplicationRecord.ApplicationType != ApplicationType.Client)
                 {
@@ -617,9 +751,10 @@ namespace Opc.Ua.Gds.Tests
                 string searchName = application.ApplicationRecord.ProductUri;
                 if (searchName.Length > searchPatternLength)
                 {
-                    searchName = string.Concat(searchName.Substring(0, searchPatternLength), "%");
+                    searchName = $"{searchName[..searchPatternLength]}%";
                 }
-                atLeastOneServer = m_gdsClient.GDSClient.QueryServers(1, null, null, searchName, null);
+                atLeastOneServer = await m_gdsClient.GDSClient
+                    .QueryServersAsync(1, null, null, searchName, null).ConfigureAwait(false);
                 Assert.IsNotNull(atLeastOneServer);
                 if (application.ApplicationRecord.ApplicationType != ApplicationType.Client)
                 {
@@ -628,24 +763,39 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        [Test, Order(480)]
-        public void QueryAllApplications()
+        [Test]
+        [Order(480)]
+        public async Task QueryAllApplicationsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
-            ConnectGDS(false);
+            await ConnectGDSAsync(false).ConfigureAwait(false);
             // get all applications
-            DateTime lastResetCounterTime;
             uint nextRecordId;
-            var allApplications = m_gdsClient.GDSClient.QueryApplications(0, 0, "", "", 0, "", new List<string>(), out lastResetCounterTime, out nextRecordId);
+            IList<ApplicationDescription> allApplications = (await m_gdsClient.GDSClient.QueryApplicationsAsync(
+                0,
+                0,
+                string.Empty,
+                string.Empty,
+                0,
+                string.Empty,
+                []).ConfigureAwait(false)).applications;
             int totalCount = 0;
             Assert.IsNotNull(allApplications);
             nextRecordId = 0;
-            foreach (var application in allApplications)
+            foreach (ApplicationDescription application in allApplications)
             {
-                var oneApplication = m_gdsClient.GDSClient.QueryApplications(nextRecordId, 1, "", "", 0, "", new List<string>(), out lastResetCounterTime, out nextRecordId);
+                (IList<ApplicationDescription> oneApplication, DateTime lastResetCounterTime, nextRecordId) = await m_gdsClient.GDSClient
+                    .QueryApplicationsAsync(
+                        nextRecordId,
+                        1,
+                        string.Empty,
+                        string.Empty,
+                        0,
+                        string.Empty,
+                        []).ConfigureAwait(false);
                 Assert.IsNotNull(oneApplication);
                 Assert.GreaterOrEqual(oneApplication.Count, 1);
-                foreach (var oneApp in oneApplication)
+                foreach (ApplicationDescription oneApp in oneApplication)
                 {
                     //Assert.AreEqual(oneApp., server.RecordId);
                 }
@@ -655,77 +805,78 @@ namespace Opc.Ua.Gds.Tests
             Assert.AreEqual(totalCount, allApplications.Count);
         }
 
-
-        [Test, Order(500)]
-        public void StartGoodNewKeyPairRequests()
+        [Test]
+        [Order(500)]
+        public async Task StartGoodNewKeyPairRequestsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
-            ConnectGDS(true);
+            await ConnectGDSAsync(true).ConfigureAwait(false);
             int certificateTypeIndex = 0;
-            foreach (var application in m_goodApplicationTestSet)
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
                 application.CertificateTypeId = m_supportedCertificateTypes[certificateTypeIndex];
-                certificateTypeIndex = (certificateTypeIndex + 1) % m_supportedCertificateTypes.Count;
+                certificateTypeIndex = (certificateTypeIndex + 1) %
+                    m_supportedCertificateTypes.Count;
 
                 Assert.Null(application.CertificateRequestId);
-                NodeId requestId = m_gdsClient.GDSClient.StartNewKeyPairRequest(
+                NodeId requestId = await m_gdsClient.GDSClient.StartNewKeyPairRequestAsync(
                     application.ApplicationRecord.ApplicationId,
                     application.CertificateGroupId,
                     application.CertificateTypeId,
                     application.Subject,
                     application.DomainNames,
                     application.PrivateKeyFormat,
-                    application.PrivateKeyPassword);
+                    application.PrivateKeyPassword).ConfigureAwait(false);
                 Assert.NotNull(requestId);
                 application.CertificateRequestId = requestId;
             }
             m_goodNewKeyPairRequestOk = true;
         }
 
-        [Test, Order(501)]
-        public void StartInvalidNewKeyPairRequests()
+        [Test]
+        [Order(501)]
+        public async Task StartInvalidNewKeyPairRequestsAsync()
         {
             AssertIgnoreTestWithoutInvalidRegistration();
-            ConnectGDS(true);
-            foreach (var application in m_invalidApplicationTestSet)
+            await ConnectGDSAsync(true).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_invalidApplicationTestSet)
             {
                 Assert.Null(application.CertificateRequestId);
-                Assert.That(() => {
-                    _ = m_gdsClient.GDSClient.StartNewKeyPairRequest(
-                        application.ApplicationRecord.ApplicationId,
-                        application.CertificateGroupId,
-                        application.CertificateTypeId,
-                        application.Subject,
-                        application.DomainNames,
-                        application.PrivateKeyFormat,
-                        application.PrivateKeyPassword);
-                }, Throws.Exception);
+                await NUnit.Framework.Assert.ThatAsync(
+                    () => m_gdsClient.GDSClient.StartNewKeyPairRequestAsync(
+                            application.ApplicationRecord.ApplicationId,
+                            application.CertificateGroupId,
+                            application.CertificateTypeId,
+                            application.Subject,
+                            application.DomainNames,
+                            application.PrivateKeyFormat,
+                            application.PrivateKeyPassword)
+                    ,
+                    Throws.Exception).ConfigureAwait(false);
             }
         }
 
-        [Test, Order(510)]
-        public void FinishGoodNewKeyPairRequests()
+        [Test]
+        [Order(510)]
+        public async Task FinishGoodNewKeyPairRequestsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
             AssertIgnoreTestWithoutGoodNewKeyPairRequest();
-            ConnectGDS(true);
+            await ConnectGDSAsync(true).ConfigureAwait(false);
             bool requestBusy;
             DateTime now = DateTime.UtcNow;
             do
             {
                 requestBusy = false;
-                foreach (var application in m_goodApplicationTestSet)
+                foreach (ApplicationTestData application in m_goodApplicationTestSet)
                 {
                     if (application.CertificateRequestId != null)
                     {
                         try
                         {
-                            byte[] certificate = m_gdsClient.GDSClient.FinishRequest(
+                            (byte[] certificate, byte[] privateKey, byte[][] issuerCertificates) = await m_gdsClient.GDSClient.FinishRequestAsync(
                                 application.ApplicationRecord.ApplicationId,
-                                application.CertificateRequestId,
-                                out byte[] privateKey,
-                                out byte[][] issuerCertificates
-                                );
+                                application.CertificateRequestId).ConfigureAwait(false);
 
                             if (certificate != null)
                             {
@@ -737,8 +888,16 @@ namespace Opc.Ua.Gds.Tests
                                 application.Certificate = certificate;
                                 application.PrivateKey = privateKey;
                                 application.IssuerCertificates = issuerCertificates;
-                                X509TestUtils.VerifySignedApplicationCert(application, certificate, issuerCertificates);
-                                X509TestUtils.VerifyApplicationCertIntegrity(certificate, privateKey, application.PrivateKeyPassword, application.PrivateKeyFormat, issuerCertificates);
+                                X509TestUtils.VerifySignedApplicationCert(
+                                    application,
+                                    certificate,
+                                    issuerCertificates);
+                                X509TestUtils.VerifyApplicationCertIntegrity(
+                                    certificate,
+                                    privateKey,
+                                    application.PrivateKeyPassword,
+                                    application.PrivateKeyFormat,
+                                    issuerCertificates);
                             }
                             else
                             {
@@ -758,7 +917,6 @@ namespace Opc.Ua.Gds.Tests
                                 throw;
                             }
                         }
-
                     }
                 }
 
@@ -767,84 +925,85 @@ namespace Opc.Ua.Gds.Tests
                     Thread.Sleep(5000);
                     Console.WriteLine("Waiting for certificate approval");
                 }
-
             } while (requestBusy);
         }
 
-
-
-        [Test, Order(512)]
-        public void FinishInvalidNewKeyPairRequests()
+        [Test]
+        [Order(512)]
+        public async Task FinishInvalidNewKeyPairRequestsAsync()
         {
             AssertIgnoreTestWithoutInvalidRegistration();
-            ConnectGDS(true);
-            foreach (var application in m_invalidApplicationTestSet)
+            await ConnectGDSAsync(true).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_invalidApplicationTestSet)
             {
-                Assert.That(() => {
-                    _ = m_gdsClient.GDSClient.FinishRequest(
-                        application.ApplicationRecord.ApplicationId,
-                        new NodeId(Guid.NewGuid()),
-                        out byte[] privateKey,
-                        out byte[][] issuerCertificates
-                    );
-                }, Throws.Exception);
+                await NUnit.Framework.Assert.ThatAsync(
+                    () => m_gdsClient.GDSClient.FinishRequestAsync(
+                            application.ApplicationRecord.ApplicationId,
+                            new NodeId(Guid.NewGuid())),
+                    Throws.Exception).ConfigureAwait(false);
             }
         }
 
-        [Test, Order(520)]
-        public void StartGoodSigningRequests()
+        [Test]
+        [Order(520)]
+        public async Task StartGoodSigningRequestsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
             AssertIgnoreTestWithoutGoodNewKeyPairRequest();
-            ConnectGDS(true);
-            foreach (var application in m_goodApplicationTestSet)
+            await ConnectGDSAsync(true).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
                 Assert.Null(application.CertificateRequestId);
                 X509Certificate2 csrCertificate;
                 if (application.PrivateKeyFormat == "PFX")
                 {
-                    csrCertificate = X509Utils.CreateCertificateFromPKCS12(application.PrivateKey, application.PrivateKeyPassword);
+                    csrCertificate = X509Utils.CreateCertificateFromPKCS12(
+                        application.PrivateKey,
+                        application.PrivateKeyPassword);
                 }
                 else
                 {
-                    csrCertificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(X509CertificateLoader.LoadCertificate(application.Certificate), application.PrivateKey, application.PrivateKeyPassword);
+                    csrCertificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(
+                        X509CertificateLoader.LoadCertificate(application.Certificate),
+                        application.PrivateKey,
+                        application.PrivateKeyPassword);
                 }
-                byte[] certificateRequest = CertificateFactory.CreateSigningRequest(csrCertificate, application.DomainNames);
+                byte[] certificateRequest = CertificateFactory.CreateSigningRequest(
+                    csrCertificate,
+                    application.DomainNames);
                 csrCertificate.Dispose();
-                NodeId requestId = m_gdsClient.GDSClient.StartSigningRequest(
+                NodeId requestId = await m_gdsClient.GDSClient.StartSigningRequestAsync(
                     application.ApplicationRecord.ApplicationId,
                     application.CertificateGroupId,
                     application.CertificateTypeId,
-                    certificateRequest);
+                    certificateRequest).ConfigureAwait(false);
                 Assert.NotNull(requestId);
                 application.CertificateRequestId = requestId;
             }
         }
 
-        [Test, Order(530)]
-        public void FinishGoodSigningRequests()
+        [Test]
+        [Order(530)]
+        public async Task FinishGoodSigningRequestsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
             AssertIgnoreTestWithoutGoodNewKeyPairRequest();
-            ConnectGDS(true);
+            await ConnectGDSAsync(true).ConfigureAwait(false);
             bool requestBusy;
             DateTime now = DateTime.UtcNow;
             do
             {
                 requestBusy = false;
 
-                foreach (var application in m_goodApplicationTestSet)
+                foreach (ApplicationTestData application in m_goodApplicationTestSet)
                 {
                     if (application.CertificateRequestId != null)
                     {
                         try
                         {
-                            var certificate = m_gdsClient.GDSClient.FinishRequest(
+                            (byte[] certificate, byte[] privateKey, byte[][] issuerCertificates) = await m_gdsClient.GDSClient.FinishRequestAsync(
                                 application.ApplicationRecord.ApplicationId,
-                                application.CertificateRequestId,
-                                out byte[] privateKey,
-                                out byte[][] issuerCertificates
-                                );
+                                application.CertificateRequestId).ConfigureAwait(false);
 
                             if (certificate != null)
                             {
@@ -854,8 +1013,16 @@ namespace Opc.Ua.Gds.Tests
                                 Assert.NotNull(issuerCertificates);
                                 application.Certificate = certificate;
                                 application.IssuerCertificates = issuerCertificates;
-                                X509TestUtils.VerifySignedApplicationCert(application, certificate, issuerCertificates);
-                                X509TestUtils.VerifyApplicationCertIntegrity(certificate, application.PrivateKey, application.PrivateKeyPassword, application.PrivateKeyFormat, issuerCertificates);
+                                X509TestUtils.VerifySignedApplicationCert(
+                                    application,
+                                    certificate,
+                                    issuerCertificates);
+                                X509TestUtils.VerifyApplicationCertIntegrity(
+                                    certificate,
+                                    application.PrivateKey,
+                                    application.PrivateKeyPassword,
+                                    application.PrivateKeyFormat,
+                                    issuerCertificates);
                             }
                             else
                             {
@@ -875,7 +1042,6 @@ namespace Opc.Ua.Gds.Tests
                                 throw;
                             }
                         }
-
                     }
                 }
 
@@ -885,146 +1051,168 @@ namespace Opc.Ua.Gds.Tests
                     Console.WriteLine("Waiting for certificate approval");
                 }
             } while (requestBusy);
-
         }
 
-
-        [Test, Order(540)]
-        public void GetGoodCertificates()
+        [Test]
+        [Order(540)]
+        public async Task GetGoodCertificatesAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
             AssertIgnoreTestWithoutGoodNewKeyPairRequest();
-            ConnectGDS(true);
+            await ConnectGDSAsync(true).ConfigureAwait(false);
 
-            Assert.That(() => {
-                m_gdsClient.GDSClient.GetCertificates(null, null, out var _, out var _);
-            }, Throws.Exception);
+            await NUnit.Framework.Assert.ThatAsync(
+                () => m_gdsClient.GDSClient
+                    .GetCertificatesAsync(null, null),
+                Throws.Exception).ConfigureAwait(false);
 
-            foreach (var application in m_goodApplicationTestSet)
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                m_gdsClient.GDSClient.GetCertificates(application.ApplicationRecord.ApplicationId, null, out NodeId[] certificateTypeIds, out byte[][] certificates);
-                Assert.That(certificateTypeIds.Length == 1);
+                (NodeId[] certificateTypeIds, byte[][] certificates) = await m_gdsClient.GDSClient.GetCertificatesAsync(
+                    application.ApplicationRecord.ApplicationId,
+                    null).ConfigureAwait(false);
+                NUnit.Framework.Assert.That(certificateTypeIds.Length == 1);
                 Assert.NotNull(certificates[0]);
                 Assert.AreEqual(certificates[0], application.Certificate);
-                m_gdsClient.GDSClient.GetCertificates(application.ApplicationRecord.ApplicationId, application.CertificateGroupId, out NodeId[] certificateTypeIds2, out byte[][] certificates2);
-                Assert.That(certificateTypeIds2.Length == 1);
+                (NodeId[] certificateTypeIds2, byte[][] certificates2) = await m_gdsClient.GDSClient.GetCertificatesAsync(
+                    application.ApplicationRecord.ApplicationId,
+                    application.CertificateGroupId).ConfigureAwait(false);
+                NUnit.Framework.Assert.That(certificateTypeIds2.Length == 1);
                 Assert.NotNull(certificates2[0]);
                 Assert.AreEqual(certificates2[0], application.Certificate);
             }
         }
 
-        [Test, Order(550)]
-        public void StartGoodSigningRequestWithInvalidAppURI()
+        [Test]
+        [Order(550)]
+        public async Task StartGoodSigningRequestWithInvalidAppURIAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
             AssertIgnoreTestWithoutGoodNewKeyPairRequest();
-            ConnectGDS(true);
-            var application = m_goodApplicationTestSet[0];
+            await ConnectGDSAsync(true).ConfigureAwait(false);
+            ApplicationTestData application = m_goodApplicationTestSet[0];
             Assert.Null(application.CertificateRequestId);
             // load csr with invalid app URI
-            var testCSR = Utils.GetAbsoluteFilePath("test.csr", true, true, false);
+            string testCSR = Utils.GetAbsoluteFilePath("test.csr", true, true, false);
             byte[] certificateRequest = File.ReadAllBytes(testCSR);
-            Assert.That(() => {
-                _ = m_gdsClient.GDSClient.StartSigningRequest(
-                application.ApplicationRecord.ApplicationId,
-                application.CertificateGroupId,
-                application.CertificateTypeId,
-                certificateRequest);
-            }, Throws.Exception);
+            await NUnit.Framework.Assert.ThatAsync(
+                () => m_gdsClient.GDSClient.StartSigningRequestAsync(
+                        application.ApplicationRecord.ApplicationId,
+                        application.CertificateGroupId,
+                        application.CertificateTypeId,
+                        certificateRequest),
+                Throws.Exception).ConfigureAwait(false);
         }
 
-
-        [Test, Order(600)]
-        public void GetGoodCertificateGroupsNullTests()
+        [Test]
+        [Order(600)]
+        public async Task GetGoodCertificateGroupsNullTestsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
-            ConnectGDS(true);
+            await ConnectGDSAsync(true).ConfigureAwait(false);
 
-            Assert.That(() => {
-                m_gdsClient.GDSClient.GetCertificateGroups(null);
-            }, Throws.Exception);
+            await NUnit.Framework.Assert
+                .ThatAsync(() => m_gdsClient.GDSClient.GetCertificateGroupsAsync(null), Throws.Exception).ConfigureAwait(false);
 
-            foreach (var application in m_goodApplicationTestSet)
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                var trustListId = m_gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, null);
-                var trustList = m_gdsClient.GDSClient.ReadTrustList(trustListId);
-                Assert.That(() => {
-                    m_gdsClient.GDSClient.ReadTrustList(null);
-                }, Throws.Exception);
-                var certificateGroups = m_gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId);
-                foreach (var certificateGroup in certificateGroups)
+                NodeId trustListId = await m_gdsClient.GDSClient.GetTrustListAsync(
+                    application.ApplicationRecord.ApplicationId,
+                    null).ConfigureAwait(false);
+                TrustListDataType trustList = await m_gdsClient.GDSClient.ReadTrustListAsync(trustListId).ConfigureAwait(false);
+                await NUnit.Framework.Assert
+                    .ThatAsync(() => m_gdsClient.GDSClient.ReadTrustListAsync(null), Throws.Exception).ConfigureAwait(false);
+                foreach (
+                    NodeId certificateGroup in await m_gdsClient.GDSClient.GetCertificateGroupsAsync(
+                        application.ApplicationRecord.ApplicationId).ConfigureAwait(false))
                 {
-                    Assert.That(() => {
-                        m_gdsClient.GDSClient.GetTrustList(null, certificateGroup);
-                    }, Throws.Exception);
+                    await NUnit.Framework.Assert.ThatAsync(
+                        () => m_gdsClient.GDSClient.GetTrustListAsync(null, certificateGroup),
+                        Throws.Exception).ConfigureAwait(false);
                 }
             }
         }
 
-        [Test, Order(601)]
-        public void GetInvalidCertificateGroupsNullTests()
+        [Test]
+        [Order(601)]
+        public async Task GetInvalidCertificateGroupsNullTestsAsync()
         {
             AssertIgnoreTestWithoutInvalidRegistration();
-            ConnectGDS(true);
-            Assert.That(() => {
-                m_gdsClient.GDSClient.GetCertificateGroups(null);
-            }, Throws.Exception);
-            Assert.That(() => {
-                m_gdsClient.GDSClient.GetCertificateGroups(new NodeId(Guid.NewGuid()));
-            }, Throws.Exception);
+            await ConnectGDSAsync(true).ConfigureAwait(false);
+            await NUnit.Framework.Assert
+                .ThatAsync(() => m_gdsClient.GDSClient.GetCertificateGroupsAsync(null), Throws.Exception).ConfigureAwait(false);
+            await NUnit.Framework.Assert.ThatAsync(
+                () => m_gdsClient.GDSClient.GetCertificateGroupsAsync(new NodeId(Guid.NewGuid())),
+                Throws.Exception).ConfigureAwait(false);
 
-            foreach (var application in m_invalidApplicationTestSet)
+            foreach (ApplicationTestData application in m_invalidApplicationTestSet)
             {
-                Assert.That(() => {
-                    _ = m_gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, null);
-                }, Throws.Exception);
-                Assert.That(() => {
-                    _ = m_gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, new NodeId(Guid.NewGuid()));
-                }, Throws.Exception);
-                Assert.That(() => {
-                    _ = m_gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId);
-                }, Throws.Exception);
+                await NUnit.Framework.Assert.ThatAsync(
+                    () => _ = m_gdsClient.GDSClient
+                        .GetTrustListAsync(application.ApplicationRecord.ApplicationId, null),
+                    Throws.Exception).ConfigureAwait(false);
+                await NUnit.Framework.Assert.ThatAsync(
+                    () =>
+                        _ = m_gdsClient.GDSClient.GetTrustListAsync(
+                            application.ApplicationRecord.ApplicationId,
+                            new NodeId(Guid.NewGuid())
+                        ),
+                    Throws.Exception).ConfigureAwait(false);
+                await NUnit.Framework.Assert.ThatAsync(
+                    () => _ = m_gdsClient.GDSClient
+                        .GetCertificateGroupsAsync(application.ApplicationRecord.ApplicationId),
+                    Throws.Exception).ConfigureAwait(false);
             }
         }
 
-        [Test, Order(610)]
-        public void GetGoodCertificateGroupsAndTrustLists()
+        [Test]
+        [Order(610)]
+        public async Task GetGoodCertificateGroupsAndTrustListsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
-            ConnectGDS(true);
+            await ConnectGDSAsync(true).ConfigureAwait(false);
 
-            foreach (var application in m_goodApplicationTestSet)
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                var certificateGroups = m_gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId);
-                foreach (var certificateGroup in certificateGroups)
+                foreach (
+                    NodeId certificateGroup in await m_gdsClient.GDSClient.GetCertificateGroupsAsync(
+                        application.ApplicationRecord.ApplicationId).ConfigureAwait(false))
                 {
-                    var trustListId = m_gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, certificateGroup);
+                    NodeId trustListId = await m_gdsClient.GDSClient.GetTrustListAsync(
+                        application.ApplicationRecord.ApplicationId,
+                        certificateGroup).ConfigureAwait(false);
 
                     Assert.NotNull(trustListId);
 
                     // Opc.Ua.TrustListDataType -> not possible, this needs ApplicationUserAccess
-                    var trustList = m_gdsClient.GDSClient.ReadTrustList(trustListId);
+                    await m_gdsClient.GDSClient.ReadTrustListAsync(trustListId).ConfigureAwait(false);
                 }
             }
         }
 
-        [Test, Order(620)]
-        public void FailToGetGoodCertificateGroupsWithoutPriviledges()
+        [Test]
+        [Order(620)]
+        public async Task FailToGetGoodCertificateGroupsWithoutPriviledgesAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
             AssertIgnoreTestWithoutGoodNewKeyPairRequest();
 
             //connect to GDS without Admin Privilege
-            ConnectGDS(false);
+            await ConnectGDSAsync(false).ConfigureAwait(false);
 
-            foreach (var application in m_goodApplicationTestSet)
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
                 if (application.Certificate != null)
                 {
-                    var sre = Assert.Throws<ServiceResultException>(() => m_gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId));
+                    ServiceResultException sre = NUnit.Framework.Assert
+                        .ThrowsAsync<ServiceResultException>(() =>
+                            m_gdsClient.GDSClient
+                            .GetCertificateGroupsAsync(application.ApplicationRecord.ApplicationId));
                     Assert.NotNull(sre);
-                    Assert.AreEqual((StatusCode)StatusCodes.BadUserAccessDenied, (StatusCode)sre.StatusCode, sre.Result.ToString());
-
+                    Assert.AreEqual(
+                        (StatusCode)StatusCodes.BadUserAccessDenied,
+                        (StatusCode)sre.StatusCode,
+                        sre.Result.ToString());
                 }
             }
         }
@@ -1032,14 +1220,15 @@ namespace Opc.Ua.Gds.Tests
         /// <summary>
         /// use self registered application and get the group / trust lists
         /// </summary>
-        [Test, Order(630)]
-        public void GetGoodCertificateGroupsAsSelfAdmin()
+        [Test]
+        [Order(630)]
+        public async Task GetGoodCertificateGroupsAsSelfAdminAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
             AssertIgnoreTestWithoutGoodNewKeyPairRequest();
 
             // register at gds and get gds issued certificate
-            var success = m_gdsClient.RegisterTestClientAtGds();
+            bool success = await m_gdsClient.RegisterTestClientAtGdsAsync().ConfigureAwait(false);
 
             if (success)
             {
@@ -1047,45 +1236,51 @@ namespace Opc.Ua.Gds.Tests
             }
             else
             {
-                Assert.Fail("Registering test Client at GDS failed");
+                NUnit.Framework.Assert.Fail("Registering test Client at GDS failed");
             }
 
-            ConnectGDS(false, true);
+            await ConnectGDSAsync(false, true).ConfigureAwait(false);
 
             // ensure access to other applications is denied
-            foreach (var testApplication in m_goodApplicationTestSet)
+            foreach (ApplicationTestData testApplication in m_goodApplicationTestSet)
             {
                 if (testApplication.Certificate != null)
                 {
-                    var sre = Assert.Throws<ServiceResultException>(() =>
-                        m_gdsClient.GDSClient.GetCertificateGroups(testApplication.ApplicationRecord.ApplicationId)
-                        );
+                    ServiceResultException sre = NUnit.Framework.Assert
+                        .ThrowsAsync<ServiceResultException>(() =>
+                            m_gdsClient.GDSClient
+                            .GetCertificateGroupsAsync(testApplication.ApplicationRecord.ApplicationId));
                     Assert.NotNull(sre);
-                    Assert.AreEqual((StatusCode)StatusCodes.BadUserAccessDenied, (StatusCode)sre.StatusCode, sre.Result.ToString());
+                    Assert.AreEqual(
+                        (StatusCode)StatusCodes.BadUserAccessDenied,
+                        (StatusCode)sre.StatusCode,
+                        sre.Result.ToString());
                 }
             }
 
             ApplicationTestData application = m_gdsClient.OwnApplicationTestData;
 
-
             // use self registered application and get the group / trust lists
-            var certificateGroups = m_gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId);
-
-            foreach (var certificateGroup in certificateGroups)
+            foreach (
+                NodeId certificateGroup in await m_gdsClient.GDSClient.GetCertificateGroupsAsync(
+                    application.ApplicationRecord.ApplicationId).ConfigureAwait(false))
             {
-                var trustListId = m_gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, certificateGroup);
+                NodeId trustListId = await m_gdsClient.GDSClient.GetTrustListAsync(
+                    application.ApplicationRecord.ApplicationId,
+                    certificateGroup).ConfigureAwait(false);
                 // Opc.Ua.TrustListDataType
-                var trustList = m_gdsClient.GDSClient.ReadTrustList(trustListId); //ToDo make it possible to read the trust List with SelfAdminPrivilege
+                TrustListDataType trustList = await m_gdsClient.GDSClient.ReadTrustListAsync(trustListId).ConfigureAwait(false); //ToDo make it possible to read the trust List with SelfAdminPrivilege
                 Assert.NotNull(trustListId);
             }
-            DisconnectGDS();
+            await DisconnectGDSAsync().ConfigureAwait(false);
         }
 
         /// <summary>
         /// self issue a certificate and read it back
         /// </summary>
-        [Test, Order(631)]
-        public void GoodSigningRequestAsSelfAdmin()
+        [Test]
+        [Order(631)]
+        public async Task GoodSigningRequestAsSelfAdminAsync()
         {
             AssertIgnoreTestWithoutGdsRegisteredTestClient();
             AssertIgnoreTestWithoutGoodRegistration();
@@ -1093,43 +1288,53 @@ namespace Opc.Ua.Gds.Tests
 
             ApplicationTestData application = m_gdsClient.OwnApplicationTestData;
 
-            ConnectGDS(false, true);
+            await ConnectGDSAsync(false, true).ConfigureAwait(false);
             Assert.Null(application.CertificateRequestId);
             X509Certificate2 csrCertificate;
             if (application.PrivateKeyFormat == "PFX")
             {
-                csrCertificate = X509Utils.CreateCertificateFromPKCS12(application.PrivateKey, application.PrivateKeyPassword);
+                csrCertificate = X509Utils.CreateCertificateFromPKCS12(
+                    application.PrivateKey,
+                    application.PrivateKeyPassword);
             }
             else
             {
-                csrCertificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(X509CertificateLoader.LoadCertificate(application.Certificate), application.PrivateKey, application.PrivateKeyPassword);
+                csrCertificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(
+                    X509CertificateLoader.LoadCertificate(application.Certificate),
+                    application.PrivateKey,
+                    application.PrivateKeyPassword);
             }
-            byte[] certificateRequest = CertificateFactory.CreateSigningRequest(csrCertificate, application.DomainNames);
+            byte[] certificateRequest = CertificateFactory.CreateSigningRequest(
+                csrCertificate,
+                application.DomainNames);
             csrCertificate.Dispose();
 
             // ensure access to other applications is denied
-            foreach (var testApplication in m_goodApplicationTestSet)
+            foreach (ApplicationTestData testApplication in m_goodApplicationTestSet)
             {
                 if (testApplication.CertificateRequestId == null)
                 {
-                    var sre = Assert.Throws<ServiceResultException>(() =>
-                        m_gdsClient.GDSClient.StartSigningRequest(
-                            testApplication.ApplicationRecord.ApplicationId,
-                            testApplication.CertificateGroupId,
-                            testApplication.CertificateTypeId,
-                            certificateRequest)
-                        );
+                    ServiceResultException sre = NUnit.Framework.Assert
+                        .ThrowsAsync<ServiceResultException>(() =>
+                            m_gdsClient.GDSClient.StartSigningRequestAsync(
+                                testApplication.ApplicationRecord.ApplicationId,
+                                testApplication.CertificateGroupId,
+                                testApplication.CertificateTypeId,
+                                certificateRequest));
                     Assert.NotNull(sre);
-                    Assert.AreEqual((StatusCode)StatusCodes.BadUserAccessDenied, (StatusCode)sre.StatusCode, sre.Result.ToString());
+                    Assert.AreEqual(
+                        (StatusCode)StatusCodes.BadUserAccessDenied,
+                        (StatusCode)sre.StatusCode,
+                        sre.Result.ToString());
                 }
             }
 
             //own Application is allowed
-            NodeId requestId = m_gdsClient.GDSClient.StartSigningRequest(
+            NodeId requestId = await m_gdsClient.GDSClient.StartSigningRequestAsync(
                 application.ApplicationRecord.ApplicationId,
                 application.CertificateGroupId,
                 application.CertificateTypeId,
-                certificateRequest);
+                certificateRequest).ConfigureAwait(false);
             Assert.NotNull(requestId);
             application.CertificateRequestId = requestId;
             bool requestBusy;
@@ -1138,17 +1343,13 @@ namespace Opc.Ua.Gds.Tests
             {
                 requestBusy = false;
 
-
                 if (application.CertificateRequestId != null)
                 {
                     try
                     {
-                        var certificate = m_gdsClient.GDSClient.FinishRequest(
+                        (byte[] certificate, byte[] privateKey, byte[][] issuerCertificates) = await m_gdsClient.GDSClient.FinishRequestAsync(
                             application.ApplicationRecord.ApplicationId,
-                            application.CertificateRequestId,
-                            out byte[] privateKey,
-                            out byte[][] issuerCertificates
-                            );
+                            application.CertificateRequestId).ConfigureAwait(false);
 
                         if (certificate != null)
                         {
@@ -1158,8 +1359,16 @@ namespace Opc.Ua.Gds.Tests
                             Assert.NotNull(issuerCertificates);
                             application.Certificate = certificate;
                             application.IssuerCertificates = issuerCertificates;
-                            X509TestUtils.VerifySignedApplicationCert(application, certificate, issuerCertificates);
-                            X509TestUtils.VerifyApplicationCertIntegrity(certificate, application.PrivateKey, application.PrivateKeyPassword, application.PrivateKeyFormat, issuerCertificates);
+                            X509TestUtils.VerifySignedApplicationCert(
+                                application,
+                                certificate,
+                                issuerCertificates);
+                            X509TestUtils.VerifyApplicationCertIntegrity(
+                                certificate,
+                                application.PrivateKey,
+                                application.PrivateKeyPassword,
+                                application.PrivateKeyFormat,
+                                issuerCertificates);
                         }
                         else
                         {
@@ -1179,7 +1388,6 @@ namespace Opc.Ua.Gds.Tests
                             throw;
                         }
                     }
-
                 }
 
                 if (requestBusy)
@@ -1189,14 +1397,15 @@ namespace Opc.Ua.Gds.Tests
                 }
             } while (requestBusy);
 
-            DisconnectGDS();
+            await DisconnectGDSAsync().ConfigureAwait(false);
         }
 
         /// <summary>
         /// self issue a public/private key pair and read it back
         /// </summary>
-        [Test, Order(632)]
-        public void GoodKeyPairRequestAsSelfAdmin()
+        [Test]
+        [Order(632)]
+        public async Task GoodKeyPairRequestAsSelfAdminAsync()
         {
             AssertIgnoreTestWithoutGdsRegisteredTestClient();
             AssertIgnoreTestWithoutGoodRegistration();
@@ -1204,39 +1413,41 @@ namespace Opc.Ua.Gds.Tests
 
             ApplicationTestData application = m_gdsClient.OwnApplicationTestData;
 
-
-            ConnectGDS(false, true);
+            await ConnectGDSAsync(false, true).ConfigureAwait(false);
 
             // ensure access to other applications is denied
-            foreach (var testApplication in m_goodApplicationTestSet)
+            foreach (ApplicationTestData testApplication in m_goodApplicationTestSet)
             {
                 if (testApplication.CertificateRequestId == null)
                 {
-                    var sre = Assert.Throws<ServiceResultException>(() =>
-                        m_gdsClient.GDSClient.StartNewKeyPairRequest(
-                            testApplication.ApplicationRecord.ApplicationId,
-                            testApplication.CertificateGroupId,
-                            testApplication.CertificateTypeId,
-                            testApplication.Subject,
-                            testApplication.DomainNames,
-                            testApplication.PrivateKeyFormat,
-                            testApplication.PrivateKeyPassword)
-                        );
+                    ServiceResultException sre = NUnit.Framework.Assert
+                        .ThrowsAsync<ServiceResultException>(() =>
+                            m_gdsClient.GDSClient.StartNewKeyPairRequestAsync(
+                                testApplication.ApplicationRecord.ApplicationId,
+                                testApplication.CertificateGroupId,
+                                testApplication.CertificateTypeId,
+                                testApplication.Subject,
+                                testApplication.DomainNames,
+                                testApplication.PrivateKeyFormat,
+                                testApplication.PrivateKeyPassword));
                     Assert.NotNull(sre);
-                    Assert.AreEqual((StatusCode)StatusCodes.BadUserAccessDenied, (StatusCode)sre.StatusCode, sre.Result.ToString());
+                    Assert.AreEqual(
+                        (StatusCode)StatusCodes.BadUserAccessDenied,
+                        (StatusCode)sre.StatusCode,
+                        sre.Result.ToString());
                 }
             }
 
             Assert.Null(application.CertificateRequestId);
             //Start KeyPairRequest
-            NodeId requestId = m_gdsClient.GDSClient.StartNewKeyPairRequest(
+            NodeId requestId = await m_gdsClient.GDSClient.StartNewKeyPairRequestAsync(
                 application.ApplicationRecord.ApplicationId,
                 application.CertificateGroupId,
                 application.CertificateTypeId,
                 application.Subject,
                 application.DomainNames,
                 application.PrivateKeyFormat,
-                application.PrivateKeyPassword);
+                application.PrivateKeyPassword).ConfigureAwait(false);
 
             Assert.NotNull(requestId);
             application.CertificateRequestId = requestId;
@@ -1251,12 +1462,9 @@ namespace Opc.Ua.Gds.Tests
                 {
                     try
                     {
-                        byte[] certificate = m_gdsClient.GDSClient.FinishRequest(
+                        (byte[] certificate, byte[] privateKey, byte[][] issuerCertificates) = await m_gdsClient.GDSClient.FinishRequestAsync(
                             application.ApplicationRecord.ApplicationId,
-                            application.CertificateRequestId,
-                            out byte[] privateKey,
-                            out byte[][] issuerCertificates
-                            );
+                            application.CertificateRequestId).ConfigureAwait(false);
 
                         if (certificate != null)
                         {
@@ -1265,8 +1473,16 @@ namespace Opc.Ua.Gds.Tests
                             Assert.NotNull(certificate);
                             Assert.NotNull(privateKey);
                             Assert.NotNull(issuerCertificates);
-                            X509TestUtils.VerifySignedApplicationCert(application, certificate, issuerCertificates);
-                            X509TestUtils.VerifyApplicationCertIntegrity(certificate, privateKey, application.PrivateKeyPassword, application.PrivateKeyFormat, issuerCertificates);
+                            X509TestUtils.VerifySignedApplicationCert(
+                                application,
+                                certificate,
+                                issuerCertificates);
+                            X509TestUtils.VerifyApplicationCertIntegrity(
+                                certificate,
+                                privateKey,
+                                application.PrivateKeyPassword,
+                                application.PrivateKeyFormat,
+                                issuerCertificates);
                         }
                         else
                         {
@@ -1286,151 +1502,183 @@ namespace Opc.Ua.Gds.Tests
                             throw;
                         }
                     }
-
                 }
-
 
                 if (requestBusy)
                 {
                     Thread.Sleep(5000);
                     Console.WriteLine("Waiting for certificate approval");
                 }
-
             } while (requestBusy);
 
-            DisconnectGDS();
+            await DisconnectGDSAsync().ConfigureAwait(false);
         }
 
         /// <summary>
         /// unregister the Client at the GDS and try to read the trust List
         /// </summary>
-        [Test, Order(633)]
-        public void FailToGetGoodCertificateGroupsWithoutSelfAdminPrivilege()
+        [Test]
+        [Order(633)]
+        public async Task FailToGetGoodCertificateGroupsWithoutSelfAdminPrivilegeAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
             AssertIgnoreTestWithoutGoodNewKeyPairRequest();
             AssertIgnoreTestWithoutGdsRegisteredTestClient();
 
-            ConnectGDS(true);
+            await ConnectGDSAsync(true).ConfigureAwait(false);
 
             ApplicationTestData application = m_gdsClient.OwnApplicationTestData;
 
             //unregister GDS Client
-            m_gdsClient.GDSClient.UnregisterApplication(application.ApplicationRecord.ApplicationId);
+            await m_gdsClient.GDSClient
+                .UnregisterApplicationAsync(application.ApplicationRecord.ApplicationId).ConfigureAwait(false);
 
             m_gdsRegisteredTestClient = false;
 
-            DisconnectGDS();
+            await DisconnectGDSAsync().ConfigureAwait(false);
 
             //connect as self admin with revoked cert
 
-            ConnectGDS(false, true);
-            var sre = Assert.Throws<ServiceResultException>(() =>
-                m_gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId)
-                );
+            await ConnectGDSAsync(false, true).ConfigureAwait(false);
+            ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() =>
+                m_gdsClient.GDSClient
+                    .GetCertificateGroupsAsync(application.ApplicationRecord.ApplicationId));
             Assert.NotNull(sre);
-            Assert.AreEqual((StatusCode)StatusCodes.BadUserAccessDenied, (StatusCode)sre.StatusCode, sre.Result.ToString());
+            Assert.AreEqual(
+                (StatusCode)StatusCodes.BadUserAccessDenied,
+                (StatusCode)sre.StatusCode,
+                sre.Result.ToString());
         }
 
-        [Test, Order(690)]
-        public void GetGoodCertificateStatus()
+        [Test]
+        [Order(690)]
+        public async Task GetGoodCertificateStatusAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
-            ConnectGDS(true);
-            foreach (var application in m_goodApplicationTestSet)
+            await ConnectGDSAsync(true).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                bool certificateStatus = m_gdsClient.GDSClient.GetCertificateStatus(application.ApplicationRecord.ApplicationId, null, null);
+                bool certificateStatus = await m_gdsClient.GDSClient.GetCertificateStatusAsync(
+                    application.ApplicationRecord.ApplicationId,
+                    null,
+                    null).ConfigureAwait(false);
                 Assert.False(certificateStatus);
             }
         }
 
-        [Test, Order(691)]
-        public void GetInvalidCertificateStatus()
+        [Test]
+        [Order(691)]
+        public async Task GetInvalidCertificateStatusAsync()
         {
             AssertIgnoreTestWithoutInvalidRegistration();
-            ConnectGDS(true);
-            foreach (var application in m_invalidApplicationTestSet)
+            await ConnectGDSAsync(true).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_invalidApplicationTestSet)
             {
-                Assert.That(() => {
-                    _ = m_gdsClient.GDSClient.GetCertificateStatus(application.ApplicationRecord.ApplicationId, null, null);
-                }, Throws.Exception);
+                await NUnit.Framework.Assert.ThatAsync(
+                    () =>
+                        _ = m_gdsClient.GDSClient.GetCertificateStatusAsync(
+                            application.ApplicationRecord.ApplicationId,
+                            null,
+                            null
+                        ),
+                    Throws.Exception).ConfigureAwait(false);
             }
         }
 
-        [Test, Order(700)]
-        public void CheckGoodRevocationStatus()
+        [Test]
+        [Order(700)]
+        public async Task CheckGoodRevocationStatusAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
-            ConnectGDS(false);
-            foreach (var application in m_goodApplicationTestSet)
+            await ConnectGDSAsync(false).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                m_gdsClient.GDSClient.CheckRevocationStatus(application.Certificate, out StatusCode certificateStatus, out DateTime validityTime);
+                (StatusCode certificateStatus, DateTime validityTime) = await m_gdsClient.GDSClient.CheckRevocationStatusAsync(
+                    application.Certificate).ConfigureAwait(false);
                 //Status code needs to be Bad as the method builds a custom chain that does not know about the custom cert stores.
                 Assert.True(StatusCode.IsBad(certificateStatus.Code));
                 Assert.NotNull(validityTime);
             }
         }
 
-        [Test, Order(895)]
-        public void RevokeGoodCertificates()
+        [Test]
+        [Order(895)]
+        public async Task RevokeGoodCertificatesAsync()
         {
             AssertIgnoreTestWithoutInvalidRegistration();
             AssertIgnoreTestWithoutGoodNewKeyPairRequest();
-            ConnectGDS(true);
-            foreach (var application in m_goodApplicationTestSet)
+            await ConnectGDSAsync(true).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                m_gdsClient.GDSClient.RevokeCertificate(application.ApplicationRecord.ApplicationId, application.Certificate);
+                await m_gdsClient.GDSClient.RevokeCertificateAsync(
+                    application.ApplicationRecord.ApplicationId,
+                    application.Certificate).ConfigureAwait(false);
             }
-            foreach (var application in m_invalidApplicationTestSet)
+            foreach (ApplicationTestData application in m_invalidApplicationTestSet)
             {
-                Assert.That(() => {
-                    m_gdsClient.GDSClient.RevokeCertificate(application.ApplicationRecord.ApplicationId, application.Certificate);
-                }, Throws.Exception);
-            }
-        }
-
-        [Test, Order(900)]
-        public void UnregisterGoodApplications()
-        {
-            AssertIgnoreTestWithoutGoodRegistration();
-            ConnectGDS(true);
-            foreach (var application in m_goodApplicationTestSet)
-            {
-                m_gdsClient.GDSClient.UnregisterApplication(application.ApplicationRecord.ApplicationId);
+                await NUnit.Framework.Assert.ThatAsync(
+                    () =>
+                        m_gdsClient.GDSClient.RevokeCertificateAsync(
+                            application.ApplicationRecord.ApplicationId,
+                            application.Certificate
+                        ),
+                    Throws.Exception).ConfigureAwait(false);
             }
         }
 
-        [Test, Order(910)]
-        public void CheckRevocationStatusUnregisteredApplications()
+        [Test]
+        [Order(900)]
+        public async Task UnregisterGoodApplicationsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
-            ConnectGDS(false);
-            foreach (var application in m_goodApplicationTestSet)
+            await ConnectGDSAsync(true).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                m_gdsClient.GDSClient.CheckRevocationStatus(application.Certificate, out StatusCode certificateStatus, out DateTime validityTime);
-                Assert.IsTrue(((StatusCode)certificateStatus.Code).ToString().StartsWith("BadCertificate"));
+                await m_gdsClient.GDSClient
+                    .UnregisterApplicationAsync(application.ApplicationRecord.ApplicationId).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        [Order(910)]
+        public async Task CheckRevocationStatusUnregisteredApplicationsAsync()
+        {
+            AssertIgnoreTestWithoutGoodRegistration();
+            await ConnectGDSAsync(false).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
+            {
+                (StatusCode certificateStatus, DateTime validityTime) = await m_gdsClient.GDSClient.CheckRevocationStatusAsync(
+                    application.Certificate).ConfigureAwait(false);
+                Assert.IsTrue(
+                    ((StatusCode)certificateStatus.Code).ToString().StartsWith("BadCertificate"));
                 Assert.NotNull(validityTime);
             }
         }
 
-        [Test, Order(910)]
-        public void UnregisterInvalidApplications()
+        [Test]
+        [Order(910)]
+        public async Task UnregisterInvalidApplicationsAsync()
         {
-            ConnectGDS(true);
-            foreach (var application in m_invalidApplicationTestSet)
+            await ConnectGDSAsync(true).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_invalidApplicationTestSet)
             {
-                Assert.That(() => { m_gdsClient.GDSClient.UnregisterApplication(application.ApplicationRecord.ApplicationId); }, Throws.Exception);
+                await NUnit.Framework.Assert.ThatAsync(
+                    () => m_gdsClient.GDSClient
+                        .UnregisterApplicationAsync(application.ApplicationRecord.ApplicationId),
+                    Throws.Exception).ConfigureAwait(false);
             }
         }
 
-        [Test, Order(915)]
-        public void VerifyUnregisterGoodApplications()
+        [Test]
+        [Order(915)]
+        public async Task VerifyUnregisterGoodApplicationsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
-            ConnectGDS(true);
-            foreach (var application in m_goodApplicationTestSet)
+            await ConnectGDSAsync(true).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                var result = m_gdsClient.GDSClient.FindApplication(application.ApplicationRecord.ApplicationUri);
+                ApplicationRecordDataType[] result = await m_gdsClient.GDSClient.FindApplicationAsync(
+                    application.ApplicationRecord.ApplicationUri).ConfigureAwait(false);
                 if (result != null)
                 {
                     Assert.NotNull(result);
@@ -1439,15 +1687,18 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-
-        [Test, Order(920)]
-        public void UnregisterUnregisteredGoodApplications()
+        [Test]
+        [Order(920)]
+        public async Task UnregisterUnregisteredGoodApplicationsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
-            ConnectGDS(true);
-            foreach (var application in m_goodApplicationTestSet)
+            await ConnectGDSAsync(true).ConfigureAwait(false);
+            foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                Assert.That(() => { m_gdsClient.GDSClient.UnregisterApplication(application.ApplicationRecord.ApplicationId); }, Throws.Exception);
+                await NUnit.Framework.Assert.ThatAsync(
+                    () => m_gdsClient.GDSClient
+                        .UnregisterApplicationAsync(application.ApplicationRecord.ApplicationId),
+                    Throws.Exception).ConfigureAwait(false);
             }
         }
 
@@ -1466,12 +1717,11 @@ namespace Opc.Ua.Gds.Tests
             TestContext.Progress.WriteLine(log);
         }
 #endif
-        #endregion
 
-        #region Private Methods
-        private void ConnectGDS(bool admin, bool anonymous = false,
-            [System.Runtime.CompilerServices.CallerMemberName] string memberName = ""
-            )
+        private async Task ConnectGDSAsync(
+            bool admin,
+            bool anonymous = false,
+            [System.Runtime.CompilerServices.CallerMemberName] string memberName = "")
         {
             if (anonymous)
             {
@@ -1479,18 +1729,18 @@ namespace Opc.Ua.Gds.Tests
             }
             else
             {
-                m_gdsClient.GDSClient.AdminCredentials = admin ? m_gdsClient.AdminUser : m_gdsClient.AppUser;
+                m_gdsClient.GDSClient.AdminCredentials = admin
+                    ? m_gdsClient.AdminUser
+                    : m_gdsClient.AppUser;
             }
-            m_gdsClient.GDSClient.Connect(m_gdsClient.GDSClient.EndpointUrl).Wait();
+            await m_gdsClient.GDSClient.ConnectAsync().ConfigureAwait(false);
             TestContext.Progress.WriteLine($"GDS Client({admin}) connected -- {memberName}");
         }
 
-
-        private void DisconnectGDS(
-            [System.Runtime.CompilerServices.CallerMemberName] string memberName = ""
-            )
+        private async Task DisconnectGDSAsync(
+            [System.Runtime.CompilerServices.CallerMemberName] string memberName = "")
         {
-            m_gdsClient.GDSClient.Disconnect();
+            await m_gdsClient.GDSClient.DisconnectAsync().ConfigureAwait(false);
             TestContext.Progress.WriteLine($"GDS Client disconnected -- {memberName}");
         }
 
@@ -1498,7 +1748,7 @@ namespace Opc.Ua.Gds.Tests
         {
             if (!m_goodRegistrationOk)
             {
-                Assert.Ignore("Test requires good application registrations.");
+                NUnit.Framework.Assert.Ignore("Test requires good application registrations.");
             }
         }
 
@@ -1506,7 +1756,8 @@ namespace Opc.Ua.Gds.Tests
         {
             if (!m_gdsRegisteredTestClient)
             {
-                Assert.Ignore("Test requires the test client to be registered at the GDS and use a GDS signed Certificate.");
+                NUnit.Framework.Assert.Ignore(
+                    "Test requires the test client to be registered at the GDS and use a GDS signed Certificate.");
             }
         }
 
@@ -1514,7 +1765,7 @@ namespace Opc.Ua.Gds.Tests
         {
             if (!m_invalidRegistrationOk)
             {
-                Assert.Ignore("Test requires invalid application registration.");
+                NUnit.Framework.Assert.Ignore("Test requires invalid application registration.");
             }
         }
 
@@ -1522,7 +1773,7 @@ namespace Opc.Ua.Gds.Tests
         {
             if (!m_goodNewKeyPairRequestOk)
             {
-                Assert.Ignore("Test requires good new key pair request.");
+                NUnit.Framework.Assert.Ignore("Test requires good new key pair request.");
             }
         }
 
@@ -1531,9 +1782,6 @@ namespace Opc.Ua.Gds.Tests
             return m_goodApplicationTestSet.Sum(a => a.ApplicationRecord.DiscoveryUrls.Count);
         }
 
-        #endregion
-
-        #region Private Fields
         private const int kGoodApplicationsTestCount = 10;
         private const int kInvalidApplicationsTestCount = 10;
         private ApplicationTestDataGenerator m_appTestDataGenerator;
@@ -1546,8 +1794,6 @@ namespace Opc.Ua.Gds.Tests
         private bool m_gdsRegisteredTestClient;
         private List<NodeId> m_supportedCertificateTypes;
         private bool m_goodNewKeyPairRequestOk;
-        private string m_storeType;
-        #endregion
+        private readonly string m_storeType;
     }
-
 }

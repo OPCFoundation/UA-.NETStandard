@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -28,15 +28,12 @@
  * ======================================================================*/
 
 using System;
-
 using Opc.Ua;
 
 namespace Alarms
 {
-    class LimitAlarmTypeHolder : AlarmConditionTypeHolder
+    internal class LimitAlarmTypeHolder : AlarmConditionTypeHolder
     {
-        private bool m_isLimit = true;
-
         public LimitAlarmTypeHolder(
             AlarmNodeManager alarmNodeManager,
             FolderState parent,
@@ -47,48 +44,40 @@ namespace Alarms
             int interval,
             bool optional = true,
             double maxShelveTime = AlarmDefines.NORMAL_MAX_TIME_SHELVED,
-            bool create = true) :
-            base(alarmNodeManager, parent, trigger, name, alarmConditionType, controllerType, interval, optional, maxShelveTime, false)
+            bool create = true)
+            : base(
+                alarmNodeManager,
+                parent,
+                trigger,
+                name,
+                alarmConditionType,
+                controllerType,
+                interval,
+                optional,
+                maxShelveTime,
+                false)
         {
             if (create)
             {
-                Initialize(Opc.Ua.ObjectTypes.LimitAlarmType, name, maxShelveTime);
+                Initialize(ObjectTypes.LimitAlarmType, name, maxShelveTime);
             }
         }
 
-        public void Initialize(
+        public new void Initialize(
             uint alarmTypeIdentifier,
             string name,
-            double maxTimeShelved = AlarmDefines.NORMAL_MAX_TIME_SHELVED,
-            bool isLimit = true)
+            double maxTimeShelved = AlarmDefines.NORMAL_MAX_TIME_SHELVED)
         {
             // Create an alarm and trigger name - Create a base method for creating the trigger, just provide the name
 
-            if (m_alarm == null)
-            {
-                m_alarm = new LimitAlarmState(m_parent);
-            }
-
-            m_isLimit = isLimit;
+            m_alarm ??= new LimitAlarmState(m_parent);
 
             LimitAlarmState alarm = GetAlarm();
 
-            if (alarm.HighLimit == null)
-            {
-                alarm.HighLimit = new PropertyState<double>(alarm);
-            }
-            if (alarm.HighHighLimit == null)
-            {
-                alarm.HighHighLimit = new PropertyState<double>(alarm);
-            }
-            if (alarm.LowLimit == null)
-            {
-                alarm.LowLimit = new PropertyState<double>(alarm);
-            }
-            if (alarm.LowLowLimit == null)
-            {
-                alarm.LowLowLimit = new PropertyState<double>(alarm);
-            }
+            alarm.HighLimit ??= new PropertyState<double>(alarm);
+            alarm.HighHighLimit ??= new PropertyState<double>(alarm);
+            alarm.LowLimit ??= new PropertyState<double>(alarm);
+            alarm.LowLowLimit ??= new PropertyState<double>(alarm);
 
             if (Optional)
             {
@@ -121,15 +110,9 @@ namespace Alarms
             }
         }
 
-        #region Helpers
-
         private LimitAlarmState GetAlarm()
         {
             return (LimitAlarmState)m_alarm;
         }
-
-        #endregion
-
-
     }
 }

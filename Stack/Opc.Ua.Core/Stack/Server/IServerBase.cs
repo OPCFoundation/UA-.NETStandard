@@ -11,16 +11,15 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Bindings;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
     /// <summary>
     /// An interface to a service response message.
     /// </summary>
-    public interface IServerBase : IAuditEventCallback
+    public interface IServerBase : IAuditEventCallback, IDisposable
     {
         /// <summary>
         /// The message context to use with the service.
@@ -47,6 +46,40 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="request">The request.</param>
         void ScheduleIncomingRequest(IEndpointIncomingRequest request);
+
+        /// <summary>
+        /// Stops the server and releases all resources.
+        /// </summary>
+        void Stop();
+
+        /// <summary>
+        /// Starts the server.
+        /// </summary>
+        /// <param name="configuration">The object that stores the configurable configuration information
+        /// for a UA application</param>
+        /// <param name="baseAddresses">The array of Uri elements which contains base addresses.</param>
+        /// <returns>Returns a host for a UA service.</returns>
+        ServiceHost Start(ApplicationConfiguration configuration, params Uri[] baseAddresses);
+
+        /// <summary>
+        /// Starts the server (called from a dedicated host process).
+        /// </summary>
+        /// <param name="configuration">The object that stores the configurable configuration
+        /// information for a UA application.
+        /// </param>
+        void Start(ApplicationConfiguration configuration);
+
+        /// <summary>
+        /// Trys to get the secure channel id for an AuthenticationToken.
+        /// The ChannelId is known to the sessions of the Server.
+        /// Each session has an AuthenticationToken which can be used to identify the session.
+        /// </summary>
+        /// <param name="authenticationToken">The AuthenticationToken from the RequestHeader</param>
+        /// <param name="channelId">The Channel id</param>
+        /// <returns>returns true if a channelId was found for the provided AuthenticationToken</returns>
+        bool TryGetSecureChannelIdForAuthenticationToken(
+            NodeId authenticationToken,
+            out uint channelId);
     }
 
     /// <summary>
@@ -77,10 +110,20 @@ namespace Opc.Ua
         /// </summary>
         /// <remarks>
         /// This method may block the current thread so the caller must not call in the
-        /// thread that calls IServerBase.ScheduleIncomingRequest(). 
+        /// thread that calls IServerBase.ScheduleIncomingRequest().
         /// This method always traps any exceptions and reports them to the client as a fault.
         /// </remarks>
         void CallSynchronously();
+
+        /// <summary>
+        /// Used to call the default asynchronous handler.
+        /// </summary>
+        /// <remarks>
+        /// This method may block the current thread so the caller must not call in the
+        /// thread that calls IServerBase.ScheduleIncomingRequest().
+        /// This method always traps any exceptions and reports them to the client as a fault.
+        /// </remarks>
+        Task CallAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Used to indicate that the asynchronous operation has completed.

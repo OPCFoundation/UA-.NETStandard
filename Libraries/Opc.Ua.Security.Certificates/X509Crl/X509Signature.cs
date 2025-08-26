@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -43,26 +43,30 @@ namespace Opc.Ua.Security.Certificates
         /// The field contains the ASN.1 data to be signed.
         /// </summary>
         public byte[] Tbs { get; private set; }
+
         /// <summary>
         /// The signature of the data.
         /// </summary>
         public byte[] Signature { get; private set; }
+
         /// <summary>
         /// The encoded signature algorithm that was used for signing.
         /// </summary>
-        public byte[] SignatureAlgorithmIdentifier { get; private set; }
+        public byte[] SignatureAlgorithmIdentifier { get; }
+
         /// <summary>
         /// The signature algorithm as Oid string.
         /// </summary>
         public string SignatureAlgorithm { get; private set; }
+
         /// <summary>
         /// The hash algorithm used for signing.
         /// </summary>
         public HashAlgorithmName Name { get; private set; }
+
         /// <summary>
         /// Initialize and decode the sequence with binary ASN.1 encoded CRL or certificate.
         /// </summary>
-        /// <param name="signedBlob"></param>
         public X509Signature(byte[] signedBlob)
         {
             Decode(signedBlob);
@@ -79,7 +83,7 @@ namespace Opc.Ua.Security.Certificates
             Tbs = tbs;
             Signature = signature;
             SignatureAlgorithmIdentifier = signatureAlgorithmIdentifier;
-            SignatureAlgorithm = X509Signature.DecodeAlgorithm(signatureAlgorithmIdentifier);
+            SignatureAlgorithm = DecodeAlgorithm(signatureAlgorithmIdentifier);
             Name = Oids.GetHashAlgorithmName(SignatureAlgorithm);
         }
 
@@ -123,6 +127,8 @@ namespace Opc.Ua.Security.Certificates
         /// Decoder for the signature sequence.
         /// </summary>
         /// <param name="crl">The encoded CRL or certificate sequence.</param>
+        /// <exception cref="CryptographicException"></exception>
+        /// <exception cref="AsnContentException"></exception>
         private void Decode(byte[] crl)
         {
             try
@@ -140,8 +146,7 @@ namespace Opc.Ua.Security.Certificates
                     Name = Oids.GetHashAlgorithmName(SignatureAlgorithm);
 
                     // Signature
-                    int unusedBitCount;
-                    Signature = seqReader.ReadBitString(out unusedBitCount);
+                    Signature = seqReader.ReadBitString(out int unusedBitCount);
                     if (unusedBitCount != 0)
                     {
                         throw new AsnContentException("Unexpected data in signature.");
@@ -160,8 +165,8 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Verify the signature with the public key of the signer.
         /// </summary>
-        /// <param name="certificate"></param>
         /// <returns>true if the signature is valid.</returns>
+        /// <exception cref="CryptographicException"></exception>
         public bool Verify(X509Certificate2 certificate)
         {
             switch (SignatureAlgorithm)
@@ -171,15 +176,14 @@ namespace Opc.Ua.Security.Certificates
                 case Oids.RsaPkcs1Sha384:
                 case Oids.RsaPkcs1Sha512:
                     return VerifyForRSA(certificate, RSASignaturePadding.Pkcs1);
-
                 case Oids.ECDsaWithSha1:
                 case Oids.ECDsaWithSha256:
                 case Oids.ECDsaWithSha384:
                 case Oids.ECDsaWithSha512:
                     return VerifyForECDsa(certificate);
-
                 default:
-                    throw new CryptographicException("Failed to verify signature due to unknown signature algorithm.");
+                    throw new CryptographicException(
+                        "Failed to verify signature due to unknown signature algorithm.");
             }
         }
 
@@ -188,14 +192,12 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private bool VerifyForRSA(X509Certificate2 certificate, RSASignaturePadding padding)
         {
-            using (RSA rsa = certificate.GetRSAPublicKey())
+            using RSA rsa = certificate.GetRSAPublicKey();
+            if (rsa == null)
             {
-                if (rsa == null)
-                {
-                    return false;
-                }
-                return rsa.VerifyData(Tbs, Signature, Name, padding);
+                return false;
             }
+            return rsa.VerifyData(Tbs, Signature, Name, padding);
         }
 
         /// <summary>
@@ -203,22 +205,19 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private bool VerifyForECDsa(X509Certificate2 certificate)
         {
-            using (ECDsa key = certificate.GetECDsaPublicKey())
+            using ECDsa key = certificate.GetECDsaPublicKey();
+            if (key == null)
             {
-                if (key == null)
-                {
-                    return false;
-                }
-                byte[] decodedSignature = DecodeECDsa(Signature, key.KeySize);
-                return key.VerifyData(Tbs, decodedSignature, Name);
+                return false;
             }
+            byte[] decodedSignature = DecodeECDsa(Signature, key.KeySize);
+            return key.VerifyData(Tbs, decodedSignature, Name);
         }
 
         /// <summary>
         /// Decode the algorithm that was used for encoding.
         /// </summary>
         /// <param name="oid">The ASN.1 encoded algorithm oid.</param>
-        /// <returns></returns>
         private static string DecodeAlgorithm(byte[] oid)
         {
             var seqReader = new AsnReader(oid, AsnEncodingRules.DER);
@@ -231,28 +230,6 @@ namespace Opc.Ua.Security.Certificates
             }
             sigOid.ThrowIfNotEmpty();
             return result;
-        }
-
-        /// <summary>
-        /// Encode a ECDSA signature as ASN.1.
-        /// </summary>
-        /// <param name="signature">The signature to encode as ASN.1</param>
-        private static byte[] EncodeECDsa(byte[] signature)
-        {
-            // Encode from IEEE signature format to ASN1 DER encoded 
-            // signature format for ecdsa certificates.
-            // ECDSA-Sig-Value ::= SEQUENCE { r INTEGER, s INTEGER }
-            var writer = new AsnWriter(AsnEncodingRules.DER);
-            Asn1Tag tag = Asn1Tag.Sequence;
-            writer.PushSequence(tag);
-
-            int segmentLength = signature.Length / 2;
-            writer.WriteIntegerUnsigned(new ReadOnlySpan<byte>(signature, 0, segmentLength));
-            writer.WriteIntegerUnsigned(new ReadOnlySpan<byte>(signature, segmentLength, segmentLength));
-
-            writer.PopSequence(tag);
-
-            return writer.Encode();
         }
 
         /// <summary>
@@ -271,16 +248,16 @@ namespace Opc.Ua.Security.Certificates
             keySize >>= 3;
             if (r.Span[0] == 0 && r.Length > keySize)
             {
-                r = r.Slice(1);
+                r = r[1..];
             }
             if (s.Span[0] == 0 && s.Length > keySize)
             {
-                s = s.Slice(1);
+                s = s[1..];
             }
             byte[] result = new byte[2 * keySize];
             int offset = keySize - r.Length;
             r.CopyTo(new Memory<byte>(result, offset, r.Length));
-            offset = 2 * keySize - s.Length;
+            offset = (2 * keySize) - s.Length;
             s.CopyTo(new Memory<byte>(result, offset, s.Length));
             return result;
         }

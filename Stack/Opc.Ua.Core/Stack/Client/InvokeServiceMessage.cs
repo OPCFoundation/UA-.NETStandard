@@ -10,7 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-
 namespace Opc.Ua
 {
     /// <summary>
@@ -21,12 +20,11 @@ namespace Opc.Ua
         /// <summary>
         /// The body of the message.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1051:DoNotDeclareVisibleInstanceFields")]
         public byte[] InvokeServiceRequest;
 
         /// <summary>
         /// Initializes an empty message.
-        /// </summary>    
+        /// </summary>
         public InvokeServiceMessage()
         {
         }
@@ -34,10 +32,10 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the message with the body.
         /// </summary>
-        /// <param name="InvokeServiceRequest">The invoke service request.</param>
-        public InvokeServiceMessage(byte[] InvokeServiceRequest)
+        /// <param name="invokeServiceRequest">The invoke service request.</param>
+        public InvokeServiceMessage(byte[] invokeServiceRequest)
         {
-            this.InvokeServiceRequest = InvokeServiceRequest;
+            InvokeServiceRequest = invokeServiceRequest;
         }
     }
 
@@ -49,8 +47,7 @@ namespace Opc.Ua
         /// <summary>
         /// The body of the message.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1051:DoNotDeclareVisibleInstanceFields")]
-        public byte[] InvokeServiceResponse;
+        public byte[] InvokeServiceResponse { get; set; }
 
         /// <summary>
         /// Initializes an empty message.
@@ -62,10 +59,10 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the message with the body.
         /// </summary>
-        /// <param name="InvokeServiceResponse">The invoke service response.</param>
-        public InvokeServiceResponseMessage(byte[] InvokeServiceResponse)
+        /// <param name="invokeServiceResponse">The invoke service response.</param>
+        public InvokeServiceResponseMessage(byte[] invokeServiceResponse)
         {
-            this.InvokeServiceResponse = InvokeServiceResponse;
+            InvokeServiceResponse = invokeServiceResponse;
         }
     }
 }

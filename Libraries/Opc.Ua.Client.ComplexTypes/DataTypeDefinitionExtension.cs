@@ -27,11 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection.Emit;
-using System.Runtime.InteropServices;
 using System.Xml;
 
 namespace Opc.Ua.Client.ComplexTypes
@@ -41,7 +38,6 @@ namespace Opc.Ua.Client.ComplexTypes
     /// </summary>
     public static class DataTypeDefinitionExtension
     {
-        #region Public Extensions
         /// <summary>
         /// Convert a binary schema type definition to a
         /// StructureDefinition.
@@ -60,6 +56,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// - The selector bits of optional fields are not stored in a 32 bit variable
         ///   and do not add up to 32 bits.
         /// </remarks>
+        /// <exception cref="DataTypeNotSupportedException"></exception>
         public static StructureDefinition ToStructureDefinition(
             this Schema.Binary.StructuredType structuredType,
             ExpandedNodeId defaultEncodingId,
@@ -67,10 +64,11 @@ namespace Opc.Ua.Client.ComplexTypes
             NamespaceTable namespaceTable,
             NodeId dataTypeNodeId)
         {
-            var structureDefinition = new StructureDefinition() {
+            var structureDefinition = new StructureDefinition
+            {
                 BaseDataType = null,
                 DefaultEncodingId = ExpandedNodeId.ToNodeId(defaultEncodingId, namespaceTable),
-                Fields = new StructureFieldCollection(),
+                Fields = [],
                 StructureType = StructureType.Structure
             };
 
@@ -78,11 +76,10 @@ namespace Opc.Ua.Client.ComplexTypes
             bool hasBitField = false;
             bool isUnionType = false;
 
-            foreach (var field in structuredType.Field)
+            foreach (Schema.Binary.FieldType field in structuredType.Field)
             {
                 // check for yet unsupported properties
-                if (field.IsLengthInBytes ||
-                    field.Terminator != null)
+                if (field.IsLengthInBytes || field.Terminator != null)
                 {
                     isSupportedType = false;
                 }
@@ -92,14 +89,11 @@ namespace Opc.Ua.Client.ComplexTypes
                     isUnionType = true;
                 }
 
-                if (field.TypeName.Namespace == Namespaces.OpcBinarySchema ||
-                    field.TypeName.Namespace == Namespaces.OpcUa)
+                if (field.TypeName.Namespace is Namespaces.OpcBinarySchema or Namespaces.OpcUa &&
+                    field.TypeName.Name == "Bit")
                 {
-                    if (field.TypeName.Name == "Bit")
-                    {
-                        hasBitField = true;
-                        continue;
-                    }
+                    hasBitField = true;
+                    continue;
                 }
                 if (field.Length != 0)
                 {
@@ -131,20 +125,20 @@ namespace Opc.Ua.Client.ComplexTypes
             }
 
             byte switchFieldBitPosition = 0;
-            Int32 dataTypeFieldPosition = 0;
+            int dataTypeFieldPosition = 0;
             var switchFieldBits = new Dictionary<string, byte>();
             // convert fields
-            foreach (var field in structuredType.Field)
+            foreach (Schema.Binary.FieldType field in structuredType.Field)
             {
                 // consume optional bits
                 if (field.TypeName.IsXmlBitType())
                 {
-                    var count = structureDefinition.Fields.Count;
-                    if (count == 0 &&
-                        switchFieldBitPosition < 32)
+                    int count = structureDefinition.Fields.Count;
+                    if (count == 0 && switchFieldBitPosition < 32)
                     {
-                        structureDefinition.StructureType = StructureType.StructureWithOptionalFields;
-                        byte fieldLength = (byte)((field.Length == 0) ? 1u : field.Length);
+                        structureDefinition.StructureType
+                            = StructureType.StructureWithOptionalFields;
+                        byte fieldLength = (byte)(field.Length == 0 ? 1u : field.Length);
                         switchFieldBits[field.Name] = switchFieldBitPosition;
                         switchFieldBitPosition += fieldLength;
                     }
@@ -156,14 +150,13 @@ namespace Opc.Ua.Client.ComplexTypes
                     continue;
                 }
 
-                if (switchFieldBitPosition != 0 &&
-                    switchFieldBitPosition != 32)
+                if (switchFieldBitPosition is not 0 and not 32)
                 {
                     throw new DataTypeNotSupportedException(
                         "Bitwise option selectors must have 32 bits.");
                 }
                 NodeId fieldDataTypeNodeId;
-                if(field.TypeName == structuredType.QName)
+                if (field.TypeName == structuredType.QName)
                 {
                     // recursive type
                     fieldDataTypeNodeId = dataTypeNodeId;
@@ -172,7 +165,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     fieldDataTypeNodeId = field.TypeName.ToNodeId(typeDictionary);
                 }
-                var dataTypeField = new StructureField() {
+                var dataTypeField = new StructureField
+                {
                     Name = field.Name,
                     Description = null,
                     DataType = fieldDataTypeNodeId,
@@ -185,7 +179,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 if (field.LengthField != null)
                 {
                     // handle array length
-                    var lastField = structureDefinition.Fields.Last();
+                    StructureField lastField = structureDefinition.Fields[^1];
                     if (lastField.Name != field.LengthField)
                     {
                         throw new DataTypeNotSupportedException(
@@ -219,8 +213,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     else if (field.SwitchField != null)
                     {
                         dataTypeField.IsOptional = true;
-                        byte value;
-                        if (!switchFieldBits.TryGetValue(field.SwitchField, out value))
+                        if (!switchFieldBits.TryGetValue(field.SwitchField, out byte value))
                         {
                             throw new DataTypeNotSupportedException(
                                 $"The switch field for {field.SwitchField} does not exist.");
@@ -237,20 +230,36 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Convert a binary schema enumerated type to an enum data type definition
         /// Available before OPC UA V1.04.
         /// </summary>
-        public static EnumDefinition ToEnumDefinition(this Schema.Binary.EnumeratedType enumeratedType)
+        public static EnumDefinition ToEnumDefinition(
+            this Schema.Binary.EnumeratedType enumeratedType,
+            string enumTypeName)
         {
             var enumDefinition = new EnumDefinition();
 
-            foreach (var enumValue in enumeratedType.EnumeratedValue)
+            if (enumeratedType.EnumeratedValue != null)
             {
-                var enumTypeField = new EnumField
+                foreach (Schema.Binary.EnumeratedValue enumValue in enumeratedType.EnumeratedValue)
                 {
-                    Name = enumValue.Name,
-                    Value = enumValue.Value,
-                    Description = enumValue.Documentation?.Text?.FirstOrDefault(),
-                    DisplayName = enumValue.Name
-                };
-                enumDefinition.Fields.Add(enumTypeField);
+                    string fieldName = enumValue.Name;
+                    if (string.IsNullOrEmpty(fieldName))
+                    {
+                        if (string.IsNullOrEmpty(enumTypeName))
+                        {
+                            // Here we give up because the overall type is broken
+                            return null;
+                        }
+                        fieldName = $"{enumTypeName}_{enumValue.Value}";
+                    }
+
+                    var enumTypeField = new EnumField
+                    {
+                        Name = fieldName,
+                        Value = enumValue.Value,
+                        Description = enumValue.Documentation?.Text?.FirstOrDefault(),
+                        DisplayName = enumValue.Name
+                    };
+                    enumDefinition.Fields.Add(enumTypeField);
+                }
             }
 
             return enumDefinition;
@@ -260,16 +269,35 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Convert a list of EnumValues to an enum data type definition
         /// Available before OPC UA V1.04.
         /// </summary>
-        public static EnumDefinition ToEnumDefinition(this ExtensionObject[] enumValueTypes)
+        public static EnumDefinition ToEnumDefinition(
+            this ExtensionObject[] enumValueTypes,
+            string enumTypeName)
         {
             var enumDefinition = new EnumDefinition();
 
-            foreach (var extensionObject in enumValueTypes)
+            foreach (ExtensionObject extensionObject in enumValueTypes)
             {
-                var enumValue = extensionObject.Body as EnumValueType;
-                var name = enumValue.DisplayName.Text;
+                if (extensionObject.Body is not EnumValueType enumValue)
+                {
+                    // All we can do here is skip this value. Since there is no
+                    // fallback it is better to include all other type fields if
+                    // they are in the extension object array.
+                    continue;
+                }
 
-                var enumTypeField = new EnumField {
+                string name = enumValue.DisplayName.Text;
+                if (string.IsNullOrEmpty(name))
+                {
+                    if (string.IsNullOrEmpty(enumTypeName))
+                    {
+                        // Here we give up because the overall type is broken
+                        return null;
+                    }
+                    name = $"{enumTypeName}_{enumValue.Value}";
+                }
+
+                var enumTypeField = new EnumField
+                {
                     Name = name,
                     Value = enumValue.Value,
                     DisplayName = name
@@ -284,16 +312,29 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Convert a list of EnumValues to an enum data type definition
         /// Available before OPC UA V1.04.
         /// </summary>
-        public static EnumDefinition ToEnumDefinition(this LocalizedText[] enumFieldNames)
+        public static EnumDefinition ToEnumDefinition(
+            this LocalizedText[] enumFieldNames,
+            string enumTypeName)
         {
             var enumDefinition = new EnumDefinition();
 
             for (int ii = 0; ii < enumFieldNames.Length; ii++)
             {
                 LocalizedText enumFieldName = enumFieldNames[ii];
-                var name = enumFieldName.Text;
+                string name = enumFieldName.Text;
 
-                var enumTypeField = new EnumField {
+                if (string.IsNullOrEmpty(name))
+                {
+                    if (string.IsNullOrEmpty(enumTypeName))
+                    {
+                        // Here we give up because the overall type is broken
+                        return null;
+                    }
+                    name = $"{enumTypeName}_{ii}";
+                }
+
+                var enumTypeField = new EnumField
+                {
                     Name = name,
                     Value = ii,
                     DisplayName = name
@@ -304,23 +345,14 @@ namespace Opc.Ua.Client.ComplexTypes
 
             return enumDefinition;
         }
-        #endregion Public Extensions
 
-        #region Private Methods
         /// <summary>
         /// Test for special Bit type used in the binary schema structure definition.
         /// </summary>
         private static bool IsXmlBitType(this XmlQualifiedName typeName)
         {
-            if (typeName.Namespace == Namespaces.OpcBinarySchema ||
-                typeName.Namespace == Namespaces.OpcUa)
-            {
-                if (typeName.Name == "Bit")
-                {
-                    return true;
-                }
-            }
-            return false;
+            return typeName.Namespace is Namespaces.OpcBinarySchema or Namespaces.OpcUa &&
+                typeName.Name == "Bit";
         }
 
         /// <summary>
@@ -331,16 +363,19 @@ namespace Opc.Ua.Client.ComplexTypes
             this XmlQualifiedName typeName,
             Dictionary<XmlQualifiedName, NodeId> typeCollection)
         {
-            if (typeName.Namespace == Namespaces.OpcBinarySchema ||
-                typeName.Namespace == Namespaces.OpcUa)
+            if (typeName.Namespace is Namespaces.OpcBinarySchema or Namespaces.OpcUa)
             {
                 switch (typeName.Name)
                 {
-                    case "CharArray": return DataTypeIds.String;
-                    case "Variant": return DataTypeIds.BaseDataType;
-                    case "ExtensionObject": return DataTypeIds.Structure;
+                    case "CharArray":
+                        return DataTypeIds.String;
+                    case "Variant":
+                        return DataTypeIds.BaseDataType;
+                    case "ExtensionObject":
+                        return DataTypeIds.Structure;
                 }
-                var internalField = typeof(DataTypeIds).GetField(typeName.Name);
+                System.Reflection.FieldInfo internalField = typeof(DataTypeIds).GetField(
+                    typeName.Name);
                 if (internalField == null)
                 {
                     // The type was not found in the internal type factory.
@@ -348,16 +383,13 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 return (NodeId)internalField.GetValue(typeName.Name);
             }
-            else
+            if (!typeCollection.TryGetValue(typeName, out NodeId referenceId))
             {
-                if (!typeCollection.TryGetValue(typeName, out NodeId referenceId))
-                {
-                    // The type was not found in the namespace
-                    return NodeId.Null;
-                }
-                return referenceId;
+                // The type was not found in the namespace
+                return NodeId.Null;
             }
+
+            return referenceId;
         }
-        #endregion Private Methods
     }
-}//namespace
+}

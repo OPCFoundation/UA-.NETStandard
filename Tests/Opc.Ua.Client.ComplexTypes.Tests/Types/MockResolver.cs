@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -40,7 +39,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
     /// </summary>
     public class MockResolver : IComplexTypeResolver
     {
-        #region Constructors
         /// <summary>
         /// The mock resolver emulates data type definitions
         /// which are stored in the server address space.
@@ -52,58 +50,69 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
         private void Initialize()
         {
-            m_dataTypeDictionary = new Dictionary<NodeId, DataDictionary>();
-            m_dataTypeNodes = new Dictionary<NodeId, INode>();
+            DataTypeSystem = [];
+            DataTypeNodes = [];
             m_factory = new EncodeableFactory(EncodeableFactory.GlobalFactory);
-            m_namespaceUris = new NamespaceTable();
+            NamespaceUris = new NamespaceTable();
 
-            m_namespaceUris.Append("urn:This:is:my:test:encoder");
-            m_namespaceUris.Append("urn:This:is:another:namespace");
-            m_namespaceUris.Append(Namespaces.OpcUaEncoderTests);
-            m_namespaceUris.Append(Namespaces.MockResolverUrl);
-
+            NamespaceUris.Append("urn:This:is:my:test:encoder");
+            NamespaceUris.Append("urn:This:is:another:namespace");
+            NamespaceUris.Append(Namespaces.OpcUaEncoderTests);
+            NamespaceUris.Append(Namespaces.MockResolverUrl);
         }
-        #endregion Constructors
 
-        public Dictionary<NodeId, INode> DataTypeNodes => m_dataTypeNodes;
+        public NodeIdDictionary<INode> DataTypeNodes { get; private set; }
 
-        #region IComplexTypeResolver
         /// <inheritdoc/>
-        public NamespaceTable NamespaceUris => m_namespaceUris;
+        public NodeIdDictionary<DataDictionary> DataTypeSystem { get; private set; }
+
+        /// <inheritdoc/>
+        public NamespaceTable NamespaceUris { get; private set; }
 
         /// <inheritdoc/>
         public IEncodeableFactory Factory => m_factory;
 
         /// <inheritdoc/>
-        public Task<Dictionary<NodeId, DataDictionary>> LoadDataTypeSystem(NodeId dataTypeSystem = null, CancellationToken ct = default)
+        public Task<IReadOnlyDictionary<NodeId, DataDictionary>> LoadDataTypeSystem(
+            NodeId dataTypeSystem = null,
+            CancellationToken ct = default)
         {
-            return Task.FromResult(m_dataTypeDictionary);
+            return Task.FromResult<IReadOnlyDictionary<NodeId, DataDictionary>>(DataTypeSystem);
         }
 
         /// <inheritdoc/>
-        public Task<IList<NodeId>> BrowseForEncodingsAsync(IList<ExpandedNodeId> nodeIds, string[] supportedEncodings, CancellationToken ct = default)
+        public Task<IList<NodeId>> BrowseForEncodingsAsync(
+            IList<ExpandedNodeId> nodeIds,
+            string[] supportedEncodings,
+            CancellationToken ct = default)
         {
-            return Task.FromResult((IList<NodeId>)new List<NodeId>());
+            return Task.FromResult((IList<NodeId>)[]);
         }
 
         /// <inheritdoc/>
-        public Task<(IList<NodeId> encodings, ExpandedNodeId binaryEncodingId, ExpandedNodeId xmlEncodingId)> BrowseForEncodingsAsync(
+        public Task<(
+            IList<NodeId> encodings,
+            ExpandedNodeId binaryEncodingId,
+            ExpandedNodeId xmlEncodingId
+        )> BrowseForEncodingsAsync(
             ExpandedNodeId nodeId,
             string[] supportedEncodings,
             CancellationToken ct = default)
         {
-            var binaryEncodingId = ExpandedNodeId.Null;
-            var xmlEncodingId = ExpandedNodeId.Null;
+            ExpandedNodeId binaryEncodingId = ExpandedNodeId.Null;
+            ExpandedNodeId xmlEncodingId = ExpandedNodeId.Null;
             IList<NodeId> encodings = null;
 
-            var node = m_dataTypeNodes[ExpandedNodeId.ToNodeId(nodeId, NamespaceUris)];
+            INode node = DataTypeNodes[ExpandedNodeId.ToNodeId(nodeId, NamespaceUris)];
             if (node is DataTypeNode dataTypeNode)
             {
                 var result = new List<NodeId>();
-                var references = dataTypeNode.References.Where(r => r.ReferenceTypeId.Equals(ReferenceTypeIds.HasEncoding));
-                foreach (var reference in references)
+                foreach (
+                    ReferenceNode reference in dataTypeNode.References.Where(r =>
+                        r.ReferenceTypeId.Equals(ReferenceTypeIds.HasEncoding)))
                 {
-                    var encodingNode = m_dataTypeNodes[ExpandedNodeId.ToNodeId(reference.TargetId, NamespaceUris)];
+                    INode encodingNode = DataTypeNodes[
+                        ExpandedNodeId.ToNodeId(reference.TargetId, NamespaceUris)];
                     if (encodingNode == null)
                     {
                         continue;
@@ -128,11 +137,16 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
 
         /// <inheritdoc/>
-        public Task<(ExpandedNodeId typeId, ExpandedNodeId encodingId, DataTypeNode dataTypeNode)> BrowseTypeIdsForDictionaryComponentAsync(
+        public Task<(
+            ExpandedNodeId typeId,
+            ExpandedNodeId encodingId,
+            DataTypeNode dataTypeNode
+        )> BrowseTypeIdsForDictionaryComponentAsync(
             ExpandedNodeId nodeId,
             CancellationToken ct = default)
         {
-            return Task.FromResult<(ExpandedNodeId typeId, ExpandedNodeId encodingId, DataTypeNode dataTypeNode)>((null, null, null));
+            return Task.FromResult<(ExpandedNodeId typeId, ExpandedNodeId encodingId, DataTypeNode dataTypeNode)>(
+                (null, null, null));
         }
 
         /// <inheritdoc/>
@@ -144,14 +158,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             CancellationToken ct = default)
         {
             var result = new List<INode>();
-            var nodesToBrowse = new ExpandedNodeIdCollection {
-                dataType
-            };
+            var nodesToBrowse = new ExpandedNodeIdCollection { dataType };
 
             if (addRootNode)
             {
-                var rootNode = await FindAsync(dataType, ct).ConfigureAwait(false);
-                if (!(rootNode is DataTypeNode))
+                INode rootNode = await FindAsync(dataType, ct).ConfigureAwait(false);
+                if (rootNode is not DataTypeNode)
                 {
                     throw new ServiceResultException("Root Node is not a DataType node.");
                 }
@@ -161,25 +173,19 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             while (nodesToBrowse.Count > 0)
             {
                 var nextNodesToBrowse = new ExpandedNodeIdCollection();
-                foreach (var node in nodesToBrowse)
+                foreach (ExpandedNodeId node in nodesToBrowse)
                 {
-
-                    var response = m_dataTypeNodes.Values.Where(n => {
-                        if (n.NodeClass == NodeClass.DataType)
-                        {
-                            if (((DataTypeNode)n).DataTypeDefinition.Body is StructureDefinition structureDefinition)
-                            {
-                                if (Utils.IsEqual(structureDefinition.BaseDataType, node))
-                                {
-                                    return true;
-                                }
-                            }
-                        }
-                        return false;
-                    }).Cast<DataTypeNode>();
+                    IEnumerable<DataTypeNode> response = DataTypeNodes
+                        .Values.Where(n =>
+                            n.NodeClass == NodeClass.DataType &&
+                            ((DataTypeNode)n).DataTypeDefinition
+                                .Body is StructureDefinition structureDefinition &&
+                            Utils.IsEqual(structureDefinition.BaseDataType, node))
+                        .Cast<DataTypeNode>();
                     if (nestedSubTypes)
                     {
-                        nextNodesToBrowse.AddRange(response.Select(r => NodeId.ToExpandedNodeId(r.NodeId, NamespaceUris)).ToList());
+                        nextNodesToBrowse.AddRange(
+                            response.Select(r => NodeId.ToExpandedNodeId(r.NodeId, NamespaceUris)));
                     }
                     if (filterUATypes)
                     {
@@ -199,11 +205,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// <inheritdoc/>
         public Task<INode> FindAsync(ExpandedNodeId nodeId, CancellationToken ct = default)
         {
-            return Task.FromResult(m_dataTypeNodes[ExpandedNodeId.ToNodeId(nodeId, NamespaceUris)]);
+            return Task.FromResult(DataTypeNodes[ExpandedNodeId.ToNodeId(nodeId, NamespaceUris)]);
         }
 
         /// <inheritdoc/>
-        public Task<object> GetEnumTypeArrayAsync(ExpandedNodeId nodeId, CancellationToken ct = default)
+        public Task<object> GetEnumTypeArrayAsync(
+            ExpandedNodeId nodeId,
+            CancellationToken ct = default)
         {
             return Task.FromResult<object>(null);
         }
@@ -211,23 +219,22 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// <inheritdoc/>
         public Task<NodeId> FindSuperTypeAsync(NodeId typeId, CancellationToken ct = default)
         {
-            var node = m_dataTypeNodes[typeId];
+            INode node = DataTypeNodes[typeId];
             if (node is DataTypeNode dataTypeNode)
             {
-                if (dataTypeNode.DataTypeDefinition.Body is EnumDefinition enumDefinition)
+                if (dataTypeNode.DataTypeDefinition.Body is EnumDefinition)
                 {
                     return Task.FromResult(DataTypeIds.Enumeration);
                 }
-                else if (dataTypeNode.DataTypeDefinition.Body is StructureDefinition structureDefinition)
+                else if (dataTypeNode.DataTypeDefinition
+                    .Body is StructureDefinition structureDefinition)
                 {
                     return Task.FromResult(structureDefinition.BaseDataType);
                 }
             }
             return Task.FromResult(DataTypeIds.BaseDataType);
         }
-        #endregion IComplexTypeResolver
 
-        #region Private Methods
         /// <summary>
         /// Helper to ensure the expanded nodeId contains a valid namespaceUri.
         /// </summary>
@@ -238,13 +245,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, NamespaceUris);
             return NodeId.ToExpandedNodeId(nodeId, NamespaceUris);
         }
-        #endregion Private Methods
 
-        #region Private Fields
-        private Dictionary<NodeId, DataDictionary> m_dataTypeDictionary;
-        private Dictionary<NodeId, INode> m_dataTypeNodes;
         private EncodeableFactory m_factory;
-        private NamespaceTable m_namespaceUris;
-        #endregion Private Fields
-    }//namespace
+    }
 }

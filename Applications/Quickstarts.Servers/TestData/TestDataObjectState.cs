@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -37,7 +37,6 @@ namespace TestData
 {
     public partial class TestDataObjectState
     {
-        #region Initialization
         /// <summary>
         /// Initializes the object as a collection of counters which change value on read.
         /// </summary>
@@ -47,13 +46,14 @@ namespace TestData
 
             GenerateValues.OnCall = OnGenerateValues;
         }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Initialzies the variable as a counter.
         /// </summary>
-        protected void InitializeVariable(ISystemContext context, BaseVariableState variable, uint numericId)
+        protected void InitializeVariable(
+            ISystemContext context,
+            BaseVariableState variable,
+            uint numericId)
         {
             variable.NumericId = numericId;
 
@@ -64,9 +64,8 @@ namespace TestData
             }
 
             // set a valid initial value.
-            TestDataSystem system = context.SystemHandle as TestDataSystem;
 
-            if (system != null)
+            if (context.SystemHandle is TestDataSystem system)
             {
                 GenerateValue(system, variable);
             }
@@ -78,20 +77,21 @@ namespace TestData
 
                 var children = new List<BaseInstanceState>();
                 variable.GetChildren(context, children);
-                foreach (var child in children)
+                foreach (BaseInstanceState child in children)
                 {
                     if (child is BaseVariableState variableChild)
                     {
-                        variableChild.AccessLevel = variableChild.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                        variableChild.AccessLevel = variableChild.UserAccessLevel = AccessLevels
+                            .CurrentReadOrWrite;
                     }
                 }
-
             }
 
             // set the EU range.
-            BaseVariableState euRange = variable.FindChild(context, Opc.Ua.BrowseNames.EURange) as BaseVariableState;
 
-            if (euRange != null)
+            if (variable.FindChild(
+                context,
+                Opc.Ua.BrowseNames.EURange) is BaseVariableState euRange)
             {
                 if (context.TypeTable.IsTypeOf(variable.DataType, Opc.Ua.DataTypeIds.UInteger))
                 {
@@ -115,24 +115,19 @@ namespace TestData
         {
             try
             {
-
-                BaseVariableState euRange = node.FindChild(context, Opc.Ua.BrowseNames.EURange) as BaseVariableState;
-
-                if (euRange == null)
+                if (node.FindChild(
+                    context,
+                    Opc.Ua.BrowseNames.EURange) is not BaseVariableState euRange)
                 {
                     return ServiceResult.Good;
                 }
 
-                Range range = euRange.Value as Range;
-
-                if (range == null)
+                if (euRange.Value is not Range range)
                 {
                     return ServiceResult.Good;
                 }
 
-                Array array = value as Array;
-
-                if (array != null)
+                if (value is Array array)
                 {
                     for (int ii = 0; ii < array.Length; ii++)
                     {
@@ -143,7 +138,9 @@ namespace TestData
                             element = ((Variant)element).Value;
                         }
 
-                        double elementNumber = Convert.ToDouble(element, CultureInfo.InvariantCulture);
+                        double elementNumber = Convert.ToDouble(
+                            element,
+                            CultureInfo.InvariantCulture);
 
                         if (elementNumber > range.High || elementNumber < range.Low)
                         {
@@ -192,25 +189,19 @@ namespace TestData
 
             if (AreEventsMonitored)
             {
-                GenerateValuesEventState e = new GenerateValuesEventState(null);
+                var e = new GenerateValuesEventState(null);
 
-                TranslationInfo message = new TranslationInfo(
+                var message = new TranslationInfo(
                     "GenerateValuesEventType",
                     "en-US",
                     "New values generated for test source '{0}'.",
-                    this.DisplayName);
+                    DisplayName);
 
-                e.Initialize(
-                    context,
-                    this,
-                    EventSeverity.MediumLow,
-                    new LocalizedText(message));
+                e.Initialize(context, this, EventSeverity.MediumLow, new LocalizedText(message));
 
-                e.Iterations = new PropertyState<uint>(e);
-                e.Iterations.Value = count;
+                e.Iterations = new PropertyState<uint>(e) { Value = count };
 
-                e.NewValueCount = new PropertyState<uint>(e);
-                e.NewValueCount.Value = 10;
+                e.NewValueCount = new PropertyState<uint>(e) { Value = 10 };
 
                 ReportEvent(context, e);
             }
@@ -234,9 +225,7 @@ namespace TestData
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
-            BaseVariableState variable = node as BaseVariableState;
-
-            if (variable == null)
+            if (node is not BaseVariableState variable)
             {
                 return ServiceResult.Good;
             }
@@ -246,9 +235,7 @@ namespace TestData
                 return ServiceResult.Good;
             }
 
-            TestDataSystem system = context.SystemHandle as TestDataSystem;
-
-            if (system == null)
+            if (context.SystemHandle is not TestDataSystem system)
             {
                 return StatusCodes.BadOutOfService;
             }
@@ -278,6 +265,5 @@ namespace TestData
                 return new ServiceResult(e);
             }
         }
-#endregion
     }
 }

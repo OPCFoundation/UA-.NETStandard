@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -37,12 +37,12 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
+using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
 
 namespace Opc.Ua.Gds.Server
 {
     public class CertificateGroup : ICertificateGroup
     {
-        #region Public Fields
         public NodeId Id { get; set; }
         public NodeIdCollection CertificateTypes { get; set; }
         public CertificateGroupConfiguration Configuration { get; }
@@ -51,7 +51,6 @@ namespace Opc.Ua.Gds.Server
         public bool UpdateRequired { get; set; }
         public CertificateStoreIdentifier AuthoritiesStore { get; }
         public CertificateStoreIdentifier IssuerCertificatesStore { get; }
-        #endregion
 
         public CertificateGroup()
         {
@@ -61,28 +60,32 @@ namespace Opc.Ua.Gds.Server
         protected CertificateGroup(
             string authoritiesStorePath,
             CertificateGroupConfiguration certificateGroupConfiguration,
-            [Optional] string trustedIssuerCertificatesStorePath
-            )
+            [Optional] string trustedIssuerCertificatesStorePath)
         {
             AuthoritiesStore = new CertificateStoreIdentifier(authoritiesStorePath, false);
             Configuration = certificateGroupConfiguration;
             if (trustedIssuerCertificatesStorePath != null)
             {
-                IssuerCertificatesStore = new CertificateStoreIdentifier(trustedIssuerCertificatesStorePath);
+                IssuerCertificatesStore = new CertificateStoreIdentifier(
+                    trustedIssuerCertificatesStorePath);
             }
-            SubjectName = Configuration.SubjectName.Replace("localhost", Utils.GetHostName());
-            CertificateTypes = new NodeIdCollection();
+            SubjectName = Configuration.SubjectName
+                .Replace("localhost", Utils.GetHostName(), StringComparison.Ordinal);
+            CertificateTypes = [];
 
             Certificates = new ConcurrentDictionary<NodeId, X509Certificate2>();
 
             foreach (string certificateTypeString in Configuration.CertificateTypes)
             {
-                var certificateType = typeof(Opc.Ua.ObjectTypeIds).GetField(certificateTypeString).GetValue(null) as NodeId;
+                var certificateType = typeof(Ua.ObjectTypeIds).GetField(certificateTypeString)
+                    .GetValue(null) as NodeId;
                 if (certificateType != null)
                 {
                     if (!Utils.IsSupportedCertificateType(certificateType))
                     {
-                        Utils.LogError("Certificate type {0} specified for Certificate Group is not supported on this platform", certificateType);
+                        Utils.LogError(
+                            "Certificate type {0} specified for Certificate Group is not supported on this platform",
+                            certificateType);
                         continue;
                     }
 
@@ -91,7 +94,8 @@ namespace Opc.Ua.Gds.Server
                 }
                 else
                 {
-                    throw new NotImplementedException($"Unknown certificate type {certificateTypeString}. Use ApplicationCertificateType, HttpsCertificateType or UserCredentialCertificateType");
+                    throw new NotImplementedException(
+                        $"Unknown certificate type {certificateTypeString}. Use ApplicationCertificateType, HttpsCertificateType or UserCredentialCertificateType");
                 }
             }
             if (CertificateTypes.Count == 0)
@@ -100,27 +104,30 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        #region ICertificateGroupProvider
-        public virtual async Task Init()
+        public virtual async Task InitAsync()
         {
             Utils.LogInfo("InitializeCertificateGroup: {0}", SubjectName);
 
             ICertificateStore store = AuthoritiesStore.OpenStore();
             try
             {
-                X509Certificate2Collection certificates = await store.Enumerate().ConfigureAwait(false);
+                X509Certificate2Collection certificates = await store.EnumerateAsync()
+                    .ConfigureAwait(false);
                 foreach (X509Certificate2 certificate in certificates)
                 {
                     if (X509Utils.CompareDistinguishedName(certificate.Subject, SubjectName))
                     {
-                        if (!X509Utils.IsECDsaSignature(certificate) && X509Utils.GetRSAPublicKeySize(certificate) != Configuration.CACertificateKeySize)
+                        if (!X509Utils.IsECDsaSignature(certificate) &&
+                            X509Utils.GetRSAPublicKeySize(certificate) != Configuration
+                                .CACertificateKeySize)
                         {
                             continue;
                         }
 
                         // TODO check hash size
 
-                        NodeId certificateType = CertificateIdentifier.GetCertificateType(certificate);
+                        NodeId certificateType = CertificateIdentifier.GetCertificateType(
+                            certificate);
 
                         if (CertificateTypes.Any(c => c == certificateType))
                         {
@@ -150,18 +157,21 @@ namespace Opc.Ua.Gds.Server
 
                 if (certificate == null)
                 {
-                    Utils.LogInfo(Utils.TraceMasks.Security,
+                    Utils.LogInfo(
+                        Utils.TraceMasks.Security,
                         "Create new CA Certificate: {0}, CertificateType {1}  KeySize: {2}, HashSize: {3}, LifeTime: {4} months",
                         SubjectName,
                         certificateType,
                         Configuration.CACertificateKeySize,
                         Configuration.CACertificateHashSize,
-                        Configuration.CACertificateLifetime
-                        );
-                    await CreateCACertificateAsync(SubjectName, certificateType).ConfigureAwait(false);
-                    Utils.LogCertificate(Utils.TraceMasks.Security, "Created CA certificate: ", Certificates[certificateType]);
+                        Configuration.CACertificateLifetime);
+                    await CreateCACertificateAsync(SubjectName, certificateType).ConfigureAwait(
+                        false);
+                    Utils.LogCertificate(
+                        Utils.TraceMasks.Security,
+                        "Created CA certificate: ",
+                        Certificates[certificateType]);
                 }
-
             }
         }
 
@@ -170,7 +180,10 @@ namespace Opc.Ua.Gds.Server
             CertificateGroupConfiguration certificateGroupConfiguration,
             [Optional] string trustedIssuerCertificatesStorePath)
         {
-            return new CertificateGroup(authoritiesStorePath, certificateGroupConfiguration, trustedIssuerCertificatesStorePath);
+            return new CertificateGroup(
+                authoritiesStorePath,
+                certificateGroupConfiguration,
+                trustedIssuerCertificatesStorePath);
         }
 
         /// <summary>
@@ -182,6 +195,8 @@ namespace Opc.Ua.Gds.Server
         /// <param name="domainNames">The domain names for the subject alt name extension.</param>
         /// <param name="privateKeyFormat">The private key format as PFX or PEM.</param>
         /// <param name="privateKeyPassword">A password for the private key.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="application"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public virtual async Task<X509Certificate2KeyPair> NewKeyPairRequestAsync(
             ApplicationRecordDataType application,
             NodeId certificateType,
@@ -190,68 +205,84 @@ namespace Opc.Ua.Gds.Server
             string privateKeyFormat,
             string privateKeyPassword)
         {
-            if (application == null) throw new ArgumentNullException(nameof(application));
-            if (application.ApplicationUri == null) throw new ArgumentNullException(nameof(application.ApplicationUri));
-            if (application.ApplicationNames == null) throw new ArgumentNullException(nameof(application.ApplicationNames));
-
-            using (var signingKey = await LoadSigningKeyAsync(Certificates[certificateType], string.Empty).ConfigureAwait(false))
+            if (application == null)
             {
-                X509Certificate2 certificate;
+                throw new ArgumentNullException(nameof(application));
+            }
 
-                ICertificateBuilderIssuer builder = CertificateFactory.CreateCertificate(
+            if (application.ApplicationUri == null)
+            {
+                throw new ArgumentNullException(nameof(application), "ApplicationUri is null");
+            }
+
+            if (application.ApplicationNames == null)
+            {
+                throw new ArgumentNullException(nameof(application), "ApplicationNames is null");
+            }
+
+            using X509Certificate2 signingKey = await LoadSigningKeyAsync(
+                Certificates[certificateType],
+                string.Empty)
+                .ConfigureAwait(false);
+            X509Certificate2 certificate;
+
+            ICertificateBuilderIssuer builder = CertificateFactory
+                .CreateCertificate(
                     application.ApplicationUri,
-                    application.ApplicationNames.Count > 0 ? application.ApplicationNames[0].Text : "ApplicationName",
+                    application.ApplicationNames.Count > 0
+                        ? application.ApplicationNames[0].Text
+                        : "ApplicationName",
                     subjectName,
                     domainNames)
-                    .SetIssuer(signingKey);
+                .SetIssuer(signingKey);
 #if ECC_SUPPORT
-                certificate = TryGetECCCurve(certificateType, out ECCurve curve) ?
-                   builder.SetECCurve(curve).CreateForECDsa() :
-                   builder.CreateForRSA();
+            certificate = TryGetECCCurve(certificateType, out ECCurve curve)
+                ? builder.SetECCurve(curve).CreateForECDsa()
+                : builder.CreateForRSA();
 #else
-                certificate = builder
-                       .CreateForRSA();
+            certificate = builder.CreateForRSA();
 #endif
 
-                byte[] privateKey;
-                if (privateKeyFormat == "PFX")
-                {
-                    privateKey = certificate.Export(X509ContentType.Pfx, privateKeyPassword);
-                }
-                else if (privateKeyFormat == "PEM")
-                {
-                    privateKey = PEMWriter.ExportPrivateKeyAsPEM(certificate, privateKeyPassword);
-                }
-                else
-                {
-                    throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Invalid private key format");
-                }
-
-                var publicKey = X509CertificateLoader.LoadCertificate(certificate.RawData);
-                Utils.SilentDispose(certificate);
-
-                return new X509Certificate2KeyPair(publicKey, privateKeyFormat, privateKey);
+            byte[] privateKey;
+            if (privateKeyFormat == "PFX")
+            {
+                privateKey = certificate.Export(X509ContentType.Pfx, privateKeyPassword);
             }
+            else if (privateKeyFormat == "PEM")
+            {
+                privateKey = PEMWriter.ExportPrivateKeyAsPEM(certificate, privateKeyPassword);
+            }
+            else
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument,
+                    "Invalid private key format");
+            }
+
+            X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(certificate.RawData);
+            Utils.SilentDispose(certificate);
+
+            return new X509Certificate2KeyPair(publicKey, privateKeyFormat, privateKey);
         }
 
-        public async virtual Task<X509CRL> RevokeCertificateAsync(
-            X509Certificate2 certificate)
+        public virtual async Task<X509CRL> RevokeCertificateAsync(X509Certificate2 certificate)
         {
-            X509CRL crl = await RevokeCertificateAsync(
-                AuthoritiesStore,
-                certificate,
-                null).ConfigureAwait(false);
+            X509CRL crl = await RevokeCertificateAsync(AuthoritiesStore, certificate, null)
+                .ConfigureAwait(false);
 
             // Also update TrustedList CRL so registerd Applications can get the new CRL
             if (crl != null)
             {
-                var certificateStoreIdentifier = new CertificateStoreIdentifier(Configuration.TrustedListPath);
-                await UpdateAuthorityCertInCertificateStore(certificateStoreIdentifier).ConfigureAwait(false);
+                var certificateStoreIdentifier = new CertificateStoreIdentifier(
+                    Configuration.TrustedListPath);
+                await UpdateAuthorityCertInCertificateStoreAsync(certificateStoreIdentifier)
+                    .ConfigureAwait(false);
 
                 //Also update TrustedIssuerCertificates Store
                 if (IssuerCertificatesStore != null)
                 {
-                    await UpdateAuthorityCertInCertificateStore(IssuerCertificatesStore).ConfigureAwait(false);
+                    await UpdateAuthorityCertInCertificateStoreAsync(IssuerCertificatesStore)
+                        .ConfigureAwait(false);
                 }
             }
 
@@ -265,38 +296,35 @@ namespace Opc.Ua.Gds.Server
         {
             try
             {
-                var pkcs10CertificationRequest = new Org.BouncyCastle.Pkcs.Pkcs10CertificationRequest(certificateRequest);
+                var pkcs10CertificationRequest
+                    = new Org.BouncyCastle.Pkcs.Pkcs10CertificationRequest(
+                    certificateRequest);
 
                 if (!pkcs10CertificationRequest.Verify())
                 {
-                    throw new ServiceResultException(StatusCodes.BadInvalidArgument, "CSR signature invalid.");
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidArgument,
+                        "CSR signature invalid.");
                 }
 
-                var info = pkcs10CertificationRequest.GetCertificationRequestInfo();
-                var altNameExtension = GetAltNameExtensionFromCSRInfo(info);
-                if (altNameExtension != null)
+                Org.BouncyCastle.Asn1.Pkcs.CertificationRequestInfo info =
+                    pkcs10CertificationRequest.GetCertificationRequestInfo();
+                X509SubjectAltNameExtension altNameExtension = GetAltNameExtensionFromCSRInfo(info);
+                if (altNameExtension != null &&
+                    altNameExtension.Uris.Count > 0 &&
+                    !altNameExtension.Uris.Contains(application.ApplicationUri))
                 {
-                    if (altNameExtension.Uris.Count > 0)
-                    {
-                        if (!altNameExtension.Uris.Contains(application.ApplicationUri))
-                        {
-                            throw new ServiceResultException(StatusCodes.BadCertificateUriInvalid,
-                                "CSR AltNameExtension does not match " + application.ApplicationUri);
-                        }
-                    }
+                    throw new ServiceResultException(
+                        StatusCodes.BadCertificateUriInvalid,
+                        "CSR AltNameExtension does not match " + application.ApplicationUri);
                 }
                 return Task.CompletedTask;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not ServiceResultException)
             {
-                if (ex is ServiceResultException)
-                {
-                    throw;
-                }
                 throw new ServiceResultException(StatusCodes.BadInvalidArgument, ex.Message);
             }
         }
-
 
         public virtual async Task<X509Certificate2> SigningRequestAsync(
             ApplicationRecordDataType application,
@@ -306,90 +334,97 @@ namespace Opc.Ua.Gds.Server
         {
             try
             {
-                var pkcs10CertificationRequest = new Org.BouncyCastle.Pkcs.Pkcs10CertificationRequest(certificateRequest);
+                var pkcs10CertificationRequest
+                    = new Org.BouncyCastle.Pkcs.Pkcs10CertificationRequest(
+                    certificateRequest);
 
                 if (!pkcs10CertificationRequest.Verify())
                 {
-                    throw new ServiceResultException(StatusCodes.BadInvalidArgument, "CSR signature invalid.");
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidArgument,
+                        "CSR signature invalid.");
                 }
 
-                var info = pkcs10CertificationRequest.GetCertificationRequestInfo();
-                var altNameExtension = GetAltNameExtensionFromCSRInfo(info);
+                Org.BouncyCastle.Asn1.Pkcs.CertificationRequestInfo info =
+                    pkcs10CertificationRequest.GetCertificationRequestInfo();
+                X509SubjectAltNameExtension altNameExtension = GetAltNameExtensionFromCSRInfo(info);
                 if (altNameExtension != null)
                 {
-                    if (altNameExtension.Uris.Count > 0)
+                    if (altNameExtension.Uris.Count > 0 &&
+                        !altNameExtension.Uris.Contains(application.ApplicationUri))
                     {
-                        if (!altNameExtension.Uris.Contains(application.ApplicationUri))
+                        var applicationUriMissing = new StringBuilder();
+                        applicationUriMissing.AppendLine(
+                            "Expected AltNameExtension (ApplicationUri):")
+                            .AppendLine(application.ApplicationUri)
+                            .AppendLine("CSR AltNameExtensions found:");
+                        foreach (string uri in altNameExtension.Uris)
                         {
-                            var applicationUriMissing = new StringBuilder();
-                            applicationUriMissing.AppendLine("Expected AltNameExtension (ApplicationUri):");
-                            applicationUriMissing.AppendLine(application.ApplicationUri);
-                            applicationUriMissing.AppendLine("CSR AltNameExtensions found:");
-                            foreach (string uri in altNameExtension.Uris)
-                            {
-                                applicationUriMissing.AppendLine(uri);
-                            }
-                            throw new ServiceResultException(StatusCodes.BadCertificateUriInvalid,
-                                applicationUriMissing.ToString());
+                            applicationUriMissing.AppendLine(uri);
                         }
+                        throw new ServiceResultException(
+                            StatusCodes.BadCertificateUriInvalid,
+                            applicationUriMissing.ToString());
                     }
 
-                    if (altNameExtension.IPAddresses.Count > 0 || altNameExtension.DomainNames.Count > 0)
+                    if (altNameExtension.IPAddresses.Count > 0 ||
+                        altNameExtension.DomainNames.Count > 0)
                     {
                         var domainNameList = new List<string>();
                         domainNameList.AddRange(altNameExtension.DomainNames);
                         domainNameList.AddRange(altNameExtension.IPAddresses);
-                        domainNames = domainNameList.ToArray();
+                        domainNames = [.. domainNameList];
                     }
                 }
 
                 DateTime yesterday = DateTime.Today.AddDays(-1);
-                using (var signingKey = await LoadSigningKeyAsync(Certificates[certificateType], string.Empty).ConfigureAwait(false))
-                {
-                    X500DistinguishedName subjectName = new X500DistinguishedName(info.Subject.GetEncoded());
+                using X509Certificate2 signingKey = await LoadSigningKeyAsync(
+                        Certificates[certificateType],
+                        string.Empty)
+                    .ConfigureAwait(false);
+                var subjectName = new X500DistinguishedName(info.Subject.GetEncoded());
 
-                    X509Certificate2 certificate;
+                X509Certificate2 certificate;
 
-                    ICertificateBuilder builder = CertificateBuilder.Create(subjectName)
-                        .AddExtension(new X509SubjectAltNameExtension(application.ApplicationUri, domainNames))
-                        .SetNotBefore(yesterday)
-                        .SetLifeTime(Configuration.DefaultCertificateLifetime);
+                ICertificateBuilder builder = CertificateBuilder
+                    .Create(subjectName)
+                    .AddExtension(
+                        new X509SubjectAltNameExtension(application.ApplicationUri, domainNames))
+                    .SetNotBefore(yesterday)
+                    .SetLifeTime(Configuration.DefaultCertificateLifetime);
 
 #if ECC_SUPPORT
-                    certificate = TryGetECCCurve(certificateType, out ECCurve curve) ?
-                       builder
-                       .SetIssuer(signingKey)
-                       .SetECDsaPublicKey(info.SubjectPublicKeyInfo.GetEncoded())
-                       .CreateForECDsa() :
-                       builder.SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.DefaultCertificateHashSize))
-                                .SetIssuer(signingKey)
-                                .SetRSAPublicKey(info.SubjectPublicKeyInfo.GetEncoded())
-                                .CreateForRSA();
+                certificate = TryGetECCCurve(certificateType, out ECCurve curve)
+                    ? builder
+                        .SetIssuer(signingKey)
+                        .SetECDsaPublicKey(info.SubjectPublicKeyInfo.GetEncoded())
+                        .CreateForECDsa()
+                    : builder
+                        .SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(
+                            Configuration.DefaultCertificateHashSize))
+                        .SetIssuer(signingKey)
+                        .SetRSAPublicKey(info.SubjectPublicKeyInfo.GetEncoded())
+                        .CreateForRSA();
 #else
-                    certificate = builder.SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.DefaultCertificateHashSize))
-                                    .SetIssuer(signingKey)
-                                    .SetRSAPublicKey(info.SubjectPublicKeyInfo.GetEncoded())
-                                    .CreateForRSA();
+                certificate = builder
+                    .SetHashAlgorithm(
+                        X509Utils.GetRSAHashAlgorithmName(Configuration.DefaultCertificateHashSize))
+                    .SetIssuer(signingKey)
+                    .SetRSAPublicKey(info.SubjectPublicKeyInfo.GetEncoded())
+                    .CreateForRSA();
 #endif
 
-                    return certificate;
-                }
+                return certificate;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not ServiceResultException)
             {
-                if (ex is ServiceResultException)
-                {
-                    throw;
-                }
                 throw new ServiceResultException(StatusCodes.BadInvalidArgument, ex.Message);
             }
-
         }
 
         public virtual async Task<X509Certificate2> CreateCACertificateAsync(
             string subjectName,
-            NodeId certificateType
-            )
+            NodeId certificateType)
         {
             // validate new subjectName matches the previous subject
             // TODO: An issuer may modify the subject of the CA certificate,
@@ -397,8 +432,12 @@ namespace Opc.Ua.Gds.Server
             // NOTE: not a strict requirement here for ASN.1 byte compare
             if (!X509Utils.CompareDistinguishedName(subjectName, SubjectName))
             {
-                throw new ArgumentException("SubjectName provided does not match the SubjectName property of the CertificateGroup \n" +
-                    "CA Certificate is not created until the subjectName " + SubjectName + " is provided", subjectName);
+                throw new ArgumentException(
+                    "SubjectName provided does not match the SubjectName property of the CertificateGroup \n" +
+                    "CA Certificate is not created until the subjectName " +
+                    SubjectName +
+                    " is provided",
+                    subjectName);
             }
 
             if (certificateType is null)
@@ -409,90 +448,102 @@ namespace Opc.Ua.Gds.Server
             DateTime yesterday = DateTime.Today.AddDays(-1);
             X509Certificate2 certificate;
 
-            ICertificateBuilder builder = CertificateFactory.CreateCertificate(subjectName)
+            ICertificateBuilder builder = CertificateFactory
+                .CreateCertificate(subjectName)
                 .SetNotBefore(yesterday)
                 .SetLifeTime(Configuration.CACertificateLifetime)
                 .SetCAConstraint();
 
 #if ECC_SUPPORT
-            certificate = TryGetECCCurve(certificateType, out ECCurve curve) ?
-               builder.SetECCurve(curve).CreateForECDsa() :
-               builder.SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.CACertificateHashSize))
-                      .SetRSAKeySize(Configuration.CACertificateKeySize)
-                      .CreateForRSA();
+            certificate = TryGetECCCurve(certificateType, out ECCurve curve)
+                ? builder.SetECCurve(curve).CreateForECDsa()
+                : builder
+                    .SetHashAlgorithm(
+                        X509Utils.GetRSAHashAlgorithmName(Configuration.CACertificateHashSize))
+                    .SetRSAKeySize(Configuration.CACertificateKeySize)
+                    .CreateForRSA();
 #else
-            certificate = builder.SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.CACertificateHashSize))
-                      .SetRSAKeySize(Configuration.CACertificateKeySize)
-                      .CreateForRSA();
+            certificate = builder
+                .SetHashAlgorithm(
+                    X509Utils.GetRSAHashAlgorithmName(Configuration.CACertificateHashSize))
+                .SetRSAKeySize(Configuration.CACertificateKeySize)
+                .CreateForRSA();
 #endif
 
             await certificate.AddToStoreAsync(AuthoritiesStore).ConfigureAwait(false);
 
             // save only public key
-            Certificates[certificateType] = X509CertificateLoader.LoadCertificate(certificate.RawData);
+            Certificates[certificateType] = X509CertificateLoader.LoadCertificate(
+                certificate.RawData);
 
             // initialize revocation list
-            X509CRL crl = await RevokeCertificateAsync(AuthoritiesStore, certificate, null).ConfigureAwait(false);
+            X509CRL crl = await RevokeCertificateAsync(AuthoritiesStore, certificate, null)
+                .ConfigureAwait(false);
 
             //Update TrustedList Store
             if (crl != null)
             {
                 // TODO: make CA trust selectable
-                var certificateStoreIdentifier = new CertificateStoreIdentifier(Configuration.TrustedListPath);
-                await UpdateAuthorityCertInCertificateStore(certificateStoreIdentifier).ConfigureAwait(false);
+                var certificateStoreIdentifier = new CertificateStoreIdentifier(
+                    Configuration.TrustedListPath);
+                await UpdateAuthorityCertInCertificateStoreAsync(certificateStoreIdentifier)
+                    .ConfigureAwait(false);
 
                 // Update TrustedIssuerCertificates Store
                 if (IssuerCertificatesStore != null)
                 {
-                    await UpdateAuthorityCertInCertificateStore(IssuerCertificatesStore).ConfigureAwait(false);
+                    await UpdateAuthorityCertInCertificateStoreAsync(IssuerCertificatesStore)
+                        .ConfigureAwait(false);
                 }
             }
 
             Utils.SilentDispose(certificate);
 
             return Certificates[certificateType];
-
         }
 
-        #endregion
-
-        #region Public Methods
         /// <summary>
         /// load the authority signing key.
         /// </summary>
-        public virtual async Task<X509Certificate2> LoadSigningKeyAsync(X509Certificate2 signingCertificate, string signingKeyPassword)
+        public virtual Task<X509Certificate2> LoadSigningKeyAsync(
+            X509Certificate2 signingCertificate,
+            string signingKeyPassword)
         {
-            CertificateIdentifier certIdentifier = new CertificateIdentifier(signingCertificate) {
+            var certIdentifier = new CertificateIdentifier(signingCertificate)
+            {
                 StorePath = AuthoritiesStore.StorePath,
                 StoreType = AuthoritiesStore.StoreType
             };
-            return await certIdentifier.LoadPrivateKey(signingKeyPassword).ConfigureAwait(false);
+            return certIdentifier.LoadPrivateKeyAsync(signingKeyPassword);
         }
 
         /// <summary>
-        /// Revoke the CA signed certificate. 
+        /// Revoke the CA signed certificate.
         /// The issuer CA public key, the private key and the crl reside in the storepath.
         /// The CRL number is increased by one and existing CRL for the issuer are deleted from the store.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static async Task<X509CRL> RevokeCertificateAsync(
             CertificateStoreIdentifier storeIdentifier,
             X509Certificate2 certificate,
-            string issuerKeyFilePassword = null
-            )
+            string issuerKeyFilePassword = null)
         {
             X509CRL updatedCRL = null;
-            X500DistinguishedName subjectName = certificate.IssuerName;
-            string keyId = null;
-            string serialNumber = null;
+
+            _ = certificate.IssuerName;
 
             // caller may want to create empty CRL using the CA cert itself
             bool isCACert = X509Utils.IsCertificateAuthority(certificate);
 
             // find the authority key identifier.
-            var authority = X509Extensions.FindExtension<Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension>(certificate);
+
+            X509AuthorityKeyIdentifierExtension authority =
+                certificate.FindExtension<X509AuthorityKeyIdentifierExtension>();
+            string serialNumber;
             if (authority != null)
             {
-                keyId = authority.KeyIdentifier;
+                _ = authority.KeyIdentifier;
                 serialNumber = authority.SerialNumber;
             }
             else
@@ -502,14 +553,14 @@ namespace Opc.Ua.Gds.Server
 
             if (!isCACert)
             {
-                if (serialNumber == certificate.SerialNumber ||
-                    X509Utils.IsSelfSigned(certificate))
+                if (serialNumber == certificate.SerialNumber || X509Utils.IsSelfSigned(certificate))
                 {
-                    throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Cannot revoke self signed certificates");
+                    throw new ServiceResultException(
+                        StatusCodes.BadCertificateInvalid,
+                        "Cannot revoke self signed certificates");
                 }
             }
 
-            X509Certificate2 certCA = null;
             ICertificateStore store = storeIdentifier.OpenStore();
             try
             {
@@ -517,44 +568,55 @@ namespace Opc.Ua.Gds.Server
                 {
                     throw new ArgumentException("Invalid store path/type");
                 }
-                certCA = await X509Utils.FindIssuerCABySerialNumberAsync(store, certificate.IssuerName, serialNumber).ConfigureAwait(false);
+                X509Certificate2 certCA =
+                    await X509Utils
+                        .FindIssuerCABySerialNumberAsync(
+                            store,
+                            certificate.IssuerName,
+                            serialNumber)
+                        .ConfigureAwait(false)
+                    ?? throw new ServiceResultException(
+                        StatusCodes.BadCertificateInvalid,
+                        "Cannot find issuer certificate in store.");
 
-                if (certCA == null)
+                var certCAIdentifier = new CertificateIdentifier(certCA)
                 {
-                    throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Cannot find issuer certificate in store.");
-                }
-
-                CertificateIdentifier certCAIdentifier = new CertificateIdentifier(certCA) {
                     StorePath = store.StorePath,
                     StoreType = store.StoreType
                 };
-                X509Certificate2 certCAWithPrivateKey = await certCAIdentifier.LoadPrivateKey(issuerKeyFilePassword).ConfigureAwait(false);
-
-                if (certCAWithPrivateKey == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Failed to load issuer private key. Is the password correct?");
-                }
+                X509Certificate2 certCAWithPrivateKey =
+                    await certCAIdentifier.LoadPrivateKeyAsync(issuerKeyFilePassword)
+                        .ConfigureAwait(false)
+                    ?? throw new ServiceResultException(
+                        StatusCodes.BadCertificateInvalid,
+                        "Failed to load issuer private key. Is the password correct?");
 
                 if (!certCAWithPrivateKey.HasPrivateKey)
                 {
-                    throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Issuer certificate has no private key, cannot revoke certificate.");
+                    throw new ServiceResultException(
+                        StatusCodes.BadCertificateInvalid,
+                        "Issuer certificate has no private key, cannot revoke certificate.");
                 }
 
-                var certCACrl = await store.EnumerateCRLs(certCA, false).ConfigureAwait(false);
+                X509CRLCollection certCACrl = await store.EnumerateCRLsAsync(certCA, false)
+                    .ConfigureAwait(false);
 
                 var certificateCollection = new X509Certificate2Collection();
                 if (!isCACert)
                 {
                     certificateCollection.Add(certificate);
                 }
-                updatedCRL = CertificateFactory.RevokeCertificate(certCAWithPrivateKey, certCACrl, certificateCollection);
+                updatedCRL = CertificateFactory.RevokeCertificate(
+                    certCAWithPrivateKey,
+                    certCACrl,
+                    certificateCollection);
 
-                await store.AddCRL(updatedCRL).ConfigureAwait(false);
+                await store.AddCRLAsync(updatedCRL).ConfigureAwait(false);
 
                 // delete outdated CRLs from store
                 foreach (X509CRL caCrl in certCACrl)
                 {
-                    await store.DeleteCRL(caCrl).ConfigureAwait(false);
+                    await store.DeleteCRLAsync(caCrl).ConfigureAwait(false);
                 }
             }
             finally
@@ -563,54 +625,47 @@ namespace Opc.Ua.Gds.Server
             }
             return updatedCRL;
         }
-        #endregion
 
-        #region Private Methods
 #if ECC_SUPPORT
         /// <summary>
         /// GetTheEccCurve of the CertificateGroups CertificateType
         /// </summary>
         /// <returns>returns false if RSA CertificateType, true if a ECCurve can be found, else throws Exception</returns>
         /// <exception cref="ServiceResultException"></exception>
-        private bool TryGetECCCurve(NodeId certificateType, out ECCurve curve)
+        private static bool TryGetECCCurve(NodeId certificateType, out ECCurve curve)
         {
             curve = default;
             if (IsRSACertificateType(certificateType))
             {
                 return false;
             }
-            ECCurve? tempCurve = EccUtils.GetCurveFromCertificateTypeId(certificateType);
-
-            if (tempCurve == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadNotSupported, $"The certificate type {certificateType} is not supported.");
-            }
-
-            curve = tempCurve.Value;
-
+            curve =
+                EccUtils.GetCurveFromCertificateTypeId(certificateType)
+                ?? throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    $"The certificate type {certificateType} is not supported.");
             return true;
+
+            //  Checks if the Certificate Group is for RSA Certificates
+            static bool IsRSACertificateType(NodeId certificateType)
+            {
+                return certificateType == null ||
+                    certificateType == Ua.ObjectTypeIds.ApplicationCertificateType ||
+                    certificateType == Ua.ObjectTypeIds.HttpsCertificateType ||
+                    certificateType == Ua.ObjectTypeIds.UserCredentialCertificateType ||
+                    certificateType == Ua.ObjectTypeIds.RsaMinApplicationCertificateType ||
+                    certificateType == Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType;
+            }
         }
 #endif
-        /// <summary>
-        /// Checks if the Certificate Group is for RSA Certificates
-        /// </summary>
-        /// <returns>True if the CertificateType of the Certificate Group is an RSA Certificate Type</returns>
-        private bool IsRSACertificateType(NodeId certificateType)
-        {
-            return certificateType == null ||
-                   certificateType == Opc.Ua.ObjectTypeIds.ApplicationCertificateType ||
-                   certificateType == Opc.Ua.ObjectTypeIds.HttpsCertificateType ||
-                   certificateType == Opc.Ua.ObjectTypeIds.UserCredentialCertificateType ||
-                   certificateType == Opc.Ua.ObjectTypeIds.RsaMinApplicationCertificateType ||
-                   certificateType == Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType;
-        }
 
         /// <summary>
         /// Updates the certificate authority certificate and CRL in the provided CertificateStore
         /// </summary>
         /// <param name="trustedOrIssuerStoreIdentifier">The store which contains the authority ceritificate. (trusted or issuer)</param>
-        /// <returns></returns>
-        protected async Task UpdateAuthorityCertInCertificateStore(CertificateStoreIdentifier trustedOrIssuerStoreIdentifier)
+        /// <exception cref="ServiceResultException"></exception>
+        protected async Task UpdateAuthorityCertInCertificateStoreAsync(
+            CertificateStoreIdentifier trustedOrIssuerStoreIdentifier)
         {
             ICertificateStore authorityStore = AuthoritiesStore.OpenStore();
             ICertificateStore trustedOrIssuerStore = trustedOrIssuerStoreIdentifier.OpenStore();
@@ -618,36 +673,46 @@ namespace Opc.Ua.Gds.Server
             {
                 if (authorityStore == null || trustedOrIssuerStore == null)
                 {
-                    throw new ServiceResultException("Unable to update authority certificate in stores");
+                    throw new ServiceResultException(
+                        "Unable to update authority certificate in stores");
                 }
 
-                X509Certificate2Collection certificates = await authorityStore.Enumerate().ConfigureAwait(false);
-                foreach (var certificate in certificates)
+                X509Certificate2Collection certificates = await authorityStore.EnumerateAsync()
+                    .ConfigureAwait(false);
+                foreach (X509Certificate2 certificate in certificates)
                 {
                     if (X509Utils.CompareDistinguishedName(certificate.Subject, SubjectName))
                     {
-                        X509Certificate2Collection certs = await trustedOrIssuerStore.FindByThumbprint(certificate.Thumbprint).ConfigureAwait(false);
+                        X509Certificate2Collection certs = await trustedOrIssuerStore
+                            .FindByThumbprintAsync(certificate.Thumbprint)
+                            .ConfigureAwait(false);
                         if (certs.Count == 0)
                         {
-                            using (var x509 = X509CertificateLoader.LoadCertificate(certificate.RawData))
-                            {
-                                await trustedOrIssuerStore.Add(x509).ConfigureAwait(false);
-                            }
+                            using X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(
+                                certificate.RawData);
+                            await trustedOrIssuerStore.AddAsync(x509).ConfigureAwait(false);
                         }
 
                         // delete existing CRL in trusted list
-                        foreach (var crl in await trustedOrIssuerStore.EnumerateCRLs(certificate, false).ConfigureAwait(false))
+                        foreach (
+                            X509CRL crl in await trustedOrIssuerStore
+                                .EnumerateCRLsAsync(certificate, false)
+                                .ConfigureAwait(false))
                         {
                             if (crl.VerifySignature(certificate, false))
                             {
-                                await trustedOrIssuerStore.DeleteCRL(crl).ConfigureAwait(false);
+                                await trustedOrIssuerStore.DeleteCRLAsync(crl)
+                                    .ConfigureAwait(false);
                             }
                         }
 
                         // copy latest CRL to trusted list
-                        foreach (var crl in await authorityStore.EnumerateCRLs(certificate, true).ConfigureAwait(false))
+                        foreach (
+                            X509CRL crl in await authorityStore
+                                .EnumerateCRLsAsync(certificate, true)
+                                .ConfigureAwait(false))
                         {
-                            await trustedOrIssuerStore.AddCRL(crl).ConfigureAwait(false);
+                            await trustedOrIssuerStore.AddCRLAsync(crl).ConfigureAwait(false);
                         }
                     }
                 }
@@ -659,38 +724,48 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        protected X509SubjectAltNameExtension GetAltNameExtensionFromCSRInfo(Org.BouncyCastle.Asn1.Pkcs.CertificationRequestInfo info)
+        protected X509SubjectAltNameExtension GetAltNameExtensionFromCSRInfo(
+            Org.BouncyCastle.Asn1.Pkcs.CertificationRequestInfo info)
         {
             try
             {
                 for (int i = 0; i < info.Attributes.Count; i++)
                 {
-                    var sequence = Org.BouncyCastle.Asn1.Asn1Sequence.GetInstance(info.Attributes[i].ToAsn1Object());
-                    var oid = Org.BouncyCastle.Asn1.DerObjectIdentifier.GetInstance(sequence[0].ToAsn1Object());
-                    if (oid.Equals(Org.BouncyCastle.Asn1.Pkcs.PkcsObjectIdentifiers.Pkcs9AtExtensionRequest))
+                    var sequence = Org.BouncyCastle.Asn1.Asn1Sequence
+                        .GetInstance(info.Attributes[i].ToAsn1Object());
+                    var oid = Org.BouncyCastle.Asn1.DerObjectIdentifier
+                        .GetInstance(sequence[0].ToAsn1Object());
+                    if (oid.Equals(
+                        Org.BouncyCastle.Asn1.Pkcs.PkcsObjectIdentifiers.Pkcs9AtExtensionRequest))
                     {
-                        var extensionInstance = Org.BouncyCastle.Asn1.DerSet.GetInstance(sequence[1]);
-                        var extensionSequence = Org.BouncyCastle.Asn1.Asn1Sequence.GetInstance(extensionInstance[0]);
-                        var extensions = Org.BouncyCastle.Asn1.X509.X509Extensions.GetInstance(extensionSequence);
-                        Org.BouncyCastle.Asn1.X509.X509Extension extension = extensions.GetExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectAlternativeName);
-                        var asnEncodedAltNameExtension = new System.Security.Cryptography.AsnEncodedData(Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectAlternativeName.ToString(), extension.Value.GetOctets());
-                        var altNameExtension = new X509SubjectAltNameExtension(asnEncodedAltNameExtension, extension.IsCritical);
-                        return altNameExtension;
+                        var extensionInstance = Org.BouncyCastle.Asn1.Asn1Set
+                            .GetInstance(sequence[1]);
+                        var extensionSequence = Org.BouncyCastle.Asn1.Asn1Sequence
+                            .GetInstance(extensionInstance[0]);
+                        var extensions = Org.BouncyCastle.Asn1.X509.X509Extensions
+                            .GetInstance(extensionSequence);
+                        Org.BouncyCastle.Asn1.X509.X509Extension extension = extensions
+                            .GetExtension(
+                                Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectAlternativeName);
+                        var asnEncodedAltNameExtension = new AsnEncodedData(
+                            Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectAlternativeName
+                                .ToString(),
+                            extension.Value.GetOctets());
+                        return new X509SubjectAltNameExtension(
+                            asnEncodedAltNameExtension,
+                            extension.IsCritical);
                     }
                 }
             }
             catch
             {
-                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "CSR altNameExtension invalid.");
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument,
+                    "CSR altNameExtension invalid.");
             }
             return null;
         }
-        #endregion
 
-        #region Protected Properties
         protected string SubjectName { get; }
-        #endregion 
-
     }
-
 }

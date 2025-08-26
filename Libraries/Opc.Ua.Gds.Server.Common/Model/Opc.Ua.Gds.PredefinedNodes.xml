@@ -105,7 +105,7 @@
       <uax:NumericId>723</uax:NumericId>
       <uax:Value>
         <uax:Value>
-          <uax:String>1.05.04</uax:String>
+          <uax:String>1.05.05</uax:String>
         </uax:Value>
       </uax:Value>
       <uax:DataType>
@@ -133,7 +133,7 @@
       <uax:NumericId>724</uax:NumericId>
       <uax:Value>
         <uax:Value>
-          <uax:DateTime>2025-01-08T00:00:00Z</uax:DateTime>
+          <uax:DateTime>2025-06-30T00:00:00Z</uax:DateTime>
         </uax:Value>
       </uax:Value>
       <uax:DataType>
@@ -350,7 +350,7 @@
       <uax:NumericId>1756</uax:NumericId>
       <uax:Value>
         <uax:Value>
-          <uax:String>1.5.4</uax:String>
+          <uax:String>1.5.5</uax:String>
         </uax:Value>
       </uax:Value>
       <uax:DataType>
@@ -3303,6 +3303,16 @@
       <uax:NumericId>18</uax:NumericId>
       <uax:Executable>true</uax:Executable>
       <uax:UserExecutable>true</uax:UserExecutable>
+      <uax:References>
+        <uax:Reference>
+          <uax:ReferenceTypeId>
+            <uax:Identifier>i=41</uax:Identifier>
+          </uax:ReferenceTypeId>
+          <uax:TargetId>
+            <uax:Identifier>ns=1;i=26</uax:Identifier>
+          </uax:TargetId>
+        </uax:Reference>
+      </uax:References>
       <InputArguments xmlns="http://opcfoundation.org/UA/">
         <uax:NodeClass>Variable_2</uax:NodeClass>
         <uax:NodeId>
@@ -6823,6 +6833,20 @@
       <uax:UserAccessLevel>1</uax:UserAccessLevel>
     </CertificateType>
   </CertificateDeliveredAuditEventType>
+  <CertificateRevokedAuditEventType xmlns="http://opcfoundation.org/UA/GDS/">
+    <uax:NodeClass>ObjectType_8</uax:NodeClass>
+    <uax:NodeId>
+      <uax:Identifier>ns=1;i=27</uax:Identifier>
+    </uax:NodeId>
+    <uax:BrowseName>
+      <uax:NamespaceIndex>1</uax:NamespaceIndex>
+      <uax:Name>CertificateRevokedAuditEventType</uax:Name>
+    </uax:BrowseName>
+    <uax:SuperTypeId>
+      <uax:Identifier>i=2127</uax:Identifier>
+    </uax:SuperTypeId>
+    <uax:IsAbstract>true</uax:IsAbstract>
+  </CertificateRevokedAuditEventType>
   <KeyCredentialManagementFolderType xmlns="http://opcfoundation.org/UA/GDS/">
     <uax:NodeClass>ObjectType_8</uax:NodeClass>
     <uax:NodeId>
@@ -8588,6 +8612,16 @@
       <uax:NumericId>146</uax:NumericId>
       <uax:Executable>true</uax:Executable>
       <uax:UserExecutable>true</uax:UserExecutable>
+      <uax:References>
+        <uax:Reference>
+          <uax:ReferenceTypeId>
+            <uax:Identifier>i=41</uax:Identifier>
+          </uax:ReferenceTypeId>
+          <uax:TargetId>
+            <uax:Identifier>ns=1;i=26</uax:Identifier>
+          </uax:TargetId>
+        </uax:Reference>
+      </uax:References>
       <InputArguments xmlns="http://opcfoundation.org/UA/">
         <uax:NodeClass>Variable_2</uax:NodeClass>
         <uax:NodeId>
@@ -13853,8 +13887,8 @@ c2QiDQogIHhtbG5zOnRucz0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy9UeXBlcy54
 c2QiDQogIHRhcmdldE5hbWVzcGFjZT0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy9U
 eXBlcy54c2QiDQogIGVsZW1lbnRGb3JtRGVmYXVsdD0icXVhbGlmaWVkIg0KPg0KICA8eHM6YW5u
 b3RhdGlvbj4NCiAgICA8eHM6YXBwaW5mbz4NCiAgICAgIDx1YTpNb2RlbCBNb2RlbFVyaT0iaHR0
-cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy8iIFZlcnNpb249IjEuMDUuMDQiIFB1YmxpY2F0
-aW9uRGF0ZT0iMjAyNS0wMS0wOFQwMDowMDowMFoiIC8+DQogICAgPC94czphcHBpbmZvPg0KICA8
+cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy8iIFZlcnNpb249IjEuMDUuMDUiIFB1YmxpY2F0
+aW9uRGF0ZT0iMjAyNS0wNi0zMFQwMDowMDowMFoiIC8+DQogICAgPC94czphcHBpbmZvPg0KICA8
 L3hzOmFubm90YXRpb24+DQogIA0KICA8eHM6aW1wb3J0IG5hbWVzcGFjZT0iaHR0cDovL29wY2Zv
 dW5kYXRpb24ub3JnL1VBLzIwMDgvMDIvVHlwZXMueHNkIiAvPg0KDQogIDx4czpjb21wbGV4VHlw
 ZSBuYW1lPSJBcHBsaWNhdGlvblJlY29yZERhdGFUeXBlIj4NCiAgICA8eHM6c2VxdWVuY2U+DQog

@@ -12,7 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
@@ -54,11 +53,11 @@ namespace Opc.Ua.Bindings
             }
 
             // build list of uris.
-            List<Uri> uris = new List<Uri>();
-            EndpointDescriptionCollection endpoints = new EndpointDescriptionCollection();
+            var uris = new List<Uri>();
+            var endpoints = new EndpointDescriptionCollection();
 
             // create the endpoint configuration to use.
-            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(configuration);
+            var endpointConfiguration = EndpointConfiguration.Create(configuration);
             string computerName = Utils.GetHostName();
 
             for (int ii = 0; ii < baseAddresses.Count; ii++)
@@ -69,15 +68,15 @@ namespace Opc.Ua.Bindings
                     continue;
                 }
 
-                UriBuilder uri = new UriBuilder(baseAddresses[ii]);
+                var uri = new UriBuilder(baseAddresses[ii]);
 
-                if (String.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase))
                 {
                     uri.Host = computerName;
                 }
 
-                bool sendCertificateChain = instanceCertificateTypesProvider.SendCertificateChain;
-                ITransportListener listener = this.Create();
+                _ = instanceCertificateTypesProvider.SendCertificateChain;
+                ITransportListener listener = Create();
                 if (listener != null)
                 {
                     var listenerEndpoints = new EndpointDescriptionCollection();
@@ -86,15 +85,20 @@ namespace Opc.Ua.Bindings
                     foreach (ServerSecurityPolicy policy in securityPolicies)
                     {
                         // create the endpoint description.
-                        EndpointDescription description = new EndpointDescription {
+                        var description = new EndpointDescription
+                        {
                             EndpointUrl = uri.ToString(),
                             Server = serverDescription,
                             TransportProfileUri = Profiles.UaTcpTransport,
                             SecurityMode = policy.SecurityMode,
                             SecurityPolicyUri = policy.SecurityPolicyUri,
-                            SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(policy.SecurityMode, policy.SecurityPolicyUri)
+                            SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(
+                                policy.SecurityMode,
+                                policy.SecurityPolicyUri)
                         };
-                        description.UserIdentityTokens = serverBase.GetUserTokenPolicies(configuration, description);
+                        description.UserIdentityTokens = serverBase.GetUserTokenPolicies(
+                            configuration,
+                            description);
 
                         ServerBase.SetServerCertificateInEndpointDescription(
                             description,
@@ -103,18 +107,24 @@ namespace Opc.Ua.Bindings
                         listenerEndpoints.Add(description);
                     }
 
-                    serverBase.CreateServiceHostEndpoint(uri.Uri, listenerEndpoints, endpointConfiguration, listener,
+                    serverBase.CreateServiceHostEndpoint(
+                        uri.Uri,
+                        listenerEndpoints,
+                        endpointConfiguration,
+                        listener,
                         configuration.CertificateValidator.GetChannelValidator());
 
                     endpoints.AddRange(listenerEndpoints);
                 }
                 else
                 {
-                    Utils.LogError("Failed to create endpoint {0} because the transport profile is unsupported.", Redaction.Redact.Create(uri));
+                    Utils.LogError(
+                        "Failed to create endpoint {0} because the transport profile is unsupported.",
+                        Redaction.Redact.Create(uri));
                 }
             }
 
-            hosts[hostName] = serverBase.CreateServiceHost(serverBase, uris.ToArray());
+            hosts[hostName] = serverBase.CreateServiceHost(serverBase, [.. uris]);
 
             return endpoints;
         }

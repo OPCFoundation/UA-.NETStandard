@@ -12,7 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Xml;
@@ -25,15 +24,14 @@ namespace Opc.Ua.Schema
     /// </summary>
     public class SchemaValidator
     {
-        #region Constructors
         /// <summary>
         /// Intializes the object with default values.
         /// </summary>
         public SchemaValidator()
         {
-            m_knownFiles = new Dictionary<string, string>();
-            m_loadedFiles = new Dictionary<string, object>();
-            m_importFiles = new Dictionary<string, byte[]>();
+            KnownFiles = new Dictionary<string, string>();
+            LoadedFiles = new Dictionary<string, object>();
+            ImportFiles = new Dictionary<string, byte[]>();
         }
 
         /// <summary>
@@ -41,9 +39,9 @@ namespace Opc.Ua.Schema
         /// </summary>
         public SchemaValidator(IDictionary<string, string> knownFiles)
         {
-            m_knownFiles = knownFiles ?? new Dictionary<string, string>();
-            m_loadedFiles = new Dictionary<string, object>();
-            m_importFiles = new Dictionary<string, byte[]>();
+            KnownFiles = knownFiles ?? new Dictionary<string, string>();
+            LoadedFiles = new Dictionary<string, object>();
+            ImportFiles = new Dictionary<string, byte[]>();
         }
 
         /// <summary>
@@ -51,13 +49,11 @@ namespace Opc.Ua.Schema
         /// </summary>
         public SchemaValidator(IDictionary<string, byte[]> importFiles)
         {
-            m_knownFiles = new Dictionary<string, string>();
-            m_loadedFiles = new Dictionary<string, object>();
-            m_importFiles = importFiles ?? new Dictionary<string, byte[]>();
+            KnownFiles = new Dictionary<string, string>();
+            LoadedFiles = new Dictionary<string, object>();
+            ImportFiles = importFiles ?? new Dictionary<string, byte[]>();
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The file that was validated.
         /// </summary>
@@ -66,36 +62,30 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// A table of known files.
         /// </summary>
-        public IDictionary<string, string> KnownFiles => m_knownFiles;
+        public IDictionary<string, string> KnownFiles { get; }
 
         /// <summary>
         /// A table of files which have been loaded.
         /// </summary>
-        public IDictionary<string, object> LoadedFiles => m_loadedFiles;
+        public IDictionary<string, object> LoadedFiles { get; }
 
         /// <summary>
         /// A table of import files.
         /// </summary>
-        public IDictionary<string, byte[]> ImportFiles => m_importFiles;
-        #endregion
+        public IDictionary<string, byte[]> ImportFiles { get; }
 
-        #region Protected Methods
         /// <summary>
         /// Returns true if the QName is null.
         /// </summary>
         protected static bool IsNull(XmlQualifiedName name)
         {
-            if (name != null && !String.IsNullOrEmpty(name.Name))
-            {
-                return false;
-            }
-
-            return true;
+            return name == null || string.IsNullOrEmpty(name.Name);
         }
 
         /// <summary>
         /// Formats a string and throws an exception.
         /// </summary>
+        /// <exception cref="FormatException"></exception>
         protected static Exception Exception(string format)
         {
             throw new FormatException(format);
@@ -130,7 +120,7 @@ namespace Opc.Ua.Schema
         /// </summary>
         protected object LoadInput(Type type, Stream stream)
         {
-            m_loadedFiles.Clear();
+            LoadedFiles.Clear();
 
             object schema = LoadFile(type, stream);
 
@@ -144,7 +134,7 @@ namespace Opc.Ua.Schema
         /// </summary>
         protected object LoadInput(Type type, string path)
         {
-            m_loadedFiles.Clear();
+            LoadedFiles.Clear();
 
             object schema = LoadFile(type, path);
 
@@ -159,24 +149,22 @@ namespace Opc.Ua.Schema
         protected object Load(Type type, string namespaceUri, string path, Assembly assembly = null)
         {
             // check if already loaded.
-            if (m_loadedFiles.ContainsKey(namespaceUri))
+            if (LoadedFiles.TryGetValue(namespaceUri, out object value))
             {
-                return m_loadedFiles[namespaceUri];
+                return value;
             }
 
             // check if namespace specified in the import table.
-            if (m_importFiles.TryGetValue(namespaceUri, out byte[] schema))
+            if (ImportFiles.TryGetValue(namespaceUri, out byte[] schema))
             {
-                using (Stream memoryStream = new MemoryStream(schema))
-                {
-                    return LoadFile(type, memoryStream);
-                }
+                using Stream memoryStream = new MemoryStream(schema);
+                return LoadFile(type, memoryStream);
             }
 
             // check if a valid path provided.
             FileInfo fileInfo = null;
 
-            if (!String.IsNullOrEmpty(path))
+            if (!string.IsNullOrEmpty(path))
             {
                 fileInfo = new FileInfo(path);
 
@@ -187,9 +175,7 @@ namespace Opc.Ua.Schema
             }
 
             // check if path specified in the file table.
-            string location = null;
-
-            if (m_knownFiles.TryGetValue(namespaceUri, out location))
+            if (KnownFiles.TryGetValue(namespaceUri, out string location))
             {
                 fileInfo = new FileInfo(location);
 
@@ -202,7 +188,7 @@ namespace Opc.Ua.Schema
                 return LoadResource(type, location, assembly);
             }
 
-            if (!String.IsNullOrEmpty(path))
+            if (!string.IsNullOrEmpty(path))
             {
                 if (!File.Exists(path))
                 {
@@ -211,9 +197,10 @@ namespace Opc.Ua.Schema
                 }
 
                 // check for file in the same directory as the input file.
-                FileInfo inputInfo = new FileInfo(FilePath);
+                var inputInfo = new FileInfo(FilePath);
 
-                fileInfo = new FileInfo(inputInfo.DirectoryName + Path.DirectorySeparatorChar + fileInfo.Name);
+                fileInfo = new FileInfo(
+                    inputInfo.DirectoryName + Path.DirectorySeparatorChar + fileInfo.Name);
 
                 if (fileInfo.Exists)
                 {
@@ -221,7 +208,8 @@ namespace Opc.Ua.Schema
                 }
 
                 // check for file in the process directory.
-                fileInfo = new FileInfo(Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar + fileInfo.Name);
+                fileInfo = new FileInfo(
+                    Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar + fileInfo.Name);
 
                 if (fileInfo.Exists)
                 {
@@ -237,12 +225,10 @@ namespace Opc.Ua.Schema
         /// </summary>
         protected static object LoadFile(Type type, string path)
         {
-            using (StreamReader reader = new StreamReader(new FileStream(path, FileMode.Open)))
-            using (XmlReader xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings()))
-            {
-                XmlSerializer serializer = new XmlSerializer(type);
-                return serializer.Deserialize(xmlReader);
-            }
+            using var reader = new StreamReader(new FileStream(path, FileMode.Open));
+            using var xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings());
+            var serializer = new XmlSerializer(type);
+            return serializer.Deserialize(xmlReader);
         }
 
         /// <summary>
@@ -250,17 +236,16 @@ namespace Opc.Ua.Schema
         /// </summary>
         protected static object LoadFile(Type type, Stream stream)
         {
-            using (StreamReader reader = new StreamReader(stream))
-            using (XmlReader xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings()))
-            {
-                XmlSerializer serializer = new XmlSerializer(type);
-                return serializer.Deserialize(xmlReader);
-            }
+            using var reader = new StreamReader(stream);
+            using var xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings());
+            var serializer = new XmlSerializer(type);
+            return serializer.Deserialize(xmlReader);
         }
 
         /// <summary>
         /// Loads a schema from an embedded resource.
         /// </summary>
+        /// <exception cref="FileNotFoundException"></exception>
         protected static object LoadResource(Type type, string path, Assembly assembly)
         {
             try
@@ -270,17 +255,16 @@ namespace Opc.Ua.Schema
                     assembly = typeof(SchemaValidator).GetTypeInfo().Assembly;
                 }
 
-                using (StreamReader reader = new StreamReader(assembly.GetManifestResourceStream(path)))
-                using (XmlReader xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings()))
-                {
-                    XmlSerializer serializer = new XmlSerializer(type);
-                    return serializer.Deserialize(xmlReader);
-                }
-
+                using var reader = new StreamReader(assembly.GetManifestResourceStream(path));
+                using var xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings());
+                var serializer = new XmlSerializer(type);
+                return serializer.Deserialize(xmlReader);
             }
             catch (Exception e)
             {
-                throw new FileNotFoundException(Utils.Format("Could not load resource '{0}'.", path), e);
+                throw new FileNotFoundException(
+                    Utils.Format("Could not load resource '{0}'.", path),
+                    e);
             }
         }
 
@@ -293,16 +277,14 @@ namespace Opc.Ua.Schema
             {
                 for (int ii = 0; ii < resources.Length; ii++)
                 {
-                    if (!m_knownFiles.ContainsKey(resources[ii][0]))
+                    if (!KnownFiles.ContainsKey(resources[ii][0]))
                     {
-                        m_knownFiles.Add(resources[ii][0], resources[ii][1]);
+                        KnownFiles.Add(resources[ii][0], resources[ii][1]);
                     }
                 }
             }
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Returns the schema for the specified type (returns the entire schema if null).
         /// </summary>
@@ -310,12 +292,5 @@ namespace Opc.Ua.Schema
         {
             return null;
         }
-        #endregion
-
-        #region Private Fields
-        private IDictionary<string, string> m_knownFiles;
-        private IDictionary<string, object> m_loadedFiles;
-        private IDictionary<string, byte[]> m_importFiles;
-        #endregion
     }
 }

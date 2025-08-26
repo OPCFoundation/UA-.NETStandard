@@ -11,33 +11,25 @@
 */
 
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Text;
-using System.Xml;
-using System.IO;
-using System.Runtime.Serialization;
-using System.Reflection;
-using System.Threading;
 
 namespace Opc.Ua
 {
-    /// <summary> 
+    /// <summary>
     /// The base class for all object nodes.
     /// </summary>
     public class BaseObjectState : BaseInstanceState
     {
-        #region Constructors
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        public BaseObjectState(NodeState parent) : base(NodeClass.Object, parent)
+        public BaseObjectState(NodeState parent)
+            : base(NodeClass.Object, parent)
         {
             m_eventNotifier = EventNotifiers.None;
 
             if (parent != null)
             {
-                ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
+                ReferenceTypeId = ReferenceTypeIds.HasComponent;
             }
         }
 
@@ -50,15 +42,13 @@ namespace Opc.Ua
         {
             return new BaseObjectState(parent);
         }
-        #endregion
 
-        #region Initialization
         /// <summary>
         /// Initializes the instance with the default values.
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
-            SymbolicName = Utils.Format("{0}_Instance1", Opc.Ua.BrowseNames.BaseObjectType);
+            SymbolicName = Utils.Format("{0}_Instance1", BrowseNames.BaseObjectType);
             NodeId = null;
             BrowseName = new QualifiedName(SymbolicName, 1);
             DisplayName = SymbolicName;
@@ -66,7 +56,7 @@ namespace Opc.Ua
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
             TypeDefinitionId = GetDefaultTypeDefinitionId(context.NamespaceUris);
-            NumericId = Opc.Ua.ObjectTypes.BaseObjectType;
+            NumericId = ObjectTypes.BaseObjectType;
             EventNotifier = EventNotifiers.None;
         }
 
@@ -90,13 +80,11 @@ namespace Opc.Ua
         {
             return ObjectTypeIds.BaseObjectType;
         }
-        #endregion
 
-        #region ICloneable Members
         /// <inheritdoc/>
         public override object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -107,22 +95,16 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            BaseObjectState clone = (BaseObjectState)Activator.CreateInstance(this.GetType(), this.Parent);
+            var clone = (BaseObjectState)Activator.CreateInstance(GetType(), Parent);
             return CloneChildren(clone);
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// The inverse name for the reference.
         /// </summary>
         public byte EventNotifier
         {
-            get
-            {
-                return m_eventNotifier;
-            }
-
+            get => m_eventNotifier;
             set
             {
                 if (m_eventNotifier != value)
@@ -133,9 +115,7 @@ namespace Opc.Ua
                 m_eventNotifier = value;
             }
         }
-        #endregion
 
-        #region Event Callbacks
         /// <summary>
         /// Raised when the EventNotifier attribute is read.
         /// </summary>
@@ -145,9 +125,7 @@ namespace Opc.Ua
         /// Raised when the EventNotifier attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<byte> OnWriteEventNotifier;
-        #endregion
 
-        #region Serialization Functions
         /// <summary>
         /// Exports a copy of the node to a node table.
         /// </summary>
@@ -157,10 +135,9 @@ namespace Opc.Ua
         {
             base.Export(context, node);
 
-
             if (node is ObjectNode objectNode)
             {
-                objectNode.EventNotifier = this.EventNotifier;
+                objectNode.EventNotifier = EventNotifier;
             }
         }
 
@@ -225,7 +202,10 @@ namespace Opc.Ua
         /// <param name="context">The context user.</param>
         /// <param name="encoder">The encoder to write to.</param>
         /// <param name="attributesToSave">The masks indicating what attributes to write.</param>
-        public override void Save(ISystemContext context, BinaryEncoder encoder, AttributesToSave attributesToSave)
+        public override void Save(
+            ISystemContext context,
+            BinaryEncoder encoder,
+            AttributesToSave attributesToSave)
         {
             base.Save(context, encoder, attributesToSave);
 
@@ -241,7 +221,10 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         /// <param name="decoder">The decoder.</param>
         /// <param name="attributesToLoad">The attributes to load.</param>
-        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attributesToLoad)
+        public override void Update(
+            ISystemContext context,
+            BinaryDecoder decoder,
+            AttributesToSave attributesToLoad)
         {
             base.Update(context, decoder, attributesToLoad);
 
@@ -250,9 +233,7 @@ namespace Opc.Ua
                 m_eventNotifier = decoder.ReadByte(null);
             }
         }
-        #endregion
 
-        #region Read Support Functions
         /// <summary>
         /// Reads the value for any non-value attribute.
         /// </summary>
@@ -266,7 +247,6 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.EventNotifier:
-                {
                     byte eventNotifier = m_eventNotifier;
 
                     NodeAttributeEventHandler<byte> readEventNotifier = OnReadEventNotifier;
@@ -282,14 +262,11 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
             }
 
             return base.ReadNonValueAttribute(context, attributeId, ref value);
         }
-        #endregion
 
-        #region Write Support Functions
         /// <summary>
         /// Write the value for any non-value attribute.
         /// </summary>
@@ -303,7 +280,6 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.EventNotifier:
-                {
                     byte? eventNotifierRef = value as byte?;
 
                     if (eventNotifierRef == null)
@@ -331,39 +307,33 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
             }
 
             return base.WriteNonValueAttribute(context, attributeId, value);
         }
-        #endregion
 
-        #region Private Fields
         private byte m_eventNotifier;
-        #endregion
     }
 
-    /// <summary> 
+    /// <summary>
     /// The base class for all folder nodes.
     /// </summary>
     public class FolderState : BaseObjectState
     {
-        #region Constructors
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        public FolderState(NodeState parent) : base(parent)
+        public FolderState(NodeState parent)
+            : base(parent)
         {
         }
-        #endregion
 
-        #region Initialization
         /// <summary>
         /// Initializes the instance with the default values.
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
-            SymbolicName = Utils.Format("{0}_Instance1", Opc.Ua.BrowseNames.FolderType);
+            SymbolicName = Utils.Format("{0}_Instance1", BrowseNames.FolderType);
             NodeId = null;
             BrowseName = new QualifiedName(SymbolicName, 1);
             DisplayName = SymbolicName;
@@ -371,7 +341,7 @@ namespace Opc.Ua
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
             TypeDefinitionId = GetDefaultTypeDefinitionId(context.NamespaceUris);
-            NumericId = Opc.Ua.ObjectTypes.FolderType;
+            NumericId = ObjectTypes.FolderType;
             EventNotifier = EventNotifiers.None;
         }
 
@@ -380,8 +350,7 @@ namespace Opc.Ua
         /// </summary>
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
-            return ObjectTypes.FolderType;
+            return ObjectTypeIds.FolderType;
         }
-        #endregion
     }
 }

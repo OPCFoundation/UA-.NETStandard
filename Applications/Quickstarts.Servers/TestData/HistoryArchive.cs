@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -29,10 +29,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading;
-using System.Xml;
-using System.IO;
 using Opc.Ua;
 
 namespace TestData
@@ -42,7 +39,6 @@ namespace TestData
     /// </summary>
     internal class HistoryArchive : IDisposable
     {
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -56,18 +52,13 @@ namespace TestData
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && m_updateTimer != null)
             {
-                if (m_updateTimer != null)
-                {
-                    m_updateTimer.Dispose();
-                    m_updateTimer = null;
-                }
+                m_updateTimer.Dispose();
+                m_updateTimer = null;
             }
         }
-        #endregion
 
-        #region Public Interface
         /// <summary>
         /// Returns an object that can be used to browse the archive.
         /// </summary>
@@ -80,9 +71,7 @@ namespace TestData
                     return null;
                 }
 
-                HistoryRecord record = null;
-
-                if (!m_records.TryGetValue(nodeId, out record))
+                if (!m_records.TryGetValue(nodeId, out HistoryRecord record))
                 {
                     return null;
                 }
@@ -98,51 +87,42 @@ namespace TestData
         {
             lock (m_lock)
             {
-                HistoryRecord record = new HistoryRecord();
-
-                record.RawData = new List<HistoryEntry>();
-                record.Historizing = true;
-                record.DataType = dataType;
+                var record = new HistoryRecord
+                {
+                    RawData = [],
+                    Historizing = true,
+                    DataType = dataType
+                };
 
                 DateTime now = DateTime.UtcNow;
 
                 for (int ii = 1000; ii >= 0; ii--)
                 {
-                    HistoryEntry entry = new HistoryEntry();
-
-                    entry.Value = new DataValue();
-                    entry.Value.ServerTimestamp = now.AddSeconds(-(ii * 10));
+                    var entry = new HistoryEntry
+                    {
+                        Value = new DataValue { ServerTimestamp = now.AddSeconds(-(ii * 10)) }
+                    };
                     entry.Value.SourceTimestamp = entry.Value.ServerTimestamp.AddMilliseconds(1234);
                     entry.IsModified = false;
 
                     switch (dataType)
                     {
                         case BuiltInType.Int32:
-                        {
                             entry.Value.Value = ii;
                             break;
-                        }
                     }
 
                     record.RawData.Add(entry);
                 }
 
-                if (m_records == null)
-                {
-                    m_records = new Dictionary<NodeId, HistoryRecord>();
-                }
+                m_records ??= [];
 
                 m_records[nodeId] = record;
 
-                if (m_updateTimer == null)
-                {
-                    m_updateTimer = new Timer(OnUpdate, null, 10000, 10000);
-                }
+                m_updateTimer ??= new Timer(OnUpdate, null, 10000, 10000);
             }
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Periodically adds new values into the archive.
         /// </summary>
@@ -161,21 +141,20 @@ namespace TestData
                             continue;
                         }
 
-                        HistoryEntry entry = new HistoryEntry();
-
-                        entry.Value = new DataValue();
-                        entry.Value.ServerTimestamp = now;
-                        entry.Value.SourceTimestamp = entry.Value.ServerTimestamp.AddMilliseconds(-4567);
+                        var entry = new HistoryEntry
+                        {
+                            Value = new DataValue { ServerTimestamp = now }
+                        };
+                        entry.Value.SourceTimestamp = entry.Value.ServerTimestamp
+                            .AddMilliseconds(-4567);
                         entry.IsModified = false;
 
                         switch (record.DataType)
                         {
                             case BuiltInType.Int32:
-                            {
-                                int lastValue = (int)record.RawData[record.RawData.Count - 1].Value.Value;
+                                int lastValue = (int)record.RawData[^1].Value.Value;
                                 entry.Value.Value = lastValue + 1;
                                 break;
-                            }
                         }
 
                         record.RawData.Add(entry);
@@ -187,16 +166,12 @@ namespace TestData
                 Utils.LogError(e, "Unexpected error updating history.");
             }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
+        private readonly Lock m_lock = new();
         private Timer m_updateTimer;
         private Dictionary<NodeId, HistoryRecord> m_records;
-        #endregion
     }
 
-    #region HistoryEntry Class
     /// <summary>
     /// A single entry in the archive.
     /// </summary>
@@ -205,9 +180,7 @@ namespace TestData
         public DataValue Value;
         public bool IsModified;
     }
-    #endregion
 
-    #region HistoryRecord Class
     /// <summary>
     /// A record in the archive.
     /// </summary>
@@ -217,5 +190,4 @@ namespace TestData
         public bool Historizing;
         public BuiltInType DataType;
     }
-    #endregion
 }

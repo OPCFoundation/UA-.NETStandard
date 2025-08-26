@@ -19,15 +19,13 @@ namespace Opc.Ua
     /// </summary>
     public static partial class StatusCodes
     {
-        #region Static Helper Functions
         /// <summary>
-		/// Returns the browse name for the attribute.
-		/// </summary>
+        /// Returns the browse name for the attribute.
+        /// </summary>
         public static string GetBrowseName(uint identifier)
         {
-            FieldInfo[] fields = typeof(StatusCodes).GetFields(BindingFlags.Public | BindingFlags.Static);
-
-            foreach (FieldInfo field in fields)
+            foreach (FieldInfo field in typeof(StatusCodes).GetFields(
+                BindingFlags.Public | BindingFlags.Static))
             {
                 if (identifier == (uint)field.GetValue(typeof(StatusCodes)))
                 {
@@ -35,7 +33,7 @@ namespace Opc.Ua
                 }
             }
 
-            return System.String.Empty;
+            return string.Empty;
         }
 
         /// <summary>
@@ -43,7 +41,8 @@ namespace Opc.Ua
         /// </summary>
         public static string[] GetBrowseNames()
         {
-            FieldInfo[] fields = typeof(StatusCodes).GetFields(BindingFlags.Public | BindingFlags.Static);
+            FieldInfo[] fields = typeof(StatusCodes).GetFields(
+                BindingFlags.Public | BindingFlags.Static);
 
             int ii = 0;
 
@@ -62,9 +61,8 @@ namespace Opc.Ua
         /// </summary>
         public static uint GetIdentifier(string browseName)
         {
-            FieldInfo[] fields = typeof(StatusCodes).GetFields(BindingFlags.Public | BindingFlags.Static);
-
-            foreach (FieldInfo field in fields)
+            foreach (FieldInfo field in typeof(StatusCodes).GetFields(
+                BindingFlags.Public | BindingFlags.Static))
             {
                 if (field.Name == browseName)
                 {
@@ -74,6 +72,5 @@ namespace Opc.Ua
 
             return 0;
         }
-        #endregion
     }
 }

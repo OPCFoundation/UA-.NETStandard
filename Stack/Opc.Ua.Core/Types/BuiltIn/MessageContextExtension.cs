@@ -15,7 +15,6 @@ using System.Threading;
 
 namespace Opc.Ua
 {
-    #region MessageContextExtension Class
     /// <summary>
     /// Uses to add the service message context to the operation context.
     /// </summary>
@@ -45,7 +44,7 @@ namespace Opc.Ua
         {
             get
             {
-                MessageContextExtension extension = MessageContextExtension.Current;
+                MessageContextExtension extension = Current;
 
                 if (extension != null)
                 {
@@ -59,19 +58,17 @@ namespace Opc.Ua
         /// <summary>
         /// The message context to use.
         /// </summary>
-        public IServiceMessageContext MessageContext { get; private set; }
+        public IServiceMessageContext MessageContext { get; }
 
         /// <summary>
         /// Set the context for a specific using scope
         /// </summary>
-        /// <param name="messageContext"></param>
-        /// <returns></returns>
         public static IDisposable SetScopedContext(IServiceMessageContext messageContext)
         {
-            var previousContext = Current;
+            MessageContextExtension previousContext = Current;
             Current = new MessageContextExtension(messageContext);
 
-            return new DisposableAction (() => Current = previousContext);
+            return new DisposableAction(() => Current = previousContext);
         }
 
         /// <summary>
@@ -80,20 +77,19 @@ namespace Opc.Ua
         /// </summary>
         private class DisposableAction : IDisposable
         {
-            private readonly Action action;
+            private readonly Action m_action;
 
             public DisposableAction(Action action)
             {
-                this.action = action;
+                m_action = action;
             }
 
             public void Dispose()
             {
-                action?.Invoke();
+                m_action?.Invoke();
             }
         }
 
-        private static readonly AsyncLocal<MessageContextExtension> s_current = new AsyncLocal<MessageContextExtension>();
+        private static readonly AsyncLocal<MessageContextExtension> s_current = new();
     }
-    #endregion
 }

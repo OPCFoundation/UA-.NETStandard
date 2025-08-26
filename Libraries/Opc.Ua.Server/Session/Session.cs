@@ -30,16 +30,15 @@
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 
 namespace Opc.Ua.Server
 {
     /// <summary>
     /// A generic session manager object for a server.
     /// </summary>
-    public class Session : IDisposable
+    public class Session : ISession
     {
-        #region Constructors
-
         /// <summary>
         /// Initializes a new instance of the <see cref="Session"/> class.
         /// </summary>
@@ -55,11 +54,8 @@ namespace Opc.Ua.Server
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="clientCertificateChain">The client certifiate chain</param>
         /// <param name="sessionTimeout">The session timeout.</param>
-        /// <param name="maxResponseMessageSize">The maximum size of a response message</param>
-        /// <param name="maxRequestAge">The max request age.</param>
         /// <param name="maxBrowseContinuationPoints">The maximum number of browse continuation points.</param>
         /// <param name="maxHistoryContinuationPoints">The maximum number of history continuation points.</param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
         public Session(
             OperationContext context,
             IServerInternal server,
@@ -73,13 +69,13 @@ namespace Opc.Ua.Server
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
             double sessionTimeout,
-            uint maxResponseMessageSize,
-            double maxRequestAge,
             int maxBrowseContinuationPoints,
             int maxHistoryContinuationPoints)
         {
-            if (context == null) throw new ArgumentNullException(nameof(context));
-            if (server == null) throw new ArgumentNullException(nameof(server));
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
 
             // verify that a secure channel was specified.
             if (context.ChannelContext == null)
@@ -87,29 +83,27 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);
             }
 
-            m_server = server;
-            m_authenticationToken = authenticationToken;
-            m_clientNonce = clientNonce;
+            m_server = server ?? throw new ArgumentNullException(nameof(server));
+            ClientNonce = clientNonce;
             m_serverNonce = serverNonce;
             m_sessionName = sessionName;
             m_serverCertificate = serverCertificate;
-            m_clientCertificate = clientCertificate;
+            ClientCertificate = clientCertificate;
 
             m_clientIssuerCertificates = clientCertificateChain;
 
-            m_secureChannelId = context.ChannelContext.SecureChannelId;
-            m_maxResponseMessageSize = maxResponseMessageSize;
-            m_maxRequestAge = maxRequestAge;
-            m_maxBrowseContinuationPoints = maxBrowseContinuationPoints;
+            SecureChannelId = context.ChannelContext.SecureChannelId;
+            MaxBrowseContinuationPoints = maxBrowseContinuationPoints;
             m_maxHistoryContinuationPoints = maxHistoryContinuationPoints;
-            m_endpoint = context.ChannelContext.EndpointDescription;
+            EndpointDescription = context.ChannelContext.EndpointDescription;
 
             // use anonymous the default identity.
-            m_identity = new UserIdentity();
+            Identity = new UserIdentity();
 
             // initialize diagnostics.
             DateTime now = DateTime.UtcNow;
-            m_diagnostics = new SessionDiagnosticsDataType {
+            SessionDiagnostics = new SessionDiagnosticsDataType
+            {
                 SessionId = null,
                 SessionName = sessionName,
                 ClientDescription = clientDescription,
@@ -117,25 +111,26 @@ namespace Opc.Ua.Server
                 EndpointUrl = endpointUrl,
                 ActualSessionTimeout = sessionTimeout,
                 ClientConnectionTime = now,
-                ClientLastContactTime = now,
+                ClientLastContactTime = now
             };
 
             // initialize security diagnostics.
-            m_securityDiagnostics = new SessionSecurityDiagnosticsDataType {
-                SessionId = m_sessionId,
-                ClientUserIdOfSession = m_identity.DisplayName,
-                AuthenticationMechanism = m_identity.TokenType.ToString(),
-                Encoding = context.ChannelContext.MessageEncoding.ToString(),
+            m_securityDiagnostics = new SessionSecurityDiagnosticsDataType
+            {
+                SessionId = Id,
+                ClientUserIdOfSession = Identity.DisplayName,
+                AuthenticationMechanism = Identity.TokenType.ToString(),
+                Encoding = context.ChannelContext.MessageEncoding.ToString()
             };
-            m_securityDiagnostics.ClientUserIdHistory.Add(m_identity.DisplayName);
+            m_securityDiagnostics.ClientUserIdHistory.Add(Identity.DisplayName);
 
             EndpointDescription description = context.ChannelContext.EndpointDescription;
 
             if (description != null)
             {
                 m_securityDiagnostics.TransportProtocol = new Uri(description.EndpointUrl).Scheme;
-                m_securityDiagnostics.SecurityMode = m_endpoint.SecurityMode;
-                m_securityDiagnostics.SecurityPolicyUri = m_endpoint.SecurityPolicyUri;
+                m_securityDiagnostics.SecurityMode = EndpointDescription.SecurityMode;
+                m_securityDiagnostics.SecurityPolicyUri = EndpointDescription.SecurityPolicyUri;
             }
 
             if (clientCertificate != null)
@@ -146,18 +141,16 @@ namespace Opc.Ua.Server
             ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(context);
 
             // create diagnostics object.
-            m_sessionId = server.DiagnosticsNodeManager.CreateSessionDiagnostics(
+            Id = server.DiagnosticsNodeManager.CreateSessionDiagnostics(
                 systemContext,
-                m_diagnostics,
+                SessionDiagnostics,
                 OnUpdateDiagnostics,
                 m_securityDiagnostics,
                 OnUpdateSecurityDiagnostics);
 
             TraceState("CREATED");
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -207,81 +200,51 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
 
-        #region Public Interface
         /// <summary>
         /// Gets the identifier assigned to the session when it was created.
         /// </summary>
-        public NodeId Id
-        {
-            get { return m_sessionId; }
-        }
+        public NodeId Id { get; }
 
         /// <summary>
         /// The user identity provided by the client.
         /// </summary>
-        public IUserIdentity Identity
-        {
-            get { return m_identity; }
-        }
+        public IUserIdentity Identity { get; private set; }
 
         /// <summary>
         /// The application defined mapping for user identity provided by the client.
         /// </summary>
-        public IUserIdentity EffectiveIdentity
-        {
-            get { return m_effectiveIdentity; }
-        }
+        public IUserIdentity EffectiveIdentity { get; private set; }
 
         /// <summary>
         /// The user identity token provided by the client.
         /// </summary>
-        public UserIdentityToken IdentityToken
-        {
-            get { return m_identityToken; }
-        }
+        public UserIdentityToken IdentityToken { get; private set; }
 
         /// <summary>
         /// A lock which must be acquired before accessing the diagnostics.
         /// </summary>
-        public object DiagnosticsLock
-        {
-            get { return m_diagnostics; }
-        }
+        public object DiagnosticsLock => SessionDiagnostics;
 
         /// <summary>
         /// The diagnostics associated with the session.
         /// </summary>
-        public SessionDiagnosticsDataType SessionDiagnostics
-        {
-            get { return m_diagnostics; }
-        }
+        public SessionDiagnosticsDataType SessionDiagnostics { get; }
 
         /// <summary>
         /// The client Nonce associated with the session.
         /// </summary>
-        public byte[] ClientNonce
-        {
-            get { return m_clientNonce; }
-        }
+        public byte[] ClientNonce { get; }
 
         /// <summary>
         /// The application instance certificate associated with the client.
         /// </summary>
-        public X509Certificate2 ClientCertificate
-        {
-            get { return m_clientCertificate; }
-        }
+        public X509Certificate2 ClientCertificate { get; }
 
         /// <summary>
         /// The locales requested when the session was created.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
-        public string[] PreferredLocales
-        {
-            get { return m_localeIds; }
-        }
+        public string[] PreferredLocales { get; private set; }
 
         /// <summary>
         /// Whether the session timeout has elapsed since the last communication from the client.
@@ -292,12 +255,9 @@ namespace Opc.Ua.Server
             {
                 lock (DiagnosticsLock)
                 {
-                    if (m_diagnostics.ClientLastContactTime.AddMilliseconds(m_diagnostics.ActualSessionTimeout) < DateTime.UtcNow)
-                    {
-                        return true;
-                    }
-
-                    return false;
+                    return SessionDiagnostics.ClientLastContactTime.AddMilliseconds(
+                            SessionDiagnostics.ActualSessionTimeout
+                        ) < DateTime.UtcNow;
                 }
             }
         }
@@ -311,7 +271,7 @@ namespace Opc.Ua.Server
             {
                 lock (DiagnosticsLock)
                 {
-                    return m_diagnostics.ClientLastContactTime;
+                    return SessionDiagnostics.ClientLastContactTime;
                 }
             }
         }
@@ -319,23 +279,18 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Whether the session has been activated.
         /// </summary>
-        public bool Activated
-        {
-            get
-            {
-                return m_activated;
-            }
-        }
+        public bool Activated { get; private set; }
 
         /// <summary>
         /// Set the ECC security policy URI
         /// </summary>
-        /// <param name="securityPolicyUri"></param>
         public virtual void SetEccUserTokenSecurityPolicy(string securityPolicyUri)
         {
             lock (m_lock)
             {
+#if ECC_SUPPORT
                 m_eccUserTokenSecurityPolicyUri = securityPolicyUri;
+#endif
                 m_eccUserTokenNonce = null;
             }
         }
@@ -356,62 +311,44 @@ namespace Opc.Ua.Server
 
                 m_eccUserTokenNonce = Nonce.CreateNonce(m_eccUserTokenSecurityPolicyUri);
 
-                EphemeralKeyType key = new EphemeralKeyType() {
-                    PublicKey = m_eccUserTokenNonce.Data
-                };
+                var key = new EphemeralKeyType { PublicKey = m_eccUserTokenNonce.Data };
 
-                key.Signature = EccUtils.Sign(new ArraySegment<byte>(key.PublicKey), m_serverCertificate, m_eccUserTokenSecurityPolicyUri);
+                key.Signature = EccUtils.Sign(
+                    new ArraySegment<byte>(key.PublicKey),
+                    m_serverCertificate,
+                    m_eccUserTokenSecurityPolicyUri);
 
                 return key;
             }
         }
-
-        /// <summary>
-        /// The Server generated ephemeral key
-        /// </summary>
-        public EphemeralKeyType EphemeralKey
-        {
-            set
-            {
-                m_ephemeralKey = value;
-            }
-        }
 #endif
+
         /// <summary>
         /// Returns the session's endpoint
         /// </summary>
-        public EndpointDescription EndpointDescription
-        {
-            get
-            {
-                return m_endpoint;
-            }
-        }
+        public EndpointDescription EndpointDescription { get; }
 
         /// <summary>
         /// Returns the session's SecureChannelId
         /// </summary>
-        public string SecureChannelId
-        {
-            get
-            {
-                return m_secureChannelId;
-            }
-        }
-
-
+        public string SecureChannelId { get; private set; }
 
         /// <summary>
         /// allow derived classes access
         /// </summary>
-        protected int MaxBrowseContinuationPoints { get => m_maxBrowseContinuationPoints; set => m_maxBrowseContinuationPoints = value; }
+        protected int MaxBrowseContinuationPoints { get; set; }
 
         /// <summary>
         /// Validates the request.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="requestHeader"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public virtual void ValidateRequest(RequestHeader requestHeader, RequestType requestType)
         {
-            if (requestHeader == null) throw new ArgumentNullException(nameof(requestHeader));
+            if (requestHeader == null)
+            {
+                throw new ArgumentNullException(nameof(requestHeader));
+            }
 
             lock (m_lock)
             {
@@ -425,13 +362,10 @@ namespace Opc.Ua.Server
                 }
 
                 // verify that session has been activated.
-                if (!m_activated)
+                if (!Activated && requestType != RequestType.CloseSession)
                 {
-                    if (requestType != RequestType.CloseSession)
-                    {
-                        UpdateDiagnosticCounters(requestType, true, true);
-                        throw new ServiceResultException(StatusCodes.BadSessionNotActivated);
-                    }
+                    UpdateDiagnosticCounters(requestType, true, true);
+                    throw new ServiceResultException(StatusCodes.BadSessionNotActivated);
                 }
 
                 // request accepted.
@@ -444,14 +378,16 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual void ValidateDiagnosticInfo(RequestHeader requestHeader)
         {
-            const uint additionalInfoDiagnosticsMask = (uint)(DiagnosticsMasks.ServiceAdditionalInfo | DiagnosticsMasks.OperationAdditionalInfo);
+            const uint additionalInfoDiagnosticsMask = (uint)(
+                DiagnosticsMasks.ServiceAdditionalInfo | DiagnosticsMasks.OperationAdditionalInfo);
             if ((requestHeader.ReturnDiagnostics & additionalInfoDiagnosticsMask) != 0)
             {
-                var currentRoleIds = m_effectiveIdentity?.GrantedRoleIds;
+                NodeIdCollection currentRoleIds = EffectiveIdentity?.GrantedRoleIds;
                 if ((currentRoleIds?.Contains(ObjectIds.WellKnownRole_SecurityAdmin)) == true ||
                     (currentRoleIds?.Contains(ObjectIds.WellKnownRole_ConfigureAdmin)) == true)
                 {
-                    requestHeader.ReturnDiagnostics |= (uint)DiagnosticsMasks.UserPermissionAdditionalInfo;
+                    requestHeader.ReturnDiagnostics
+                        |= (uint)DiagnosticsMasks.UserPermissionAdditionalInfo;
                 }
             }
         }
@@ -463,7 +399,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                return (m_secureChannelId == secureChannelId);
+                return SecureChannelId == secureChannelId;
             }
         }
 
@@ -471,22 +407,26 @@ namespace Opc.Ua.Server
         /// Updates the requested locale ids.
         /// </summary>
         /// <returns>true if the new locale ids are different from the old locale ids.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="localeIds"/> is <c>null</c>.</exception>
         public bool UpdateLocaleIds(StringCollection localeIds)
         {
-            if (localeIds == null) throw new ArgumentNullException(nameof(localeIds));
+            if (localeIds == null)
+            {
+                throw new ArgumentNullException(nameof(localeIds));
+            }
 
             lock (m_lock)
             {
-                string[] ids = localeIds.ToArray();
+                string[] ids = [.. localeIds];
 
-                if (!Utils.IsEqual(ids, m_localeIds))
+                if (!Utils.IsEqual(ids, PreferredLocales))
                 {
-                    m_localeIds = ids;
+                    PreferredLocales = ids;
 
                     // update diagnostics.
                     lock (DiagnosticsLock)
                     {
-                        m_diagnostics.LocaleIds = new StringCollection(localeIds);
+                        SessionDiagnostics.LocaleIds = [.. localeIds];
                     }
 
                     return true;
@@ -499,6 +439,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Activates the session and binds it to the current secure channel.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void ValidateBeforeActivate(
             OperationContext context,
             SignatureData clientSignature,
@@ -519,56 +460,77 @@ namespace Opc.Ua.Server
                 // verify that the same security policy has been used.
                 EndpointDescription endpoint = context.ChannelContext.EndpointDescription;
 
-                if (endpoint.SecurityPolicyUri != m_endpoint.SecurityPolicyUri || endpoint.SecurityMode != m_endpoint.SecurityMode)
+                if (endpoint.SecurityPolicyUri != EndpointDescription.SecurityPolicyUri ||
+                    endpoint.SecurityMode != EndpointDescription.SecurityMode)
                 {
                     throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
                 }
 
                 // verify the client signature.
-                if (m_clientCertificate != null)
+                if (ClientCertificate != null)
                 {
-                    if (m_endpoint.SecurityPolicyUri != SecurityPolicies.None && clientSignature != null && clientSignature.Signature == null)
+                    if (EndpointDescription.SecurityPolicyUri != SecurityPolicies.None &&
+                        clientSignature != null &&
+                        clientSignature.Signature == null)
                     {
-                        throw new ServiceResultException(StatusCodes.BadApplicationSignatureInvalid);
+                        throw new ServiceResultException(
+                            StatusCodes.BadApplicationSignatureInvalid);
                     }
 
-                    byte[] dataToSign = Utils.Append(m_serverCertificate.RawData, m_serverNonce.Data);
+                    byte[] dataToSign = Utils.Append(
+                        m_serverCertificate.RawData,
+                        m_serverNonce.Data);
 
-                    if (!SecurityPolicies.Verify(m_clientCertificate, m_endpoint.SecurityPolicyUri, dataToSign, clientSignature))
+                    if (!SecurityPolicies.Verify(
+                            ClientCertificate,
+                            EndpointDescription.SecurityPolicyUri,
+                            dataToSign,
+                            clientSignature))
                     {
                         // verify for certificate chain in endpoint.
                         // validate the signature with complete chain if the check with leaf certificate failed.
-                        X509Certificate2Collection serverCertificateChain = Utils.ParseCertificateChainBlob(m_endpoint.ServerCertificate);
+                        X509Certificate2Collection serverCertificateChain = Utils
+                            .ParseCertificateChainBlob(
+                                EndpointDescription.ServerCertificate);
 
                         if (serverCertificateChain.Count > 1)
                         {
-                            List<byte> serverCertificateChainList = new List<byte>();
+                            var serverCertificateChainList = new List<byte>();
 
                             for (int i = 0; i < serverCertificateChain.Count; i++)
                             {
-                                serverCertificateChainList.AddRange(serverCertificateChain[i].RawData);
+                                serverCertificateChainList.AddRange(
+                                    serverCertificateChain[i].RawData);
                             }
 
-                            byte[] serverCertificateChainData = serverCertificateChainList.ToArray();
+                            byte[] serverCertificateChainData = [.. serverCertificateChainList];
 
-                            dataToSign = Utils.Append(serverCertificateChainData, m_serverNonce.Data);
+                            dataToSign = Utils.Append(
+                                serverCertificateChainData,
+                                m_serverNonce.Data);
 
-                            if (!SecurityPolicies.Verify(m_clientCertificate, m_endpoint.SecurityPolicyUri, dataToSign, clientSignature))
+                            if (!SecurityPolicies.Verify(
+                                    ClientCertificate,
+                                    EndpointDescription.SecurityPolicyUri,
+                                    dataToSign,
+                                    clientSignature))
                             {
-                                throw new ServiceResultException(StatusCodes.BadApplicationSignatureInvalid);
+                                throw new ServiceResultException(
+                                    StatusCodes.BadApplicationSignatureInvalid);
                             }
                         }
                         else
                         {
-                            throw new ServiceResultException(StatusCodes.BadApplicationSignatureInvalid);
+                            throw new ServiceResultException(
+                                StatusCodes.BadApplicationSignatureInvalid);
                         }
                     }
                 }
 
-                if (!m_activated)
+                if (!Activated)
                 {
                     // must active the session on the channel that was used to create it.
-                    if (m_secureChannelId != context.ChannelContext.SecureChannelId)
+                    if (SecureChannelId != context.ChannelContext.SecureChannelId)
                     {
                         throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);
                     }
@@ -583,7 +545,10 @@ namespace Opc.Ua.Server
                 }
 
                 // validate the user identity token.
-                identityToken = ValidateUserIdentityToken(userIdentityToken, userTokenSignature, out userTokenPolicy);
+                identityToken = ValidateUserIdentityToken(
+                    userIdentityToken,
+                    userTokenSignature,
+                    out userTokenPolicy);
 
                 TraceState("VALIDATED");
             }
@@ -606,12 +571,10 @@ namespace Opc.Ua.Server
                 // update user identity.
                 bool changed = false;
 
-                if (identityToken != null)
+                if (identityToken != null &&
+                    UpdateUserIdentity(identityToken, identity, effectiveIdentity))
                 {
-                    if (UpdateUserIdentity(identityToken, identity, effectiveIdentity))
-                    {
-                        changed = true;
-                    }
+                    changed = true;
                 }
 
                 // update local ids.
@@ -620,20 +583,17 @@ namespace Opc.Ua.Server
                     changed = true;
                 }
 
-                if (!m_activated)
+                if (!Activated)
                 {
                     // toggle the activated flag.
-                    m_activated = true;
-
-                    // save the software certificates.
-                    m_softwareCertificates = clientSoftwareCertificates;
+                    Activated = true;
 
                     TraceState("FIRST ACTIVATION");
                 }
                 else
                 {
                     // bind to the new secure channel.
-                    m_secureChannelId = context.ChannelContext.SecureChannelId;
+                    SecureChannelId = context.ChannelContext.SecureChannelId;
 
                     TraceState("RE-ACTIVATION");
                 }
@@ -642,14 +602,16 @@ namespace Opc.Ua.Server
                 m_serverNonce = serverNonce;
 
                 // build list of signed certificates for audit event.
-                List<SignedSoftwareCertificate> signedSoftwareCertificates = new List<SignedSoftwareCertificate>();
+                var signedSoftwareCertificates = new List<SignedSoftwareCertificate>();
 
                 if (clientSoftwareCertificates != null)
                 {
                     foreach (SoftwareCertificate softwareCertificate in clientSoftwareCertificates)
                     {
-                        SignedSoftwareCertificate item = new SignedSoftwareCertificate();
-                        item.CertificateData = softwareCertificate.SignedCertificate.RawData;
+                        var item = new SignedSoftwareCertificate
+                        {
+                            CertificateData = softwareCertificate.SignedCertificate.RawData
+                        };
                         signedSoftwareCertificates.Add(item);
                     }
                 }
@@ -657,7 +619,7 @@ namespace Opc.Ua.Server
                 // update the contact time.
                 lock (DiagnosticsLock)
                 {
-                    m_diagnostics.ClientLastContactTime = DateTime.UtcNow;
+                    SessionDiagnostics.ClientLastContactTime = DateTime.UtcNow;
                 }
 
                 // indicate whether the user context has changed.
@@ -672,9 +634,8 @@ namespace Opc.Ua.Server
         {
             TraceState("CLOSED");
 
-            m_server.DiagnosticsNodeManager.DeleteSessionDiagnostics(
-                m_server.DefaultSystemContext,
-                m_sessionId);
+            m_server.DiagnosticsNodeManager
+                .DeleteSessionDiagnostics(m_server.DefaultSystemContext, Id);
         }
 
         /// <summary>
@@ -683,19 +644,20 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// If the session has too many continuation points the oldest one is dropped.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="continuationPoint"/> is <c>null</c>.</exception>
         public void SaveContinuationPoint(ContinuationPoint continuationPoint)
         {
-            if (continuationPoint == null) throw new ArgumentNullException(nameof(continuationPoint));
+            if (continuationPoint == null)
+            {
+                throw new ArgumentNullException(nameof(continuationPoint));
+            }
 
             lock (m_lock)
             {
-                if (m_browseContinuationPoints == null)
-                {
-                    m_browseContinuationPoints = new List<ContinuationPoint>();
-                }
+                m_browseContinuationPoints ??= [];
 
                 // remove the first continuation point if too many points.
-                while (m_browseContinuationPoints.Count > m_maxBrowseContinuationPoints)
+                while (m_browseContinuationPoints.Count > MaxBrowseContinuationPoints)
                 {
                     ContinuationPoint cp = m_browseContinuationPoints[0];
                     m_browseContinuationPoints.RemoveAt(0);
@@ -727,7 +689,7 @@ namespace Opc.Ua.Server
                     return null;
                 }
 
-                Guid id = new Guid(continuationPoint);
+                var id = new Guid(continuationPoint);
 
                 for (int ii = 0; ii < m_browseContinuationPoints.Count; ii++)
                 {
@@ -752,16 +714,17 @@ namespace Opc.Ua.Server
         /// If the continuationPoint implements IDisposable it will be disposed when
         /// the Session is closed or discarded.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="continuationPoint"/> is <c>null</c>.</exception>
         public void SaveHistoryContinuationPoint(Guid id, object continuationPoint)
         {
-            if (continuationPoint == null) throw new ArgumentNullException(nameof(continuationPoint));
+            if (continuationPoint == null)
+            {
+                throw new ArgumentNullException(nameof(continuationPoint));
+            }
 
             lock (m_lock)
             {
-                if (m_historyContinuationPoints == null)
-                {
-                    m_historyContinuationPoints = new List<HistoryContinuationPoint>();
-                }
+                m_historyContinuationPoints ??= [];
 
                 // remove existing continuation point if space needed.
                 while (m_historyContinuationPoints.Count >= m_maxHistoryContinuationPoints)
@@ -772,11 +735,12 @@ namespace Opc.Ua.Server
                 }
 
                 // create the cp.
-                HistoryContinuationPoint cp = new HistoryContinuationPoint();
-
-                cp.Id = id;
-                cp.Value = continuationPoint;
-                cp.Timestamp = DateTime.UtcNow;
+                var cp = new HistoryContinuationPoint
+                {
+                    Id = id,
+                    Value = continuationPoint,
+                    Timestamp = DateTime.UtcNow
+                };
 
                 m_historyContinuationPoints.Add(cp);
             }
@@ -801,7 +765,7 @@ namespace Opc.Ua.Server
                     return null;
                 }
 
-                Guid id = new Guid(continuationPoint);
+                var id = new Guid(continuationPoint);
 
                 for (int ii = 0; ii < m_historyContinuationPoints.Count; ii++)
                 {
@@ -827,16 +791,18 @@ namespace Opc.Ua.Server
             public object Value;
             public DateTime Timestamp;
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Dumps the current state of the session queue.
         /// </summary>
         internal void TraceState(string context)
         {
-            ServerUtils.EventLog.SessionState(context, m_sessionId.ToString(), m_sessionName,
-                m_secureChannelId, m_identity?.DisplayName ?? "(none)");
+            ServerUtils.EventLog.SessionState(
+                context,
+                Id.ToString(),
+                m_sessionName,
+                SecureChannelId,
+                Identity?.DisplayName ?? "(none)");
         }
 
         /// <summary>
@@ -849,7 +815,7 @@ namespace Opc.Ua.Server
         {
             lock (DiagnosticsLock)
             {
-                value = Utils.Clone(m_diagnostics);
+                value = Utils.Clone(SessionDiagnostics);
             }
 
             return ServiceResult.Good;
@@ -874,6 +840,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates the identity token supplied by the client.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private UserIdentityToken ValidateUserIdentityToken(
             ExtensionObject identityToken,
             SignatureData userTokenSignature,
@@ -882,75 +849,118 @@ namespace Opc.Ua.Server
             policy = null;
 
             // check for empty token.
-            if (identityToken == null || identityToken.Body == null ||
-                identityToken.Body.GetType() == typeof(Opc.Ua.AnonymousIdentityToken))
+            if (identityToken == null ||
+                identityToken.Body == null ||
+                identityToken.Body.GetType() == typeof(AnonymousIdentityToken))
             {
                 // check if an anonymous login is permitted.
-                if (m_endpoint.UserIdentityTokens != null && m_endpoint.UserIdentityTokens.Count > 0)
+                if (EndpointDescription.UserIdentityTokens != null &&
+                    EndpointDescription.UserIdentityTokens.Count > 0)
                 {
                     bool found = false;
 
-                    for (int ii = 0; ii < m_endpoint.UserIdentityTokens.Count; ii++)
+                    for (int ii = 0; ii < EndpointDescription.UserIdentityTokens.Count; ii++)
                     {
-                        if (m_endpoint.UserIdentityTokens[ii].TokenType == UserTokenType.Anonymous)
+                        if (EndpointDescription.UserIdentityTokens[ii]
+                            .TokenType == UserTokenType.Anonymous)
                         {
                             found = true;
-                            policy = m_endpoint.UserIdentityTokens[ii];
+                            policy = EndpointDescription.UserIdentityTokens[ii];
                             break;
                         }
                     }
 
                     if (!found)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadIdentityTokenRejected, "Anonymous user token policy not supported.");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadIdentityTokenRejected,
+                            "Anonymous user token policy not supported.");
                     }
                 }
 
                 // create an anonymous token to use for subsequent validation.
-                AnonymousIdentityToken anonymousToken = new AnonymousIdentityToken();
-                anonymousToken.PolicyId = policy.PolicyId;
-                return anonymousToken;
+                return new AnonymousIdentityToken { PolicyId = policy.PolicyId };
             }
 
-            UserIdentityToken token = null;
+            UserIdentityToken token;
             // check for unrecognized token.
             if (!typeof(UserIdentityToken).IsInstanceOfType(identityToken.Body))
             {
                 //handle the use case when the UserIdentityToken is binary encoded over xml message encoding
-                if (identityToken.Encoding == ExtensionObjectEncoding.Binary && typeof(byte[]).IsInstanceOfType(identityToken.Body))
+                if (identityToken.Encoding == ExtensionObjectEncoding.Binary &&
+                    typeof(byte[]).IsInstanceOfType(identityToken.Body))
                 {
-                    UserIdentityToken newToken = BaseVariableState.DecodeExtensionObject(null, typeof(UserIdentityToken), identityToken, false) as UserIdentityToken;
-                    if (newToken == null)
+                    if (BaseVariableState.DecodeExtensionObject(
+                            null,
+                            typeof(UserIdentityToken),
+                            identityToken,
+                            false)
+                        is not UserIdentityToken newToken)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadUserAccessDenied, "Invalid user identity token provided.");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadUserAccessDenied,
+                            "Invalid user identity token provided.");
                     }
 
-                    policy = m_endpoint.FindUserTokenPolicy(newToken.PolicyId, m_endpoint.SecurityPolicyUri);
+                    policy = EndpointDescription.FindUserTokenPolicy(
+                        newToken.PolicyId,
+                        EndpointDescription.SecurityPolicyUri);
                     if (policy == null)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadUserAccessDenied, "User token policy not supported.", "Opc.Ua.Server.Session.ValidateUserIdentityToken");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadUserAccessDenied,
+                            "User token policy not supported.",
+                            "Opc.Ua.Server.Session.ValidateUserIdentityToken");
                     }
                     switch (policy.TokenType)
                     {
                         case UserTokenType.Anonymous:
-                            token = BaseVariableState.DecodeExtensionObject(null, typeof(AnonymousIdentityToken), identityToken, true) as AnonymousIdentityToken;
+                            token =
+                                BaseVariableState.DecodeExtensionObject(
+                                    null,
+                                    typeof(AnonymousIdentityToken),
+                                    identityToken,
+                                    true
+                                ) as AnonymousIdentityToken;
                             break;
                         case UserTokenType.UserName:
-                            token = BaseVariableState.DecodeExtensionObject(null, typeof(UserNameIdentityToken), identityToken, true) as UserNameIdentityToken;
+                            token =
+                                BaseVariableState.DecodeExtensionObject(
+                                    null,
+                                    typeof(UserNameIdentityToken),
+                                    identityToken,
+                                    true
+                                ) as UserNameIdentityToken;
                             break;
                         case UserTokenType.Certificate:
-                            token = BaseVariableState.DecodeExtensionObject(null, typeof(X509IdentityToken), identityToken, true) as X509IdentityToken;
+                            token =
+                                BaseVariableState.DecodeExtensionObject(
+                                    null,
+                                    typeof(X509IdentityToken),
+                                    identityToken,
+                                    true
+                                ) as X509IdentityToken;
                             break;
                         case UserTokenType.IssuedToken:
-                            token = BaseVariableState.DecodeExtensionObject(null, typeof(IssuedIdentityToken), identityToken, true) as IssuedIdentityToken;
+                            token =
+                                BaseVariableState.DecodeExtensionObject(
+                                    null,
+                                    typeof(IssuedIdentityToken),
+                                    identityToken,
+                                    true
+                                ) as IssuedIdentityToken;
                             break;
                         default:
-                            throw ServiceResultException.Create(StatusCodes.BadUserAccessDenied, "Invalid user identity token provided.");
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadUserAccessDenied,
+                                "Invalid user identity token provided.");
                     }
                 }
                 else
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadUserAccessDenied, "Invalid user identity token provided.");
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadUserAccessDenied,
+                        "Invalid user identity token provided.");
                 }
             }
             else
@@ -960,95 +970,110 @@ namespace Opc.Ua.Server
             }
 
             // find the user token policy.
-            policy = m_endpoint.FindUserTokenPolicy(token.PolicyId, m_endpoint.SecurityPolicyUri);
+            policy = EndpointDescription.FindUserTokenPolicy(
+                token.PolicyId,
+                EndpointDescription.SecurityPolicyUri);
 
             if (policy == null)
             {
-                throw ServiceResultException.Create(StatusCodes.BadIdentityTokenInvalid, "User token policy not supported.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "User token policy not supported.");
             }
 
-            if (token is IssuedIdentityToken issuedToken)
+            if (token is IssuedIdentityToken issuedToken &&
+                policy.IssuedTokenType == Profiles.JwtUserToken)
             {
-                if (policy.IssuedTokenType == Profiles.JwtUserToken)
-                {
-                    issuedToken.IssuedTokenType = IssuedTokenType.JWT;
-                }
+                issuedToken.IssuedTokenType = IssuedTokenType.JWT;
             }
 
             // determine the security policy uri.
             string securityPolicyUri = policy.SecurityPolicyUri;
 
-            if (String.IsNullOrEmpty(securityPolicyUri))
+            if (string.IsNullOrEmpty(securityPolicyUri))
             {
-                securityPolicyUri = m_endpoint.SecurityPolicyUri;
+                securityPolicyUri = EndpointDescription.SecurityPolicyUri;
             }
 
-            if (ServerBase.RequireEncryption(m_endpoint))
+            if (ServerBase.RequireEncryption(EndpointDescription))
             {
                 // decrypt the token.
                 if (m_serverCertificate == null)
                 {
-                    m_serverCertificate = CertificateFactory.Create(m_endpoint.ServerCertificate, true);
+                    m_serverCertificate = CertificateFactory.Create(
+                        EndpointDescription.ServerCertificate,
+                        true);
 
                     // check for valid certificate.
                     if (m_serverCertificate == null)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationCertificate cannot be found.");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadConfigurationError,
+                            "ApplicationCertificate cannot be found.");
                     }
                 }
 
                 try
                 {
-                    token.Decrypt(m_serverCertificate,
+                    token.Decrypt(
+                        m_serverCertificate,
                         m_serverNonce,
                         securityPolicyUri,
                         m_eccUserTokenNonce,
-                        m_clientCertificate,
+                        ClientCertificate,
                         m_clientIssuerCertificates);
                 }
-                catch (Exception e)
+                catch (Exception e) when (e is not ServiceResultException)
                 {
-                    if (e is ServiceResultException)
-                    {
-                        throw;
-                    }
-
-                    throw ServiceResultException.Create(StatusCodes.BadIdentityTokenInvalid, e, "Could not decrypt identity token.");
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadIdentityTokenInvalid,
+                        e,
+                        "Could not decrypt identity token.");
                 }
 
                 // verify the signature.
                 if (securityPolicyUri != SecurityPolicies.None)
                 {
-
-                    byte[] dataToSign = Utils.Append(m_serverCertificate.RawData, m_serverNonce.Data);
+                    byte[] dataToSign = Utils.Append(
+                        m_serverCertificate.RawData,
+                        m_serverNonce.Data);
 
                     if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri))
                     {
                         // verify for certificate chain in endpoint.
                         // validate the signature with complete chain if the check with leaf certificate failed.
-                        X509Certificate2Collection serverCertificateChain = Utils.ParseCertificateChainBlob(m_endpoint.ServerCertificate);
+                        X509Certificate2Collection serverCertificateChain = Utils
+                            .ParseCertificateChainBlob(
+                                EndpointDescription.ServerCertificate);
 
                         if (serverCertificateChain.Count > 1)
                         {
-                            List<byte> serverCertificateChainList = new List<byte>();
+                            var serverCertificateChainList = new List<byte>();
 
                             for (int i = 0; i < serverCertificateChain.Count; i++)
                             {
-                                serverCertificateChainList.AddRange(serverCertificateChain[i].RawData);
+                                serverCertificateChainList.AddRange(
+                                    serverCertificateChain[i].RawData);
                             }
 
-                            byte[] serverCertificateChainData = serverCertificateChainList.ToArray();
+                            byte[] serverCertificateChainData = [.. serverCertificateChainList];
 
-                            dataToSign = Utils.Append(serverCertificateChainData, m_serverNonce.Data);
+                            dataToSign = Utils.Append(
+                                serverCertificateChainData,
+                                m_serverNonce.Data);
 
                             if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri))
                             {
-                                throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected, "Invalid user signature!");
+                                throw new ServiceResultException(
+                                    StatusCodes.BadIdentityTokenRejected,
+                                    "Invalid user signature!");
                             }
                         }
                         else
                         {
-                            throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected, "Invalid user signature!");
+                            throw new ServiceResultException(
+                                StatusCodes.BadIdentityTokenRejected,
+                                "Invalid user signature!");
                         }
                     }
                 }
@@ -1062,26 +1087,30 @@ namespace Opc.Ua.Server
         /// Updates the user identity.
         /// </summary>
         /// <returns>true if the new identity is different from the old identity.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="identityToken"/> is <c>null</c>.</exception>
         private bool UpdateUserIdentity(
             UserIdentityToken identityToken,
             IUserIdentity identity,
             IUserIdentity effectiveIdentity)
         {
-            if (identityToken == null) throw new ArgumentNullException(nameof(identityToken));
+            if (identityToken == null)
+            {
+                throw new ArgumentNullException(nameof(identityToken));
+            }
 
             lock (m_lock)
             {
-                bool changed = m_effectiveIdentity == null && effectiveIdentity != null;
+                bool changed = EffectiveIdentity == null && effectiveIdentity != null;
 
-                if (m_effectiveIdentity != null)
+                if (EffectiveIdentity != null)
                 {
-                    changed = !m_effectiveIdentity.Equals(effectiveIdentity);
+                    changed = !EffectiveIdentity.Equals(effectiveIdentity);
                 }
 
                 // always save the new identity since it may have additional information that does not affect equality.
-                m_identityToken = identityToken;
-                m_identity = identity;
-                m_effectiveIdentity = effectiveIdentity;
+                IdentityToken = identityToken;
+                Identity = identity;
+                EffectiveIdentity = effectiveIdentity;
 
                 // update diagnostics.
                 lock (DiagnosticsLock)
@@ -1099,25 +1128,27 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Updates the diagnostic counters associated with the request.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
-        private void UpdateDiagnosticCounters(RequestType requestType, bool error, bool authorizationError)
+        private void UpdateDiagnosticCounters(
+            RequestType requestType,
+            bool error,
+            bool authorizationError)
         {
             lock (DiagnosticsLock)
             {
                 if (!error)
                 {
-                    m_diagnostics.ClientLastContactTime = DateTime.UtcNow;
+                    SessionDiagnostics.ClientLastContactTime = DateTime.UtcNow;
                 }
 
-                m_diagnostics.TotalRequestCount.TotalCount++;
+                SessionDiagnostics.TotalRequestCount.TotalCount++;
 
                 if (error)
                 {
-                    m_diagnostics.TotalRequestCount.ErrorCount++;
+                    SessionDiagnostics.TotalRequestCount.ErrorCount++;
 
                     if (authorizationError)
                     {
-                        m_diagnostics.UnauthorizedRequestCount++;
+                        SessionDiagnostics.UnauthorizedRequestCount++;
                     }
                 }
 
@@ -1125,92 +1156,118 @@ namespace Opc.Ua.Server
 
                 switch (requestType)
                 {
-                    case RequestType.Read: { counter = m_diagnostics.ReadCount; break; }
-                    case RequestType.HistoryRead: { counter = m_diagnostics.HistoryReadCount; break; }
-                    case RequestType.Write: { counter = m_diagnostics.WriteCount; break; }
-                    case RequestType.HistoryUpdate: { counter = m_diagnostics.HistoryUpdateCount; break; }
-                    case RequestType.Call: { counter = m_diagnostics.CallCount; break; }
-                    case RequestType.CreateMonitoredItems: { counter = m_diagnostics.CreateMonitoredItemsCount; break; }
-                    case RequestType.ModifyMonitoredItems: { counter = m_diagnostics.ModifyMonitoredItemsCount; break; }
-                    case RequestType.SetMonitoringMode: { counter = m_diagnostics.SetMonitoringModeCount; break; }
-                    case RequestType.SetTriggering: { counter = m_diagnostics.SetTriggeringCount; break; }
-                    case RequestType.DeleteMonitoredItems: { counter = m_diagnostics.DeleteMonitoredItemsCount; break; }
-                    case RequestType.CreateSubscription: { counter = m_diagnostics.CreateSubscriptionCount; break; }
-                    case RequestType.ModifySubscription: { counter = m_diagnostics.ModifySubscriptionCount; break; }
-                    case RequestType.SetPublishingMode: { counter = m_diagnostics.SetPublishingModeCount; break; }
-                    case RequestType.Publish: { counter = m_diagnostics.PublishCount; break; }
-                    case RequestType.Republish: { counter = m_diagnostics.RepublishCount; break; }
-                    case RequestType.TransferSubscriptions: { counter = m_diagnostics.TransferSubscriptionsCount; break; }
-                    case RequestType.DeleteSubscriptions: { counter = m_diagnostics.DeleteSubscriptionsCount; break; }
-                    case RequestType.AddNodes: { counter = m_diagnostics.AddNodesCount; break; }
-                    case RequestType.AddReferences: { counter = m_diagnostics.AddReferencesCount; break; }
-                    case RequestType.DeleteNodes: { counter = m_diagnostics.DeleteNodesCount; break; }
-                    case RequestType.DeleteReferences: { counter = m_diagnostics.DeleteReferencesCount; break; }
-                    case RequestType.Browse: { counter = m_diagnostics.BrowseCount; break; }
-                    case RequestType.BrowseNext: { counter = m_diagnostics.BrowseNextCount; break; }
-                    case RequestType.TranslateBrowsePathsToNodeIds: { counter = m_diagnostics.TranslateBrowsePathsToNodeIdsCount; break; }
-                    case RequestType.QueryFirst: { counter = m_diagnostics.QueryFirstCount; break; }
-                    case RequestType.QueryNext: { counter = m_diagnostics.QueryNextCount; break; }
-                    case RequestType.RegisterNodes: { counter = m_diagnostics.RegisterNodesCount; break; }
-                    case RequestType.UnregisterNodes: { counter = m_diagnostics.UnregisterNodesCount; break; }
+                    case RequestType.Read:
+                        counter = SessionDiagnostics.ReadCount;
+                        break;
+                    case RequestType.HistoryRead:
+                        counter = SessionDiagnostics.HistoryReadCount;
+                        break;
+                    case RequestType.Write:
+                        counter = SessionDiagnostics.WriteCount;
+                        break;
+                    case RequestType.HistoryUpdate:
+                        counter = SessionDiagnostics.HistoryUpdateCount;
+                        break;
+                    case RequestType.Call:
+                        counter = SessionDiagnostics.CallCount;
+                        break;
+                    case RequestType.CreateMonitoredItems:
+                        counter = SessionDiagnostics.CreateMonitoredItemsCount;
+                        break;
+                    case RequestType.ModifyMonitoredItems:
+                        counter = SessionDiagnostics.ModifyMonitoredItemsCount;
+                        break;
+                    case RequestType.SetMonitoringMode:
+                        counter = SessionDiagnostics.SetMonitoringModeCount;
+                        break;
+                    case RequestType.SetTriggering:
+                        counter = SessionDiagnostics.SetTriggeringCount;
+                        break;
+                    case RequestType.DeleteMonitoredItems:
+                        counter = SessionDiagnostics.DeleteMonitoredItemsCount;
+                        break;
+                    case RequestType.CreateSubscription:
+                        counter = SessionDiagnostics.CreateSubscriptionCount;
+                        break;
+                    case RequestType.ModifySubscription:
+                        counter = SessionDiagnostics.ModifySubscriptionCount;
+                        break;
+                    case RequestType.SetPublishingMode:
+                        counter = SessionDiagnostics.SetPublishingModeCount;
+                        break;
+                    case RequestType.Publish:
+                        counter = SessionDiagnostics.PublishCount;
+                        break;
+                    case RequestType.Republish:
+                        counter = SessionDiagnostics.RepublishCount;
+                        break;
+                    case RequestType.TransferSubscriptions:
+                        counter = SessionDiagnostics.TransferSubscriptionsCount;
+                        break;
+                    case RequestType.DeleteSubscriptions:
+                        counter = SessionDiagnostics.DeleteSubscriptionsCount;
+                        break;
+                    case RequestType.AddNodes:
+                        counter = SessionDiagnostics.AddNodesCount;
+                        break;
+                    case RequestType.AddReferences:
+                        counter = SessionDiagnostics.AddReferencesCount;
+                        break;
+                    case RequestType.DeleteNodes:
+                        counter = SessionDiagnostics.DeleteNodesCount;
+                        break;
+                    case RequestType.DeleteReferences:
+                        counter = SessionDiagnostics.DeleteReferencesCount;
+                        break;
+                    case RequestType.Browse:
+                        counter = SessionDiagnostics.BrowseCount;
+                        break;
+                    case RequestType.BrowseNext:
+                        counter = SessionDiagnostics.BrowseNextCount;
+                        break;
+                    case RequestType.TranslateBrowsePathsToNodeIds:
+                        counter = SessionDiagnostics.TranslateBrowsePathsToNodeIdsCount;
+                        break;
+                    case RequestType.QueryFirst:
+                        counter = SessionDiagnostics.QueryFirstCount;
+                        break;
+                    case RequestType.QueryNext:
+                        counter = SessionDiagnostics.QueryNextCount;
+                        break;
+                    case RequestType.RegisterNodes:
+                        counter = SessionDiagnostics.RegisterNodesCount;
+                        break;
+                    case RequestType.UnregisterNodes:
+                        counter = SessionDiagnostics.UnregisterNodesCount;
+                        break;
                 }
 
                 if (counter != null)
                 {
-                    counter.TotalCount = counter.TotalCount + 1;
+                    counter.TotalCount++;
 
                     if (error)
                     {
-                        counter.ErrorCount = counter.ErrorCount + 1;
+                        counter.ErrorCount++;
                     }
                 }
             }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
-        private NodeId m_sessionId;
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
-        private NodeId m_authenticationToken;
-        private IServerInternal m_server;
-
-        private UserIdentityToken m_identityToken;
-        private IUserIdentity m_identity;
-        private IUserIdentity m_effectiveIdentity;
-        private bool m_activated;
-
-        private X509Certificate2 m_clientCertificate;
-
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
-        private List<SoftwareCertificate> m_softwareCertificates;
-        private byte[] m_clientNonce;
-        private string m_sessionName;
-        private string m_secureChannelId;
-        private EndpointDescription m_endpoint;
+        private readonly Lock m_lock = new();
+        private readonly IServerInternal m_server;
+        private readonly string m_sessionName;
         private X509Certificate2 m_serverCertificate;
 
         private Nonce m_serverNonce;
+#if ECC_SUPPORT
         private string m_eccUserTokenSecurityPolicyUri;
+#endif
         private Nonce m_eccUserTokenNonce;
-        private X509Certificate2Collection m_clientIssuerCertificates;
-
-        private string[] m_localeIds;
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
-        private uint m_maxResponseMessageSize;
-        private double m_maxRequestAge;
-        private int m_maxBrowseContinuationPoints;
-        private int m_maxHistoryContinuationPoints;
-
-        private SessionDiagnosticsDataType m_diagnostics;
-        private SessionSecurityDiagnosticsDataType m_securityDiagnostics;
+        private readonly X509Certificate2Collection m_clientIssuerCertificates;
+        private readonly int m_maxHistoryContinuationPoints;
+        private readonly SessionSecurityDiagnosticsDataType m_securityDiagnostics;
         private List<ContinuationPoint> m_browseContinuationPoints;
         private List<HistoryContinuationPoint> m_historyContinuationPoints;
-
-#if ECC_SUPPORT
-        private EphemeralKeyType m_ephemeralKey;
-#endif
-
-        #endregion
     }
 }

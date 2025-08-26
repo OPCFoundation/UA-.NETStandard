@@ -19,7 +19,6 @@ namespace Opc.Ua
     /// </summary>
     public class TraceEventArgs : EventArgs
     {
-        #region Constructors
         /// <summary>
         /// Initializes a new instance of the TraceEventArgs class.
         /// </summary>
@@ -28,7 +27,12 @@ namespace Opc.Ua
         /// <param name="message">The message.</param>
         /// <param name="exception">The exception.</param>
         /// <param name="args">The arguments.</param>
-        internal TraceEventArgs(int traceMask, string format, string message, Exception exception, object[] args)
+        internal TraceEventArgs(
+            int traceMask,
+            string format,
+            string message,
+            Exception exception,
+            object[] args)
         {
             TraceMask = traceMask;
             Format = format;
@@ -36,33 +40,30 @@ namespace Opc.Ua
             Exception = exception;
             Arguments = args;
         }
-        #endregion Constructors
 
-        #region Public Properties
         /// <summary>
         /// Gets the trace mask.
         /// </summary>
-        public int TraceMask { get; private set; }
+        public int TraceMask { get; }
 
         /// <summary>
         /// Gets the format.
         /// </summary>
-        public string Format { get; private set; }
+        public string Format { get; }
 
         /// <summary>
         /// Gets the arguments.
         /// </summary>
-        public object[] Arguments { get; private set; }
+        public object[] Arguments { get; }
 
         /// <summary>
         /// Gets the message.
         /// </summary>
-        public string Message { get; private set; }
+        public string Message { get; }
 
         /// <summary>
         /// Gets the exception.
         /// </summary>
-        public Exception Exception { get; private set; }
-        #endregion Public Properties
+        public Exception Exception { get; }
     }
 }

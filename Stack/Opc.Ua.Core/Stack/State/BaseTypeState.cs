@@ -10,34 +10,24 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Text;
-using System.Xml;
-using System.IO;
-using System.Runtime.Serialization;
-using System.Reflection;
-using System.Threading;
 
 namespace Opc.Ua
 {
-    /// <summary> 
+    /// <summary>
     /// The base class for all type nodes.
     /// </summary>
     public class BaseTypeState : NodeState
     {
-        #region Constructors
         /// <summary>
         /// Initializes the type with its default attribute values.
         /// </summary>
-        protected BaseTypeState(NodeClass nodeClass) : base(nodeClass)
+        protected BaseTypeState(NodeClass nodeClass)
+            : base(nodeClass)
         {
             m_isAbstract = false;
         }
-        #endregion
 
-        #region Initialization
         /// <summary>
         /// Initializes the instance from another instance.
         /// </summary>
@@ -51,13 +41,11 @@ namespace Opc.Ua
 
             base.Initialize(context, source);
         }
-        #endregion
 
-        #region ICloneable Members
         /// <inheritdoc/>
         public override object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -68,25 +56,19 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            BaseTypeState clone = new BaseTypeState(this.NodeClass);
+            var clone = new BaseTypeState(NodeClass);
             return CloneChildren(clone);
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// The identifier for the supertype node.
         /// </summary>
         public NodeId SuperTypeId
         {
-            get
-            {
-                return m_superTypeId;
-            }
-
+            get => m_superTypeId;
             set
             {
-                if (!Object.ReferenceEquals(m_superTypeId, value))
+                if (!ReferenceEquals(m_superTypeId, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.References;
                 }
@@ -100,11 +82,7 @@ namespace Opc.Ua
         /// </summary>
         public bool IsAbstract
         {
-            get
-            {
-                return m_isAbstract;
-            }
-
+            get => m_isAbstract;
             set
             {
                 if (m_isAbstract != value)
@@ -115,9 +93,7 @@ namespace Opc.Ua
                 m_isAbstract = value;
             }
         }
-        #endregion 
 
-        #region Event Callbacks
         /// <summary>
         /// Raised when the IsAbstract attribute is read.
         /// </summary>
@@ -127,9 +103,7 @@ namespace Opc.Ua
         /// Raised when the IsAbstract attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<bool> OnWriteIsAbstract;
-        #endregion
 
-        #region Serialization Functions
         /// <summary>
         /// Exports a copy of the node to a node table.
         /// </summary>
@@ -139,36 +113,25 @@ namespace Opc.Ua
         {
             base.Export(context, node);
 
-            if (!NodeId.IsNull(this.SuperTypeId))
+            if (!NodeId.IsNull(SuperTypeId))
             {
-                node.ReferenceTable.Add(ReferenceTypeIds.HasSubtype, true, this.SuperTypeId);
+                node.ReferenceTable.Add(ReferenceTypeIds.HasSubtype, true, SuperTypeId);
             }
 
-            switch (this.NodeClass)
+            switch (NodeClass)
             {
                 case NodeClass.ObjectType:
-                {
                     ((ObjectTypeNode)node).IsAbstract = IsAbstract;
                     break;
-                }
-
                 case NodeClass.VariableType:
-                {
                     ((VariableTypeNode)node).IsAbstract = IsAbstract;
                     break;
-                }
-
                 case NodeClass.DataType:
-                {
                     ((DataTypeNode)node).IsAbstract = IsAbstract;
                     break;
-                }
-
                 case NodeClass.ReferenceType:
-                {
                     ((ReferenceTypeNode)node).IsAbstract = IsAbstract;
                     break;
-                }
             }
         }
 
@@ -248,7 +211,10 @@ namespace Opc.Ua
         /// <param name="context">The context user.</param>
         /// <param name="encoder">The encoder to write to.</param>
         /// <param name="attributesToSave">The masks indicating what attributes to write.</param>
-        public override void Save(ISystemContext context, BinaryEncoder encoder, AttributesToSave attributesToSave)
+        public override void Save(
+            ISystemContext context,
+            BinaryEncoder encoder,
+            AttributesToSave attributesToSave)
         {
             base.Save(context, encoder, attributesToSave);
 
@@ -269,7 +235,10 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         /// <param name="decoder">The decoder.</param>
         /// <param name="attributesToLoad">The attributes to load.</param>
-        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attributesToLoad)
+        public override void Update(
+            ISystemContext context,
+            BinaryDecoder decoder,
+            AttributesToSave attributesToLoad)
         {
             base.Update(context, decoder, attributesToLoad);
 
@@ -283,9 +252,7 @@ namespace Opc.Ua
                 m_isAbstract = decoder.ReadBoolean(null);
             }
         }
-        #endregion
 
-        #region Read Support Functions
         /// <summary>
         /// Reads the value for any non-value attribute.
         /// </summary>
@@ -299,7 +266,6 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.IsAbstract:
-                {
                     bool isAbstract = m_isAbstract;
 
                     NodeAttributeEventHandler<bool> onReadIsAbstract = OnReadIsAbstract;
@@ -315,14 +281,11 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
             }
 
             return base.ReadNonValueAttribute(context, attributeId, ref value);
         }
-        #endregion
 
-        #region Write Support Functions
         /// <summary>
         /// Write the value for any non-value attribute.
         /// </summary>
@@ -336,7 +299,6 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.IsAbstract:
-                {
                     bool? isAbstractRef = value as bool?;
 
                     if (isAbstractRef == null)
@@ -364,14 +326,11 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }
             }
 
             return base.WriteNonValueAttribute(context, attributeId, value);
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Populates the browser with references that meet the criteria.
         /// </summary>
@@ -383,35 +342,29 @@ namespace Opc.Ua
 
             NodeId superTypeId = m_superTypeId;
 
-            if (!NodeId.IsNull(superTypeId))
+            if (!NodeId.IsNull(superTypeId) &&
+                browser.IsRequired(ReferenceTypeIds.HasSubtype, true))
             {
-                if (browser.IsRequired(ReferenceTypeIds.HasSubtype, true))
-                {
-                    browser.Add(ReferenceTypeIds.HasSubtype, true, superTypeId);
-                }
+                browser.Add(ReferenceTypeIds.HasSubtype, true, superTypeId);
             }
 
-            NodeId nodeId = this.NodeId;
+            NodeId nodeId = NodeId;
 
             // use the type table to find the subtypes.
-            if (context.TypeTable != null && nodeId != null)
+            if (context.TypeTable != null &&
+                nodeId != null &&
+                browser.IsRequired(ReferenceTypeIds.HasSubtype, false))
             {
-                if (browser.IsRequired(ReferenceTypeIds.HasSubtype, false))
-                {
-                    IList<NodeId> subtypeIds = context.TypeTable.FindSubTypes(nodeId);
+                IList<NodeId> subtypeIds = context.TypeTable.FindSubTypes(nodeId);
 
-                    for (int ii = 0; ii < subtypeIds.Count; ii++)
-                    {
-                        browser.Add(ReferenceTypeIds.HasSubtype, false, subtypeIds[ii]);
-                    }
+                for (int ii = 0; ii < subtypeIds.Count; ii++)
+                {
+                    browser.Add(ReferenceTypeIds.HasSubtype, false, subtypeIds[ii]);
                 }
             }
         }
-        #endregion
 
-        #region Private Fields
         private NodeId m_superTypeId;
         private bool m_isAbstract;
-        #endregion
     }
 }

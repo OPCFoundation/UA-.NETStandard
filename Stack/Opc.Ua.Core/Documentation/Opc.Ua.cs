@@ -13,12 +13,10 @@
 namespace Opc.Ua
 {
     /// <summary>
-    /// The <b>Opc.Ua</b> namespace contains classes and interfaces which implement all of the types 
+    /// The <b>Opc.Ua</b> namespace contains classes and interfaces which implement all of the types
     /// and services defined by the UA specification.
     /// </summary>
     ///<exclude/>
-    [System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    public class NamespaceDoc
-    {
-    }
+    [System.Runtime.CompilerServices.CompilerGenerated]
+    public class NamespaceDoc;
 }

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-
 namespace Opc.Ua.Core.Tests
 {
     public class ApplicationTestData
@@ -42,10 +40,10 @@ namespace Opc.Ua.Core.Tests
         {
             ApplicationUri = null;
             ApplicationName = null;
-            DomainNames = new StringCollection();
+            DomainNames = [];
             Subject = null;
             PrivateKeyFormat = "PFX";
-            PrivateKeyPassword = "";
+            PrivateKeyPassword = string.Empty;
             Certificate = null;
             PrivateKey = null;
             IssuerCertificates = null;
@@ -54,12 +52,11 @@ namespace Opc.Ua.Core.Tests
         public string ApplicationUri;
         public string ApplicationName;
         public StringCollection DomainNames;
-        public String Subject;
-        public String PrivateKeyFormat;
-        public String PrivateKeyPassword;
+        public string Subject;
+        public string PrivateKeyFormat;
+        public string PrivateKeyPassword;
         public byte[] Certificate;
         public byte[] PrivateKey;
         public byte[][] IssuerCertificates;
     }
-
 }

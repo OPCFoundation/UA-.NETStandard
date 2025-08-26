@@ -16,17 +16,17 @@ using System.Globalization;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 
 namespace Opc.Ua
 {
     /// <summary>
-	/// Loads the configuration section for an application.
-	/// </summary>
-	public class ApplicationConfigurationSection
+    /// Loads the configuration section for an application.
+    /// </summary>
+    public class ApplicationConfigurationSection
     {
-        #region IConfigurationSectionHandler Members	
         /// <summary>
         /// Creates the configuration object from the configuration section.
         /// </summary>
@@ -34,7 +34,8 @@ namespace Opc.Ua
         /// <param name="configContext">The configuration context object.</param>
         /// <param name="section">The section as XML node.</param>
         /// <returns>The created section handler object.</returns>
-        public object Create(object parent, object configContext, System.Xml.XmlNode section)
+        /// <exception cref="ArgumentNullException"><paramref name="section"/> is <c>null</c>.</exception>
+        public object Create(object parent, object configContext, XmlNode section)
         {
             if (section == null)
             {
@@ -48,14 +49,12 @@ namespace Opc.Ua
                 element = element.NextSibling;
             }
 
-            using (XmlReader reader = XmlReader.Create(new StringReader(element.OuterXml), Utils.DefaultXmlReaderSettings()))
-            {
-                DataContractSerializer serializer = new DataContractSerializer(typeof(ConfigurationLocation));
-                ConfigurationLocation configuration = serializer.ReadObject(reader) as ConfigurationLocation;
-                return configuration;
-            }
+            using var reader = XmlReader.Create(
+                new StringReader(element.OuterXml),
+                Utils.DefaultXmlReaderSettings());
+            var serializer = new DataContractSerializer(typeof(ConfigurationLocation));
+            return serializer.ReadObject(reader) as ConfigurationLocation;
         }
-        #endregion
     }
 
     /// <summary>
@@ -64,22 +63,12 @@ namespace Opc.Ua
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public class ConfigurationLocation
     {
-        #region Persistent Properties
         /// <summary>
         /// Gets or sets the relative or absolute path to the configuration file.
         /// </summary>
         /// <value>The file path.</value>
         [DataMember(IsRequired = true, Order = 0)]
-        public string FilePath
-        {
-            get { return m_filePath; }
-            set { m_filePath = value; }
-        }
-        #endregion
-
-        #region Private Fields
-        private string m_filePath;
-        #endregion
+        public string FilePath { get; set; }
     }
 
     /// <summary>
@@ -87,21 +76,16 @@ namespace Opc.Ua
     /// </summary>
     public partial class ApplicationConfiguration
     {
-        #region Public Methods
         /// <summary>
         /// Gets the file that was used to load the configuration.
         /// </summary>
         /// <value>The source file path.</value>
-        public string SourceFilePath => m_sourceFilePath;
+        public string SourceFilePath { get; private set; }
 
         /// <summary>
         /// Gets or sets the certificate validator which is configured to use.
         /// </summary>
-        public CertificateValidator CertificateValidator
-        {
-            get { return m_certificateValidator; }
-            set { m_certificateValidator = value; }
-        }
+        public CertificateValidator CertificateValidator { get; set; }
 
         /// <summary>
         /// Returns the domain names which the server is configured to use.
@@ -109,31 +93,31 @@ namespace Opc.Ua
         /// <returns>A list of domain names.</returns>
         public IList<string> GetServerDomainNames()
         {
-            StringCollection baseAddresses = new StringCollection();
+            var baseAddresses = new StringCollection();
 
-            if (this.ServerConfiguration != null)
+            if (ServerConfiguration != null)
             {
-                if (this.ServerConfiguration.BaseAddresses != null)
+                if (ServerConfiguration.BaseAddresses != null)
                 {
-                    baseAddresses.AddRange(this.ServerConfiguration.BaseAddresses);
+                    baseAddresses.AddRange(ServerConfiguration.BaseAddresses);
                 }
 
-                if (this.ServerConfiguration.AlternateBaseAddresses != null)
+                if (ServerConfiguration.AlternateBaseAddresses != null)
                 {
-                    baseAddresses.AddRange(this.ServerConfiguration.AlternateBaseAddresses);
+                    baseAddresses.AddRange(ServerConfiguration.AlternateBaseAddresses);
                 }
             }
 
-            if (this.DiscoveryServerConfiguration != null)
+            if (DiscoveryServerConfiguration != null)
             {
-                if (this.DiscoveryServerConfiguration.BaseAddresses != null)
+                if (DiscoveryServerConfiguration.BaseAddresses != null)
                 {
-                    baseAddresses.AddRange(this.DiscoveryServerConfiguration.BaseAddresses);
+                    baseAddresses.AddRange(DiscoveryServerConfiguration.BaseAddresses);
                 }
 
-                if (this.DiscoveryServerConfiguration.AlternateBaseAddresses != null)
+                if (DiscoveryServerConfiguration.AlternateBaseAddresses != null)
                 {
-                    baseAddresses.AddRange(this.DiscoveryServerConfiguration.AlternateBaseAddresses);
+                    baseAddresses.AddRange(DiscoveryServerConfiguration.AlternateBaseAddresses);
                 }
             }
 
@@ -173,16 +157,16 @@ namespace Opc.Ua
         /// <returns>A new instance of a ServiceMessageContext object.</returns>
         public ServiceMessageContext CreateMessageContext(bool clonedFactory = false)
         {
-            ServiceMessageContext messageContext = new ServiceMessageContext();
+            var messageContext = new ServiceMessageContext();
 
-            if (m_transportQuotas != null)
+            if (TransportQuotas != null)
             {
-                messageContext.MaxArrayLength = m_transportQuotas.MaxArrayLength;
-                messageContext.MaxByteStringLength = m_transportQuotas.MaxByteStringLength;
-                messageContext.MaxStringLength = m_transportQuotas.MaxStringLength;
-                messageContext.MaxMessageSize = m_transportQuotas.MaxMessageSize;
-                messageContext.MaxEncodingNestingLevels = m_transportQuotas.MaxEncodingNestingLevels;
-                messageContext.MaxDecoderRecoveries = m_transportQuotas.MaxDecoderRecoveries;
+                messageContext.MaxArrayLength = TransportQuotas.MaxArrayLength;
+                messageContext.MaxByteStringLength = TransportQuotas.MaxByteStringLength;
+                messageContext.MaxStringLength = TransportQuotas.MaxStringLength;
+                messageContext.MaxMessageSize = TransportQuotas.MaxMessageSize;
+                messageContext.MaxEncodingNestingLevels = TransportQuotas.MaxEncodingNestingLevels;
+                messageContext.MaxDecoderRecoveries = TransportQuotas.MaxDecoderRecoveries;
             }
 
             messageContext.NamespaceUris = new NamespaceTable();
@@ -195,21 +179,17 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates the message context from the configuration.
+        /// Loads and validates the application configuration from a configuration section.
         /// </summary>
-        /// <value>A new instance of a ServiceMessageContext object.</value>
-        [Obsolete("Warning: Behavior changed return a copy instead of a reference. Should call CreateMessageContext() instead.")]
-        public IServiceMessageContext MessageContext
+        /// <param name="sectionName">Name of configuration section for the current application's default configuration containing <see cref="ConfigurationLocation"/>.</param>
+        /// <param name="applicationType">Type of the application.</param>
+        /// <returns>Application configuration</returns>
+        [Obsolete("Use LoadAsync instead.")]
+        public static Task<ApplicationConfiguration> Load(
+            string sectionName,
+            ApplicationType applicationType)
         {
-            get
-            {
-                if (m_messageContext == null)
-                {
-                    m_messageContext = CreateMessageContext();
-                }
-
-                return m_messageContext;
-            }
+            return LoadAsync(sectionName, applicationType);
         }
 
         /// <summary>
@@ -218,9 +198,11 @@ namespace Opc.Ua
         /// <param name="sectionName">Name of configuration section for the current application's default configuration containing <see cref="ConfigurationLocation"/>.</param>
         /// <param name="applicationType">Type of the application.</param>
         /// <returns>Application configuration</returns>
-        public static Task<ApplicationConfiguration> Load(string sectionName, ApplicationType applicationType)
+        public static Task<ApplicationConfiguration> LoadAsync(
+            string sectionName,
+            ApplicationType applicationType)
         {
-            return Load(sectionName, applicationType, typeof(ApplicationConfiguration));
+            return LoadAsync(sectionName, applicationType, typeof(ApplicationConfiguration));
         }
 
         /// <summary>
@@ -230,23 +212,50 @@ namespace Opc.Ua
         /// <param name="applicationType">A description for the ApplicationType DataType.</param>
         /// <param name="systemType">A user type of the configuration instance.</param>
         /// <returns>Application configuration</returns>
-        public static Task<ApplicationConfiguration> Load(string sectionName, ApplicationType applicationType, Type systemType)
+        [Obsolete("Use LoadAsync instead.")]
+        public static Task<ApplicationConfiguration> Load(
+            string sectionName,
+            ApplicationType applicationType,
+            Type systemType)
+        {
+            return LoadAsync(sectionName, applicationType, systemType);
+        }
+
+        /// <summary>
+        /// Loads and validates the application configuration from a configuration section.
+        /// </summary>
+        /// <param name="sectionName">Name of configuration section for the current application's default configuration containing <see cref="ConfigurationLocation"/>.</param>
+        /// <param name="applicationType">A description for the ApplicationType DataType.</param>
+        /// <param name="systemType">A user type of the configuration instance.</param>
+        /// <returns>Application configuration</returns>
+        /// <exception cref="ServiceResultException"></exception>
+        public static Task<ApplicationConfiguration> LoadAsync(
+            string sectionName,
+            ApplicationType applicationType,
+            Type systemType)
         {
             string filePath = GetFilePathFromAppConfig(sectionName);
 
-            FileInfo file = new FileInfo(filePath);
+            var file = new FileInfo(filePath);
 
             if (!file.Exists)
             {
                 var message = new StringBuilder();
-                message.AppendFormat(CultureInfo.InvariantCulture, "Configuration file does not exist: {0}", filePath);
-                message.AppendLine();
-                message.AppendFormat(CultureInfo.InvariantCulture, "Current directory is: {0}", Directory.GetCurrentDirectory());
+                message.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    "Configuration file does not exist: {0}",
+                    filePath)
+                    .AppendLine()
+                    .AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    "Current directory is: {0}",
+                    Directory.GetCurrentDirectory());
                 throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError, message.ToString());
+                    StatusCodes.BadConfigurationError,
+                    message.ToString());
             }
 
-            return Load(file, applicationType, systemType);
+            return LoadAsync(file, applicationType, systemType);
         }
 
         /// <summary>
@@ -256,32 +265,36 @@ namespace Opc.Ua
         /// <param name="systemType">Type of the system.</param>
         /// <returns>Application configuration</returns>
         /// <remarks>Use this method to ensure the configuration is not changed during loading.</remarks>
+        /// <exception cref="ServiceResultException"></exception>
         public static ApplicationConfiguration LoadWithNoValidation(FileInfo file, Type systemType)
         {
-            using (var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read))
+            using var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
+            try
             {
-                try
+                var serializer = new DataContractSerializer(systemType);
+
+                var configuration = serializer.ReadObject(stream) as ApplicationConfiguration;
+
+                if (configuration != null)
                 {
-                    DataContractSerializer serializer = new DataContractSerializer(systemType);
-
-                    ApplicationConfiguration configuration = serializer.ReadObject(stream) as ApplicationConfiguration;
-
-                    if (configuration != null)
-                    {
-                        configuration.m_sourceFilePath = file.FullName;
-                    }
-
-                    return configuration;
+                    configuration.SourceFilePath = file.FullName;
                 }
-                catch (Exception e)
-                {
-                    var message = new StringBuilder();
-                    message.AppendFormat(CultureInfo.InvariantCulture, "Configuration file could not be loaded: {0}", file.FullName);
-                    message.AppendLine();
-                    message.AppendFormat(CultureInfo.InvariantCulture, "Error is: {0}", e.Message);
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadConfigurationError, e, message.ToString());
-                }
+
+                return configuration;
+            }
+            catch (Exception e)
+            {
+                var message = new StringBuilder();
+                message.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    "Configuration file could not be loaded: {0}",
+                    file.FullName)
+                    .AppendLine()
+                    .AppendFormat(CultureInfo.InvariantCulture, "Error is: {0}", e.Message);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    e,
+                    message.ToString());
             }
         }
 
@@ -292,9 +305,28 @@ namespace Opc.Ua
         /// <param name="applicationType">Type of the application.</param>
         /// <param name="systemType">Type of the system.</param>
         /// <returns>Application configuration</returns>
-        public static Task<ApplicationConfiguration> Load(FileInfo file, ApplicationType applicationType, Type systemType)
+        [Obsolete("Use LoadAsync instead.")]
+        public static Task<ApplicationConfiguration> Load(
+            FileInfo file,
+            ApplicationType applicationType,
+            Type systemType)
         {
-            return ApplicationConfiguration.Load(file, applicationType, systemType, true);
+            return LoadAsync(file, applicationType, systemType);
+        }
+
+        /// <summary>
+        /// Loads and validates the application configuration from a configuration section.
+        /// </summary>
+        /// <param name="file">The file.</param>
+        /// <param name="applicationType">Type of the application.</param>
+        /// <param name="systemType">Type of the system.</param>
+        /// <returns>Application configuration</returns>
+        public static Task<ApplicationConfiguration> LoadAsync(
+            FileInfo file,
+            ApplicationType applicationType,
+            Type systemType)
+        {
+            return LoadAsync(file, applicationType, systemType, true);
         }
 
         /// <summary>
@@ -306,35 +338,73 @@ namespace Opc.Ua
         /// <param name="applyTraceSettings">if set to <c>true</c> apply trace settings after validation.</param>
         /// <param name="certificatePasswordProvider">The certificate password provider.</param>
         /// <returns>Application configuration</returns>
-        public static async Task<ApplicationConfiguration> Load(
+        [Obsolete("Use LoadAsync instead.")]
+        public static Task<ApplicationConfiguration> Load(
             FileInfo file,
             ApplicationType applicationType,
             Type systemType,
             bool applyTraceSettings,
             ICertificatePasswordProvider certificatePasswordProvider = null)
         {
+            return LoadAsync(
+                file,
+                applicationType,
+                systemType,
+                applyTraceSettings,
+                certificatePasswordProvider);
+        }
+
+        /// <summary>
+        /// Loads and validates the application configuration from a configuration section.
+        /// </summary>
+        /// <param name="file">The file.</param>
+        /// <param name="applicationType">Type of the application.</param>
+        /// <param name="systemType">Type of the system.</param>
+        /// <param name="applyTraceSettings">if set to <c>true</c> apply trace settings after validation.</param>
+        /// <param name="certificatePasswordProvider">The certificate password provider.</param>
+        /// <param name="ct">Cancellation token to cancel action</param>
+        /// <returns>Application configuration</returns>
+        /// <exception cref="ServiceResultException"></exception>
+        public static async Task<ApplicationConfiguration> LoadAsync(
+            FileInfo file,
+            ApplicationType applicationType,
+            Type systemType,
+            bool applyTraceSettings,
+            ICertificatePasswordProvider certificatePasswordProvider = null,
+            CancellationToken ct = default)
+        {
             ApplicationConfiguration configuration = null;
 
             try
             {
-                using (FileStream stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read))
-                {
-                    configuration = await Load(stream, applicationType, systemType, applyTraceSettings, certificatePasswordProvider).ConfigureAwait(false);
-                }
+                using var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
+                configuration = await LoadAsync(
+                        stream,
+                        applicationType,
+                        systemType,
+                        applyTraceSettings,
+                        certificatePasswordProvider,
+                        ct)
+                    .ConfigureAwait(false);
             }
             catch (Exception e)
             {
                 var message = new StringBuilder();
-                message.AppendFormat(CultureInfo.InvariantCulture, "Configuration file could not be loaded: {0}", file.FullName);
-                message.AppendLine();
-                message.Append(e.Message);
+                message.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    "Configuration file could not be loaded: {0}",
+                    file.FullName)
+                    .AppendLine()
+                    .Append(e.Message);
                 throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError, e, message.ToString());
+                    StatusCodes.BadConfigurationError,
+                    e,
+                    message.ToString());
             }
 
             if (configuration != null)
             {
-                configuration.m_sourceFilePath = file.FullName;
+                configuration.SourceFilePath = file.FullName;
             }
 
             return configuration;
@@ -349,29 +419,61 @@ namespace Opc.Ua
         /// <param name="applyTraceSettings">if set to <c>true</c> apply trace settings after validation.</param>
         /// <param name="certificatePasswordProvider">The certificate password provider.</param>
         /// <returns>Application configuration</returns>
-        public static async Task<ApplicationConfiguration> Load(
+        [Obsolete("Use LoadAsync instead.")]
+        public static Task<ApplicationConfiguration> Load(
             Stream stream,
             ApplicationType applicationType,
             Type systemType,
             bool applyTraceSettings,
             ICertificatePasswordProvider certificatePasswordProvider = null)
         {
-            ApplicationConfiguration configuration = null;
-            systemType = systemType ?? typeof(ApplicationConfiguration);
+            return LoadAsync(
+                stream,
+                applicationType,
+                systemType,
+                applyTraceSettings,
+                certificatePasswordProvider);
+        }
 
+        /// <summary>
+        /// Loads and validates the application configuration from a configuration section.
+        /// </summary>
+        /// <param name="stream">The stream.</param>
+        /// <param name="applicationType">Type of the application.</param>
+        /// <param name="systemType">Type of the system.</param>
+        /// <param name="applyTraceSettings">if set to <c>true</c> apply trace settings after validation.</param>
+        /// <param name="certificatePasswordProvider">The certificate password provider.</param>
+        /// <param name="ct">Cancellation token to cancel action</param>
+        /// <returns>Application configuration</returns>
+        /// <exception cref="ServiceResultException"></exception>
+        public static async Task<ApplicationConfiguration> LoadAsync(
+            Stream stream,
+            ApplicationType applicationType,
+            Type systemType,
+            bool applyTraceSettings,
+            ICertificatePasswordProvider certificatePasswordProvider = null,
+            CancellationToken ct = default)
+        {
+            systemType ??= typeof(ApplicationConfiguration);
+
+            ApplicationConfiguration configuration;
             try
             {
-                DataContractSerializer serializer = new DataContractSerializer(systemType);
+                var serializer = new DataContractSerializer(systemType);
                 configuration = (ApplicationConfiguration)serializer.ReadObject(stream);
             }
             catch (Exception e)
             {
                 var message = new StringBuilder();
-                message.AppendFormat(CultureInfo.InvariantCulture, "Configuration could not be loaded.");
-                message.AppendLine();
-                message.AppendFormat(CultureInfo.InvariantCulture, "Error is: {0}", e.Message);
+                message.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    "Configuration could not be loaded.")
+                    .AppendLine()
+                    .AppendFormat(CultureInfo.InvariantCulture, "Error is: {0}", e.Message);
                 throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError, e, message.ToString());
+                    StatusCodes.BadConfigurationError,
+                    e,
+                    message.ToString());
             }
 
             if (configuration != null)
@@ -382,9 +484,10 @@ namespace Opc.Ua
                     configuration.TraceConfiguration.ApplySettings();
                 }
 
-                configuration.SecurityConfiguration.CertificatePasswordProvider = certificatePasswordProvider;
+                configuration.SecurityConfiguration.CertificatePasswordProvider
+                    = certificatePasswordProvider;
 
-                await configuration.Validate(applicationType).ConfigureAwait(false);
+                await configuration.ValidateAsync(applicationType, ct).ConfigureAwait(false);
             }
 
             return configuration;
@@ -393,14 +496,18 @@ namespace Opc.Ua
         /// <summary>
         /// Reads the file path from the application configuration file.
         /// </summary>
-	    /// <param name="sectionName">Name of configuration section for the current application's default configuration containing <see cref="ConfigurationLocation"/>.
-	    /// </param>
+        /// <param name="sectionName">Name of configuration section for the current application's default configuration containing <see cref="ConfigurationLocation"/>.
+        /// </param>
         /// <returns>File path from the application configuration file.</returns>
         public static string GetFilePathFromAppConfig(string sectionName)
         {
             // convert to absolute file path (expands environment strings).
-            string absolutePath = Utils.GetAbsoluteFilePath(sectionName + ".Config.xml", true, false, false);
-            return (absolutePath != null) ? absolutePath : sectionName + ".Config.xml";
+            string absolutePath = Utils.GetAbsoluteFilePath(
+                sectionName + ".Config.xml",
+                true,
+                false,
+                false);
+            return absolutePath ?? sectionName + ".Config.xml";
         }
 
         /// <summary>
@@ -413,64 +520,94 @@ namespace Opc.Ua
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
 
-            using (Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite))
-            using (XmlWriter writer = XmlDictionaryWriter.Create(ostrm, settings))
-            {
-                DataContractSerializer serializer = new DataContractSerializer(GetType());
-                serializer.WriteObject(writer, this);
-            }
+            using Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite);
+            using var writer = XmlWriter.Create(ostrm, settings);
+            var serializer = new DataContractSerializer(GetType());
+            serializer.WriteObject(writer, this);
         }
 
         /// <summary>
         /// Ensures that the application configuration is valid.
         /// </summary>
         /// <param name="applicationType">Type of the application.</param>
-        public virtual async Task Validate(ApplicationType applicationType)
+        [Obsolete("Use ValidateAsync instead.")]
+        public virtual Task Validate(ApplicationType applicationType)
         {
-            if (String.IsNullOrEmpty(ApplicationName))
+            return ValidateAsync(applicationType);
+        }
+
+        /// <summary>
+        /// Ensures that the application configuration is valid.
+        /// </summary>
+        /// <param name="applicationType">Type of the application.</param>
+        /// <param name="ct">Cancellation token to cancel action</param>
+        /// <exception cref="ServiceResultException"></exception>
+        public virtual async Task ValidateAsync(
+            ApplicationType applicationType,
+            CancellationToken ct = default)
+        {
+            if (string.IsNullOrEmpty(ApplicationName))
             {
-                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationName must be specified.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "ApplicationName must be specified.");
             }
 
             if (SecurityConfiguration == null)
             {
-                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "SecurityConfiguration must be specified.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "SecurityConfiguration must be specified.");
             }
 
             SecurityConfiguration.Validate();
 
             // load private keys
-            foreach (var applicationCertificate in SecurityConfiguration.ApplicationCertificates)
+            foreach (CertificateIdentifier applicationCertificate in SecurityConfiguration
+                .ApplicationCertificates)
             {
-                await applicationCertificate.LoadPrivateKeyEx(SecurityConfiguration.CertificatePasswordProvider, ApplicationUri).ConfigureAwait(false);
+                await applicationCertificate
+                    .LoadPrivateKeyExAsync(
+                        SecurityConfiguration.CertificatePasswordProvider,
+                        ApplicationUri,
+                        ct)
+                    .ConfigureAwait(false);
             }
 
-            Func<string> generateDefaultUri = () => {
+            string GenerateDefaultUri()
+            {
                 var sb = new StringBuilder();
-                sb.Append("urn:");
-                sb.Append(Utils.GetHostName());
-                sb.Append(':');
-                sb.Append(ApplicationName);
+                sb.Append("urn:")
+                    .Append(Utils.GetHostName())
+                    .Append(':')
+                    .Append(ApplicationName);
                 return sb.ToString();
-            };
+            }
 
-            if (String.IsNullOrEmpty(ApplicationUri)) m_applicationUri = generateDefaultUri();
+            if (string.IsNullOrEmpty(ApplicationUri))
+            {
+                ApplicationUri = GenerateDefaultUri();
+            }
 
-            if (applicationType == ApplicationType.Client || applicationType == ApplicationType.ClientAndServer)
+            if (applicationType is ApplicationType.Client or ApplicationType.ClientAndServer)
             {
                 if (ClientConfiguration == null)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ClientConfiguration must be specified.");
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "ClientConfiguration must be specified.");
                 }
 
                 ClientConfiguration.Validate();
             }
 
-            if (applicationType == ApplicationType.Server || applicationType == ApplicationType.ClientAndServer)
+            if (applicationType is ApplicationType.Server or ApplicationType.ClientAndServer)
             {
                 if (ServerConfiguration == null)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ServerConfiguration must be specified.");
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "ServerConfiguration must be specified.");
                 }
 
                 ServerConfiguration.Validate();
@@ -480,27 +617,25 @@ namespace Opc.Ua
             {
                 if (DiscoveryServerConfiguration == null)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "DiscoveryServerConfiguration must be specified.");
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "DiscoveryServerConfiguration must be specified.");
                 }
 
                 DiscoveryServerConfiguration.Validate();
             }
 
             // toggle the state of the hi-res clock.
-            HiResClock.Disabled = m_disableHiResClock;
+            HiResClock.Disabled = DisableHiResClock;
 
-            if (HiResClock.Disabled)
+            if (HiResClock.Disabled &&
+                ServerConfiguration != null &&
+                ServerConfiguration.PublishingResolution < 50)
             {
-                if (m_serverConfiguration != null)
-                {
-                    if (m_serverConfiguration.PublishingResolution < 50)
-                    {
-                        m_serverConfiguration.PublishingResolution = 50;
-                    }
-                }
+                ServerConfiguration.PublishingResolution = 50;
             }
 
-            await m_certificateValidator.UpdateAsync(this.SecurityConfiguration).ConfigureAwait(false);
+            await CertificateValidator.UpdateAsync(SecurityConfiguration).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -523,20 +658,35 @@ namespace Opc.Ua
         /// <returns>
         /// Collection of configured endpoints from the disk.
         /// </returns>
-        public ConfiguredEndpointCollection LoadCachedEndpoints(bool createAlways, bool overrideConfiguration)
+        /// <exception cref="InvalidOperationException"></exception>
+        public ConfiguredEndpointCollection LoadCachedEndpoints(
+            bool createAlways,
+            bool overrideConfiguration)
         {
-            if (m_clientConfiguration == null) throw new InvalidOperationException("Only valid for client configurations.");
+            if (ClientConfiguration == null)
+            {
+                throw new InvalidOperationException("Only valid for client configurations.");
+            }
 
-            string filePath = Utils.GetAbsoluteFilePath(m_clientConfiguration.EndpointCacheFilePath, true, false, false, false);
+            string filePath = Utils.GetAbsoluteFilePath(
+                ClientConfiguration.EndpointCacheFilePath,
+                true,
+                false,
+                false,
+                false);
 
             if (filePath == null)
             {
-                filePath = m_clientConfiguration.EndpointCacheFilePath;
+                filePath = ClientConfiguration.EndpointCacheFilePath;
 
                 if (!Utils.IsPathRooted(filePath))
                 {
-                    FileInfo sourceFile = new FileInfo(this.SourceFilePath);
-                    filePath = Utils.Format("{0}{1}{2}", sourceFile.DirectoryName, Path.DirectorySeparatorChar, filePath);
+                    var sourceFile = new FileInfo(SourceFilePath);
+                    filePath = Utils.Format(
+                        "{0}{1}{2}",
+                        sourceFile.DirectoryName,
+                        Path.DirectorySeparatorChar,
+                        filePath);
                 }
             }
 
@@ -545,10 +695,13 @@ namespace Opc.Ua
                 return ConfiguredEndpointCollection.Load(this, filePath, overrideConfiguration);
             }
 
-            ConfiguredEndpointCollection endpoints = new ConfiguredEndpointCollection(this);
+            var endpoints = new ConfiguredEndpointCollection(this);
             try
             {
-                endpoints = ConfiguredEndpointCollection.Load(this, filePath, overrideConfiguration);
+                endpoints = ConfiguredEndpointCollection.Load(
+                    this,
+                    filePath,
+                    overrideConfiguration);
             }
             catch (Exception e)
             {
@@ -556,7 +709,12 @@ namespace Opc.Ua
             }
             finally
             {
-                string localFilePath = Utils.GetAbsoluteFilePath(m_clientConfiguration.EndpointCacheFilePath, true, false, true, true);
+                string localFilePath = Utils.GetAbsoluteFilePath(
+                    ClientConfiguration.EndpointCacheFilePath,
+                    true,
+                    false,
+                    true,
+                    true);
                 if (localFilePath != filePath)
                 {
                     endpoints.Save(localFilePath);
@@ -602,25 +760,22 @@ namespace Opc.Ua
         {
             Utils.UpdateExtension<T>(ref m_extensions, elementName, value);
         }
-        #endregion
     }
 
-    #region TraceConfiguration Class
     /// <summary>
     /// Specifies parameters used for tracing.
     /// </summary>
     public partial class TraceConfiguration
     {
-        #region Public Methods
         /// <summary>
         /// Applies the trace settings to the current process.
         /// </summary>
         public void ApplySettings()
         {
-            Utils.SetTraceLog(m_outputFilePath, m_deleteOnLoad);
-            Utils.SetTraceMask(m_traceMasks);
+            Utils.SetTraceLog(OutputFilePath, DeleteOnLoad);
+            Utils.SetTraceMask(TraceMasks);
 
-            if (m_traceMasks == 0)
+            if (TraceMasks == 0)
             {
                 Utils.SetTraceOutput(Utils.TraceOutput.Off);
             }
@@ -629,17 +784,13 @@ namespace Opc.Ua
                 Utils.SetTraceOutput(Utils.TraceOutput.DebugAndFile);
             }
         }
-        #endregion
     }
-    #endregion
 
-    #region ServerBaseConfiguration Class
     /// <summary>
     /// Specifies the configuration for a server application.
     /// </summary>
     public partial class ServerBaseConfiguration
     {
-        #region Public Methods
         /// <summary>
         /// Validates the configuration.
         /// </summary>
@@ -650,17 +801,13 @@ namespace Opc.Ua
                 m_securityPolicies.Add(new ServerSecurityPolicy());
             }
         }
-        #endregion
     }
-    #endregion
 
-    #region ServerConfiguration Class
     /// <summary>
     /// Specifies the configuration for a server application.
     /// </summary>
     public partial class ServerConfiguration : ServerBaseConfiguration
     {
-        #region Public Methods
         /// <summary>
         /// Validates the configuration.
         /// </summary>
@@ -673,17 +820,13 @@ namespace Opc.Ua
                 m_userTokenPolicies.Add(new UserTokenPolicy());
             }
         }
-        #endregion
     }
-    #endregion
 
-    #region ClientConfiguration Class
     /// <summary>
     /// The configuration for a client application.
     /// </summary>
     public partial class ClientConfiguration
     {
-        #region Public Methods
         /// <summary>
         /// Validates the configuration.
         /// </summary>
@@ -694,7 +837,5 @@ namespace Opc.Ua
                 WellKnownDiscoveryUrls.AddRange(Utils.DiscoveryUrls);
             }
         }
-        #endregion
     }
-    #endregion
 }

@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Opc.Ua
 {
@@ -90,47 +91,31 @@ namespace Opc.Ua
     /// <summary>
     /// A table of nodes.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1710:IdentifiersShouldHaveCorrectSuffix")]
     public class NodeTable : INodeTable, IEnumerable<INode>
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object.
         /// </summary>
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="serverUris">The server URIs.</param>
         /// <param name="typeTree">The type tree.</param>
-        public NodeTable(
-            NamespaceTable namespaceUris,
-            StringTable serverUris,
-            TypeTable typeTree)
+        public NodeTable(NamespaceTable namespaceUris, StringTable serverUris, TypeTable typeTree)
         {
-            m_namespaceUris = namespaceUris;
-            m_serverUris = serverUris;
+            NamespaceUris = namespaceUris;
+            ServerUris = serverUris;
             m_typeTree = typeTree;
-            m_localNodes = new NodeIdDictionary<ILocalNode>();
-            m_remoteNodes = new SortedDictionary<ExpandedNodeId, RemoteNode>();
-        }
-        #endregion
-
-        #region INodeTable Methods
-        /// <inheritdoc/>
-        public NamespaceTable NamespaceUris
-        {
-            get { return m_namespaceUris; }
+            m_localNodes = [];
+            m_remoteNodes = [];
         }
 
         /// <inheritdoc/>
-        public StringTable ServerUris
-        {
-            get { return m_serverUris; }
-        }
+        public NamespaceTable NamespaceUris { get; }
 
         /// <inheritdoc/>
-        public ITypeTable TypeTree
-        {
-            get { return m_typeTree; }
-        }
+        public StringTable ServerUris { get; }
+
+        /// <inheritdoc/>
+        public ITypeTable TypeTree => m_typeTree;
 
         /// <inheritdoc/>
         public bool Exists(ExpandedNodeId nodeId)
@@ -160,9 +145,8 @@ namespace Opc.Ua
                 return null;
             }
 
-
             // can't follow references for remote nodes.
-            if (!(source is ILocalNode sourceNode))
+            if (source is not ILocalNode sourceNode)
             {
                 return null;
             }
@@ -207,7 +191,7 @@ namespace Opc.Ua
             bool includeSubtypes)
         {
             // create an empty list.
-            IList<INode> nodes = new List<INode>();
+            IList<INode> nodes = [];
 
             // find the source.
             INode source = InternalFind(sourceId);
@@ -217,9 +201,8 @@ namespace Opc.Ua
                 return nodes;
             }
 
-
             // can't follow references for remote nodes.
-            if (!(source is ILocalNode sourceNode))
+            if (source is not ILocalNode sourceNode)
             {
                 return nodes;
             }
@@ -245,9 +228,7 @@ namespace Opc.Ua
             // return list of nodes.
             return nodes;
         }
-        #endregion
 
-        #region IEnumerable<INode> Members
         /// <summary>
         /// Returns an enumerator that iterates through the collection.
         /// </summary>
@@ -256,23 +237,15 @@ namespace Opc.Ua
         /// </returns>
         public IEnumerator<INode> GetEnumerator()
         {
-            List<INode> list = new List<INode>(Count);
+            var list = new List<INode>(Count);
 
-            foreach (INode node in m_localNodes.Values)
-            {
-                list.Add(node);
-            }
+            list.AddRange(m_localNodes.Values);
 
-            foreach (INode node in m_remoteNodes.Values)
-            {
-                list.Add(node);
-            }
+            list.AddRange(m_remoteNodes.Values);
 
             return list.GetEnumerator();
         }
-        #endregion
 
-        #region IEnumerable Members
         /// <summary>
         /// Returns an enumerator that iterates through a collection.
         /// </summary>
@@ -283,30 +256,23 @@ namespace Opc.Ua
         {
             return GetEnumerator();
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// The number of nodes in the table.
         /// </summary>
         /// <value>The count.</value>
-        public int Count
-        {
-            get
-            {
-                return m_localNodes.Count + m_remoteNodes.Count;
-            }
-        }
+        public int Count => m_localNodes.Count + m_remoteNodes.Count;
 
         /// <summary>
         /// Adds a set of nodes to the table.
         /// </summary>
         /// <param name="nodeSet">The node set.</param>
         /// <param name="externalReferences">The external references.</param>
-        /// <returns></returns>
-        public List<Node> Import(NodeSet nodeSet, IDictionary<NodeId, IList<IReference>> externalReferences)
+        public List<Node> Import(
+            NodeSet nodeSet,
+            IDictionary<NodeId, IList<IReference>> externalReferences)
         {
-            List<Node> importedNodes = new List<Node>();
+            var importedNodes = new List<Node>();
 
             if (nodeSet == null)
             {
@@ -322,7 +288,7 @@ namespace Opc.Ua
                     continue;
                 }
 
-                Node node = nodeSet.Copy(nodeToImport, m_namespaceUris, m_serverUris);
+                Node node = nodeSet.Copy(nodeToImport, NamespaceUris, ServerUris);
 
                 // assign a browse name.
                 if (QualifiedName.IsNull(node.BrowseName))
@@ -340,7 +306,8 @@ namespace Opc.Ua
                 foreach (ReferenceNode reference in node.References)
                 {
                     // ignore invalid references.
-                    if (NodeId.IsNull(reference.ReferenceTypeId) || NodeId.IsNull(reference.TargetId))
+                    if (NodeId.IsNull(reference.ReferenceTypeId) ||
+                        NodeId.IsNull(reference.TargetId))
                     {
                         continue;
                     }
@@ -354,14 +321,15 @@ namespace Opc.Ua
                     }
 
                     // index reference.
-                    node.ReferenceTable.Add(reference.ReferenceTypeId, reference.IsInverse, targetId);
+                    node.ReferenceTable
+                        .Add(reference.ReferenceTypeId, reference.IsInverse, targetId);
 
                     // see if a remote node needs to be created.
                     if (targetId.ServerIndex != 0)
                     {
-                        if (!(Find(targetId) is RemoteNode remoteNode))
+                        if (Find(targetId) is not RemoteNode remoteNode)
                         {
-                            remoteNode = new RemoteNode(this, targetId);
+                            remoteNode = new RemoteNode(targetId);
                             InternalAdd(remoteNode);
                         }
 
@@ -389,7 +357,7 @@ namespace Opc.Ua
                 // add reverse references.
                 foreach (IReference reference in node.ReferenceTable)
                 {
-                    if (!(Find(reference.TargetId) is Node targetNode))
+                    if (Find(reference.TargetId) is not Node targetNode)
                     {
                         if (reference.TargetId.ServerIndex != 0)
                         {
@@ -399,25 +367,28 @@ namespace Opc.Ua
                         // return the reverse reference to a node outside the table.
                         if (externalReferences != null)
                         {
-                            NodeId targetId = ExpandedNodeId.ToNodeId(reference.TargetId, m_namespaceUris);
+                            var targetId = ExpandedNodeId.ToNodeId(
+                                reference.TargetId,
+                                NamespaceUris);
 
                             if (targetId == null)
                             {
                                 continue;
                             }
 
-                            IList<IReference> referenceList = null;
-
-                            if (!externalReferences.TryGetValue(targetId, out referenceList))
+                            if (!externalReferences.TryGetValue(
+                                targetId,
+                                out IList<IReference> referenceList))
                             {
-                                externalReferences[targetId] = referenceList = new List<IReference>();
+                                externalReferences[targetId] = referenceList = [];
                             }
 
-                            ReferenceNode reverseReference = new ReferenceNode();
-
-                            reverseReference.ReferenceTypeId = reference.ReferenceTypeId;
-                            reverseReference.IsInverse = !reference.IsInverse;
-                            reverseReference.TargetId = node.NodeId;
+                            var reverseReference = new ReferenceNode
+                            {
+                                ReferenceTypeId = reference.ReferenceTypeId,
+                                IsInverse = !reference.IsInverse,
+                                TargetId = node.NodeId
+                            };
 
                             referenceList.Add(reverseReference);
                         }
@@ -426,17 +397,16 @@ namespace Opc.Ua
                     }
 
                     // type definition and modelling rule references are one way.
-                    if (reference.ReferenceTypeId != ReferenceTypeIds.HasTypeDefinition && reference.ReferenceTypeId != ReferenceTypeIds.HasModellingRule)
+                    if (reference.ReferenceTypeId != ReferenceTypeIds.HasTypeDefinition &&
+                        reference.ReferenceTypeId != ReferenceTypeIds.HasModellingRule)
                     {
-                        targetNode.ReferenceTable.Add(reference.ReferenceTypeId, !reference.IsInverse, node.NodeId);
+                        targetNode.ReferenceTable
+                            .Add(reference.ReferenceTypeId, !reference.IsInverse, node.NodeId);
                     }
                 }
 
                 // see if it is a type.
-                if (m_typeTree != null)
-                {
-                    m_typeTree.Add(node);
-                }
+                m_typeTree?.Add(node);
             }
 
             return importedNodes;
@@ -457,15 +427,16 @@ namespace Opc.Ua
             {
                 if (reference.NodeId.ServerIndex != 0)
                 {
-                    RemoteNode node = new RemoteNode(this, reference.NodeId);
+                    var node = new RemoteNode(reference.NodeId);
                     InternalAdd(node);
                     target = node;
                 }
                 else
                 {
-                    Node node = new Node();
-
-                    node.NodeId = ExpandedNodeId.ToNodeId(reference.NodeId, m_namespaceUris);
+                    var node = new Node
+                    {
+                        NodeId = ExpandedNodeId.ToNodeId(reference.NodeId, NamespaceUris)
+                    };
 
                     InternalAdd(node);
                     target = node;
@@ -482,7 +453,8 @@ namespace Opc.Ua
 
                 if (!NodeId.IsNull(reference.TypeDefinition))
                 {
-                    targetNode.ReferenceTable.Add(ReferenceTypeIds.HasTypeDefinition, false, reference.TypeDefinition);
+                    targetNode.ReferenceTable
+                        .Add(ReferenceTypeIds.HasTypeDefinition, false, reference.TypeDefinition);
                 }
 
                 return targetNode;
@@ -521,25 +493,29 @@ namespace Opc.Ua
 
             // check if importing a node from a XML source (must copy references from References array to ReferenceTable).
 
-            if (node is Node serializedNode && serializedNode.References.Count > 0 && serializedNode.ReferenceTable.Count == 0)
+            if (node is Node serializedNode &&
+                serializedNode.References.Count > 0 &&
+                serializedNode.ReferenceTable.Count == 0)
             {
                 // index references.
-                foreach (ReferenceNode reference in node.References)
+                foreach (ReferenceNode reference in node.References.OfType<ReferenceNode>())
                 {
                     // ignore invalid references.
-                    if (NodeId.IsNull(reference.ReferenceTypeId) || NodeId.IsNull(reference.TargetId))
+                    if (NodeId.IsNull(reference.ReferenceTypeId) ||
+                        NodeId.IsNull(reference.TargetId))
                     {
                         continue;
                     }
 
-                    node.References.Add(reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
+                    node.References
+                        .Add(reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
 
                     // see if a remote node needs to be created.
                     if (reference.TargetId.ServerIndex != 0)
                     {
-                        if (!(Find(reference.TargetId) is RemoteNode remoteNode))
+                        if (Find(reference.TargetId) is not RemoteNode remoteNode)
                         {
-                            remoteNode = new RemoteNode(this, reference.TargetId);
+                            remoteNode = new RemoteNode(reference.TargetId);
                             InternalAdd(remoteNode);
                         }
 
@@ -557,23 +533,22 @@ namespace Opc.Ua
             // add reverse references.
             foreach (IReference reference in node.References)
             {
-                if (!(Find(reference.TargetId) is ILocalNode targetNode))
+                if (Find(reference.TargetId) is not ILocalNode targetNode)
                 {
                     continue;
                 }
 
                 // type definition and modelling rule references are one way.
-                if (reference.ReferenceTypeId != ReferenceTypeIds.HasTypeDefinition && reference.ReferenceTypeId != ReferenceTypeIds.HasModellingRule)
+                if (reference.ReferenceTypeId != ReferenceTypeIds.HasTypeDefinition &&
+                    reference.ReferenceTypeId != ReferenceTypeIds.HasModellingRule)
                 {
-                    targetNode.References.Add(reference.ReferenceTypeId, !reference.IsInverse, node.NodeId);
+                    targetNode.References
+                        .Add(reference.ReferenceTypeId, !reference.IsInverse, node.NodeId);
                 }
             }
 
             // see if it is a type.
-            if (m_typeTree != null)
-            {
-                m_typeTree.Add(node);
-            }
+            m_typeTree?.Add(node);
         }
 
         /// <summary>
@@ -591,9 +566,8 @@ namespace Opc.Ua
                 return false;
             }
 
-
             // can only directly remove local nodes.
-            if (!(source is ILocalNode sourceNode))
+            if (source is not ILocalNode sourceNode)
             {
                 return false;
             }
@@ -620,11 +594,12 @@ namespace Opc.Ua
                     continue;
                 }
 
-                // remote inverse references.                  
+                // remote inverse references.
 
                 if (target is ILocalNode targetNode)
                 {
-                    targetNode.References.Remove(reference.ReferenceTypeId, reference.IsInverse, sourceNode.NodeId);
+                    targetNode.References
+                        .Remove(reference.ReferenceTypeId, reference.IsInverse, sourceNode.NodeId);
                 }
             }
 
@@ -641,9 +616,7 @@ namespace Opc.Ua
             m_localNodes.Clear();
             m_remoteNodes.Clear();
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Adds the node to the table.
         /// </summary>
@@ -704,7 +677,6 @@ namespace Opc.Ua
         /// Finds the specified node. Returns null if the node does node exist.
         /// </summary>
         /// <param name="nodeId">The node identifier.</param>
-        /// <returns></returns>
         private INode InternalFind(ExpandedNodeId nodeId)
         {
             if (nodeId == null)
@@ -715,9 +687,7 @@ namespace Opc.Ua
             // check for remote node.
             if (nodeId.ServerIndex != 0)
             {
-                RemoteNode remoteNode = null;
-
-                if (m_remoteNodes.TryGetValue(nodeId, out remoteNode))
+                if (m_remoteNodes.TryGetValue(nodeId, out RemoteNode remoteNode))
                 {
                     return remoteNode;
                 }
@@ -725,18 +695,15 @@ namespace Opc.Ua
                 return null;
             }
 
-
             // convert to locale node id.
-            NodeId localId = ExpandedNodeId.ToNodeId(nodeId, m_namespaceUris);
+            var localId = ExpandedNodeId.ToNodeId(nodeId, NamespaceUris);
 
             if (localId == null)
             {
                 return null;
             }
 
-            ILocalNode node = null;
-
-            if (m_localNodes.TryGetValue(localId, out node))
+            if (m_localNodes.TryGetValue(localId, out ILocalNode node))
             {
                 return node;
             }
@@ -744,28 +711,24 @@ namespace Opc.Ua
             // node not found.
             return null;
         }
-        #endregion
 
-        #region RemoteNode Class
         /// <summary>
         /// Stores information for a node on a remote server.
         /// </summary>
         private class RemoteNode : INode
         {
-            #region Public Interface
             /// <summary>
             /// Initializes the object.
             /// </summary>
-            /// <param name="owner">The owner.</param>
             /// <param name="nodeId">The node identifier.</param>
-            public RemoteNode(INodeTable owner, ExpandedNodeId nodeId)
+            public RemoteNode(ExpandedNodeId nodeId)
             {
-                m_nodeId = nodeId;
+                NodeId = nodeId;
                 m_refs = 0;
-                m_nodeClass = NodeClass.Unspecified;
-                m_browseName = new QualifiedName("(Unknown)");
-                m_displayName = new LocalizedText(m_browseName.Name);
-                m_typeDefinitionId = null;
+                NodeClass = NodeClass.Unspecified;
+                BrowseName = new QualifiedName("(Unknown)");
+                DisplayName = new LocalizedText(BrowseName.Name);
+                TypeDefinitionId = null;
             }
 
             /// <summary>
@@ -781,11 +744,13 @@ namespace Opc.Ua
             /// Removes a reference to the node.
             /// </summary>
             /// <returns>The number of references.</returns>
+            /// <exception cref="InvalidOperationException"></exception>
             public int Release()
             {
                 if (m_refs == 0)
                 {
-                    throw new InvalidOperationException("Cannot decrement reference count below zero.");
+                    throw new InvalidOperationException(
+                        "Cannot decrement reference count below zero.");
                 }
 
                 return --m_refs;
@@ -795,71 +760,37 @@ namespace Opc.Ua
             /// The cached type definition id for the remote node.
             /// </summary>
             /// <value>The type definition identifier.</value>
-            public ExpandedNodeId TypeDefinitionId
-            {
-                get { return m_typeDefinitionId; }
-                internal set { m_typeDefinitionId = value; }
-            }
-            #endregion
+            public ExpandedNodeId TypeDefinitionId { get; internal set; }
 
-            #region INode Members
             /// <summary>
             /// The node identifier.
             /// </summary>
             /// <value>The node identifier.</value>
-            public ExpandedNodeId NodeId
-            {
-                get { return m_nodeId; }
-            }
+            public ExpandedNodeId NodeId { get; }
 
             /// <summary>
             /// The node class.
             /// </summary>
             /// <value>The node class.</value>
-            public NodeClass NodeClass
-            {
-                get { return m_nodeClass; }
-                internal set { m_nodeClass = value; }
-            }
+            public NodeClass NodeClass { get; internal set; }
 
             /// <summary>
             /// The locale independent browse name.
             /// </summary>
             /// <value>The name of the browse.</value>
-            public QualifiedName BrowseName
-            {
-                get { return m_browseName; }
-                internal set { m_browseName = value; }
-            }
+            public QualifiedName BrowseName { get; internal set; }
 
             /// <summary>
             /// The localized display name.
             /// </summary>
             /// <value>The display name.</value>
-            public LocalizedText DisplayName
-            {
-                get { return m_displayName; }
-                internal set { m_displayName = value; }
-            }
-            #endregion
+            public LocalizedText DisplayName { get; internal set; }
 
-            #region Private Fields
-            private ExpandedNodeId m_nodeId;
-            private NodeClass m_nodeClass;
-            private QualifiedName m_browseName;
-            private LocalizedText m_displayName;
-            private ExpandedNodeId m_typeDefinitionId;
             private int m_refs;
-            #endregion
         }
-        #endregion
 
-        #region Private Fields
-        private NodeIdDictionary<ILocalNode> m_localNodes;
-        private SortedDictionary<ExpandedNodeId, RemoteNode> m_remoteNodes;
-        private NamespaceTable m_namespaceUris;
-        private StringTable m_serverUris;
-        private TypeTable m_typeTree;
-        #endregion
+        private readonly NodeIdDictionary<ILocalNode> m_localNodes;
+        private readonly SortedDictionary<ExpandedNodeId, RemoteNode> m_remoteNodes;
+        private readonly TypeTable m_typeTree;
     }
 }

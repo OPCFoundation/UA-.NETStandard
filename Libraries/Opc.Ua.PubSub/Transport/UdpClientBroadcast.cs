@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -36,14 +36,13 @@ namespace Opc.Ua.PubSub.Transport
 {
     /// <summary>
     /// This class handles the broadcast message sending.
-    /// It enables fine tuning the routing option of the internal socket and binding to a specified endpoint so that the messages are routed on a corresponding 
+    /// It enables fine tuning the routing option of the internal socket and binding to a specified endpoint so that the messages are routed on a corresponding
     /// interface (the one to which the endpoint belongs to).
     /// </summary>
     internal class UdpClientBroadcast : UdpClient
     {
-        #region Constructors
         /// <summary>
-        /// Instantiates a UDP Broadcast client 
+        /// Instantiates a UDP Broadcast client
         /// </summary>
         /// <param name="address">The IPAddress which the socket should be bound to</param>
         /// <param name="port">The port used by the endpoint that should different than 0 on a Subscriber context</param>
@@ -56,8 +55,9 @@ namespace Opc.Ua.PubSub.Transport
 
             CustomizeSocketToBroadcastThroughIf();
 
-            IPEndPoint boundEndpoint = null;
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || pubSubContext == UsedInContext.Publisher)
+            IPEndPoint boundEndpoint;
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
+                pubSubContext == UsedInContext.Publisher)
             {
                 //Running on Windows or Publisher on Windows/Linux
                 boundEndpoint = new IPEndPoint(address, port);
@@ -65,18 +65,20 @@ namespace Opc.Ua.PubSub.Transport
             else
             {
                 //Running on Linux and Subscriber
-                // On Linux must bind to IPAddress.Any on receiving side to get Broadcast messages 
+                // On Linux must bind to IPAddress.Any on receiving side to get Broadcast messages
                 boundEndpoint = new IPEndPoint(IPAddress.Any, port);
             }
 
             Client.Bind(boundEndpoint);
             EnableBroadcast = true;
 
-            Utils.Trace("UdpClientBroadcast was created for address: {0}:{1} - {2}.", address, port, pubSubContext);
+            Utils.Trace(
+                "UdpClientBroadcast was created for address: {0}:{1} - {2}.",
+                address,
+                port,
+                pubSubContext);
         }
-        #endregion
 
-        #region Properties
         /// <summary>
         /// The Ip Address
         /// </summary>
@@ -91,28 +93,36 @@ namespace Opc.Ua.PubSub.Transport
         /// Publisher or Subscriber context where the UdpClient is used
         /// </summary>
         internal UsedInContext PubSubContext { get; }
-        #endregion
 
-        #region Private methods
         /// <summary>
         /// Explicitly specifies that routing the packets to a specific interface is enabled
         /// and should broadcast only on the interface (to which the socket is bound)
         /// </summary>
         private void CustomizeSocketToBroadcastThroughIf()
         {
-            Action<SocketOptionLevel, SocketOptionName, bool> setSocketOption = (SocketOptionLevel socketOptionLevel, SocketOptionName socketOptionName, bool value) => {
+            static void SetSocketOption(
+                UdpClientBroadcast @this,
+                SocketOptionLevel socketOptionLevel,
+                SocketOptionName socketOptionName,
+                bool value)
+            {
                 try
                 {
-                    Client.SetSocketOption(socketOptionLevel, socketOptionName, value);
+                    @this.Client.SetSocketOption(socketOptionLevel, socketOptionName, value);
                 }
                 catch (Exception ex)
                 {
-                    Utils.Trace(Utils.TraceMasks.Information, "UdpClientBroadcast set SetSocketOption {1} to {2} resulted in ex {0}", ex.Message, SocketOptionName.Broadcast, value);
-                };
-            };
-            setSocketOption(SocketOptionLevel.Socket, SocketOptionName.Broadcast, true);
-            setSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontRoute, false);
-            setSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                    Utils.Trace(
+                        Utils.TraceMasks.Information,
+                        "UdpClientBroadcast set SetSocketOption {1} to {2} resulted in ex {0}",
+                        ex.Message,
+                        SocketOptionName.Broadcast,
+                        value);
+                }
+            }
+            SetSocketOption(this, SocketOptionLevel.Socket, SocketOptionName.Broadcast, true);
+            SetSocketOption(this, SocketOptionLevel.Socket, SocketOptionName.DontRoute, false);
+            SetSocketOption(this, SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
@@ -122,11 +132,12 @@ namespace Opc.Ua.PubSub.Transport
                 }
                 catch (Exception ex)
                 {
-                    Utils.Trace(Utils.TraceMasks.Information, "UdpClientBroadcast set ExclusiveAddressUse to false resulted in ex {0}", ex.Message);
+                    Utils.Trace(
+                        Utils.TraceMasks.Information,
+                        "UdpClientBroadcast set ExclusiveAddressUse to false resulted in ex {0}",
+                        ex.Message);
                 }
-
             }
         }
-        #endregion
     }
 }

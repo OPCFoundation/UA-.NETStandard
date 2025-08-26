@@ -14,7 +14,6 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
-using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
@@ -24,7 +23,6 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class TcpListenerChannel : UaSCUaBinaryChannel
     {
-        #region Constructors
         /// <summary>
         /// Attaches the object to an existing socket.
         /// </summary>
@@ -35,14 +33,18 @@ namespace Opc.Ua.Bindings
             ChannelQuotas quotas,
             CertificateTypesProvider serverCertificateTypeProvider,
             EndpointDescriptionCollection endpoints)
-        :
-            base(contextId, bufferManager, quotas, serverCertificateTypeProvider, endpoints, MessageSecurityMode.None, SecurityPolicies.None)
+            : base(
+                contextId,
+                bufferManager,
+                quotas,
+                serverCertificateTypeProvider,
+                endpoints,
+                MessageSecurityMode.None,
+                SecurityPolicies.None)
         {
-            m_listener = listener;
+            Listener = listener;
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
@@ -50,9 +52,7 @@ namespace Opc.Ua.Bindings
         {
             base.Dispose(disposing);
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// The channel name used in trace output.
         /// </summary>
@@ -61,7 +61,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The TCP channel listener.
         /// </summary>
-        protected ITcpChannelListener Listener => m_listener;
+        protected ITcpChannelListener Listener { get; }
 
         /// <summary>
         /// Sets the callback used to receive notifications of new events.
@@ -70,29 +70,31 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
-                m_requestReceived = callback;
+                RequestReceived = callback;
             }
         }
 
         /// <summary>
         /// Sets the callback used to raise channel audit events.
         /// </summary>
-        public void SetReportOpenSecureChannelAuditCallback(ReportAuditOpenSecureChannelEventHandler callback)
+        public void SetReportOpenSecureChannelAuditCallback(
+            ReportAuditOpenSecureChannelEventHandler callback)
         {
             lock (DataLock)
             {
-                m_reportAuditOpenSecureChannelEvent = callback;
+                ReportAuditOpenSecureChannelEvent = callback;
             }
         }
 
         /// <summary>
         /// Sets the callback used to raise channel audit events.
         /// </summary>
-        public void SetReportCloseSecureChannelAuditCallback(ReportAuditCloseSecureChannelEventHandler callback)
+        public void SetReportCloseSecureChannelAuditCallback(
+            ReportAuditCloseSecureChannelEventHandler callback)
         {
             lock (DataLock)
             {
-                m_reportAuditCloseSecureChannelEvent = callback;
+                ReportAuditCloseSecureChannelEvent = callback;
             }
         }
 
@@ -103,16 +105,21 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
-                m_reportAuditCertificateEvent = callback;
+                ReportAuditCertificateEvent = callback;
             }
         }
 
         /// <summary>
         /// Attaches the channel to an existing socket.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="socket"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public void Attach(uint channelId, Socket socket)
         {
-            if (socket == null) throw new ArgumentNullException(nameof(socket));
+            if (socket == null)
+            {
+                throw new ArgumentNullException(nameof(socket));
+            }
 
             lock (DataLock)
             {
@@ -127,10 +134,13 @@ namespace Opc.Ua.Bindings
 
                 Socket = new TcpMessageSocket(this, socket, BufferManager, Quotas.MaxBufferSize);
 
-                Utils.LogTrace("{0} SOCKET ATTACHED: {1:X8}, ChannelId={2}", ChannelName, Socket.Handle, ChannelId);
+                Utils.LogTrace(
+                    "{0} SOCKET ATTACHED: {1:X8}, ChannelId={2}",
+                    ChannelName,
+                    Socket.Handle,
+                    ChannelId);
 
                 Socket.ReadNextMessage();
-
             }
         }
 
@@ -144,15 +154,17 @@ namespace Opc.Ua.Bindings
             lock (DataLock)
             {
                 state = State;
-                if (state == TcpChannelState.Open || state == TcpChannelState.Connecting)
+                if (state is TcpChannelState.Open or TcpChannelState.Connecting)
                 {
                     state = State = TcpChannelState.Closing;
                 }
             }
 
-            if (state == TcpChannelState.Closing || state == TcpChannelState.Opening || state == TcpChannelState.Faulted)
+            if (state is TcpChannelState.Closing or TcpChannelState.Opening or TcpChannelState.Faulted)
             {
-                OnCleanup(new ServiceResult(StatusCodes.BadNoCommunication, "Channel closed due to inactivity."));
+                OnCleanup(new ServiceResult(
+                    StatusCodes.BadNoCommunication,
+                    "Channel closed due to inactivity."));
             }
         }
 
@@ -160,28 +172,13 @@ namespace Opc.Ua.Bindings
         /// The time in milliseconds elapsed since the channel received or sent messages
         /// or received a keep alive.
         /// </summary>
-        public int ElapsedSinceLastActiveTime => (HiResClock.TickCount - LastActiveTickCount);
+        public int ElapsedSinceLastActiveTime => HiResClock.TickCount - LastActiveTickCount;
 
         /// <summary>
         /// Has the channel been used in a session
         /// </summary>
-        public bool UsedBySession
-        {
-            get
-            {
-                return m_usedBySession;
-            }
-            protected set
-            {
-                m_usedBySession = value;
-            }
-        }
-        #endregion
+        public bool UsedBySession { get; protected set; }
 
-        #region Socket Event Handlers
-        #endregion
-
-        #region Error Handling Functions
         /// <summary>
         /// Handles a socket error.
         /// </summary>
@@ -212,7 +209,11 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Forces the channel into a faulted state as a result of a fatal error.
         /// </summary>
-        protected void ForceChannelFault(Exception exception, uint defaultCode, string format, params object[] args)
+        protected void ForceChannelFault(
+            Exception exception,
+            uint defaultCode,
+            string format,
+            params object[] args)
         {
             ForceChannelFault(ServiceResult.Create(exception, defaultCode, format, args));
         }
@@ -224,7 +225,6 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
-
                 CompleteReverseHello(new ServiceResultException(reason));
 
                 // nothing to do if channel already in a faulted state.
@@ -234,17 +234,17 @@ namespace Opc.Ua.Bindings
                 }
 
                 bool close = false;
-                if (State != TcpChannelState.Connecting && State != TcpChannelState.Opening)
+                if (State is not TcpChannelState.Connecting and not TcpChannelState.Opening)
                 {
                     int? socketHandle = Socket?.Handle;
-                    if (socketHandle != null && socketHandle != -1)
+                    if (socketHandle is not null and not (-1))
                     {
                         Utils.LogError(
                             "{0} ForceChannelFault Socket={1:X8}, ChannelId={2}, TokenId={3}, Reason={4}",
                             ChannelName,
                             socketHandle,
-                            (CurrentToken != null) ? CurrentToken.ChannelId : 0,
-                            (CurrentToken != null) ? CurrentToken.TokenId : 0,
+                            CurrentToken != null ? CurrentToken.ChannelId : 0,
+                            CurrentToken != null ? CurrentToken.TokenId : 0,
                             reason);
                     }
                 }
@@ -255,12 +255,9 @@ namespace Opc.Ua.Bindings
                 }
 
                 // send error and close response.
-                if (Socket != null)
+                if (Socket != null && m_responseRequired)
                 {
-                    if (m_responseRequired)
-                    {
-                        SendErrorMessage(reason);
-                    }
+                    SendErrorMessage(reason);
                 }
 
                 State = TcpChannelState.Faulted;
@@ -270,14 +267,13 @@ namespace Opc.Ua.Bindings
                 {
                     // mark the RemoteAddress as potential problematic if Basic128Rsa15
                     if ((SecurityPolicyUri == SecurityPolicies.Basic128Rsa15) &&
-                        (reason.StatusCode == StatusCodes.BadSecurityChecksFailed || reason.StatusCode == StatusCodes.BadTcpMessageTypeInvalid))
+                        (
+                            reason.StatusCode == StatusCodes.BadSecurityChecksFailed ||
+                            reason.StatusCode == StatusCodes.BadTcpMessageTypeInvalid))
                     {
-                        var tcpTransportListener = m_listener as TcpTransportListener;
-                        if (tcpTransportListener != null)
-                        {
-                            tcpTransportListener.MarkAsPotentialProblematic
-                                (((IPEndPoint)Socket.RemoteEndpoint).Address);
-                        }
+                        var tcpTransportListener = Listener as TcpTransportListener;
+                        tcpTransportListener?.MarkAsPotentialProblematic(
+                            ((IPEndPoint)Socket.RemoteEndpoint).Address);
                     }
 
                     // close channel immediately.
@@ -296,15 +292,14 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
-
                 // nothing to do if the channel is now open or closed.
-                if (State == TcpChannelState.Closed || State == TcpChannelState.Open)
+                if (State is TcpChannelState.Closed or TcpChannelState.Open)
                 {
                     return;
                 }
 
                 // get reason for cleanup.
-                if (!(state is ServiceResult reason))
+                if (state is not ServiceResult reason)
                 {
                     reason = new ServiceResult(StatusCodes.BadTimeout);
                 }
@@ -312,9 +307,9 @@ namespace Opc.Ua.Bindings
                 Utils.LogInfo(
                     "{0} Cleanup Socket={1:X8}, ChannelId={2}, TokenId={3}, Reason={4}",
                     ChannelName,
-                    (Socket != null) ? Socket.Handle : 0,
-                    (CurrentToken != null) ? CurrentToken.ChannelId : 0,
-                    (CurrentToken != null) ? CurrentToken.TokenId : 0,
+                    (Socket?.Handle) ?? 0,
+                    CurrentToken != null ? CurrentToken.ChannelId : 0,
+                    CurrentToken != null ? CurrentToken.TokenId : 0,
                     reason.ToString());
 
                 // close channel.
@@ -335,7 +330,7 @@ namespace Opc.Ua.Bindings
             finally
             {
                 State = TcpChannelState.Closed;
-                m_listener.ChannelClosed(ChannelId);
+                Listener.ChannelClosed(ChannelId);
 
                 // notify any monitors.
                 NotifyMonitors(new ServiceResult(StatusCodes.BadConnectionClosed), true);
@@ -355,7 +350,7 @@ namespace Opc.Ua.Bindings
             finally
             {
                 State = TcpChannelState.Faulted;
-                m_listener.ChannelClosed(ChannelId);
+                Listener.ChannelClosed(ChannelId);
             }
         }
 
@@ -370,19 +365,21 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                using (BinaryEncoder encoder = new BinaryEncoder(buffer, 0, SendBufferSize, Quotas.MessageContext))
-                {
-                    encoder.WriteUInt32(null, TcpMessageType.Error);
-                    encoder.WriteUInt32(null, 0);
+                using var encoder = new BinaryEncoder(
+                    buffer,
+                    0,
+                    SendBufferSize,
+                    Quotas.MessageContext);
+                encoder.WriteUInt32(null, TcpMessageType.Error);
+                encoder.WriteUInt32(null, 0);
 
-                    WriteErrorMessageBody(encoder, error);
+                WriteErrorMessageBody(encoder, error);
 
-                    int size = encoder.Close();
-                    UpdateMessageSize(buffer, 0, size);
+                int size = encoder.Close();
+                UpdateMessageSize(buffer, 0, size);
 
-                    BeginWriteMessage(new ArraySegment<byte>(buffer, 0, size), null);
-                    buffer = null;
-                }
+                BeginWriteMessage(new ArraySegment<byte>(buffer, 0, size), null);
+                buffer = null;
             }
             finally
             {
@@ -398,18 +395,22 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SendServiceFault(ChannelToken token, uint requestId, ServiceResult fault)
         {
-            Utils.LogTrace("ChannelId {0}: Request {1}: SendServiceFault={2}", ChannelId, requestId, fault.StatusCode);
+            Utils.LogTrace(
+                "ChannelId {0}: Request {1}: SendServiceFault={2}",
+                ChannelId,
+                requestId,
+                fault.StatusCode);
 
             BufferCollection buffers = null;
 
             try
             {
                 // construct fault.
-                ServiceFault response = new ServiceFault();
+                var response = new ServiceFault();
 
                 response.ResponseHeader.ServiceResult = fault.Code;
 
-                StringTable stringTable = new StringTable();
+                var stringTable = new StringTable();
 
                 response.ResponseHeader.ServiceDiagnostics = new DiagnosticInfo(
                     fault,
@@ -420,7 +421,6 @@ namespace Opc.Ua.Bindings
                 response.ResponseHeader.StringTable = stringTable.ToArray();
 
                 // the limits should never be exceeded when sending a fault.
-                bool limitsExceeded = false;
 
                 // secure message.
                 buffers = WriteSymmetricMessage(
@@ -429,7 +429,7 @@ namespace Opc.Ua.Bindings
                     token,
                     response,
                     false,
-                    out limitsExceeded);
+                    out bool limitsExceeded);
 
                 // send message.
                 BeginWriteMessage(buffers, null);
@@ -437,12 +437,13 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                if (buffers != null)
-                {
-                    buffers.Release(BufferManager, "SendServiceFault");
-                }
+                buffers?.Release(BufferManager, "SendServiceFault");
 
-                ForceChannelFault(ServiceResult.Create(e, StatusCodes.BadTcpInternalError, "Unexpected error sending a service fault."));
+                ForceChannelFault(
+                    ServiceResult.Create(
+                        e,
+                        StatusCodes.BadTcpInternalError,
+                        "Unexpected error sending a service fault."));
             }
         }
 
@@ -455,7 +456,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Called to indicate an error or success if the listener 
+        /// Called to indicate an error or success if the listener
         /// channel initiated a reverse hello connection.
         /// </summary>
         /// <remarks>
@@ -473,18 +474,22 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SendServiceFault(uint requestId, ServiceResult fault)
         {
-            Utils.LogTrace("ChannelId {0}: Request {1}: SendServiceFault={2}", ChannelId, requestId, fault.StatusCode);
+            Utils.LogTrace(
+                "ChannelId {0}: Request {1}: SendServiceFault={2}",
+                ChannelId,
+                requestId,
+                fault.StatusCode);
 
             BufferCollection chunksToSend = null;
 
             try
             {
                 // construct fault.
-                ServiceFault response = new ServiceFault();
+                var response = new ServiceFault();
 
                 response.ResponseHeader.ServiceResult = fault.Code;
 
-                StringTable stringTable = new StringTable();
+                var stringTable = new StringTable();
 
                 response.ResponseHeader.ServiceDiagnostics = new DiagnosticInfo(
                     fault,
@@ -511,19 +516,27 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                if (chunksToSend != null)
-                {
-                    chunksToSend.Release(BufferManager, "SendServiceFault");
-                }
+                chunksToSend?.Release(BufferManager, "SendServiceFault");
 
-                ForceChannelFault(ServiceResult.Create(e, StatusCodes.BadTcpInternalError, "Unexpected error sending a service fault."));
+                ForceChannelFault(
+                    ServiceResult.Create(
+                        e,
+                        StatusCodes.BadTcpInternalError,
+                        "Unexpected error sending a service fault."));
             }
         }
 
         /// <summary>
         /// Handles a reconnect request.
         /// </summary>
-        public virtual void Reconnect(IMessageSocket socket, uint requestId, uint sequenceNumber, X509Certificate2 clientCertificate, ChannelToken token, OpenSecureChannelRequest request)
+        /// <exception cref="NotImplementedException"></exception>
+        public virtual void Reconnect(
+            IMessageSocket socket,
+            uint requestId,
+            uint sequenceNumber,
+            X509Certificate2 clientCertificate,
+            ChannelToken token,
+            OpenSecureChannelRequest request)
         {
             throw new NotImplementedException();
         }
@@ -535,9 +548,7 @@ namespace Opc.Ua.Bindings
         {
             m_responseRequired = responseRequired;
         }
-        #endregion
 
-        #region Connect/Reconnect Sequence
         /// <summary>
         /// Returns a new token id.
         /// </summary>
@@ -545,65 +556,67 @@ namespace Opc.Ua.Bindings
         {
             return Utils.IncrementIdentifier(ref m_lastTokenId);
         }
-        #endregion
 
-        #region Protected Functions
         /// <summary>
         /// The channel request event handler.
         /// </summary>
-        protected TcpChannelRequestEventHandler RequestReceived => m_requestReceived;
+        protected TcpChannelRequestEventHandler RequestReceived { get; private set; }
 
         /// <summary>
         /// The report open secure channel audit event handler.
         /// </summary>
-        protected ReportAuditOpenSecureChannelEventHandler ReportAuditOpenSecureChannelEvent => m_reportAuditOpenSecureChannelEvent;
+        protected ReportAuditOpenSecureChannelEventHandler ReportAuditOpenSecureChannelEvent { get; private set; }
 
         /// <summary>
         /// The report close secure channel audit event handler.
         /// </summary>
-        protected ReportAuditCloseSecureChannelEventHandler ReportAuditCloseSecureChannelEvent => m_reportAuditCloseSecureChannelEvent;
+        protected ReportAuditCloseSecureChannelEventHandler ReportAuditCloseSecureChannelEvent { get; private set; }
 
         /// <summary>
         /// The report certificate audit event handler.
         /// </summary>
-        protected ReportAuditCertificateEventHandler ReportAuditCertificateEvent => m_reportAuditCertificateEvent;
-        #endregion
+        protected ReportAuditCertificateEventHandler ReportAuditCertificateEvent { get; private set; }
 
-        #region Private Fields
-        private ITcpChannelListener m_listener;
         private bool m_responseRequired;
-        private TcpChannelRequestEventHandler m_requestReceived;
-        private ReportAuditOpenSecureChannelEventHandler m_reportAuditOpenSecureChannelEvent;
-        private ReportAuditCloseSecureChannelEventHandler m_reportAuditCloseSecureChannelEvent;
-        private ReportAuditCertificateEventHandler m_reportAuditCertificateEvent;
         private long m_lastTokenId;
-        private bool m_usedBySession;
-        #endregion
     }
 
     /// <summary>
     /// Used to report an incoming request.
     /// </summary>
-    public delegate void TcpChannelRequestEventHandler(TcpListenerChannel channel, uint requestId, IServiceRequest request);
+    public delegate void TcpChannelRequestEventHandler(
+        TcpListenerChannel channel,
+        uint requestId,
+        IServiceRequest request);
 
     /// <summary>
     /// Used to report the status of the channel.
     /// </summary>
-    public delegate void TcpChannelStatusEventHandler(TcpServerChannel channel, ServiceResult status, bool closed);
+    public delegate void TcpChannelStatusEventHandler(
+        TcpServerChannel channel,
+        ServiceResult status,
+        bool closed);
 
     /// <summary>
     /// Used to report an open secure channel audit event.
     /// </summary>
-    public delegate void ReportAuditOpenSecureChannelEventHandler(TcpServerChannel channel, OpenSecureChannelRequest request, X509Certificate2 clientCertificate, Exception exception);
+    public delegate void ReportAuditOpenSecureChannelEventHandler(
+        TcpServerChannel channel,
+        OpenSecureChannelRequest request,
+        X509Certificate2 clientCertificate,
+        Exception exception);
 
     /// <summary>
     /// Used to report a close secure channel audit event
     /// </summary>
-    public delegate void ReportAuditCloseSecureChannelEventHandler(TcpServerChannel channel, Exception exception);
+    public delegate void ReportAuditCloseSecureChannelEventHandler(
+        TcpServerChannel channel,
+        Exception exception);
 
     /// <summary>
     /// Used to report an open secure channel audit event.
     /// </summary>
-    public delegate void ReportAuditCertificateEventHandler(X509Certificate2 clientCertificate, Exception exception);
-
+    public delegate void ReportAuditCertificateEventHandler(
+        X509Certificate2 clientCertificate,
+        Exception exception);
 }

@@ -16,11 +16,12 @@ using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
-
     /// <summary>
     /// The delegate for the async connection waiting handler.
     /// </summary>
-    public delegate Task ConnectionWaitingHandlerAsync(object sender, ConnectionWaitingEventArgs args);
+    public delegate Task ConnectionWaitingHandlerAsync(
+        object sender,
+        ConnectionWaitingEventArgs args);
 
     /// <summary>
     /// This is an interface to a listener which supports UA binary encoding.
@@ -48,8 +49,7 @@ namespace Opc.Ua
         void Open(
             Uri baseAddress,
             TransportListenerSettings settings,
-            ITransportListenerCallback callback
-            );
+            ITransportListenerCallback callback);
 
         /// <summary>
         /// Closes the listener and stops accepting connection.
@@ -75,7 +75,7 @@ namespace Opc.Ua
         event EventHandler<ConnectionStatusEventArgs> ConnectionStatusChanged;
 
         /// <summary>
-        /// Creates a reverse connection to a client. 
+        /// Creates a reverse connection to a client.
         /// </summary>
         void CreateReverseConnection(Uri url, int timeout);
 

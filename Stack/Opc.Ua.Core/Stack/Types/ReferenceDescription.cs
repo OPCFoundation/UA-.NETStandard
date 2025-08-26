@@ -11,28 +11,24 @@
 */
 
 using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
 {
-    #region ReferenceDescription Class
     /// <summary>
     /// A reference returned in browse operation.
     /// </summary>
     public partial class ReferenceDescription : IFormattable
     {
-        #region IFormattable Members
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
+        /// <exception cref="FormatException"></exception>
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
             {
-                if (m_displayName != null && !String.IsNullOrEmpty(m_displayName.Text))
+                if (m_displayName != null && !string.IsNullOrEmpty(m_displayName.Text))
                 {
                     return m_displayName.Text;
                 }
@@ -42,7 +38,9 @@ namespace Opc.Ua
                     return m_browseName.Name;
                 }
 
-                return Utils.Format("(unknown {0})", ((NodeClass)m_nodeClass).ToString().ToLower(CultureInfo.InvariantCulture));
+                return Utils.Format(
+                    "(unknown {0})",
+                    m_nodeClass.ToString().ToLower(CultureInfo.InvariantCulture));
             }
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
@@ -55,9 +53,7 @@ namespace Opc.Ua
         {
             return ToString(null, null);
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Sets the reference type for the reference.
         /// </summary>
@@ -66,7 +62,7 @@ namespace Opc.Ua
             NodeId referenceTypeId,
             bool isForward)
         {
-            if ((resultMask & BrowseResultMask.ReferenceTypeId) != 0)
+            if (((int)resultMask & (int)BrowseResultMask.ReferenceTypeId) != 0)
             {
                 m_referenceTypeId = referenceTypeId;
             }
@@ -75,7 +71,7 @@ namespace Opc.Ua
                 m_referenceTypeId = null;
             }
 
-            if ((resultMask & BrowseResultMask.IsForward) != 0)
+            if (((int)resultMask & (int)BrowseResultMask.IsForward) != 0)
             {
                 m_isForward = isForward;
             }
@@ -95,7 +91,7 @@ namespace Opc.Ua
             LocalizedText displayName,
             ExpandedNodeId typeDefinition)
         {
-            if ((resultMask & BrowseResultMask.NodeClass) != 0)
+            if (((int)resultMask & (int)BrowseResultMask.NodeClass) != 0)
             {
                 m_nodeClass = nodeClass;
             }
@@ -104,7 +100,7 @@ namespace Opc.Ua
                 m_nodeClass = 0;
             }
 
-            if ((resultMask & BrowseResultMask.BrowseName) != 0)
+            if (((int)resultMask & (int)BrowseResultMask.BrowseName) != 0)
             {
                 m_browseName = browseName;
             }
@@ -113,7 +109,7 @@ namespace Opc.Ua
                 m_browseName = null;
             }
 
-            if ((resultMask & BrowseResultMask.DisplayName) != 0)
+            if (((int)resultMask & (int)BrowseResultMask.DisplayName) != 0)
             {
                 m_displayName = displayName;
             }
@@ -122,7 +118,7 @@ namespace Opc.Ua
                 m_displayName = null;
             }
 
-            if ((resultMask & BrowseResultMask.TypeDefinition) != 0)
+            if (((int)resultMask & (int)BrowseResultMask.TypeDefinition) != 0)
             {
                 m_typeDefinition = typeDefinition;
             }
@@ -131,22 +127,10 @@ namespace Opc.Ua
                 m_typeDefinition = null;
             }
         }
-        #endregion
 
-        #region Supporting Properties and Methods
         /// <summary>
         /// True if the reference filter has not been applied.
         /// </summary>
-        public bool Unfiltered
-        {
-            get { return m_unfiltered; }
-            set { m_unfiltered = value; }
-        }
-        #endregion
-
-        #region Private Fields
-        private bool m_unfiltered;
-        #endregion
+        public bool Unfiltered { get; set; }
     }
-    #endregion
 }

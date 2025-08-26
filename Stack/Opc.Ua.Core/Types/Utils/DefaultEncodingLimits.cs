@@ -10,7 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua
@@ -24,17 +23,17 @@ namespace Opc.Ua
         /// <summary>
         /// The default maximum length for any string, byte string or xml element.
         /// </summary>
-        public static readonly int MaxStringLength = UInt16.MaxValue;
+        public static readonly int MaxStringLength = ushort.MaxValue;
 
         /// <summary>
         /// The default maximum length for any array.
         /// </summary>
-        public static readonly int MaxArrayLength = UInt16.MaxValue;
+        public static readonly int MaxArrayLength = ushort.MaxValue;
 
         /// <summary>
         /// The default maximum length for any ByteString.
         /// </summary>
-        public static readonly int MaxByteStringLength = UInt16.MaxValue * 16;
+        public static readonly int MaxByteStringLength = ushort.MaxValue * 16;
 
         /// <summary>
         /// The default maximum length for any Message.
@@ -50,9 +49,9 @@ namespace Opc.Ua
         public static readonly int MaxEncodingNestingLevels = 200;
 
         /// <summary>
-        /// The default number of times the decoder can recover from an error 
+        /// The default number of times the decoder can recover from an error
         /// caused by an encoded ExtensionObject before throwing a decoder error.
         /// </summary>
-        public static readonly int MaxDecoderRecoveries = 0;
+        public static readonly int MaxDecoderRecoveries;
     }
 }

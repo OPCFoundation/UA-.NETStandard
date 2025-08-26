@@ -17,127 +17,46 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class ChannelQuotas
     {
-        #region Constructors
         /// <summary>
         /// Creates an object with default values.
         /// </summary>
         public ChannelQuotas()
         {
-            m_messageContext = ServiceMessageContext.GlobalContext;
-            m_maxMessageSize = TcpMessageLimits.DefaultMaxMessageSize;
-            m_maxBufferSize = TcpMessageLimits.DefaultMaxBufferSize;
-            m_channelLifetime = TcpMessageLimits.DefaultChannelLifetime;
-            m_securityTokenLifetime = TcpMessageLimits.DefaultSecurityTokenLifeTime;
+            MessageContext = ServiceMessageContext.GlobalContext;
+            MaxMessageSize = TcpMessageLimits.DefaultMaxMessageSize;
+            MaxBufferSize = TcpMessageLimits.DefaultMaxBufferSize;
+            ChannelLifetime = TcpMessageLimits.DefaultChannelLifetime;
+            SecurityTokenLifetime = TcpMessageLimits.DefaultSecurityTokenLifeTime;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The context to use when encoding/decoding messages.
         /// </summary>
-        public IServiceMessageContext MessageContext
-        {
-            get
-            {
-                return m_messageContext;
-            }
-
-            set
-            {
-                m_messageContext = value;
-            }
-        }
+        public IServiceMessageContext MessageContext { get; set; }
 
         /// <summary>
         /// Validator to use when handling certificates.
         /// </summary>
-        public ICertificateValidator CertificateValidator
-        {
-            get
-            {
-                return m_certificateValidator;
-            }
-
-            set
-            {
-                m_certificateValidator = value;
-            }
-        }
+        public ICertificateValidator CertificateValidator { get; set; }
 
         /// <summary>
         /// The maximum size for a message sent or received.
         /// </summary>
-        public int MaxMessageSize
-        {
-            get
-            {
-                return m_maxMessageSize;
-            }
-
-            set
-            {
-                m_maxMessageSize = value;
-            }
-        }
+        public int MaxMessageSize { get; set; }
 
         /// <summary>
         /// The maximum size for the send or receive buffers.
         /// </summary>
-        public int MaxBufferSize
-        {
-            get
-            {
-                return m_maxBufferSize;
-            }
-
-            set
-            {
-                m_maxBufferSize = value;
-            }
-        }
-
-
+        public int MaxBufferSize { get; set; }
 
         /// <summary>
         /// The default lifetime for the channel in milliseconds.
         /// </summary>
-        public int ChannelLifetime
-        {
-            get
-            {
-                return m_channelLifetime;
-            }
-
-            set
-            {
-                m_channelLifetime = value;
-            }
-        }
+        public int ChannelLifetime { get; set; }
 
         /// <summary>
         /// The default lifetime for a security token in milliseconds.
         /// </summary>
-        public int SecurityTokenLifetime
-        {
-            get
-            {
-                return m_securityTokenLifetime;
-            }
-
-            set
-            {
-                m_securityTokenLifetime = value;
-            }
-        }
-        #endregion
-
-        #region Private Fields
-        private int m_maxMessageSize;
-        private int m_maxBufferSize;
-        private int m_channelLifetime;
-        private int m_securityTokenLifetime;
-        private IServiceMessageContext m_messageContext;
-        private ICertificateValidator m_certificateValidator;
-        #endregion
+        public int SecurityTokenLifetime { get; set; }
     }
 }

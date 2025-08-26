@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -28,9 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography.X509Certificates;
-using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -39,8 +38,8 @@ namespace Opc.Ua.Security.Certificates
     /// revoked certificates sequence of a CRL.
     /// </summary>
     /// <remarks>
-    /// CRL fields -- https://tools.ietf.org/html/rfc5280#section-5.1
-    /// 
+    /// <para>CRL fields -- https://tools.ietf.org/html/rfc5280#section-5.1</para>
+    /// <para>
     ///    ...
     ///    revokedCertificates     SEQUENCE OF SEQUENCE  {
     ///        userCertificate         CertificateSerialNumber,
@@ -49,6 +48,7 @@ namespace Opc.Ua.Security.Certificates
     ///                              -- if present, version MUST be v2
     ///                            }  OPTIONAL,
     ///   ...
+    /// </para>
     ///</remarks>
     public class RevokedCertificate
     {
@@ -61,7 +61,7 @@ namespace Opc.Ua.Security.Certificates
         public RevokedCertificate(string serialNumber, CRLReason crlReason)
             : this(serialNumber)
         {
-            CrlEntryExtensions.Add(X509Extensions.BuildX509CRLReason(crlReason));
+            CrlEntryExtensions.Add(crlReason.BuildX509CRLReason());
         }
 
         /// <summary>
@@ -75,7 +75,7 @@ namespace Opc.Ua.Security.Certificates
         {
             if (crlReason != CRLReason.Unspecified)
             {
-                CrlEntryExtensions.Add(X509Extensions.BuildX509CRLReason(crlReason));
+                CrlEntryExtensions.Add(crlReason.BuildX509CRLReason());
             }
         }
 
@@ -83,18 +83,18 @@ namespace Opc.Ua.Security.Certificates
         /// Construct minimal revoked certificate
         /// with serialnumber and actual UTC time.
         /// </summary>
-        /// <param name="serialNumber"></param>
-        public RevokedCertificate(string serialNumber) : this()
+        public RevokedCertificate(string serialNumber)
+            : this()
         {
-            UserCertificate = serialNumber.FromHexString().Reverse().ToArray();
+            UserCertificate = [.. serialNumber.FromHexString().Reverse()];
         }
 
         /// <summary>
         /// Construct minimal revoked certificate
         /// with serialnumber and actual UTC time.
         /// </summary>
-        /// <param name="serialNumber"></param>
-        public RevokedCertificate(byte[] serialNumber) : this()
+        public RevokedCertificate(byte[] serialNumber)
+            : this()
         {
             UserCertificate = serialNumber;
         }
@@ -102,7 +102,7 @@ namespace Opc.Ua.Security.Certificates
         private RevokedCertificate()
         {
             RevocationDate = DateTime.UtcNow;
-            CrlEntryExtensions = new X509ExtensionCollection();
+            CrlEntryExtensions = [];
         }
 
         /// <summary>

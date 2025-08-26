@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -50,7 +50,6 @@ namespace Opc.Ua.Security.Certificates
     /// </remarks>
     public class X509AuthorityKeyIdentifierExtension : X509Extension
     {
-        #region Constructors
         /// <summary>
         /// Creates an empty extension.
         /// </summary>
@@ -62,8 +61,7 @@ namespace Opc.Ua.Security.Certificates
         /// Creates an extension from ASN.1 encoded data.
         /// </summary>
         public X509AuthorityKeyIdentifierExtension(AsnEncodedData encodedExtension, bool critical)
-        :
-            this(encodedExtension.Oid, encodedExtension.RawData, critical)
+            : this(encodedExtension.Oid, encodedExtension.RawData, critical)
         {
         }
 
@@ -71,8 +69,7 @@ namespace Opc.Ua.Security.Certificates
         /// Creates an extension from ASN.1 encoded data.
         /// </summary>
         public X509AuthorityKeyIdentifierExtension(string oid, byte[] rawData, bool critical)
-        :
-            this(new Oid(oid, kFriendlyName), rawData, critical)
+            : this(new Oid(oid, kFriendlyName), rawData, critical)
         {
         }
 
@@ -80,15 +77,13 @@ namespace Opc.Ua.Security.Certificates
         /// Build the X509 Authority Key extension.
         /// </summary>
         /// <param name="subjectKeyIdentifier">The subject key identifier</param>
-        public X509AuthorityKeyIdentifierExtension(
-            byte[] subjectKeyIdentifier
-            )
+        public X509AuthorityKeyIdentifierExtension(byte[] subjectKeyIdentifier)
         {
-            if (subjectKeyIdentifier == null) throw new ArgumentNullException(nameof(subjectKeyIdentifier));
-            m_keyIdentifier = subjectKeyIdentifier;
-            base.Oid = new Oid(AuthorityKeyIdentifier2Oid, kFriendlyName);
-            base.Critical = false;
-            base.RawData = Encode();
+            m_keyIdentifier = subjectKeyIdentifier ??
+                throw new ArgumentNullException(nameof(subjectKeyIdentifier));
+            Oid = new Oid(AuthorityKeyIdentifier2Oid, kFriendlyName);
+            Critical = false;
+            RawData = Encode();
         }
 
         /// <summary>
@@ -104,29 +99,25 @@ namespace Opc.Ua.Security.Certificates
         public X509AuthorityKeyIdentifierExtension(
             byte[] subjectKeyIdentifier,
             X500DistinguishedName authorityName,
-            byte[] serialNumber
-            )
+            byte[] serialNumber)
         {
-            m_issuer = authorityName;
+            Issuer = authorityName;
             m_keyIdentifier = subjectKeyIdentifier;
             m_serialNumber = serialNumber;
-            base.Oid = new Oid(AuthorityKeyIdentifier2Oid, kFriendlyName);
-            base.Critical = false;
-            base.RawData = Encode();
+            Oid = new Oid(AuthorityKeyIdentifier2Oid, kFriendlyName);
+            Critical = false;
+            RawData = Encode();
         }
 
         /// <summary>
         /// Creates an extension from ASN.1 encoded data.
         /// </summary>
         public X509AuthorityKeyIdentifierExtension(Oid oid, byte[] rawData, bool critical)
-        :
-            base(oid, rawData, critical)
+            : base(oid, rawData, critical)
         {
             Decode(rawData);
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Returns a formatted version of the Authority Key Identifier as a string.
         /// </summary>
@@ -148,12 +139,12 @@ namespace Opc.Ua.Security.Certificates
                     }
                 }
 
-                buffer.Append(kKeyIdentifier);
-                buffer.Append('=');
-                buffer.Append(m_keyIdentifier.ToHexString());
+                buffer.Append(kKeyIdentifier)
+                    .Append('=')
+                    .Append(m_keyIdentifier.ToHexString());
             }
 
-            if (m_issuer != null)
+            if (Issuer != null)
             {
                 if (multiLine)
                 {
@@ -164,24 +155,21 @@ namespace Opc.Ua.Security.Certificates
                     buffer.Append(", ");
                 }
 
-                buffer.Append(kIssuer);
-                buffer.Append('=');
-                buffer.Append(m_issuer.Format(true));
+                buffer.Append(kIssuer)
+                    .Append('=')
+                    .Append(Issuer.Format(true));
             }
 
             if (m_serialNumber != null && m_serialNumber.Length > 0)
             {
-                if (buffer.Length > 0)
+                if (buffer.Length > 0 && !multiLine)
                 {
-                    if (!multiLine)
-                    {
-                        buffer.Append(", ");
-                    }
+                    buffer.Append(", ");
                 }
 
-                buffer.Append(kSerialNumber);
-                buffer.Append('=');
-                buffer.Append(m_serialNumber.ToHexString(true));
+                buffer.Append(kSerialNumber)
+                    .Append('=')
+                    .Append(m_serialNumber.ToHexString(true));
             }
             return buffer.ToString();
         }
@@ -189,16 +177,19 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Initializes the extension from ASN.1 encoded data.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="asnEncodedData"/> is <c>null</c>.</exception>
         public override void CopyFrom(AsnEncodedData asnEncodedData)
         {
-            if (asnEncodedData == null) throw new ArgumentNullException(nameof(asnEncodedData));
-            base.Oid = asnEncodedData.Oid;
-            base.RawData = asnEncodedData.RawData;
+            if (asnEncodedData == null)
+            {
+                throw new ArgumentNullException(nameof(asnEncodedData));
+            }
+
+            Oid = asnEncodedData.Oid;
+            RawData = asnEncodedData.RawData;
             Decode(asnEncodedData.RawData);
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The OID for a Authority Key Identifier extension.
         /// </summary>
@@ -217,12 +208,15 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// The identifier for the key as a byte array.
         /// </summary>
-        public byte[] GetKeyIdentifier() => m_keyIdentifier;
+        public byte[] GetKeyIdentifier()
+        {
+            return m_keyIdentifier;
+        }
 
         /// <summary>
         /// A list of distinguished names for the issuer.
         /// </summary>
-        public X500DistinguishedName Issuer => m_issuer;
+        public X500DistinguishedName Issuer { get; private set; }
 
         /// <summary>
         /// The serial number of the authority key as a big endian hexadecimal string.
@@ -232,10 +226,11 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// The serial number of the authority key as a byte array in little endian order.
         /// </summary>
-        public byte[] GetSerialNumber() => m_serialNumber;
-        #endregion
+        public byte[] GetSerialNumber()
+        {
+            return m_serialNumber;
+        }
 
-        #region Private Methods
         private byte[] Encode()
         {
             var writer = new AsnWriter(AsnEncodingRules.DER);
@@ -247,7 +242,7 @@ namespace Opc.Ua.Security.Certificates
                 writer.WriteOctetString(m_keyIdentifier, keyIdTag);
             }
 
-            if (m_issuer != null)
+            if (Issuer != null)
             {
                 var issuerNameTag = new Asn1Tag(TagClass.ContextSpecific, 1);
                 writer.PushSequence(issuerNameTag);
@@ -259,7 +254,7 @@ namespace Opc.Ua.Security.Certificates
                 // Since this is a Context-Specific tag the output is the same
                 var directoryNameTag = new Asn1Tag(TagClass.ContextSpecific, 4, true);
                 writer.PushSetOf(directoryNameTag);
-                writer.WriteEncodedValue(m_issuer.RawData);
+                writer.WriteEncodedValue(Issuer.RawData);
                 writer.PopSetOf(directoryNameTag);
                 writer.PopSequence(issuerNameTag);
             }
@@ -275,11 +270,9 @@ namespace Opc.Ua.Security.Certificates
             return writer.Encode();
         }
 
-
         private void Decode(byte[] data)
         {
-            if (base.Oid.Value == AuthorityKeyIdentifierOid ||
-                base.Oid.Value == AuthorityKeyIdentifier2Oid)
+            if (Oid.Value is AuthorityKeyIdentifierOid or AuthorityKeyIdentifier2Oid)
             {
                 try
                 {
@@ -302,11 +295,18 @@ namespace Opc.Ua.Security.Certificates
 
                             if (peekTag == dnameSequencyTag)
                             {
-                                AsnReader issuerReader = akiReader.ReadSequence(new Asn1Tag(TagClass.ContextSpecific, 1));
+                                AsnReader issuerReader = akiReader.ReadSequence(
+                                    new Asn1Tag(TagClass.ContextSpecific, 1));
                                 if (issuerReader != null)
                                 {
-                                    var directoryNameTag = new Asn1Tag(TagClass.ContextSpecific, 4, true);
-                                    m_issuer = new X500DistinguishedName(issuerReader.ReadSequence(directoryNameTag).ReadEncodedValue().ToArray());
+                                    var directoryNameTag = new Asn1Tag(
+                                        TagClass.ContextSpecific,
+                                        4,
+                                        true);
+                                    Issuer = new X500DistinguishedName(
+                                        issuerReader.ReadSequence(directoryNameTag)
+                                            .ReadEncodedValue()
+                                            .ToArray());
                                     issuerReader.ThrowIfNotEmpty();
                                 }
                                 continue;
@@ -314,7 +314,8 @@ namespace Opc.Ua.Security.Certificates
 
                             if (peekTag == serialNumberTag)
                             {
-                                m_serialNumber = akiReader.ReadInteger(serialNumberTag).ToByteArray();
+                                m_serialNumber = akiReader.ReadInteger(serialNumberTag)
+                                    .ToByteArray();
                                 continue;
                             }
                             throw new AsnContentException("Unknown tag in sequence.");
@@ -326,14 +327,14 @@ namespace Opc.Ua.Security.Certificates
                 }
                 catch (AsnContentException ace)
                 {
-                    throw new CryptographicException("Failed to decode the AuthorityKeyIdentifier extension.", ace);
+                    throw new CryptographicException(
+                        "Failed to decode the AuthorityKeyIdentifier extension.",
+                        ace);
                 }
             }
             throw new CryptographicException("Invalid AuthorityKeyIdentifierOid.");
         }
-        #endregion
 
-        #region Private Fields
         /// <summary>
         /// Authority Key Identifier extension string
         /// definitions see RFC 5280 4.2.1.1
@@ -343,8 +344,6 @@ namespace Opc.Ua.Security.Certificates
         private const string kSerialNumber = "SerialNumber";
         private const string kFriendlyName = "Authority Key Identifier";
         private byte[] m_keyIdentifier;
-        private X500DistinguishedName m_issuer;
         private byte[] m_serialNumber;
-        #endregion
     }
 }

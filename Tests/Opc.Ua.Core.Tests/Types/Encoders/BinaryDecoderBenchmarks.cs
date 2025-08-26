@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -34,8 +34,10 @@ using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
-    [TestFixture, Category("BinaryEncoder")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("BinaryEncoder")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [NonParallelizable]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
@@ -47,10 +49,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void BinaryDecoderInternalMemoryStreamTest()
         {
-            using (var binaryDecoder = new BinaryDecoder(m_encodedByteArray, m_context))
-            {
-                TestDecoding(binaryDecoder);
-            }
+            using var binaryDecoder = new BinaryDecoder(m_encodedByteArray, m_context);
+            TestDecoding(binaryDecoder);
         }
 
         /// <summary>
@@ -59,11 +59,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void BinaryDecoderArraySegmentStreamTest()
         {
-            using (var memoryStream = new ArraySegmentStream(m_encodedBufferList))
-            using (var binaryDecoder = new BinaryDecoder(memoryStream, m_context))
-            {
-                TestDecoding(binaryDecoder);
-            }
+            using var memoryStream = new ArraySegmentStream(m_encodedBufferList);
+            using var binaryDecoder = new BinaryDecoder(memoryStream, m_context);
+            TestDecoding(binaryDecoder);
         }
 
         /// <summary>
@@ -73,14 +71,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void BinaryDecoderArraySegmentStreamNoSpanTest()
         {
 #if NET6_0_OR_GREATER && ECC_SUPPORT
-            using (var arraySegmentStream = new ArraySegmentStreamNoSpan(m_encodedBufferList))
+            using var arraySegmentStream = new ArraySegmentStreamNoSpan(m_encodedBufferList);
 #else
-            using (var arraySegmentStream = new ArraySegmentStream(m_encodedBufferList))
+            using var arraySegmentStream = new ArraySegmentStream(m_encodedBufferList);
 #endif
-            using (var binaryDecoder = new BinaryDecoder(arraySegmentStream, m_context))
-            {
-                TestDecoding(binaryDecoder);
-            }
+            using var binaryDecoder = new BinaryDecoder(arraySegmentStream, m_context);
+            TestDecoding(binaryDecoder);
         }
 
         /// <summary>
@@ -90,10 +86,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void BinaryDecoderMemoryStream()
         {
-            using (var memoryStream = new MemoryStream(m_encodedByteArray))
-            {
-                BinaryDecoder_Stream(memoryStream);
-            }
+            using var memoryStream = new MemoryStream(m_encodedByteArray);
+            BinaryDecoder_Stream(memoryStream);
         }
 
         /// <summary>
@@ -103,10 +97,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void BinaryDecoderArraySegmentStream()
         {
-            using (var arraySegmentStream = new ArraySegmentStream(m_encodedBufferList))
-            {
-                BinaryDecoder_Stream(arraySegmentStream);
-            }
+            using var arraySegmentStream = new ArraySegmentStream(m_encodedBufferList);
+            BinaryDecoder_Stream(arraySegmentStream);
         }
 
         /// <summary>
@@ -117,58 +109,39 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void BinaryDecoderArraySegmentStreamNoSpan()
         {
 #if NET6_0_OR_GREATER && ECC_SUPPORT
-            using (var arraySegmentStream = new ArraySegmentStreamNoSpan(m_encodedBufferList))
+            using var arraySegmentStream = new ArraySegmentStreamNoSpan(m_encodedBufferList);
 #else
-            using (var arraySegmentStream = new ArraySegmentStream(m_encodedBufferList))
+            using var arraySegmentStream = new ArraySegmentStream(m_encodedBufferList);
 #endif
-            {
-                BinaryDecoder_Stream(arraySegmentStream);
-            }
-        }
-
-        #region Private Methods
-        private void TestStreamDecode(MemoryStream memoryStream)
-        {
-            using (var binaryDecoder = new BinaryDecoder(memoryStream, m_context))
-            {
-                TestDecoding(binaryDecoder);
-                TestDecoding(binaryDecoder);
-                binaryDecoder.Close();
-            }
+            BinaryDecoder_Stream(arraySegmentStream);
         }
 
         private void BinaryDecoder_Stream(MemoryStream memoryStream)
         {
-            using (var binaryDecoder = new BinaryDecoder(memoryStream, m_context))
-            {
-                TestDecoding(binaryDecoder);
-                TestDecoding(binaryDecoder);
-                binaryDecoder.Close();
-            }
+            using var binaryDecoder = new BinaryDecoder(memoryStream, m_context);
+            TestDecoding(binaryDecoder);
+            TestDecoding(binaryDecoder);
+            binaryDecoder.Close();
         }
-        #endregion
 
-        #region Test Setup
         [OneTimeSetUp]
-        public new void OneTimeSetUp()
+        public override void OneTimeSetUp()
         {
             base.OneTimeSetUp();
             InitializeEncodedTestData();
         }
 
         [OneTimeTearDown]
-        public new void OneTimeTearDown()
+        public override void OneTimeTearDown()
         {
             base.OneTimeTearDown();
         }
-        #endregion
 
-        #region Benchmark Setup
         /// <summary>
         /// Set up some variables for benchmarks.
         /// </summary>
         [GlobalSetup]
-        public new void GlobalSetup()
+        public override void GlobalSetup()
         {
             base.GlobalSetup();
             InitializeEncodedBenchmarkData();
@@ -178,13 +151,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Tear down benchmark variables.
         /// </summary>
         [GlobalCleanup]
-        public new void GlobalCleanup()
+        public override void GlobalCleanup()
         {
             base.GlobalCleanup();
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Initialize encoded data.
         /// </summary>
@@ -230,10 +201,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 m_encodedBufferList = memoryStream.GetBuffers("writer");
             }
         }
-        #endregion
 
         private byte[] m_encodedByteArray;
         private BufferCollection m_encodedBufferList;
-
     }
 }

@@ -23,7 +23,7 @@ namespace Opc.Ua
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The QualifiedName is defined in <b>Part 3 - Address Space Model, Section 7.3</b>, titled 
+    /// The QualifiedName is defined in <b>Part 3 - Address Space Model, Section 7.3</b>, titled
     /// <b>Qualified Name</b>.
     /// <br/></para>
     /// <para>
@@ -43,100 +43,72 @@ namespace Opc.Ua
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class QualifiedName : ICloneable, IFormattable, IComparable
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with default values.
-        /// </remarks>
         internal QualifiedName()
         {
-            m_namespaceIndex = 0;
-            m_name = null;
+            XmlEncodedNamespaceIndex = 0;
+            XmlEncodedName = null;
         }
 
         /// <summary>
         /// Creates a deep copy of the value.
         /// </summary>
-        /// <remarks>
-        /// Creates a deep copy of the value.
-        /// </remarks>
         /// <param name="value">The qualified name to copy</param>
         /// <exception cref="ArgumentNullException">Thrown if the provided value is null</exception>
         public QualifiedName(QualifiedName value)
         {
-            if (value == null) throw new ArgumentNullException(nameof(value));
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
 
-            m_name = value.m_name;
-            m_namespaceIndex = value.m_namespaceIndex;
+            XmlEncodedName = value.XmlEncodedName;
+            XmlEncodedNamespaceIndex = value.XmlEncodedNamespaceIndex;
         }
 
         /// <summary>
         /// Initializes the object with a name.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with a name.
-        /// </remarks>
         /// <param name="name">The name-portion to store as part of the fully qualified name</param>
         public QualifiedName(string name)
         {
-            m_namespaceIndex = 0;
-            m_name = name;
+            XmlEncodedNamespaceIndex = 0;
+            XmlEncodedName = name;
         }
 
         /// <summary>
         /// Initializes the object with a name and a namespace index.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with a name and a namespace index.
-        /// </remarks>
         /// <param name="name">The name-portion of the fully qualified name</param>
         /// <param name="namespaceIndex">The index of the namespace within the namespace-table</param>
         public QualifiedName(string name, ushort namespaceIndex)
         {
-            m_namespaceIndex = namespaceIndex;
-            m_name = name;
+            XmlEncodedNamespaceIndex = namespaceIndex;
+            XmlEncodedName = name;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The index of the namespace that qualifies the name.
         /// </summary>
-        /// <remarks>
-        /// The index of the namespace that qualifies the name.
-        /// </remarks>
-        public ushort NamespaceIndex => m_namespaceIndex;
+        public ushort NamespaceIndex => XmlEncodedNamespaceIndex;
 
-        /// <summary cref="QualifiedName.NamespaceIndex" />
+        /// <inheritdoc/>
         [DataMember(Name = "NamespaceIndex", Order = 1)]
-        internal ushort XmlEncodedNamespaceIndex
-        {
-            get { return m_namespaceIndex; }
-            set { m_namespaceIndex = value; }
-        }
+        internal ushort XmlEncodedNamespaceIndex { get; set; }
 
         /// <summary>
         /// The unqualified name.
         /// </summary>
-        /// <remarks>
-        /// The unqualified name.
-        /// </remarks>
-        public string Name => m_name;
+        public string Name => XmlEncodedName;
 
         /// <summary>
-        /// 
+        /// Xml encoded name
         /// </summary>
         [DataMember(Name = "Name", Order = 2)]
-        internal string XmlEncodedName
-        {
-            get { return m_name; }
-            set { m_name = value; }
-        }
-        #endregion
+        internal string XmlEncodedName { get; set; }
 
-        #region IComparable Members
         /// <summary>
         /// Compares two QualifiedNames.
         /// </summary>
@@ -148,31 +120,30 @@ namespace Opc.Ua
         /// </returns>
         public int CompareTo(object obj)
         {
-            if (Object.ReferenceEquals(obj, null))
+            if (obj is null)
             {
                 return -1;
             }
 
-            if (Object.ReferenceEquals(this, obj))
+            if (ReferenceEquals(this, obj))
             {
                 return 0;
             }
 
-            QualifiedName qname = obj as QualifiedName;
-
-            if (qname == null)
+            if (obj is not QualifiedName qname)
             {
-                return typeof(QualifiedName).GetTypeInfo().GUID.CompareTo(obj.GetType().GetTypeInfo().GUID);
+                return typeof(QualifiedName).GetTypeInfo().GUID
+                    .CompareTo(obj.GetType().GetTypeInfo().GUID);
             }
 
-            if (qname.m_namespaceIndex != m_namespaceIndex)
+            if (qname.XmlEncodedNamespaceIndex != XmlEncodedNamespaceIndex)
             {
-                return m_namespaceIndex.CompareTo(qname.m_namespaceIndex);
+                return XmlEncodedNamespaceIndex.CompareTo(qname.XmlEncodedNamespaceIndex);
             }
 
-            if (m_name != null)
+            if (XmlEncodedName != null)
             {
-                return String.CompareOrdinal(m_name, qname.m_name);
+                return string.CompareOrdinal(XmlEncodedName, qname.XmlEncodedName);
             }
 
             return 0;
@@ -186,7 +157,7 @@ namespace Opc.Ua
         /// <returns>The result of the operator.</returns>
         public static bool operator >(QualifiedName value1, QualifiedName value2)
         {
-            if (!Object.ReferenceEquals(value1, null))
+            if (value1 is not null)
             {
                 return value1.CompareTo(value2) > 0;
             }
@@ -202,28 +173,26 @@ namespace Opc.Ua
         /// <returns>The result of the operator.</returns>
         public static bool operator <(QualifiedName value1, QualifiedName value2)
         {
-            if (!Object.ReferenceEquals(value1, null))
+            if (value1 is not null)
             {
                 return value1.CompareTo(value2) < 0;
             }
 
             return true;
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Returns a suitable hash value for the instance.
         /// </summary>
         public override int GetHashCode()
         {
             var hash = new HashCode();
-            if (m_name != null)
+            if (XmlEncodedName != null)
             {
-                hash.Add(m_name);
+                hash.Add(XmlEncodedName);
             }
 
-            hash.Add(m_namespaceIndex);
+            hash.Add(XmlEncodedNamespaceIndex);
 
             return hash.ToHashCode();
         }
@@ -231,53 +200,45 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the objects are equal.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the objects are equal.
-        /// </remarks>
         /// <param name="obj">The object to compare to this/me</param>
         public override bool Equals(object obj)
         {
-            if (Object.ReferenceEquals(obj, null))
+            if (obj is null)
             {
                 return false;
             }
 
-            if (Object.ReferenceEquals(this, obj))
+            if (ReferenceEquals(this, obj))
             {
                 return true;
             }
 
-            QualifiedName qname = obj as QualifiedName;
-
-            if (qname == null)
+            if (obj is not QualifiedName qname)
             {
                 return false;
             }
 
-            if (qname.m_namespaceIndex != m_namespaceIndex)
+            if (qname.XmlEncodedNamespaceIndex != XmlEncodedNamespaceIndex)
             {
                 return false;
             }
 
-            return qname.m_name == m_name;
+            return qname.XmlEncodedName == XmlEncodedName;
         }
 
         /// <summary>
         /// Returns true if the objects are equal.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the objects are equal.
-        /// </remarks>
         /// <param name="value1">The first value to compare</param>
         /// <param name="value2">The second value to compare</param>
         public static bool operator ==(QualifiedName value1, QualifiedName value2)
         {
-            if (!Object.ReferenceEquals(value1, null))
+            if (value1 is not null)
             {
                 return value1.Equals(value2);
             }
 
-            return Object.ReferenceEquals(value2, null);
+            return value2 is null;
         }
 
         /// <summary>
@@ -290,33 +251,25 @@ namespace Opc.Ua
         /// <param name="value2">The second value to compare</param>
         public static bool operator !=(QualifiedName value1, QualifiedName value2)
         {
-            if (!Object.ReferenceEquals(value1, null))
+            if (value1 is not null)
             {
                 return !value1.Equals(value2);
             }
 
-            return !Object.ReferenceEquals(value2, null);
+            return value2 is not null;
         }
 
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
-        /// <remarks>
-        /// Returns the string representation of the object.
-        /// </remarks>
         public override string ToString()
         {
             return ToString(null, null);
         }
-        #endregion
 
-        #region IFormattable Members
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
-        /// <remarks>
-        /// Returns the string representation of the object.
-        /// </remarks>
         /// <param name="format">(Unused) Always pass null</param>
         /// <param name="formatProvider">(Unused) Always pass null</param>
         /// <exception cref="FormatException">Thrown if non-null parameters are passed</exception>
@@ -324,32 +277,28 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                int capacity = (m_name != null) ? m_name.Length : 0;
+                int capacity = (XmlEncodedName?.Length) ?? 0;
 
-                StringBuilder builder = new StringBuilder(capacity + 10);
+                var builder = new StringBuilder(capacity + 10);
 
-                if (this.m_namespaceIndex == 0)
+                if (XmlEncodedNamespaceIndex == 0)
                 {
                     // prepend the namespace index if the name contains a colon.
-                    if (m_name != null)
+                    if (XmlEncodedName != null &&
+                        XmlEncodedName.Contains(':', StringComparison.Ordinal))
                     {
-                        int index = m_name.IndexOf(':');
-
-                        if (index != -1)
-                        {
-                            builder.Append("0:");
-                        }
+                        builder.Append("0:");
                     }
                 }
                 else
                 {
-                    builder.Append(m_namespaceIndex);
-                    builder.Append(':');
+                    builder.Append(XmlEncodedNamespaceIndex)
+                        .Append(':');
                 }
 
-                if (m_name != null)
+                if (XmlEncodedName != null)
                 {
-                    builder.Append(m_name);
+                    builder.Append(XmlEncodedName);
                 }
 
                 return builder.ToString();
@@ -357,42 +306,39 @@ namespace Opc.Ua
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
 
-        #region ICloneable Members
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
         /// Makes a deep copy of the object.
         /// </summary>
-        /// <remarks>
-        /// Makes a deep copy of the object.
-        /// </remarks>
         public new object MemberwiseClone()
         {
             // this object cannot be altered after it is created so no new allocation is necessary.
             return this;
         }
-        #endregion
 
-        #region Static Methods
         /// <summary>
         /// Converts an expanded node id to a node id using a namespace table.
         /// </summary>
-        public static QualifiedName Create(string name, string namespaceUri, NamespaceTable namespaceTable)
+        /// <exception cref="ServiceResultException"></exception>
+        public static QualifiedName Create(
+            string name,
+            string namespaceUri,
+            NamespaceTable namespaceTable)
         {
             // check for null.
-            if (String.IsNullOrEmpty(name))
+            if (string.IsNullOrEmpty(name))
             {
-                return QualifiedName.Null;
+                return Null;
             }
 
             // return a name using the default namespace.
-            if (String.IsNullOrEmpty(namespaceUri))
+            if (string.IsNullOrEmpty(namespaceUri))
             {
                 return new QualifiedName(name);
             }
@@ -408,7 +354,10 @@ namespace Opc.Ua
             // oops - not found.
             if (namespaceIndex < 0)
             {
-                throw ServiceResultException.Create(StatusCodes.BadBrowseNameInvalid, "NamespaceUri ({0}) is not in the NamespaceTable.", namespaceUri);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadBrowseNameInvalid,
+                    "NamespaceUri ({0}) is not in the NamespaceTable.",
+                    namespaceUri);
             }
 
             // return the name.
@@ -423,17 +372,15 @@ namespace Opc.Ua
         /// <returns>True if the name is value.</returns>
         public static bool IsValid(QualifiedName value, NamespaceTable namespaceUris)
         {
-            if (value == null || String.IsNullOrEmpty(value.m_name))
+            if (value == null || string.IsNullOrEmpty(value.XmlEncodedName))
             {
                 return false;
             }
 
-            if (namespaceUris != null)
+            if (namespaceUris != null &&
+                namespaceUris.GetString(value.XmlEncodedNamespaceIndex) == null)
             {
-                if (namespaceUris.GetString(value.m_namespaceIndex) == null)
-                {
-                    return false;
-                }
+                return false;
             }
 
             return true;
@@ -447,12 +394,12 @@ namespace Opc.Ua
         public static QualifiedName Parse(string text)
         {
             // check for null.
-            if (String.IsNullOrEmpty(text))
+            if (string.IsNullOrEmpty(text))
             {
-                return QualifiedName.Null;
+                return Null;
             }
 
-            // extract local namespace index. 
+            // extract local namespace index.
             ushort namespaceIndex = 0;
             int start = -1;
 
@@ -466,7 +413,7 @@ namespace Opc.Ua
                     break;
                 }
 
-                if (Char.IsDigit(ch))
+                if (char.IsDigit(ch))
                 {
                     namespaceIndex *= 10;
                     namespaceIndex += (ushort)(ch - '0');
@@ -479,7 +426,7 @@ namespace Opc.Ua
                 return new QualifiedName(text);
             }
 
-            return new QualifiedName(text.Substring(start), namespaceIndex);
+            return new QualifiedName(text[start..], namespaceIndex);
         }
 
         /// <summary>
@@ -489,15 +436,18 @@ namespace Opc.Ua
         /// <param name="text">The QualifiedName value as a string.</param>
         /// <param name="updateTables">Whether the NamespaceTable should be updated with the NamespaceUri.</param>
         /// <exception cref="ServiceResultException">Thrown under a variety of circumstances, each time with a specific message.</exception>
-        public static QualifiedName Parse(IServiceMessageContext context, string text, bool updateTables)
+        public static QualifiedName Parse(
+            IServiceMessageContext context,
+            string text,
+            bool updateTables)
         {
             // check for null.
-            if (String.IsNullOrEmpty(text))
+            if (string.IsNullOrEmpty(text))
             {
-                return QualifiedName.Null;
+                return Null;
             }
 
-            var originalText = text;
+            string originalText = text;
             int namespaceIndex = 0;
 
             if (text.StartsWith("nsu=", StringComparison.Ordinal))
@@ -506,36 +456,44 @@ namespace Opc.Ua
 
                 if (index < 0)
                 {
-                    throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"Invalid QualifiedName ({originalText}).");
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdInvalid,
+                        $"Invalid QualifiedName ({originalText}).");
                 }
 
-                var namespaceUri = Utils.UnescapeUri(text.Substring(4, index-4));
-                namespaceIndex = (updateTables) ? context.NamespaceUris.GetIndexOrAppend(namespaceUri) : context.NamespaceUris.GetIndex(namespaceUri);
+                string namespaceUri = Utils.UnescapeUri(text.AsSpan()[4..index]);
+                namespaceIndex = updateTables
+                    ? context.NamespaceUris.GetIndexOrAppend(namespaceUri)
+                    : context.NamespaceUris.GetIndex(namespaceUri);
 
                 if (namespaceIndex < 0)
                 {
-                    throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"No mapping to NamespaceIndex for NamespaceUri ({namespaceUri}).");
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdInvalid,
+                        $"No mapping to NamespaceIndex for NamespaceUri ({namespaceUri}).");
                 }
 
-                text = text.Substring(index + 1);
+                text = text[(index + 1)..];
             }
             else
             {
-                int index = text.IndexOf(':');
+                int index = text.IndexOf(':', StringComparison.Ordinal);
 
                 if (index > 0)
                 {
-                    if (UInt16.TryParse(text.Substring(0, index), out ushort nsIndex))
+                    if (ushort.TryParse(text[..index], out ushort nsIndex))
                     {
                         namespaceIndex = nsIndex;
                     }
                     else
                     {
-                        throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"Invalid QualifiedName ({originalText}).");
+                        throw new ServiceResultException(
+                            StatusCodes.BadNodeIdInvalid,
+                            $"Invalid QualifiedName ({originalText}).");
                     }
                 }
 
-                text = text.Substring(index + 1);
+                text = text[(index + 1)..];
             }
 
             return new QualifiedName(text, (ushort)namespaceIndex);
@@ -549,39 +507,39 @@ namespace Opc.Ua
         /// <returns>The formatted identifier.</returns>
         public string Format(IServiceMessageContext context, bool useNamespaceUri = false)
         {
-            if (String.IsNullOrEmpty(m_name))
+            if (string.IsNullOrEmpty(XmlEncodedName))
             {
                 return null;
             }
 
             var buffer = new StringBuilder();
 
-            if (m_namespaceIndex > 0)
+            if (XmlEncodedNamespaceIndex > 0)
             {
                 if (useNamespaceUri)
                 {
-                    var namespaceUri = context.NamespaceUris.GetString(m_namespaceIndex);
+                    string namespaceUri = context.NamespaceUris.GetString(XmlEncodedNamespaceIndex);
 
-                    if (!String.IsNullOrEmpty(namespaceUri))
+                    if (!string.IsNullOrEmpty(namespaceUri))
                     {
-                        buffer.Append("nsu=");
-                        buffer.Append(Utils.EscapeUri(namespaceUri));
-                        buffer.Append(';');
+                        buffer.Append("nsu=")
+                            .Append(Utils.EscapeUri(namespaceUri))
+                            .Append(';');
                     }
                     else
                     {
-                        buffer.Append(m_namespaceIndex);
-                        buffer.Append(':');
+                        buffer.Append(XmlEncodedNamespaceIndex)
+                            .Append(':');
                     }
                 }
                 else
                 {
-                    buffer.Append(m_namespaceIndex);
-                    buffer.Append(':');
+                    buffer.Append(XmlEncodedNamespaceIndex)
+                        .Append(':');
                 }
             }
 
-            buffer.Append(m_name);
+            buffer.Append(XmlEncodedName);
 
             return buffer.ToString();
         }
@@ -594,7 +552,8 @@ namespace Opc.Ua
         {
             if (value != null)
             {
-                if (value.m_namespaceIndex != 0 || !String.IsNullOrEmpty(value.m_name))
+                if (value.XmlEncodedNamespaceIndex != 0 ||
+                    !string.IsNullOrEmpty(value.XmlEncodedName))
                 {
                     return false;
                 }
@@ -606,9 +565,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a string to a qualified name.
         /// </summary>
-        /// <remarks>
-        /// Converts a string to a qualified name.
-        /// </remarks>
         /// <param name="value">The string to turn into a fully qualified name</param>
         public static QualifiedName ToQualifiedName(string value)
         {
@@ -618,9 +574,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a string to a qualified name.
         /// </summary>
-        /// <remarks>
-        /// Converts a string to a qualified name.
-        /// </remarks>
         /// <param name="value">The string to turn into a fully qualified name</param>
         public static implicit operator QualifiedName(string value)
         {
@@ -630,107 +583,88 @@ namespace Opc.Ua
         /// <summary>
         /// Returns an instance of a null QualifiedName.
         /// </summary>
-        public static QualifiedName Null => s_Null;
-
-        private static readonly QualifiedName s_Null = new QualifiedName();
-        #endregion
-
-        #region Private Fields
-        private ushort m_namespaceIndex;
-        private string m_name;
-        #endregion
+        public static QualifiedName Null { get; } = new QualifiedName();
     }
 
-    #region QualifiedNameCollection Class
     /// <summary>
     /// A collection of QualifiedName objects.
     /// </summary>
     /// <remarks>
     /// A strongly-typed collection of QualifiedName objects.
     /// </remarks>
-    [CollectionDataContract(Name = "ListOfQualifiedName", Namespace = Namespaces.OpcUaXsd, ItemName = "QualifiedName")]
-    public partial class QualifiedNameCollection : List<QualifiedName>, ICloneable
+    [CollectionDataContract(
+        Name = "ListOfQualifiedName",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "QualifiedName")]
+    public class QualifiedNameCollection : List<QualifiedName>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes an empty collection.
-        /// </remarks>
-        public QualifiedNameCollection() { }
-
-        /// <summary>
-        /// Initializes the collection from another collection.
-        /// </summary>
-        /// <remarks>
-        /// Initializes the collection from another collection.
-        /// </remarks>
-        /// <param name="collection">The enumerated collection of qualified names to add to this new collection</param>
-        public QualifiedNameCollection(IEnumerable<QualifiedName> collection) : base(collection) { }
-
-        /// <summary>
-        /// Initializes the collection with the specified capacity.
-        /// </summary>
-        /// <remarks>
-        /// Initializes the collection with the specified capacity.
-        /// </remarks>
-        /// <param name="capacity">Max capacity of this collection</param>
-        public QualifiedNameCollection(int capacity) : base(capacity) { }
-
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
-        /// <param name="values">The array to turn into a collection</param>
-        public static QualifiedNameCollection ToQualifiedNameCollection(QualifiedName[] values)
+        public QualifiedNameCollection()
         {
-            if (values != null)
-            {
-                return new QualifiedNameCollection(values);
-            }
+        }
 
-            return new QualifiedNameCollection();
+        /// <summary>
+        /// Initializes the collection from another collection.
+        /// </summary>
+        /// <param name="collection">The enumerated collection of qualified names to add to this new collection</param>
+        public QualifiedNameCollection(IEnumerable<QualifiedName> collection)
+            : base(collection)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the collection with the specified capacity.
+        /// </summary>
+        /// <param name="capacity">Max capacity of this collection</param>
+        public QualifiedNameCollection(int capacity)
+            : base(capacity)
+        {
         }
 
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
+        /// <param name="values">The array to turn into a collection</param>
+        public static QualifiedNameCollection ToQualifiedNameCollection(QualifiedName[] values)
+        {
+            if (values != null)
+            {
+                return [.. values];
+            }
+
+            return [];
+        }
+
+        /// <summary>
         /// Converts an array to a collection.
-        /// </remarks>
+        /// </summary>
         /// <param name="values">The array to turn into a collection</param>
         public static implicit operator QualifiedNameCollection(QualifiedName[] values)
         {
             return ToQualifiedNameCollection(values);
         }
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
-        /// <remarks>
-        /// Creates a deep copy of the collection.
-        /// </remarks>
         public new object MemberwiseClone()
         {
-            QualifiedNameCollection clone = new QualifiedNameCollection(this.Count);
+            var clone = new QualifiedNameCollection(Count);
 
             foreach (QualifiedName element in this)
             {
-                clone.Add((QualifiedName)Utils.Clone(element));
+                clone.Add(Utils.Clone(element));
             }
 
             return clone;
         }
-        #endregion
-    }//class
-    #endregion
-}//namespace
+    }
+}

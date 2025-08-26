@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -28,13 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Xml;
-using System.IO;
-using System.Text;
-using System.Reflection;
-using System.Threading;
-using System.Globalization;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -45,26 +38,24 @@ namespace TestData
     /// </summary>
     public class HistoryDataReader : IDisposable
     {
-        #region Constructors
         /// <summary>
         /// Constructs a reader for the source.
         /// </summary>
         /// <param name="source">The source of the history data.</param>
         public HistoryDataReader(NodeId variableId, IHistoryDataSource source)
         {
-            m_id = Guid.NewGuid();
-            m_variableId = variableId;
+            Id = Guid.NewGuid();
+            VariableId = variableId;
             m_source = source;
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -74,24 +65,16 @@ namespace TestData
         {
             // nothing to do.
         }
-        #endregion
 
-        #region Public Interface
         /// <summary>
         /// A globally unique identifier for the instance.
         /// </summary>
-        public Guid Id
-        {
-            get { return m_id; }
-        }
+        public Guid Id { get; }
 
         /// <summary>
         /// The identifier for the variable being read.
         /// </summary>
-        public NodeId VariableId
-        {
-            get { return m_variableId; }
-        }
+        public NodeId VariableId { get; }
 
         /// <summary>
         /// Starts reading raw values.
@@ -125,12 +108,14 @@ namespace TestData
             m_isForward = m_startTime < m_endTime;
             m_position = -1;
 
-            DataValue value = null;
-
             // get first bound.
             if (m_request.ReturnBounds)
             {
-                value = m_source.FirstRaw(m_startTime, !m_isForward, m_request.IsReadModified, out m_position);
+                DataValue value = m_source.FirstRaw(
+                    m_startTime,
+                    !m_isForward,
+                    m_request.IsReadModified,
+                    out m_position);
 
                 if (value != null)
                 {
@@ -155,8 +140,7 @@ namespace TestData
             QualifiedName dataEncoding,
             DataValueCollection values)
         {
-            DataValue value = null;
-
+            DataValue value;
             do
             {
                 // check for limit.
@@ -165,7 +149,11 @@ namespace TestData
                     return false;
                 }
 
-                value = m_source.NextRaw(m_lastTime, m_isForward, m_request.IsReadModified, ref m_position);
+                value = m_source.NextRaw(
+                    m_lastTime,
+                    m_isForward,
+                    m_request.IsReadModified,
+                    ref m_position);
 
                 // no more data.
                 if (value == null)
@@ -174,7 +162,8 @@ namespace TestData
                 }
 
                 // check for bound.
-                if ((m_isForward && value.ServerTimestamp >= m_endTime) || (!m_isForward && value.ServerTimestamp <= m_endTime))
+                if ((m_isForward && value.ServerTimestamp >= m_endTime) ||
+                    (!m_isForward && value.ServerTimestamp <= m_endTime))
                 {
                     if (m_request.ReturnBounds)
                     {
@@ -185,14 +174,11 @@ namespace TestData
 
                 // add value.
                 AddValue(timestampsToReturn, indexRange, dataEncoding, values, value);
-            }
-            while (value != null);
+            } while (value != null);
 
             return true;
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Adds a DataValue to a list of values to return.
         /// </summary>
@@ -242,12 +228,12 @@ namespace TestData
             }
 
             // apply the timestamps filter.
-            if (timestampsToReturn == TimestampsToReturn.Neither || timestampsToReturn == TimestampsToReturn.Server)
+            if (timestampsToReturn is TimestampsToReturn.Neither or TimestampsToReturn.Server)
             {
                 value.SourceTimestamp = DateTime.MinValue;
             }
 
-            if (timestampsToReturn == TimestampsToReturn.Neither || timestampsToReturn == TimestampsToReturn.Source)
+            if (timestampsToReturn is TimestampsToReturn.Neither or TimestampsToReturn.Source)
             {
                 value.ServerTimestamp = DateTime.MinValue;
             }
@@ -255,18 +241,13 @@ namespace TestData
             // add result.
             values.Add(value);
         }
-        #endregion
 
-        #region Private Fields
-        private Guid m_id;
-        private NodeId m_variableId;
-        private IHistoryDataSource m_source;
+        private readonly IHistoryDataSource m_source;
         private ReadRawModifiedDetails m_request;
         private DateTime m_startTime;
         private DateTime m_endTime;
         private bool m_isForward;
         private int m_position;
         private DateTime m_lastTime;
-        #endregion
     }
 }

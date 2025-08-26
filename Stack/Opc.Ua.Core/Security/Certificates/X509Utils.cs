@@ -10,17 +10,18 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
+#if !NETFRAMEWORK
+using System.Runtime.InteropServices;
+#endif
 
 namespace Opc.Ua
 {
@@ -36,12 +37,12 @@ namespace Opc.Ua
         /// <returns>The DNS names.</returns>
         public static IList<string> GetDomainsFromCertificate(X509Certificate2 certificate)
         {
-            List<string> dnsNames = new List<string>();
+            var dnsNames = new List<string>();
 
             // extracts the domain from the subject name.
-            List<string> fields = X509Utils.ParseDistinguishedName(certificate.Subject);
+            List<string> fields = ParseDistinguishedName(certificate.Subject);
 
-            StringBuilder builder = new StringBuilder();
+            var builder = new StringBuilder();
 
             for (int ii = 0; ii < fields.Count; ii++)
             {
@@ -54,7 +55,7 @@ namespace Opc.Ua
 #if NET5_0_OR_GREATER || NETSTANDARD2_1
                     builder.Append(fields[ii].AsSpan(3));
 #else
-                    builder.Append(fields[ii].Substring(3));
+                    builder.Append(fields[ii][3..]);
 #endif
                 }
             }
@@ -65,7 +66,8 @@ namespace Opc.Ua
             }
 
             // extract the alternate domains from the subject alternate name extension.
-            X509SubjectAltNameExtension alternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
+            X509SubjectAltNameExtension alternateName = certificate
+                .FindExtension<X509SubjectAltNameExtension>();
             if (alternateName != null)
             {
                 for (int ii = 0; ii < alternateName.DomainNames.Count; ii++)
@@ -77,7 +79,10 @@ namespace Opc.Ua
 
                     for (int jj = 0; jj < dnsNames.Count; jj++)
                     {
-                        if (String.Equals(dnsNames[jj], hostname, StringComparison.OrdinalIgnoreCase))
+                        if (string.Equals(
+                            dnsNames[jj],
+                            hostname,
+                            StringComparison.OrdinalIgnoreCase))
                         {
                             found = true;
                             break;
@@ -111,14 +116,12 @@ namespace Opc.Ua
         /// <param name="certificate">The certificate</param>
         public static int GetRSAPublicKeySize(X509Certificate2 certificate)
         {
-            using (RSA rsaPublicKey = certificate.GetRSAPublicKey())
+            using RSA rsaPublicKey = certificate.GetRSAPublicKey();
+            if (rsaPublicKey != null)
             {
-                if (rsaPublicKey != null)
-                {
-                    return rsaPublicKey.KeySize;
-                }
-                return -1;
+                return rsaPublicKey.KeySize;
             }
+            return -1;
         }
 
         /// <summary>
@@ -135,12 +138,10 @@ namespace Opc.Ua
                 }
             }
 
-            using (ECDsa ecdsaPublicKey = certificate.GetECDsaPublicKey())
+            using ECDsa ecdsaPublicKey = certificate.GetECDsaPublicKey();
+            if (ecdsaPublicKey != null)
             {
-                if (ecdsaPublicKey != null)
-                {
-                    return ecdsaPublicKey.KeySize;
-                }
+                return ecdsaPublicKey.KeySize;
             }
 
             return -1;
@@ -154,7 +155,8 @@ namespace Opc.Ua
         public static string GetApplicationUriFromCertificate(X509Certificate2 certificate)
         {
             // extract the alternate domains from the subject alternate name extension.
-            X509SubjectAltNameExtension alternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
+            X509SubjectAltNameExtension alternateName = certificate
+                .FindExtension<X509SubjectAltNameExtension>();
 
             // get the application uri.
             if (alternateName != null && alternateName.Uris.Count > 0)
@@ -173,15 +175,23 @@ namespace Opc.Ua
         public static bool HasApplicationURN(X509Certificate2 certificate)
         {
             // extract the alternate domains from the subject alternate name extension.
-            X509SubjectAltNameExtension alternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
+            X509SubjectAltNameExtension alternateName = certificate
+                .FindExtension<X509SubjectAltNameExtension>();
 
             // find the application urn.
             if (alternateName != null && alternateName.Uris.Count > 0)
             {
-                string urn = "urn:";
+                const string urn = "urn:";
                 for (int i = 0; i < alternateName.Uris.Count; i++)
                 {
-                    if (string.Compare(alternateName.Uris[i], 0, urn, 0, urn.Length, StringComparison.OrdinalIgnoreCase) == 0)
+                    if (string.Compare(
+                            alternateName.Uris[i],
+                            0,
+                            urn,
+                            0,
+                            urn.Length,
+                            StringComparison.OrdinalIgnoreCase) ==
+                        0)
                     {
                         return true;
                     }
@@ -208,7 +218,10 @@ namespace Opc.Ua
 
             for (int jj = 0; jj < domainNames.Count; jj++)
             {
-                if (String.Equals(domainNames[jj], endpointUrl.DnsSafeHost, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(
+                    domainNames[jj],
+                    endpointUrl.DnsSafeHost,
+                    StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
@@ -222,7 +235,8 @@ namespace Opc.Ua
         /// </summary>
         public static bool IsIssuerAllowed(X509Certificate2 certificate)
         {
-            X509BasicConstraintsExtension constraints = X509Extensions.FindExtension<X509BasicConstraintsExtension>(certificate);
+            X509BasicConstraintsExtension constraints = certificate
+                .FindExtension<X509BasicConstraintsExtension>();
 
             if (constraints != null)
             {
@@ -237,7 +251,8 @@ namespace Opc.Ua
         /// </summary>
         public static bool IsCertificateAuthority(X509Certificate2 certificate)
         {
-            var constraints = X509Extensions.FindExtension<X509BasicConstraintsExtension>(certificate);
+            X509BasicConstraintsExtension constraints = certificate
+                .FindExtension<X509BasicConstraintsExtension>();
             if (constraints != null)
             {
                 return constraints.CertificateAuthority;
@@ -250,7 +265,7 @@ namespace Opc.Ua
         /// </summary>
         public static X509KeyUsageFlags GetKeyUsage(X509Certificate2 cert)
         {
-            var allFlags = X509KeyUsageFlags.None;
+            X509KeyUsageFlags allFlags = X509KeyUsageFlags.None;
             foreach (X509KeyUsageExtension ext in cert.Extensions.OfType<X509KeyUsageExtension>())
             {
                 allFlags |= ext.KeyUsages;
@@ -265,13 +280,15 @@ namespace Opc.Ua
         /// <returns>True if self signed.</returns>
         public static bool IsSelfSigned(X509Certificate2 certificate)
         {
-            return X509Utils.CompareDistinguishedName(certificate.SubjectName, certificate.IssuerName);
+            return CompareDistinguishedName(certificate.SubjectName, certificate.IssuerName);
         }
 
         /// <summary>
         /// Compares two distinguished names.
         /// </summary>
-        public static bool CompareDistinguishedName(X500DistinguishedName name1, X500DistinguishedName name2)
+        public static bool CompareDistinguishedName(
+            X500DistinguishedName name1,
+            X500DistinguishedName name2)
         {
             // check for simple binary equality.
             return Utils.IsEqual(name1.RawData, name2.RawData);
@@ -287,7 +304,7 @@ namespace Opc.Ua
         public static bool CompareDistinguishedName(string name1, string name2)
         {
             // check for simple equality.
-            if (String.Equals(name1, name2, StringComparison.Ordinal))
+            if (string.Equals(name1, name2, StringComparison.Ordinal))
             {
                 return true;
             }
@@ -308,18 +325,20 @@ namespace Opc.Ua
         /// <summary>
         /// Compares string fields of two distinguished names.
         /// </summary>
-        private static bool CompareDistinguishedNameFields(IList<string> fields1, IList<string> fields2)
+        private static bool CompareDistinguishedNameFields(
+            List<string> fields1,
+            List<string> fields2)
         {
             // compare each.
             for (int ii = 0; ii < fields1.Count; ii++)
             {
-                var comparison = StringComparison.Ordinal;
+                StringComparison comparison = StringComparison.Ordinal;
                 if (fields1[ii].StartsWith("DC=", StringComparison.OrdinalIgnoreCase))
                 {
                     // DC hostnames may have different case
                     comparison = StringComparison.OrdinalIgnoreCase;
                 }
-                if (!String.Equals(fields1[ii], fields2[ii], comparison))
+                if (!string.Equals(fields1[ii], fields2[ii], comparison))
                 {
                     return false;
                 }
@@ -330,7 +349,9 @@ namespace Opc.Ua
         /// <summary>
         /// Compares two distinguished names.
         /// </summary>
-        public static bool CompareDistinguishedName(X509Certificate2 certificate, List<string> parsedName)
+        public static bool CompareDistinguishedName(
+            X509Certificate2 certificate,
+            List<string> parsedName)
         {
             // can't compare if the number of fields is 0.
             if (parsedName.Count == 0)
@@ -350,23 +371,22 @@ namespace Opc.Ua
             return CompareDistinguishedNameFields(parsedName, certificateName);
         }
 
-        private static readonly char[] anyOf = new char[] { '/', ',', '=' };
+        private static readonly char[] s_anyOf = ['/', ',', '='];
 
         /// <summary>
         /// Parses a distingushed name.
         /// </summary>
         public static List<string> ParseDistinguishedName(string name)
         {
-            List<string> fields = new List<string>();
+            var fields = new List<string>();
 
-            if (String.IsNullOrEmpty(name))
+            if (string.IsNullOrEmpty(name))
             {
                 return fields;
             }
 
             // determine the delimiter used.
             char delimiter = ',';
-            bool found = false;
             bool quoted = false;
 
             for (int ii = name.Length - 1; ii >= 0; ii--)
@@ -383,9 +403,20 @@ namespace Opc.Ua
                 {
                     ii--;
 
-                    while (ii >= 0 && Char.IsWhiteSpace(name[ii])) ii--;
-                    while (ii >= 0 && (Char.IsLetterOrDigit(name[ii]) || name[ii] == '.')) ii--;
-                    while (ii >= 0 && Char.IsWhiteSpace(name[ii])) ii--;
+                    while (ii >= 0 && char.IsWhiteSpace(name[ii]))
+                    {
+                        ii--;
+                    }
+
+                    while (ii >= 0 && (char.IsLetterOrDigit(name[ii]) || name[ii] == '.'))
+                    {
+                        ii--;
+                    }
+
+                    while (ii >= 0 && char.IsWhiteSpace(name[ii]))
+                    {
+                        ii--;
+                    }
 
                     if (ii >= 0)
                     {
@@ -396,23 +427,24 @@ namespace Opc.Ua
                 }
             }
 
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             string key = null;
-            string value = null;
-            found = false;
+            bool found = false;
 
             for (int ii = 0; ii < name.Length; ii++)
             {
-                while (ii < name.Length && Char.IsWhiteSpace(name[ii])) ii++;
+                while (ii < name.Length && char.IsWhiteSpace(name[ii]))
+                {
+                    ii++;
+                }
 
                 if (ii >= name.Length)
                 {
                     break;
                 }
 
-                char ch = name[ii];
-
+                char ch;
                 if (found)
                 {
                     char end = delimiter;
@@ -429,7 +461,11 @@ namespace Opc.Ua
 
                         if (ch == end)
                         {
-                            while (ii < name.Length && name[ii] != delimiter) ii++;
+                            while (ii < name.Length && name[ii] != delimiter)
+                            {
+                                ii++;
+                            }
+
                             break;
                         }
 
@@ -437,14 +473,14 @@ namespace Opc.Ua
                         ii++;
                     }
 
-                    value = buffer.ToString().TrimEnd();
+                    string value = buffer.ToString().TrimEnd();
                     found = false;
 
                     buffer.Length = 0;
-                    buffer.Append(key);
-                    buffer.Append('=');
+                    buffer.Append(key)
+                        .Append('=');
 
-                    if (value.IndexOfAny(anyOf) != -1)
+                    if (value.IndexOfAny(s_anyOf) != -1)
                     {
                         if (value.Length > 0 && value[0] != '"')
                         {
@@ -453,7 +489,7 @@ namespace Opc.Ua
 
                         buffer.Append(value);
 
-                        if (value.Length > 0 && value[value.Length - 1] != '"')
+                        if (value.Length > 0 && value[^1] != '"')
                         {
                             buffer.Append('"');
                         }
@@ -466,7 +502,6 @@ namespace Opc.Ua
                     fields.Add(buffer.ToString());
                     buffer.Length = 0;
                 }
-
                 else
                 {
                     while (ii < name.Length)
@@ -523,13 +558,17 @@ namespace Opc.Ua
         /// <summary>
         /// Verify ECDsa key pair of two certificates.
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         public static bool VerifyECDsaKeyPair(
             X509Certificate2 certWithPublicKey,
             X509Certificate2 certWithPrivateKey,
             bool throwOnError = false)
         {
-#if ECC_SUPPORT  
-            return X509PfxUtils.VerifyECDsaKeyPair(certWithPublicKey, certWithPrivateKey, throwOnError);
+#if ECC_SUPPORT
+            return X509PfxUtils.VerifyECDsaKeyPair(
+                certWithPublicKey,
+                certWithPrivateKey,
+                throwOnError);
 #else
             throw new NotSupportedException();
 #endif
@@ -543,7 +582,10 @@ namespace Opc.Ua
             X509Certificate2 certWithPrivateKey,
             bool throwOnError = false)
         {
-            return X509PfxUtils.VerifyRSAKeyPair(certWithPublicKey, certWithPrivateKey, throwOnError);
+            return X509PfxUtils.VerifyRSAKeyPair(
+                certWithPublicKey,
+                certWithPrivateKey,
+                throwOnError);
         }
 
         /// <summary>
@@ -568,7 +610,9 @@ namespace Opc.Ua
         /// the private key requires an extra copy.
         /// </summary>
         /// <returns>The certificate</returns>
-        public static X509Certificate2 CreateCopyWithPrivateKey(X509Certificate2 certificate, bool persisted)
+        public static X509Certificate2 CreateCopyWithPrivateKey(
+            X509Certificate2 certificate,
+            bool persisted)
         {
             // a copy is only necessary on windows
             if (certificate.HasPrivateKey
@@ -579,8 +623,13 @@ namespace Opc.Ua
             {
                 // see https://github.com/dotnet/runtime/issues/29144
                 string passcode = GeneratePasscode();
-                X509KeyStorageFlags storageFlags = persisted ? X509KeyStorageFlags.PersistKeySet : X509KeyStorageFlags.Exportable;
-                return X509CertificateLoader.LoadPkcs12(certificate.Export(X509ContentType.Pfx, passcode), passcode, storageFlags);
+                X509KeyStorageFlags storageFlags = persisted
+                    ? X509KeyStorageFlags.PersistKeySet
+                    : X509KeyStorageFlags.Exportable;
+                return X509CertificateLoader.LoadPkcs12(
+                    certificate.Export(X509ContentType.Pfx, passcode),
+                    passcode,
+                    storageFlags);
             }
             return certificate;
         }
@@ -595,8 +644,7 @@ namespace Opc.Ua
         public static X509Certificate2 CreateCertificateFromPKCS12(
             byte[] rawData,
             string password,
-            bool noEphemeralKeySet = false
-            )
+            bool noEphemeralKeySet = false)
         {
             return X509PfxUtils.CreateCertificateFromPKCS12(rawData, password, noEphemeralKeySet);
         }
@@ -609,11 +657,12 @@ namespace Opc.Ua
             X500DistinguishedName issuer,
             string serialnumber)
         {
-            X509Certificate2Collection certificates = await store.Enumerate().ConfigureAwait(false);
+            X509Certificate2Collection certificates = await store.EnumerateAsync()
+                .ConfigureAwait(false);
 
-            foreach (var certificate in certificates)
+            foreach (X509Certificate2 certificate in certificates)
             {
-                if (X509Utils.CompareDistinguishedName(certificate.SubjectName, issuer) &&
+                if (CompareDistinguishedName(certificate.SubjectName, issuer) &&
                     Utils.IsEqual(certificate.SerialNumber, serialnumber))
                 {
                     return certificate;
@@ -634,7 +683,7 @@ namespace Opc.Ua
         /// <param name="storeType">Type of certificate store (Directory) <see cref="CertificateStoreType"/>.</param>
         /// <param name="storePath">The store path (syntax depends on storeType).</param>
         /// <param name="password">The password to use to protect the certificate.</param>
-        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
         public static X509Certificate2 AddToStore(
             this X509Certificate2 certificate,
             string storeType,
@@ -642,20 +691,19 @@ namespace Opc.Ua
             string password = null)
         {
             // add cert to the store.
-            if (!String.IsNullOrEmpty(storePath) && !String.IsNullOrEmpty(storeType))
+            if (!string.IsNullOrEmpty(storePath) && !string.IsNullOrEmpty(storeType))
             {
-                var certificateStoreIdentifier = new CertificateStoreIdentifier(storePath, storeType, false);
-                using (ICertificateStore store = certificateStoreIdentifier.OpenStore())
-                {
-                    if (store == null)
-                    {
-                        throw new ArgumentException("Invalid store type");
-                    }
+                var certificateStoreIdentifier = new CertificateStoreIdentifier(
+                    storePath,
+                    storeType,
+                    false);
+                using ICertificateStore store =
+                    certificateStoreIdentifier.OpenStore() ??
+                    throw new ArgumentException("Invalid store type");
 
-                    store.Open(storePath, false);
-                    store.Add(certificate, password).Wait();
-                    store.Close();
-                }
+                store.Open(storePath, false);
+                store.AddAsync(certificate, password).GetAwaiter().GetResult();
+                store.Close();
             }
             return certificate;
         }
@@ -670,7 +718,7 @@ namespace Opc.Ua
         /// <param name="certificate">The certificate to store.</param>
         /// <param name="storeIdentifier">The certificate store.</param>
         /// <param name="password">The password to use to protect the certificate.</param>
-        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
         public static X509Certificate2 AddToStore(
             this X509Certificate2 certificate,
             CertificateStoreIdentifier storeIdentifier,
@@ -682,12 +730,12 @@ namespace Opc.Ua
                 ICertificateStore store = storeIdentifier.OpenStore();
                 try
                 {
-                    if (store == null || store.NoPrivateKeys == true)
+                    if (store == null || store.NoPrivateKeys)
                     {
                         throw new ArgumentException("Invalid store type");
                     }
 
-                    store.Add(certificate, password).Wait();
+                    store.AddAsync(certificate, password).GetAwaiter().GetResult();
                 }
                 finally
                 {
@@ -709,6 +757,7 @@ namespace Opc.Ua
         /// <param name="storePath">The store path (syntax depends on storeType).</param>
         /// <param name="password">The password to use to protect the certificate.</param>
         /// <param name="ct">The cancellation token.</param>
+        /// <exception cref="ArgumentException"></exception>
         public static async Task<X509Certificate2> AddToStoreAsync(
             this X509Certificate2 certificate,
             string storeType,
@@ -717,19 +766,18 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             // add cert to the store.
-            if (!String.IsNullOrEmpty(storePath) && !String.IsNullOrEmpty(storeType))
+            if (!string.IsNullOrEmpty(storePath) && !string.IsNullOrEmpty(storeType))
             {
-                var certificateStoreIdentifier = new CertificateStoreIdentifier(storePath, storeType, false);
-                using (ICertificateStore store = certificateStoreIdentifier.OpenStore())
-                {
-                    if (store == null)
-                    {
-                        throw new ArgumentException("Invalid store type");
-                    }
+                var certificateStoreIdentifier = new CertificateStoreIdentifier(
+                    storePath,
+                    storeType,
+                    false);
+                using ICertificateStore store =
+                    certificateStoreIdentifier.OpenStore() ??
+                    throw new ArgumentException("Invalid store type");
 
-                    await store.Add(certificate, password).ConfigureAwait(false);
-                    store.Close();
-                }
+                await store.AddAsync(certificate, password, ct).ConfigureAwait(false);
+                store.Close();
             }
             return certificate;
         }
@@ -745,6 +793,7 @@ namespace Opc.Ua
         /// <param name="storeIdentifier">Type of certificate store (Directory) <see cref="CertificateStoreType"/>.</param>
         /// <param name="password">The password to use to protect the certificate.</param>
         /// <param name="ct">The cancellation token.</param>
+        /// <exception cref="ArgumentException"></exception>
         public static async Task<X509Certificate2> AddToStoreAsync(
             this X509Certificate2 certificate,
             CertificateStoreIdentifier storeIdentifier,
@@ -761,7 +810,7 @@ namespace Opc.Ua
                     {
                         throw new ArgumentException("Invalid store type");
                     }
-                    await store.Add(certificate, password).ConfigureAwait(false);
+                    await store.AddAsync(certificate, password, ct).ConfigureAwait(false);
                 }
                 finally
                 {
@@ -771,11 +820,9 @@ namespace Opc.Ua
             return certificate;
         }
 
-
         /// <summary>
         /// Get the hash algorithm from the hash size in bits.
         /// </summary>
-        /// <param name="hashSizeInBits"></param>
         public static HashAlgorithmName GetRSAHashAlgorithmName(uint hashSizeInBits)
         {
             if (hashSizeInBits <= 160)
@@ -805,6 +852,5 @@ namespace Opc.Ua
             byte[] tokenBuffer = Nonce.CreateRandomNonceData(kLength);
             return Convert.ToBase64String(tokenBuffer);
         }
-
     }
 }

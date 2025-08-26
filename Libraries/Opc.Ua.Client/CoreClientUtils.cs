@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -44,7 +44,6 @@ namespace Opc.Ua.Client
         /// </summary>
         public static readonly int DefaultDiscoverTimeout = 15000;
 
-        #region Discovery
         /// <summary>
         /// Discovers the servers on the local machine.
         /// </summary>
@@ -63,17 +62,18 @@ namespace Opc.Ua.Client
         /// <returns>A list of server urls.</returns>
         public static IList<string> DiscoverServers(
             ApplicationConfiguration configuration,
-            int discoverTimeout
-            )
+            int discoverTimeout)
         {
-            List<string> serverUrls = new List<string>();
+            var serverUrls = new List<string>();
 
             // set a short timeout because this is happening in the drop down event.
             var endpointConfiguration = EndpointConfiguration.Create(configuration);
             endpointConfiguration.OperationTimeout = discoverTimeout;
 
             // Connect to the local discovery server and find the available servers.
-            using (DiscoveryClient client = DiscoveryClient.Create(new Uri(Utils.Format(Utils.DiscoveryUrls[0], "localhost")), endpointConfiguration))
+            using (var client = DiscoveryClient.Create(
+                    new Uri(Utils.Format(Utils.DiscoveryUrls[0], "localhost")),
+                    endpointConfiguration))
             {
                 ApplicationDescriptionCollection servers = client.FindServers(null);
 
@@ -90,14 +90,17 @@ namespace Opc.Ua.Client
                         string discoveryUrl = servers[ii].DiscoveryUrls[jj];
 
                         // Many servers will use the '/discovery' suffix for the discovery endpoint.
-                        // The URL without this prefix should be the base URL for the server. 
-                        if (discoveryUrl.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))
+                        // The URL without this prefix should be the base URL for the server.
+                        if (discoveryUrl.EndsWith(
+                            ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))
                         {
-                            discoveryUrl = discoveryUrl.Substring(0, discoveryUrl.Length - ConfiguredEndpoint.DiscoverySuffix.Length);
+                            discoveryUrl =
+                                discoveryUrl[..^ConfiguredEndpoint.DiscoverySuffix.Length];
                         }
 
                         // ensure duplicates do not get added.
-                        if (!serverUrls.Exists(serverUrl => serverUrl.Equals(discoveryUrl, StringComparison.OrdinalIgnoreCase)))
+                        if (!serverUrls.Exists(serverUrl =>
+                                serverUrl.Equals(discoveryUrl, StringComparison.OrdinalIgnoreCase)))
                         {
                             serverUrls.Add(discoveryUrl);
                         }
@@ -111,49 +114,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Finds the endpoint that best matches the current settings.
         /// </summary>
-        /// <param name="discoveryUrl">The discovery URL.</param>
-        /// <param name="useSecurity">if set to <c>true</c> select an endpoint that uses security.</param>
-        /// <returns>The best available endpoint.</returns>
-        [Obsolete("Use the SelectEndpoint with ApplicationConfiguration instead to support ECC.")]
-        public static EndpointDescription SelectEndpoint(string discoveryUrl, bool useSecurity)
-        {
-            return SelectEndpoint(discoveryUrl, useSecurity, DefaultDiscoverTimeout);
-        }
-
-        /// <summary>
-        /// Finds the endpoint that best matches the current settings.
-        /// </summary>
-        /// <param name="discoveryUrl">The discovery URL.</param>
-        /// <param name="useSecurity">if set to <c>true</c> select an endpoint that uses security.</param>
-        /// <param name="discoverTimeout">Operation timeout in milliseconds.</param>
-        /// <returns>The best available endpoint.</returns>
-        [Obsolete("Use the SelectEndpoint with ApplicationConfiguration instead to support ECC.")]
-        public static EndpointDescription SelectEndpoint(
-            string discoveryUrl,
-            bool useSecurity,
-            int discoverTimeout
-            )
-        {
-            var url = GetDiscoveryUrl(discoveryUrl);
-            var endpointConfiguration = EndpointConfiguration.Create();
-            endpointConfiguration.OperationTimeout = discoverTimeout;
-
-            // Connect to the server's discovery endpoint and find the available configuration.
-            using (var client = DiscoveryClient.Create(url, endpointConfiguration))
-            {
-                var endpoints = client.GetEndpoints(null);
-                return SelectEndpoint(url, endpoints, useSecurity);
-            }
-        }
-
-        /// <summary>
-        /// Finds the endpoint that best matches the current settings.
-        /// </summary>
         public static EndpointDescription SelectEndpoint(
             ApplicationConfiguration application,
             ITransportWaitingConnection connection,
-            bool useSecurity
-            )
+            bool useSecurity)
         {
             return SelectEndpoint(application, connection, useSecurity, DefaultDiscoverTimeout);
         }
@@ -165,18 +129,20 @@ namespace Opc.Ua.Client
             ApplicationConfiguration application,
             ITransportWaitingConnection connection,
             bool useSecurity,
-            int discoverTimeout
-            )
+            int discoverTimeout)
         {
             var endpointConfiguration = EndpointConfiguration.Create();
-            endpointConfiguration.OperationTimeout = discoverTimeout > 0 ? discoverTimeout : DefaultDiscoverTimeout;
+            endpointConfiguration.OperationTimeout = discoverTimeout > 0
+                ? discoverTimeout
+                : DefaultDiscoverTimeout;
 
-            using (DiscoveryClient client = DiscoveryClient.Create(application, connection, endpointConfiguration))
-            {
-                var url = new Uri(client.Endpoint.EndpointUrl);
-                var endpoints = client.GetEndpoints(null);
-                return SelectEndpoint(application, url, endpoints, useSecurity);
-            }
+            using var client = DiscoveryClient.Create(
+                application,
+                connection,
+                endpointConfiguration);
+            var url = new Uri(client.Endpoint.EndpointUrl);
+            EndpointDescriptionCollection endpoints = client.GetEndpoints(null);
+            return SelectEndpoint(application, url, endpoints, useSecurity);
         }
 
         /// <summary>
@@ -206,57 +172,40 @@ namespace Opc.Ua.Client
             ApplicationConfiguration application,
             string discoveryUrl,
             bool useSecurity,
-            int discoverTimeout
-            )
+            int discoverTimeout)
         {
-            var uri = GetDiscoveryUrl(discoveryUrl);
+            Uri uri = GetDiscoveryUrl(discoveryUrl);
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = discoverTimeout;
 
-            using (var client = DiscoveryClient.Create(application, uri, endpointConfiguration))
+            using var client = DiscoveryClient.Create(application, uri, endpointConfiguration);
+            // Connect to the server's discovery endpoint and find the available configuration.
+            var url = new Uri(client.Endpoint.EndpointUrl);
+            EndpointDescriptionCollection endpoints = client.GetEndpoints(null);
+            EndpointDescription selectedEndpoint = SelectEndpoint(
+                application,
+                url,
+                endpoints,
+                useSecurity);
+
+            Uri endpointUrl = Utils.ParseUri(selectedEndpoint.EndpointUrl);
+            if (endpointUrl != null && endpointUrl.Scheme == uri.Scheme)
             {
-                // Connect to the server's discovery endpoint and find the available configuration.
-                Uri url = new Uri(client.Endpoint.EndpointUrl);
-                var endpoints = client.GetEndpoints(null);
-                var selectedEndpoint = SelectEndpoint(application, url, endpoints, useSecurity);
-
-                Uri endpointUrl = Utils.ParseUri(selectedEndpoint.EndpointUrl);
-                if (endpointUrl != null && endpointUrl.Scheme == uri.Scheme)
+                var builder = new UriBuilder(endpointUrl)
                 {
-                    UriBuilder builder = new UriBuilder(endpointUrl);
-                    builder.Host = uri.DnsSafeHost;
-                    builder.Port = uri.Port;
-                    selectedEndpoint.EndpointUrl = builder.ToString();
-                }
-
-                return selectedEndpoint;
+                    Host = uri.DnsSafeHost,
+                    Port = uri.Port
+                };
+                selectedEndpoint.EndpointUrl = builder.ToString();
             }
+
+            return selectedEndpoint;
         }
 
         /// <summary>
         /// Select the best supported endpoint from an
         /// EndpointDescriptionCollection, with or without security.
         /// </summary>
-        /// <param name="url">The discovery Url of the server.</param>
-        /// <param name="endpoints"></param>
-        /// <param name="useSecurity"></param>
-        [Obsolete("Use the SelectEndpoint with ApplicationConfiguration instead to support ECC.")]
-        public static EndpointDescription SelectEndpoint(
-            Uri url,
-            EndpointDescriptionCollection endpoints,
-            bool useSecurity)
-        {
-            return SelectEndpoint(null, url, endpoints, useSecurity);
-        }
-
-        /// <summary>
-        /// Select the best supported endpoint from an
-        /// EndpointDescriptionCollection, with or without security.
-        /// </summary>
-        /// <param name="configuration"></param>
-        /// <param name="url"></param>
-        /// <param name="endpoints"></param>
-        /// <param name="useSecurity"></param>
         public static EndpointDescription SelectEndpoint(
             ApplicationConfiguration configuration,
             Uri url,
@@ -265,7 +214,7 @@ namespace Opc.Ua.Client
         {
             EndpointDescription selectedEndpoint = null;
 
-            // select the best endpoint to use based on the selected URL and the UseSecurity checkbox. 
+            // select the best endpoint to use based on the selected URL and the UseSecurity checkbox.
             for (int ii = 0; ii < endpoints.Count; ii++)
             {
                 EndpointDescription endpoint = endpoints[ii];
@@ -284,7 +233,9 @@ namespace Opc.Ua.Client
                         if (configuration != null)
                         {
                             // skip unsupported security policies
-                            if (!configuration.SecurityConfiguration.SupportedSecurityPolicies.Contains(endpoint.SecurityPolicyUri))
+                            if (!configuration.SecurityConfiguration.SupportedSecurityPolicies
+                                    .Contains(
+                                        endpoint.SecurityPolicyUri))
                             {
                                 continue;
                             }
@@ -299,24 +250,21 @@ namespace Opc.Ua.Client
                             }
                         }
                     }
-                    else
+                    else if (endpoint.SecurityMode != MessageSecurityMode.None)
                     {
-                        if (endpoint.SecurityMode != MessageSecurityMode.None)
-                        {
-                            continue;
-                        }
+                        continue;
                     }
 
                     // pick the first available endpoint by default.
-                    if (selectedEndpoint == null)
-                    {
-                        selectedEndpoint = endpoint;
-                    }
-
+                    selectedEndpoint ??= endpoint;
 
                     //Select endpoint if it has a higher calculated security level, than the previously selected one
-                    if (SecuredApplication.CalculateSecurityLevel(endpoint.SecurityMode, endpoint.SecurityPolicyUri)
-                        > SecuredApplication.CalculateSecurityLevel(selectedEndpoint.SecurityMode, selectedEndpoint.SecurityPolicyUri))
+                    if (SecuredApplication.CalculateSecurityLevel(
+                        endpoint.SecurityMode,
+                        endpoint.SecurityPolicyUri) >
+                        SecuredApplication.CalculateSecurityLevel(
+                            selectedEndpoint.SecurityMode,
+                            selectedEndpoint.SecurityPolicyUri))
                     {
                         selectedEndpoint = endpoint;
                     }
@@ -326,7 +274,8 @@ namespace Opc.Ua.Client
             // pick the first available endpoint by default.
             if (selectedEndpoint == null && endpoints.Count > 0)
             {
-                selectedEndpoint = endpoints.FirstOrDefault(e => e.EndpointUrl?.StartsWith(url.Scheme, StringComparison.Ordinal) == true);
+                selectedEndpoint = endpoints.FirstOrDefault(e =>
+                    e.EndpointUrl?.StartsWith(url.Scheme, StringComparison.Ordinal) == true);
             }
 
             // return the selected endpoint.
@@ -339,17 +288,16 @@ namespace Opc.Ua.Client
         public static Uri GetDiscoveryUrl(string discoveryUrl)
         {
             // needs to add the '/discovery' back onto non-UA TCP URLs.
-            if (Utils.IsUriHttpRelatedScheme(discoveryUrl))
+            if (Utils.IsUriHttpRelatedScheme(discoveryUrl) &&
+                !discoveryUrl.EndsWith(
+                    ConfiguredEndpoint.DiscoverySuffix,
+                    StringComparison.OrdinalIgnoreCase))
             {
-                if (!discoveryUrl.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))
-                {
-                    discoveryUrl += ConfiguredEndpoint.DiscoverySuffix;
-                }
+                discoveryUrl += ConfiguredEndpoint.DiscoverySuffix;
             }
 
             // parse the selected URL.
             return new Uri(discoveryUrl);
         }
-        #endregion
     }
 }

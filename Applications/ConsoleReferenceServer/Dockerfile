@@ -1,7 +1,7 @@
-﻿FROM mcr.microsoft.com/dotnet/runtime:8.0-jammy AS base
+﻿FROM mcr.microsoft.com/dotnet/runtime AS base
 WORKDIR /app
 
-FROM mcr.microsoft.com/dotnet/sdk:8.0-jammy AS build
+FROM mcr.microsoft.com/dotnet/sdk AS build
 WORKDIR /src
 
 # copy csproj and restore as distinct layers
@@ -24,7 +24,7 @@ ENV OPTIONS="-c Release -f net8.0 -p:NoHttps=true -p:Dockerbuild=true -p:Version
 
 FROM build AS publish
 ENV DOTNET_EnableWriteXorExecute=0
-RUN dotnet publish "ConsoleReferenceServer.csproj" --no-restore ${OPTIONS} -o /app/publish 
+RUN dotnet publish "ConsoleReferenceServer.csproj" --no-restore ${OPTIONS} -o /app/publish
 
 FROM base AS final
 WORKDIR /app

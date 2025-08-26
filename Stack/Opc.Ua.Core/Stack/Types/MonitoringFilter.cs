@@ -13,7 +13,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Runtime.Serialization;
 using System.Text;
 
 namespace Opc.Ua
@@ -23,14 +22,13 @@ namespace Opc.Ua
     /// </summary>
     public partial class DataChangeFilter
     {
-        #region Public Methods
         /// <summary>
         /// Checks that the filter is valid.
         /// </summary>
         public ServiceResult Validate()
         {
             // check deadband type enumeration.
-            if ((int)DeadbandType < (int)Opc.Ua.DeadbandType.None || (int)DeadbandType > (int)Opc.Ua.DeadbandType.Percent)
+            if ((int)DeadbandType is < ((int)Ua.DeadbandType.None) or > ((int)Ua.DeadbandType.Percent))
             {
                 return ServiceResult.Create(
                     StatusCodes.BadDeadbandFilterInvalid,
@@ -39,7 +37,7 @@ namespace Opc.Ua
             }
 
             // check data change trigger enumeration.
-            if ((int)Trigger < (int)DataChangeTrigger.Status || (int)Trigger > (int)DataChangeTrigger.StatusValueTimestamp)
+            if ((int)Trigger is < ((int)DataChangeTrigger.Status) or > ((int)DataChangeTrigger.StatusValueTimestamp))
             {
                 return ServiceResult.Create(
                     StatusCodes.BadDeadbandFilterInvalid,
@@ -57,15 +55,12 @@ namespace Opc.Ua
             }
 
             // deadband percentage must be less than 100.
-            if ((int)DeadbandType == (int)Opc.Ua.DeadbandType.Percent)
+            if ((int)DeadbandType == (int)Ua.DeadbandType.Percent && DeadbandValue > 100)
             {
-                if (DeadbandValue > 100)
-                {
-                    return ServiceResult.Create(
-                        StatusCodes.BadDeadbandFilterInvalid,
-                        "Percentage deadband value '{0}' cannot be greater than 100.",
-                        DeadbandValue);
-                }
+                return ServiceResult.Create(
+                    StatusCodes.BadDeadbandFilterInvalid,
+                    "Percentage deadband value '{0}' cannot be greater than 100.",
+                    DeadbandValue);
             }
 
             // passed initial validation.
@@ -77,12 +72,12 @@ namespace Opc.Ua
         /// </summary>
         public static double GetAbsoluteDeadband(MonitoringFilter filter)
         {
-            if (!(filter is DataChangeFilter datachangeFilter))
+            if (filter is not DataChangeFilter datachangeFilter)
             {
                 return 0.0;
             }
 
-            if (datachangeFilter.DeadbandType != (uint)Opc.Ua.DeadbandType.Absolute)
+            if (datachangeFilter.DeadbandType != (uint)Ua.DeadbandType.Absolute)
             {
                 return 0.0;
             }
@@ -95,19 +90,18 @@ namespace Opc.Ua
         /// </summary>
         public static double GetPercentageDeadband(MonitoringFilter filter)
         {
-            if (!(filter is DataChangeFilter datachangeFilter))
+            if (filter is not DataChangeFilter datachangeFilter)
             {
                 return 0.0;
             }
 
-            if (datachangeFilter.DeadbandType != (uint)Opc.Ua.DeadbandType.Percent)
+            if (datachangeFilter.DeadbandType != (uint)Ua.DeadbandType.Percent)
             {
                 return 0.0;
             }
 
             return datachangeFilter.DeadbandValue;
         }
-        #endregion
     }
 
     /// <summary>
@@ -120,10 +114,11 @@ namespace Opc.Ua
         /// </summary>
         public void AddSelectClause(NodeId eventTypeId, QualifiedName propertyName)
         {
-            SimpleAttributeOperand clause = new SimpleAttributeOperand();
-
-            clause.TypeDefinitionId = eventTypeId;
-            clause.AttributeId = Attributes.Value;
+            var clause = new SimpleAttributeOperand
+            {
+                TypeDefinitionId = eventTypeId,
+                AttributeId = Attributes.Value
+            };
 
             clause.BrowsePath.Add(propertyName);
 
@@ -135,12 +130,13 @@ namespace Opc.Ua
         /// </summary>
         public void AddSelectClause(NodeId eventTypeId, string browsePath, uint attributeId)
         {
-            SimpleAttributeOperand clause = new SimpleAttributeOperand();
+            var clause = new SimpleAttributeOperand
+            {
+                TypeDefinitionId = eventTypeId,
+                AttributeId = attributeId
+            };
 
-            clause.TypeDefinitionId = eventTypeId;
-            clause.AttributeId = attributeId;
-
-            if (!String.IsNullOrEmpty(browsePath))
+            if (!string.IsNullOrEmpty(browsePath))
             {
                 clause.BrowsePath = SimpleAttributeOperand.Parse(browsePath);
             }
@@ -153,7 +149,6 @@ namespace Opc.Ua
         /// </summary>
         public class Result
         {
-            #region Public Interface
             /// <summary>
             /// Initializes the object.
             /// </summary>
@@ -166,54 +161,61 @@ namespace Opc.Ua
             /// </summary>
             public static implicit operator Result(ServiceResult status)
             {
-                Result result = new Result();
-                result.Status = status;
-                return result;
+                return new Result { Status = status };
             }
 
             /// <summary>
             /// The result for the entire filter.
             /// </summary>
-            public ServiceResult Status
-            {
-                get { return m_status; }
-                set { m_status = value; }
-            }
+            public ServiceResult Status { get; set; }
 
             /// <summary>
             /// Returns a string containing the errors reported.
             /// </summary>
             public string GetLongString()
             {
-                StringBuilder buffer = new StringBuilder();
+                var buffer = new StringBuilder();
 
                 foreach (ServiceResult selectResult in SelectClauseResults)
                 {
                     if (ServiceResult.IsBad(selectResult))
                     {
-                        buffer.AppendFormat(CultureInfo.InvariantCulture, "Select Clause Error: {0}", selectResult.ToString());
-                        buffer.AppendLine();
+                        buffer.AppendFormat(
+                            CultureInfo.InvariantCulture,
+                            "Select Clause Error: {0}",
+                            selectResult.ToString())
+                            .AppendLine();
                     }
                 }
 
                 if (ServiceResult.IsBad(WhereClauseResult.Status))
                 {
-                    buffer.AppendFormat(CultureInfo.InvariantCulture, "Where Clause Error: {0}", WhereClauseResult.Status.ToString());
-                    buffer.AppendLine();
+                    buffer.AppendFormat(
+                        CultureInfo.InvariantCulture,
+                        "Where Clause Error: {0}",
+                        WhereClauseResult.Status.ToString())
+                        .AppendLine();
 
-                    foreach (ContentFilter.ElementResult elementResult in WhereClauseResult.ElementResults)
+                    foreach (ContentFilter.ElementResult elementResult in WhereClauseResult
+                        .ElementResults)
                     {
                         if (elementResult != null && ServiceResult.IsBad(elementResult.Status))
                         {
-                            buffer.AppendFormat(CultureInfo.InvariantCulture, "Element Error: {0}", elementResult.Status.ToString());
-                            buffer.AppendLine();
+                            buffer.AppendFormat(
+                                CultureInfo.InvariantCulture,
+                                "Element Error: {0}",
+                                elementResult.Status.ToString())
+                                .AppendLine();
 
                             foreach (ServiceResult operandResult in elementResult.OperandResults)
                             {
                                 if (ServiceResult.IsBad(operandResult))
                                 {
-                                    buffer.AppendFormat(CultureInfo.InvariantCulture, "Operand Error: {0}", operandResult.ToString());
-                                    buffer.AppendLine();
+                                    buffer.AppendFormat(
+                                        CultureInfo.InvariantCulture,
+                                        "Operand Error: {0}",
+                                        operandResult.ToString())
+                                        .AppendLine();
                                 }
                             }
                         }
@@ -225,42 +227,22 @@ namespace Opc.Ua
 
             /// <summary>
             /// The result for each select clause.
-            /// </summary>   
-            public List<ServiceResult> SelectClauseResults
-            {
-                get
-                {
-                    if (m_selectClauseResults == null)
-                    {
-                        m_selectClauseResults = new List<ServiceResult>();
-                    }
-
-                    return m_selectClauseResults;
-                }
-            }
+            /// </summary>
+            public List<ServiceResult> SelectClauseResults => m_selectClauseResults ??= [];
 
             /// <summary>
             /// The results for the where clause.
             /// </summary>
-            public Opc.Ua.ContentFilter.Result WhereClauseResult
-            {
-                get
-                {
-                    return m_whereClauseResults;
-                }
-
-                internal set
-                {
-                    m_whereClauseResults = value;
-                }
-            }
+            public ContentFilter.Result WhereClauseResult { get; internal set; }
 
             /// <summary>
             /// Converts the object to an EventFilterResult.
             /// </summary>
-            public EventFilterResult ToEventFilterResult(DiagnosticsMasks diagnosticsMasks, StringTable stringTable)
+            public EventFilterResult ToEventFilterResult(
+                DiagnosticsMasks diagnosticsMasks,
+                StringTable stringTable)
             {
-                EventFilterResult result = new EventFilterResult();
+                var result = new EventFilterResult();
 
                 if (m_selectClauseResults != null && m_selectClauseResults.Count > 0)
                 {
@@ -269,7 +251,12 @@ namespace Opc.Ua
                         if (ServiceResult.IsBad(clauseResult))
                         {
                             result.SelectClauseResults.Add(clauseResult.StatusCode);
-                            result.SelectClauseDiagnosticInfos.Add(new DiagnosticInfo(clauseResult, diagnosticsMasks, false, stringTable));
+                            result.SelectClauseDiagnosticInfos.Add(
+                                new DiagnosticInfo(
+                                    clauseResult,
+                                    diagnosticsMasks,
+                                    false,
+                                    stringTable));
                         }
                         else
                         {
@@ -279,20 +266,17 @@ namespace Opc.Ua
                     }
                 }
 
-                if (m_whereClauseResults != null)
+                if (WhereClauseResult != null)
                 {
-                    result.WhereClauseResult = m_whereClauseResults.ToContextFilterResult(diagnosticsMasks, stringTable);
+                    result.WhereClauseResult = WhereClauseResult.ToContextFilterResult(
+                        diagnosticsMasks,
+                        stringTable);
                 }
 
                 return result;
             }
-            #endregion
 
-            #region Private Fields
-            private ServiceResult m_status;
             private List<ServiceResult> m_selectClauseResults;
-            private ContentFilter.Result m_whereClauseResults;
-            #endregion
         }
 
         /// <summary>
@@ -300,7 +284,7 @@ namespace Opc.Ua
         /// </summary>
         public Result Validate(FilterContext context)
         {
-            Result result = new Result();
+            var result = new Result();
 
             // check for top level error.
             if (m_selectClauses == null || m_selectClauses.Count == 0)
@@ -352,7 +336,7 @@ namespace Opc.Ua
                     continue;
                 }
 
-                // clause ok.                    
+                // clause ok.
                 result.SelectClauseResults.Add(null);
             }
 
@@ -365,7 +349,7 @@ namespace Opc.Ua
                 result.SelectClauseResults.Clear();
             }
 
-            // validate where clause.          
+            // validate where clause.
             result.WhereClauseResult = m_whereClause.Validate(context);
 
             if (ServiceResult.IsBad(result.WhereClauseResult.Status))
@@ -382,16 +366,13 @@ namespace Opc.Ua
     /// </summary>
     public partial class SimpleAttributeOperand : IFormattable
     {
-        #region Constructors
         /// <summary>
         /// Creates an operand that references a component/property of a type.
         /// </summary>
-        public SimpleAttributeOperand(
-            NodeId typeId,
-            QualifiedName browsePath)
+        public SimpleAttributeOperand(NodeId typeId, QualifiedName browsePath)
         {
             m_typeDefinitionId = typeId;
-            m_browsePath = new QualifiedNameCollection();
+            m_browsePath = [];
             m_attributeId = Attributes.Value;
             m_indexRange = null;
 
@@ -401,12 +382,10 @@ namespace Opc.Ua
         /// <summary>
         /// Creates an operand that references a component/property of a type.
         /// </summary>
-        public SimpleAttributeOperand(
-            NodeId typeId,
-            IList<QualifiedName> browsePath)
+        public SimpleAttributeOperand(NodeId typeId, IList<QualifiedName> browsePath)
         {
             m_typeDefinitionId = typeId;
-            m_browsePath = new QualifiedNameCollection(browsePath);
+            m_browsePath = [.. browsePath];
             m_attributeId = Attributes.Value;
             m_indexRange = null;
         }
@@ -420,7 +399,7 @@ namespace Opc.Ua
             IList<QualifiedName> browsePath)
         {
             m_typeDefinitionId = ExpandedNodeId.ToNodeId(typeId, context.NamespaceUris);
-            m_browsePath = new QualifiedNameCollection(browsePath);
+            m_browsePath = [.. browsePath];
             m_attributeId = Attributes.Value;
             m_indexRange = null;
         }
@@ -440,26 +419,25 @@ namespace Opc.Ua
             m_attributeId = attributeId;
             m_indexRange = indexRange;
         }
-        #endregion
 
-        #region IFormattable Members
         /// <summary>
         /// Formats the value of the current instance using the specified format.
         /// </summary>
-        /// <param name="format">The <see cref="System.String"/> specifying the format to use.
+        /// <param name="format">The <see cref="string"/> specifying the format to use.
         /// -or-
-        /// null to use the default format defined for the type of the <see cref="System.IFormattable"/> implementation.</param>
-        /// <param name="formatProvider">The <see cref="System.IFormatProvider"/> to use to format the value.
+        /// null to use the default format defined for the type of the <see cref="IFormattable"/> implementation.</param>
+        /// <param name="formatProvider">The <see cref="IFormatProvider"/> to use to format the value.
         /// -or-
         /// null to obtain the numeric format information from the current locale setting of the operating system.</param>
         /// <returns>
-        /// A <see cref="System.String"/> containing the value of the current instance in the specified format.
+        /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
+        /// <exception cref="FormatException"></exception>
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
             {
-                StringBuilder buffer = new StringBuilder();
+                var buffer = new StringBuilder();
 
                 for (int ii = 0; ii < m_browsePath.Count; ii++)
                 {
@@ -471,9 +449,7 @@ namespace Opc.Ua
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Returns a <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
         /// </summary>
@@ -484,19 +460,14 @@ namespace Opc.Ua
         {
             return ToString(null, null);
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// Whether the operand has been validated.
         /// </summary>
         /// <remarks>
         /// Set when Validate() is called.
         /// </remarks>
-        public bool Validated
-        {
-            get { return m_validated; }
-        }
+        public bool Validated { get; private set; }
 
         /// <summary>
         /// Stores the parsed form of the IndexRange parameter.
@@ -504,19 +475,14 @@ namespace Opc.Ua
         /// <remarks>
         /// Set when Validate() is called.
         /// </remarks>
-        public NumericRange ParsedIndexRange
-        {
-            get { return m_parsedIndexRange; }
-        }
-        #endregion
+        public NumericRange ParsedIndexRange => m_parsedIndexRange;
 
-        #region Overridden Methods
         /// <summary>
         /// Validates the operand (sets the ParsedBrowsePath and ParsedIndexRange properties).
         /// </summary>
         public override ServiceResult Validate(FilterContext context, int index)
         {
-            m_validated = false;
+            Validated = false;
 
             // verify attribute id.
             if (!Attributes.IsValid(m_attributeId))
@@ -531,7 +497,7 @@ namespace Opc.Ua
             m_parsedIndexRange = NumericRange.Empty;
 
             // parse the index range.
-            if (!String.IsNullOrEmpty(m_indexRange))
+            if (!string.IsNullOrEmpty(m_indexRange))
             {
                 try
                 {
@@ -555,7 +521,7 @@ namespace Opc.Ua
                 }
             }
 
-            m_validated = true;
+            Validated = true;
 
             return ServiceResult.Good;
         }
@@ -565,7 +531,7 @@ namespace Opc.Ua
         /// </summary>
         public override string ToString(INodeTable nodeTable)
         {
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             INode node = nodeTable.Find(TypeDefinitionId);
 
@@ -584,27 +550,29 @@ namespace Opc.Ua
                 buffer.AppendFormat(CultureInfo.InvariantCulture, "{0}", Format(BrowsePath));
             }
 
-            if (!String.IsNullOrEmpty(IndexRange))
+            if (!string.IsNullOrEmpty(IndexRange))
             {
-                buffer.AppendFormat(CultureInfo.InvariantCulture, "[{0}]", NumericRange.Parse(IndexRange));
+                buffer.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    "[{0}]",
+                    NumericRange.Parse(IndexRange));
             }
 
             return buffer.ToString();
         }
-        #endregion
 
-        #region Static Methods
         /// <summary>
         /// Formats a browse path.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public static string Format(IList<QualifiedName> browsePath)
         {
             if (browsePath == null || browsePath.Count == 0)
             {
-                return String.Empty;
+                return string.Empty;
             }
 
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             for (int ii = 0; ii < browsePath.Count; ii++)
             {
@@ -612,21 +580,26 @@ namespace Opc.Ua
 
                 if (QualifiedName.IsNull(browseName))
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadBrowseNameInvalid, "BrowseName cannot be null");
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadBrowseNameInvalid,
+                        "BrowseName cannot be null");
                 }
 
                 buffer.Append('/');
 
                 if (browseName.NamespaceIndex != 0)
                 {
-                    buffer.AppendFormat(CultureInfo.InvariantCulture, "{0}:", browseName.NamespaceIndex);
+                    buffer.AppendFormat(
+                        CultureInfo.InvariantCulture,
+                        "{0}:",
+                        browseName.NamespaceIndex);
                 }
 
                 for (int jj = 0; jj < browseName.Name.Length; jj++)
                 {
                     char ch = browseName.Name[jj];
 
-                    if (ch == '&' || ch == '/')
+                    if (ch is '&' or '/')
                     {
                         buffer.Append('&');
                     }
@@ -643,14 +616,14 @@ namespace Opc.Ua
         /// </summary>
         public static QualifiedNameCollection Parse(string browsePath)
         {
-            QualifiedNameCollection browseNames = new QualifiedNameCollection();
+            var browseNames = new QualifiedNameCollection();
 
-            if (String.IsNullOrEmpty(browsePath))
+            if (string.IsNullOrEmpty(browsePath))
             {
                 return browseNames;
             }
 
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             bool escaped = false;
 
@@ -675,7 +648,7 @@ namespace Opc.Ua
                 {
                     if (buffer.Length > 0)
                     {
-                        QualifiedName browseName = QualifiedName.Parse(buffer.ToString());
+                        var browseName = QualifiedName.Parse(buffer.ToString());
                         browseNames.Add(browseName);
                     }
 
@@ -688,17 +661,13 @@ namespace Opc.Ua
 
             if (buffer.Length > 0)
             {
-                QualifiedName browseName = QualifiedName.Parse(buffer.ToString());
+                var browseName = QualifiedName.Parse(buffer.ToString());
                 browseNames.Add(browseName);
             }
 
             return browseNames;
         }
-        #endregion
 
-        #region Private Fields
-        private bool m_validated;
         private NumericRange m_parsedIndexRange;
-        #endregion              
     }
 }

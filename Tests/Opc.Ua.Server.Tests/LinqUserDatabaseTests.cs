@@ -1,19 +1,17 @@
 using System;
-using System.Collections.Generic;
 using NUnit.Framework;
-using Opc.Ua.Server;
 using Opc.Ua.Server.UserDatabase;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Server.Tests
 {
-    [TestFixture, Category("Server")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("Server")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     internal class LinqUserDatabaseTests
     {
-        #region Test Methods
-
         [Test]
         public void CreateInvalidUser()
         {
@@ -21,10 +19,10 @@ namespace Opc.Ua.Server.Tests
             var usersDb = new LinqUserDatabase();
 
             //Act+ Assert
-            Assert.Throws<ArgumentException>(
-            () => usersDb.CreateUser("", "PW", new List<Role> { Role.AuthenticatedUser }));
-            Assert.Throws<ArgumentException>(
-            () => usersDb.CreateUser("Name", "", new List<Role> { Role.AuthenticatedUser }));
+            NUnit.Framework.Assert.Throws<ArgumentException>(() =>
+                usersDb.CreateUser(string.Empty, "PW", [Role.AuthenticatedUser]));
+            NUnit.Framework.Assert.Throws<ArgumentException>(() =>
+                usersDb.CreateUser("Name", string.Empty, [Role.AuthenticatedUser]));
         }
 
         [Test]
@@ -32,9 +30,9 @@ namespace Opc.Ua.Server.Tests
         {
             //Arrrange
             var usersDb = new LinqUserDatabase();
-            usersDb.CreateUser("TestUser", "PW", new List<Role> { Role.AuthenticatedUser });
+            usersDb.CreateUser("TestUser", "PW", [Role.AuthenticatedUser]);
             //Act
-            var result = usersDb.DeleteUser("TestUser");
+            bool result = usersDb.DeleteUser("TestUser");
             //Assert
             Assert.True(result);
         }
@@ -44,9 +42,9 @@ namespace Opc.Ua.Server.Tests
         {
             //Arrrange
             var usersDb = new LinqUserDatabase();
-            usersDb.CreateUser("TestUser", "PW", new List<Role> { Role.AuthenticatedUser });
+            usersDb.CreateUser("TestUser", "PW", [Role.AuthenticatedUser]);
             //Act
-            var result = usersDb.DeleteUser("NoTestUser");
+            bool result = usersDb.DeleteUser("NoTestUser");
             //Assert
             Assert.False(result);
         }
@@ -56,11 +54,11 @@ namespace Opc.Ua.Server.Tests
         {
             //Arrrange
             var usersDb = new LinqUserDatabase();
-            usersDb.CreateUser("TestUser", "PW", new List<Role> { Role.AuthenticatedUser });
+            usersDb.CreateUser("TestUser", "PW", [Role.AuthenticatedUser]);
             //Act
-            var result = usersDb.ChangePassword("TestUser", "PW", "newPW");
-            var login = usersDb.CheckCredentials("TestUser", "newPW");
-            var loginOldPW = usersDb.CheckCredentials("TestUser", "PW");
+            bool result = usersDb.ChangePassword("TestUser", "PW", "newPW");
+            bool login = usersDb.CheckCredentials("TestUser", "newPW");
+            bool loginOldPW = usersDb.CheckCredentials("TestUser", "PW");
             //Assert
             Assert.True(result);
             Assert.True(login);
@@ -72,9 +70,9 @@ namespace Opc.Ua.Server.Tests
         {
             //Arrrange
             var usersDb = new LinqUserDatabase();
-            usersDb.CreateUser("TestUser", "PW", new List<Role> { Role.AuthenticatedUser });
+            usersDb.CreateUser("TestUser", "PW", [Role.AuthenticatedUser]);
             //Act
-            var result = usersDb.DeleteUser("NoTestUser");
+            bool result = usersDb.DeleteUser("NoTestUser");
             //Assert
             Assert.False(result);
         }
@@ -84,10 +82,10 @@ namespace Opc.Ua.Server.Tests
         {
             //Arrrange
             var usersDb = new LinqUserDatabase();
-            usersDb.CreateUser("TestUser", "PW", new List<Role> { Role.AuthenticatedUser });
+            usersDb.CreateUser("TestUser", "PW", [Role.AuthenticatedUser]);
             //Act
-            var result = usersDb.CheckCredentials("TestUser", "PW");
-            var loginWrongPw = usersDb.CheckCredentials("TestUser", "newPW");
+            bool result = usersDb.CheckCredentials("TestUser", "PW");
+            bool loginWrongPw = usersDb.CheckCredentials("TestUser", "newPW");
             //Assert
             Assert.True(result);
             Assert.False(loginWrongPw);
@@ -98,12 +96,11 @@ namespace Opc.Ua.Server.Tests
         {
             //Arrrange
             var usersDb = new LinqUserDatabase();
-            usersDb.CreateUser("TestUser", "PW", new List<Role> { Role.AuthenticatedUser });
+            usersDb.CreateUser("TestUser", "PW", [Role.AuthenticatedUser]);
             //Act
-            var result = usersDb.CheckCredentials("NoTestUser", "PW");
+            bool result = usersDb.CheckCredentials("NoTestUser", "PW");
             //Assert
             Assert.False(result);
         }
-        #endregion
     }
 }

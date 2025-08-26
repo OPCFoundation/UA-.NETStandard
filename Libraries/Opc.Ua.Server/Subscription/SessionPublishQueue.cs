@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -40,25 +40,19 @@ namespace Opc.Ua.Server
     /// </summary>
     public class SessionPublishQueue : IDisposable
     {
-        #region Constructors
         /// <summary>
         /// Creates a new queue.
         /// </summary>
-        public SessionPublishQueue(IServerInternal server, Session session, int maxPublishRequests)
+        public SessionPublishQueue(IServerInternal server, ISession session, int maxPublishRequests)
         {
-            if (server == null) throw new ArgumentNullException(nameof(server));
-            if (session == null) throw new ArgumentNullException(nameof(session));
-
-            m_server = server;
-            m_session = session;
+            m_server = server ?? throw new ArgumentNullException(nameof(server));
+            m_session = session ?? throw new ArgumentNullException(nameof(session));
             m_publishEvent = new ManualResetEvent(false);
             m_queuedRequests = new LinkedList<QueuedRequest>();
-            m_queuedSubscriptions = new List<QueuedSubscription>();
+            m_queuedSubscriptions = [];
             m_maxPublishRequests = maxPublishRequests;
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -89,7 +83,7 @@ namespace Opc.Ua.Server
                             request.Error = StatusCodes.BadServerHalted;
                             request.Dispose();
                         }
-                        catch (Exception)
+                        catch
                         {
                             // ignore errors.
                         }
@@ -100,14 +94,12 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Clears the queues because the session is closing.
         /// </summary>
         /// <returns>The list of subscriptions in the queue.</returns>
-        public IList<Subscription> Close()
+        public IList<ISubscription> Close()
         {
             lock (m_lock)
             {
@@ -125,7 +117,7 @@ namespace Opc.Ua.Server
                 }
 
                 // tell the subscriptions that the session is closed.
-                Subscription[] subscriptions = new Subscription[m_queuedSubscriptions.Count];
+                var subscriptions = new ISubscription[m_queuedSubscriptions.Count];
 
                 for (int ii = 0; ii < m_queuedSubscriptions.Count; ii++)
                 {
@@ -143,37 +135,46 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Adds a subscription from the publish queue.
         /// </summary>
-        public void Add(Subscription subscription)
+        /// <exception cref="ArgumentNullException"><paramref name="subscription"/> is <c>null</c>.</exception>
+        public void Add(ISubscription subscription)
         {
-            if (subscription == null) throw new ArgumentNullException(nameof(subscription));
+            if (subscription == null)
+            {
+                throw new ArgumentNullException(nameof(subscription));
+            }
 
             lock (m_lock)
             {
-                QueuedSubscription queuedSubscription = new QueuedSubscription();
-
-                queuedSubscription.ReadyToPublish = false;
-                queuedSubscription.Timestamp = DateTime.UtcNow;
-                queuedSubscription.Subscription = subscription;
+                var queuedSubscription = new QueuedSubscription
+                {
+                    ReadyToPublish = false,
+                    Timestamp = DateTime.UtcNow,
+                    Subscription = subscription
+                };
 
                 m_queuedSubscriptions.Add(queuedSubscription);
 
-                // TraceState("SUBSCRIPTION QUEUED");          
+                // TraceState("SUBSCRIPTION QUEUED");
             }
         }
 
         /// <summary>
         /// Removes a subscription from the publish queue.
         /// </summary>
-        public void Remove(Subscription subscription, bool removeQueuedRequests)
+        /// <exception cref="ArgumentNullException"><paramref name="subscription"/> is <c>null</c>.</exception>
+        public void Remove(ISubscription subscription, bool removeQueuedRequests)
         {
-            if (subscription == null) throw new ArgumentNullException(nameof(subscription));
+            if (subscription == null)
+            {
+                throw new ArgumentNullException(nameof(subscription));
+            }
 
             lock (m_lock)
             {
                 // remove the subscription from the queue.
                 for (int ii = 0; ii < m_queuedSubscriptions.Count; ii++)
                 {
-                    if (Object.ReferenceEquals(m_queuedSubscriptions[ii].Subscription, subscription))
+                    if (ReferenceEquals(m_queuedSubscriptions[ii].Subscription, subscription))
                     {
                         m_queuedSubscriptions.RemoveAt(ii);
                         break;
@@ -190,7 +191,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Removes outstanding requests if no 
+        /// Removes outstanding requests if no
         /// </summary>
         public void RemoveQueuedRequests()
         {
@@ -234,20 +235,29 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Processes acknowledgements for previously published messages.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public void Acknowledge(
             OperationContext context,
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
             out StatusCodeCollection acknowledgeResults,
             out DiagnosticInfoCollection acknowledgeDiagnosticInfos)
         {
-            if (context == null) throw new ArgumentNullException(nameof(context));
-            if (subscriptionAcknowledgements == null) throw new ArgumentNullException(nameof(subscriptionAcknowledgements));
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            if (subscriptionAcknowledgements == null)
+            {
+                throw new ArgumentNullException(nameof(subscriptionAcknowledgements));
+            }
 
             lock (m_lock)
             {
                 bool diagnosticsExist = false;
                 acknowledgeResults = new StatusCodeCollection(subscriptionAcknowledgements.Count);
-                acknowledgeDiagnosticInfos = new DiagnosticInfoCollection(subscriptionAcknowledgements.Count);
+                acknowledgeDiagnosticInfos = new DiagnosticInfoCollection(
+                    subscriptionAcknowledgements.Count);
 
                 for (int ii = 0; ii < subscriptionAcknowledgements.Count; ii++)
                 {
@@ -261,7 +271,9 @@ namespace Opc.Ua.Server
 
                         if (subscription.Subscription.Id == acknowledgement.SubscriptionId)
                         {
-                            ServiceResult result = subscription.Subscription.Acknowledge(context, acknowledgement.SequenceNumber);
+                            ServiceResult result = subscription.Subscription.Acknowledge(
+                                context,
+                                acknowledgement.SequenceNumber);
 
                             if (ServiceResult.IsGood(result))
                             {
@@ -278,7 +290,11 @@ namespace Opc.Ua.Server
 
                                 if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                                 {
-                                    DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(m_server, context, result);
+                                    DiagnosticInfo diagnosticInfo = ServerUtils
+                                        .CreateDiagnosticInfo(
+                                            m_server,
+                                            context,
+                                            result);
                                     acknowledgeDiagnosticInfos.Add(diagnosticInfo);
                                     diagnosticsExist = true;
                                 }
@@ -291,12 +307,15 @@ namespace Opc.Ua.Server
 
                     if (!found)
                     {
-                        ServiceResult result = new ServiceResult(StatusCodes.BadSubscriptionIdInvalid);
+                        var result = new ServiceResult(StatusCodes.BadSubscriptionIdInvalid);
                         acknowledgeResults.Add(result.Code);
 
                         if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                         {
-                            DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(m_server, context, result);
+                            DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
+                                m_server,
+                                context,
+                                result);
                             acknowledgeDiagnosticInfos.Add(diagnosticInfo);
                             diagnosticsExist = true;
                         }
@@ -313,7 +332,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns a subscription that is ready to publish.
         /// </summary>
-        public Subscription Publish(uint clientHandle, DateTime deadline, bool requeue, AsyncPublishOperation operation)
+        /// <exception cref="ServiceResultException"></exception>
+        public ISubscription Publish(
+            uint clientHandle,
+            DateTime deadline,
+            bool requeue,
+            AsyncPublishOperation operation)
         {
             QueuedRequest request = null;
 
@@ -329,7 +353,7 @@ namespace Opc.Ua.Server
                 }
 
                 // find the waiting subscription with the highest priority.
-                List<QueuedSubscription> subscriptions = new List<QueuedSubscription>();
+                var subscriptions = new List<QueuedSubscription>();
 
                 for (int ii = 0; ii < m_queuedSubscriptions.Count; ii++)
                 {
@@ -394,11 +418,11 @@ namespace Opc.Ua.Server
                         StatusCode requestStatus = StatusCodes.Good;
 
                         // check if expired.
-                        if (queuedRequest.Deadline < DateTime.MaxValue && queuedRequest.Deadline.AddMilliseconds(500) < DateTime.UtcNow)
+                        if (queuedRequest.Deadline < DateTime.MaxValue &&
+                            queuedRequest.Deadline.AddMilliseconds(500) < DateTime.UtcNow)
                         {
                             requestStatus = StatusCodes.BadTimeout;
                         }
-
                         // check secure channel.
                         else if (!m_session.IsSecureChannelValid(queuedRequest.SecureChannelId))
                         {
@@ -417,7 +441,8 @@ namespace Opc.Ua.Server
                     }
 
                     // clear excess requests - keep the newest ones.
-                    while (m_maxPublishRequests > 0 && m_queuedRequests.Count >= m_maxPublishRequests)
+                    while (m_maxPublishRequests > 0 &&
+                        m_queuedRequests.Count >= m_maxPublishRequests)
                     {
                         request = m_queuedRequests.First.Value;
                         request.Error = StatusCodes.BadTooManyPublishRequests;
@@ -425,12 +450,13 @@ namespace Opc.Ua.Server
                         m_queuedRequests.RemoveFirst();
                     }
 
-                    request = new QueuedRequest();
-
-                    request.SecureChannelId = SecureChannelContext.Current.SecureChannelId;
-                    request.Deadline = deadline;
-                    request.Subscription = null;
-                    request.Error = StatusCodes.Good;
+                    request = new QueuedRequest
+                    {
+                        SecureChannelId = SecureChannelContext.Current.SecureChannelId,
+                        Deadline = deadline,
+                        Subscription = null,
+                        Error = StatusCodes.Good
+                    };
 
                     if (operation == null)
                     {
@@ -465,12 +491,9 @@ namespace Opc.Ua.Server
             ServiceResult error = request.Wait(Timeout.Infinite);
 
             // check for error.
-            if (ServiceResult.IsGood(error))
+            if (ServiceResult.IsGood(error) && StatusCode.IsBad(request.Error))
             {
-                if (StatusCode.IsBad(request.Error))
-                {
-                    error = request.Error;
-                }
+                _ = request.Error;
             }
 
             // must reassign subscription on error.
@@ -520,15 +543,15 @@ namespace Opc.Ua.Server
         /// <param name="requeue">if set to <c>true</c> the request must be requeued.</param>
         /// <param name="operation">The asynchronous operation.</param>
         /// <param name="calldata">The calldata.</param>
-        /// <returns></returns>
-        public Subscription CompletePublish(
+        /// <exception cref="ServiceResultException"></exception>
+        public ISubscription CompletePublish(
             bool requeue,
             AsyncPublishOperation operation,
             object calldata)
         {
             Utils.LogTrace("PUBLISH: #{0} Completing", operation.RequestHandle, requeue);
 
-            QueuedRequest request = (QueuedRequest)calldata;
+            var request = (QueuedRequest)calldata;
 
             // check if need to requeue.
             lock (m_lock)
@@ -545,7 +568,10 @@ namespace Opc.Ua.Server
             // must reassign subscription on error.
             if (ServiceResult.IsBad(request.Error))
             {
-                Utils.LogTrace("PUBLISH: #{0} Reassigned ERROR({1})", operation.RequestHandle, request.Error);
+                Utils.LogTrace(
+                    "PUBLISH: #{0} Reassigned ERROR({1})",
+                    operation.RequestHandle,
+                    request.Error);
 
                 if (request.Subscription != null)
                 {
@@ -573,13 +599,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Adds a subscription back into the queue because it has more notifications to publish.
         /// </summary>
-        public void PublishCompleted(Subscription subscription, bool moreNotifications)
+        public void PublishCompleted(ISubscription subscription, bool moreNotifications)
         {
             lock (m_lock)
             {
                 for (int ii = 0; ii < m_queuedSubscriptions.Count; ii++)
                 {
-                    if (Object.ReferenceEquals(m_queuedSubscriptions[ii].Subscription, subscription))
+                    if (ReferenceEquals(m_queuedSubscriptions[ii].Subscription, subscription))
                     {
                         m_queuedSubscriptions[ii].Publishing = false;
 
@@ -604,11 +630,11 @@ namespace Opc.Ua.Server
         /// </summary>
         public void PublishTimerExpired()
         {
-            List<Subscription> subscriptionsToDelete = new List<Subscription>();
+            var subscriptionsToDelete = new List<ISubscription>();
 
             lock (m_lock)
             {
-                List<QueuedSubscription> liveSubscriptions = new List<QueuedSubscription>(m_queuedSubscriptions.Count);
+                var liveSubscriptions = new List<QueuedSubscription>(m_queuedSubscriptions.Count);
 
                 // check each available subscription.
                 for (int ii = 0; ii < m_queuedSubscriptions.Count; ii++)
@@ -621,7 +647,8 @@ namespace Opc.Ua.Server
                     if (state == PublishingState.Expired)
                     {
                         subscriptionsToDelete.Add(subscription.Subscription);
-                        ((SubscriptionManager)m_server.SubscriptionManager).SubscriptionExpired(subscription.Subscription);
+                        ((SubscriptionManager)m_server.SubscriptionManager).SubscriptionExpired(
+                            subscription.Subscription);
                         continue;
                     }
 
@@ -670,18 +697,20 @@ namespace Opc.Ua.Server
         private void AssignSubscriptionToRequest(QueuedSubscription subscription)
         {
             // find a request.
-            for (LinkedListNode<QueuedRequest> node = m_queuedRequests.First; node != null; node = node.Next)
+            for (LinkedListNode<QueuedRequest> node = m_queuedRequests.First;
+                node != null;
+                node = node.Next)
             {
                 QueuedRequest request = node.Value;
 
                 StatusCode error = StatusCodes.Good;
 
                 // check if expired.
-                if (request.Deadline < DateTime.MaxValue && request.Deadline.AddMilliseconds(500) < DateTime.UtcNow)
+                if (request.Deadline < DateTime.MaxValue &&
+                    request.Deadline.AddMilliseconds(500) < DateTime.UtcNow)
                 {
                     error = StatusCodes.BadTimeout;
                 }
-
                 // check secure channel.
                 else if (!m_session.IsSecureChannelValid(request.SecureChannelId))
                 {
@@ -711,7 +740,9 @@ namespace Opc.Ua.Server
                 // remove request.
                 m_queuedRequests.Remove(node);
 
-                Utils.LogTrace("PUBLISH: #000 Assigned To Subscription({0}).", subscription.Subscription.Id);
+                Utils.LogTrace(
+                    "PUBLISH: #000 Assigned To Subscription({0}).",
+                    subscription.Subscription.Id);
 
                 request.Error = StatusCodes.Good;
                 request.Subscription = subscription;
@@ -724,9 +755,7 @@ namespace Opc.Ua.Server
             subscription.ReadyToPublish = true;
             subscription.Timestamp = DateTime.UtcNow;
         }
-        #endregion
 
-        #region QueuedRequest Class
         /// <summary>
         /// A request queued while waiting for a subscription.
         /// </summary>
@@ -739,7 +768,6 @@ namespace Opc.Ua.Server
             public QueuedSubscription Subscription;
             public string SecureChannelId;
 
-            #region IDisposable Members
             /// <summary>
             /// Frees any unmanaged resources.
             /// </summary>
@@ -755,29 +783,28 @@ namespace Opc.Ua.Server
             {
                 if (disposing)
                 {
-                    this.Error = StatusCodes.BadServerHalted;
+                    Error = StatusCodes.BadServerHalted;
 
-                    if (this.Operation != null)
+                    if (Operation != null)
                     {
-                        this.Operation.Dispose();
-                        this.Operation = null;
+                        Operation.Dispose();
+                        Operation = null;
                     }
 
-                    if (this.Event != null)
+                    if (Event != null)
                     {
                         try
                         {
-                            this.Event.Set();
-                            this.Event.Dispose();
+                            Event.Set();
+                            Event.Dispose();
                         }
-                        catch (Exception)
+                        catch
                         {
                             // ignore errors.
                         }
                     }
                 }
             }
-            #endregion
 
             /// <summary>
             /// Waits for the request to be processed.
@@ -801,7 +828,10 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    return ServiceResult.Create(e, StatusCodes.BadTimeout, "Unexpected error waiting for subscription.");
+                    return ServiceResult.Create(
+                        e,
+                        StatusCodes.BadTimeout,
+                        "Unexpected error waiting for subscription.");
                 }
                 finally
                 {
@@ -809,9 +839,9 @@ namespace Opc.Ua.Server
                     {
                         Event.Dispose();
                     }
-                    catch (Exception)
+                    catch
                     {
-                        // ignore errors on close.                       
+                        // ignore errors on close.
                     }
                 }
             }
@@ -837,22 +867,18 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
 
-        #region QueuedSubscription Class
         /// <summary>
         /// Stores a subscription that has notifications ready to be sent back to the client.
         /// </summary>
         private class QueuedSubscription
         {
-            public Subscription Subscription;
+            public ISubscription Subscription;
             public DateTime Timestamp;
             public bool ReadyToPublish;
             public bool Publishing;
         }
-        #endregion
 
-        #region Private Members
         /// <summary>
         /// Dumps the current state of the session queue.
         /// </summary>
@@ -864,20 +890,26 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             lock (m_lock)
             {
-                buffer.Append("PublishQueue ");
-                buffer.AppendFormat(CultureInfo.InvariantCulture, context, args);
+                buffer.Append("PublishQueue ")
+                    .AppendFormat(CultureInfo.InvariantCulture, context, args);
 
                 if (m_session != null)
                 {
-                    buffer.AppendFormat(CultureInfo.InvariantCulture, ", SessionId={0}", m_session.Id);
+                    buffer.AppendFormat(
+                        CultureInfo.InvariantCulture,
+                        ", SessionId={0}",
+                        m_session.Id);
                 }
 
-                buffer.AppendFormat(CultureInfo.InvariantCulture, ", SubscriptionCount={0}, RequestCount={1}",
-                    m_queuedSubscriptions.Count, m_queuedRequests.Count);
+                buffer.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    ", SubscriptionCount={0}, RequestCount={1}",
+                    m_queuedSubscriptions.Count,
+                    m_queuedRequests.Count);
 
                 int readyToPublish = 0;
 
@@ -889,11 +921,16 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                buffer.AppendFormat(CultureInfo.InvariantCulture, ", ReadyToPublishCount={0}", readyToPublish);
+                buffer.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    ", ReadyToPublishCount={0}",
+                    readyToPublish);
 
                 int expiredRequests = 0;
 
-                for (LinkedListNode<QueuedRequest> ii = m_queuedRequests.First; ii != null; ii = ii.Next)
+                for (LinkedListNode<QueuedRequest> ii = m_queuedRequests.First;
+                    ii != null;
+                    ii = ii.Next)
                 {
                     if (ii.Value.Deadline < DateTime.UtcNow)
                     {
@@ -901,22 +938,22 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                buffer.AppendFormat(CultureInfo.InvariantCulture, ", ExpiredCount={0}", expiredRequests);
+                buffer.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    ", ExpiredCount={0}",
+                    expiredRequests);
             }
 
             Utils.LogTrace(buffer.ToString());
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
-        private IServerInternal m_server;
-        private Session m_session;
-        private ManualResetEvent m_publishEvent;
-        private LinkedList<QueuedRequest> m_queuedRequests;
+        private readonly Lock m_lock = new();
+        private readonly IServerInternal m_server;
+        private readonly ISession m_session;
+        private readonly ManualResetEvent m_publishEvent;
+        private readonly LinkedList<QueuedRequest> m_queuedRequests;
         private List<QueuedSubscription> m_queuedSubscriptions;
-        private int m_maxPublishRequests;
+        private readonly int m_maxPublishRequests;
         private bool m_subscriptionsWaiting;
-        #endregion
     }
 }

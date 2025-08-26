@@ -20,41 +20,16 @@ namespace Opc.Ua
         public StringCollection Scopes { get; set; }
     }
 
-    [CollectionDataContract(Name = "ListOfOAuth2ServerSettings", Namespace = Namespaces.OpcUaConfig, ItemName = "OAuth2ServerSettings")]
-    public partial class OAuth2ServerSettingsCollection : List<OAuth2ServerSettings>
-    {
-    }
+    [CollectionDataContract(
+        Name = "ListOfOAuth2ServerSettings",
+        Namespace = Namespaces.OpcUaConfig,
+        ItemName = "OAuth2ServerSettings"
+    )]
+    public class OAuth2ServerSettingsCollection : List<OAuth2ServerSettings>;
 
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public class OAuth2Credential
     {
-        #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
-        public OAuth2Credential()
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Initializes the object during deserialization.
-        /// </summary>
-        [OnDeserializing()]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private void Initialize()
-        {
-        }
-        #endregion
-
-        #region Public Properties
         [DataMember(Order = 1)]
         public string AuthorityUrl { get; set; }
 
@@ -78,13 +53,16 @@ namespace Opc.Ua
 
         [DataMember(Order = 8)]
         public OAuth2ServerSettingsCollection Servers { get; set; }
-        #endregion
 
         public OAuth2ServerSettings SelectedServer { get; set; }
     }
 
-    [CollectionDataContract(Name = "ListOfOAuth2Credential", Namespace = Namespaces.OpcUaConfig, ItemName = "OAuth2Credential")]
-    public partial class OAuth2CredentialCollection : List<OAuth2Credential>
+    [CollectionDataContract(
+        Name = "ListOfOAuth2Credential",
+        Namespace = Namespaces.OpcUaConfig,
+        ItemName = "OAuth2Credential"
+    )]
+    public class OAuth2CredentialCollection : List<OAuth2Credential>
     {
         public static OAuth2CredentialCollection Load(ApplicationConfiguration configuration)
         {
@@ -97,21 +75,14 @@ namespace Opc.Ua
 
             lock (configuration.PropertiesLock)
             {
-                object value = null;
-
-                if (configuration.Properties.TryGetValue("OAuth2Credentials", out value))
+                if (configuration.Properties.TryGetValue("OAuth2Credentials", out object value))
                 {
                     list = value as OAuth2CredentialCollection;
                 }
 
                 if (list == null)
                 {
-                    list = configuration.ParseExtension<OAuth2CredentialCollection>();
-
-                    if (list == null)
-                    {
-                        list = new OAuth2CredentialCollection();
-                    }
+                    list = configuration.ParseExtension<OAuth2CredentialCollection>() ?? [];
 
                     configuration.Properties["OAuth2Credentials"] = list;
                 }
@@ -120,30 +91,39 @@ namespace Opc.Ua
             return list;
         }
 
-        public static OAuth2Credential FindByServerUri(ApplicationConfiguration configuration, string serverApplicationUri)
+        public static OAuth2Credential FindByServerUri(
+            ApplicationConfiguration configuration,
+            string serverApplicationUri)
         {
-            if (serverApplicationUri == null || !Uri.IsWellFormedUriString(serverApplicationUri, UriKind.Absolute))
+            if (serverApplicationUri == null ||
+                !Uri.IsWellFormedUriString(serverApplicationUri, UriKind.Absolute))
             {
-                throw new ArgumentException("Invalid application Uri specified.", nameof(serverApplicationUri));
+                throw new ArgumentException(
+                    "Invalid application Uri specified.",
+                    nameof(serverApplicationUri));
             }
 
             OAuth2CredentialCollection list = Load(configuration);
 
             if (list != null)
             {
-                foreach (var ii in list)
+                foreach (OAuth2Credential ii in list)
                 {
                     if (ii.Servers != null && ii.Servers.Count > 0)
                     {
-                        foreach (var jj in ii.Servers)
+                        foreach (OAuth2ServerSettings jj in ii.Servers)
                         {
-                            // this is too allow generic sample config files to work on any machine. 
+                            // this is too allow generic sample config files to work on any machine.
                             // in a real system explicit host names would be used so this would have no effect.
-                            var uri = jj.ApplicationUri.Replace("localhost", System.Net.Dns.GetHostName().ToLowerInvariant());
+                            string uri = jj.ApplicationUri.Replace(
+                                "localhost",
+                                System.Net.Dns.GetHostName().ToLowerInvariant(),
+                                StringComparison.Ordinal);
 
                             if (uri == serverApplicationUri)
                             {
-                                var credential = new OAuth2Credential() {
+                                return new OAuth2Credential
+                                {
                                     AuthorityUrl = ii.AuthorityUrl,
                                     GrantType = ii.GrantType,
                                     ClientId = ii.ClientId,
@@ -153,8 +133,6 @@ namespace Opc.Ua
                                     AuthorizationEndpoint = ii.AuthorizationEndpoint,
                                     SelectedServer = jj
                                 };
-
-                                return credential;
                             }
                         }
                     }
@@ -164,14 +142,16 @@ namespace Opc.Ua
             return null;
         }
 
-        public static OAuth2Credential FindByAuthorityUrl(ApplicationConfiguration configuration, string authorityUrl)
+        public static OAuth2Credential FindByAuthorityUrl(
+            ApplicationConfiguration configuration,
+            string authorityUrl)
         {
             if (authorityUrl == null || !Uri.IsWellFormedUriString(authorityUrl, UriKind.Absolute))
             {
                 throw new ArgumentException("The authority Url is invalid.", nameof(authorityUrl));
             }
 
-            if (!authorityUrl.EndsWith("/"))
+            if (!authorityUrl.EndsWith('/'))
             {
                 authorityUrl += "/";
             }
@@ -180,20 +160,24 @@ namespace Opc.Ua
 
             if (list != null)
             {
-                foreach (var ii in list)
+                foreach (OAuth2Credential ii in list)
                 {
-                    // this is too allow generic sample config files to work on any machine. 
+                    // this is too allow generic sample config files to work on any machine.
                     // in a real system explicit host names would be used so this would have no effect.
-                    var uri = ii.AuthorityUrl.Replace("localhost", System.Net.Dns.GetHostName().ToLowerInvariant());
+                    string uri = ii.AuthorityUrl.Replace(
+                        "localhost",
+                        System.Net.Dns.GetHostName().ToLowerInvariant(),
+                        StringComparison.Ordinal);
 
-                    if (!uri.EndsWith("/", StringComparison.Ordinal))
+                    if (!uri.EndsWith('/'))
                     {
                         uri += "/";
                     }
 
-                    if (String.Equals(uri, authorityUrl, StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(uri, authorityUrl, StringComparison.OrdinalIgnoreCase))
                     {
-                        var credential = new OAuth2Credential() {
+                        return new OAuth2Credential
+                        {
                             AuthorityUrl = authorityUrl,
                             GrantType = ii.GrantType,
                             ClientId = ii.ClientId,
@@ -202,8 +186,6 @@ namespace Opc.Ua
                             TokenEndpoint = ii.TokenEndpoint,
                             AuthorizationEndpoint = ii.AuthorizationEndpoint
                         };
-
-                        return credential;
                     }
                 }
             }

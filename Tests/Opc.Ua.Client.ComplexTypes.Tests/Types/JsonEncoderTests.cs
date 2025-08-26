@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -42,15 +42,16 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
     /// <summary>
     /// Tests for the Json encoder class.
     /// </summary>
-    [TestFixture, Category("JsonEncoder")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("JsonEncoder")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class ComplexTypesJsonEncoderTests : ComplexTypesCommon
     {
         public ServiceMessageContext EncoderContext;
         public Dictionary<StructureType, (ExpandedNodeId, Type)> TypeDictionary;
 
-        #region Test Setup
         [OneTimeSetUp]
         protected new void OneTimeSetUp()
         {
@@ -60,8 +61,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             EncoderContext.NamespaceUris.Append("urn:This:is:my:test:encoder");
             EncoderContext.NamespaceUris.Append("urn:This:is:another:namespace");
             EncoderContext.NamespaceUris.Append(Namespaces.OpcUaEncoderTests);
-            TypeDictionary = new Dictionary<StructureType, (ExpandedNodeId, Type)>();
-            CreateComplexTypes(EncoderContext, TypeDictionary, "");
+            TypeDictionary = [];
+            CreateComplexTypes(EncoderContext, TypeDictionary, string.Empty);
         }
 
         [OneTimeTearDown]
@@ -78,14 +79,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         protected new void TearDown()
         {
         }
-        #endregion Test Setup
 
-        #region DataSource
         /// <summary>
         /// Constants used by test data set.
         /// </summary>
-        const Int64 kInt64Value = -123456789123456;
-        const UInt64 kUInt64Value = 123456789123456;
+        private const long kInt64Value = -123456789123456;
+        private const ulong kUInt64Value = 123456789123456;
 
         /// <summary>
         /// An array of spec compliant Json encoding test data sets which
@@ -96,34 +95,40 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// Only a small subset of built in types is tested on complex types.
         /// </remarks>
         [DatapointSource]
-        public static readonly JsonValidationData[] Data = new JsonValidationDataCollection() {
-            {   BuiltInType.Boolean, false, "false", null, null, "false"},
-            {   BuiltInType.Boolean, true,"true", null },
-            {   BuiltInType.Byte, (Byte)0, "0", null, null, "0"},
-            {   BuiltInType.Byte, (Byte)88, "88", null },
-            {   BuiltInType.SByte, (SByte)0, "0", null, null, "0"},
-            {   BuiltInType.UInt16, (UInt16)12345, "12345", null },
-            {   BuiltInType.Int16, (Int16)(-12345), "-12345", null },
-            {   BuiltInType.UInt32, (UInt32)1234567, "1234567", null },
-            {   BuiltInType.Int32, (Int32)(-12345678), "-12345678", null },
-            {   BuiltInType.Int64, kInt64Value, Quotes(kInt64Value.ToString(CultureInfo.InvariantCulture)), null },
-            {   BuiltInType.UInt64, (UInt64)kUInt64Value, Quotes(kUInt64Value.ToString(CultureInfo.InvariantCulture)), null },
-            {   BuiltInType.Float, (float)3.14, "3.14", "3.14" },
+        public static readonly JsonValidationData[] Data = new JsonValidationDataCollection
+        {
+            { BuiltInType.Boolean, false, "false", null, null, "false" },
+            { BuiltInType.Boolean, true, "true", null },
+            { BuiltInType.Byte, (byte)0, "0", null, null, "0" },
+            { BuiltInType.Byte, (byte)88, "88", null },
+            { BuiltInType.SByte, (sbyte)0, "0", null, null, "0" },
+            { BuiltInType.UInt16, (ushort)12345, "12345", null },
+            { BuiltInType.Int16, (short)-12345, "-12345", null },
+            { BuiltInType.UInt32, (uint)1234567, "1234567", null },
+            { BuiltInType.Int32, -12345678, "-12345678", null },
+            {
+                BuiltInType.Int64,
+                kInt64Value,
+                Quotes(kInt64Value.ToString(CultureInfo.InvariantCulture)),
+                null },
+            {
+                BuiltInType.UInt64,
+                kUInt64Value,
+                Quotes(kUInt64Value.ToString(CultureInfo.InvariantCulture)),
+                null },
+            { BuiltInType.Float, (float)3.14, "3.14", "3.14" },
             // TODO: why is JToken.DeepEquals failing here?
             //{   BuiltInType.Float, float.PositiveInfinity, "Infinity", "Infinity" },
-            {   BuiltInType.Double, (double)7.77, "7.77", "7.77" }
+            { BuiltInType.Double, 7.77, "7.77", "7.77" }
         }.ToArray();
-        #endregion DataSource
 
-        #region Test Methods
         /// <summary>
         /// Verify encoding of a Structure as body of ExtensionObject.
         /// </summary>
         [Theory]
         public void JsonEncodeStructure(
             JsonValidationData jsonValidationData,
-            JsonEncodingType jsonEncoding
-            )
+            JsonEncodingType jsonEncoding)
         {
             ExpandedNodeId nodeId;
             Type complexType;
@@ -131,7 +136,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             object emittedType = Activator.CreateInstance(complexType);
             var baseType = emittedType as BaseComplexType;
             baseType[jsonValidationData.BuiltInType.ToString()] = jsonValidationData.Instance;
-            ExtensionObject extensionObject = CreateExtensionObject(StructureType.Structure, nodeId, emittedType);
+            ExtensionObject extensionObject = CreateExtensionObject(
+                StructureType.Structure,
+                nodeId,
+                emittedType);
             EncodeJsonComplexTypeVerifyResult(
                 jsonValidationData.BuiltInType,
                 MemoryStreamType.ArraySegmentStream,
@@ -148,8 +156,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Theory]
         public void JsonEncodeOptionalFields(
             JsonValidationData jsonValidationData,
-            JsonEncodingType jsonEncoding
-            )
+            JsonEncodingType jsonEncoding)
         {
             ExpandedNodeId nodeId;
             Type complexType;
@@ -157,7 +164,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             object emittedType = Activator.CreateInstance(complexType);
             var baseType = emittedType as BaseComplexType;
             baseType[jsonValidationData.BuiltInType.ToString()] = jsonValidationData.Instance;
-            ExtensionObject extensionObject = CreateExtensionObject(StructureType.StructureWithOptionalFields, nodeId, emittedType);
+            ExtensionObject extensionObject = CreateExtensionObject(
+                StructureType.StructureWithOptionalFields,
+                nodeId,
+                emittedType);
             EncodeJsonComplexTypeVerifyResult(
                 jsonValidationData.BuiltInType,
                 MemoryStreamType.ArraySegmentStream,
@@ -173,8 +183,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Theory]
         public void JsonEncodeUnion(
             JsonValidationData jsonValidationData,
-            JsonEncodingType jsonEncoding
-            )
+            JsonEncodingType jsonEncoding)
         {
             ExpandedNodeId nodeId;
             Type complexType;
@@ -182,7 +191,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             object emittedType = Activator.CreateInstance(complexType);
             var baseType = emittedType as BaseComplexType;
             baseType[jsonValidationData.BuiltInType.ToString()] = jsonValidationData.Instance;
-            ExtensionObject extensionObject = CreateExtensionObject(StructureType.Union, nodeId, emittedType);
+            ExtensionObject extensionObject = CreateExtensionObject(
+                StructureType.Union,
+                nodeId,
+                emittedType);
             EncodeJsonComplexTypeVerifyResult(
                 jsonValidationData.BuiltInType,
                 MemoryStreamType.ArraySegmentStream,
@@ -191,29 +203,31 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 jsonValidationData.GetExpected(jsonEncoding),
                 false);
         }
-        #endregion Test Methods
 
-        #region Private Methods
         protected void EncodeJsonComplexTypeVerifyResult(
             BuiltInType builtInType,
             MemoryStreamType memoryStreamType,
             ExtensionObject data,
             JsonEncodingType jsonEncoding,
             string expected,
-            bool topLevelIsArray
-            )
+            bool topLevelIsArray)
         {
             string encodeInfo = $"Encoder: Json Type:{builtInType} Encoding: {jsonEncoding}";
 
             expected = BuildExpectedResponse(data, builtInType, expected, jsonEncoding);
-            var formattedExpected = PrettifyAndValidateJson(expected);
+            string formattedExpected = PrettifyAndValidateJson(expected);
 
             byte[] buffer;
-            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
+            using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
-                using (IEncoder encoder = CreateEncoder(
-                    EncodingType.Json, EncoderContext, encoderStream,
-                    typeof(ExtensionObject), jsonEncoding, topLevelIsArray))
+                using (
+                    IEncoder encoder = CreateEncoder(
+                        EncodingType.Json,
+                        EncoderContext,
+                        encoderStream,
+                        typeof(ExtensionObject),
+                        jsonEncoding,
+                        topLevelIsArray))
                 {
                     Encode(encoder, BuiltInType.ExtensionObject, builtInType.ToString(), data);
                 }
@@ -226,13 +240,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             {
                 result = Encoding.UTF8.GetString(buffer);
                 formattedResult = PrettifyAndValidateJson(result);
-                var jsonLoadSettings = new JsonLoadSettings() {
+                var jsonLoadSettings = new JsonLoadSettings
+                {
                     CommentHandling = CommentHandling.Ignore,
                     LineInfoHandling = LineInfoHandling.Ignore
                 };
                 var resultParsed = JObject.Parse(result, jsonLoadSettings);
                 var expectedParsed = JObject.Parse(expected, jsonLoadSettings);
-                var areEqual = JToken.DeepEquals(expectedParsed, resultParsed);
+                bool areEqual = JToken.DeepEquals(expectedParsed, resultParsed);
                 Assert.IsTrue(areEqual, encodeInfo);
             }
             catch
@@ -266,11 +281,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             JsonEncodingType jsonEncoding)
         {
             // build expected result
-            string typeId = String.Empty;
+            string typeId = string.Empty;
             if (!data.TypeId.IsNull)
             {
                 var nodeId = ExpandedNodeId.ToNodeId(data.TypeId, EncoderContext.NamespaceUris);
-                if (jsonEncoding == JsonEncodingType.NonReversible || jsonEncoding == JsonEncodingType.Reversible)
+                if (jsonEncoding is JsonEncodingType.NonReversible or JsonEncodingType.Reversible)
                 {
                     typeId = $"\"TypeId\":{{\"Id\":{nodeId.Identifier},\"Namespace\":{nodeId.NamespaceIndex}}},";
                 }
@@ -281,7 +296,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             }
 
             bool expectedIsEmpty = false;
-            if (String.IsNullOrEmpty(expected))
+            if (string.IsNullOrEmpty(expected))
             {
                 expected = "{}";
                 expectedIsEmpty = true;
@@ -294,7 +309,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     if (jsonEncoding == JsonEncodingType.Reversible)
                     {
                         var union = data.Body as UnionComplexType;
-                        var json = $"{{\"{builtInType}\" :{{";
+                        string json = $"{{\"{builtInType}\" :{{";
                         if (!data.TypeId.IsNull)
                         {
                             json += typeId;
@@ -314,7 +329,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     else
                     {
                         var union = data.Body as UnionComplexType;
-                        var json = $"{{\"{builtInType}\" :{{";
+                        string json = $"{{\"{builtInType}\" :{{";
 
                         if (!data.TypeId.IsNull)
                         {
@@ -344,13 +359,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 {
                     if (jsonEncoding == JsonEncodingType.NonReversible)
                     {
-                        var json = $"{{\"{builtInType}\" :";
+                        string json = $"{{\"{builtInType}\" :";
                         expected = json + $"{{\"{builtInType}\" :" + expected + "}}";
                     }
                     else
                     {
                         var optional = data.Body as OptionalFieldsComplexType;
-                        var json = $"{{\"{builtInType}\" :{{";
+                        string json = $"{{\"{builtInType}\" :{{";
 
                         if (!data.TypeId.IsNull)
                         {
@@ -359,7 +374,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
                         if (jsonEncoding == JsonEncodingType.Reversible)
                         {
-                            json += $"\"Body\":{{";
+                            json += "\"Body\":{";
                         }
 
                         if (jsonEncoding != JsonEncodingType.Verbose)
@@ -390,15 +405,19 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 else if (data.Body is BaseComplexType)
                 {
                     var structure = data.Body as BaseComplexType;
-                    var body = "";
+                    string body = string.Empty;
                     bool commaNeeded = false;
-                    foreach (var property in structure.GetPropertyEnumerator())
+                    foreach (ComplexTypePropertyInfo property in structure.GetPropertyEnumerator())
                     {
                         if (builtInType.ToString() == property.Name)
                         {
                             if (!expectedIsEmpty)
                             {
-                                if (commaNeeded) body += ",";
+                                if (commaNeeded)
+                                {
+                                    body += ",";
+                                }
+
                                 commaNeeded = true;
                                 body += $"\"{builtInType}\":" + expected;
                             }
@@ -410,7 +429,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                             if (property.Name == "DateTime")
                             {
                                 oText = "\"0001-01-01T00:00:00Z\"";
-                                if (jsonEncoding == JsonEncodingType.Reversible || jsonEncoding == JsonEncodingType.NonReversible)
+                                if (jsonEncoding is JsonEncodingType.Reversible or JsonEncodingType.NonReversible)
                                 {
                                     continue;
                                 }
@@ -423,19 +442,17 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                                     // default statuscode is not encoded
                                     continue;
                                 }
-                                else
-                                {
-                                    oText = "{}";
-                                }
-                                if (jsonEncoding == JsonEncodingType.Reversible || jsonEncoding == JsonEncodingType.NonReversible)
+
+                                oText = "{}";
+                                if (jsonEncoding is JsonEncodingType.Reversible or JsonEncodingType.NonReversible)
                                 {
                                     continue;
                                 }
                             }
-                            else if (property.Name == "ByteString" || property.Name == "XmlElement")
+                            else if (property.Name is "ByteString" or "XmlElement")
                             {
                                 oText = "null";
-                                if (jsonEncoding == JsonEncodingType.Reversible || jsonEncoding == JsonEncodingType.NonReversible)
+                                if (jsonEncoding is JsonEncodingType.Reversible or JsonEncodingType.NonReversible)
                                 {
                                     continue;
                                 }
@@ -450,12 +467,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                                 {
                                     oText = "{}";
                                 }
-                                if (jsonEncoding == JsonEncodingType.Reversible || jsonEncoding == JsonEncodingType.NonReversible)
+                                if (jsonEncoding is JsonEncodingType.Reversible or JsonEncodingType.NonReversible)
                                 {
                                     continue;
                                 }
                             }
-                            else if (property.Name == "NodeId" || property.Name == "ExpandedNodeId" || property.Name == "QualifiedName")
+                            else if (property
+                                .Name is "NodeId" or "ExpandedNodeId" or "QualifiedName")
                             {
                                 if (jsonEncoding == JsonEncodingType.Verbose)
                                 {
@@ -465,7 +483,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                                 {
                                     oText = "{}";
                                 }
-                                if (jsonEncoding == JsonEncodingType.Reversible || jsonEncoding == JsonEncodingType.NonReversible)
+                                if (jsonEncoding is JsonEncodingType.Reversible or JsonEncodingType.NonReversible)
                                 {
                                     continue;
                                 }
@@ -473,19 +491,23 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                             else if (property.Name == "Guid")
                             {
                                 oText = "\"00000000-0000-0000-0000-000000000000\"";
-                                if (jsonEncoding == JsonEncodingType.Reversible || jsonEncoding == JsonEncodingType.NonReversible)
+                                if (jsonEncoding is JsonEncodingType.Reversible or JsonEncodingType.NonReversible)
                                 {
                                     continue;
                                 }
                             }
-                            else if (property.Name == "UInt64" || property.Name == "Int64")
+                            else if (property.Name is "UInt64" or "Int64")
                             {
                                 oText = "\"" + oText + "\"";
                             }
 
                             if (oText != null)
                             {
-                                if (commaNeeded) body += ",";
+                                if (commaNeeded)
+                                {
+                                    body += ",";
+                                }
+
                                 commaNeeded = true;
                                 body += $"\"{property.Name}\":" + oText;
                             }
@@ -494,12 +516,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
                     if (jsonEncoding == JsonEncodingType.NonReversible)
                     {
-                        var json = $"{{\"{builtInType}\" :{{";
+                        string json = $"{{\"{builtInType}\" :{{";
                         expected = json + body + "}";
                     }
                     else
                     {
-                        var json = $"{{\"{builtInType}\" :{{";
+                        string json = $"{{\"{builtInType}\" :{{";
 
                         if (!data.TypeId.IsNull)
                         {
@@ -521,6 +543,5 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             }
             return expected;
         }
-        #endregion Private Methods
     }
 }

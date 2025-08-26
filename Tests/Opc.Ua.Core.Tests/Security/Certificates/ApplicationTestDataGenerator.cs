@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -33,24 +33,40 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using Opc.Ua.Test;
 
-
 namespace Opc.Ua.Core.Tests
 {
-    public class ApplicationTestDataGenerator
+    public
+#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
+    partial
+#endif
+    class ApplicationTestDataGenerator
     {
-        private int m_randomStart = 1;
-        private RandomSource m_randomSource;
-        private DataGenerator m_dataGenerator;
+#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
+        [GeneratedRegex(@"[^\w\d\s]")]
+        private static partial Regex Regex1();
+
+        [GeneratedRegex(@"[^\w\d]")]
+        private static partial Regex Regex2();
+#else
+        private static Regex Regex1()
+        {
+            return new(@"[^\w\d\s]");
+        }
+
+        private static Regex Regex2()
+        {
+            return new(@"[^\w\d]");
+        }
+#endif
 
         public ApplicationTestDataGenerator(int randomStart)
         {
-            m_randomStart = randomStart;
-            m_randomSource = new RandomSource(randomStart);
-            m_dataGenerator = new DataGenerator(m_randomSource);
+            RandomSource = new RandomSource(randomStart);
+            DataGenerator = new DataGenerator(RandomSource);
         }
 
-        public RandomSource RandomSource => m_randomSource;
-        public DataGenerator DataGenerator => m_dataGenerator;
+        public RandomSource RandomSource { get; }
+        public DataGenerator DataGenerator { get; }
 
         public IList<ApplicationTestData> ApplicationTestSet(int count)
         {
@@ -62,22 +78,24 @@ namespace Opc.Ua.Core.Tests
             return testDataSet;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "SYSLIB1045:Convert to 'GeneratedRegexAttribute'.", Justification = "Test")]
         private ApplicationTestData RandomApplicationTestData()
         {
             // TODO: set to discoveryserver
-            ApplicationType appType = (ApplicationType)m_randomSource.NextInt32((int)ApplicationType.ClientAndServer);
-            string pureAppName = m_dataGenerator.GetRandomString("en");
-            pureAppName = Regex.Replace(pureAppName, @"[^\w\d\s]", "");
-            string pureAppUri = Regex.Replace(pureAppName, @"[^\w\d]", "");
+            var appType = (ApplicationType)RandomSource.NextInt32(
+                (int)ApplicationType.ClientAndServer);
+            string pureAppName = DataGenerator.GetRandomString("en");
+            pureAppName = Regex1().Replace(pureAppName, string.Empty);
+            string pureAppUri = Regex2().Replace(pureAppName, string.Empty);
             string appName = "UA " + pureAppName;
             StringCollection domainNames = RandomDomainNames();
             string localhost = domainNames[0];
-            string privateKeyFormat = m_randomSource.NextInt32(1) == 0 ? "PEM" : "PFX";
-            string appUri = ("urn:localhost:opcfoundation.org:" + pureAppUri.ToLower()).Replace("localhost", localhost);
-            string prodUri = "http://opcfoundation.org/UA/" + pureAppUri;
-            StringCollection discoveryUrls = new StringCollection();
-            int port = (m_dataGenerator.GetRandomInt16() & 0x1fff) + 50000;
+            string privateKeyFormat = RandomSource.NextInt32(1) == 0 ? "PEM" : "PFX";
+            string appUri = ("urn:localhost:opcfoundation.org:" + pureAppUri.ToLower()).Replace(
+                "localhost",
+                localhost,
+                StringComparison.Ordinal);
+
+            int port = (DataGenerator.GetRandomInt16() & 0x1fff) + 50000;
             switch (appType)
             {
                 case ApplicationType.Client:
@@ -88,38 +106,39 @@ namespace Opc.Ua.Core.Tests
                     goto case ApplicationType.Server;
                 case ApplicationType.DiscoveryServer:
                     appName += " DiscoveryServer";
-                    discoveryUrls = RandomDiscoveryUrl(domainNames, 4840, pureAppUri);
+                    _ = RandomDiscoveryUrl(domainNames, 4840, pureAppUri);
                     break;
                 case ApplicationType.Server:
                     appName += " Server";
-                    discoveryUrls = RandomDiscoveryUrl(domainNames, port, pureAppUri);
+                    _ = RandomDiscoveryUrl(domainNames, port, pureAppUri);
                     break;
             }
-            ApplicationTestData testData = new ApplicationTestData {
+            return new ApplicationTestData
+            {
                 ApplicationName = appName,
                 ApplicationUri = appUri,
                 DomainNames = domainNames,
                 Subject = Utils.Format("CN={0},O=OPC Foundation,DC={1}", appName, localhost),
                 PrivateKeyFormat = privateKeyFormat
             };
-            return testData;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "SYSLIB1045:Convert to 'GeneratedRegexAttribute'.", Justification = "Test")]
         private string RandomLocalHost()
         {
-            string localhost = Regex.Replace(m_dataGenerator.GetRandomSymbol("en").Trim().ToLower(), @"[^\w\d]", "");
+            string localhost = Regex2().Replace(
+                DataGenerator.GetRandomSymbol("en").Trim().ToLower(),
+                string.Empty);
             if (localhost.Length >= 12)
             {
-                localhost = localhost.Substring(0, 12);
+                localhost = localhost[..12];
             }
             return localhost;
         }
 
         private string[] RandomDomainNames()
         {
-            int count = m_randomSource.NextInt32(8) + 1;
-            var result = new string[count];
+            int count = RandomSource.NextInt32(8) + 1;
+            string[] result = new string[count];
             for (int i = 0; i < count; i++)
             {
                 result[i] = RandomLocalHost();
@@ -127,23 +146,41 @@ namespace Opc.Ua.Core.Tests
             return result;
         }
 
-        private StringCollection RandomDiscoveryUrl(StringCollection domainNames, int port, string appUri)
+        private StringCollection RandomDiscoveryUrl(
+            StringCollection domainNames,
+            int port,
+            string appUri)
         {
             var result = new StringCollection();
-            foreach (var name in domainNames)
+            foreach (string name in domainNames)
             {
-                int random = m_randomSource.NextInt32(7);
+                int random = RandomSource.NextInt32(7);
                 if ((result.Count == 0) || (random & 1) == 0)
                 {
-                    result.Add(Utils.Format("opc.tcp://{0}:{1}/{2}", name, (port++).ToString(CultureInfo.InvariantCulture), appUri));
+                    result.Add(
+                        Utils.Format(
+                            "opc.tcp://{0}:{1}/{2}",
+                            name,
+                            port++.ToString(CultureInfo.InvariantCulture),
+                            appUri));
                 }
                 if ((random & 2) == 0)
                 {
-                    result.Add(Utils.Format("http://{0}:{1}/{2}", name, (port++).ToString(CultureInfo.InvariantCulture), appUri));
+                    result.Add(
+                        Utils.Format(
+                            "http://{0}:{1}/{2}",
+                            name,
+                            port++.ToString(CultureInfo.InvariantCulture),
+                            appUri));
                 }
                 if ((random & 4) == 0)
                 {
-                    result.Add(Utils.Format("opc.https://{0}:{1}/{2}", name, (port++).ToString(CultureInfo.InvariantCulture), appUri));
+                    result.Add(
+                        Utils.Format(
+                            "opc.https://{0}:{1}/{2}",
+                            name,
+                            port++.ToString(CultureInfo.InvariantCulture),
+                            appUri));
                 }
             }
             return result;

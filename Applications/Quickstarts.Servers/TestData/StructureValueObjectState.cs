@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -33,7 +33,6 @@ namespace TestData
 {
     public partial class StructureValueObjectState
     {
-        #region Initialization
         /// <summary>
         /// Initializes the object with structures.
         /// </summary>
@@ -41,12 +40,16 @@ namespace TestData
         {
             base.OnAfterCreate(context, node);
 
-            InitializeVariable(context, ScalarStructure, TestData.Variables.StructureValueObjectType_ScalarStructure);
-            InitializeVariable(context, VectorStructure, TestData.Variables.StructureValueObjectType_VectorStructure);
+            InitializeVariable(
+                context,
+                ScalarStructure,
+                Variables.StructureValueObjectType_ScalarStructure);
+            InitializeVariable(
+                context,
+                VectorStructure,
+                Variables.StructureValueObjectType_VectorStructure);
         }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Handles the generate values method.
         /// </summary>
@@ -56,9 +59,7 @@ namespace TestData
             NodeId objectId,
             uint count)
         {
-            TestDataSystem system = context.SystemHandle as TestDataSystem;
-
-            if (system == null)
+            if (context.SystemHandle is not TestDataSystem)
             {
                 return StatusCodes.BadOutOfService;
             }
@@ -68,6 +69,5 @@ namespace TestData
 
             return base.OnGenerateValues(context, method, objectId, count);
         }
-        #endregion
     }
 }

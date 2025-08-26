@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -31,40 +31,39 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Reflection;
 using System.Text;
 using System.Xml;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {
     /// <summary>
     /// Tests for the BuiltIn Types.
     /// </summary>
-    [TestFixture, Category("Utils")]
-    [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixture]
+    [Category("Utils")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     [Parallelizable]
     public class UtilsTests
     {
-        #region Misc
         /// <summary>
         /// Convert to and from little endian hex string.
         /// </summary>
         [Test]
         public void ToHexFromHexLittleEndian()
         {
-            byte[] blob = new byte[] { 0, 1, 2, 3, 4, 5, 6, 255 };
-            string hex = "00010203040506FF";
-            var hexutil = Utils.ToHexString(blob);
+            byte[] blob = [0, 1, 2, 3, 4, 5, 6, 255];
+            const string hex = "00010203040506FF";
+            string hexutil = Utils.ToHexString(blob);
             Assert.AreEqual(hex, hexutil);
-            var byteblob = Utils.FromHexString(hex);
+            byte[] byteblob = Utils.FromHexString(hex);
             Assert.AreEqual(blob, byteblob);
-            var byteblob2 = Utils.FromHexString(hexutil);
+            byte[] byteblob2 = Utils.FromHexString(hexutil);
             Assert.AreEqual(blob, byteblob2);
-            var hexutil2 = Utils.ToHexString(byteblob);
+            string hexutil2 = Utils.ToHexString(byteblob);
             Assert.AreEqual(hex, hexutil2);
         }
 
@@ -74,14 +73,14 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void ToHexEndianessValidation()
         {
-            // definition as big endian 64,206(0xFACE) 
-            var bigEndian = new byte[] { 64206 / 256, 64206 % 256 };
+            // definition as big endian 64,206(0xFACE)
+            byte[] bigEndian = [64206 / 256, 64206 % 256];
             // big endian is written as FA CE.
             Assert.AreEqual("FACE", Utils.ToHexString(bigEndian, false));
             // In Little Endian it's written as CE FA
             Assert.AreEqual("CEFA", Utils.ToHexString(bigEndian, true));
-            // definition as little endian 64,206(0xFACE) 
-            var littleEndian = new byte[] { 64206 & 0xff, 64206 >> 8 };
+            // definition as little endian 64,206(0xFACE)
+            byte[] littleEndian = [64206 & 0xff, 64206 >> 8];
             // big endian is written as FA CE.
             Assert.AreEqual("FACE", Utils.ToHexString(littleEndian, true));
             // In Little Endian it's written as CE FA
@@ -93,31 +92,48 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// </summary>
         public void ToHexBigEndian()
         {
-            byte[] blob = new byte[] { 0, 1, 2, 3, 4, 5, 6, 255 };
-            string hex = "FF06050403020100";
-            var hexutil = Utils.ToHexString(blob, true);
+            byte[] blob = [0, 1, 2, 3, 4, 5, 6, 255];
+            const string hex = "FF06050403020100";
+            string hexutil = Utils.ToHexString(blob, true);
             Assert.AreEqual(hex, hexutil);
         }
 
         [Test]
         public void Trace()
         {
-            Utils.TraceDebug("");
+            Utils.TraceDebug(string.Empty);
             Utils.TraceDebug(null);
-            Utils.Trace(new ServiceResultException(StatusCodes.BadAggregateConfigurationRejected), "Exception {0}", 1);
-            Utils.TraceExceptionMessage(new ServiceResultException(StatusCodes.BadEdited_OutOfRange), "Exception {0} {1}", 2, 3);
-            Utils.Trace(new ServiceResultException(StatusCodes.BadAggregateConfigurationRejected), "Exception {0} {1}", true, 2, 3);
-            Utils.Trace(new ServiceResultException(StatusCodes.BadEdited_OutOfRange), "Exception {0} {1}", false, 2, 3);
+            Utils.Trace(
+                new ServiceResultException(StatusCodes.BadAggregateConfigurationRejected),
+                "Exception {0}",
+                1);
+            Utils.TraceExceptionMessage(
+                new ServiceResultException(StatusCodes.BadEdited_OutOfRange),
+                "Exception {0} {1}",
+                2,
+                3);
+            Utils.Trace(
+                new ServiceResultException(StatusCodes.BadAggregateConfigurationRejected),
+                "Exception {0} {1}",
+                true,
+                2,
+                3);
+            Utils.Trace(
+                new ServiceResultException(StatusCodes.BadEdited_OutOfRange),
+                "Exception {0} {1}",
+                false,
+                2,
+                3);
             Utils.Trace(Utils.TraceMasks.Information, "Exception {0} {1}", 2, 3);
         }
 
         [Test]
         public void AreDomainsEqual()
         {
-            Uri uri1 = new Uri("opc.tcp://host1:4840");
-            Uri uri1_dupe = new Uri("opc.tcp://host1:4840");
-            Uri uri2 = new Uri($"opc.tcp://localhost:4840");
-            Uri uri2_dupe = new Uri($"opc.tcp://{Utils.GetHostName()}:4840");
+            var uri1 = new Uri("opc.tcp://host1:4840");
+            var uri1_dupe = new Uri("opc.tcp://host1:4840");
+            var uri2 = new Uri("opc.tcp://localhost:4840");
+            var uri2_dupe = new Uri($"opc.tcp://{Utils.GetHostName()}:4840");
 
             // uri compare resolves localhost
             Assert.True(Utils.AreDomainsEqual(uri1, uri1_dupe));
@@ -146,7 +162,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
         public class TestClone
         {
-            object m_object;
+            private readonly object m_object;
 
             public TestClone(object value)
             {
@@ -161,7 +177,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
         public class TestNoClone
         {
-            object m_object;
+            private readonly object m_object;
 
             public TestNoClone(object value)
             {
@@ -176,7 +192,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
         public class TestMemberwiseClone
         {
-            object m_object;
+            private readonly object m_object;
 
             public TestMemberwiseClone(object value)
             {
@@ -197,7 +213,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             var testMemberwiseClone = new TestMemberwiseClone(2);
             Assert.NotNull(Utils.Clone(testMemberwiseClone));
             var testNoClone = new TestNoClone(3);
-            Assert.Throws<NotSupportedException>(() => Utils.Clone(testNoClone));
+            NUnit.Framework.Assert.Throws<NotSupportedException>(() => Utils.Clone(testNoClone));
         }
 
         [Test]
@@ -211,15 +227,18 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.False(Utils.IsEqualUserIdentity(anonymousIdentity1, null));
             Assert.False(Utils.IsEqualUserIdentity(null, anonymousIdentity2));
 
-            var user1 = new UserNameIdentityToken() {
+            var user1 = new UserNameIdentityToken
+            {
                 UserName = "user1",
                 Password = Encoding.ASCII.GetBytes("pass1".ToCharArray())
             };
-            var user1_dupe = new UserNameIdentityToken() {
+            var user1_dupe = new UserNameIdentityToken
+            {
                 UserName = "user1",
                 Password = Encoding.ASCII.GetBytes("pass1".ToCharArray())
             };
-            var user2 = new UserNameIdentityToken() {
+            var user2 = new UserNameIdentityToken
+            {
                 UserName = "user2",
                 Password = Encoding.ASCII.GetBytes("pass2".ToCharArray())
             };
@@ -229,17 +248,15 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.False(Utils.IsEqualUserIdentity(null, user2));
             Assert.False(Utils.IsEqualUserIdentity(user1, null));
         }
-        #endregion
 
-        #region RelativePath.Parse
         /// <summary>
         /// Parse simple plain path string containing only numeric chars.
         /// </summary>
         [Test]
         public void RelativePathParseNumericStringNonDeep()
         {
-            TypeTable typeTable = new TypeTable(new NamespaceTable());
-            string str = "/11";
+            var typeTable = new TypeTable(new NamespaceTable());
+            const string str = "/11";
             Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
@@ -249,8 +266,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RelativePathParseNumericStringDeepPath()
         {
-            TypeTable typeTable = new TypeTable(new NamespaceTable());
-            string str = "/123/789";
+            var typeTable = new TypeTable(new NamespaceTable());
+            const string str = "/123/789";
             Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
@@ -260,8 +277,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RelativePathParseAlphanumericStringPath()
         {
-            TypeTable typeTable = new TypeTable(new NamespaceTable());
-            string str = "/123A/78B9";
+            var typeTable = new TypeTable(new NamespaceTable());
+            const string str = "/123A/78B9";
             Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
@@ -271,8 +288,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RelativePathParseAlphanumericStringPath2()
         {
-            TypeTable typeTable = new TypeTable(new NamespaceTable());
-            string str = "/AA123A/bb78B9";
+            var typeTable = new TypeTable(new NamespaceTable());
+            const string str = "/AA123A/bb78B9";
             Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
@@ -282,8 +299,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RelativePathParseAlphaStringPath()
         {
-            TypeTable typeTable = new TypeTable(new NamespaceTable());
-            string str = "/abc/def";
+            var typeTable = new TypeTable(new NamespaceTable());
+            const string str = "/abc/def";
             Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
@@ -293,9 +310,69 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RelativePathParseAlphanumericWithNamespaceIndexStringPath()
         {
-            TypeTable typeTable = new TypeTable(new NamespaceTable());
-            string str = "/1:abc/2:def";
+            var typeTable = new TypeTable(new NamespaceTable());
+            const string str = "/1:abc/2:def";
             Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
+        }
+
+        /// <summary>
+        /// Parse path string containing two Namespaces, translate indexes
+        /// </summary>
+        [Theory]
+        [TestCase("<#2:HasChild>", "<#3:HasChild>")]
+        [TestCase("<!2:HasChild>", "<!3:HasChild>")]
+        [TestCase(".2:NodeVersion", ".3:NodeVersion")]
+        [TestCase("/1:abc/2:def", "/1:abc/3:def")]
+        public void RelativePathParseTranslateNamespaceIndexReferenceType(
+            string input,
+            string output)
+        {
+            var currentTable = new NamespaceTable([Namespaces.OpcUa, "1", Namespaces.OpcUaGds]);
+            var targetTable = new NamespaceTable([Namespaces.OpcUa, "1", "2", Namespaces.OpcUaGds]);
+
+            var typeTable = new TypeTable(new NamespaceTable());
+            typeTable.AddReferenceSubtype(
+                ReferenceTypeIds.HasChild,
+                NodeId.Null,
+                new QualifiedName("HasChild", 3));
+            Assert.AreEqual(
+                output,
+                RelativePath.Parse(input, typeTable, currentTable, targetTable).Format(typeTable));
+        }
+
+        /// <summary>
+        /// Parse path string containing two Namespaces with missing namespace indexes in either currentTable or targetTable.
+        /// </summary>
+        [Theory]
+        [TestCase(
+            new string[] { Namespaces.OpcUa, "2", Namespaces.OpcUaGds },
+            new string[] { Namespaces.OpcUa, "2", "3" },
+            "/1:abc/2:def"
+        )]
+        [TestCase(
+            new string[] { Namespaces.OpcUa, "2", Namespaces.OpcUaGds },
+            new string[] { Namespaces.OpcUa, "2", "3" },
+            "<#2:HasChild>"
+        )]
+        [TestCase(
+            new string[] { Namespaces.OpcUa, "2", Namespaces.OpcUaGds },
+            new string[] { Namespaces.OpcUa, "2", "3", "4", "5" },
+            "/1:abc/4:def"
+        )]
+        public void RelativePathParseInvalidNamespaceIndex(
+            string[] currentNamespaces,
+            string[] targetNamespaces,
+            string path)
+        {
+            var currentTable = new NamespaceTable([.. currentNamespaces]);
+            var targetTable = new NamespaceTable([.. targetNamespaces]);
+
+            var typeTable = new TypeTable(new NamespaceTable());
+            ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+                RelativePath.Parse(path, typeTable, currentTable, targetTable).Format(typeTable));
+            Assert.AreEqual(
+                (StatusCode)StatusCodes.BadIndexRangeInvalid,
+                (StatusCode)sre.StatusCode);
         }
 
         /// <summary>
@@ -303,49 +380,60 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// exponential entity expansion in this version of .NET.
         /// </summary>
         [Test]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA3075:Insecure DTD processing in XML",
-            Justification =
-                "Validate that XmlDocument DtdProcessing is protected against" +
-                "exponential entity expansion in this version of .NET.")]
         public void ExponentialEntityExpansionProcessing()
         {
-            StringBuilder xmlEEXX = new StringBuilder();
-            xmlEEXX.AppendLine("<?xml version=\"1.0\" encoding=\"utf-8\" ?>");
-            xmlEEXX.AppendLine("<!DOCTYPE lolz [<!ENTITY lol \"lol\">");
-            xmlEEXX.AppendLine("<!ENTITY lol1 \"&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;\" >");
-            xmlEEXX.AppendLine("<!ENTITY lol2 \"&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;\" >");
-            xmlEEXX.AppendLine("<!ENTITY lol3 \"&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;\" >");
-            xmlEEXX.AppendLine("<!ENTITY lol4 \"&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;\" >");
-            xmlEEXX.AppendLine("<!ENTITY lol5 \"&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;\" >");
-            xmlEEXX.AppendLine("<!ENTITY lol6 \"&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;\" >");
-            xmlEEXX.AppendLine("<!ENTITY lol7 \"&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;\" >");
-            xmlEEXX.AppendLine("<!ENTITY lol8 \"&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;\" >");
-            xmlEEXX.AppendLine("<!ENTITY lol9 \"&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;\" >]>");
-            xmlEEXX.AppendLine("<lolz>&lol9;</lolz>");
+            var xmlEEXX = new StringBuilder();
+            xmlEEXX.AppendLine("<?xml version=\"1.0\" encoding=\"utf-8\" ?>")
+                .AppendLine("<!DOCTYPE lolz [<!ENTITY lol \"lol\">")
+                .AppendLine(
+                    "<!ENTITY lol1 \"&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;\" >")
+                .AppendLine("<!ENTITY lol2 \"&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;\" >")
+                .AppendLine("<!ENTITY lol3 \"&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;\" >")
+                .AppendLine("<!ENTITY lol4 \"&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;\" >")
+                .AppendLine("<!ENTITY lol5 \"&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;\" >")
+                .AppendLine("<!ENTITY lol6 \"&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;\" >")
+                .AppendLine("<!ENTITY lol7 \"&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;\" >")
+                .AppendLine("<!ENTITY lol8 \"&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;\" >")
+                .AppendLine("<!ENTITY lol9 \"&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;\" >]>")
+                .AppendLine("<lolz>&lol9;</lolz>");
 
             // Validate the default reader (expansion limited at 10000000 bytes)
             TestContext.Out.WriteLine("Testing XmlDocument.LoadXml.");
-            var ex = Assert.Throws<XmlException>(() => {
-                XmlDocument document = new XmlDocument();
+            XmlException ex = NUnit.Framework.Assert.Throws<XmlException>(() =>
+            {
+                var document = new XmlDocument();
+#pragma warning disable IDE0079 // Remove unnecessary suppression
+#pragma warning disable CA3075 // Insecure DTD processing in XML
+#pragma warning restore IDE0079 // Remove unnecessary suppression
                 document.LoadXml(xmlEEXX.ToString());
+#pragma warning disable IDE0079 // Remove unnecessary suppression
+#pragma warning restore CA3075 // Insecure DTD processing in XML
+#pragma warning restore IDE0079 // Remove unnecessary suppression
             });
             TestContext.Out.WriteLine(ex.Message);
 
             // Validate the InnerXml default (expansion limited at 10000000 bytes)
             TestContext.Out.WriteLine("Testing XmlDocument.InnerXml.");
-            ex = Assert.Throws<XmlException>(() => {
-                XmlDocument document = new XmlDocument();
-                document.InnerXml = xmlEEXX.ToString();
+            ex = NUnit.Framework.Assert.Throws<XmlException>(() =>
+            {
+#pragma warning disable IDE0079 // Remove unnecessary suppression
+#pragma warning disable CA3075 // Insecure DTD processing in XML
+#pragma warning restore IDE0079 // Remove unnecessary suppression
+                var document = new XmlDocument { InnerXml = xmlEEXX.ToString() };
+#pragma warning disable IDE0079 // Remove unnecessary suppression
+#pragma warning restore CA3075 // Insecure DTD processing in XML
+#pragma warning restore IDE0079 // Remove unnecessary suppression
             });
             TestContext.Out.WriteLine(ex.Message);
 
             // Validate the default Xml Reader settings prohibit Dtd (recommended)
             TestContext.Out.WriteLine("Testing XmlDocument.Load with default xml reader.");
-            using (StringReader stream = new StringReader(xmlEEXX.ToString()))
-            using (XmlReader reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
+            using (var stream = new StringReader(xmlEEXX.ToString()))
+            using (var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
             {
-                ex = Assert.Throws<XmlException>(() => {
-                    XmlDocument document = new XmlDocument();
+                ex = NUnit.Framework.Assert.Throws<XmlException>(() =>
+                {
+                    var document = new XmlDocument();
                     document.Load(reader);
                 });
                 TestContext.Out.WriteLine(ex.Message);
@@ -353,12 +441,12 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
             // Validate the LoadInnerXml helper settings prohibit Dtd (recommended)
             TestContext.Out.WriteLine("Testing LoadInnerXml helper.");
-            ex = Assert.Throws<XmlException>(() => {
-                XmlDocument document = new XmlDocument();
+            ex = NUnit.Framework.Assert.Throws<XmlException>(() =>
+            {
+                var document = new XmlDocument();
                 document.LoadInnerXml(xmlEEXX.ToString());
             });
             TestContext.Out.WriteLine(ex.Message);
-
         }
 
         /// <summary>
@@ -366,39 +454,67 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// </summary>
         [Test]
         public void BuiltInTypeOfSimpleDataTypes()
-
         {
             Assert.AreEqual(BuiltInType.DateTime, TypeInfo.GetBuiltInType(DataTypeIds.UtcTime));
 
-            List<string> bnList = new List<string> { BrowseNames.ApplicationInstanceCertificate, BrowseNames.AudioDataType,
-                BrowseNames.ContinuationPoint, BrowseNames.Image,
-                BrowseNames.ImageBMP, BrowseNames.ImageGIF,
-                BrowseNames.ImageJPG, BrowseNames.ImagePNG };
+            var bnList = new List<string>
+            {
+                BrowseNames.ApplicationInstanceCertificate,
+                BrowseNames.AudioDataType,
+                BrowseNames.ContinuationPoint,
+                BrowseNames.Image,
+                BrowseNames.ImageBMP,
+                BrowseNames.ImageGIF,
+                BrowseNames.ImageJPG,
+                BrowseNames.ImagePNG
+            };
             foreach (string name in bnList)
             {
-                var staticValue = typeof(DataTypeIds).GetFields(BindingFlags.Public | BindingFlags.Static).First(f => f.Name == name).GetValue(null);
-                Assert.AreEqual(BuiltInType.ByteString, TypeInfo.GetBuiltInType((NodeId)staticValue));
+                object staticValue = typeof(DataTypeIds)
+                    .GetFields(BindingFlags.Public | BindingFlags.Static)
+                    .First(f => f.Name == name)
+                    .GetValue(null);
+                Assert.AreEqual(
+                    BuiltInType.ByteString,
+                    TypeInfo.GetBuiltInType((NodeId)staticValue));
             }
 
-            Assert.AreEqual(BuiltInType.NodeId, TypeInfo.GetBuiltInType(DataTypeIds.SessionAuthenticationToken));
+            Assert.AreEqual(
+                BuiltInType.NodeId,
+                TypeInfo.GetBuiltInType(DataTypeIds.SessionAuthenticationToken));
             Assert.AreEqual(BuiltInType.Double, TypeInfo.GetBuiltInType(DataTypeIds.Duration));
 
-            bnList = new List<string> { BrowseNames.IntegerId, BrowseNames.Index, BrowseNames.VersionTime, BrowseNames.Counter };
+            bnList = [BrowseNames.IntegerId, BrowseNames.Index, BrowseNames.VersionTime, BrowseNames
+                .Counter];
             foreach (string name in bnList)
             {
-                var staticValue = typeof(DataTypeIds).GetFields(BindingFlags.Public | BindingFlags.Static).First(f => f.Name == name).GetValue(null);
+                object staticValue = typeof(DataTypeIds)
+                    .GetFields(BindingFlags.Public | BindingFlags.Static)
+                    .First(f => f.Name == name)
+                    .GetValue(null);
                 Assert.AreEqual(BuiltInType.UInt32, TypeInfo.GetBuiltInType((NodeId)staticValue));
             }
 
-            Assert.AreEqual(BuiltInType.UInt64, TypeInfo.GetBuiltInType(DataTypeIds.BitFieldMaskDataType));
+            Assert.AreEqual(
+                BuiltInType.UInt64,
+                TypeInfo.GetBuiltInType(DataTypeIds.BitFieldMaskDataType));
 
-            bnList = new List<string> { BrowseNames.DateString, BrowseNames.DecimalString,
-                BrowseNames.DurationString, BrowseNames.LocaleId,
-                BrowseNames.NormalizedString, BrowseNames.NumericRange,
-                BrowseNames.TimeString };
+            bnList =
+            [
+                BrowseNames.DateString,
+                BrowseNames.DecimalString,
+                BrowseNames.DurationString,
+                BrowseNames.LocaleId,
+                BrowseNames.NormalizedString,
+                BrowseNames.NumericRange,
+                BrowseNames.TimeString
+            ];
             foreach (string name in bnList)
             {
-                var staticValue = typeof(DataTypeIds).GetFields(BindingFlags.Public | BindingFlags.Static).First(f => f.Name == name).GetValue(null);
+                object staticValue = typeof(DataTypeIds)
+                    .GetFields(BindingFlags.Public | BindingFlags.Static)
+                    .First(f => f.Name == name)
+                    .GetValue(null);
                 Assert.AreEqual(BuiltInType.String, TypeInfo.GetBuiltInType((NodeId)staticValue));
             }
         }
@@ -424,18 +540,17 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.AreEqual(ConformanceLevel.Document, settings.ConformanceLevel);
             Assert.AreEqual(false, settings.CloseInput);
         }
-        #endregion
 
-        #region RelativePath.Parse Escaping
         /// <summary>
         /// Parse a path containing non-escaped hash character.
         /// </summary>
         [Test]
         public void RelativePathParseNonEscapedHash()
         {
-            TypeTable typeTable = new TypeTable(new NamespaceTable());
-            string str = "/abc#def";
-            Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable).Format(typeTable));
+            var typeTable = new TypeTable(new NamespaceTable());
+            const string str = "/abc#def";
+            NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+                RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
         /// <summary>
@@ -444,9 +559,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RelativePathParseEscapedHash()
         {
-            TypeTable typeTable = new TypeTable(new NamespaceTable());
-            string str = "/abc&#def";
-            string expected = "/abc#def";
+            var typeTable = new TypeTable(new NamespaceTable());
+            const string str = "/abc&#def";
+            const string expected = "/abc#def";
             Assert.AreEqual(expected, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
@@ -456,9 +571,10 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RelativePathParseEscapedHashFollowedByExclamation()
         {
-            TypeTable typeTable = new TypeTable(new NamespaceTable());
-            string str = "/abc&#!def";
-            Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable).Format(typeTable));
+            var typeTable = new TypeTable(new NamespaceTable());
+            const string str = "/abc&#!def";
+            NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+                RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
         /// <summary>
@@ -467,9 +583,10 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RelativePathParseEscapedHashFollowedByExclamationInReferenceType()
         {
-            TypeTable typeTable = new TypeTable(new NamespaceTable());
-            string str = "<abc&#!def>";
-            Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable).Format(typeTable));
+            var typeTable = new TypeTable(new NamespaceTable());
+            const string str = "<abc&#!def>";
+            NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+                RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
         /// <summary>
@@ -478,11 +595,10 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RelativePathParseInvalidEscapeSequence()
         {
-            TypeTable typeTable = new TypeTable(new NamespaceTable());
-            string str = "/abc&$!def";
-            Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable).Format(typeTable));
+            var typeTable = new TypeTable(new NamespaceTable());
+            const string str = "/abc&$!def";
+            NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+                RelativePath.Parse(str, typeTable).Format(typeTable));
         }
-        #endregion
     }
-
 }

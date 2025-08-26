@@ -11,22 +11,17 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
-    #region SecurityConfiguration Class
     /// <summary>
     /// The security configuration for the application.
     /// </summary>
     public partial class SecurityConfiguration
     {
-        #region Public Properties
         /// <summary>
         /// The security profiles which are supported for this configuration.
         /// </summary>
@@ -37,10 +32,7 @@ namespace Opc.Ua
         /// for a private key is requested.
         /// </summary>
         public ICertificatePasswordProvider CertificatePasswordProvider { get; set; }
-        #endregion
 
-
-        #region Public Methods
         /// <summary>
         /// Adds a certificate as a trusted peer.
         /// </summary>
@@ -52,12 +44,14 @@ namespace Opc.Ua
         /// <summary>
         /// Validates the security configuration.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public void Validate()
         {
-            if (m_applicationCertificates == null ||
-                m_applicationCertificates.Count == 0)
+            if (m_applicationCertificates == null || m_applicationCertificates.Count == 0)
             {
-                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationCertificate must be specified.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "ApplicationCertificate must be specified.");
             }
             // ensure mandatory stores are valid
             ValidateStore(TrustedIssuerCertificates, nameof(TrustedIssuerCertificates));
@@ -81,68 +75,80 @@ namespace Opc.Ua
                 ValidateStore(UserIssuerCertificates, nameof(UserIssuerCertificates));
             }
 
-            if ((TrustedHttpsCertificates != null && HttpsIssuerCertificates == null)
-                || (HttpsIssuerCertificates != null && TrustedHttpsCertificates == null))
+            if ((TrustedHttpsCertificates != null && HttpsIssuerCertificates == null) ||
+                (HttpsIssuerCertificates != null && TrustedHttpsCertificates == null))
             {
-                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "Either none or both of HttpsIssuerCertificates & TrustedHttpsCertificates stores must be specified.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "Either none or both of HttpsIssuerCertificates & TrustedHttpsCertificates stores must be specified.");
             }
 
-            if ((TrustedUserCertificates != null && UserIssuerCertificates == null)
-                || (UserIssuerCertificates != null && TrustedUserCertificates == null))
+            if ((TrustedUserCertificates != null && UserIssuerCertificates == null) ||
+                (UserIssuerCertificates != null && TrustedUserCertificates == null))
             {
-                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "Either none or both of UserIssuerCertificates & TrustedUserCertificates stores must be specified.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "Either none or both of UserIssuerCertificates & TrustedUserCertificates stores must be specified.");
             }
-
 
             // replace subjectName DC=localhost with DC=hostname
-            foreach (var applicationCertificate in m_applicationCertificates)
+            foreach (CertificateIdentifier applicationCertificate in m_applicationCertificates)
             {
-                applicationCertificate.SubjectName = Utils.ReplaceDCLocalhost(applicationCertificate.SubjectName);
+                applicationCertificate.SubjectName = Utils.ReplaceDCLocalhost(
+                    applicationCertificate.SubjectName);
             }
         }
+
         /// <summary>
         /// Validate if the specified store can be opened
         /// throws ServiceResultException
         /// </summary>
-        private void ValidateStore(CertificateStoreIdentifier storeIdentifier, string storeName)
+        /// <exception cref="ServiceResultException"></exception>
+        private static void ValidateStore(CertificateTrustList storeIdentifier, string storeName)
         {
             if (string.IsNullOrEmpty(storeIdentifier?.StorePath))
             {
-                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, storeName + " StorePath must be specified.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    storeName + " StorePath must be specified.");
             }
             try
             {
-                ICertificateStore store = storeIdentifier.OpenStore();
-                if (store == null)
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError, $"Failed to open {storeName} store");
-                }
+                ICertificateStore store =
+                    storeIdentifier.OpenStore()
+                    ?? throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        $"Failed to open {storeName} store");
                 store?.Close();
             }
             catch (Exception ex)
             {
                 Utils.LogError(ex, "Failed to open {storeName} store", storeName);
-                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, storeName + " store is invalid.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    storeName + " store is invalid.");
             }
         }
 
         /// <summary>
         /// Find application certificate for a security policy.
         /// </summary>
-        /// <param name="securityPolicy"></param>
-        /// <param name="privateKey"></param>
-        public async Task<X509Certificate2> FindApplicationCertificateAsync(string securityPolicy, bool privateKey)
+        public async Task<X509Certificate2> FindApplicationCertificateAsync(
+            string securityPolicy,
+            bool privateKey)
         {
-            var certificateTypes = CertificateIdentifier.MapSecurityPolicyToCertificateTypes(securityPolicy);
-            foreach (var certType in certificateTypes)
+            foreach (NodeId certType in CertificateIdentifier.MapSecurityPolicyToCertificateTypes(
+                securityPolicy))
             {
-                CertificateIdentifier id = ApplicationCertificates.FirstOrDefault(certId => certId.CertificateType == certType);
+                CertificateIdentifier id = ApplicationCertificates.FirstOrDefault(certId =>
+                    certId.CertificateType == certType);
                 if (id == null)
                 {
                     if (certType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
                     {
                         // undefined certificate type as RsaSha256
-                        id = ApplicationCertificates.FirstOrDefault(certId => certId.CertificateType == null);
+                        id = ApplicationCertificates.FirstOrDefault(
+                            certId => certId.CertificateType == null);
                     }
                     else if (certType == ObjectTypeIds.ApplicationCertificateType)
                     {
@@ -152,30 +158,28 @@ namespace Opc.Ua
                     else if (certType == ObjectTypeIds.EccApplicationCertificateType)
                     {
                         // first Ecc certificate
-                        id = ApplicationCertificates.FirstOrDefault(certId => X509Utils.IsECDsaSignature(certId.Certificate));
+                        id = ApplicationCertificates.FirstOrDefault(certId =>
+                            X509Utils.IsECDsaSignature(certId.Certificate));
                     }
                 }
 
                 if (id != null)
                 {
-                    return await id.Find(privateKey).ConfigureAwait(false);
+                    return await id.FindAsync(privateKey).ConfigureAwait(false);
                 }
             }
 
             return null;
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Use the list of application certificates to build a list
         /// of supported security policies.
         /// </summary>
         private StringCollection BuildSupportedSecurityPolicies()
         {
-            var securityPolicies = new StringCollection();
-            securityPolicies.Add(SecurityPolicies.None);
-            foreach (var applicationCertificate in m_applicationCertificates)
+            var securityPolicies = new StringCollection { SecurityPolicies.None };
+            foreach (CertificateIdentifier applicationCertificate in m_applicationCertificates)
             {
                 if (applicationCertificate.CertificateType == null)
                 {
@@ -223,7 +227,7 @@ namespace Opc.Ua
             }
             // filter based on platform support
             var result = new StringCollection();
-            foreach (var securityPolicyUri in securityPolicies.Distinct())
+            foreach (string securityPolicyUri in securityPolicies.Distinct())
             {
                 if (SecurityPolicies.GetDisplayName(securityPolicyUri) != null)
                 {
@@ -232,7 +236,5 @@ namespace Opc.Ua
             }
             return result;
         }
-        #endregion
     }
-    #endregion
 }

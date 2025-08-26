@@ -28,13 +28,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
 -->
 
-<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2025-01-08T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2025-06-30T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <NamespaceUris>
     <Uri>http://opcfoundation.org/UA/GDS/</Uri>
   </NamespaceUris>
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/GDS/" XmlSchemaUri="http://opcfoundation.org/UA/GDS/Types.xsd" Version="1.05.04" PublicationDate="2025-01-08T00:00:00Z" ModelVersion="1.5.4">
-      <RequiredModel ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" Version="1.05.04" PublicationDate="2025-01-08T00:00:00Z" ModelVersion="1.5.4" />
+    <Model ModelUri="http://opcfoundation.org/UA/GDS/" XmlSchemaUri="http://opcfoundation.org/UA/GDS/Types.xsd" Version="1.05.05" PublicationDate="2025-06-30T00:00:00Z" ModelVersion="1.5.5">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" Version="1.05.05" PublicationDate="2025-04-25T00:00:00Z" ModelVersion="1.5.5" />
     </Model>
   </Models>
   <Aliases>
@@ -127,7 +127,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=721</Reference>
     </References>
     <Value>
-      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1.05.04</String>
+      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1.05.05</String>
     </Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=724" BrowseName="NamespacePublicationDate" ParentNodeId="ns=1;i=721" DataType="DateTime">
@@ -137,7 +137,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=721</Reference>
     </References>
     <Value>
-      <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2025-01-08T00:00:00Z</DateTime>
+      <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2025-06-30T00:00:00Z</DateTime>
     </Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=725" BrowseName="IsNamespaceSubset" ParentNodeId="ns=1;i=721" DataType="Boolean">
@@ -212,7 +212,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=721</Reference>
     </References>
     <Value>
-      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1.5.4</String>
+      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1.5.5</String>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=1661" BrowseName="1:DiscoveryAdmin" SymbolicName="WellKnownRole_DiscoveryAdmin">
@@ -1733,7 +1733,7 @@
   <UADataType NodeId="ns=1;i=1" BrowseName="1:ApplicationRecordDataType">
     <DisplayName>ApplicationRecordDataType</DisplayName>
     <Category>GDS Application Directory</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.6.5</Documentation>
+    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.5.5</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -1750,7 +1750,7 @@
   <UAObjectType NodeId="ns=1;i=13" BrowseName="1:DirectoryType">
     <DisplayName>DirectoryType</DisplayName>
     <Category>GDS Application Directory</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.6.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.5.3</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=14</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=15</Reference>
@@ -1773,7 +1773,7 @@
   </UAObject>
   <UAMethod NodeId="ns=1;i=15" BrowseName="1:FindApplications" ParentNodeId="ns=1;i=13">
     <DisplayName>FindApplications</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.6.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.5.4</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=16</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=17</Reference>
@@ -1839,10 +1839,11 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=18" BrowseName="1:RegisterApplication" ParentNodeId="ns=1;i=13">
     <DisplayName>RegisterApplication</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.6.6</Documentation>
+    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.5.6</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=19</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=20</Reference>
+      <Reference ReferenceType="GeneratesEvent">ns=1;i=26</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=13</Reference>
     </References>
@@ -1903,7 +1904,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=188" BrowseName="1:UpdateApplication" ParentNodeId="ns=1;i=13">
     <DisplayName>UpdateApplication</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.6.7</Documentation>
+    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.5.7</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=189</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -1939,7 +1940,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=21" BrowseName="1:UnregisterApplication" ParentNodeId="ns=1;i=13">
     <DisplayName>UnregisterApplication</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.6.8</Documentation>
+    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.5.8</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=22</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -1975,7 +1976,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=210" BrowseName="1:GetApplication" ParentNodeId="ns=1;i=13">
     <DisplayName>GetApplication</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.6.9</Documentation>
+    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.5.9</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=211</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=212</Reference>
@@ -2039,7 +2040,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=868" BrowseName="1:QueryApplications" ParentNodeId="ns=1;i=13">
     <DisplayName>QueryApplications</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.6.10</Documentation>
+    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.5.10</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=869</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=870</Reference>
@@ -2227,7 +2228,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=23" BrowseName="1:QueryServers" ParentNodeId="ns=1;i=13">
     <DisplayName>QueryServers</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.6.11</Documentation>
+    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.5.11</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=24</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=25</Reference>
@@ -2386,7 +2387,7 @@
   <UAObjectType NodeId="ns=1;i=26" BrowseName="1:ApplicationRegistrationChangedAuditEventType" IsAbstract="true">
     <DisplayName>ApplicationRegistrationChangedAuditEventType</DisplayName>
     <Category>GDS Application Directory</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.6.12</Documentation>
+    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.5.12</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2127</Reference>
     </References>
@@ -3443,6 +3444,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=15003" BrowseName="1:RevokeCertificate" ParentNodeId="ns=1;i=63">
     <DisplayName>RevokeCertificate</DisplayName>
+    <Category>GDS Certificate Manager RevokeCertificate</Category>
     <Documentation>https://reference.opcfoundation.org/GDS/docs/7.9.6</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=15004</Reference>
@@ -3560,6 +3562,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=89" BrowseName="1:GetCertificates" ParentNodeId="ns=1;i=63">
     <DisplayName>GetCertificates</DisplayName>
+    <Category>GDS Certificate Manager GetCertificates</Category>
     <Documentation>https://reference.opcfoundation.org/GDS/docs/7.9.8</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=90</Reference>
@@ -3831,6 +3834,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=126" BrowseName="1:CheckRevocationStatus" ParentNodeId="ns=1;i=63">
     <DisplayName>CheckRevocationStatus</DisplayName>
+    <Category>GDS Certificate Manager CheckRevocationStatus</Category>
     <Documentation>https://reference.opcfoundation.org/GDS/docs/7.9.11</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=160</Reference>
@@ -3960,9 +3964,17 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=109</Reference>
     </References>
   </UAVariable>
+  <UAObjectType NodeId="ns=1;i=27" BrowseName="1:CertificateRevokedAuditEventType" IsAbstract="true">
+    <DisplayName>CertificateRevokedAuditEventType</DisplayName>
+    <Category>GDS Certificate Manager Pull Model</Category>
+    <Documentation>https://reference.opcfoundation.org/GDS/docs/7.9.14</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=2127</Reference>
+    </References>
+  </UAObjectType>
   <UAObjectType NodeId="ns=1;i=55" BrowseName="1:KeyCredentialManagementFolderType">
     <DisplayName>KeyCredentialManagementFolderType</DisplayName>
-    <Category>GDS Key Credential Service Pull Model</Category>
+    <Category>Pull Model for KeyCredential Service</Category>
     <Documentation>https://reference.opcfoundation.org/GDS/docs/8.5.2</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=61</Reference>
@@ -4250,7 +4262,7 @@
   </UAVariable>
   <UAObject NodeId="ns=1;i=1008" BrowseName="1:KeyCredentialManagement">
     <DisplayName>KeyCredentialManagement</DisplayName>
-    <Category>GDS Key Credential Service Pull Model</Category>
+    <Category>Pull Model for KeyCredential Service</Category>
     <Documentation>https://reference.opcfoundation.org/GDS/docs/8.5.3</Documentation>
     <References>
       <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
@@ -4259,7 +4271,7 @@
   </UAObject>
   <UAObjectType NodeId="ns=1;i=1020" BrowseName="1:KeyCredentialServiceType">
     <DisplayName>KeyCredentialServiceType</DisplayName>
-    <Category>GDS Key Credential Service Pull Model</Category>
+    <Category>Pull Model for KeyCredential Service</Category>
     <Documentation>https://reference.opcfoundation.org/GDS/docs/8.5.4</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1021</Reference>
@@ -4585,7 +4597,7 @@
   </UAVariable>
   <UAObjectType NodeId="ns=1;i=1039" BrowseName="1:KeyCredentialRequestedAuditEventType">
     <DisplayName>KeyCredentialRequestedAuditEventType</DisplayName>
-    <Category>GDS Key Credential Service Pull Model</Category>
+    <Category>Pull Model for KeyCredential Service</Category>
     <Documentation>https://reference.opcfoundation.org/GDS/docs/8.5.9</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=18011</Reference>
@@ -4593,7 +4605,7 @@
   </UAObjectType>
   <UAObjectType NodeId="ns=1;i=1057" BrowseName="1:KeyCredentialDeliveredAuditEventType">
     <DisplayName>KeyCredentialDeliveredAuditEventType</DisplayName>
-    <Category>GDS Key Credential Service Pull Model</Category>
+    <Category>Pull Model for KeyCredential Service</Category>
     <Documentation>https://reference.opcfoundation.org/GDS/docs/8.5.10</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=18011</Reference>
@@ -4601,7 +4613,7 @@
   </UAObjectType>
   <UAObjectType NodeId="ns=1;i=1075" BrowseName="1:KeyCredentialRevokedAuditEventType">
     <DisplayName>KeyCredentialRevokedAuditEventType</DisplayName>
-    <Category>GDS Key Credential Service Pull Model</Category>
+    <Category>Pull Model for KeyCredential Service</Category>
     <Documentation>https://reference.opcfoundation.org/GDS/docs/8.5.11</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=18011</Reference>
@@ -4915,7 +4927,7 @@
   <UAObject NodeId="ns=1;i=141" BrowseName="1:Directory">
     <DisplayName>Directory</DisplayName>
     <Category>GDS Application Directory</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.6.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.5.2</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=142</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=143</Reference>
@@ -5010,10 +5022,11 @@
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=147</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=148</Reference>
+      <Reference ReferenceType="GeneratesEvent">ns=1;i=26</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=141</Reference>
     </References>
     <RolePermissions>
-      <RolePermission Permissions="4097">i=15656</RolePermission>
+      <RolePermission Permissions="4097">i=15644</RolePermission>
       <RolePermission Permissions="4097">ns=1;i=1661</RolePermission>
     </RolePermissions>
   </UAMethod>
@@ -5024,7 +5037,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=146</Reference>
     </References>
     <RolePermissions>
-      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">i=15644</RolePermission>
       <RolePermission Permissions="1">ns=1;i=1661</RolePermission>
     </RolePermissions>
     <Value>
@@ -5054,7 +5067,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=146</Reference>
     </References>
     <RolePermissions>
-      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">i=15644</RolePermission>
       <RolePermission Permissions="1">ns=1;i=1661</RolePermission>
     </RolePermissions>
     <Value>
@@ -5084,7 +5097,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=141</Reference>
     </References>
     <RolePermissions>
-      <RolePermission Permissions="4097">i=15656</RolePermission>
+      <RolePermission Permissions="4097">i=15644</RolePermission>
       <RolePermission Permissions="4097">ns=1;i=1661</RolePermission>
     </RolePermissions>
   </UAMethod>
@@ -5095,7 +5108,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=200</Reference>
     </References>
     <RolePermissions>
-      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">i=15644</RolePermission>
       <RolePermission Permissions="1">ns=1;i=1661</RolePermission>
     </RolePermissions>
     <Value>
@@ -5125,7 +5138,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=141</Reference>
     </References>
     <RolePermissions>
-      <RolePermission Permissions="4097">i=15656</RolePermission>
+      <RolePermission Permissions="4097">i=15644</RolePermission>
       <RolePermission Permissions="4097">ns=1;i=1661</RolePermission>
     </RolePermissions>
   </UAMethod>
@@ -5136,7 +5149,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=149</Reference>
     </References>
     <RolePermissions>
-      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">i=15644</RolePermission>
       <RolePermission Permissions="1">ns=1;i=1661</RolePermission>
     </RolePermissions>
     <Value>
@@ -7417,7 +7430,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=141</Reference>
     </References>
     <RolePermissions>
-      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">i=15644</RolePermission>
       <RolePermission Permissions="4097">ns=1;i=1680</RolePermission>
     </RolePermissions>
   </UAMethod>
@@ -7428,7 +7441,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=157</Reference>
     </References>
     <RolePermissions>
-      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">i=15644</RolePermission>
       <RolePermission Permissions="1">ns=1;i=1680</RolePermission>
     </RolePermissions>
     <Value>
@@ -7503,7 +7516,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=157</Reference>
     </References>
     <RolePermissions>
-      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">i=15644</RolePermission>
       <RolePermission Permissions="1">ns=1;i=1680</RolePermission>
     </RolePermissions>
     <Value>
@@ -7534,7 +7547,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=141</Reference>
     </References>
     <RolePermissions>
-      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">i=15644</RolePermission>
       <RolePermission Permissions="4097">ns=1;i=1680</RolePermission>
     </RolePermissions>
   </UAMethod>
@@ -7545,7 +7558,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=154</Reference>
     </References>
     <RolePermissions>
-      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">i=15644</RolePermission>
       <RolePermission Permissions="1">ns=1;i=1680</RolePermission>
     </RolePermissions>
     <Value>
@@ -7667,7 +7680,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=154</Reference>
     </References>
     <RolePermissions>
-      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">i=15644</RolePermission>
       <RolePermission Permissions="1">ns=1;i=1680</RolePermission>
     </RolePermissions>
     <Value>
@@ -7698,7 +7711,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=141</Reference>
     </References>
     <RolePermissions>
-      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">i=15644</RolePermission>
       <RolePermission Permissions="4097">ns=1;i=1680</RolePermission>
     </RolePermissions>
   </UAMethod>
@@ -7709,7 +7722,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=163</Reference>
     </References>
     <RolePermissions>
-      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">i=15644</RolePermission>
       <RolePermission Permissions="1">ns=1;i=1680</RolePermission>
     </RolePermissions>
     <Value>
@@ -7754,7 +7767,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=163</Reference>
     </References>
     <RolePermissions>
-      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">i=15644</RolePermission>
       <RolePermission Permissions="1">ns=1;i=1680</RolePermission>
     </RolePermissions>
     <Value>
@@ -7817,7 +7830,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=141</Reference>
     </References>
     <RolePermissions>
-      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">i=15644</RolePermission>
       <RolePermission Permissions="4097">ns=1;i=1680</RolePermission>
     </RolePermissions>
   </UAMethod>
@@ -7828,7 +7841,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=508</Reference>
     </References>
     <RolePermissions>
-      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">i=15644</RolePermission>
       <RolePermission Permissions="1">ns=1;i=1680</RolePermission>
     </RolePermissions>
     <Value>
@@ -7858,7 +7871,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=508</Reference>
     </References>
     <RolePermissions>
-      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">i=15644</RolePermission>
       <RolePermission Permissions="1">ns=1;i=1680</RolePermission>
     </RolePermissions>
     <Value>
@@ -7891,7 +7904,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=141</Reference>
     </References>
     <RolePermissions>
-      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">i=15644</RolePermission>
       <RolePermission Permissions="4097">ns=1;i=1680</RolePermission>
     </RolePermissions>
   </UAMethod>
@@ -7902,7 +7915,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=204</Reference>
     </References>
     <RolePermissions>
-      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">i=15644</RolePermission>
       <RolePermission Permissions="1">ns=1;i=1680</RolePermission>
     </RolePermissions>
     <Value>
@@ -7947,7 +7960,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=204</Reference>
     </References>
     <RolePermissions>
-      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">i=15644</RolePermission>
       <RolePermission Permissions="1">ns=1;i=1680</RolePermission>
     </RolePermissions>
     <Value>
@@ -7978,7 +7991,7 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=141</Reference>
     </References>
     <RolePermissions>
-      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">i=15644</RolePermission>
       <RolePermission Permissions="4097">ns=1;i=1680</RolePermission>
     </RolePermissions>
   </UAMethod>
@@ -7989,7 +8002,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=225</Reference>
     </References>
     <RolePermissions>
-      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">i=15644</RolePermission>
       <RolePermission Permissions="1">ns=1;i=1680</RolePermission>
     </RolePermissions>
     <Value>
@@ -8049,7 +8062,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=225</Reference>
     </References>
     <RolePermissions>
-      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">i=15644</RolePermission>
       <RolePermission Permissions="1">ns=1;i=1680</RolePermission>
     </RolePermissions>
     <Value>
@@ -8169,8 +8182,8 @@ c2QiDQogIHhtbG5zOnRucz0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy9UeXBlcy54
 c2QiDQogIHRhcmdldE5hbWVzcGFjZT0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy9U
 eXBlcy54c2QiDQogIGVsZW1lbnRGb3JtRGVmYXVsdD0icXVhbGlmaWVkIg0KPg0KICA8eHM6YW5u
 b3RhdGlvbj4NCiAgICA8eHM6YXBwaW5mbz4NCiAgICAgIDx1YTpNb2RlbCBNb2RlbFVyaT0iaHR0
-cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy8iIFZlcnNpb249IjEuMDUuMDQiIFB1YmxpY2F0
-aW9uRGF0ZT0iMjAyNS0wMS0wOFQwMDowMDowMFoiIC8+DQogICAgPC94czphcHBpbmZvPg0KICA8
+cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy8iIFZlcnNpb249IjEuMDUuMDUiIFB1YmxpY2F0
+aW9uRGF0ZT0iMjAyNS0wNi0zMFQwMDowMDowMFoiIC8+DQogICAgPC94czphcHBpbmZvPg0KICA8
 L3hzOmFubm90YXRpb24+DQogIA0KICA8eHM6aW1wb3J0IG5hbWVzcGFjZT0iaHR0cDovL29wY2Zv
 dW5kYXRpb24ub3JnL1VBLzIwMDgvMDIvVHlwZXMueHNkIiAvPg0KDQogIDx4czpjb21wbGV4VHlw
 ZSBuYW1lPSJBcHBsaWNhdGlvblJlY29yZERhdGFUeXBlIj4NCiAgICA8eHM6c2VxdWVuY2U+DQog

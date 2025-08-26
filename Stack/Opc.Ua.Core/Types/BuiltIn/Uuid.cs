@@ -26,7 +26,6 @@ namespace Opc.Ua
     [DataContract(Name = "Guid", Namespace = Namespaces.OpcUaXsd)]
     public struct Uuid : IComparable, IFormattable, IEquatable<Uuid>
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with a string.
         /// </summary>
@@ -50,16 +49,12 @@ namespace Opc.Ua
         {
             m_guid = guid;
         }
-        #endregion
 
-        #region Static Fields
         /// <summary>
         /// A constant containing an empty GUID.
         /// </summary>
-        public static readonly Uuid Empty = new Uuid();
-        #endregion
+        public static readonly Uuid Empty;
 
-        #region Public Properties
         /// <summary>
         /// The GUID serialized as a string.
         /// </summary>
@@ -69,11 +64,10 @@ namespace Opc.Ua
         [DataMember(Name = "String", Order = 1)]
         public string GuidString
         {
-            get { return m_guid.ToString(); }
-
+            readonly get => m_guid.ToString();
             set
             {
-                if (String.IsNullOrEmpty(value))
+                if (string.IsNullOrEmpty(value))
                 {
                     m_guid = Guid.Empty;
                 }
@@ -83,9 +77,7 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
 
-        #region Static Members
         /// <summary>
         /// Converts Uuid to a Guid structure.
         /// </summary>
@@ -187,9 +179,7 @@ namespace Opc.Ua
         {
             return a.CompareTo(b) > 0;
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Returns true if the objects are equal.
         /// </summary>
@@ -197,9 +187,9 @@ namespace Opc.Ua
         /// Returns true if the objects are equal.
         /// </remarks>
         /// <param name="obj">The object being compared to *this* object</param>
-        public override bool Equals(object obj)
+        public override readonly bool Equals(object obj)
         {
-            return (CompareTo(obj) == 0);
+            return CompareTo(obj) == 0;
         }
 
         /// <summary>
@@ -209,9 +199,9 @@ namespace Opc.Ua
         /// Returns true if the objects are equal.
         /// </remarks>
         /// <param name="other">The object being compared to *this* object</param>
-        public bool Equals(Uuid other)
+        public readonly bool Equals(Uuid other)
         {
-            return (CompareTo(other) == 0);
+            return CompareTo(other) == 0;
         }
 
         /// <summary>
@@ -220,7 +210,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Returns a unique hash code for the object.
         /// </remarks>
-        public override int GetHashCode()
+        public override readonly int GetHashCode()
         {
             return m_guid.GetHashCode();
         }
@@ -231,40 +221,36 @@ namespace Opc.Ua
         /// <remarks>
         /// Converts the object to a string.
         /// </remarks>
-        public override string ToString()
+        public override readonly string ToString()
         {
             return m_guid.ToString();
         }
-        #endregion
 
-        #region IComparable Members
         /// <summary>
-		/// Compares the current instance to the object.
-		/// </summary>
+        /// Compares the current instance to the object.
+        /// </summary>
         /// <remarks>
         /// Compares the current instance to the object. This function will check if the object
         /// passed in is a <see cref="Guid"/> or <see cref="Uuid"/>.
         /// </remarks>
         /// <param name="obj">The object being compared to *this* object</param>
-		public int CompareTo(object obj)
+        public readonly int CompareTo(object obj)
         {
             // check for uuids.
-            if (obj is Uuid)
+            if (obj is Uuid uuidValue)
             {
-                return ((Uuid)obj).m_guid.CompareTo(m_guid);
+                return uuidValue.m_guid.CompareTo(m_guid);
             }
 
             // compare guids.
-            if (obj is Guid)
+            if (obj is Guid guidValue)
             {
-                return m_guid.CompareTo((Guid)obj);
+                return m_guid.CompareTo(guidValue);
             }
 
             return +1;
         }
-        #endregion
 
-        #region IFormattable Members
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
@@ -273,23 +259,22 @@ namespace Opc.Ua
         /// </remarks>
         /// <param name="format">The format you want to apply to the string</param>
         /// <param name="formatProvider">The FormatProvider</param>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public readonly string ToString(string format, IFormatProvider formatProvider)
         {
-            return this.m_guid.ToString(format);
+            return m_guid.ToString(format);
         }
-        #endregion
 
-        #region Private Fields
         private Guid m_guid;
-        #endregion
     }
 
-    #region UuidCollection Class
     /// <summary>
     /// A collection of Uuids.
     /// </summary>
-    [CollectionDataContract(Name = "ListOfGuid", Namespace = Namespaces.OpcUaXsd, ItemName = "Guid")]
-    public partial class UuidCollection : List<Uuid>, ICloneable
+    [CollectionDataContract(
+        Name = "ListOfGuid",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "Guid")]
+    public class UuidCollection : List<Uuid>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -297,7 +282,9 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes an empty collection.
         /// </remarks>
-        public UuidCollection() { }
+        public UuidCollection()
+        {
+        }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -306,7 +293,10 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </remarks>
         /// <param name="collection">The collection to copy</param>
-        public UuidCollection(IEnumerable<Uuid> collection) : base(collection) { }
+        public UuidCollection(IEnumerable<Uuid> collection)
+            : base(collection)
+        {
+        }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
@@ -315,7 +305,10 @@ namespace Opc.Ua
         /// Initializes the collection with the specified capacity.
         /// </remarks>
         /// <param name="capacity">The maximum size of the collection</param>
-        public UuidCollection(int capacity) : base(capacity) { }
+        public UuidCollection(int capacity)
+            : base(capacity)
+        {
+        }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -328,10 +321,10 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return new UuidCollection(values);
+                return [.. values];
             }
 
-            return new UuidCollection();
+            return [];
         }
 
         /// <summary>
@@ -346,11 +339,10 @@ namespace Opc.Ua
             return ToUuidCollection(values);
         }
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -363,7 +355,5 @@ namespace Opc.Ua
         {
             return new UuidCollection(this);
         }
-        #endregion
     }
-    #endregion
-}//namespace
+}

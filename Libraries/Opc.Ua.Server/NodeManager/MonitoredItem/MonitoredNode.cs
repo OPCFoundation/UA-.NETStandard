@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -28,9 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using Opc.Ua;
-using Opc.Ua.Server;
 
 namespace Opc.Ua.Server
 {
@@ -44,7 +43,6 @@ namespace Opc.Ua.Server
     /// </remarks>
     public class MonitoredNode2
     {
-        #region Public Interface
         /// <summary>
         /// Initializes a new instance of the <see cref="MonitoredNode2"/> class.
         /// </summary>
@@ -59,38 +57,22 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets or sets the NodeManager which the MonitoredNode belongs to.
         /// </summary>
-        public CustomNodeManager2 NodeManager
-        {
-            get { return m_nodeManager; }
-            set { m_nodeManager = value; }
-        }
+        public CustomNodeManager2 NodeManager { get; set; }
 
         /// <summary>
         /// Gets or sets the Node being monitored.
         /// </summary>
-        public NodeState Node
-        {
-            get { return m_node; }
-            set { m_node = value; }
-        }
+        public NodeState Node { get; set; }
 
         /// <summary>
         /// Gets the current list of data change MonitoredItems.
         /// </summary>
-        public List<MonitoredItem> DataChangeMonitoredItems
-        {
-            get { return m_dataChangeMonitoredItems; }
-            private set { m_dataChangeMonitoredItems = value; }
-        }
+        public List<IDataChangeMonitoredItem2> DataChangeMonitoredItems { get; private set; }
 
         /// <summary>
         /// Gets the current list of event MonitoredItems.
         /// </summary>
-        public List<IEventMonitoredItem> EventMonitoredItems
-        {
-            get { return m_eventMonitoredItems; }
-            private set { m_eventMonitoredItems = value; }
-        }
+        public List<IEventMonitoredItem> EventMonitoredItems { get; private set; }
 
         /// <summary>
         /// Gets a value indicating whether this instance has monitored items.
@@ -120,11 +102,11 @@ namespace Opc.Ua.Server
         /// Adds the specified data change monitored item.
         /// </summary>
         /// <param name="datachangeItem">The monitored item.</param>
-        public void Add(MonitoredItem datachangeItem)
+        public void Add(IDataChangeMonitoredItem2 datachangeItem)
         {
             if (DataChangeMonitoredItems == null)
             {
-                DataChangeMonitoredItems = new List<MonitoredItem>();
+                DataChangeMonitoredItems = [];
                 Node.OnStateChanged = OnMonitoredNodeChanged;
             }
 
@@ -135,13 +117,17 @@ namespace Opc.Ua.Server
         /// Removes the specified data change monitored item.
         /// </summary>
         /// <param name="datachangeItem">The monitored item.</param>
-        public void Remove(MonitoredItem datachangeItem)
+        public void Remove(IDataChangeMonitoredItem2 datachangeItem)
         {
             for (int ii = 0; ii < DataChangeMonitoredItems.Count; ii++)
             {
-                if (Object.ReferenceEquals(DataChangeMonitoredItems[ii], datachangeItem))
+                if (ReferenceEquals(DataChangeMonitoredItems[ii], datachangeItem))
                 {
                     DataChangeMonitoredItems.RemoveAt(ii);
+
+                    // Remove the cached context for the monitored item
+                    m_contextCache.TryRemove(datachangeItem.Id, out _);
+
                     break;
                 }
             }
@@ -161,7 +147,7 @@ namespace Opc.Ua.Server
         {
             if (EventMonitoredItems == null)
             {
-                EventMonitoredItems = new List<IEventMonitoredItem>();
+                EventMonitoredItems = [];
                 Node.OnReportEvent = OnReportEvent;
             }
 
@@ -176,7 +162,7 @@ namespace Opc.Ua.Server
         {
             for (int ii = 0; ii < EventMonitoredItems.Count; ii++)
             {
-                if (Object.ReferenceEquals(EventMonitoredItems[ii], eventItem))
+                if (ReferenceEquals(EventMonitoredItems[ii], eventItem))
                 {
                     EventMonitoredItems.RemoveAt(ii);
                     break;
@@ -198,7 +184,7 @@ namespace Opc.Ua.Server
         /// <param name="e">The event.</param>
         public void OnReportEvent(ISystemContext context, NodeState node, IFilterTarget e)
         {
-            List<IEventMonitoredItem> eventMonitoredItems = new List<IEventMonitoredItem>();
+            var eventMonitoredItems = new List<IEventMonitoredItem>();
 
             lock (NodeManager.Lock)
             {
@@ -217,10 +203,7 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < eventMonitoredItems.Count; ii++)
             {
-
                 IEventMonitoredItem monitoredItem = eventMonitoredItems[ii];
-
-                #region  Filter out audit events in case the Server_Auditing values is false or the channel is not encrypted
 
                 if (e is AuditEventState)
                 {
@@ -229,20 +212,20 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
-                    else
+                    // check if channel is not encrypted and skip if so
+                    if (monitoredItem?.Session?.EndpointDescription?.SecurityMode !=
+                            MessageSecurityMode.SignAndEncrypt &&
+                        monitoredItem?.Session?.EndpointDescription?.TransportProfileUri !=
+                            Profiles.HttpsBinaryTransport)
                     {
-                        // check if channel is not encrypted and skip if so
-                        if (monitoredItem?.Session?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
-                            monitoredItem?.Session?.EndpointDescription?.TransportProfileUri != Profiles.HttpsBinaryTransport)
-                        {
-                            continue;
-                        }
+                        continue;
                     }
                 }
-                #endregion
 
                 // validate if the monitored item has the required role permissions to receive the event
-                ServiceResult validationResult = NodeManager.ValidateEventRolePermissions(monitoredItem, e);
+                ServiceResult validationResult = NodeManager.ValidateEventRolePermissions(
+                    monitoredItem,
+                    e);
 
                 if (ServiceResult.IsBad(validationResult))
                 {
@@ -253,9 +236,11 @@ namespace Opc.Ua.Server
                 lock (NodeManager.Lock)
                 {
                     // enqueue event
-                    if (context?.SessionId != null && monitoredItem?.Session?.Id?.Identifier != null)
+                    if (context?.SessionId != null &&
+                        monitoredItem?.Session?.Id?.Identifier != null)
                     {
-                        if (monitoredItem.Session.Id.Identifier.Equals(context.SessionId.Identifier))
+                        if (monitoredItem.Session.Id.Identifier
+                            .Equals(context.SessionId.Identifier))
                         {
                             monitoredItem?.QueueEvent(e);
                         }
@@ -268,10 +253,9 @@ namespace Opc.Ua.Server
                     {
                         monitoredItem?.QueueEvent(e);
                     }
-
                 }
             }
-        }        
+        }
 
         /// <summary>
         /// Called when the state of a Node changes.
@@ -279,7 +263,10 @@ namespace Opc.Ua.Server
         /// <param name="context">The system context.</param>
         /// <param name="node">The affected node.</param>
         /// <param name="changes">The mask indicating what changes have occurred.</param>
-        public void OnMonitoredNodeChanged(ISystemContext context, NodeState node, NodeStateChangeMasks changes)
+        public void OnMonitoredNodeChanged(
+            ISystemContext context,
+            NodeState node,
+            NodeStateChangeMasks changes)
         {
             lock (NodeManager.Lock)
             {
@@ -290,12 +277,16 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < DataChangeMonitoredItems.Count; ii++)
                 {
-                    MonitoredItem monitoredItem = DataChangeMonitoredItems[ii];
+                    IDataChangeMonitoredItem2 monitoredItem = DataChangeMonitoredItems[ii];
 
-                    if (monitoredItem.AttributeId == Attributes.Value && (changes & NodeStateChangeMasks.Value) != 0)
+                    if (monitoredItem.AttributeId == Attributes.Value &&
+                        (changes & NodeStateChangeMasks.Value) != 0)
                     {
                         // validate if the monitored item has the required role permissions to read the value
-                        ServiceResult validationResult = NodeManager.ValidateRolePermissions(new OperationContext(monitoredItem), node.NodeId, PermissionType.Read);
+                        ServiceResult validationResult = NodeManager.ValidateRolePermissions(
+                            new OperationContext(monitoredItem),
+                            node.NodeId,
+                            PermissionType.Read);
 
                         if (ServiceResult.IsBad(validationResult))
                         {
@@ -307,10 +298,10 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    if (monitoredItem.AttributeId != Attributes.Value && (changes & NodeStateChangeMasks.NonValue) != 0)
+                    if (monitoredItem.AttributeId != Attributes.Value &&
+                        (changes & NodeStateChangeMasks.NonValue) != 0)
                     {
                         QueueValue(context, node, monitoredItem);
-                        continue;
                     }
                 }
             }
@@ -322,17 +313,25 @@ namespace Opc.Ua.Server
         public void QueueValue(
             ISystemContext context,
             NodeState node,
-            MonitoredItem monitoredItem)
+            IDataChangeMonitoredItem2 monitoredItem)
         {
-            DataValue value = new DataValue();
+            var value = new DataValue
+            {
+                Value = null,
+                ServerTimestamp = DateTime.UtcNow,
+                SourceTimestamp = DateTime.MinValue,
+                StatusCode = StatusCodes.Good
+            };
 
-            value.Value = null;
-            value.ServerTimestamp = DateTime.UtcNow;
-            value.SourceTimestamp = DateTime.MinValue;
-            value.StatusCode = StatusCodes.Good;
+            ISystemContext contextToUse = context;
+
+            if (context is ServerSystemContext systemContext)
+            {
+                contextToUse = GetOrCreateContext(systemContext, monitoredItem);
+            }
 
             ServiceResult error = node.ReadAttribute(
-                context,
+                contextToUse,
                 monitoredItem.AttributeId,
                 monitoredItem.IndexRange,
                 monitoredItem.DataEncoding,
@@ -345,13 +344,51 @@ namespace Opc.Ua.Server
 
             monitoredItem.QueueValue(value, error);
         }
-        #endregion
 
-        #region Private Fields
-        private CustomNodeManager2 m_nodeManager;
-        private NodeState m_node;
-        private List<MonitoredItem> m_dataChangeMonitoredItems;
-        private List<IEventMonitoredItem> m_eventMonitoredItems;
-        #endregion
+        /// <summary>
+        /// Gets or creates a cached context for the monitored item.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="monitoredItem">The monitored item.</param>
+        /// <returns>The cached or newly created context.</returns>
+        private ServerSystemContext GetOrCreateContext(
+            ServerSystemContext context,
+            IDataChangeMonitoredItem2 monitoredItem)
+        {
+            uint monitoredItemId = monitoredItem.Id;
+            int currentTicks = HiResClock.TickCount;
+
+            // Check if the context already exists in the cache
+            if (m_contextCache.TryGetValue(
+                    monitoredItemId,
+                    out (ServerSystemContext Context, int CreatedAtTicks) cachedEntry))
+            {
+                // Check if the session or user identity has changed or the entry has expired
+                if (cachedEntry.Context.OperationContext.Session != monitoredItem.Session ||
+                    cachedEntry.Context.OperationContext.UserIdentity != monitoredItem
+                        .EffectiveIdentity ||
+                    (currentTicks - cachedEntry.CreatedAtTicks) > m_cacheLifetimeTicks)
+                {
+                    ServerSystemContext updatedContext = context.Copy(
+                        new OperationContext(monitoredItem));
+                    m_contextCache[monitoredItemId] = (updatedContext, currentTicks);
+
+                    return updatedContext;
+                }
+
+                return cachedEntry.Context;
+            }
+
+            // Create a new context and add it to the cache
+            ServerSystemContext newContext = context.Copy(new OperationContext(monitoredItem));
+            m_contextCache.TryAdd(monitoredItemId, (newContext, currentTicks));
+
+            return newContext;
+        }
+
+        private readonly ConcurrentDictionary<uint, (ServerSystemContext Context, int CreatedAtTicks)> m_contextCache =
+            new();
+
+        private readonly int m_cacheLifetimeTicks = (int)TimeSpan.FromMinutes(5).TotalMilliseconds;
     }
 }

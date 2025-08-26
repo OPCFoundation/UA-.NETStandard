@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -53,19 +53,16 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// The DataSetStates indexed by dataset writer group id.
         /// </summary>
-        private Dictionary<ushort, DataSetState> m_dataSetStates;
+        private readonly Dictionary<ushort, DataSetState> m_dataSetStates;
 
-        #region Constructor
         /// <summary>
         /// Creates a new instance.
         /// </summary>
         public WriterGroupPublishState()
         {
-            m_dataSetStates = new Dictionary<ushort, DataSetState>();
+            m_dataSetStates = [];
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Returns TRUE if the next DataSetMessage is a delta frame.
         /// </summary>
@@ -104,7 +101,8 @@ namespace Opc.Ua.PubSub
                 if (version == null)
                 {
                     // keep a copy of ConfigurationVersion
-                    state.ConfigurationVersion = metadata.ConfigurationVersion.Clone() as ConfigurationVersionDataType;
+                    state.ConfigurationVersion = metadata.ConfigurationVersion
+                        .Clone() as ConfigurationVersionDataType;
                     state.LastMetaDataUpdate = DateTime.UtcNow;
                     return true;
                 }
@@ -113,7 +111,8 @@ namespace Opc.Ua.PubSub
                     version.MinorVersion != metadata.ConfigurationVersion.MinorVersion)
                 {
                     // keep a copy of ConfigurationVersion
-                    state.ConfigurationVersion = metadata.ConfigurationVersion.Clone() as ConfigurationVersionDataType;
+                    state.ConfigurationVersion = metadata.ConfigurationVersion
+                        .Clone() as ConfigurationVersionDataType;
                     state.LastMetaDataUpdate = DateTime.UtcNow;
                     return true;
                 }
@@ -135,7 +134,7 @@ namespace Opc.Ua.PubSub
 
                 if (lastDataSet == null)
                 {
-                    state.LastDataSet = Utils.Clone(dataset) as DataSet;
+                    state.LastDataSet = Utils.Clone(dataset);
                     return dataset;
                 }
 
@@ -143,8 +142,8 @@ namespace Opc.Ua.PubSub
 
                 for (int ii = 0; ii < dataset.Fields.Length && ii < lastDataSet.Fields.Length; ii++)
                 {
-                    var field1 = dataset.Fields[ii];
-                    var field2 = lastDataSet.Fields[ii];
+                    Field field1 = dataset.Fields[ii];
+                    Field field2 = lastDataSet.Fields[ii];
 
                     if (field1 == null || field2 == null)
                     {
@@ -188,45 +187,39 @@ namespace Opc.Ua.PubSub
 
                 if (writer.KeyFrameCount > 1)
                 {
-
                     state.ConfigurationVersion =
-                        dataset.DataSetMetaData.ConfigurationVersion.Clone() as ConfigurationVersionDataType;
+                        dataset.DataSetMetaData.ConfigurationVersion
+                            .Clone() as ConfigurationVersionDataType;
 
                     if (state.LastDataSet == null)
                     {
-                        state.LastDataSet = Utils.Clone(dataset) as DataSet;
+                        state.LastDataSet = Utils.Clone(dataset);
                         return;
                     }
 
-                    for (int ii = 0; ii < dataset.Fields.Length && ii < state.LastDataSet.Fields.Length; ii++)
+                    for (int ii = 0;
+                        ii < dataset.Fields.Length && ii < state.LastDataSet.Fields.Length;
+                        ii++)
                     {
-                        var field = dataset.Fields[ii];
+                        Field field = dataset.Fields[ii];
 
                         if (field != null)
                         {
-                            state.LastDataSet.Fields[ii] = Utils.Clone(field) as Field;
+                            state.LastDataSet.Fields[ii] = Utils.Clone(field);
                         }
                     }
-
                 }
             }
         }
-        #endregion
-
-        #region Private Methods
-
 
         private DataSetState GetState(DataSetWriterDataType writer)
         {
-            DataSetState state;
-
-            if (!m_dataSetStates.TryGetValue(writer.DataSetWriterId, out state))
+            if (!m_dataSetStates.TryGetValue(writer.DataSetWriterId, out DataSetState state))
             {
                 m_dataSetStates[writer.DataSetWriterId] = state = new DataSetState();
             }
 
             return state;
         }
-        #endregion
     }
 }

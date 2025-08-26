@@ -11,33 +11,31 @@
 */
 
 using System;
+using System.Threading;
 
 namespace Opc.Ua
 {
     /// <summary>
     /// Used as underlying tracing object for event processing.
     /// </summary>
-    public class Tracing
+    public sealed class Tracing
     {
-        #region Private Members
-        private readonly static object s_syncRoot = new object();
+        private static readonly Lock s_syncRoot = new();
         private static Tracing s_instance;
-        #endregion Private Members
 
-        #region Singleton Instance
         /// <summary>
         /// Private constructor.
         /// </summary>
         private Tracing()
-        { }
+        {
+        }
 
         /// <summary>
         /// Whether the Trace Event Handler is active.
         /// </summary>
         public static bool IsEnabled()
         {
-            return s_instance != null &&
-                s_instance.TraceEventHandler != null;
+            return s_instance != null && s_instance.TraceEventHandler != null;
         }
 
         /// <summary>
@@ -51,25 +49,18 @@ namespace Opc.Ua
                 {
                     lock (s_syncRoot)
                     {
-                        if (s_instance == null)
-                        {
-                            s_instance = new Tracing();
-                        }
+                        s_instance ??= new Tracing();
                     }
                 }
                 return s_instance;
             }
         }
-        #endregion Singleton Instance
 
-        #region Public Events
         /// <summary>
         /// Occurs when a trace call is made.
         /// </summary>
         public event EventHandler<TraceEventArgs> TraceEventHandler;
-        #endregion Public Events
 
-        #region Internal Members
         internal void RaiseTraceEvent(TraceEventArgs eventArgs)
         {
             if (TraceEventHandler != null)
@@ -84,6 +75,5 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
     }
 }

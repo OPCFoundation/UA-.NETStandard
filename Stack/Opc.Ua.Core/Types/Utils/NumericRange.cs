@@ -25,7 +25,6 @@ namespace Opc.Ua
     /// </remarks>
     public struct NumericRange : IFormattable, IEquatable<NumericRange>
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with a begin index.
         /// </summary>
@@ -43,10 +42,11 @@ namespace Opc.Ua
 
             m_begin = -1;
             m_end = -1;
-            m_subranges = null;
+            SubRanges = null;
 
             Begin = begin;
         }
+
         /// <summary>
         /// Initializes the object with a begin and end indexes.
         /// </summary>
@@ -59,14 +59,12 @@ namespace Opc.Ua
         {
             m_begin = -1;
             m_end = -1;
-            m_subranges = null;
+            SubRanges = null;
 
             Begin = begin;
             End = end;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The begining of the numeric range.
         /// </summary>
@@ -76,8 +74,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentOutOfRangeException">Thrown when the value is less than -1, or when the value is greater than the end</exception>
         public int Begin
         {
-            get { return m_begin; }
-
+            readonly get => m_begin;
             set
             {
                 if (value < -1)
@@ -104,8 +101,7 @@ namespace Opc.Ua
         /// than -1 or when the end is less than the beginning</exception>
         public int End
         {
-            get { return m_end; }
-
+            readonly get => m_end;
             set
             {
                 if (value < -1)
@@ -128,7 +124,7 @@ namespace Opc.Ua
         /// <remarks>
         /// The number of elements specified by the range.
         /// </remarks>
-        public int Count
+        public readonly int Count
         {
             get
             {
@@ -150,7 +146,7 @@ namespace Opc.Ua
         /// Gets the number of dimensions in the range.
         /// </summary>
         /// <value>The number of dimensions.</value>
-        public int Dimensions
+        public readonly int Dimensions
         {
             get
             {
@@ -159,12 +155,12 @@ namespace Opc.Ua
                     return 0;
                 }
 
-                if (m_subranges == null)
+                if (SubRanges == null)
                 {
                     return 1;
                 }
 
-                return m_subranges.Length;
+                return SubRanges.Length;
             }
         }
 
@@ -172,21 +168,8 @@ namespace Opc.Ua
         /// Gets or sets the sub ranges for multidimensional ranges.
         /// </summary>
         /// <value>The sub ranges.</value>
-        public NumericRange[] SubRanges
-        {
-            get
-            {
-                return m_subranges;
-            }
+        public NumericRange[] SubRanges { get; set; }
 
-            set
-            {
-                m_subranges = value;
-            }
-        }
-        #endregion
-
-        #region Public Methods
         /// <summary>
         /// Ensures the bounds are valid values for the object passed in.
         /// </summary>
@@ -253,9 +236,7 @@ namespace Opc.Ua
 
             return true;
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Returns true if the objects are equal.
         /// </summary>
@@ -263,13 +244,12 @@ namespace Opc.Ua
         /// Returns true if the objects are equal.
         /// </remarks>
         /// <param name="obj">The object to test against this</param>
-        public override bool Equals(object obj)
+        public override readonly bool Equals(object obj)
         {
-            if (obj is NumericRange)
+            if (obj is NumericRange numericRange)
             {
-                return this.Equals((NumericRange)obj);
+                return Equals(numericRange);
             }
-
             return false;
         }
 
@@ -280,7 +260,7 @@ namespace Opc.Ua
         /// Returns true if the objects are equal.
         /// </remarks>
         /// <param name="other">The NumericRange to test against this</param>
-        public bool Equals(NumericRange other)
+        public readonly bool Equals(NumericRange other)
         {
             return (other.m_begin == m_begin) && (other.m_end == m_end);
         }
@@ -317,7 +297,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Returns a suitable hash code for the object.
         /// </remarks>
-        public override int GetHashCode()
+        public override readonly int GetHashCode()
         {
             return HashCode.Combine(m_begin, m_end);
         }
@@ -328,13 +308,11 @@ namespace Opc.Ua
         /// <remarks>
         /// Returns the string representation of the object.
         /// </remarks>
-        public override string ToString()
+        public override readonly string ToString()
         {
             return ToString(null, null);
         }
-        #endregion
 
-        #region IFormattable Members
         /// <summary>
         /// Formats the numeric range as a string.
         /// </summary>
@@ -344,7 +322,7 @@ namespace Opc.Ua
         /// <param name="format">(Unused) Always pass NULL/NOTHING</param>
         /// <param name="formatProvider">(Unused) Always pass NULL/NOTHING</param>
         /// <exception cref="FormatException">Thrown when a non null/nothing is passed for either parameter</exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public readonly string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
             {
@@ -358,18 +336,14 @@ namespace Opc.Ua
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
 
-        #region Static Members
         /// <summary>
         /// An empty numeric range.
         /// </summary>
         /// <remarks>
         /// An empty numeric range.
         /// </remarks>
-        public static NumericRange Empty => s_Empty;
-
-        private static readonly NumericRange s_Empty = new NumericRange(-1, -1);
+        public static NumericRange Empty { get; } = new NumericRange(-1, -1);
 
         /// <summary>
         /// Parses a string representing a numeric range.
@@ -379,20 +353,20 @@ namespace Opc.Ua
         /// <returns>The reason for any error.</returns>
         public static ServiceResult Validate(string textToParse, out NumericRange range)
         {
-            range = NumericRange.Empty;
+            range = Empty;
 
-            if (String.IsNullOrEmpty(textToParse))
+            if (string.IsNullOrEmpty(textToParse))
             {
                 return ServiceResult.Good;
             }
 
             // check for multidimensional ranges.
-            int index = textToParse.IndexOf(',');
+            int index = textToParse.IndexOf(',', StringComparison.Ordinal);
 
             if (index >= 0)
             {
                 int start = 0;
-                List<NumericRange> subranges = new List<NumericRange>();
+                var subranges = new List<NumericRange>();
 
                 for (int ii = 0; ii < textToParse.Length; ii++)
                 {
@@ -400,9 +374,10 @@ namespace Opc.Ua
 
                     if (ch == ',' || ii == textToParse.Length - 1)
                     {
-                        NumericRange subrange = new NumericRange();
-                        string subtext = (ch == ',') ? textToParse.Substring(start, ii - start) : textToParse.Substring(start);
-                        ServiceResult result = Validate(subtext, out subrange);
+                        _ = new NumericRange();
+                        string subtext = ch == ',' ? textToParse[start..ii] : textToParse[start..];
+
+                        ServiceResult result = Validate(subtext, out NumericRange subrange);
 
                         if (ServiceResult.IsBad(result))
                         {
@@ -422,19 +397,23 @@ namespace Opc.Ua
 
                 range.m_begin = subranges[0].Begin;
                 range.m_end = subranges[0].End;
-                range.m_subranges = subranges.ToArray();
+                range.SubRanges = [.. subranges];
 
                 return ServiceResult.Good;
             }
 
             try
             {
-                index = textToParse.IndexOf(':');
+                index = textToParse.IndexOf(':', StringComparison.Ordinal);
 
                 if (index != -1)
                 {
-                    range.Begin = Convert.ToInt32(textToParse.Substring(0, index), CultureInfo.InvariantCulture);
-                    range.End = Convert.ToInt32(textToParse.Substring(index + 1), CultureInfo.InvariantCulture);
+                    range.Begin = Convert.ToInt32(
+                        textToParse[..index],
+                        CultureInfo.InvariantCulture);
+                    range.End = Convert.ToInt32(
+                        textToParse[(index + 1)..],
+                        CultureInfo.InvariantCulture);
 
                     if (range.End < 0)
                     {
@@ -481,15 +460,14 @@ namespace Opc.Ua
         /// <summary>
         /// Applies the multidimensional index range.
         /// </summary>
-        private StatusCode ApplyMultiRange(ref object value)
+        private readonly StatusCode ApplyMultiRange(ref object value)
         {
-            Array array = value as Array;
-            TypeInfo typeInfo = null;
+            var array = value as Array;
 
             // check for matrix.
             if (array == null)
             {
-                if (!(value is Matrix matrix) || matrix.Dimensions.Length != m_subranges.Length)
+                if (value is not Matrix matrix || matrix.Dimensions.Length != SubRanges.Length)
                 {
                     value = null;
                     return StatusCodes.BadIndexRangeNoData;
@@ -498,19 +476,17 @@ namespace Opc.Ua
                 array = matrix.ToArray();
             }
 
-            typeInfo = TypeInfo.Construct(array);
+            var typeInfo = TypeInfo.Construct(array);
 
             // check for matching dimensions.
             NumericRange? finalRange = null;
 
-            if (m_subranges.Length > typeInfo.ValueRank)
+            if (SubRanges.Length > typeInfo.ValueRank)
             {
-                if (typeInfo.BuiltInType == BuiltInType.ByteString || typeInfo.BuiltInType == BuiltInType.String)
+                if (typeInfo.BuiltInType is BuiltInType.ByteString or BuiltInType.String &&
+                    SubRanges.Length == typeInfo.ValueRank + 1)
                 {
-                    if (m_subranges.Length == typeInfo.ValueRank + 1)
-                    {
-                        finalRange = m_subranges[m_subranges.Length - 1];
-                    }
+                    finalRange = SubRanges[^1];
                 }
 
                 if (finalRange == null)
@@ -525,15 +501,15 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < dimensions.Length; ii++)
             {
-                if (m_subranges.Length > ii)
+                if (SubRanges.Length > ii)
                 {
-                    if (m_subranges[ii].m_begin >= array.GetLength(ii))
+                    if (SubRanges[ii].m_begin >= array.GetLength(ii))
                     {
                         value = null;
                         return StatusCodes.BadIndexRangeNoData;
                     }
 
-                    dimensions[ii] = m_subranges[ii].Count;
+                    dimensions[ii] = SubRanges[ii].Count;
                 }
                 else
                 {
@@ -557,8 +533,8 @@ namespace Opc.Ua
                 for (int jj = 0; jj < dstIndexes.Length; jj++)
                 {
                     divisor /= dimensions[jj];
-                    dstIndexes[jj] = (ii / divisor) % dimensions[jj];
-                    srcIndexes[jj] = dstIndexes[jj] + m_subranges[jj].m_begin;
+                    dstIndexes[jj] = ii / divisor % dimensions[jj];
+                    srcIndexes[jj] = dstIndexes[jj] + SubRanges[jj].m_begin;
 
                     if (array.GetLength(jj) <= srcIndexes[jj])
                     {
@@ -610,7 +586,7 @@ namespace Opc.Ua
         /// <summary>
         /// Applies the multidimensional index range.
         /// </summary>
-        public StatusCode UpdateRange(ref object dst, object src)
+        public readonly StatusCode UpdateRange(ref object dst, object src)
         {
             // check for trivial case.
             if (dst == null)
@@ -618,12 +594,12 @@ namespace Opc.Ua
                 return StatusCodes.BadIndexRangeNoData;
             }
 
-            TypeInfo dstTypeInfo = TypeInfo.Construct(dst);
+            var dstTypeInfo = TypeInfo.Construct(dst);
 
             // check for subset of string or byte string.
             if (dstTypeInfo.ValueRank == ValueRanks.Scalar)
             {
-                if (this.Dimensions > 1)
+                if (Dimensions > 1)
                 {
                     return StatusCodes.BadIndexRangeInvalid;
                 }
@@ -633,43 +609,42 @@ namespace Opc.Ua
                 {
                     char[] dstString = ((string)dst).ToCharArray();
 
-                    if (!(src is string srcString) || srcString.Length != this.Count)
+                    if (src is not string srcString || srcString.Length != Count)
                     {
                         return StatusCodes.BadIndexRangeInvalid;
                     }
 
-                    if (this.m_begin >= dstString.Length || ((this.m_end > 0 && this.m_end >= dstString.Length)))
+                    if (m_begin >= dstString.Length || (m_end > 0 && m_end >= dstString.Length))
                     {
                         return StatusCodes.BadIndexRangeNoData;
                     }
 
                     for (int jj = 0; jj < srcString.Length; jj++)
                     {
-                        dstString[this.m_begin + jj] = srcString[jj];
+                        dstString[m_begin + jj] = srcString[jj];
                     }
 
                     dst = new string(dstString);
                     return StatusCodes.Good;
                 }
-
                 // update elements within a byte string.
                 else if (dstTypeInfo.BuiltInType == BuiltInType.ByteString)
                 {
                     byte[] dstString = (byte[])dst;
 
-                    if (!(src is byte[] srcString) || srcString.Length != this.Count)
+                    if (src is not byte[] srcString || srcString.Length != Count)
                     {
                         return StatusCodes.BadIndexRangeInvalid;
                     }
 
-                    if (this.m_begin >= dstString.Length || ((this.m_end > 0 && this.m_end >= dstString.Length)))
+                    if (m_begin >= dstString.Length || (m_end > 0 && m_end >= dstString.Length))
                     {
                         return StatusCodes.BadIndexRangeNoData;
                     }
 
                     for (int jj = 0; jj < srcString.Length; jj++)
                     {
-                        dstString[this.m_begin + jj] = srcString[jj];
+                        dstString[m_begin + jj] = srcString[jj];
                     }
 
                     return StatusCodes.Good;
@@ -679,13 +654,15 @@ namespace Opc.Ua
                 return StatusCodes.BadIndexRangeInvalid;
             }
 
-            Array srcArray = src as Array;
-            Array dstArray = dst as Array;
+            var srcArray = src as Array;
+            var dstArray = dst as Array;
 
             // check for destinations specified as a matrix.
             if (dstArray == null)
             {
-                if (!(dst is Matrix matrix) || m_subranges == null || matrix.Dimensions.Length != m_subranges.Length)
+                if (dst is not Matrix matrix ||
+                    SubRanges == null ||
+                    matrix.Dimensions.Length != SubRanges.Length)
                 {
                     return StatusCodes.BadIndexRangeInvalid;
                 }
@@ -696,7 +673,9 @@ namespace Opc.Ua
             // check for input specified as a matrix.
             if (srcArray == null)
             {
-                if (!(src is Matrix matrix) || m_subranges == null || matrix.Dimensions.Length != m_subranges.Length)
+                if (src is not Matrix matrix ||
+                    SubRanges == null ||
+                    matrix.Dimensions.Length != SubRanges.Length)
                 {
                     return StatusCodes.BadIndexRangeInvalid;
                 }
@@ -704,7 +683,7 @@ namespace Opc.Ua
                 srcArray = matrix.ToArray();
             }
 
-            TypeInfo srcTypeInfo = TypeInfo.Construct(srcArray);
+            var srcTypeInfo = TypeInfo.Construct(srcArray);
 
             if (srcTypeInfo.BuiltInType != dstTypeInfo.BuiltInType)
             {
@@ -717,26 +696,26 @@ namespace Opc.Ua
             }
 
             // handle one dimension.
-            if (m_subranges == null)
+            if (SubRanges == null)
             {
                 if (dstTypeInfo.ValueRank > 1)
                 {
                     return StatusCodes.BadIndexRangeInvalid;
                 }
 
-                if (srcArray.Length != this.Count)
+                if (srcArray.Length != Count)
                 {
                     return StatusCodes.BadIndexRangeInvalid;
                 }
 
-                if (this.m_begin >= dstArray.Length || ((this.m_end > 0 && this.m_end >= dstArray.Length)))
+                if (m_begin >= dstArray.Length || (m_end > 0 && m_end >= dstArray.Length))
                 {
                     return StatusCodes.BadIndexRangeNoData;
                 }
 
                 for (int jj = 0; jj < srcArray.Length; jj++)
                 {
-                    dstArray.SetValue(srcArray.GetValue(jj), this.m_begin + jj);
+                    dstArray.SetValue(srcArray.GetValue(jj), m_begin + jj);
                 }
 
                 if (dst is Matrix)
@@ -751,14 +730,12 @@ namespace Opc.Ua
             // check for matching dimensions.
             NumericRange? finalRange = null;
 
-            if (m_subranges != null && m_subranges.Length > srcTypeInfo.ValueRank)
+            if (SubRanges != null && SubRanges.Length > srcTypeInfo.ValueRank)
             {
-                if (srcTypeInfo.BuiltInType == BuiltInType.ByteString || srcTypeInfo.BuiltInType == BuiltInType.String)
+                if (srcTypeInfo.BuiltInType is BuiltInType.ByteString or BuiltInType.String &&
+                    SubRanges.Length == srcTypeInfo.ValueRank + 1)
                 {
-                    if (m_subranges.Length == srcTypeInfo.ValueRank + 1)
-                    {
-                        finalRange = m_subranges[m_subranges.Length - 1];
-                    }
+                    finalRange = SubRanges[^1];
                 }
 
                 if (finalRange == null)
@@ -773,12 +750,9 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < dimensions.Length; ii++)
             {
-                if (m_subranges.Length < ii)
+                if (SubRanges.Length < ii && SubRanges[ii].Count != srcArray.GetLength(ii))
                 {
-                    if (m_subranges[ii].Count != srcArray.GetLength(ii))
-                    {
-                        return StatusCodes.BadIndexRangeInvalid;
-                    }
+                    return StatusCodes.BadIndexRangeInvalid;
                 }
 
                 dimensions[ii] = srcArray.GetLength(ii);
@@ -796,12 +770,12 @@ namespace Opc.Ua
                 for (int jj = 0; jj < dimensions.Length; jj++)
                 {
                     divisor /= dimensions[jj];
-                    int index = (ii / divisor) % dimensions[jj];
+                    int index = ii / divisor % dimensions[jj];
                     int start = 0;
 
-                    if (m_subranges.Length > jj)
+                    if (SubRanges.Length > jj)
                     {
-                        start = m_subranges[jj].m_begin;
+                        start = SubRanges[jj].m_begin;
                     }
 
                     if (start + index >= dstArray.GetLength(jj))
@@ -837,7 +811,6 @@ namespace Opc.Ua
                         return StatusCodes.BadIndexRangeNoData;
                     }
                 }
-
                 // check for subset of byte string.
                 else if (dstTypeInfo.BuiltInType == BuiltInType.ByteString)
                 {
@@ -861,12 +834,12 @@ namespace Opc.Ua
                 for (int jj = 0; jj < dimensions.Length; jj++)
                 {
                     divisor /= dimensions[jj];
-                    int index = (ii / divisor) % dimensions[jj];
+                    int index = ii / divisor % dimensions[jj];
                     int start = 0;
 
-                    if (m_subranges.Length > jj)
+                    if (SubRanges.Length > jj)
                     {
-                        start = m_subranges[jj].m_begin;
+                        start = SubRanges[jj].m_begin;
                     }
 
                     if (start + index >= dstArray.GetLength(jj))
@@ -905,7 +878,6 @@ namespace Opc.Ua
 
                     dstArray.SetValue(new string(dstString), dstIndexes);
                 }
-
                 // update elements within a byte string.
                 else if (dstTypeInfo.BuiltInType == BuiltInType.ByteString)
                 {
@@ -939,11 +911,10 @@ namespace Opc.Ua
         /// </remarks>
         /// <param name="value">The array to subset.</param>
         /// <returns>The reason for the failure if the range could not be applied.</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1007:UseGenericsWhereAppropriate")]
-        public StatusCode ApplyRange(ref object value)
+        public readonly StatusCode ApplyRange(ref object value)
         {
             // check for empty range.
-            if (this.m_begin == -1 && this.m_end == -1)
+            if (m_begin == -1 && m_end == -1)
             {
                 return StatusCodes.Good;
             }
@@ -954,7 +925,7 @@ namespace Opc.Ua
                 return StatusCodes.Good;
             }
 
-            Array array = value as Array;
+            var array = value as Array;
 
             // check for list type.
             IList list = null;
@@ -977,7 +948,7 @@ namespace Opc.Ua
             {
                 // check for string.
 
-                if (value is String chars)
+                if (value is string chars)
                 {
                     isString = true;
                     array = chars.ToCharArray();
@@ -985,7 +956,7 @@ namespace Opc.Ua
             }
 
             // check for multidimensional arrays.
-            if (m_subranges != null)
+            if (SubRanges != null)
             {
                 return ApplyMultiRange(ref value);
             }
@@ -997,8 +968,7 @@ namespace Opc.Ua
             }
 
             // get length.
-            int length = 0;
-
+            int length;
             if (list != null)
             {
                 length = list.Count;
@@ -1008,7 +978,7 @@ namespace Opc.Ua
                 length = array.Length;
             }
 
-            int begin = this.m_begin;
+            int begin = m_begin;
 
             // choose a default start.
             if (begin == -1)
@@ -1024,23 +994,22 @@ namespace Opc.Ua
             }
 
             // only copy if actually asking for a subset.
-            int end = this.m_end;
+            int end = m_end;
 
             // check if looking for a single element.
             if (end == -1)
             {
                 end = begin;
             }
-
             // ensure end of array is not exceeded.
             else if (end >= length - 1)
             {
                 end = length - 1;
             }
 
-            Array clone = null;
             int subLength = end - begin + 1;
 
+            Array clone;
             // check for list.
             if (list != null && typeInfo != null)
             {
@@ -1088,9 +1057,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException">Thrown when the numeric value of the parsed text is out of range</exception>
         public static NumericRange Parse(string textToParse)
         {
-            NumericRange range = NumericRange.Empty;
-
-            ServiceResult result = Validate(textToParse, out range);
+            ServiceResult result = Validate(textToParse, out NumericRange range);
 
             if (ServiceResult.IsBad(result))
             {
@@ -1099,14 +1066,8 @@ namespace Opc.Ua
 
             return range;
         }
-        #endregion
 
-        #region Private Fields
         private int m_begin;
         private int m_end;
-        private NumericRange[] m_subranges;
-        #endregion
-
-    }//class
-
-}//namespace
+    }
+}

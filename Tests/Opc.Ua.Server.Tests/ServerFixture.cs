@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -30,10 +30,10 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
+using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -41,7 +41,8 @@ namespace Opc.Ua.Server.Tests
     /// Server fixture for testing.
     /// </summary>
     /// <typeparam name="T">A server class T used for testing.</typeparam>
-    public class ServerFixture<T> where T : ServerBase, new()
+    public class ServerFixture<T>
+        where T : ServerBase, new()
     {
         private NUnitTestLogger<T> m_traceLogger;
         public ApplicationInstance Application { get; private set; }
@@ -53,12 +54,19 @@ namespace Opc.Ua.Server.Tests
         public int MaxChannelCount { get; set; } = 10;
         public int ReverseConnectTimeout { get; set; }
         public bool AllNodeManagers { get; set; }
-        public int TraceMasks { get; set; } = Utils.TraceMasks.Error | Utils.TraceMasks.StackTrace | Utils.TraceMasks.Security | Utils.TraceMasks.Information;
-        public bool SecurityNone { get; set; } = false;
+
+        public int TraceMasks { get; set; } =
+            Utils.TraceMasks.Error |
+            Utils.TraceMasks.StackTrace |
+            Utils.TraceMasks.Security |
+            Utils.TraceMasks.Information;
+
+        public bool SecurityNone { get; set; }
         public string UriScheme { get; set; } = Utils.UriSchemeOpcTcp;
         public int Port { get; private set; }
         public bool UseTracing { get; set; }
-        public bool DurableSubscriptionsEnabled { get; set; } = false;
+        public bool DurableSubscriptionsEnabled { get; set; }
+        public bool UseSamplingGroupsInReferenceNodeManager { get; set; }
         public ActivityListener ActivityListener { get; private set; }
 
         public ServerFixture(bool useTracing, bool disableActivityLogging)
@@ -72,29 +80,27 @@ namespace Opc.Ua.Server.Tests
 
         public ServerFixture()
         {
-
         }
 
-        public async Task LoadConfiguration(string pkiRoot = null)
+        public async Task LoadConfigurationAsync(string pkiRoot = null)
         {
-            Application = new ApplicationInstance {
+            Application = new ApplicationInstance
+            {
                 ApplicationName = typeof(T).Name,
                 ApplicationType = ApplicationType.Server
             };
 
             // create the application configuration. Use temp path for cert stores.
-            pkiRoot = pkiRoot ?? Path.GetTempPath() + Path.GetRandomFileName();
-            var endpointUrl = $"{UriScheme}://localhost:0/" + typeof(T).Name;
-            var serverConfig = Application.Build(
-                "urn:localhost:UA:" + typeof(T).Name,
-                "uri:opcfoundation.org:" + typeof(T).Name)
+            pkiRoot ??= Path.GetTempPath() + Path.GetRandomFileName();
+            string endpointUrl = $"{UriScheme}://localhost:0/" + typeof(T).Name;
+            IApplicationConfigurationBuilderServerSelected serverConfig = Application
+                .Build(
+                    "urn:localhost:UA:" + typeof(T).Name,
+                    "uri:opcfoundation.org:" + typeof(T).Name)
                 .SetMaxByteStringLength(4 * 1024 * 1024)
                 .SetMaxArrayLength(1024 * 1024)
                 .SetChannelLifetime(30000)
-                .AsServer(
-                    new string[] {
-                    endpointUrl
-                });
+                .AsServer([endpointUrl]);
 
             if (SecurityNone)
             {
@@ -102,12 +108,15 @@ namespace Opc.Ua.Server.Tests
             }
             if (Utils.IsUriHttpsScheme(endpointUrl))
             {
-                serverConfig.AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256);
+                serverConfig.AddPolicy(
+                    MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicies.Basic256Sha256);
             }
             else if (endpointUrl.StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
             {
                 // add deprecated policies for opc.tcp tests
-                serverConfig.AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Basic128Rsa15)
+                serverConfig
+                    .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Basic128Rsa15)
                     .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Basic256)
                     .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic128Rsa15)
                     .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256)
@@ -119,54 +128,61 @@ namespace Opc.Ua.Server.Tests
 
             if (OperationLimits)
             {
-                serverConfig.SetOperationLimits(new OperationLimits() {
-                    MaxNodesPerBrowse = 2500,
-                    MaxNodesPerRead = 1000,
-                    MaxNodesPerWrite = 1000,
-                    MaxNodesPerMethodCall = 1000,
-                    MaxMonitoredItemsPerCall = 1000,
-                    MaxNodesPerHistoryReadData = 1000,
-                    MaxNodesPerHistoryReadEvents = 1000,
-                    MaxNodesPerHistoryUpdateData = 1000,
-                    MaxNodesPerHistoryUpdateEvents = 1000,
-                    MaxNodesPerNodeManagement = 1000,
-                    MaxNodesPerRegisterNodes = 1000,
-                    MaxNodesPerTranslateBrowsePathsToNodeIds = 1000
-                });
+                serverConfig.SetOperationLimits(
+                    new OperationLimits
+                    {
+                        MaxNodesPerBrowse = 2500,
+                        MaxNodesPerRead = 1000,
+                        MaxNodesPerWrite = 1000,
+                        MaxNodesPerMethodCall = 1000,
+                        MaxMonitoredItemsPerCall = 1000,
+                        MaxNodesPerHistoryReadData = 1000,
+                        MaxNodesPerHistoryReadEvents = 1000,
+                        MaxNodesPerHistoryUpdateData = 1000,
+                        MaxNodesPerHistoryUpdateEvents = 1000,
+                        MaxNodesPerNodeManagement = 1000,
+                        MaxNodesPerRegisterNodes = 1000,
+                        MaxNodesPerTranslateBrowsePathsToNodeIds = 1000
+                    });
             }
 
-            serverConfig.SetMaxChannelCount(MaxChannelCount)
+            serverConfig
+                .SetMaxChannelCount(MaxChannelCount)
                 .SetMaxMessageQueueSize(20)
                 .SetDiagnosticsEnabled(true)
                 .SetAuditingEnabled(true);
 
             if (ReverseConnectTimeout != 0)
             {
-                serverConfig.SetReverseConnect(new ReverseConnectServerConfiguration() {
-                    ConnectInterval = ReverseConnectTimeout / 4,
-                    ConnectTimeout = ReverseConnectTimeout,
-                    RejectTimeout = ReverseConnectTimeout / 4
-                });
+                serverConfig.SetReverseConnect(
+                    new ReverseConnectServerConfiguration
+                    {
+                        ConnectInterval = ReverseConnectTimeout / 4,
+                        ConnectTimeout = ReverseConnectTimeout,
+                        RejectTimeout = ReverseConnectTimeout / 4
+                    });
             }
-            
-            CertificateIdentifierCollection applicationCerts = ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
-                "CN=" + typeof(T).Name + ", C=US, S=Arizona, O=OPC Foundation, DC=localhost",
-                CertificateStoreType.Directory,
-                pkiRoot);
+
+            CertificateIdentifierCollection applicationCerts =
+                ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                    "CN=" + typeof(T).Name + ", C=US, S=Arizona, O=OPC Foundation, DC=localhost",
+                    CertificateStoreType.Directory,
+                    pkiRoot);
 
             if (DurableSubscriptionsEnabled)
             {
-                serverConfig.SetDurableSubscriptionsEnabled(true)
+                serverConfig
+                    .SetDurableSubscriptionsEnabled(true)
                     .SetMaxDurableEventQueueSize(10000)
                     .SetMaxDurableNotificationQueueSize(1000)
                     .SetMaxDurableSubscriptionLifetime(3600);
             }
 
-            Config = await serverConfig.AddSecurityConfiguration(
-                    applicationCerts,
-                    pkiRoot)
+            Config = await serverConfig
+                .AddSecurityConfiguration(applicationCerts, pkiRoot)
                 .SetAutoAcceptUntrustedCertificates(AutoAccept)
-                .Create().ConfigureAwait(false);
+                .Create()
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -182,14 +198,14 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         public async Task<T> StartAsync(TextWriter writer, string pkiRoot, int port = 0)
         {
-            Random random = new Random();
+            var random = new Random();
             bool retryStartServer = false;
             int testPort = port;
             int serverStartRetries = 1;
 
             if (Application == null)
             {
-                await LoadConfiguration(pkiRoot).ConfigureAwait(false);
+                await LoadConfigurationAsync(pkiRoot).ConfigureAwait(false);
             }
 
             if (port <= 0)
@@ -205,14 +221,13 @@ namespace Opc.Ua.Server.Tests
                     await InternalStartServerAsync(writer, testPort).ConfigureAwait(false);
                 }
                 catch (ServiceResultException sre)
+                    when (serverStartRetries > 0 &&
+                        sre.StatusCode == StatusCodes.BadNoCommunication)
                 {
-                    if (serverStartRetries <= 0 ||
-                        sre.StatusCode != StatusCodes.BadNoCommunication)
-                    {
-                        throw;
-                    }
                     serverStartRetries--;
-                    testPort = random.Next(ServerFixtureUtils.MinTestPort, ServerFixtureUtils.MaxTestPort);
+                    testPort = random.Next(
+                        ServerFixtureUtils.MinTestPort,
+                        ServerFixtureUtils.MaxTestPort);
                     retryStartServer = true;
                 }
                 await Task.Delay(random.Next(100, 1000)).ConfigureAwait(false);
@@ -226,30 +241,35 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         private async Task InternalStartServerAsync(TextWriter writer, int port)
         {
-            Config.ServerConfiguration.BaseAddresses = new StringCollection() {
-                $"{UriScheme}://localhost:{port}/{typeof(T).Name}"
-            };
+            Config.ServerConfiguration.BaseAddresses
+                = [$"{UriScheme}://localhost:{port}/{typeof(T).Name}"];
 
             if (writer != null)
             {
-                m_traceLogger = NUnitTestLogger<T>.Create(writer, Config, TraceMasks);
+                m_traceLogger = NUnitTestLogger<T>.Create(writer);
             }
 
             // check the application certificate.
-            bool haveAppCertificate = await Application.CheckApplicationInstanceCertificates(
-                true, CertificateFactory.DefaultLifeTime).ConfigureAwait(false);
+            bool haveAppCertificate = await Application
+                .CheckApplicationInstanceCertificatesAsync(true, CertificateFactory.DefaultLifeTime)
+                .ConfigureAwait(false);
             if (!haveAppCertificate)
             {
                 throw new Exception("Application instance certificate invalid!");
             }
 
             // start the server.
-            T server = new T();
+            var server = new T();
             if (AllNodeManagers && server is StandardServer standardServer)
             {
                 Quickstarts.Servers.Utils.AddDefaultNodeManagers(standardServer);
             }
-            await Application.Start(server).ConfigureAwait(false);
+            if (UseSamplingGroupsInReferenceNodeManager &&
+                server is ReferenceServer referenceServer)
+            {
+                Quickstarts.Servers.Utils.UseSamplingGroupsInReferenceNodeManager(referenceServer);
+            }
+            await Application.StartAsync(server).ConfigureAwait(false);
             Server = server;
             Port = port;
         }
@@ -281,9 +301,11 @@ namespace Opc.Ua.Server.Tests
             if (disableActivityLogging)
             {
                 // Create an instance of ActivityListener without logging
-                ActivityListener = new ActivityListener() {
-                    ShouldListenTo = (source) => (source.Name == EndpointBase.ActivitySourceName),
-                    Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
+                ActivityListener = new ActivityListener
+                {
+                    ShouldListenTo = (source) => source.Name == EndpointBase.ActivitySourceName,
+                    Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
+                        ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = _ => { },
                     ActivityStopped = _ => { }
                 };
@@ -291,18 +313,31 @@ namespace Opc.Ua.Server.Tests
             else
             {
                 // Create an instance of ActivityListener and configure its properties with logging
-                ActivityListener = new ActivityListener() {
-                    ShouldListenTo = (source) => (source.Name == EndpointBase.ActivitySourceName),
-                    Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
-                    ActivityStarted = activity => Utils.LogInfo("Server Started: {0,-15} - TraceId: {1,-32} SpanId: {2,-16} ParentId: {3,-32}",
-                        activity.OperationName, activity.TraceId, activity.SpanId, activity.ParentId),
-                    ActivityStopped = activity => Utils.LogInfo("Server Stopped: {0,-15} - TraceId: {1,-32} SpanId: {2,-16} ParentId: {3,-32} Duration: {4}",
-                        activity.OperationName, activity.TraceId, activity.SpanId, activity.ParentId, activity.Duration),
+                ActivityListener = new ActivityListener
+                {
+                    ShouldListenTo = (source) => source.Name == EndpointBase.ActivitySourceName,
+                    Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
+                        ActivitySamplingResult.AllDataAndRecorded,
+                    ActivityStarted = activity =>
+                        Utils.LogInfo(
+                            "Server Started: {0,-15} - TraceId: {1,-32} SpanId: {2,-16} ParentId: {3,-32}",
+                            activity.OperationName,
+                            activity.TraceId,
+                            activity.SpanId,
+                            activity.ParentId
+                        ),
+                    ActivityStopped = activity =>
+                        Utils.LogInfo(
+                            "Server Stopped: {0,-15} - TraceId: {1,-32} SpanId: {2,-16} ParentId: {3,-32} Duration: {4}",
+                            activity.OperationName,
+                            activity.TraceId,
+                            activity.SpanId,
+                            activity.ParentId,
+                            activity.Duration)
                 };
             }
             ActivitySource.AddActivityListener(ActivityListener);
         }
-
 
         /// <summary>
         /// Stop the server.

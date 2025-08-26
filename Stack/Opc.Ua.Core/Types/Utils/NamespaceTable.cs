@@ -11,11 +11,7 @@
 */
 
 using System;
-using System.Xml;
 using System.Collections.Generic;
-using System.IO;
-using System.Threading;
-using System.Runtime.Serialization;
 
 namespace Opc.Ua
 {
@@ -24,16 +20,15 @@ namespace Opc.Ua
     /// </summary>
     public class StringTable
     {
-        #region Constructors
         /// <summary>
         /// Creates an empty collection.
         /// </summary>
         public StringTable()
         {
-            m_strings = new List<string>();
+            m_strings = [];
 
 #if DEBUG
-            m_instanceId = Interlocked.Increment(ref m_globalInstanceCount);
+            InstanceId = System.Threading.Interlocked.Increment(ref s_globalInstanceCount);
 #endif
         }
 
@@ -42,11 +37,11 @@ namespace Opc.Ua
         /// </summary>
         public StringTable(bool shared)
         {
-            m_strings = new List<string>();
+            m_strings = [];
 
 #if DEBUG
             m_shared = shared;
-            m_instanceId = Interlocked.Increment(ref m_globalInstanceCount);
+            InstanceId = System.Threading.Interlocked.Increment(ref s_globalInstanceCount);
 #endif
         }
 
@@ -58,49 +53,46 @@ namespace Opc.Ua
             Update(strings);
 
 #if DEBUG
-            m_instanceId = Interlocked.Increment(ref m_globalInstanceCount);
+            InstanceId = System.Threading.Interlocked.Increment(ref s_globalInstanceCount);
 #endif
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// The synchronization object.
         /// </summary>
-        public object SyncRoot
-        {
-            get { return m_lock; }
-        }
+        public object SyncRoot { get; } = new();
 
+#if DEBUG
         /// <summary>
         /// Returns a unique identifier for the table instance. Used to debug problems with shared tables.
         /// </summary>
-        public int InstanceId
-        {
-#if DEBUG
-            get { return m_instanceId; }
-#else
-            get { return 0; }
+        public int InstanceId { get; }
 #endif
-        }
 
         /// <summary>
         /// Updates the table of namespace uris.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="strings"/> is <c>null</c>.</exception>
         public void Update(IEnumerable<string> strings)
         {
-            if (strings == null) throw new ArgumentNullException(nameof(strings));
-
-            lock (m_lock)
+            if (strings == null)
             {
-                m_strings = new List<string>(strings);
+                throw new ArgumentNullException(nameof(strings));
+            }
+
+            lock (SyncRoot)
+            {
+                m_strings = [.. strings];
 
 #if DEBUG
                 if (m_shared)
                 {
                     for (int ii = 0; ii < m_strings.Count; ii++)
                     {
-                        Utils.LogWarning("WARNING: Adding '{0}' to shared StringTable #{1}.", m_strings[ii], m_instanceId);
+                        Utils.LogWarning(
+                            "WARNING: Adding '{0}' to shared StringTable #{1}.",
+                            m_strings[ii],
+                            InstanceId);
                     }
                 }
 #endif
@@ -110,9 +102,10 @@ namespace Opc.Ua
         /// <summary>
         /// Adds a string to the end of the table.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public int Append(string value)
         {
-            if (String.IsNullOrEmpty(value))
+            if (string.IsNullOrEmpty(value))
             {
                 throw new ArgumentNullException(nameof(value));
             }
@@ -120,11 +113,14 @@ namespace Opc.Ua
 #if DEBUG
             if (m_shared)
             {
-                Utils.LogWarning("WARNING: Adding '{0}' to shared StringTable #{1}.", value, m_instanceId);
+                Utils.LogWarning(
+                    "WARNING: Adding '{0}' to shared StringTable #{1}.",
+                    value,
+                    InstanceId);
             }
 #endif
 
-            lock (m_lock)
+            lock (SyncRoot)
             {
                 m_strings.Add(value);
                 return m_strings.Count - 1;
@@ -136,7 +132,7 @@ namespace Opc.Ua
         /// </summary>
         public string GetString(uint index)
         {
-            lock (m_lock)
+            lock (SyncRoot)
             {
                 if (index < m_strings.Count)
                 {
@@ -152,9 +148,9 @@ namespace Opc.Ua
         /// </summary>
         public int GetIndex(string value)
         {
-            lock (m_lock)
+            lock (SyncRoot)
             {
-                if (String.IsNullOrEmpty(value))
+                if (string.IsNullOrEmpty(value))
                 {
                     return -1;
                 }
@@ -166,14 +162,15 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the index of the specified namespace uri, adds it if it does not exist.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public ushort GetIndexOrAppend(string value)
         {
-            if (String.IsNullOrEmpty(value))
+            if (string.IsNullOrEmpty(value))
             {
                 throw new ArgumentNullException(nameof(value));
             }
 
-            lock (m_lock)
+            lock (SyncRoot)
             {
                 int index = m_strings.IndexOf(value);
 
@@ -182,7 +179,10 @@ namespace Opc.Ua
 #if DEBUG
                     if (m_shared)
                     {
-                        Utils.LogWarning("WARNING: Adding '{0}' to shared StringTable #{1}.", value, m_instanceId);
+                        Utils.LogWarning(
+                            "WARNING: Adding '{0}' to shared StringTable #{1}.",
+                            value,
+                            InstanceId);
                     }
 #endif
 
@@ -199,9 +199,9 @@ namespace Opc.Ua
         /// </summary>
         public string[] ToArray()
         {
-            lock (m_lock)
+            lock (SyncRoot)
             {
-                return m_strings.ToArray();
+                return [.. m_strings];
             }
         }
 
@@ -212,7 +212,7 @@ namespace Opc.Ua
         {
             get
             {
-                lock (m_lock)
+                lock (SyncRoot)
                 {
                     return m_strings.Count;
                 }
@@ -244,7 +244,7 @@ namespace Opc.Ua
                 {
                     if (!updateTable)
                     {
-                        mapping[ii] = UInt16.MaxValue;
+                        mapping[ii] = ushort.MaxValue;
                         continue;
                     }
 
@@ -256,18 +256,16 @@ namespace Opc.Ua
 
             return mapping;
         }
-        #endregion                        
 
-        #region Private Fields
-        private readonly object m_lock = new object();
         private List<string> m_strings;
 
 #if DEBUG
-        internal bool m_shared;
-        internal int m_instanceId;
-        private static int m_globalInstanceCount;
+        /// <summary>
+        /// Whether the table is shared.
+        /// </summary>
+        protected bool m_shared;
+        private static int s_globalInstanceCount;
 #endif
-        #endregion
     }
 
     /// <summary>
@@ -275,7 +273,6 @@ namespace Opc.Ua
     /// </summary>
     public class NamespaceTable : StringTable
     {
-        #region Constructors
         /// <summary>
         /// Creates an empty collection.
         /// </summary>
@@ -303,15 +300,18 @@ namespace Opc.Ua
         {
             Update(namespaceUris);
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// Updates the table of namespace uris.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="namespaceUris"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         public new void Update(IEnumerable<string> namespaceUris)
         {
-            if (namespaceUris == null) throw new ArgumentNullException(nameof(namespaceUris));
+            if (namespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(namespaceUris));
+            }
 
             // check that first entry is the UA namespace.
             int ii = 0;
@@ -320,7 +320,8 @@ namespace Opc.Ua
             {
                 if (ii == 0 && namespaceUri != Namespaces.OpcUa)
                 {
-                    throw new ArgumentException("The first namespace in the table must be the OPC-UA namespace.");
+                    throw new ArgumentException(
+                        "The first namespace in the table must be the OPC-UA namespace.");
                 }
 
                 ii++;
@@ -333,6 +334,5 @@ namespace Opc.Ua
 
             base.Update(namespaceUris);
         }
-        #endregion
     }
 }
