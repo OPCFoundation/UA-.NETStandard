@@ -1665,7 +1665,7 @@ namespace Opc.Ua.Client
                         ObjectIds.Server,
                         MethodIds.Server_SetSubscriptionDurable,
                         ct,
-                        TransferId,
+                        Id,
                         lifetimeInHours)
                     .ConfigureAwait(false);
 

@@ -1016,12 +1016,12 @@ namespace Opc.Ua.Gds.Tests
             }
             Assert.IsNotNull(m_applicationRecord);
             Assert.IsNull(m_applicationRecord.ApplicationId);
-            NodeId id = await m_gdsClient.GDSClient.RegisterApplicationAsync(m_applicationRecord).ConfigureAwait(false);
+            NodeId id = await m_gdsClient.GDSClient.RegisterApplicationAsync(m_applicationRecord, ct).ConfigureAwait(false);
             Assert.IsNotNull(id);
             m_applicationRecord.ApplicationId = id;
 
             // add issuer and trusted certs to client stores
-            NodeId trustListId = await m_gdsClient.GDSClient.GetTrustListAsync(id, null).ConfigureAwait(false);
+            NodeId trustListId = await m_gdsClient.GDSClient.GetTrustListAsync(id, null, ct).ConfigureAwait(false);
             TrustListDataType trustList = await m_gdsClient.GDSClient.ReadTrustListAsync(
                 trustListId,
                 ct).ConfigureAwait(false);

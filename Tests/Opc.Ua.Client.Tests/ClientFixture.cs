@@ -232,7 +232,7 @@ namespace Opc.Ua.Client.Tests
                 catch (ServiceResultException e) when (e.StatusCode == StatusCodes.BadServerHalted)
                 {
                     serverHalted = true;
-                    await Task.Delay(1000).ConfigureAwait(false);
+                    await Task.Delay(1000, ct).ConfigureAwait(false);
                 }
             } while (serverHalted);
 

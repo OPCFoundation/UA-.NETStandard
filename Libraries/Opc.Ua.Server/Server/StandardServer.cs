@@ -2615,7 +2615,7 @@ namespace Opc.Ua.Server
                                 {
                                     try
                                     {
-                                        await client.CloseAsync().ConfigureAwait(false);
+                                        await client.CloseAsync(ct).ConfigureAwait(false);
                                         client = null;
                                     }
                                     catch (Exception e)
