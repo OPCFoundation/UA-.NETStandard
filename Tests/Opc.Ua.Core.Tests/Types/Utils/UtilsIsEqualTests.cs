@@ -50,12 +50,12 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
     public
-#if NET8_0_OR_GREATER
+#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
     partial
 #endif
     class UtilsIsEqualTests
     {
-#if NET8_0_OR_GREATER
+#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
         [LibraryImport("msvcrt")]
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
         private static partial int memcmp(ReadOnlySpan<byte> b1, ReadOnlySpan<byte> b2, long count);

@@ -45,19 +45,23 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     [SetUICulture("en-us")]
     [Parallelizable]
     public
-#if NET8_0_OR_GREATER
+#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
     partial
 #endif
     class XmlEncoderTests
     {
-#if NET8_0_OR_GREATER
+#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
         [GeneratedRegex(@"Value>([^<]*)<")]
         internal static partial Regex REValue();
 #else
+#pragma warning disable IDE0079 // Remove unnecessary suppression
+#pragma warning disable SYSLIB1045 //Use 'GeneratedRegexAttribute' to generate the regular expression implementation at compile-time.
         internal static Regex REValue()
         {
             return new Regex("Value>([^<]*)<");
         }
+#pragma warning restore SYSLIB1045 //Use 'GeneratedRegexAttribute' to generate the regular expression implementation at compile-time.
+#pragma warning restore IDE0079 // Remove unnecessary suppression
 #endif
 
         private static readonly int[] s_elements = [1, 2, 3, 4];
