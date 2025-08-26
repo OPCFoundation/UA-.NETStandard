@@ -20,7 +20,7 @@ max_line_length             = 120
 
 # Xml project files
 [*.{csproj,vbproj,vcxproj,vcxproj.filters,proj,projitems,shproj}]
-indent_size = 2
+indent_size = 200
 
 # Xml config files
 [*.{xml,props,targets,ruleset,config,nuspec,resx,vsixmanifest,vsct}]
@@ -84,6 +84,7 @@ dotnet_sort_system_directives_first                                           = 
 dotnet_separate_import_directive_groups                                       = false
 csharp_style_prefer_method_group_conversion                                   = true:silent
 csharp_style_prefer_top_level_statements                                      = true:silent
+csharp_using_directive_placement                                              = outside_namespace:suggestion
 
 #Formatting - spacing options
 
@@ -160,7 +161,7 @@ csharp_style_prefer_extended_property_pattern								  = true:suggestion
 dotnet_style_namespace_match_folder											  = false:none
 
 # Enable eventually
-dotnet_code_quality_unused_parameters										  = all:suggestion
+dotnet_code_quality_unused_parameters										  = all:silent
 
 # Style - language keyword and framework type options
 #prefer the language keyword for local variables, method parameters, and class members,
@@ -389,7 +390,7 @@ dotnet_diagnostic.CA2014.severity                                             = 
 dotnet_diagnostic.IDE0058.severity                                            = silent
 
 # IDE0290: Use primary constructor
-csharp_style_prefer_primary_constructors                                      = false:suggestion
+csharp_style_prefer_primary_constructors                                      = false:silent
 # IDE0045: Convert to conditional expression
 dotnet_diagnostic.IDE0045.severity                                            = none
 # IDE0065: Using directives must be placed inside a namespace declaration

@@ -986,9 +986,7 @@ namespace Opc.Ua.Server
                 if (value != null)
                 {
                     // translate any localized text.
-                    var text = value as LocalizedText;
-
-                    if (text != null)
+                    if (value is LocalizedText text)
                     {
                         value = m_server.ResourceManager.Translate(Session?.PreferredLocales, text);
                     }
