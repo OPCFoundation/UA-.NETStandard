@@ -28,8 +28,8 @@ namespace Opc.Ua
     public static partial class StatusCodes
     {
         /// <summary>
-		/// Returns the browse utf8BrowseName for the attribute.
-		/// </summary>
+        /// Returns the browse name for the attribute.
+        /// </summary>
         public static string GetBrowseName(uint identifier)
         {
             if (s_browseNames.Value.TryGetValue(identifier, out var browseName))
@@ -41,7 +41,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-	    /// Returns the browse name for the attribute.
+        /// Returns the UTF-8 browse name for the attribute.
         /// </summary>
         public static byte[] GetUtf8BrowseName(uint identifier)
         {
