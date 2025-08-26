@@ -15,6 +15,11 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Collections.ObjectModel;
+
+#if NET8_0_OR_GREATER
+using System.Collections.Frozen;
+#endif
 
 namespace Opc.Ua
 {
@@ -151,13 +156,10 @@ namespace Opc.Ua
         /// </summary>
         public static string GetUri(string displayName)
         {
-            foreach (FieldInfo field in typeof(SecurityPolicies).GetFields(
-                BindingFlags.Public | BindingFlags.Static))
+            if (SecurityPolicyUriNames.Value.TryGetValue(displayName, out var uri) &&
+                IsPlatformSupportedName(displayName))
             {
-                if (field.Name == displayName && IsPlatformSupportedName(field.Name))
-                {
-                    return (string)field.GetValue(typeof(SecurityPolicies));
-                }
+                return uri;
             }
 
             return null;
@@ -168,13 +170,12 @@ namespace Opc.Ua
         /// </summary>
         public static string GetDisplayName(string policyUri)
         {
-            foreach (FieldInfo field in typeof(SecurityPolicies).GetFields(
-                BindingFlags.Public | BindingFlags.Static))
+            foreach (var keyPair in SecurityPolicyUriNames.Value)
             {
-                if (policyUri == (string)field.GetValue(typeof(SecurityPolicies)) &&
-                    IsPlatformSupportedName(field.Name))
+                if (policyUri == keyPair.Value &&
+                    IsPlatformSupportedName(keyPair.Key))
                 {
-                    return field.Name;
+                    return keyPair.Key;
                 }
             }
 
@@ -209,16 +210,14 @@ namespace Opc.Ua
         /// </summary>
         public static string[] GetDisplayNames()
         {
-            FieldInfo[] fields = typeof(SecurityPolicies).GetFields(
-                BindingFlags.Public | BindingFlags.Static);
-            var names = new List<string>();
+            var names = new List<string>(SecurityPolicyUriNames.Value.Count);
 
-            // skip base Uri, ignore Https
-            for (int ii = 1; ii < fields.Length - 1; ii++)
+            // exclude None and Https from the list of supported security policies.
+            foreach (var keyPair in SecurityPolicyUriNames.Value)
             {
-                if (IsPlatformSupportedName(fields[ii].Name))
+                if (IsPlatformSupportedName(keyPair.Key))
                 {
-                    names.Add(fields[ii].Name);
+                    names.Add(keyPair.Key);
                 }
             }
 
@@ -620,5 +619,34 @@ namespace Opc.Ua
                         securityPolicyUri);
             }
         }
+
+        private static ReadOnlyDictionary<string, string> CreateSecurityPolicyUriNamesDictionary()
+        {
+            FieldInfo[] fields = typeof(SecurityPolicies).GetFields(BindingFlags.Public | BindingFlags.Static);
+
+            var keyValuePairs = new Dictionary<string, string>();
+            foreach (FieldInfo field in fields)
+            {
+                var policyUri = (string)field.GetValue(typeof(SecurityPolicies));
+                if (field.Name == nameof(BaseUri) || field.Name == nameof(Https) ||
+                    !policyUri.StartsWith(BaseUri))
+                {
+                    continue;
+                }
+
+                keyValuePairs.Add(field.Name, policyUri);
+            }
+#if NET8_0_OR_GREATER
+            return keyValuePairs.ToFrozenDictionary().AsReadOnly();
+#else
+            return new ReadOnlyDictionary<string, string>(keyValuePairs);
+#endif
+        }
+
+        /// <summary>
+        /// Creates a dictionary of browse names for the attributes.
+        /// </summary>
+        private static readonly Lazy<ReadOnlyDictionary<string, string>> SecurityPolicyUriNames =
+            new(CreateSecurityPolicyUriNamesDictionary);
     }
 }

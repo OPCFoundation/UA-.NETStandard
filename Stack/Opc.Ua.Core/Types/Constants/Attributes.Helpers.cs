@@ -10,7 +10,14 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+using System;
 using System.Reflection;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+
+#if NET8_0_OR_GREATER
+using System.Collections.Frozen;
+#endif
 
 namespace Opc.Ua
 {
@@ -37,13 +44,9 @@ namespace Opc.Ua
         /// </summary>
         public static string GetBrowseName(uint identifier)
         {
-            foreach (FieldInfo field in typeof(Attributes).GetFields(
-                BindingFlags.Public | BindingFlags.Static))
+            if (AttributeNames.Value.TryGetValue(identifier, out var name))
             {
-                if (identifier == (uint)field.GetValue(typeof(Attributes)))
-                {
-                    return field.Name;
-                }
+                return name;
             }
 
             return string.Empty;
@@ -52,21 +55,9 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the browse names for all attributes.
         /// </summary>
-        public static string[] GetBrowseNames()
+        public static IReadOnlyCollection<string> GetBrowseNames()
         {
-            FieldInfo[] fields = typeof(Attributes).GetFields(
-                BindingFlags.Public | BindingFlags.Static);
-
-            int ii = 0;
-
-            string[] names = new string[fields.Length];
-
-            foreach (FieldInfo field in fields)
-            {
-                names[ii++] = field.Name;
-            }
-
-            return names;
+            return AttributeNames.Value.Values;
         }
 
         /// <summary>
@@ -74,12 +65,11 @@ namespace Opc.Ua
         /// </summary>
         public static uint GetIdentifier(string browseName)
         {
-            foreach (FieldInfo field in typeof(Attributes).GetFields(
-                BindingFlags.Public | BindingFlags.Static))
+            foreach (var field in AttributeNames.Value)
             {
-                if (field.Name == browseName)
+                if (field.Value == browseName)
                 {
-                    return (uint)field.GetValue(typeof(Attributes));
+                    return field.Key;
                 }
             }
 
@@ -89,20 +79,9 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the ids for all attributes.
         /// </summary>
-        public static uint[] GetIdentifiers()
+        public static IReadOnlyCollection<uint> GetIdentifiers()
         {
-            FieldInfo[] fields = typeof(Attributes).GetFields(
-                BindingFlags.Public | BindingFlags.Static);
-
-            int ii = 0;
-            uint[] ids = new uint[fields.Length];
-
-            foreach (FieldInfo field in fields)
-            {
-                ids[ii++] = (uint)field.GetValue(typeof(Attributes));
-            }
-
-            return ids;
+            return AttributeNames.Value.Keys;
         }
 
         /// <summary>
@@ -110,15 +89,10 @@ namespace Opc.Ua
         /// </summary>
         public static UInt32Collection GetIdentifiers(NodeClass nodeClass)
         {
-            FieldInfo[] fields = typeof(Attributes).GetFields(
-                BindingFlags.Public | BindingFlags.Static);
+            UInt32Collection ids = new UInt32Collection(AttributeNames.Value.Count);
 
-            var ids = new UInt32Collection(fields.Length);
-
-            foreach (FieldInfo field in fields)
+            foreach (uint id in AttributeNames.Value.Keys)
             {
-                uint id = (uint)field.GetValue(typeof(Attributes));
-
                 if (IsValid(nodeClass, id))
                 {
                     ids.Add(id);
@@ -511,5 +485,27 @@ namespace Opc.Ua
 
             return 0;
         }
+
+        private static ReadOnlyDictionary<uint, string> CreateAttributeNamesDictionary()
+        {
+            FieldInfo[] fields = typeof(Attributes).GetFields(BindingFlags.Public | BindingFlags.Static);
+
+            var keyValuePairs = new Dictionary<uint, string>();
+            foreach (FieldInfo field in fields)
+            {
+                keyValuePairs.Add((uint)field.GetValue(typeof(Attributes)), field.Name);
+            }
+#if NET8_0_OR_GREATER
+            return keyValuePairs.ToFrozenDictionary().AsReadOnly();
+#else
+            return new ReadOnlyDictionary<uint, string>(keyValuePairs);
+#endif
+        }
+
+        /// <summary>
+        /// Creates a dictionary of browse names for the attributes.
+        /// </summary>
+        private static readonly Lazy<ReadOnlyDictionary<uint, string>> AttributeNames =
+            new(CreateAttributeNamesDictionary);
     }
 }

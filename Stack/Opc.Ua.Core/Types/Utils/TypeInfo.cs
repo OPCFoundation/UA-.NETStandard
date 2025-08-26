@@ -16,6 +16,12 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
+using System.Collections.ObjectModel;
+using System.Collections.Generic;
+
+#if NET8_0_OR_GREATER
+using System.Collections.Frozen;
+#endif
 
 namespace Opc.Ua
 {
@@ -187,7 +193,7 @@ namespace Opc.Ua
     /// <summary>
     /// Stores information about a type.
     /// </summary>
-    public class TypeInfo : IFormattable
+    public sealed class TypeInfo : IFormattable
     {
         /// <summary>
         /// Constructs an unknown type.
@@ -207,6 +213,22 @@ namespace Opc.Ua
         {
             BuiltInType = builtInType;
             ValueRank = valueRank;
+        }
+
+        /// <summary>
+        /// Construct the object with a built-in type and a value rank.
+        /// Uses static TypeInfo definitions if available.
+        /// </summary>
+        /// <param name="builtInType">Type of the built in.</param>
+        /// <param name="valueRank">The value rank.</param>
+        public static TypeInfo Create(BuiltInType builtInType, int valueRank)
+        {
+            switch (valueRank)
+            {
+                case ValueRanks.Scalar: return TypeInfo.CreateScalar(builtInType);
+                case ValueRanks.OneDimension: return TypeInfo.CreateArray(builtInType);
+                default: return new TypeInfo(builtInType, valueRank);
+            }
         }
 
         /// <summary>
@@ -752,7 +774,7 @@ namespace Opc.Ua
                 // nulls allowed for all array types.
                 if (expectedValueRank != ValueRanks.Scalar)
                 {
-                    return new TypeInfo(expectedType, ValueRanks.OneDimension);
+                    return TypeInfo.CreateArray(expectedType);
                 }
 
                 // check if the type supports nulls.
@@ -768,7 +790,7 @@ namespace Opc.Ua
                     case BuiltInType.DataValue:
                     case BuiltInType.Variant:
                     case BuiltInType.ExtensionObject:
-                        return new TypeInfo(expectedType, ValueRanks.Scalar);
+                        return TypeInfo.CreateScalar(expectedType);
                 }
 
                 // nulls not allowed.
@@ -1317,12 +1339,12 @@ namespace Opc.Ua
 
                 if (builtInType != BuiltInType.Null)
                 {
-                    return new TypeInfo(builtInType, ValueRanks.Scalar);
+                    return TypeInfo.CreateScalar(builtInType);
                 }
 
                 if (systemType.GetTypeInfo().IsEnum)
                 {
-                    return new TypeInfo(BuiltInType.Enumeration, ValueRanks.Scalar);
+                    return Scalars.Enumeration;
                 }
 
                 // check for collection.
@@ -1332,7 +1354,7 @@ namespace Opc.Ua
 
                     if (builtInType != BuiltInType.Null)
                     {
-                        return new TypeInfo(builtInType, ValueRanks.OneDimension);
+                        return TypeInfo.CreateArray(builtInType);
                     }
 
                     // check for encodeable object.
@@ -1356,7 +1378,7 @@ namespace Opc.Ua
                         if (typeInfo.BuiltInType != BuiltInType.Null &&
                             typeInfo.ValueRank == ValueRanks.Scalar)
                         {
-                            return new TypeInfo(typeInfo.BuiltInType, ValueRanks.OneDimension);
+                            return TypeInfo.CreateArray(typeInfo.BuiltInType);
                         }
                     }
 
@@ -1367,7 +1389,7 @@ namespace Opc.Ua
                 if (typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(systemType.GetTypeInfo()) ||
                     name == "IEncodeable")
                 {
-                    return new TypeInfo(BuiltInType.ExtensionObject, ValueRanks.Scalar);
+                    return Scalars.ExtensionObject;
                 }
 
                 return Unknown;
@@ -1380,12 +1402,12 @@ namespace Opc.Ua
 
                 if (builtInType == BuiltInType.Byte)
                 {
-                    return new TypeInfo(BuiltInType.ByteString, ValueRanks.Scalar);
+                    return Scalars.ByteString;
                 }
 
                 if (builtInType != BuiltInType.Null)
                 {
-                    return new TypeInfo(builtInType, ValueRanks.OneDimension);
+                    return TypeInfo.CreateArray(builtInType);
                 }
 
                 // check for encodeable object.
@@ -1393,12 +1415,12 @@ namespace Opc.Ua
                         .IsAssignableFrom(systemType.GetElementType().GetTypeInfo()) ||
                     name == "IEncodeable")
                 {
-                    return new TypeInfo(BuiltInType.ExtensionObject, ValueRanks.OneDimension);
+                    return Arrays.ExtensionObject;
                 }
 
                 if (systemType.GetTypeInfo().GetElementType().IsEnum)
                 {
-                    return new TypeInfo(BuiltInType.Enumeration, ValueRanks.OneDimension);
+                    return Arrays.Enumeration;
                 }
 
                 return Unknown;
@@ -1422,14 +1444,14 @@ namespace Opc.Ua
 
                 if (builtInType != BuiltInType.Null)
                 {
-                    return new TypeInfo(builtInType, count);
+                    return TypeInfo.Create(builtInType, count);
                 }
 
                 // check for encodeable object.
                 if (typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(systemType.GetTypeInfo()) ||
                     name == "IEncodeable")
                 {
-                    return new TypeInfo(BuiltInType.ExtensionObject, count);
+                    return TypeInfo.Create(BuiltInType.ExtensionObject, count);
                 }
 
                 return Unknown;
@@ -1441,7 +1463,7 @@ namespace Opc.Ua
                 // syntax of type is [][,,,] - adding three checks for the middle ']['
                 if (name == "Byte" && count + 3 == dimensions.Length)
                 {
-                    return new TypeInfo(BuiltInType.ByteString, count);
+                    return TypeInfo.Create(BuiltInType.ByteString, count);
                 }
             }
 
@@ -2881,7 +2903,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            var elementType = new TypeInfo(sourceType.BuiltInType, ValueRanks.Scalar);
+            TypeInfo elementType = TypeInfo.CreateScalar(sourceType.BuiltInType);
 
             if (input.Rank == 1)
             {
@@ -2972,6 +2994,18 @@ namespace Opc.Ua
             }
 
             return output;
+        }
+
+        /// <summary>
+        /// Returns a static or allocated type info object for a scalar of the specified type.
+        /// </summary>
+        public static TypeInfo CreateScalar(BuiltInType builtInType)
+        {
+            if (s_scalars.Value.TryGetValue(builtInType, out TypeInfo scalarTypeInfo))
+            {
+                return scalarTypeInfo;
+            }
+            return new TypeInfo(builtInType, ValueRanks.Scalar);
         }
 
         /// <summary>
@@ -3121,6 +3155,51 @@ namespace Opc.Ua
             public static readonly TypeInfo DiagnosticInfo = new(
                 BuiltInType.DiagnosticInfo,
                 ValueRanks.Scalar);
+
+            /// <summary>
+            /// An enum type info.
+            /// </summary>
+            public static readonly TypeInfo Enumeration = new(
+			    BuiltInType.Enumeration,
+				ValueRanks.Scalar);
+        }
+
+        /// <summary>
+        /// The on demand look up table for one dimensional arrays.
+        /// </summary>
+        private static Lazy<ReadOnlyDictionary<BuiltInType, TypeInfo>> s_scalars = new (CreateScalarsDictionary);
+
+        /// <summary>
+        /// Builds the look up table for one dimensional arrays.
+        /// </summary>
+        private static ReadOnlyDictionary<BuiltInType, TypeInfo> CreateScalarsDictionary()
+        {
+            FieldInfo[] fields = typeof(Scalars).GetFields(BindingFlags.Public | BindingFlags.Static);
+
+            var keyValuePairs = new Dictionary<BuiltInType, TypeInfo>();
+            foreach (FieldInfo field in fields)
+            {
+                var typeInfo = (TypeInfo)field.GetValue(typeof(TypeInfo));
+                keyValuePairs.Add(typeInfo.BuiltInType, typeInfo);
+            }
+
+#if NET8_0_OR_GREATER
+            return keyValuePairs.ToFrozenDictionary().AsReadOnly();
+#else
+            return new ReadOnlyDictionary<BuiltInType, TypeInfo>(keyValuePairs);
+#endif
+        }
+
+        /// <summary>
+        /// Returns a static of allocated type info object for a one dimensional array of the specified type.
+        /// </summary>
+        public static TypeInfo CreateArray(BuiltInType builtInType)
+        {
+            if (s_arrays.Value.TryGetValue(builtInType, out TypeInfo arrayTypeInfo))
+            {
+                return arrayTypeInfo;
+            }
+            return new TypeInfo(builtInType, ValueRanks.OneDimension);
         }
 
         /// <summary>
@@ -3288,6 +3367,38 @@ namespace Opc.Ua
             public static readonly TypeInfo DiagnosticInfo = new(
                 BuiltInType.DiagnosticInfo,
                 ValueRanks.OneDimension);
+
+            /// <summary>
+            /// An array of enum values.
+            /// </summary>
+            public static readonly TypeInfo Enumeration = new(
+			    BuiltInType.Enumeration,
+				ValueRanks.OneDimension);
+        }
+
+        /// <summary>
+        /// The on demand look up table for one dimensional arrays.
+        /// </summary>
+        private static Lazy<ReadOnlyDictionary<BuiltInType, TypeInfo>> s_arrays = new(CreateArraysDictionary);
+
+        /// <summary>
+        /// Builds the look up table for one dimensional arrays.
+        /// </summary>
+        private static ReadOnlyDictionary<BuiltInType, TypeInfo> CreateArraysDictionary()
+        {
+            FieldInfo[] fields = typeof(Arrays).GetFields(BindingFlags.Public | BindingFlags.Static);
+
+            var keyValuePairs = new Dictionary<BuiltInType, TypeInfo>();
+            foreach (FieldInfo field in fields)
+            {
+                var typeInfo = (TypeInfo)field.GetValue(typeof(TypeInfo));
+                keyValuePairs.Add(typeInfo.BuiltInType, typeInfo);
+            }
+#if NET8_0_OR_GREATER
+            return keyValuePairs.ToFrozenDictionary().AsReadOnly();
+#else
+            return new ReadOnlyDictionary<BuiltInType, TypeInfo>(keyValuePairs);
+#endif
         }
 
         /// <summary>
