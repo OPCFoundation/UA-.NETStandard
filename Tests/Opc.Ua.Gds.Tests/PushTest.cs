@@ -1067,7 +1067,6 @@ namespace Opc.Ua.Gds.Tests
                 {
                     Utils.LogError(ex, "Failure while verifying new Push Server certificate.");
                 }
-
             }
 
             Assert.Fail("Server certificate did not match with the Certificate pushed by " +

@@ -163,17 +163,20 @@ namespace Opc.Ua
         /// </summary>
         private static string OpcUaHttpsAssemblyName()
         {
-            var assemblyName = typeof(Utils).Assembly.GetName().Name;
-            return assemblyName.Substring(0, assemblyName.IndexOf("Core")) + "Bindings.Https";
+            string assemblyName = DefaultOpcUaCoreAssemblyName;
+            int offset = assemblyName.IndexOf("Core", StringComparison.Ordinal);
+            Debug.Assert(offset != -1);
+            return $"{assemblyName[0..offset]}Bindings.Https";
         }
 
         /// <summary>
         /// List of known default bindings hosted in other assemblies.
         /// </summary>
         public static readonly ReadOnlyDictionary<string, string> DefaultBindings = new(
-            new Dictionary<string, string>() {
-                { Utils.UriSchemeHttps, OpcUaHttpsAssemblyName() },
-                { Utils.UriSchemeOpcHttps, OpcUaHttpsAssemblyName() }
+            new Dictionary<string, string>
+            {
+                { UriSchemeHttps, OpcUaHttpsAssemblyName() },
+                { UriSchemeOpcHttps, OpcUaHttpsAssemblyName() }
             });
 
         /// <summary>
@@ -2172,6 +2175,7 @@ namespace Opc.Ua
         /// <summary>
         /// Checks if two T[] values are equal.
         /// </summary>
+        /// <typeparam name="T"></typeparam>
         public static bool IsEqual<T>(ReadOnlySpan<T> value1, ReadOnlySpan<T> value2) where T : unmanaged, IEquatable<T>
         {
             if (value1.IsEmpty && value2.IsEmpty)

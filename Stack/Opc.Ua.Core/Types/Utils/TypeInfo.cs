@@ -16,11 +16,12 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
-using System.Collections.ObjectModel;
 using System.Collections.Generic;
 
 #if NET8_0_OR_GREATER
 using System.Collections.Frozen;
+#else
+using System.Collections.ObjectModel;
 #endif
 
 namespace Opc.Ua
@@ -225,9 +226,12 @@ namespace Opc.Ua
         {
             switch (valueRank)
             {
-                case ValueRanks.Scalar: return TypeInfo.CreateScalar(builtInType);
-                case ValueRanks.OneDimension: return TypeInfo.CreateArray(builtInType);
-                default: return new TypeInfo(builtInType, valueRank);
+                case ValueRanks.Scalar:
+                    return TypeInfo.CreateScalar(builtInType);
+                case ValueRanks.OneDimension:
+                    return TypeInfo.CreateArray(builtInType);
+                default:
+                    return new TypeInfo(builtInType, valueRank);
             }
         }
 
@@ -2903,7 +2907,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            TypeInfo elementType = TypeInfo.CreateScalar(sourceType.BuiltInType);
+            var elementType = TypeInfo.CreateScalar(sourceType.BuiltInType);
 
             if (input.Rank == 1)
             {
@@ -3160,35 +3164,32 @@ namespace Opc.Ua
             /// An enum type info.
             /// </summary>
             public static readonly TypeInfo Enumeration = new(
-			    BuiltInType.Enumeration,
-				ValueRanks.Scalar);
+                BuiltInType.Enumeration,
+                ValueRanks.Scalar);
         }
 
         /// <summary>
         /// The on demand look up table for one dimensional arrays.
         /// </summary>
-        private static Lazy<ReadOnlyDictionary<BuiltInType, TypeInfo>> s_scalars = new (CreateScalarsDictionary);
-
-        /// <summary>
-        /// Builds the look up table for one dimensional arrays.
-        /// </summary>
-        private static ReadOnlyDictionary<BuiltInType, TypeInfo> CreateScalarsDictionary()
-        {
-            FieldInfo[] fields = typeof(Scalars).GetFields(BindingFlags.Public | BindingFlags.Static);
-
-            var keyValuePairs = new Dictionary<BuiltInType, TypeInfo>();
-            foreach (FieldInfo field in fields)
+        private static readonly Lazy<IReadOnlyDictionary<BuiltInType, TypeInfo>> s_scalars =
+            new(() =>
             {
-                var typeInfo = (TypeInfo)field.GetValue(typeof(TypeInfo));
-                keyValuePairs.Add(typeInfo.BuiltInType, typeInfo);
-            }
+                FieldInfo[] fields = typeof(Scalars).GetFields(
+                    BindingFlags.Public | BindingFlags.Static);
+
+                var keyValuePairs = new Dictionary<BuiltInType, TypeInfo>();
+                foreach (FieldInfo field in fields)
+                {
+                    var typeInfo = (TypeInfo)field.GetValue(typeof(TypeInfo));
+                    keyValuePairs.Add(typeInfo.BuiltInType, typeInfo);
+                }
 
 #if NET8_0_OR_GREATER
-            return keyValuePairs.ToFrozenDictionary().AsReadOnly();
+                return keyValuePairs.ToFrozenDictionary();
 #else
-            return new ReadOnlyDictionary<BuiltInType, TypeInfo>(keyValuePairs);
+                return new ReadOnlyDictionary<BuiltInType, TypeInfo>(keyValuePairs);
 #endif
-        }
+            });
 
         /// <summary>
         /// Returns a static of allocated type info object for a one dimensional array of the specified type.
@@ -3372,34 +3373,31 @@ namespace Opc.Ua
             /// An array of enum values.
             /// </summary>
             public static readonly TypeInfo Enumeration = new(
-			    BuiltInType.Enumeration,
-				ValueRanks.OneDimension);
+                BuiltInType.Enumeration,
+                ValueRanks.OneDimension);
         }
 
         /// <summary>
         /// The on demand look up table for one dimensional arrays.
         /// </summary>
-        private static Lazy<ReadOnlyDictionary<BuiltInType, TypeInfo>> s_arrays = new(CreateArraysDictionary);
-
-        /// <summary>
-        /// Builds the look up table for one dimensional arrays.
-        /// </summary>
-        private static ReadOnlyDictionary<BuiltInType, TypeInfo> CreateArraysDictionary()
-        {
-            FieldInfo[] fields = typeof(Arrays).GetFields(BindingFlags.Public | BindingFlags.Static);
-
-            var keyValuePairs = new Dictionary<BuiltInType, TypeInfo>();
-            foreach (FieldInfo field in fields)
+        private static readonly Lazy<IReadOnlyDictionary<BuiltInType, TypeInfo>> s_arrays =
+            new(() =>
             {
-                var typeInfo = (TypeInfo)field.GetValue(typeof(TypeInfo));
-                keyValuePairs.Add(typeInfo.BuiltInType, typeInfo);
-            }
+                FieldInfo[] fields = typeof(Arrays).GetFields(
+                    BindingFlags.Public | BindingFlags.Static);
+
+                var keyValuePairs = new Dictionary<BuiltInType, TypeInfo>();
+                foreach (FieldInfo field in fields)
+                {
+                    var typeInfo = (TypeInfo)field.GetValue(typeof(TypeInfo));
+                    keyValuePairs.Add(typeInfo.BuiltInType, typeInfo);
+                }
 #if NET8_0_OR_GREATER
-            return keyValuePairs.ToFrozenDictionary().AsReadOnly();
+                return keyValuePairs.ToFrozenDictionary();
 #else
-            return new ReadOnlyDictionary<BuiltInType, TypeInfo>(keyValuePairs);
+                return new ReadOnlyDictionary<BuiltInType, TypeInfo>(keyValuePairs);
 #endif
-        }
+            });
 
         /// <summary>
         /// Formats the type information as a string.

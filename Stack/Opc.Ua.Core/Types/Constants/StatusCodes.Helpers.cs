@@ -12,11 +12,12 @@
 
 using System;
 using System.Reflection;
-using System.Collections.ObjectModel;
 using System.Collections.Generic;
 
 #if NET8_0_OR_GREATER
 using System.Collections.Frozen;
+#else
+using System.Collections.ObjectModel;
 #endif
 
 namespace Opc.Ua
@@ -31,7 +32,7 @@ namespace Opc.Ua
 		/// </summary>
         public static string GetBrowseName(uint identifier)
         {
-            if (BrowseNames.Value.TryGetValue(identifier, out var browseName))
+            if (s_browseNames.Value.TryGetValue(identifier, out var browseName))
             {
                 return browseName;
             }
@@ -40,11 +41,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-	    /// Returns the browse browse name for the attribute.
+	    /// Returns the browse name for the attribute.
         /// </summary>
         public static byte[] GetUtf8BrowseName(uint identifier)
         {
-            if (Utf8BrowseNames.Value.TryGetValue(identifier, out var utf8BrowseName))
+            if (s_utf8BrowseNames.Value.TryGetValue(identifier, out var utf8BrowseName))
             {
                 return utf8BrowseName;
             }
@@ -55,9 +56,9 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the browse names for all attributes.
         /// </summary>
-        public static IReadOnlyCollection<string> GetBrowseNames()
+        public static IEnumerable<string> GetBrowseNames()
         {
-            return BrowseNames.Value.Values;
+            return s_browseNames.Value.Values;
         }
 
         /// <summary>
@@ -65,7 +66,7 @@ namespace Opc.Ua
         /// </summary>
         public static uint GetIdentifier(string browseName)
         {
-            foreach (var field in BrowseNames.Value)
+            foreach (var field in s_browseNames.Value)
             {
                 if (field.Value == browseName)
                 {
@@ -76,50 +77,48 @@ namespace Opc.Ua
             return 0;
         }
 
-        private static ReadOnlyDictionary<uint, string> CreateBrowseNamesDictionary()
-        {
-            FieldInfo[] fields = typeof(StatusCodes).GetFields(BindingFlags.Public | BindingFlags.Static);
-
-            var keyValuePairs = new Dictionary<uint, string>();
-            foreach (FieldInfo field in fields)
-            {
-                keyValuePairs.Add((uint)field.GetValue(typeof(StatusCodes)), field.Name);
-            }
-#if NET8_0_OR_GREATER
-            return keyValuePairs.ToFrozenDictionary().AsReadOnly();
-#else
-            return new ReadOnlyDictionary<uint, string>(keyValuePairs);
-#endif
-        }
-
-        private static ReadOnlyDictionary<uint, byte[]> CreateUtf8BrowseNamesDictionary()
-        {
-            FieldInfo[] fields = typeof(StatusCodes).GetFields(BindingFlags.Public | BindingFlags.Static);
-
-            var keyValuePairs = new Dictionary<uint, byte[]>();
-            foreach (FieldInfo field in fields)
-            {
-                keyValuePairs.Add((uint)field.GetValue(typeof(StatusCodes)),
-                    System.Text.Encoding.UTF8.GetBytes(field.Name));
-            }
-
-#if NET8_0_OR_GREATER
-            return keyValuePairs.ToFrozenDictionary().AsReadOnly();
-#else
-            return new ReadOnlyDictionary<uint, byte[]>(keyValuePairs);
-#endif
-        }
-
         /// <summary>
         /// Creates a dictionary of browse names for the status codes.
         /// </summary>
-        private static readonly Lazy<ReadOnlyDictionary<uint, string>> BrowseNames =
-            new(CreateBrowseNamesDictionary);
+        private static readonly Lazy<IReadOnlyDictionary<uint, string>> s_browseNames =
+            new(() =>
+            {
+                FieldInfo[] fields = typeof(StatusCodes).GetFields(
+                    BindingFlags.Public | BindingFlags.Static);
+
+                var keyValuePairs = new Dictionary<uint, string>();
+                foreach (FieldInfo field in fields)
+                {
+                    keyValuePairs.Add((uint)field.GetValue(typeof(StatusCodes)), field.Name);
+                }
+#if NET8_0_OR_GREATER
+                return keyValuePairs.ToFrozenDictionary();
+#else
+                return new ReadOnlyDictionary<uint, string>(keyValuePairs);
+#endif
+            });
 
         /// <summary>
         /// Creates a dictionary of Utf8 browse names for the status codes.
         /// </summary>
-        private static readonly Lazy<ReadOnlyDictionary<uint, byte[]>> Utf8BrowseNames =
-            new(CreateUtf8BrowseNamesDictionary);
+        private static readonly Lazy<IReadOnlyDictionary<uint, byte[]>> s_utf8BrowseNames =
+            new(() =>
+            {
+                FieldInfo[] fields = typeof(StatusCodes).GetFields(
+                    BindingFlags.Public | BindingFlags.Static);
+
+                var keyValuePairs = new Dictionary<uint, byte[]>();
+                foreach (FieldInfo field in fields)
+                {
+                    keyValuePairs.Add((uint)field.GetValue(typeof(StatusCodes)),
+                        System.Text.Encoding.UTF8.GetBytes(field.Name));
+                }
+
+#if NET8_0_OR_GREATER
+                return keyValuePairs.ToFrozenDictionary();
+#else
+                return new ReadOnlyDictionary<uint, byte[]>(keyValuePairs);
+#endif
+            });
     }
 }

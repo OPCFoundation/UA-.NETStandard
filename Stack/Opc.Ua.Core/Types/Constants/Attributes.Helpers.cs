@@ -13,10 +13,11 @@
 using System;
 using System.Reflection;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 
 #if NET8_0_OR_GREATER
 using System.Collections.Frozen;
+#else
+using System.Collections.ObjectModel;
 #endif
 
 namespace Opc.Ua
@@ -44,7 +45,7 @@ namespace Opc.Ua
         /// </summary>
         public static string GetBrowseName(uint identifier)
         {
-            if (AttributeNames.Value.TryGetValue(identifier, out var name))
+            if (s_attributeNames.Value.TryGetValue(identifier, out string name))
             {
                 return name;
             }
@@ -55,9 +56,9 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the browse names for all attributes.
         /// </summary>
-        public static IReadOnlyCollection<string> GetBrowseNames()
+        public static IEnumerable<string> GetBrowseNames()
         {
-            return AttributeNames.Value.Values;
+            return s_attributeNames.Value.Values;
         }
 
         /// <summary>
@@ -65,7 +66,7 @@ namespace Opc.Ua
         /// </summary>
         public static uint GetIdentifier(string browseName)
         {
-            foreach (var field in AttributeNames.Value)
+            foreach (KeyValuePair<uint, string> field in s_attributeNames.Value)
             {
                 if (field.Value == browseName)
                 {
@@ -79,9 +80,9 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the ids for all attributes.
         /// </summary>
-        public static IReadOnlyCollection<uint> GetIdentifiers()
+        public static IEnumerable<uint> GetIdentifiers()
         {
-            return AttributeNames.Value.Keys;
+            return s_attributeNames.Value.Keys;
         }
 
         /// <summary>
@@ -89,9 +90,9 @@ namespace Opc.Ua
         /// </summary>
         public static UInt32Collection GetIdentifiers(NodeClass nodeClass)
         {
-            UInt32Collection ids = new UInt32Collection(AttributeNames.Value.Count);
+            var ids = new UInt32Collection(s_attributeNames.Value.Count);
 
-            foreach (uint id in AttributeNames.Value.Keys)
+            foreach (uint id in s_attributeNames.Value.Keys)
             {
                 if (IsValid(nodeClass, id))
                 {
@@ -486,26 +487,25 @@ namespace Opc.Ua
             return 0;
         }
 
-        private static ReadOnlyDictionary<uint, string> CreateAttributeNamesDictionary()
-        {
-            FieldInfo[] fields = typeof(Attributes).GetFields(BindingFlags.Public | BindingFlags.Static);
-
-            var keyValuePairs = new Dictionary<uint, string>();
-            foreach (FieldInfo field in fields)
-            {
-                keyValuePairs.Add((uint)field.GetValue(typeof(Attributes)), field.Name);
-            }
-#if NET8_0_OR_GREATER
-            return keyValuePairs.ToFrozenDictionary().AsReadOnly();
-#else
-            return new ReadOnlyDictionary<uint, string>(keyValuePairs);
-#endif
-        }
-
         /// <summary>
         /// Creates a dictionary of browse names for the attributes.
         /// </summary>
-        private static readonly Lazy<ReadOnlyDictionary<uint, string>> AttributeNames =
-            new(CreateAttributeNamesDictionary);
+        private static readonly Lazy<IReadOnlyDictionary<uint, string>> s_attributeNames =
+            new(() =>
+            {
+                FieldInfo[] fields = typeof(Attributes).GetFields(
+                    BindingFlags.Public | BindingFlags.Static);
+
+                var keyValuePairs = new Dictionary<uint, string>();
+                foreach (FieldInfo field in fields)
+                {
+                    keyValuePairs.Add((uint)field.GetValue(typeof(Attributes)), field.Name);
+                }
+#if NET8_0_OR_GREATER
+                return keyValuePairs.ToFrozenDictionary();
+#else
+                return new ReadOnlyDictionary<uint, string>(keyValuePairs);
+#endif
+            });
     }
 }

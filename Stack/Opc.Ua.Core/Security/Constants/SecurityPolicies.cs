@@ -15,10 +15,11 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Collections.ObjectModel;
 
 #if NET8_0_OR_GREATER
 using System.Collections.Frozen;
+#else
+using System.Collections.ObjectModel;
 #endif
 
 namespace Opc.Ua
@@ -156,7 +157,7 @@ namespace Opc.Ua
         /// </summary>
         public static string GetUri(string displayName)
         {
-            if (SecurityPolicyUriNames.Value.TryGetValue(displayName, out var uri) &&
+            if (s_securityPolicyUriNames.Value.TryGetValue(displayName, out var uri) &&
                 IsPlatformSupportedName(displayName))
             {
                 return uri;
@@ -170,7 +171,7 @@ namespace Opc.Ua
         /// </summary>
         public static string GetDisplayName(string policyUri)
         {
-            foreach (var keyPair in SecurityPolicyUriNames.Value)
+            foreach (var keyPair in s_securityPolicyUriNames.Value)
             {
                 if (policyUri == keyPair.Value &&
                     IsPlatformSupportedName(keyPair.Key))
@@ -210,10 +211,10 @@ namespace Opc.Ua
         /// </summary>
         public static string[] GetDisplayNames()
         {
-            var names = new List<string>(SecurityPolicyUriNames.Value.Count);
+            var names = new List<string>(s_securityPolicyUriNames.Value.Count);
 
             // exclude None and Https from the list of supported security policies.
-            foreach (var keyPair in SecurityPolicyUriNames.Value)
+            foreach (var keyPair in s_securityPolicyUriNames.Value)
             {
                 if (IsPlatformSupportedName(keyPair.Key))
                 {
@@ -620,33 +621,33 @@ namespace Opc.Ua
             }
         }
 
-        private static ReadOnlyDictionary<string, string> CreateSecurityPolicyUriNamesDictionary()
-        {
-            FieldInfo[] fields = typeof(SecurityPolicies).GetFields(BindingFlags.Public | BindingFlags.Static);
-
-            var keyValuePairs = new Dictionary<string, string>();
-            foreach (FieldInfo field in fields)
-            {
-                var policyUri = (string)field.GetValue(typeof(SecurityPolicies));
-                if (field.Name == nameof(BaseUri) || field.Name == nameof(Https) ||
-                    !policyUri.StartsWith(BaseUri))
-                {
-                    continue;
-                }
-
-                keyValuePairs.Add(field.Name, policyUri);
-            }
-#if NET8_0_OR_GREATER
-            return keyValuePairs.ToFrozenDictionary().AsReadOnly();
-#else
-            return new ReadOnlyDictionary<string, string>(keyValuePairs);
-#endif
-        }
-
         /// <summary>
         /// Creates a dictionary of browse names for the attributes.
         /// </summary>
-        private static readonly Lazy<ReadOnlyDictionary<string, string>> SecurityPolicyUriNames =
-            new(CreateSecurityPolicyUriNamesDictionary);
+        private static readonly Lazy<IReadOnlyDictionary<string, string>> s_securityPolicyUriNames =
+            new(() =>
+            {
+                FieldInfo[] fields = typeof(SecurityPolicies).GetFields(
+                    BindingFlags.Public | BindingFlags.Static);
+
+                var keyValuePairs = new Dictionary<string, string>();
+                foreach (FieldInfo field in fields)
+                {
+                    var policyUri = (string)field.GetValue(typeof(SecurityPolicies));
+                    if (field.Name == nameof(BaseUri) ||
+                        field.Name == nameof(Https) ||
+                        !policyUri.StartsWith(BaseUri))
+                    {
+                        continue;
+                    }
+
+                    keyValuePairs.Add(field.Name, policyUri);
+                }
+#if NET8_0_OR_GREATER
+                return keyValuePairs.ToFrozenDictionary();
+#else
+                return new ReadOnlyDictionary<string, string>(keyValuePairs);
+#endif
+            });
     }
 }

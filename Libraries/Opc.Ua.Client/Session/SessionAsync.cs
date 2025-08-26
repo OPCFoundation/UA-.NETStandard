@@ -2197,7 +2197,7 @@ namespace Opc.Ua.Client
                     {
                         if (sre.StatusCode == StatusCodes.BadRequestInterrupted)
                         {
-                            ServiceResult error = ServiceResult.Create(
+                            var error = ServiceResult.Create(
                                 StatusCodes.BadRequestTimeout,
                                 timeoutMessage,
                                 GoodPublishRequestCount,
