@@ -3160,8 +3160,8 @@ namespace Opc.Ua
             /// An enum type info.
             /// </summary>
             public static readonly TypeInfo Enumeration = new(
-			    BuiltInType.Enumeration,
-				ValueRanks.Scalar);
+                BuiltInType.Enumeration,
+                ValueRanks.Scalar);
         }
 
         /// <summary>
