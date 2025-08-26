@@ -216,11 +216,12 @@ namespace Quickstarts
                             if (endpointDescription == null)
                             {
                                 m_output.WriteLine("Discover reverse connection endpoints....");
-                                endpointDescription = CoreClientUtils.SelectEndpoint(
+                                endpointDescription = await CoreClientUtils.SelectEndpointAsync(
                                     m_configuration,
                                     connection,
-                                    useSecurity
-                                );
+                                    useSecurity,
+                                    ct
+                                ).ConfigureAwait(false);
                                 connection = null;
                             }
                         } while (connection == null);
@@ -228,10 +229,11 @@ namespace Quickstarts
                     else
                     {
                         m_output.WriteLine("Connecting to... {0}", serverUrl);
-                        endpointDescription = CoreClientUtils.SelectEndpoint(
+                        endpointDescription = await CoreClientUtils.SelectEndpointAsync(
                             m_configuration,
                             serverUrl,
-                            useSecurity);
+                            useSecurity,
+                            ct).ConfigureAwait(false);
                     }
 
                     // Get the endpoint by connecting to server's discovery endpoint.
