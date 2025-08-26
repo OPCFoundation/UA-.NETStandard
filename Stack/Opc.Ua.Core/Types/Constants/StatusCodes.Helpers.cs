@@ -40,7 +40,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-	    /// Returns the browse browse name for the attribute.
+        /// Returns the UTF-8 browse name for the attribute.
         /// </summary>
         public static byte[] GetUtf8BrowseName(uint identifier)
         {
