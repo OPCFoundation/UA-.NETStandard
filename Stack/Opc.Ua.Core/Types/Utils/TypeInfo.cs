@@ -3372,8 +3372,8 @@ namespace Opc.Ua
             /// An array of enum values.
             /// </summary>
             public static readonly TypeInfo Enumeration = new(
-			    BuiltInType.Enumeration,
-				ValueRanks.OneDimension);
+                BuiltInType.Enumeration,
+                ValueRanks.OneDimension);
         }
 
         /// <summary>
