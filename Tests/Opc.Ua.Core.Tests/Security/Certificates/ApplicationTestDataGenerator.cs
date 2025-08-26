@@ -51,7 +51,6 @@ namespace Opc.Ua.Core.Tests
 #pragma warning disable IDE0079 // Remove unnecessary suppression
 #pragma warning disable SYSLIB1045 //Use 'GeneratedRegexAttribute' to generate the regular expression implementation at compile-time.
         private static Regex Regex1()
-
         {
             return new(@"[^\w\d\s]");
         }
