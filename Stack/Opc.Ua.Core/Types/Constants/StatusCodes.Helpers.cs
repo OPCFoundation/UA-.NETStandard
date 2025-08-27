@@ -18,6 +18,7 @@ using System.Collections.Generic;
 using System.Collections.Frozen;
 #else
 using System.Collections.ObjectModel;
+using System.Linq;
 #endif
 
 namespace Opc.Ua
@@ -32,12 +33,8 @@ namespace Opc.Ua
         /// </summary>
         public static string GetBrowseName(uint identifier)
         {
-            if (s_browseNames.Value.TryGetValue(identifier, out var browseName))
-            {
-                return browseName;
-            }
-
-            return string.Empty;
+            return s_statusCodeToSymbol.Value.TryGetValue(identifier & 0xFFFF0000, out string name)
+                ? name : string.Empty;
         }
 
         /// <summary>
@@ -45,12 +42,8 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] GetUtf8BrowseName(uint identifier)
         {
-            if (s_utf8BrowseNames.Value.TryGetValue(identifier, out var utf8BrowseName))
-            {
-                return utf8BrowseName;
-            }
-
-            return null;
+            return s_utf8BrowseNames.Value.TryGetValue(identifier & 0xFFFF0000, out byte[] name)
+                ? name : null;
         }
 
         /// <summary>
@@ -58,7 +51,7 @@ namespace Opc.Ua
         /// </summary>
         public static IEnumerable<string> GetBrowseNames()
         {
-            return s_browseNames.Value.Values;
+            return s_statusCodeToSymbol.Value.Values;
         }
 
         /// <summary>
@@ -66,21 +59,28 @@ namespace Opc.Ua
         /// </summary>
         public static uint GetIdentifier(string browseName)
         {
-            foreach (var field in s_browseNames.Value)
-            {
-                if (field.Value == browseName)
-                {
-                    return field.Key;
-                }
-            }
-
-            return 0;
+            return s_statusSymbolToCode.Value.TryGetValue(browseName, out uint id)
+                ? id : 0;
         }
+
+        /// <summary>
+        /// Creates a dictionary of browse names to status codes
+        /// </summary>
+        private static readonly Lazy<IReadOnlyDictionary<string, uint>> s_statusSymbolToCode =
+            new(() =>
+            {
+#if NET8_0_OR_GREATER
+                return s_statusCodeToSymbol.Value.ToFrozenDictionary(k => k.Value, k => k.Key);
+#else
+                return new ReadOnlyDictionary<string, uint>(
+                    s_statusCodeToSymbol.Value.ToDictionary(k => k.Value, k => k.Key));
+#endif
+            });
 
         /// <summary>
         /// Creates a dictionary of browse names for the status codes.
         /// </summary>
-        private static readonly Lazy<IReadOnlyDictionary<uint, string>> s_browseNames =
+        private static readonly Lazy<IReadOnlyDictionary<uint, string>> s_statusCodeToSymbol =
             new(() =>
             {
                 FieldInfo[] fields = typeof(StatusCodes).GetFields(

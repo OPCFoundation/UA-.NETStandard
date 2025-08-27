@@ -2194,7 +2194,9 @@ namespace Opc.Ua.Server
             out CallMethodResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
+#pragma warning disable CA2012 // Use ValueTasks correctly
             (results, diagnosticInfos) = CallInternalAsync(context, methodsToCall, sync: true).Result;
+#pragma warning restore CA2012 // Use ValueTasks correctly
         }
 
         /// <summary>

@@ -19,6 +19,7 @@ using System.Security.Cryptography.X509Certificates;
 #if NET8_0_OR_GREATER
 using System.Collections.Frozen;
 #else
+using System.Linq;
 using System.Collections.ObjectModel;
 #endif
 
@@ -99,8 +100,13 @@ namespace Opc.Ua
         /// </summary>
         public const string Https = BaseUri + "Https";
 
-        private static bool IsPlatformSupportedName(string name)
+        private static bool IsPlatformSupportedName(string name, bool includeHttps = false)
         {
+            if (includeHttps && name.Equals(nameof(Https), StringComparison.Ordinal))
+            {
+                return true;
+            }
+
             // all RSA
             if (name.Equals(nameof(None), StringComparison.Ordinal) ||
                 name.Equals(nameof(Basic256), StringComparison.Ordinal) ||
@@ -153,31 +159,30 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns the uri associated with the display name.
+        /// Returns the uri associated with the display name. This includes http and all
+        /// other supported platform security policies.
         /// </summary>
         public static string GetUri(string displayName)
         {
-            if (s_securityPolicyUriNames.Value.TryGetValue(displayName, out var uri) &&
-                IsPlatformSupportedName(displayName))
+            if (s_securityPolicyNameToUri.Value.TryGetValue(displayName, out string policyUri) &&
+                IsPlatformSupportedName(displayName, includeHttps: true))
             {
-                return uri;
+                return policyUri;
             }
 
             return null;
         }
 
         /// <summary>
-        /// Returns a display name for a security policy uri.
+        /// Returns a display name for a security policy uri. This includes http and all
+        /// other supported platform security policies.
         /// </summary>
         public static string GetDisplayName(string policyUri)
         {
-            foreach (var keyPair in s_securityPolicyUriNames.Value)
+            if (s_securityPolicyUriToName.Value.TryGetValue(policyUri, out string displayName) &&
+                IsPlatformSupportedName(displayName, includeHttps: true))
             {
-                if (policyUri == keyPair.Value &&
-                    IsPlatformSupportedName(keyPair.Key))
-                {
-                    return keyPair.Key;
-                }
+                return displayName;
             }
 
             return null;
@@ -194,31 +199,21 @@ namespace Opc.Ua
         /// </remarks>
         public static bool IsValidSecurityPolicyUri(string policyUri)
         {
-            foreach (FieldInfo field in typeof(SecurityPolicies).GetFields(
-                BindingFlags.Public | BindingFlags.Static))
-            {
-                if (policyUri == (string)field.GetValue(typeof(SecurityPolicies)))
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            return s_securityPolicyUriToName.Value.ContainsKey(policyUri);
         }
 
         /// <summary>
-        /// Returns the display names for all security policy uris.
+        /// Returns the display names for all security policy uris including https.
         /// </summary>
         public static string[] GetDisplayNames()
         {
-            var names = new List<string>(s_securityPolicyUriNames.Value.Count);
+            var names = new List<string>(s_securityPolicyUriToName.Value.Count);
 
-            // exclude None and Https from the list of supported security policies.
-            foreach (var keyPair in s_securityPolicyUriNames.Value)
+            foreach (string displayName in s_securityPolicyUriToName.Value.Values)
             {
-                if (IsPlatformSupportedName(keyPair.Key))
+                if (IsPlatformSupportedName(displayName, includeHttps: true))
                 {
-                    names.Add(keyPair.Key);
+                    names.Add(displayName);
                 }
             }
 
@@ -622,9 +617,23 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a dictionary of browse names for the attributes.
+        /// Creates a dictionary of uris to name excluding base uri
         /// </summary>
-        private static readonly Lazy<IReadOnlyDictionary<string, string>> s_securityPolicyUriNames =
+        private static readonly Lazy<IReadOnlyDictionary<string, string>> s_securityPolicyUriToName =
+            new(() =>
+            {
+#if NET8_0_OR_GREATER
+                return s_securityPolicyNameToUri.Value.ToFrozenDictionary(k => k.Value, k => k.Key);
+#else
+                return new ReadOnlyDictionary<string, string>(
+                    s_securityPolicyNameToUri.Value.ToDictionary(k => k.Value, k => k.Key));
+#endif
+            });
+
+        /// <summary>
+        /// Creates a dictionary for names to uri excluding base uri
+        /// </summary>
+        private static readonly Lazy<IReadOnlyDictionary<string, string>> s_securityPolicyNameToUri =
             new(() =>
             {
                 FieldInfo[] fields = typeof(SecurityPolicies).GetFields(
@@ -633,9 +642,8 @@ namespace Opc.Ua
                 var keyValuePairs = new Dictionary<string, string>();
                 foreach (FieldInfo field in fields)
                 {
-                    var policyUri = (string)field.GetValue(typeof(SecurityPolicies));
+                    string policyUri = (string)field.GetValue(typeof(SecurityPolicies));
                     if (field.Name == nameof(BaseUri) ||
-                        field.Name == nameof(Https) ||
                         !policyUri.StartsWith(BaseUri))
                     {
                         continue;

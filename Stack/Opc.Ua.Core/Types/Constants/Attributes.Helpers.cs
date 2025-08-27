@@ -18,6 +18,7 @@ using System.Collections.Generic;
 using System.Collections.Frozen;
 #else
 using System.Collections.ObjectModel;
+using System.Linq;
 #endif
 
 namespace Opc.Ua
@@ -45,12 +46,8 @@ namespace Opc.Ua
         /// </summary>
         public static string GetBrowseName(uint identifier)
         {
-            if (s_attributeNames.Value.TryGetValue(identifier, out string name))
-            {
-                return name;
-            }
-
-            return string.Empty;
+            return s_attributesIdToName.Value.TryGetValue(identifier, out string name)
+                ? name : string.Empty;
         }
 
         /// <summary>
@@ -58,7 +55,7 @@ namespace Opc.Ua
         /// </summary>
         public static IEnumerable<string> GetBrowseNames()
         {
-            return s_attributeNames.Value.Values;
+            return s_attributesNameToId.Value.Keys;
         }
 
         /// <summary>
@@ -66,15 +63,8 @@ namespace Opc.Ua
         /// </summary>
         public static uint GetIdentifier(string browseName)
         {
-            foreach (KeyValuePair<uint, string> field in s_attributeNames.Value)
-            {
-                if (field.Value == browseName)
-                {
-                    return field.Key;
-                }
-            }
-
-            return 0;
+            return s_attributesNameToId.Value.TryGetValue(browseName, out uint id)
+                ? id : 0;
         }
 
         /// <summary>
@@ -82,17 +72,18 @@ namespace Opc.Ua
         /// </summary>
         public static IEnumerable<uint> GetIdentifiers()
         {
-            return s_attributeNames.Value.Keys;
+            return s_attributesIdToName.Value.Keys;
         }
 
         /// <summary>
-        /// Returns the ids for all attributes which are valid for the at least one of the node classes specified by the mask.
+        /// Returns the ids for all attributes which are valid for the at least one of
+        /// the node classes specified by the mask.
         /// </summary>
         public static UInt32Collection GetIdentifiers(NodeClass nodeClass)
         {
-            var ids = new UInt32Collection(s_attributeNames.Value.Count);
+            var ids = new UInt32Collection(s_attributesIdToName.Value.Count);
 
-            foreach (uint id in s_attributeNames.Value.Keys)
+            foreach (uint id in s_attributesIdToName.Value.Keys)
             {
                 if (IsValid(nodeClass, id))
                 {
@@ -391,15 +382,17 @@ namespace Opc.Ua
                 case ValueRank:
                 case ArrayDimensions:
                     return (nodeClass &
-                        ((int)Ua.NodeClass.VariableType | (int)Ua.NodeClass.Variable)) != 0;
+                        (
+                            (int)Ua.NodeClass.VariableType |
+                            (int)Ua.NodeClass.Variable)
+                        ) != 0;
                 case IsAbstract:
-                    return (
-                            nodeClass &
-                            (
-                                (int)Ua.NodeClass.VariableType |
-                                (int)Ua.NodeClass.ObjectType |
-                                (int)Ua.NodeClass.ReferenceType |
-                                (int)Ua.NodeClass.DataType)
+                    return (nodeClass &
+                        (
+                            (int)Ua.NodeClass.VariableType |
+                            (int)Ua.NodeClass.ObjectType |
+                            (int)Ua.NodeClass.ReferenceType |
+                            (int)Ua.NodeClass.DataType)
                         ) != 0;
                 case Symmetric:
                 case InverseName:
@@ -407,7 +400,11 @@ namespace Opc.Ua
                 case ContainsNoLoops:
                     return (nodeClass & (int)Ua.NodeClass.View) != 0;
                 case EventNotifier:
-                    return (nodeClass & ((int)Ua.NodeClass.Object | (int)Ua.NodeClass.View)) != 0;
+                    return (nodeClass &
+                        (
+                            (int)Ua.NodeClass.Object |
+                            (int)Ua.NodeClass.View)
+                        ) != 0;
                 case AccessLevel:
                 case UserAccessLevel:
                 case MinimumSamplingInterval:
@@ -477,7 +474,8 @@ namespace Opc.Ua
                     return AttributeWriteMask.DataTypeDefinition;
                 case RolePermissions:
                     return AttributeWriteMask.RolePermissions;
-                //case UserRolePermissions:     return AttributeWriteMask.UserRolePermissions;
+                //case UserRolePermissions:
+                //  return AttributeWriteMask.UserRolePermissions;
                 case AccessRestrictions:
                     return AttributeWriteMask.AccessRestrictions;
                 case AccessLevelEx:
@@ -488,9 +486,23 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a dictionary of browse names for the attributes.
+        /// Creates a dictionary of names to attribute identifiers
         /// </summary>
-        private static readonly Lazy<IReadOnlyDictionary<uint, string>> s_attributeNames =
+        private static readonly Lazy<IReadOnlyDictionary<string, uint>> s_attributesNameToId =
+            new(() =>
+            {
+#if NET8_0_OR_GREATER
+                return s_attributesIdToName.Value.ToFrozenDictionary(k => k.Value, k => k.Key);
+#else
+                return new ReadOnlyDictionary<string, uint>(
+                    s_attributesIdToName.Value.ToDictionary(k => k.Value, k => k.Key));
+#endif
+            });
+
+        /// <summary>
+        /// Creates a dictionary of identifiers to browse names for the attributes.
+        /// </summary>
+        private static readonly Lazy<IReadOnlyDictionary<uint, string>> s_attributesIdToName =
             new(() =>
             {
                 FieldInfo[] fields = typeof(Attributes).GetFields(

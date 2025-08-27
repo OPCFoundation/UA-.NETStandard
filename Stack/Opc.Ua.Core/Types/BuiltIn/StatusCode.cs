@@ -506,7 +506,7 @@ namespace Opc.Ua
         /// <param name="code">The numeric error-code to convert to a textual description</param>
         public static string LookupSymbolicId(uint code)
         {
-            return StatusCodes.GetBrowseName(code & 0xFFFF0000);
+            return StatusCodes.GetBrowseName(code);
         }
 
         /// <summary>
@@ -515,7 +515,7 @@ namespace Opc.Ua
         /// <param name="code">The numeric error-code to convert to a textual description</param>
         public static byte[] LookupUtf8SymbolicId(uint code)
         {
-            return StatusCodes.GetUtf8BrowseName(code & 0xFFFF0000);
+            return StatusCodes.GetUtf8BrowseName(code);
         }
 
         /// <summary>

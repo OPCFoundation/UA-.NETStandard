@@ -20,7 +20,7 @@ max_line_length             = 120
 
 # Xml project files
 [*.{csproj,vbproj,vcxproj,vcxproj.filters,proj,projitems,shproj}]
-indent_size = 200
+indent_size = 2
 
 # Xml config files
 [*.{xml,props,targets,ruleset,config,nuspec,resx,vsixmanifest,vsct}]
