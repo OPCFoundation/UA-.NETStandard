@@ -187,11 +187,11 @@ namespace Opc.Ua.Client.Tests
                     .ConfigureAwait(false);
                 Assert.NotNull(connection, "Failed to get connection.");
             }
-            EndpointDescription selectedEndpoint = CoreClientUtils.SelectEndpoint(
+            EndpointDescription selectedEndpoint = await CoreClientUtils.SelectEndpointAsync(
                 config,
                 connection,
                 true,
-                MaxTimeout);
+                MaxTimeout).ConfigureAwait(false);
             Assert.NotNull(selectedEndpoint);
         }
 
@@ -258,7 +258,7 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(referenceDescriptions);
 
             // close session
-            StatusCode result = session.Close();
+            StatusCode result = await session.CloseAsync().ConfigureAwait(false);
             Assert.NotNull(result);
             session.Dispose();
         }
@@ -321,7 +321,7 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(referenceDescriptions);
 
             // close session
-            StatusCode result = session.Close();
+            StatusCode result = await session.CloseAsync().ConfigureAwait(false);
             Assert.NotNull(result);
             session.Dispose();
         }

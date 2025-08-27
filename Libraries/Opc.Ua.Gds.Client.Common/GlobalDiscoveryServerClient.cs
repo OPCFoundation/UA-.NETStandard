@@ -323,10 +323,12 @@ namespace Opc.Ua.Gds.Client
                 serverHalted = false;
                 try
                 {
-                    EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(
-                        Configuration,
-                        endpointUrl,
-                        true);
+                    EndpointDescription endpointDescription =
+                        await CoreClientUtils.SelectEndpointAsync(
+                            Configuration,
+                            endpointUrl,
+                            true,
+                            ct).ConfigureAwait(false);
                     var endpointConfiguration = EndpointConfiguration.Create(Configuration);
                     var endpoint = new ConfiguredEndpoint(
                         null,

@@ -41,7 +41,7 @@ namespace Opc.Ua.Client
     /// A subscription.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public partial class Subscription : IDisposable, ICloneable
+    public class Subscription : IDisposable, ICloneable
     {
         private const int kMinKeepAliveTimerInterval = 1000;
         private const int kKeepAliveTimerMargin = 1000;
@@ -733,137 +733,499 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates a subscription on the server and adds all monitored items.
         /// </summary>
-        public void Create()
+        public async Task CreateAsync(CancellationToken ct = default)
         {
             VerifySubscriptionState(false);
 
             // create the subscription.
+            uint revisedMaxKeepAliveCount = KeepAliveCount;
+            uint revisedLifetimeCount = LifetimeCount;
+
+            AdjustCounts(ref revisedMaxKeepAliveCount, ref revisedLifetimeCount);
+
+            CreateSubscriptionResponse response = await Session
+                .CreateSubscriptionAsync(
+                    null,
+                    PublishingInterval,
+                    revisedLifetimeCount,
+                    revisedMaxKeepAliveCount,
+                    MaxNotificationsPerPublish,
+                    false,
+                    Priority,
+                    ct)
+                .ConfigureAwait(false);
+
+            CreateSubscription(
+                response.SubscriptionId,
+                response.RevisedPublishingInterval,
+                response.RevisedMaxKeepAliveCount,
+                response.RevisedLifetimeCount);
+
+            await CreateItemsAsync(ct).ConfigureAwait(false);
+
+            // only enable publishing afer CreateSubscription is called
+            // to avoid race conditions with subscription cleanup.
+            if (PublishingEnabled)
+            {
+                await SetPublishingModeAsync(PublishingEnabled, ct).ConfigureAwait(false);
+            }
+
+            ChangesCompleted();
+        }
+
+        /// <summary>
+        /// Deletes a subscription on the server.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public async Task DeleteAsync(bool silent, CancellationToken ct = default)
+        {
+            if (!silent)
+            {
+                VerifySubscriptionState(true);
+            }
+
+            // nothing to do if not created.
+            if (!Created)
+            {
+                return;
+            }
+
+            await ResetPublishTimerAndWorkerStateAsync().ConfigureAwait(false);
+
+            try
+            {
+                // delete the subscription.
+                UInt32Collection subscriptionIds = new uint[] { Id };
+
+                DeleteSubscriptionsResponse response = await Session
+                    .DeleteSubscriptionsAsync(null, subscriptionIds, ct)
+                    .ConfigureAwait(false);
+
+                // validate response.
+                ClientBase.ValidateResponse(response.Results, subscriptionIds);
+                ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, subscriptionIds);
+
+                if (StatusCode.IsBad(response.Results[0]))
+                {
+                    throw new ServiceResultException(
+                        ClientBase.GetResult(
+                            response.Results[0],
+                            0,
+                            response.DiagnosticInfos,
+                            response.ResponseHeader));
+                }
+            }
+            // suppress exception if silent flag is set.
+            catch (Exception e)
+            {
+                if (!silent)
+                {
+                    throw new ServiceResultException(e, StatusCodes.BadUnexpectedError);
+                }
+            }
+            // always put object in disconnected state even if an error occurs.
+            finally
+            {
+                DeleteSubscription();
+            }
+
+            ChangesCompleted();
+        }
+
+        /// <summary>
+        /// Modifies a subscription on the server.
+        /// </summary>
+        public async Task ModifyAsync(CancellationToken ct = default)
+        {
+            VerifySubscriptionState(true);
+
+            // modify the subscription.
             uint revisedKeepAliveCount = KeepAliveCount;
             uint revisedLifetimeCounter = LifetimeCount;
 
             AdjustCounts(ref revisedKeepAliveCount, ref revisedLifetimeCounter);
 
-            Session.CreateSubscription(
-                null,
-                PublishingInterval,
-                revisedLifetimeCounter,
-                revisedKeepAliveCount,
-                MaxNotificationsPerPublish,
-                false,
-                Priority,
-                out uint subscriptionId,
-                out double revisedPublishingInterval,
-                out revisedLifetimeCounter,
-                out revisedKeepAliveCount);
+            ModifySubscriptionResponse response = await Session
+                .ModifySubscriptionAsync(
+                    null,
+                    Id,
+                    PublishingInterval,
+                    revisedLifetimeCounter,
+                    revisedKeepAliveCount,
+                    MaxNotificationsPerPublish,
+                    Priority,
+                    ct)
+                .ConfigureAwait(false);
 
-            CreateSubscription(
-                subscriptionId,
-                revisedPublishingInterval,
-                revisedKeepAliveCount,
-                revisedLifetimeCounter);
-
-            CreateItems();
-
-            // only enable publishing afer CreateSubscription is called to avoid race conditions with subscription cleanup.
-            if (PublishingEnabled)
-            {
-                SetPublishingMode(PublishingEnabled);
-            }
+            // update current state.
+            ModifySubscription(
+                response.RevisedPublishingInterval,
+                response.RevisedMaxKeepAliveCount,
+                response.RevisedLifetimeCount);
 
             ChangesCompleted();
-
-            TraceState("CREATED");
         }
 
         /// <summary>
-        /// Called after the subscription was transferred.
+        /// Changes the publishing enabled state for the subscription.
         /// </summary>
-        /// <param name="session">The session to which the subscription is transferred.</param>
-        /// <param name="id">Id of the transferred subscription.</param>
-        /// <param name="availableSequenceNumbers">The available sequence numbers on the server.</param>
-        public bool Transfer(ISession session, uint id, UInt32Collection availableSequenceNumbers)
+        /// <exception cref="ServiceResultException"></exception>
+        public async Task SetPublishingModeAsync(bool enabled, CancellationToken ct = default)
         {
-            if (Created)
+            VerifySubscriptionState(true);
+
+            // modify the subscription.
+            UInt32Collection subscriptionIds = new uint[] { Id };
+
+            SetPublishingModeResponse response = await Session
+                .SetPublishingModeAsync(null, enabled, new uint[] { Id }, ct)
+                .ConfigureAwait(false);
+
+            // validate response.
+            ClientBase.ValidateResponse(response.Results, subscriptionIds);
+            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, subscriptionIds);
+
+            if (StatusCode.IsBad(response.Results[0]))
             {
-                // handle the case when the client has the subscription template and reconnects
-                if (id != Id)
-                {
-                    return false;
-                }
-
-                // remove the subscription from disconnected session
-                if (Session?.RemoveTransferredSubscription(this) != true)
-                {
-                    Utils.LogError(
-                        "SubscriptionId {0}: Failed to remove transferred subscription from owner SessionId={1}.",
-                        Id,
-                        Session?.SessionId);
-                    return false;
-                }
-
-                // remove default subscription template which was copied in Session.Create()
-                var subscriptionsToRemove = session.Subscriptions
-                    .Where(s => !s.Created && s.TransferId == Id)
-                    .ToList();
-                session.RemoveSubscriptions(subscriptionsToRemove);
-
-                // add transferred subscription to session
-                if (!session.AddSubscription(this))
-                {
-                    Utils.LogError(
-                        "SubscriptionId {0}: Failed to add transferred subscription to SessionId={1}.",
-                        Id,
-                        session.SessionId);
-                    return false;
-                }
-            }
-            else
-            {
-                // handle the case when the client restarts and loads the saved subscriptions from storage
-                if (!GetMonitoredItems(
-                    out UInt32Collection serverHandles,
-                    out UInt32Collection clientHandles))
-                {
-                    Utils.LogError(
-                        "SubscriptionId {0}: The server failed to respond to GetMonitoredItems after transfer.",
-                        Id);
-                    return false;
-                }
-
-                int monitoredItemsCount = m_monitoredItems.Count;
-                if (serverHandles.Count != monitoredItemsCount ||
-                    clientHandles.Count != monitoredItemsCount)
-                {
-                    // invalid state
-                    Utils.LogError(
-                        "SubscriptionId {0}: Number of Monitored Items on client and server do not match after transfer {1}!={2}",
-                        Id,
-                        serverHandles.Count,
-                        monitoredItemsCount);
-                    return false;
-                }
-
-                // sets state to 'Created'
-                Id = id;
-                TransferItems(serverHandles, clientHandles, out IList<MonitoredItem> itemsToModify);
-
-                ModifyItems();
+                throw new ServiceResultException(
+                    ClientBase.GetResult(
+                        response.Results[0],
+                        0,
+                        response.DiagnosticInfos,
+                        response.ResponseHeader));
             }
 
-            // add available sequence numbers to incoming
-            ProcessTransferredSequenceNumbers(availableSequenceNumbers);
+            // update current state.
+            CurrentPublishingEnabled = PublishingEnabled = enabled;
+            m_changeMask |= SubscriptionChangeMask.Modified;
 
-            m_changeMask |= SubscriptionChangeMask.Transferred;
             ChangesCompleted();
-
-            StartKeepAliveTimer();
-
-            TraceState("TRANSFERRED");
-
-            return true;
         }
 
-#if CLIENT_ASYNC
+        /// <summary>
+        /// Republishes the specified notification message.
+        /// </summary>
+        public async Task<NotificationMessage> RepublishAsync(
+            uint sequenceNumber,
+            CancellationToken ct = default)
+        {
+            VerifySubscriptionState(true);
+
+            RepublishResponse response = await Session
+                .RepublishAsync(null, Id, sequenceNumber, ct)
+                .ConfigureAwait(false);
+
+            return response.NotificationMessage;
+        }
+
+        /// <summary>
+        /// Applies any changes to the subscription items.
+        /// </summary>
+        public async Task ApplyChangesAsync(CancellationToken ct = default)
+        {
+            await DeleteItemsAsync(ct).ConfigureAwait(false);
+            await ModifyItemsAsync(ct).ConfigureAwait(false);
+            await CreateItemsAsync(ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Resolves all relative paths to nodes on the server.
+        /// </summary>
+        public async Task ResolveItemNodeIdsAsync(CancellationToken ct = default)
+        {
+            VerifySubscriptionState(true);
+
+            // collect list of browse paths.
+            var browsePaths = new BrowsePathCollection();
+            var itemsToBrowse = new List<MonitoredItem>();
+
+            PrepareResolveItemNodeIds(browsePaths, itemsToBrowse);
+
+            // nothing to do.
+            if (browsePaths.Count == 0)
+            {
+                return;
+            }
+
+            // translate browse paths.
+            TranslateBrowsePathsToNodeIdsResponse response = await Session
+                .TranslateBrowsePathsToNodeIdsAsync(null, browsePaths, ct)
+                .ConfigureAwait(false);
+
+            BrowsePathResultCollection results = response.Results;
+            ClientBase.ValidateResponse(results, browsePaths);
+            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, browsePaths);
+
+            // update results.
+            for (int ii = 0; ii < results.Count; ii++)
+            {
+                itemsToBrowse[ii]
+                    .SetResolvePathResult(
+                        results[ii],
+                        ii,
+                        response.DiagnosticInfos,
+                        response.ResponseHeader);
+            }
+
+            m_changeMask |= SubscriptionChangeMask.ItemsModified;
+        }
+
+        /// <summary>
+        /// Creates all items on the server that have not already been created.
+        /// </summary>
+        public async Task<IList<MonitoredItem>> CreateItemsAsync(CancellationToken ct = default)
+        {
+            MonitoredItemCreateRequestCollection requestItems;
+            List<MonitoredItem> itemsToCreate;
+
+            (requestItems, itemsToCreate) = await PrepareItemsToCreateAsync(ct)
+                .ConfigureAwait(false);
+
+            if (requestItems.Count == 0)
+            {
+                return itemsToCreate;
+            }
+
+            // create monitored items.
+            CreateMonitoredItemsResponse response = await Session
+                .CreateMonitoredItemsAsync(null, Id, TimestampsToReturn, requestItems, ct)
+                .ConfigureAwait(false);
+
+            MonitoredItemCreateResultCollection results = response.Results;
+            ClientBase.ValidateResponse(results, itemsToCreate);
+            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, itemsToCreate);
+
+            // update results.
+            for (int ii = 0; ii < results.Count; ii++)
+            {
+                itemsToCreate[ii]
+                    .SetCreateResult(
+                        requestItems[ii],
+                        results[ii],
+                        ii,
+                        response.DiagnosticInfos,
+                        response.ResponseHeader);
+            }
+
+            m_changeMask |= SubscriptionChangeMask.ItemsCreated;
+            ChangesCompleted();
+
+            // return the list of items affected by the change.
+            return itemsToCreate;
+        }
+
+        /// <summary>
+        /// Modifies all items that have been changed.
+        /// </summary>
+        public async Task<IList<MonitoredItem>> ModifyItemsAsync(CancellationToken ct = default)
+        {
+            VerifySubscriptionState(true);
+
+            var requestItems = new MonitoredItemModifyRequestCollection();
+            var itemsToModify = new List<MonitoredItem>();
+
+            PrepareItemsToModify(requestItems, itemsToModify);
+
+            if (requestItems.Count == 0)
+            {
+                return itemsToModify;
+            }
+
+            // modify the subscription.
+            ModifyMonitoredItemsResponse response = await Session
+                .ModifyMonitoredItemsAsync(null, Id, TimestampsToReturn, requestItems, ct)
+                .ConfigureAwait(false);
+
+            MonitoredItemModifyResultCollection results = response.Results;
+            ClientBase.ValidateResponse(results, itemsToModify);
+            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, itemsToModify);
+
+            // update results.
+            for (int ii = 0; ii < results.Count; ii++)
+            {
+                itemsToModify[ii]
+                    .SetModifyResult(
+                        requestItems[ii],
+                        results[ii],
+                        ii,
+                        response.DiagnosticInfos,
+                        response.ResponseHeader);
+            }
+
+            m_changeMask |= SubscriptionChangeMask.ItemsModified;
+            ChangesCompleted();
+
+            // return the list of items affected by the change.
+            return itemsToModify;
+        }
+
+        /// <summary>
+        /// Deletes all items that have been marked for deletion.
+        /// </summary>
+        public async Task<IList<MonitoredItem>> DeleteItemsAsync(
+            CancellationToken ct = default)
+        {
+            VerifySubscriptionState(true);
+
+            if (m_deletedItems.Count == 0)
+            {
+                return [];
+            }
+
+            List<MonitoredItem> itemsToDelete = m_deletedItems;
+            m_deletedItems = [];
+
+            var monitoredItemIds = new UInt32Collection();
+
+            foreach (MonitoredItem monitoredItem in itemsToDelete)
+            {
+                monitoredItemIds.Add(monitoredItem.Status.Id);
+            }
+
+            DeleteMonitoredItemsResponse response = await Session
+                .DeleteMonitoredItemsAsync(null, Id, monitoredItemIds, ct)
+                .ConfigureAwait(false);
+
+            StatusCodeCollection results = response.Results;
+            ClientBase.ValidateResponse(results, monitoredItemIds);
+            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, monitoredItemIds);
+
+            // update results.
+            for (int ii = 0; ii < results.Count; ii++)
+            {
+                itemsToDelete[ii].SetDeleteResult(
+                    results[ii],
+                    ii,
+                    response.DiagnosticInfos,
+                    response.ResponseHeader);
+            }
+
+            m_changeMask |= SubscriptionChangeMask.ItemsDeleted;
+            ChangesCompleted();
+
+            // return the list of items affected by the change.
+            return itemsToDelete;
+        }
+
+        /// <summary>
+        /// Set monitoring mode of items.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="monitoredItems"/>
+        /// is <c>null</c>.</exception>
+        public async Task<List<ServiceResult>> SetMonitoringModeAsync(
+            MonitoringMode monitoringMode,
+            IList<MonitoredItem> monitoredItems,
+            CancellationToken ct = default)
+        {
+            if (monitoredItems == null)
+            {
+                throw new ArgumentNullException(nameof(monitoredItems));
+            }
+
+            VerifySubscriptionState(true);
+
+            if (monitoredItems.Count == 0)
+            {
+                return null;
+            }
+
+            // get list of items to update.
+            var monitoredItemIds = new UInt32Collection();
+            foreach (MonitoredItem monitoredItem in monitoredItems)
+            {
+                monitoredItemIds.Add(monitoredItem.Status.Id);
+            }
+
+            SetMonitoringModeResponse response = await Session
+                .SetMonitoringModeAsync(null, Id, monitoringMode, monitoredItemIds, ct)
+                .ConfigureAwait(false);
+
+            StatusCodeCollection results = response.Results;
+            ClientBase.ValidateResponse(results, monitoredItemIds);
+            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, monitoredItemIds);
+
+            // update results.
+            var errors = new List<ServiceResult>();
+            bool noErrors = UpdateMonitoringMode(
+                monitoredItems,
+                errors,
+                results,
+                response.DiagnosticInfos,
+                response.ResponseHeader,
+                monitoringMode);
+
+            // raise state changed event.
+            m_changeMask |= SubscriptionChangeMask.ItemsModified;
+            ChangesCompleted();
+
+            // return null list if no errors occurred.
+            if (noErrors)
+            {
+                return null;
+            }
+
+            return errors;
+        }
+
+        /// <summary>
+        /// Tells the server to refresh all conditions being monitored by the subscription.
+        /// </summary>
+        public async Task<bool> ConditionRefreshAsync(CancellationToken ct = default)
+        {
+            VerifySubscriptionState(true);
+
+            var methodsToCall = new CallMethodRequestCollection
+            {
+                new CallMethodRequest
+                {
+                    ObjectId = ObjectTypeIds.ConditionType,
+                    MethodId = MethodIds.ConditionType_ConditionRefresh,
+                    InputArguments = [new Variant(Id)]
+                }
+            };
+
+            try
+            {
+                await Session.CallAsync(null, methodsToCall, ct).ConfigureAwait(false);
+                return true;
+            }
+            catch (ServiceResultException)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Tells the server to refresh all conditions being monitored by the subscription for a specific
+        /// monitoredItem for events.
+        /// </summary>
+        public async Task<bool> ConditionRefresh2Async(
+            uint monitoredItemId,
+            CancellationToken ct = default)
+        {
+            VerifySubscriptionState(true);
+
+            var methodsToCall = new CallMethodRequestCollection
+            {
+                new CallMethodRequest
+                {
+                    ObjectId = ObjectTypeIds.ConditionType,
+                    MethodId = MethodIds.ConditionType_ConditionRefresh2,
+                    InputArguments = [new Variant(Id), new Variant(monitoredItemId)]
+                }
+            };
+
+            try
+            {
+                await Session.CallAsync(null, methodsToCall, ct).ConfigureAwait(false);
+                return true;
+            }
+            catch (ServiceResultException)
+            {
+                return false;
+            }
+        }
+
         /// <summary>
         /// Called after the subscription was transferred.
         /// </summary>
@@ -959,402 +1321,6 @@ namespace Opc.Ua.Client
             TraceState("TRANSFERRED ASYNC");
 
             return true;
-        }
-#endif
-
-        /// <summary>
-        /// Deletes a subscription on the server.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public void Delete(bool silent)
-        {
-            if (!silent)
-            {
-                VerifySubscriptionState(true);
-            }
-
-            // nothing to do if not created.
-            if (!Created)
-            {
-                return;
-            }
-
-            try
-            {
-                TraceState("DELETE");
-
-                ResetPublishTimerAndWorkerState();
-
-                // delete the subscription.
-                UInt32Collection subscriptionIds = new uint[] { Id };
-
-                ResponseHeader responseHeader = Session.DeleteSubscriptions(
-                    null,
-                    subscriptionIds,
-                    out StatusCodeCollection results,
-                    out DiagnosticInfoCollection diagnosticInfos);
-
-                // validate response.
-                ClientBase.ValidateResponse(results, subscriptionIds);
-                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
-
-                if (StatusCode.IsBad(results[0]))
-                {
-                    throw new ServiceResultException(
-                        ClientBase.GetResult(results[0], 0, diagnosticInfos, responseHeader));
-                }
-            }
-            // suppress exception if silent flag is set.
-            catch (Exception e)
-            {
-                if (!silent)
-                {
-                    throw new ServiceResultException(e, StatusCodes.BadUnexpectedError);
-                }
-            }
-            // always put object in disconnected state even if an error occurs.
-            finally
-            {
-                DeleteSubscription();
-            }
-
-            ChangesCompleted();
-        }
-
-        /// <summary>
-        /// Modifies a subscription on the server.
-        /// </summary>
-        public void Modify()
-        {
-            VerifySubscriptionState(true);
-
-            // modify the subscription.
-            uint revisedKeepAliveCount = KeepAliveCount;
-            uint revisedLifetimeCounter = LifetimeCount;
-
-            AdjustCounts(ref revisedKeepAliveCount, ref revisedLifetimeCounter);
-
-            Session.ModifySubscription(
-                null,
-                Id,
-                PublishingInterval,
-                revisedLifetimeCounter,
-                revisedKeepAliveCount,
-                MaxNotificationsPerPublish,
-                Priority,
-                out double revisedPublishingInterval,
-                out revisedLifetimeCounter,
-                out revisedKeepAliveCount);
-
-            // update current state.
-            ModifySubscription(
-                revisedPublishingInterval,
-                revisedKeepAliveCount,
-                revisedLifetimeCounter);
-
-            ChangesCompleted();
-
-            TraceState("MODIFIED");
-        }
-
-        /// <summary>
-        /// Changes the publishing enabled state for the subscription.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        public void SetPublishingMode(bool enabled)
-        {
-            VerifySubscriptionState(true);
-
-            // modify the subscription.
-            UInt32Collection subscriptionIds = new uint[] { Id };
-
-            ResponseHeader responseHeader = Session.SetPublishingMode(
-                null,
-                enabled,
-                new uint[] { Id },
-                out StatusCodeCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
-
-            // validate response.
-            ClientBase.ValidateResponse(results, subscriptionIds);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
-
-            if (StatusCode.IsBad(results[0]))
-            {
-                throw new ServiceResultException(
-                    ClientBase.GetResult(results[0], 0, diagnosticInfos, responseHeader));
-            }
-
-            // update current state.
-            CurrentPublishingEnabled = PublishingEnabled = enabled;
-
-            m_changeMask |= SubscriptionChangeMask.Modified;
-            ChangesCompleted();
-
-            TraceState(enabled ? "PUBLISHING ENABLED" : "PUBLISHING DISABLED");
-        }
-
-        /// <summary>
-        /// Republishes the specified notification message.
-        /// </summary>
-        public NotificationMessage Republish(uint sequenceNumber)
-        {
-            VerifySubscriptionState(true);
-
-            Session.Republish(null, Id, sequenceNumber, out NotificationMessage message);
-
-            return message;
-        }
-
-        /// <summary>
-        /// Applies any changes to the subscription items.
-        /// </summary>
-        public void ApplyChanges()
-        {
-            DeleteItems();
-            ModifyItems();
-            CreateItems();
-        }
-
-        /// <summary>
-        /// Resolves all relative paths to nodes on the server.
-        /// </summary>
-        public void ResolveItemNodeIds()
-        {
-            VerifySubscriptionState(true);
-
-            // collect list of browse paths.
-            var browsePaths = new BrowsePathCollection();
-            var itemsToBrowse = new List<MonitoredItem>();
-
-            PrepareResolveItemNodeIds(browsePaths, itemsToBrowse);
-
-            // nothing to do.
-            if (browsePaths.Count == 0)
-            {
-                return;
-            }
-
-            // translate browse paths.
-
-            ResponseHeader responseHeader = Session.TranslateBrowsePathsToNodeIds(
-                null,
-                browsePaths,
-                out BrowsePathResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
-
-            ClientBase.ValidateResponse(results, browsePaths);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, browsePaths);
-
-            // update results.
-            for (int ii = 0; ii < results.Count; ii++)
-            {
-                itemsToBrowse[ii].SetResolvePathResult(
-                    results[ii],
-                    ii,
-                    diagnosticInfos,
-                    responseHeader);
-            }
-
-            m_changeMask |= SubscriptionChangeMask.ItemsModified;
-        }
-
-        /// <summary>
-        /// Creates all items that have not already been created.
-        /// </summary>
-        public IList<MonitoredItem> CreateItems()
-        {
-            MonitoredItemCreateRequestCollection requestItems = PrepareItemsToCreate(
-                out List<MonitoredItem> itemsToCreate);
-
-            if (requestItems.Count == 0)
-            {
-                return itemsToCreate;
-            }
-
-            // create monitored items.
-
-            ResponseHeader responseHeader = Session.CreateMonitoredItems(
-                null,
-                Id,
-                TimestampsToReturn,
-                requestItems,
-                out MonitoredItemCreateResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
-
-            ClientBase.ValidateResponse(results, itemsToCreate);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToCreate);
-
-            // update results.
-            for (int ii = 0; ii < results.Count; ii++)
-            {
-                itemsToCreate[ii].SetCreateResult(
-                    requestItems[ii],
-                    results[ii],
-                    ii,
-                    diagnosticInfos,
-                    responseHeader);
-            }
-
-            m_changeMask |= SubscriptionChangeMask.ItemsCreated;
-            ChangesCompleted();
-
-            // return the list of items affected by the change.
-            return itemsToCreate;
-        }
-
-        /// <summary>
-        /// Modifies all items that have been changed.
-        /// </summary>
-        public IList<MonitoredItem> ModifyItems()
-        {
-            VerifySubscriptionState(true);
-
-            var requestItems = new MonitoredItemModifyRequestCollection();
-            var itemsToModify = new List<MonitoredItem>();
-
-            PrepareItemsToModify(requestItems, itemsToModify);
-
-            if (requestItems.Count == 0)
-            {
-                return itemsToModify;
-            }
-
-            // modify the subscription.
-
-            ResponseHeader responseHeader = Session.ModifyMonitoredItems(
-                null,
-                Id,
-                TimestampsToReturn,
-                requestItems,
-                out MonitoredItemModifyResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
-
-            ClientBase.ValidateResponse(results, itemsToModify);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToModify);
-
-            // update results.
-            for (int ii = 0; ii < results.Count; ii++)
-            {
-                itemsToModify[ii].SetModifyResult(
-                    requestItems[ii],
-                    results[ii],
-                    ii,
-                    diagnosticInfos,
-                    responseHeader);
-            }
-
-            m_changeMask |= SubscriptionChangeMask.ItemsModified;
-            ChangesCompleted();
-
-            // return the list of items affected by the change.
-            return itemsToModify;
-        }
-
-        /// <summary>
-        /// Deletes all items that have been marked for deletion.
-        /// </summary>
-        public IList<MonitoredItem> DeleteItems()
-        {
-            VerifySubscriptionState(true);
-
-            if (m_deletedItems.Count == 0)
-            {
-                return [];
-            }
-
-            List<MonitoredItem> itemsToDelete = m_deletedItems;
-            m_deletedItems = [];
-
-            var monitoredItemIds = new UInt32Collection();
-
-            foreach (MonitoredItem monitoredItem in itemsToDelete)
-            {
-                monitoredItemIds.Add(monitoredItem.Status.Id);
-            }
-
-            ResponseHeader responseHeader = Session.DeleteMonitoredItems(
-                null,
-                Id,
-                monitoredItemIds,
-                out StatusCodeCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
-
-            ClientBase.ValidateResponse(results, monitoredItemIds);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, monitoredItemIds);
-
-            // update results.
-            for (int ii = 0; ii < results.Count; ii++)
-            {
-                itemsToDelete[ii].SetDeleteResult(results[ii], ii, diagnosticInfos, responseHeader);
-            }
-
-            m_changeMask |= SubscriptionChangeMask.ItemsDeleted;
-            ChangesCompleted();
-
-            // return the list of items affected by the change.
-            return itemsToDelete;
-        }
-
-        /// <summary>
-        /// Set monitoring mode of items.
-        /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="monitoredItems"/> is <c>null</c>.</exception>
-        public List<ServiceResult> SetMonitoringMode(
-            MonitoringMode monitoringMode,
-            IList<MonitoredItem> monitoredItems)
-        {
-            if (monitoredItems == null)
-            {
-                throw new ArgumentNullException(nameof(monitoredItems));
-            }
-
-            VerifySubscriptionState(true);
-
-            if (monitoredItems.Count == 0)
-            {
-                return null;
-            }
-
-            // get list of items to update.
-            var monitoredItemIds = new UInt32Collection();
-            foreach (MonitoredItem monitoredItem in monitoredItems)
-            {
-                monitoredItemIds.Add(monitoredItem.Status.Id);
-            }
-
-            ResponseHeader responseHeader = Session.SetMonitoringMode(
-                null,
-                Id,
-                monitoringMode,
-                monitoredItemIds,
-                out StatusCodeCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
-
-            ClientBase.ValidateResponse(results, monitoredItemIds);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, monitoredItemIds);
-
-            // update results.
-            var errors = new List<ServiceResult>();
-            bool noErrors = UpdateMonitoringMode(
-                monitoredItems,
-                errors,
-                results,
-                diagnosticInfos,
-                responseHeader,
-                monitoringMode);
-
-            // raise state changed event.
-            m_changeMask |= SubscriptionChangeMask.ItemsModified;
-            ChangesCompleted();
-
-            // return null list if no errors occurred.
-            if (noErrors)
-            {
-                return null;
-            }
-
-            return errors;
         }
 
         /// <summary>
@@ -1630,71 +1596,15 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Tells the server to refresh all conditions being monitored by the subscription.
-        /// </summary>
-        public bool ConditionRefresh()
-        {
-            VerifySubscriptionState(true);
-
-            try
-            {
-                Session.Call(
-                    ObjectTypeIds.ConditionType,
-                    MethodIds.ConditionType_ConditionRefresh,
-                    Id);
-
-                return true;
-            }
-            catch (ServiceResultException sre)
-            {
-                Utils.LogError(
-                    sre,
-                    "SubscriptionId {0}: Failed to call ConditionRefresh on server",
-                    Id);
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// Tells the server to refresh all conditions being monitored by the subscription for a specific
-        /// monitoredItem for events.
-        /// </summary>
-        public bool ConditionRefresh2(uint monitoredItemId)
-        {
-            VerifySubscriptionState(true);
-
-            try
-            {
-                object[] inputArguments = [Id, monitoredItemId];
-
-                Session.Call(
-                    ObjectTypeIds.ConditionType,
-                    MethodIds.ConditionType_ConditionRefresh2,
-                    inputArguments);
-
-                return true;
-            }
-            catch (ServiceResultException sre)
-            {
-                Utils.LogError(
-                    sre,
-                    "SubscriptionId {0}: Item {1} Failed to call ConditionRefresh2 on server",
-                    Id,
-                    monitoredItemId);
-            }
-            return false;
-        }
-
-        /// <summary>
         /// Call the ResendData method on the server for this subscription.
         /// </summary>
-        public bool ResendData()
+        public async Task<bool> ResendDataAsync(CancellationToken ct = default)
         {
             VerifySubscriptionState(true);
-
             try
             {
-                Session.Call(ObjectIds.Server, MethodIds.Server_ResendData, Id);
+                await Session.CallAsync(ObjectIds.Server, MethodIds.Server_ResendData, ct, Id)
+                    .ConfigureAwait(false);
                 return true;
             }
             catch (ServiceResultException sre)
@@ -1707,23 +1617,26 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Call the GetMonitoredItems method on the server.
         /// </summary>
-        public bool GetMonitoredItems(
-            out UInt32Collection serverHandles,
-            out UInt32Collection clientHandles)
+        public async Task<(
+            bool,
+            UInt32Collection,
+            UInt32Collection
+            )> GetMonitoredItemsAsync(CancellationToken ct = default)
         {
-            serverHandles = [];
-            clientHandles = [];
+            var serverHandles = new UInt32Collection();
+            var clientHandles = new UInt32Collection();
             try
             {
-                IList<object> outputArguments = Session.Call(
+                IList<object> outputArguments = await Session.CallAsync(
                     ObjectIds.Server,
                     MethodIds.Server_GetMonitoredItems,
-                    TransferId);
+                    ct,
+                    TransferId).ConfigureAwait(false);
                 if (outputArguments != null && outputArguments.Count == 2)
                 {
                     serverHandles.AddRange((uint[])outputArguments[0]);
                     clientHandles.AddRange((uint[])outputArguments[1]);
-                    return true;
+                    return (true, serverHandles, clientHandles);
                 }
             }
             catch (ServiceResultException sre)
@@ -1733,28 +1646,33 @@ namespace Opc.Ua.Client
                     "SubscriptionId {0}: Failed to call GetMonitoredItems on server",
                     Id);
             }
-            return false;
+            return (false, serverHandles, clientHandles);
         }
 
         /// <summary>
         /// Set the subscription to durable.
         /// </summary>
-        public bool SetSubscriptionDurable(uint lifetimeInHours, out uint revisedLifetimeInHours)
+        public async Task<(bool, uint)> SetSubscriptionDurableAsync(
+            uint lifetimeInHours,
+            CancellationToken ct = default)
         {
-            revisedLifetimeInHours = lifetimeInHours;
+            uint revisedLifetimeInHours = lifetimeInHours;
 
             try
             {
-                IList<object> outputArguments = Session.Call(
-                    ObjectIds.Server,
-                    MethodIds.Server_SetSubscriptionDurable,
-                    Id,
-                    lifetimeInHours);
+                IList<object> outputArguments = await Session
+                    .CallAsync(
+                        ObjectIds.Server,
+                        MethodIds.Server_SetSubscriptionDurable,
+                        ct,
+                        Id,
+                        lifetimeInHours)
+                    .ConfigureAwait(false);
 
                 if (outputArguments != null && outputArguments.Count == 1)
                 {
                     revisedLifetimeInHours = (uint)outputArguments[0];
-                    return true;
+                    return (true, revisedLifetimeInHours);
                 }
             }
             catch (ServiceResultException sre)
@@ -1765,7 +1683,7 @@ namespace Opc.Ua.Client
                     Id);
             }
 
-            return false;
+            return (false, revisedLifetimeInHours);
         }
 
         /// <summary>
@@ -1775,7 +1693,8 @@ namespace Opc.Ua.Client
         /// If <see cref="RepublishAfterTransfer"/> is set to <c>true</c>, sequence numbers
         /// are queued for republish, otherwise ack may be sent.
         /// </remarks>
-        /// <param name="availableSequenceNumbers">The list of available sequence numbers on the server.</param>
+        /// <param name="availableSequenceNumbers">The list of available sequence
+        /// numbers on the server.</param>
         private void ProcessTransferredSequenceNumbers(UInt32Collection availableSequenceNumbers)
         {
             lock (m_cache)
@@ -1849,77 +1768,9 @@ namespace Opc.Ua.Client
             }
         }
 
-#if CLIENT_ASYNC
         /// <summary>
-        /// Call the GetMonitoredItems method on the server.
-        /// </summary>
-        public async Task<(bool, UInt32Collection, UInt32Collection)> GetMonitoredItemsAsync(
-            CancellationToken ct = default)
-        {
-            var serverHandles = new UInt32Collection();
-            var clientHandles = new UInt32Collection();
-            try
-            {
-                IList<object> outputArguments = await Session
-                    .CallAsync(ObjectIds.Server, MethodIds.Server_GetMonitoredItems, ct, TransferId)
-                    .ConfigureAwait(false);
-                if (outputArguments != null && outputArguments.Count == 2)
-                {
-                    serverHandles.AddRange((uint[])outputArguments[0]);
-                    clientHandles.AddRange((uint[])outputArguments[1]);
-                    return (true, serverHandles, clientHandles);
-                }
-            }
-            catch (ServiceResultException sre)
-            {
-                Utils.LogError(
-                    sre,
-                    "SubscriptionId {0}: Failed to call GetMonitoredItems on server",
-                    Id);
-            }
-            return (false, serverHandles, clientHandles);
-        }
-
-        /// <summary>
-        /// Set the subscription to durable.
-        /// </summary>
-        public async Task<(bool, uint)> SetSubscriptionDurableAsync(
-            uint lifetimeInHours,
-            CancellationToken ct = default)
-        {
-            uint revisedLifetimeInHours = lifetimeInHours;
-
-            try
-            {
-                IList<object> outputArguments = await Session
-                    .CallAsync(
-                        ObjectIds.Server,
-                        MethodIds.Server_SetSubscriptionDurable,
-                        ct,
-                        TransferId,
-                        lifetimeInHours)
-                    .ConfigureAwait(false);
-
-                if (outputArguments != null && outputArguments.Count == 1)
-                {
-                    revisedLifetimeInHours = (uint)outputArguments[0];
-                    return (true, revisedLifetimeInHours);
-                }
-            }
-            catch (ServiceResultException sre)
-            {
-                Utils.LogError(
-                    sre,
-                    "SubscriptionId {0}: Failed to call SetSubscriptionDurable on server",
-                    Id);
-            }
-
-            return (false, revisedLifetimeInHours);
-        }
-#endif
-
-        /// <summary>
-        /// Starts a timer to ensure publish requests are sent frequently enough to detect network interruptions.
+        /// Starts a timer to ensure publish requests are sent frequently enough
+        /// to detect network interruptions.
         /// </summary>
         /// <exception cref="ObjectDisposedException"></exception>
         private void StartKeepAliveTimer()
@@ -2662,16 +2513,17 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Prepare the creation requests for all monitored items that have not yet been created.
         /// </summary>
-        private MonitoredItemCreateRequestCollection PrepareItemsToCreate(
-            out List<MonitoredItem> itemsToCreate)
+        private async Task<(
+            MonitoredItemCreateRequestCollection,
+            List<MonitoredItem>
+            )> PrepareItemsToCreateAsync(CancellationToken ct = default)
         {
             VerifySubscriptionState(true);
 
-            ResolveItemNodeIds();
+            await ResolveItemNodeIdsAsync(ct).ConfigureAwait(false);
 
             var requestItems = new MonitoredItemCreateRequestCollection();
-            itemsToCreate = [];
-
+            var itemsToCreate = new List<MonitoredItem>();
             lock (m_cache)
             {
                 foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
@@ -2707,7 +2559,7 @@ namespace Opc.Ua.Client
                     itemsToCreate.Add(monitoredItem);
                 }
             }
-            return requestItems;
+            return (requestItems, itemsToCreate);
         }
 
         /// <summary>

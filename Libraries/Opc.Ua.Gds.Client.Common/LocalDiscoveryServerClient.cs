@@ -173,7 +173,7 @@ namespace Opc.Ua.Gds.Client
             }
             finally
             {
-                data.DiscoveryClient.Close();
+                data.DiscoveryClient.CloseAsync().GetAwaiter().GetResult();
             }
         }
 
@@ -298,7 +298,7 @@ namespace Opc.Ua.Gds.Client
             }
             finally
             {
-                data.DiscoveryClient.Close();
+                data.DiscoveryClient.CloseAsync().GetAwaiter().GetResult();
             }
         }
 
@@ -474,7 +474,7 @@ namespace Opc.Ua.Gds.Client
             }
             finally
             {
-                data.DiscoveryClient.Close();
+                data.DiscoveryClient.CloseAsync().GetAwaiter().GetResult();
             }
         }
 

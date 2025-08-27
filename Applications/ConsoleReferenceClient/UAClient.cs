@@ -150,7 +150,10 @@ namespace Quickstarts
                     subscriptions.Count.ToString(CultureInfo.InvariantCulture) +
                     " subscriptions from old session to new session..."
                 );
-                success = Session.TransferSubscriptions(subscriptions, true);
+                success = await Session.TransferSubscriptionsAsync(
+                    subscriptions,
+                    true,
+                    ct).ConfigureAwait(false);
                 if (success)
                 {
                     m_output.WriteLine("Subscriptions transferred.");
@@ -213,11 +216,12 @@ namespace Quickstarts
                             if (endpointDescription == null)
                             {
                                 m_output.WriteLine("Discover reverse connection endpoints....");
-                                endpointDescription = CoreClientUtils.SelectEndpoint(
+                                endpointDescription = await CoreClientUtils.SelectEndpointAsync(
                                     m_configuration,
                                     connection,
-                                    useSecurity
-                                );
+                                    useSecurity,
+                                    ct
+                                ).ConfigureAwait(false);
                                 connection = null;
                             }
                         } while (connection == null);
@@ -225,10 +229,11 @@ namespace Quickstarts
                     else
                     {
                         m_output.WriteLine("Connecting to... {0}", serverUrl);
-                        endpointDescription = CoreClientUtils.SelectEndpoint(
+                        endpointDescription = await CoreClientUtils.SelectEndpointAsync(
                             m_configuration,
                             serverUrl,
-                            useSecurity);
+                            useSecurity,
+                            ct).ConfigureAwait(false);
                     }
 
                     // Get the endpoint by connecting to server's discovery endpoint.
@@ -298,7 +303,7 @@ namespace Quickstarts
         /// Disconnects the session.
         /// </summary>
         /// <param name="leaveChannelOpen">Leaves the channel open.</param>
-        public void Disconnect(bool leaveChannelOpen = false)
+        public async Task DisconnectAsync(bool leaveChannelOpen = false, CancellationToken ct = default)
         {
             try
             {
@@ -313,7 +318,7 @@ namespace Quickstarts
                         m_reconnectHandler = null;
                     }
 
-                    Session.Close(!leaveChannelOpen);
+                    await Session.CloseAsync(!leaveChannelOpen, ct).ConfigureAwait(false);
                     if (leaveChannelOpen)
                     {
                         // detach the channel, so it doesn't get
