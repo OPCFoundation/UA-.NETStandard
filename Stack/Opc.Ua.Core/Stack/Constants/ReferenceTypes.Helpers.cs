@@ -29,6 +29,11 @@ namespace Opc.Ua
     public static partial class ReferenceTypes
     {
         /// <summary>
+        /// Returns the browse names for all reference types.
+        /// </summary>
+        public static IEnumerable<string> BrowseNames => s_referenceTypeNameToId.Value.Keys;
+
+        /// <summary>
         /// Returns the browse name for the attribute.
         /// </summary>
         public static string GetBrowseName(uint identifier)
@@ -40,9 +45,10 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the browse names for all reference types.
         /// </summary>
-        public static IEnumerable<string> GetBrowseNames()
+        [Obsolete("Use BrowseNames property instead.")]
+        public static string[] GetBrowseNames()
         {
-            return s_referenceTypeNameToId.Value.Keys;
+            return [.. BrowseNames];
         }
 
         /// <summary>
@@ -55,7 +61,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a dictionary of uris to name excluding base uri
+        /// Creates a dictionary of reference type browse names to identifers.
         /// </summary>
         private static readonly Lazy<IReadOnlyDictionary<string, uint>> s_referenceTypeNameToId =
             new(() =>
@@ -88,6 +94,5 @@ namespace Opc.Ua
                 return new ReadOnlyDictionary<uint, string>(keyValuePairs);
 #endif
             });
-
     }
 }

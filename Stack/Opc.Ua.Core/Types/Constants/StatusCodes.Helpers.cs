@@ -28,6 +28,12 @@ namespace Opc.Ua
     /// </summary>
     public static partial class StatusCodes
     {
+
+        /// <summary>
+        /// Returns the browse names for all attributes
+        /// </summary>
+        public static IEnumerable<string> BrowseNames => s_symbolToStatusCode.Value.Keys;
+
         /// <summary>
         /// Returns the browse name for the attribute.
         /// </summary>
@@ -49,9 +55,10 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the browse names for all attributes.
         /// </summary>
-        public static IEnumerable<string> GetBrowseNames()
+        [Obsolete("Use BrowseNames property instead.")]
+        public static string[] GetBrowseNames()
         {
-            return s_statusCodeToSymbol.Value.Values;
+            return [.. BrowseNames];
         }
 
         /// <summary>
@@ -59,14 +66,14 @@ namespace Opc.Ua
         /// </summary>
         public static uint GetIdentifier(string browseName)
         {
-            return s_statusSymbolToCode.Value.TryGetValue(browseName, out uint id)
+            return s_symbolToStatusCode.Value.TryGetValue(browseName, out uint id)
                 ? id : 0;
         }
 
         /// <summary>
         /// Creates a dictionary of browse names to status codes
         /// </summary>
-        private static readonly Lazy<IReadOnlyDictionary<string, uint>> s_statusSymbolToCode =
+        private static readonly Lazy<IReadOnlyDictionary<string, uint>> s_symbolToStatusCode =
             new(() =>
             {
 #if NET8_0_OR_GREATER

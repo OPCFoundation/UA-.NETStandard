@@ -34,6 +34,11 @@ namespace Opc.Ua
         public const int MaxAttributes = (int)AccessLevelEx - (int)NodeId + 1;
 
         /// <summary>
+        /// Returns the browse names for all attributes
+        /// </summary>
+        public static IEnumerable<string> BrowseNames => s_attributesNameToId.Value.Keys;
+
+        /// <summary>
         /// Returns true if the attribute id is valid.
         /// </summary>
         public static bool IsValid(uint attributeId)
@@ -53,9 +58,10 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the browse names for all attributes.
         /// </summary>
-        public static IEnumerable<string> GetBrowseNames()
+        [Obsolete("Use BrowseNames property instead.")]
+        public static string[] GetBrowseNames()
         {
-            return s_attributesNameToId.Value.Keys;
+            return [.. BrowseNames];
         }
 
         /// <summary>
