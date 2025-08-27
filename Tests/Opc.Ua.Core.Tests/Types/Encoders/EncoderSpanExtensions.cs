@@ -12,6 +12,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Bridges encoder.WriteByteString(string, ReadOnlySpan<byte>) to the byte[] overloads.
         /// </summary>
         /// <returns></returns>
+        /// <exception cref="ArgumentNullException"><paramref name="encoder"/> is <c>null</c>.</exception>
         public static void WriteByteString(this IEncoder encoder, string fieldName, ReadOnlySpan<byte> value)
         {
             if (encoder == null)
@@ -25,13 +26,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // - otherwise => encode the span content
             if (value == ReadOnlySpan<byte>.Empty)
             {
-                encoder.WriteByteString(fieldName, (byte[])null);
+                encoder.WriteByteString(fieldName, null);
                 return;
             }
 
             if (value.IsEmpty)
             {
-                encoder.WriteByteString(fieldName, Array.Empty<byte>());
+                encoder.WriteByteString(fieldName, []);
                 return;
             }
 

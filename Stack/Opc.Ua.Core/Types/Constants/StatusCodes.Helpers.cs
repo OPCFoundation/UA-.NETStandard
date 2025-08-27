@@ -28,7 +28,6 @@ namespace Opc.Ua
     /// </summary>
     public static partial class StatusCodes
     {
-
         /// <summary>
         /// Returns the browse names for all attributes
         /// </summary>
