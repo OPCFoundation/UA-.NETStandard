@@ -1100,7 +1100,7 @@ namespace Quickstarts
             var stopWatch = new Stopwatch();
             stopWatch.Start();
 
-            var complexTypeSystem = new ComplexTypeSystem(session);
+            var complexTypeSystem = new ComplexTypeSystem(session, m_complexTypeBuilderFactory);
             await complexTypeSystem.LoadAsync().ConfigureAwait(false);
 
             stopWatch.Stop();
@@ -1133,6 +1133,8 @@ namespace Quickstarts
 
             return complexTypeSystem;
         }
+
+        private static readonly ComplexTypeBuilderFactory m_complexTypeBuilderFactory = new ComplexTypeBuilderFactory();
 
         /// <summary>
         /// Read all ReferenceTypeIds from the server that are not known by the client.
