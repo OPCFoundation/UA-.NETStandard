@@ -227,9 +227,9 @@ namespace Opc.Ua
             switch (valueRank)
             {
                 case ValueRanks.Scalar:
-                    return TypeInfo.CreateScalar(builtInType);
+                    return CreateScalar(builtInType);
                 case ValueRanks.OneDimension:
-                    return TypeInfo.CreateArray(builtInType);
+                    return CreateArray(builtInType);
                 default:
                     return new TypeInfo(builtInType, valueRank);
             }
@@ -778,7 +778,7 @@ namespace Opc.Ua
                 // nulls allowed for all array types.
                 if (expectedValueRank != ValueRanks.Scalar)
                 {
-                    return TypeInfo.CreateArray(expectedType);
+                    return CreateArray(expectedType);
                 }
 
                 // check if the type supports nulls.
@@ -794,7 +794,7 @@ namespace Opc.Ua
                     case BuiltInType.DataValue:
                     case BuiltInType.Variant:
                     case BuiltInType.ExtensionObject:
-                        return TypeInfo.CreateScalar(expectedType);
+                        return CreateScalar(expectedType);
                 }
 
                 // nulls not allowed.
@@ -1343,7 +1343,7 @@ namespace Opc.Ua
 
                 if (builtInType != BuiltInType.Null)
                 {
-                    return TypeInfo.CreateScalar(builtInType);
+                    return CreateScalar(builtInType);
                 }
 
                 if (systemType.GetTypeInfo().IsEnum)
@@ -1358,7 +1358,7 @@ namespace Opc.Ua
 
                     if (builtInType != BuiltInType.Null)
                     {
-                        return TypeInfo.CreateArray(builtInType);
+                        return CreateArray(builtInType);
                     }
 
                     // check for encodeable object.
@@ -1382,7 +1382,7 @@ namespace Opc.Ua
                         if (typeInfo.BuiltInType != BuiltInType.Null &&
                             typeInfo.ValueRank == ValueRanks.Scalar)
                         {
-                            return TypeInfo.CreateArray(typeInfo.BuiltInType);
+                            return CreateArray(typeInfo.BuiltInType);
                         }
                     }
 
@@ -1411,7 +1411,7 @@ namespace Opc.Ua
 
                 if (builtInType != BuiltInType.Null)
                 {
-                    return TypeInfo.CreateArray(builtInType);
+                    return CreateArray(builtInType);
                 }
 
                 // check for encodeable object.
@@ -1448,14 +1448,14 @@ namespace Opc.Ua
 
                 if (builtInType != BuiltInType.Null)
                 {
-                    return TypeInfo.Create(builtInType, count);
+                    return Create(builtInType, count);
                 }
 
                 // check for encodeable object.
                 if (typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(systemType.GetTypeInfo()) ||
                     name == "IEncodeable")
                 {
-                    return TypeInfo.Create(BuiltInType.ExtensionObject, count);
+                    return Create(BuiltInType.ExtensionObject, count);
                 }
 
                 return Unknown;
@@ -1467,7 +1467,7 @@ namespace Opc.Ua
                 // syntax of type is [][,,,] - adding three checks for the middle ']['
                 if (name == "Byte" && count + 3 == dimensions.Length)
                 {
-                    return TypeInfo.Create(BuiltInType.ByteString, count);
+                    return Create(BuiltInType.ByteString, count);
                 }
             }
 
@@ -2907,7 +2907,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            var elementType = TypeInfo.CreateScalar(sourceType.BuiltInType);
+            TypeInfo elementType = CreateScalar(sourceType.BuiltInType);
 
             if (input.Rank == 1)
             {
