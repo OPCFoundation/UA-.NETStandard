@@ -58,56 +58,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override ResponseHeader AddNodes(
-            RequestHeader requestHeader,
-            AddNodesItemCollection nodesToAdd,
-            out AddNodesResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            ResponseHeader responseHeader = null;
-
-            uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
-            InitResponseCollections<AddNodesResult, AddNodesResultCollection>(
-                out results,
-                out diagnosticInfos,
-                out StringCollection stringTable,
-                nodesToAdd.Count,
-                operationLimit);
-
-            foreach (
-                AddNodesItemCollection batchNodesToAdd in nodesToAdd
-                    .Batch<AddNodesItem, AddNodesItemCollection>(
-                        operationLimit))
-            {
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                responseHeader = base.AddNodes(
-                    requestHeader,
-                    batchNodesToAdd,
-                    out AddNodesResultCollection batchResults,
-                    out DiagnosticInfoCollection batchDiagnosticInfos);
-
-                ValidateResponse(batchResults, batchNodesToAdd);
-                ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToAdd);
-
-                AddResponses<AddNodesResult, AddNodesResultCollection>(
-                    ref results,
-                    ref diagnosticInfos,
-                    ref stringTable,
-                    batchResults,
-                    batchDiagnosticInfos,
-                    responseHeader.StringTable);
-            }
-
-            responseHeader.StringTable = stringTable;
-            return responseHeader;
-        }
-
-#if CLIENT_ASYNC
-        /// <inheritdoc/>
         public override async Task<AddNodesResponse> AddNodesAsync(
             RequestHeader requestHeader,
             AddNodesItemCollection nodesToAdd,
@@ -157,59 +107,7 @@ namespace Opc.Ua
 
             return response;
         }
-#endif
 
-        /// <inheritdoc/>
-        public override ResponseHeader AddReferences(
-            RequestHeader requestHeader,
-            AddReferencesItemCollection referencesToAdd,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            ResponseHeader responseHeader = null;
-
-            uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
-            InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out results,
-                out diagnosticInfos,
-                out StringCollection stringTable,
-                referencesToAdd.Count,
-                operationLimit);
-
-            foreach (
-                AddReferencesItemCollection batchReferencesToAdd in referencesToAdd.Batch<
-                    AddReferencesItem,
-                    AddReferencesItemCollection
-                >(operationLimit))
-            {
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                responseHeader = base.AddReferences(
-                    requestHeader,
-                    batchReferencesToAdd,
-                    out StatusCodeCollection batchResults,
-                    out DiagnosticInfoCollection batchDiagnosticInfos);
-
-                ValidateResponse(batchResults, batchReferencesToAdd);
-                ValidateDiagnosticInfos(batchDiagnosticInfos, batchReferencesToAdd);
-
-                AddResponses<StatusCode, StatusCodeCollection>(
-                    ref results,
-                    ref diagnosticInfos,
-                    ref stringTable,
-                    batchResults,
-                    batchDiagnosticInfos,
-                    responseHeader.StringTable);
-            }
-
-            responseHeader.StringTable = stringTable;
-            return responseHeader;
-        }
-
-#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<AddReferencesResponse> AddReferencesAsync(
             RequestHeader requestHeader,
@@ -261,59 +159,7 @@ namespace Opc.Ua
 
             return response;
         }
-#endif
 
-        /// <inheritdoc/>
-        public override ResponseHeader DeleteNodes(
-            RequestHeader requestHeader,
-            DeleteNodesItemCollection nodesToDelete,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            ResponseHeader responseHeader = null;
-
-            uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
-            InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out results,
-                out diagnosticInfos,
-                out StringCollection stringTable,
-                nodesToDelete.Count,
-                operationLimit);
-
-            foreach (
-                DeleteNodesItemCollection batchNodesToDelete in nodesToDelete.Batch<
-                    DeleteNodesItem,
-                    DeleteNodesItemCollection
-                >(operationLimit))
-            {
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                responseHeader = base.DeleteNodes(
-                    requestHeader,
-                    batchNodesToDelete,
-                    out StatusCodeCollection batchResults,
-                    out DiagnosticInfoCollection batchDiagnosticInfos);
-
-                ValidateResponse(batchResults, batchNodesToDelete);
-                ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToDelete);
-
-                AddResponses<StatusCode, StatusCodeCollection>(
-                    ref results,
-                    ref diagnosticInfos,
-                    ref stringTable,
-                    batchResults,
-                    batchDiagnosticInfos,
-                    responseHeader.StringTable);
-            }
-
-            responseHeader.StringTable = stringTable;
-            return responseHeader;
-        }
-
-#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<DeleteNodesResponse> DeleteNodesAsync(
             RequestHeader requestHeader,
@@ -365,59 +211,7 @@ namespace Opc.Ua
 
             return response;
         }
-#endif
 
-        /// <inheritdoc/>
-        public override ResponseHeader DeleteReferences(
-            RequestHeader requestHeader,
-            DeleteReferencesItemCollection referencesToDelete,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            ResponseHeader responseHeader = null;
-
-            uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
-            InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out results,
-                out diagnosticInfos,
-                out StringCollection stringTable,
-                referencesToDelete.Count,
-                operationLimit);
-
-            foreach (
-                DeleteReferencesItemCollection batchReferencesToDelete in referencesToDelete.Batch<
-                    DeleteReferencesItem,
-                    DeleteReferencesItemCollection
-                >(operationLimit))
-            {
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                responseHeader = base.DeleteReferences(
-                    requestHeader,
-                    batchReferencesToDelete,
-                    out StatusCodeCollection batchResults,
-                    out DiagnosticInfoCollection batchDiagnosticInfos);
-
-                ValidateResponse(batchResults, batchReferencesToDelete);
-                ValidateDiagnosticInfos(batchDiagnosticInfos, batchReferencesToDelete);
-
-                AddResponses<StatusCode, StatusCodeCollection>(
-                    ref results,
-                    ref diagnosticInfos,
-                    ref stringTable,
-                    batchResults,
-                    batchDiagnosticInfos,
-                    responseHeader.StringTable);
-            }
-
-            responseHeader.StringTable = stringTable;
-            return responseHeader;
-        }
-
-#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<DeleteReferencesResponse> DeleteReferencesAsync(
             RequestHeader requestHeader,
@@ -472,63 +266,7 @@ namespace Opc.Ua
 
             return response;
         }
-#endif
 
-        /// <inheritdoc/>
-        public override ResponseHeader Browse(
-            RequestHeader requestHeader,
-            ViewDescription view,
-            uint requestedMaxReferencesPerNode,
-            BrowseDescriptionCollection nodesToBrowse,
-            out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            ResponseHeader responseHeader = null;
-
-            uint operationLimit = OperationLimits.MaxNodesPerBrowse;
-            InitResponseCollections<BrowseResult, BrowseResultCollection>(
-                out results,
-                out diagnosticInfos,
-                out StringCollection stringTable,
-                nodesToBrowse.Count,
-                operationLimit);
-
-            foreach (
-                BrowseDescriptionCollection nodesToBrowseBatch in nodesToBrowse.Batch<
-                    BrowseDescription,
-                    BrowseDescriptionCollection
-                >(operationLimit))
-            {
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                responseHeader = base.Browse(
-                    requestHeader,
-                    view,
-                    requestedMaxReferencesPerNode,
-                    nodesToBrowseBatch,
-                    out BrowseResultCollection batchResults,
-                    out DiagnosticInfoCollection batchDiagnosticInfos);
-
-                ValidateResponse(batchResults, nodesToBrowseBatch);
-                ValidateDiagnosticInfos(batchDiagnosticInfos, nodesToBrowseBatch);
-
-                AddResponses<BrowseResult, BrowseResultCollection>(
-                    ref results,
-                    ref diagnosticInfos,
-                    ref stringTable,
-                    batchResults,
-                    batchDiagnosticInfos,
-                    responseHeader.StringTable);
-            }
-
-            responseHeader.StringTable = stringTable;
-            return responseHeader;
-        }
-
-#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<BrowseResponse> BrowseAsync(
             RequestHeader requestHeader,
@@ -587,58 +325,7 @@ namespace Opc.Ua
 
             return response;
         }
-#endif
 
-        /// <inheritdoc/>
-        public override ResponseHeader TranslateBrowsePathsToNodeIds(
-            RequestHeader requestHeader,
-            BrowsePathCollection browsePaths,
-            out BrowsePathResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            ResponseHeader responseHeader = null;
-
-            uint operationLimit = OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds;
-            InitResponseCollections<BrowsePathResult, BrowsePathResultCollection>(
-                out results,
-                out diagnosticInfos,
-                out StringCollection stringTable,
-                browsePaths.Count,
-                operationLimit);
-
-            foreach (
-                BrowsePathCollection batchBrowsePaths in browsePaths
-                    .Batch<BrowsePath, BrowsePathCollection>(
-                        operationLimit))
-            {
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                responseHeader = base.TranslateBrowsePathsToNodeIds(
-                    requestHeader,
-                    batchBrowsePaths,
-                    out BrowsePathResultCollection batchResults,
-                    out DiagnosticInfoCollection batchDiagnosticInfos);
-
-                ValidateResponse(batchResults, batchBrowsePaths);
-                ValidateDiagnosticInfos(batchDiagnosticInfos, batchBrowsePaths);
-
-                AddResponses<BrowsePathResult, BrowsePathResultCollection>(
-                    ref results,
-                    ref diagnosticInfos,
-                    ref stringTable,
-                    batchResults,
-                    batchDiagnosticInfos,
-                    responseHeader.StringTable);
-            }
-
-            responseHeader.StringTable = stringTable;
-            return responseHeader;
-        }
-
-#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
             RequestHeader requestHeader,
@@ -692,41 +379,7 @@ namespace Opc.Ua
 
             return response;
         }
-#endif
 
-        /// <inheritdoc/>
-        public override ResponseHeader RegisterNodes(
-            RequestHeader requestHeader,
-            NodeIdCollection nodesToRegister,
-            out NodeIdCollection registeredNodeIds)
-        {
-            ResponseHeader responseHeader = null;
-            registeredNodeIds = [];
-
-            foreach (
-                NodeIdCollection batchNodesToRegister in nodesToRegister
-                    .Batch<NodeId, NodeIdCollection>(
-                        OperationLimits.MaxNodesPerRegisterNodes))
-            {
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                responseHeader = base.RegisterNodes(
-                    requestHeader,
-                    batchNodesToRegister,
-                    out NodeIdCollection batchRegisteredNodeIds);
-
-                ValidateResponse(batchRegisteredNodeIds, batchNodesToRegister);
-
-                registeredNodeIds.AddRange(batchRegisteredNodeIds);
-            }
-
-            return responseHeader;
-        }
-
-#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<RegisterNodesResponse> RegisterNodesAsync(
             RequestHeader requestHeader,
@@ -760,32 +413,7 @@ namespace Opc.Ua
 
             return response;
         }
-#endif
 
-        /// <inheritdoc/>
-        public override ResponseHeader UnregisterNodes(
-            RequestHeader requestHeader,
-            NodeIdCollection nodesToUnregister)
-        {
-            ResponseHeader responseHeader = null;
-
-            foreach (
-                NodeIdCollection batchNodesToUnregister in nodesToUnregister
-                    .Batch<NodeId, NodeIdCollection>(
-                        OperationLimits.MaxNodesPerRegisterNodes))
-            {
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                responseHeader = base.UnregisterNodes(requestHeader, batchNodesToUnregister);
-            }
-
-            return responseHeader;
-        }
-
-#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<UnregisterNodesResponse> UnregisterNodesAsync(
             RequestHeader requestHeader,
@@ -813,62 +441,7 @@ namespace Opc.Ua
 
             return response;
         }
-#endif
 
-        /// <inheritdoc/>
-        public override ResponseHeader Read(
-            RequestHeader requestHeader,
-            double maxAge,
-            TimestampsToReturn timestampsToReturn,
-            ReadValueIdCollection nodesToRead,
-            out DataValueCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            ResponseHeader responseHeader = null;
-
-            uint operationLimit = OperationLimits.MaxNodesPerRead;
-            InitResponseCollections<DataValue, DataValueCollection>(
-                out results,
-                out diagnosticInfos,
-                out StringCollection stringTable,
-                nodesToRead.Count,
-                operationLimit);
-
-            foreach (
-                ReadValueIdCollection batchAttributesToRead in nodesToRead
-                    .Batch<ReadValueId, ReadValueIdCollection>(
-                        operationLimit))
-            {
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                responseHeader = base.Read(
-                    requestHeader,
-                    maxAge,
-                    timestampsToReturn,
-                    batchAttributesToRead,
-                    out DataValueCollection batchResults,
-                    out DiagnosticInfoCollection batchDiagnosticInfos);
-
-                ValidateResponse(batchResults, batchAttributesToRead);
-                ValidateDiagnosticInfos(batchDiagnosticInfos, batchAttributesToRead);
-
-                AddResponses<DataValue, DataValueCollection>(
-                    ref results,
-                    ref diagnosticInfos,
-                    ref stringTable,
-                    batchResults,
-                    batchDiagnosticInfos,
-                    responseHeader.StringTable);
-            }
-
-            responseHeader.StringTable = stringTable;
-            return responseHeader;
-        }
-
-#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<ReadResponse> ReadAsync(
             RequestHeader requestHeader,
@@ -926,70 +499,7 @@ namespace Opc.Ua
 
             return response;
         }
-#endif
 
-        /// <inheritdoc/>
-        public override ResponseHeader HistoryRead(
-            RequestHeader requestHeader,
-            ExtensionObject historyReadDetails,
-            TimestampsToReturn timestampsToReturn,
-            bool releaseContinuationPoints,
-            HistoryReadValueIdCollection nodesToRead,
-            out HistoryReadResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            ResponseHeader responseHeader = null;
-
-            uint operationLimit = OperationLimits.MaxNodesPerHistoryReadData;
-            if (historyReadDetails?.Body is ReadEventDetails)
-            {
-                operationLimit = OperationLimits.MaxNodesPerHistoryReadEvents;
-            }
-
-            InitResponseCollections<HistoryReadResult, HistoryReadResultCollection>(
-                out results,
-                out diagnosticInfos,
-                out StringCollection stringTable,
-                nodesToRead.Count,
-                operationLimit);
-
-            foreach (
-                HistoryReadValueIdCollection batchNodesToRead in nodesToRead.Batch<
-                    HistoryReadValueId,
-                    HistoryReadValueIdCollection
-                >(operationLimit))
-            {
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                responseHeader = base.HistoryRead(
-                    requestHeader,
-                    historyReadDetails,
-                    timestampsToReturn,
-                    releaseContinuationPoints,
-                    batchNodesToRead,
-                    out HistoryReadResultCollection batchResults,
-                    out DiagnosticInfoCollection batchDiagnosticInfos);
-
-                ValidateResponse(batchResults, batchNodesToRead);
-                ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToRead);
-
-                AddResponses<HistoryReadResult, HistoryReadResultCollection>(
-                    ref results,
-                    ref diagnosticInfos,
-                    ref stringTable,
-                    batchResults,
-                    batchDiagnosticInfos,
-                    responseHeader.StringTable);
-            }
-
-            responseHeader.StringTable = stringTable;
-            return responseHeader;
-        }
-
-#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<HistoryReadResponse> HistoryReadAsync(
             RequestHeader requestHeader,
@@ -1055,58 +565,7 @@ namespace Opc.Ua
 
             return response;
         }
-#endif
 
-        /// <inheritdoc/>
-        public override ResponseHeader Write(
-            RequestHeader requestHeader,
-            WriteValueCollection nodesToWrite,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            ResponseHeader responseHeader = null;
-
-            uint operationLimit = OperationLimits.MaxNodesPerWrite;
-            InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out results,
-                out diagnosticInfos,
-                out StringCollection stringTable,
-                nodesToWrite.Count,
-                operationLimit);
-
-            foreach (
-                WriteValueCollection batchNodesToWrite in nodesToWrite
-                    .Batch<WriteValue, WriteValueCollection>(
-                        operationLimit))
-            {
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                responseHeader = base.Write(
-                    requestHeader,
-                    batchNodesToWrite,
-                    out StatusCodeCollection batchResults,
-                    out DiagnosticInfoCollection batchDiagnosticInfos);
-
-                ValidateResponse(batchResults, batchNodesToWrite);
-                ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToWrite);
-
-                AddResponses<StatusCode, StatusCodeCollection>(
-                    ref results,
-                    ref diagnosticInfos,
-                    ref stringTable,
-                    batchResults,
-                    batchDiagnosticInfos,
-                    responseHeader.StringTable);
-            }
-
-            responseHeader.StringTable = stringTable;
-            return responseHeader;
-        }
-
-#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<WriteResponse> WriteAsync(
             RequestHeader requestHeader,
@@ -1157,69 +616,7 @@ namespace Opc.Ua
 
             return response;
         }
-#endif
 
-        /// <inheritdoc/>
-        public override ResponseHeader HistoryUpdate(
-            RequestHeader requestHeader,
-            ExtensionObjectCollection historyUpdateDetails,
-            out HistoryUpdateResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            ResponseHeader responseHeader = null;
-
-            // see https://reference.opcfoundation.org/v104/Core/docs/Part11/6.8.1/ as to why
-            // history update of event, data or annotations should be called individually.
-            // Mixed arrays have unpredicatble results, only the first entry is checked and taken
-            // as operation limit source
-            uint operationLimit = OperationLimits.MaxNodesPerHistoryUpdateData;
-            if (historyUpdateDetails.Count > 0 &&
-                historyUpdateDetails[0]?.Body is UpdateEventDetails)
-            {
-                operationLimit = OperationLimits.MaxNodesPerHistoryUpdateEvents;
-            }
-
-            InitResponseCollections<HistoryUpdateResult, HistoryUpdateResultCollection>(
-                out results,
-                out diagnosticInfos,
-                out StringCollection stringTable,
-                historyUpdateDetails.Count,
-                operationLimit);
-
-            foreach (
-                ExtensionObjectCollection batchHistoryUpdateDetails in historyUpdateDetails.Batch<
-                    ExtensionObject,
-                    ExtensionObjectCollection
-                >(operationLimit))
-            {
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                responseHeader = base.HistoryUpdate(
-                    requestHeader,
-                    batchHistoryUpdateDetails,
-                    out HistoryUpdateResultCollection batchResults,
-                    out DiagnosticInfoCollection batchDiagnosticInfos);
-
-                ValidateResponse(batchResults, batchHistoryUpdateDetails);
-                ValidateDiagnosticInfos(batchDiagnosticInfos, batchHistoryUpdateDetails);
-
-                AddResponses<HistoryUpdateResult, HistoryUpdateResultCollection>(
-                    ref results,
-                    ref diagnosticInfos,
-                    ref stringTable,
-                    batchResults,
-                    batchDiagnosticInfos,
-                    responseHeader.StringTable);
-            }
-
-            responseHeader.StringTable = stringTable;
-            return responseHeader;
-        }
-
-#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<HistoryUpdateResponse> HistoryUpdateAsync(
             RequestHeader requestHeader,
@@ -1279,59 +676,7 @@ namespace Opc.Ua
 
             return response;
         }
-#endif
 
-        /// <inheritdoc/>
-        public override ResponseHeader Call(
-            RequestHeader requestHeader,
-            CallMethodRequestCollection methodsToCall,
-            out CallMethodResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            ResponseHeader responseHeader = null;
-
-            uint operationLimit = OperationLimits.MaxNodesPerMethodCall;
-            InitResponseCollections<CallMethodResult, CallMethodResultCollection>(
-                out results,
-                out diagnosticInfos,
-                out StringCollection stringTable,
-                methodsToCall.Count,
-                operationLimit);
-
-            foreach (
-                CallMethodRequestCollection batchMethodsToCall in methodsToCall.Batch<
-                    CallMethodRequest,
-                    CallMethodRequestCollection
-                >(operationLimit))
-            {
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                responseHeader = base.Call(
-                    requestHeader,
-                    batchMethodsToCall,
-                    out CallMethodResultCollection batchResults,
-                    out DiagnosticInfoCollection batchDiagnosticInfos);
-
-                ValidateResponse(batchResults, batchMethodsToCall);
-                ValidateDiagnosticInfos(batchDiagnosticInfos, batchMethodsToCall);
-
-                AddResponses<CallMethodResult, CallMethodResultCollection>(
-                    ref results,
-                    ref diagnosticInfos,
-                    ref stringTable,
-                    batchResults,
-                    batchDiagnosticInfos,
-                    responseHeader.StringTable);
-            }
-
-            responseHeader.StringTable = stringTable;
-            return responseHeader;
-        }
-
-#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<CallResponse> CallAsync(
             RequestHeader requestHeader,
@@ -1383,63 +728,7 @@ namespace Opc.Ua
 
             return response;
         }
-#endif
 
-        /// <inheritdoc/>
-        public override ResponseHeader CreateMonitoredItems(
-            RequestHeader requestHeader,
-            uint subscriptionId,
-            TimestampsToReturn timestampsToReturn,
-            MonitoredItemCreateRequestCollection itemsToCreate,
-            out MonitoredItemCreateResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            ResponseHeader responseHeader = null;
-
-            uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
-            InitResponseCollections<MonitoredItemCreateResult, MonitoredItemCreateResultCollection>(
-                out results,
-                out diagnosticInfos,
-                out StringCollection stringTable,
-                itemsToCreate.Count,
-                operationLimit);
-
-            foreach (
-                MonitoredItemCreateRequestCollection batchItemsToCreate in itemsToCreate.Batch<
-                    MonitoredItemCreateRequest,
-                    MonitoredItemCreateRequestCollection
-                >(operationLimit))
-            {
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                responseHeader = base.CreateMonitoredItems(
-                    requestHeader,
-                    subscriptionId,
-                    timestampsToReturn,
-                    batchItemsToCreate,
-                    out MonitoredItemCreateResultCollection batchResults,
-                    out DiagnosticInfoCollection batchDiagnosticInfos);
-
-                ValidateResponse(batchResults, batchItemsToCreate);
-                ValidateDiagnosticInfos(batchDiagnosticInfos, batchItemsToCreate);
-
-                AddResponses<MonitoredItemCreateResult, MonitoredItemCreateResultCollection>(
-                    ref results,
-                    ref diagnosticInfos,
-                    ref stringTable,
-                    batchResults,
-                    batchDiagnosticInfos,
-                    responseHeader.StringTable);
-            }
-
-            responseHeader.StringTable = stringTable;
-            return responseHeader;
-        }
-
-#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             RequestHeader requestHeader,
@@ -1498,63 +787,7 @@ namespace Opc.Ua
 
             return response;
         }
-#endif
 
-        /// <inheritdoc/>
-        public override ResponseHeader ModifyMonitoredItems(
-            RequestHeader requestHeader,
-            uint subscriptionId,
-            TimestampsToReturn timestampsToReturn,
-            MonitoredItemModifyRequestCollection itemsToModify,
-            out MonitoredItemModifyResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            ResponseHeader responseHeader = null;
-
-            uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
-            InitResponseCollections<MonitoredItemModifyResult, MonitoredItemModifyResultCollection>(
-                out results,
-                out diagnosticInfos,
-                out StringCollection stringTable,
-                itemsToModify.Count,
-                operationLimit);
-
-            foreach (
-                MonitoredItemModifyRequestCollection batchItemsToModify in itemsToModify.Batch<
-                    MonitoredItemModifyRequest,
-                    MonitoredItemModifyRequestCollection
-                >(operationLimit))
-            {
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                responseHeader = base.ModifyMonitoredItems(
-                    requestHeader,
-                    subscriptionId,
-                    timestampsToReturn,
-                    batchItemsToModify,
-                    out MonitoredItemModifyResultCollection batchResults,
-                    out DiagnosticInfoCollection batchDiagnosticInfos);
-
-                ValidateResponse(batchResults, batchItemsToModify);
-                ValidateDiagnosticInfos(batchDiagnosticInfos, batchItemsToModify);
-
-                AddResponses<MonitoredItemModifyResult, MonitoredItemModifyResultCollection>(
-                    ref results,
-                    ref diagnosticInfos,
-                    ref stringTable,
-                    batchResults,
-                    batchDiagnosticInfos,
-                    responseHeader.StringTable);
-            }
-
-            responseHeader.StringTable = stringTable;
-            return responseHeader;
-        }
-
-#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
             RequestHeader requestHeader,
@@ -1613,61 +846,7 @@ namespace Opc.Ua
 
             return response;
         }
-#endif
 
-        /// <inheritdoc/>
-        public override ResponseHeader SetMonitoringMode(
-            RequestHeader requestHeader,
-            uint subscriptionId,
-            MonitoringMode monitoringMode,
-            UInt32Collection monitoredItemIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            ResponseHeader responseHeader = null;
-
-            uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
-            InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out results,
-                out diagnosticInfos,
-                out StringCollection stringTable,
-                monitoredItemIds.Count,
-                operationLimit);
-
-            foreach (
-                UInt32Collection batchMonitoredItemIds in monitoredItemIds
-                    .Batch<uint, UInt32Collection>(operationLimit))
-            {
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                responseHeader = base.SetMonitoringMode(
-                    requestHeader,
-                    subscriptionId,
-                    monitoringMode,
-                    batchMonitoredItemIds,
-                    out StatusCodeCollection batchResults,
-                    out DiagnosticInfoCollection batchDiagnosticInfos);
-
-                ValidateResponse(batchResults, batchMonitoredItemIds);
-                ValidateDiagnosticInfos(batchDiagnosticInfos, batchMonitoredItemIds);
-
-                AddResponses<StatusCode, StatusCodeCollection>(
-                    ref results,
-                    ref diagnosticInfos,
-                    ref stringTable,
-                    batchResults,
-                    batchDiagnosticInfos,
-                    responseHeader.StringTable);
-            }
-
-            responseHeader.StringTable = stringTable;
-            return responseHeader;
-        }
-
-#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<SetMonitoringModeResponse> SetMonitoringModeAsync(
             RequestHeader requestHeader,
@@ -1724,146 +903,7 @@ namespace Opc.Ua
 
             return response;
         }
-#endif
 
-        /// <inheritdoc/>
-        public override ResponseHeader SetTriggering(
-            RequestHeader requestHeader,
-            uint subscriptionId,
-            uint triggeringItemId,
-            UInt32Collection linksToAdd,
-            UInt32Collection linksToRemove,
-            out StatusCodeCollection addResults,
-            out DiagnosticInfoCollection addDiagnosticInfos,
-            out StatusCodeCollection removeResults,
-            out DiagnosticInfoCollection removeDiagnosticInfos)
-        {
-            ResponseHeader responseHeader = null;
-
-            uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
-            InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out addResults,
-                out addDiagnosticInfos,
-                out StringCollection stringTable,
-                linksToAdd.Count,
-                operationLimit);
-
-            InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out removeResults,
-                out removeDiagnosticInfos,
-                out _,
-                linksToRemove.Count,
-                operationLimit);
-
-            foreach (UInt32Collection batchLinksToAdd in linksToAdd.Batch<uint, UInt32Collection>(
-                operationLimit))
-            {
-                UInt32Collection batchLinksToRemove;
-                if (operationLimit == 0)
-                {
-                    batchLinksToRemove = linksToRemove;
-                    linksToRemove = [];
-                }
-                else if (batchLinksToAdd.Count < operationLimit)
-                {
-                    batchLinksToRemove = [.. linksToRemove.Take(
-                        (int)operationLimit - batchLinksToAdd.Count)];
-                    linksToRemove = [.. linksToRemove.Skip(batchLinksToRemove.Count)];
-                }
-                else
-                {
-                    batchLinksToRemove = [];
-                }
-
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                responseHeader = base.SetTriggering(
-                    requestHeader,
-                    subscriptionId,
-                    triggeringItemId,
-                    batchLinksToAdd,
-                    batchLinksToRemove,
-                    out StatusCodeCollection batchAddResults,
-                    out DiagnosticInfoCollection batchAddDiagnosticInfos,
-                    out StatusCodeCollection batchRemoveResults,
-                    out DiagnosticInfoCollection batchRemoveDiagnosticInfos);
-
-                ValidateResponse(batchAddResults, batchLinksToAdd);
-                ValidateDiagnosticInfos(batchAddDiagnosticInfos, batchLinksToAdd);
-                ValidateResponse(batchRemoveResults, batchLinksToRemove);
-                ValidateDiagnosticInfos(batchRemoveDiagnosticInfos, batchLinksToRemove);
-
-                AddResponses<StatusCode, StatusCodeCollection>(
-                    ref addResults,
-                    ref addDiagnosticInfos,
-                    ref stringTable,
-                    batchAddResults,
-                    batchAddDiagnosticInfos,
-                    responseHeader.StringTable);
-
-                AddResponses<StatusCode, StatusCodeCollection>(
-                    ref removeResults,
-                    ref removeDiagnosticInfos,
-                    ref stringTable,
-                    batchRemoveResults,
-                    batchRemoveDiagnosticInfos,
-                    responseHeader.StringTable);
-            }
-
-            if (linksToRemove.Count > 0)
-            {
-                foreach (
-                    UInt32Collection batchLinksToRemove in linksToRemove
-                        .Batch<uint, UInt32Collection>(operationLimit))
-                {
-                    if (requestHeader != null)
-                    {
-                        requestHeader.RequestHandle = 0;
-                    }
-
-                    var batchLinksToAdd = new UInt32Collection();
-                    responseHeader = base.SetTriggering(
-                        requestHeader,
-                        subscriptionId,
-                        triggeringItemId,
-                        batchLinksToAdd,
-                        batchLinksToRemove,
-                        out StatusCodeCollection batchAddResults,
-                        out DiagnosticInfoCollection batchAddDiagnosticInfos,
-                        out StatusCodeCollection batchRemoveResults,
-                        out DiagnosticInfoCollection batchRemoveDiagnosticInfos);
-
-                    ValidateResponse(batchAddResults, batchLinksToAdd);
-                    ValidateDiagnosticInfos(batchAddDiagnosticInfos, batchLinksToAdd);
-                    ValidateResponse(batchRemoveResults, batchLinksToRemove);
-                    ValidateDiagnosticInfos(batchRemoveDiagnosticInfos, batchLinksToRemove);
-
-                    AddResponses<StatusCode, StatusCodeCollection>(
-                        ref addResults,
-                        ref addDiagnosticInfos,
-                        ref stringTable,
-                        batchAddResults,
-                        batchAddDiagnosticInfos,
-                        responseHeader.StringTable);
-
-                    AddResponses<StatusCode, StatusCodeCollection>(
-                        ref removeResults,
-                        ref removeDiagnosticInfos,
-                        ref stringTable,
-                        batchRemoveResults,
-                        batchRemoveDiagnosticInfos,
-                        responseHeader.StringTable);
-                }
-            }
-
-            responseHeader.StringTable = stringTable;
-            return responseHeader;
-        }
-
-#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<SetTriggeringResponse> SetTriggeringAsync(
             RequestHeader requestHeader,
@@ -2010,59 +1050,7 @@ namespace Opc.Ua
 
             return response;
         }
-#endif
 
-        /// <inheritdoc/>
-        public override ResponseHeader DeleteMonitoredItems(
-            RequestHeader requestHeader,
-            uint subscriptionId,
-            UInt32Collection monitoredItemIds,
-            out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            ResponseHeader responseHeader = null;
-
-            uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
-            InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out results,
-                out diagnosticInfos,
-                out StringCollection stringTable,
-                monitoredItemIds.Count,
-                operationLimit);
-
-            foreach (
-                UInt32Collection batchMonitoredItemIds in monitoredItemIds
-                    .Batch<uint, UInt32Collection>(operationLimit))
-            {
-                if (requestHeader != null)
-                {
-                    requestHeader.RequestHandle = 0;
-                }
-
-                responseHeader = base.DeleteMonitoredItems(
-                    requestHeader,
-                    subscriptionId,
-                    batchMonitoredItemIds,
-                    out StatusCodeCollection batchResults,
-                    out DiagnosticInfoCollection batchDiagnosticInfos);
-
-                ValidateResponse(batchResults, batchMonitoredItemIds);
-                ValidateDiagnosticInfos(batchDiagnosticInfos, batchMonitoredItemIds);
-
-                AddResponses<StatusCode, StatusCodeCollection>(
-                    ref results,
-                    ref diagnosticInfos,
-                    ref stringTable,
-                    batchResults,
-                    batchDiagnosticInfos,
-                    responseHeader.StringTable);
-            }
-
-            responseHeader.StringTable = stringTable;
-            return responseHeader;
-        }
-
-#if CLIENT_ASYNC
         /// <inheritdoc/>
         public override async Task<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             RequestHeader requestHeader,
@@ -2116,7 +1104,6 @@ namespace Opc.Ua
 
             return response;
         }
-#endif
 
         /// <summary>
         /// Initialize the collections for a service call.

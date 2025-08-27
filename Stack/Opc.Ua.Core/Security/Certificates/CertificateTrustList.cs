@@ -12,6 +12,7 @@
 
 using System;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Opc.Ua
@@ -55,7 +56,8 @@ namespace Opc.Ua
         /// Returns the certificates in the trust list.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public async Task<X509Certificate2Collection> GetCertificatesAsync()
+        public async Task<X509Certificate2Collection> GetCertificatesAsync(
+            CancellationToken ct = default)
         {
             var collection = new X509Certificate2Collection();
 
@@ -73,7 +75,7 @@ namespace Opc.Ua
                             "Failed to open certificate store.");
                     }
 
-                    collection = await store.EnumerateAsync().ConfigureAwait(false);
+                    collection = await store.EnumerateAsync(ct).ConfigureAwait(false);
                 }
                 catch (Exception)
                 {
@@ -87,7 +89,7 @@ namespace Opc.Ua
 
             foreach (CertificateIdentifier trustedCertificate in TrustedCertificates)
             {
-                X509Certificate2 certificate = await trustedCertificate.FindAsync()
+                X509Certificate2 certificate = await trustedCertificate.FindAsync(ct: ct)
                     .ConfigureAwait(false);
 
                 if (certificate != null)

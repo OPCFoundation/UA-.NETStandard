@@ -106,9 +106,9 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         [Test]
         [Order(105)]
-        public void GetEndpointsOnDiscoveryChannel()
+        public Task GetEndpointsOnDiscoveryChannelAsync()
         {
-            m_clientTest.GetEndpointsOnDiscoveryChannel(true);
+            return m_clientTest.GetEndpointsOnDiscoveryChannelAsync(true);
         }
 
         [Test]
@@ -131,17 +131,14 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         [Test]
         [Order(260)]
-        [TestCase(true, false)]
-        [TestCase(false, false)]
-        [TestCase(false, true)]
+        [TestCase(true)]
+        [TestCase(false)]
         public Task ReconnectSessionOnAlternateChannelWithSavedSessionSecretsSecurityNoneAsync(
-            bool anonymous,
-            bool asyncReconnect)
+            bool anonymous)
         {
             return m_clientTest.ReconnectSessionOnAlternateChannelWithSavedSessionSecretsAsync(
                 SecurityPolicies.None,
-                anonymous,
-                asyncReconnect);
+                anonymous);
         }
 
         [Theory]

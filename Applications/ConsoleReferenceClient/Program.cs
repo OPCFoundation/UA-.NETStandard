@@ -358,6 +358,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 // wait for timeout or Ctrl-C
                 var quitCTS = new CancellationTokenSource();
                 ManualResetEvent quitEvent = ConsoleUtils.CtrlCHandler(quitCTS);
+                CancellationToken ct = quitCTS.Token;
 
                 // connect to a server until application stops
                 bool quit = false;
@@ -410,7 +411,8 @@ namespace Quickstarts.ConsoleReferenceClient
                             = await FindUserCertificateIdentifierAsync(
                                 userCertificateThumbprint,
                                 application.ApplicationConfiguration.SecurityConfiguration
-                                    .TrustedUserCertificates
+                                    .TrustedUserCertificates,
+                                ct: ct
                             )
                             .ConfigureAwait(true);
 
@@ -436,7 +438,7 @@ namespace Quickstarts.ConsoleReferenceClient
                     }
 
                     bool connected = await uaClient
-                        .ConnectAsync(serverUrl.ToString(), !noSecurity, quitCTS.Token)
+                        .ConnectAsync(serverUrl.ToString(), !noSecurity, ct)
                         .ConfigureAwait(false);
                     if (connected)
                     {
@@ -456,7 +458,7 @@ namespace Quickstarts.ConsoleReferenceClient
                         {
                             Opc.Ua.Client.ComplexTypes.ComplexTypeSystem complexTypeSystem
                                 = await samples
-                                .LoadTypeSystemAsync(uaClient.Session)
+                                .LoadTypeSystemAsync(uaClient.Session, ct)
                                 .ConfigureAwait(false);
                         }
 
@@ -472,7 +474,7 @@ namespace Quickstarts.ConsoleReferenceClient
                             {
                                 output.WriteLine("Browse the full address space.");
                                 referenceDescriptions = await samples
-                                    .BrowseFullAddressSpaceAsync(uaClient, Objects.RootFolder)
+                                    .BrowseFullAddressSpaceAsync(uaClient, Objects.RootFolder, ct: ct)
                                     .ConfigureAwait(false);
                                 variableIds =
                                 [
@@ -493,7 +495,8 @@ namespace Quickstarts.ConsoleReferenceClient
                                 referenceDescriptionsFromManagedBrowse = await samples
                                     .ManagedBrowseFullAddressSpaceAsync(
                                         uaClient,
-                                        Objects.RootFolder)
+                                        Objects.RootFolder,
+                                        ct: ct)
                                     .ConfigureAwait(false);
                                 variableIdsManagedBrowse =
                                 [
@@ -524,7 +527,8 @@ namespace Quickstarts.ConsoleReferenceClient
                                         Objects.RootFolder,
                                         true,
                                         true,
-                                        false)
+                                        false,
+                                        ct: ct)
                                     .ConfigureAwait(false);
                                 variableIds =
                                 [
@@ -544,7 +548,7 @@ namespace Quickstarts.ConsoleReferenceClient
                             {
                                 (DataValueCollection allValues, IList<ServiceResult> results)
                                     = await samples
-                                    .ReadAllValuesAsync(uaClient, variableIds)
+                                    .ReadAllValuesAsync(uaClient, variableIds, ct)
                                     .ConfigureAwait(false);
                             }
 
@@ -577,7 +581,8 @@ namespace Quickstarts.ConsoleReferenceClient
                                         .Take(maxVariables)
                                         .ToList();
                                     variables.AddRange(
-                                        uaClient.Session.NodeCache.Find(variableReferences)
+                                        (await uaClient.Session.NodeCache.FindAsync(variableReferences, ct)
+                                            .ConfigureAwait(false))
                                             .Cast<Node>()
                                     );
                                 }
@@ -590,7 +595,8 @@ namespace Quickstarts.ConsoleReferenceClient
                                         publishingInterval: 1000,
                                         queueSize: 10,
                                         lifetimeCount: 60,
-                                        keepAliveCount: 2
+                                        keepAliveCount: 2,
+                                        ct: ct
                                     )
                                     .ConfigureAwait(false);
 
@@ -617,7 +623,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                         {
                                             DataValue value = await uaClient
                                                 .Session.ReadValueAsync(
-                                                    variableIterator.Current.NodeId)
+                                                    variableIterator.Current.NodeId, ct)
                                                 .ConfigureAwait(false);
                                             output.WriteLine(
                                                 "Value of {0} is {1}",
@@ -657,15 +663,27 @@ namespace Quickstarts.ConsoleReferenceClient
 
                             NodeId sessionNodeId = uaClient.Session.SessionId;
                             // Run tests for available methods on reference server.
-                            samples.ReadNodes(uaClient.Session);
-                            samples.WriteNodes(uaClient.Session);
-                            samples.Browse(uaClient.Session);
-                            samples.CallMethod(uaClient.Session);
-                            samples.EnableEvents(uaClient.Session, (uint)quitTimeout);
-                            samples.SubscribeToDataChanges(
+                            await samples.ReadNodesAsync(
+                                uaClient.Session,
+                                ct).ConfigureAwait(false);
+                            await samples.WriteNodesAsync(
+                                uaClient.Session,
+                                ct).ConfigureAwait(false);
+                            await samples.BrowseAsync(
+                                uaClient.Session,
+                                ct).ConfigureAwait(false);
+                            await samples.CallMethodAsync(
+                                uaClient.Session,
+                                ct).ConfigureAwait(false);
+                            await samples.EnableEventsAsync(
+                                uaClient.Session,
+                                (uint)quitTimeout,
+                                ct).ConfigureAwait(false);
+                            await samples.SubscribeToDataChangesAsync(
                                 uaClient.Session,
                                 60_000,
-                                enableDurableSubscriptions);
+                                enableDurableSubscriptions,
+                                ct).ConfigureAwait(false);
 
                             output.WriteLine("Waiting...");
 
@@ -688,7 +706,8 @@ namespace Quickstarts.ConsoleReferenceClient
                                         output.WriteLine(
                                             "Closing Session at " +
                                             DateTime.Now.ToLongTimeString());
-                                        uaClient.Session.Close(closeChannel: false);
+                                        await uaClient.Session.CloseAsync(closeChannel: false, ct: ct)
+                                            .ConfigureAwait(false);
                                     }
 
                                     if (waitCounters == restartSessionTime)
@@ -699,7 +718,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                             .DurableSubscriptionTransferAsync(
                                                 serverUrl.ToString(),
                                                 useSecurity: !noSecurity,
-                                                quitCTS.Token
+                                                ct
                                             )
                                             .ConfigureAwait(true);
                                     }
@@ -718,7 +737,7 @@ namespace Quickstarts.ConsoleReferenceClient
 
                         output.WriteLine("Client disconnected.");
 
-                        uaClient.Disconnect(leakChannels);
+                        await uaClient.DisconnectAsync(leakChannels, ct).ConfigureAwait(false);
                     }
                     else
                     {
@@ -742,21 +761,24 @@ namespace Quickstarts.ConsoleReferenceClient
         }
 
         /// <summary>
-        /// returns a CertificateIdentifier of the Certificate with the specified thumbprint if it is found in the trustedUserCertificates TrustList
+        /// returns a CertificateIdentifier of the Certificate with the specified thumbprint
+        /// if it is found in the trustedUserCertificates TrustList
         /// </summary>
         /// <param name="thumbprint">the thumbprint of the certificate to select</param>
         /// <param name="trustedUserCertificates">the trustlist of the user certificates</param>
+        /// <param name="ct">the cancellation token</param>
         /// <returns>Certificate Identifier</returns>
         private static async Task<CertificateIdentifier> FindUserCertificateIdentifierAsync(
             string thumbprint,
-            CertificateTrustList trustedUserCertificates
+            CertificateTrustList trustedUserCertificates,
+            CancellationToken ct = default
         )
         {
             CertificateIdentifier userCertificateIdentifier = null;
 
             // get user certificate with matching thumbprint
             X509Certificate2Collection userCertifiactesWithMatchingThumbprint = (
-                await trustedUserCertificates.GetCertificatesAsync().ConfigureAwait(false)
+                await trustedUserCertificates.GetCertificatesAsync(ct).ConfigureAwait(false)
             ).Find(X509FindType.FindByThumbprint, thumbprint, false);
 
             // create Certificate Identifier
