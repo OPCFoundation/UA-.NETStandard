@@ -27,11 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
 using System;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
     /// <summary>
     /// Adds IEncoder Extension Method for tests targeting a netstandard 2.0 assembly (no span support) but being run on net 8 or higher
     /// </summary>
@@ -40,7 +40,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// <summary>
         /// Bridges encoder.WriteByteString(string, ReadOnlySpan<byte>) to the byte[] overloads.
         /// </summary>
-        /// <returns></returns>
         /// <exception cref="ArgumentNullException"><paramref name="encoder"/> is <c>null</c>.</exception>
         public static void WriteByteString(this IEncoder encoder, string fieldName, ReadOnlySpan<byte> value)
         {
@@ -68,5 +67,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             encoder.WriteByteString(fieldName, value.ToArray());
         }
     }
-#endif
 }
+#endif
+
