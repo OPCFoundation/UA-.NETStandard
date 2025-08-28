@@ -100,13 +100,8 @@ namespace Opc.Ua
         /// </summary>
         public const string Https = BaseUri + "Https";
 
-        private static bool IsPlatformSupportedName(string name, bool includeHttps = false)
+        private static bool IsPlatformSupportedName(string name)
         {
-            if (includeHttps && name.Equals(nameof(Https), StringComparison.Ordinal))
-            {
-                return true;
-            }
-
             // all RSA
             if (name.Equals(nameof(None), StringComparison.Ordinal) ||
                 name.Equals(nameof(Basic256), StringComparison.Ordinal) ||
@@ -165,7 +160,7 @@ namespace Opc.Ua
         public static string GetUri(string displayName)
         {
             if (s_securityPolicyNameToUri.Value.TryGetValue(displayName, out string policyUri) &&
-                IsPlatformSupportedName(displayName, includeHttps: true))
+                IsPlatformSupportedName(displayName))
             {
                 return policyUri;
             }
@@ -180,7 +175,7 @@ namespace Opc.Ua
         public static string GetDisplayName(string policyUri)
         {
             if (s_securityPolicyUriToName.Value.TryGetValue(policyUri, out string displayName) &&
-                IsPlatformSupportedName(displayName, includeHttps: true))
+                IsPlatformSupportedName(displayName))
             {
                 return displayName;
             }
@@ -211,7 +206,7 @@ namespace Opc.Ua
 
             foreach (string displayName in s_securityPolicyUriToName.Value.Values)
             {
-                if (IsPlatformSupportedName(displayName, includeHttps: true))
+                if (IsPlatformSupportedName(displayName))
                 {
                     names.Add(displayName);
                 }
@@ -644,6 +639,7 @@ namespace Opc.Ua
                 {
                     string policyUri = (string)field.GetValue(typeof(SecurityPolicies));
                     if (field.Name == nameof(BaseUri) ||
+                        field.Name == nameof(Https) ||
                         !policyUri.StartsWith(BaseUri))
                     {
                         continue;

@@ -39,6 +39,11 @@ namespace Opc.Ua
         public static IEnumerable<string> BrowseNames => s_attributesNameToId.Value.Keys;
 
         /// <summary>
+        /// Returns the ids for all attributes.
+        /// </summary>
+        public static IEnumerable<uint> Identifiers => s_attributesIdToName.Value.Keys;
+
+        /// <summary>
         /// Returns true if the attribute id is valid.
         /// </summary>
         public static bool IsValid(uint attributeId)
@@ -76,9 +81,10 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the ids for all attributes.
         /// </summary>
+        [Obsolete("Use Identifiers property instead.")]
         public static IEnumerable<uint> GetIdentifiers()
         {
-            return s_attributesIdToName.Value.Keys;
+            return [.. Identifiers];
         }
 
         /// <summary>
