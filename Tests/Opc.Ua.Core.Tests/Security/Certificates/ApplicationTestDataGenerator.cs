@@ -48,6 +48,8 @@ namespace Opc.Ua.Core.Tests
         [GeneratedRegex(@"[^\w\d]")]
         private static partial Regex Regex2();
 #else
+#pragma warning disable IDE0079 // Remove unnecessary suppression
+#pragma warning disable SYSLIB1045 //Use 'GeneratedRegexAttribute' to generate the regular expression implementation at compile-time.
         private static Regex Regex1()
         {
             return new(@"[^\w\d\s]");
@@ -57,6 +59,8 @@ namespace Opc.Ua.Core.Tests
         {
             return new(@"[^\w\d]");
         }
+#pragma warning restore SYSLIB1045 //Use 'GeneratedRegexAttribute' to generate the regular expression implementation at compile-time.
+#pragma warning restore IDE0079 // Remove unnecessary suppression
 #endif
 
         public ApplicationTestDataGenerator(int randomStart)

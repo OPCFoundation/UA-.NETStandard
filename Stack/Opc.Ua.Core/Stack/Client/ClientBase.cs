@@ -177,16 +177,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public virtual StatusCode Close()
-        {
-            ITransportChannel channel = Interlocked.Exchange(ref m_channel, null);
-            channel?.Close();
-
-            AuthenticationToken = null;
-            return StatusCodes.Good;
-        }
-
-        /// <inheritdoc/>
         public virtual async Task<StatusCode> CloseAsync(CancellationToken ct = default)
         {
             ITransportChannel channel = Interlocked.Exchange(ref m_channel, null);

@@ -382,15 +382,14 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Test Teardown.
         /// </summary>
-        public virtual Task TearDownAsync()
+        public virtual async Task TearDownAsync()
         {
             if (!SingleSession && Session != null)
             {
-                Session.Close();
+                await Session.CloseAsync().ConfigureAwait(false);
                 Session.Dispose();
                 Session = null;
             }
-            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -494,56 +493,57 @@ namespace Opc.Ua.Client.Tests
             Console.WriteLine("GlobalCleanup: Done");
         }
 
-        public void GetOperationLimits()
+        public async Task GetOperationLimitsAsync()
         {
             OperationLimits = new OperationLimits
             {
-                MaxNodesPerRead = GetOperationLimitValue(
+                MaxNodesPerRead = await GetOperationLimitValueAsync(
                     VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRead
-                ),
-                MaxNodesPerHistoryReadData = GetOperationLimitValue(
+                ).ConfigureAwait(false),
+                MaxNodesPerHistoryReadData = await GetOperationLimitValueAsync(
                     VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadData
-                ),
-                MaxNodesPerHistoryReadEvents = GetOperationLimitValue(
+                ).ConfigureAwait(false),
+                MaxNodesPerHistoryReadEvents = await GetOperationLimitValueAsync(
                     VariableIds
                         .Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadEvents
-                ),
-                MaxNodesPerWrite = GetOperationLimitValue(
+                ).ConfigureAwait(false),
+                MaxNodesPerWrite = await GetOperationLimitValueAsync(
                     VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerWrite
-                ),
-                MaxNodesPerHistoryUpdateData = GetOperationLimitValue(
+                ).ConfigureAwait(false),
+                MaxNodesPerHistoryUpdateData = await GetOperationLimitValueAsync(
                     VariableIds
                         .Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateData
-                ),
-                MaxNodesPerHistoryUpdateEvents = GetOperationLimitValue(
+                ).ConfigureAwait(false),
+                MaxNodesPerHistoryUpdateEvents = await GetOperationLimitValueAsync(
                     VariableIds
                         .Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateEvents
-                ),
-                MaxNodesPerBrowse = GetOperationLimitValue(
+                ).ConfigureAwait(false),
+                MaxNodesPerBrowse = await GetOperationLimitValueAsync(
                     VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerBrowse
-                ),
-                MaxMonitoredItemsPerCall = GetOperationLimitValue(
+                ).ConfigureAwait(false),
+                MaxMonitoredItemsPerCall = await GetOperationLimitValueAsync(
                     VariableIds.Server_ServerCapabilities_OperationLimits_MaxMonitoredItemsPerCall
-                ),
-                MaxNodesPerNodeManagement = GetOperationLimitValue(
+                ).ConfigureAwait(false),
+                MaxNodesPerNodeManagement = await GetOperationLimitValueAsync(
                     VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerNodeManagement
-                ),
-                MaxNodesPerRegisterNodes = GetOperationLimitValue(
+                ).ConfigureAwait(false),
+                MaxNodesPerRegisterNodes = await GetOperationLimitValueAsync(
                     VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRegisterNodes
-                ),
-                MaxNodesPerTranslateBrowsePathsToNodeIds = GetOperationLimitValue(
+                ).ConfigureAwait(false),
+                MaxNodesPerTranslateBrowsePathsToNodeIds = await GetOperationLimitValueAsync(
                     VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerTranslateBrowsePathsToNodeIds
-                ),
-                MaxNodesPerMethodCall = GetOperationLimitValue(
-                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerMethodCall)
+                ).ConfigureAwait(false),
+                MaxNodesPerMethodCall = await GetOperationLimitValueAsync(
+                    VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerMethodCall
+                ).ConfigureAwait(false)
             };
         }
 
-        public uint GetOperationLimitValue(NodeId nodeId)
+        public async Task<uint> GetOperationLimitValueAsync(NodeId nodeId)
         {
             try
             {
-                return (uint)Session.ReadValue(nodeId).Value;
+                return await Session.ReadValueAsync<uint>(nodeId).ConfigureAwait(false);
             }
             catch (ServiceResultException sre)
             {

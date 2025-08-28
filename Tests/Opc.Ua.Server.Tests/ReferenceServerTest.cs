@@ -76,7 +76,7 @@ namespace Opc.Ua.Server.Tests
                 AllNodeManagers = true,
                 OperationLimits = true,
                 DurableSubscriptionsEnabled = false,
-                UseSamplingGroupsInReferenceNodeManager = true
+                UseSamplingGroupsInReferenceNodeManager = false
             };
             m_server = await m_fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
         }

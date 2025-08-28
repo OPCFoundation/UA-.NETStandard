@@ -2182,7 +2182,11 @@ namespace Opc.Ua.Server
             CallMethodRequestCollection methodsToCall,
             CancellationToken cancellationToken = default)
         {
-            return CallInternalAsync(context, methodsToCall, sync: false, cancellationToken);
+            return CallInternalAsync(
+                context,
+                methodsToCall,
+                sync: false,
+                cancellationToken);
         }
 
         /// <summary>
@@ -2194,18 +2198,25 @@ namespace Opc.Ua.Server
             out CallMethodResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            (results, diagnosticInfos) = CallInternalAsync(context, methodsToCall, sync: true).Result;
+            (results, diagnosticInfos) = CallInternalAsync(
+                context,
+                methodsToCall,
+                sync: true).Result;
         }
 
         /// <summary>
         /// Calls a method defined on an object.
         /// </summary>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public virtual async ValueTask<(CallMethodResultCollection results, DiagnosticInfoCollection diagnosticInfos)> CallInternalAsync(
-            OperationContext context,
-            CallMethodRequestCollection methodsToCall,
-            bool sync,
-            CancellationToken cancellationToken = default)
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="context"/> is <c>null</c>.</exception>
+        public virtual async ValueTask<(
+            CallMethodResultCollection results,
+            DiagnosticInfoCollection diagnosticInfos
+            )> CallInternalAsync(
+                OperationContext context,
+                CallMethodRequestCollection methodsToCall,
+                bool sync,
+                CancellationToken cancellationToken = default)
         {
             if (context == null)
             {

@@ -117,9 +117,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the CreateSession service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use CreateSessionAsync instead.")]
+        #endif
         public CreateSessionResponseMessage CreateSession(CreateSessionMessage request)
         {
             IAsyncResult result = null;
@@ -131,10 +135,14 @@ namespace Opc.Ua
 
             return this.Channel.EndCreateSession(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginCreateSession service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use CreateSessionAsync instead.")]
+        #endif
         public IAsyncResult BeginCreateSession(CreateSessionMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -150,11 +158,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndCreateSession service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use CreateSessionAsync instead.")]
+        #endif
         public CreateSessionResponseMessage EndCreateSession(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndCreateSession(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -223,9 +235,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the ActivateSession service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use ActivateSessionAsync instead.")]
+        #endif
         public ActivateSessionResponseMessage ActivateSession(ActivateSessionMessage request)
         {
             IAsyncResult result = null;
@@ -237,10 +253,14 @@ namespace Opc.Ua
 
             return this.Channel.EndActivateSession(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginActivateSession service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use ActivateSessionAsync instead.")]
+        #endif
         public IAsyncResult BeginActivateSession(ActivateSessionMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -256,11 +276,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndActivateSession service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use ActivateSessionAsync instead.")]
+        #endif
         public ActivateSessionResponseMessage EndActivateSession(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndActivateSession(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -329,9 +353,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the CloseSession service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use CloseSessionAsync instead.")]
+        #endif
         public CloseSessionResponseMessage CloseSession(CloseSessionMessage request)
         {
             IAsyncResult result = null;
@@ -343,10 +371,14 @@ namespace Opc.Ua
 
             return this.Channel.EndCloseSession(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginCloseSession service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use CloseSessionAsync instead.")]
+        #endif
         public IAsyncResult BeginCloseSession(CloseSessionMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -362,11 +394,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndCloseSession service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use CloseSessionAsync instead.")]
+        #endif
         public CloseSessionResponseMessage EndCloseSession(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndCloseSession(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -435,9 +471,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the Cancel service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use CancelAsync instead.")]
+        #endif
         public CancelResponseMessage Cancel(CancelMessage request)
         {
             IAsyncResult result = null;
@@ -449,10 +489,14 @@ namespace Opc.Ua
 
             return this.Channel.EndCancel(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginCancel service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use CancelAsync instead.")]
+        #endif
         public IAsyncResult BeginCancel(CancelMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -468,11 +512,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndCancel service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use CancelAsync instead.")]
+        #endif
         public CancelResponseMessage EndCancel(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndCancel(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -541,9 +589,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the AddNodes service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use AddNodesAsync instead.")]
+        #endif
         public AddNodesResponseMessage AddNodes(AddNodesMessage request)
         {
             IAsyncResult result = null;
@@ -555,10 +607,14 @@ namespace Opc.Ua
 
             return this.Channel.EndAddNodes(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginAddNodes service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use AddNodesAsync instead.")]
+        #endif
         public IAsyncResult BeginAddNodes(AddNodesMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -574,11 +630,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndAddNodes service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use AddNodesAsync instead.")]
+        #endif
         public AddNodesResponseMessage EndAddNodes(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndAddNodes(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -647,9 +707,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the AddReferences service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use AddReferencesAsync instead.")]
+        #endif
         public AddReferencesResponseMessage AddReferences(AddReferencesMessage request)
         {
             IAsyncResult result = null;
@@ -661,10 +725,14 @@ namespace Opc.Ua
 
             return this.Channel.EndAddReferences(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginAddReferences service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use AddReferencesAsync instead.")]
+        #endif
         public IAsyncResult BeginAddReferences(AddReferencesMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -680,11 +748,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndAddReferences service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use AddReferencesAsync instead.")]
+        #endif
         public AddReferencesResponseMessage EndAddReferences(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndAddReferences(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -753,9 +825,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the DeleteNodes service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use DeleteNodesAsync instead.")]
+        #endif
         public DeleteNodesResponseMessage DeleteNodes(DeleteNodesMessage request)
         {
             IAsyncResult result = null;
@@ -767,10 +843,14 @@ namespace Opc.Ua
 
             return this.Channel.EndDeleteNodes(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginDeleteNodes service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteNodesAsync instead.")]
+        #endif
         public IAsyncResult BeginDeleteNodes(DeleteNodesMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -786,11 +866,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndDeleteNodes service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteNodesAsync instead.")]
+        #endif
         public DeleteNodesResponseMessage EndDeleteNodes(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndDeleteNodes(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -859,9 +943,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the DeleteReferences service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use DeleteReferencesAsync instead.")]
+        #endif
         public DeleteReferencesResponseMessage DeleteReferences(DeleteReferencesMessage request)
         {
             IAsyncResult result = null;
@@ -873,10 +961,14 @@ namespace Opc.Ua
 
             return this.Channel.EndDeleteReferences(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginDeleteReferences service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteReferencesAsync instead.")]
+        #endif
         public IAsyncResult BeginDeleteReferences(DeleteReferencesMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -892,11 +984,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndDeleteReferences service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteReferencesAsync instead.")]
+        #endif
         public DeleteReferencesResponseMessage EndDeleteReferences(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndDeleteReferences(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -965,9 +1061,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the Browse service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use BrowseAsync instead.")]
+        #endif
         public BrowseResponseMessage Browse(BrowseMessage request)
         {
             IAsyncResult result = null;
@@ -979,10 +1079,14 @@ namespace Opc.Ua
 
             return this.Channel.EndBrowse(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginBrowse service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use BrowseAsync instead.")]
+        #endif
         public IAsyncResult BeginBrowse(BrowseMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -998,11 +1102,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndBrowse service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use BrowseAsync instead.")]
+        #endif
         public BrowseResponseMessage EndBrowse(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndBrowse(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -1071,9 +1179,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BrowseNext service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use BrowseNextAsync instead.")]
+        #endif
         public BrowseNextResponseMessage BrowseNext(BrowseNextMessage request)
         {
             IAsyncResult result = null;
@@ -1085,10 +1197,14 @@ namespace Opc.Ua
 
             return this.Channel.EndBrowseNext(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginBrowseNext service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use BrowseNextAsync instead.")]
+        #endif
         public IAsyncResult BeginBrowseNext(BrowseNextMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -1104,11 +1220,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndBrowseNext service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use BrowseNextAsync instead.")]
+        #endif
         public BrowseNextResponseMessage EndBrowseNext(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndBrowseNext(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -1177,9 +1297,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the TranslateBrowsePathsToNodeIds service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use TranslateBrowsePathsToNodeIdsAsync instead.")]
+        #endif
         public TranslateBrowsePathsToNodeIdsResponseMessage TranslateBrowsePathsToNodeIds(TranslateBrowsePathsToNodeIdsMessage request)
         {
             IAsyncResult result = null;
@@ -1191,10 +1315,14 @@ namespace Opc.Ua
 
             return this.Channel.EndTranslateBrowsePathsToNodeIds(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginTranslateBrowsePathsToNodeIds service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use TranslateBrowsePathsToNodeIdsAsync instead.")]
+        #endif
         public IAsyncResult BeginTranslateBrowsePathsToNodeIds(TranslateBrowsePathsToNodeIdsMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -1210,11 +1338,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndTranslateBrowsePathsToNodeIds service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use TranslateBrowsePathsToNodeIdsAsync instead.")]
+        #endif
         public TranslateBrowsePathsToNodeIdsResponseMessage EndTranslateBrowsePathsToNodeIds(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndTranslateBrowsePathsToNodeIds(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -1283,9 +1415,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the RegisterNodes service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use RegisterNodesAsync instead.")]
+        #endif
         public RegisterNodesResponseMessage RegisterNodes(RegisterNodesMessage request)
         {
             IAsyncResult result = null;
@@ -1297,10 +1433,14 @@ namespace Opc.Ua
 
             return this.Channel.EndRegisterNodes(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginRegisterNodes service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use RegisterNodesAsync instead.")]
+        #endif
         public IAsyncResult BeginRegisterNodes(RegisterNodesMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -1316,11 +1456,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndRegisterNodes service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use RegisterNodesAsync instead.")]
+        #endif
         public RegisterNodesResponseMessage EndRegisterNodes(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndRegisterNodes(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -1389,9 +1533,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the UnregisterNodes service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use UnregisterNodesAsync instead.")]
+        #endif
         public UnregisterNodesResponseMessage UnregisterNodes(UnregisterNodesMessage request)
         {
             IAsyncResult result = null;
@@ -1403,10 +1551,14 @@ namespace Opc.Ua
 
             return this.Channel.EndUnregisterNodes(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginUnregisterNodes service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use UnregisterNodesAsync instead.")]
+        #endif
         public IAsyncResult BeginUnregisterNodes(UnregisterNodesMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -1422,11 +1574,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndUnregisterNodes service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use UnregisterNodesAsync instead.")]
+        #endif
         public UnregisterNodesResponseMessage EndUnregisterNodes(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndUnregisterNodes(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -1495,9 +1651,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the QueryFirst service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use QueryFirstAsync instead.")]
+        #endif
         public QueryFirstResponseMessage QueryFirst(QueryFirstMessage request)
         {
             IAsyncResult result = null;
@@ -1509,10 +1669,14 @@ namespace Opc.Ua
 
             return this.Channel.EndQueryFirst(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginQueryFirst service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use QueryFirstAsync instead.")]
+        #endif
         public IAsyncResult BeginQueryFirst(QueryFirstMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -1528,11 +1692,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndQueryFirst service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use QueryFirstAsync instead.")]
+        #endif
         public QueryFirstResponseMessage EndQueryFirst(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndQueryFirst(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -1601,9 +1769,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the QueryNext service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use QueryNextAsync instead.")]
+        #endif
         public QueryNextResponseMessage QueryNext(QueryNextMessage request)
         {
             IAsyncResult result = null;
@@ -1615,10 +1787,14 @@ namespace Opc.Ua
 
             return this.Channel.EndQueryNext(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginQueryNext service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use QueryNextAsync instead.")]
+        #endif
         public IAsyncResult BeginQueryNext(QueryNextMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -1634,11 +1810,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndQueryNext service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use QueryNextAsync instead.")]
+        #endif
         public QueryNextResponseMessage EndQueryNext(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndQueryNext(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -1707,9 +1887,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the Read service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use ReadAsync instead.")]
+        #endif
         public ReadResponseMessage Read(ReadMessage request)
         {
             IAsyncResult result = null;
@@ -1721,10 +1905,14 @@ namespace Opc.Ua
 
             return this.Channel.EndRead(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginRead service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use ReadAsync instead.")]
+        #endif
         public IAsyncResult BeginRead(ReadMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -1740,11 +1928,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndRead service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use ReadAsync instead.")]
+        #endif
         public ReadResponseMessage EndRead(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndRead(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -1813,9 +2005,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the HistoryRead service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use HistoryReadAsync instead.")]
+        #endif
         public HistoryReadResponseMessage HistoryRead(HistoryReadMessage request)
         {
             IAsyncResult result = null;
@@ -1827,10 +2023,14 @@ namespace Opc.Ua
 
             return this.Channel.EndHistoryRead(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginHistoryRead service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use HistoryReadAsync instead.")]
+        #endif
         public IAsyncResult BeginHistoryRead(HistoryReadMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -1846,11 +2046,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndHistoryRead service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use HistoryReadAsync instead.")]
+        #endif
         public HistoryReadResponseMessage EndHistoryRead(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndHistoryRead(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -1919,9 +2123,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the Write service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use WriteAsync instead.")]
+        #endif
         public WriteResponseMessage Write(WriteMessage request)
         {
             IAsyncResult result = null;
@@ -1933,10 +2141,14 @@ namespace Opc.Ua
 
             return this.Channel.EndWrite(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginWrite service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use WriteAsync instead.")]
+        #endif
         public IAsyncResult BeginWrite(WriteMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -1952,11 +2164,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndWrite service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use WriteAsync instead.")]
+        #endif
         public WriteResponseMessage EndWrite(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndWrite(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -2025,9 +2241,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the HistoryUpdate service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use HistoryUpdateAsync instead.")]
+        #endif
         public HistoryUpdateResponseMessage HistoryUpdate(HistoryUpdateMessage request)
         {
             IAsyncResult result = null;
@@ -2039,10 +2259,14 @@ namespace Opc.Ua
 
             return this.Channel.EndHistoryUpdate(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginHistoryUpdate service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use HistoryUpdateAsync instead.")]
+        #endif
         public IAsyncResult BeginHistoryUpdate(HistoryUpdateMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -2058,11 +2282,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndHistoryUpdate service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use HistoryUpdateAsync instead.")]
+        #endif
         public HistoryUpdateResponseMessage EndHistoryUpdate(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndHistoryUpdate(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -2131,9 +2359,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the Call service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use CallAsync instead.")]
+        #endif
         public CallResponseMessage Call(CallMessage request)
         {
             IAsyncResult result = null;
@@ -2145,10 +2377,14 @@ namespace Opc.Ua
 
             return this.Channel.EndCall(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginCall service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use CallAsync instead.")]
+        #endif
         public IAsyncResult BeginCall(CallMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -2164,11 +2400,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndCall service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use CallAsync instead.")]
+        #endif
         public CallResponseMessage EndCall(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndCall(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -2237,9 +2477,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the CreateMonitoredItems service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use CreateMonitoredItemsAsync instead.")]
+        #endif
         public CreateMonitoredItemsResponseMessage CreateMonitoredItems(CreateMonitoredItemsMessage request)
         {
             IAsyncResult result = null;
@@ -2251,10 +2495,14 @@ namespace Opc.Ua
 
             return this.Channel.EndCreateMonitoredItems(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginCreateMonitoredItems service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use CreateMonitoredItemsAsync instead.")]
+        #endif
         public IAsyncResult BeginCreateMonitoredItems(CreateMonitoredItemsMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -2270,11 +2518,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndCreateMonitoredItems service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use CreateMonitoredItemsAsync instead.")]
+        #endif
         public CreateMonitoredItemsResponseMessage EndCreateMonitoredItems(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndCreateMonitoredItems(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -2343,9 +2595,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the ModifyMonitoredItems service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use ModifyMonitoredItemsAsync instead.")]
+        #endif
         public ModifyMonitoredItemsResponseMessage ModifyMonitoredItems(ModifyMonitoredItemsMessage request)
         {
             IAsyncResult result = null;
@@ -2357,10 +2613,14 @@ namespace Opc.Ua
 
             return this.Channel.EndModifyMonitoredItems(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginModifyMonitoredItems service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use ModifyMonitoredItemsAsync instead.")]
+        #endif
         public IAsyncResult BeginModifyMonitoredItems(ModifyMonitoredItemsMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -2376,11 +2636,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndModifyMonitoredItems service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use ModifyMonitoredItemsAsync instead.")]
+        #endif
         public ModifyMonitoredItemsResponseMessage EndModifyMonitoredItems(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndModifyMonitoredItems(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -2449,9 +2713,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the SetMonitoringMode service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use SetMonitoringModeAsync instead.")]
+        #endif
         public SetMonitoringModeResponseMessage SetMonitoringMode(SetMonitoringModeMessage request)
         {
             IAsyncResult result = null;
@@ -2463,10 +2731,14 @@ namespace Opc.Ua
 
             return this.Channel.EndSetMonitoringMode(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginSetMonitoringMode service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use SetMonitoringModeAsync instead.")]
+        #endif
         public IAsyncResult BeginSetMonitoringMode(SetMonitoringModeMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -2482,11 +2754,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndSetMonitoringMode service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use SetMonitoringModeAsync instead.")]
+        #endif
         public SetMonitoringModeResponseMessage EndSetMonitoringMode(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndSetMonitoringMode(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -2555,9 +2831,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the SetTriggering service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use SetTriggeringAsync instead.")]
+        #endif
         public SetTriggeringResponseMessage SetTriggering(SetTriggeringMessage request)
         {
             IAsyncResult result = null;
@@ -2569,10 +2849,14 @@ namespace Opc.Ua
 
             return this.Channel.EndSetTriggering(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginSetTriggering service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use SetTriggeringAsync instead.")]
+        #endif
         public IAsyncResult BeginSetTriggering(SetTriggeringMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -2588,11 +2872,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndSetTriggering service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use SetTriggeringAsync instead.")]
+        #endif
         public SetTriggeringResponseMessage EndSetTriggering(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndSetTriggering(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -2661,9 +2949,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the DeleteMonitoredItems service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use DeleteMonitoredItemsAsync instead.")]
+        #endif
         public DeleteMonitoredItemsResponseMessage DeleteMonitoredItems(DeleteMonitoredItemsMessage request)
         {
             IAsyncResult result = null;
@@ -2675,10 +2967,14 @@ namespace Opc.Ua
 
             return this.Channel.EndDeleteMonitoredItems(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginDeleteMonitoredItems service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteMonitoredItemsAsync instead.")]
+        #endif
         public IAsyncResult BeginDeleteMonitoredItems(DeleteMonitoredItemsMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -2694,11 +2990,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndDeleteMonitoredItems service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteMonitoredItemsAsync instead.")]
+        #endif
         public DeleteMonitoredItemsResponseMessage EndDeleteMonitoredItems(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndDeleteMonitoredItems(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -2767,9 +3067,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the CreateSubscription service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use CreateSubscriptionAsync instead.")]
+        #endif
         public CreateSubscriptionResponseMessage CreateSubscription(CreateSubscriptionMessage request)
         {
             IAsyncResult result = null;
@@ -2781,10 +3085,14 @@ namespace Opc.Ua
 
             return this.Channel.EndCreateSubscription(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginCreateSubscription service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use CreateSubscriptionAsync instead.")]
+        #endif
         public IAsyncResult BeginCreateSubscription(CreateSubscriptionMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -2800,11 +3108,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndCreateSubscription service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use CreateSubscriptionAsync instead.")]
+        #endif
         public CreateSubscriptionResponseMessage EndCreateSubscription(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndCreateSubscription(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -2873,9 +3185,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the ModifySubscription service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use ModifySubscriptionAsync instead.")]
+        #endif
         public ModifySubscriptionResponseMessage ModifySubscription(ModifySubscriptionMessage request)
         {
             IAsyncResult result = null;
@@ -2887,10 +3203,14 @@ namespace Opc.Ua
 
             return this.Channel.EndModifySubscription(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginModifySubscription service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use ModifySubscriptionAsync instead.")]
+        #endif
         public IAsyncResult BeginModifySubscription(ModifySubscriptionMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -2906,11 +3226,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndModifySubscription service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use ModifySubscriptionAsync instead.")]
+        #endif
         public ModifySubscriptionResponseMessage EndModifySubscription(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndModifySubscription(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -2979,9 +3303,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the SetPublishingMode service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use SetPublishingModeAsync instead.")]
+        #endif
         public SetPublishingModeResponseMessage SetPublishingMode(SetPublishingModeMessage request)
         {
             IAsyncResult result = null;
@@ -2993,10 +3321,14 @@ namespace Opc.Ua
 
             return this.Channel.EndSetPublishingMode(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginSetPublishingMode service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use SetPublishingModeAsync instead.")]
+        #endif
         public IAsyncResult BeginSetPublishingMode(SetPublishingModeMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -3012,11 +3344,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndSetPublishingMode service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use SetPublishingModeAsync instead.")]
+        #endif
         public SetPublishingModeResponseMessage EndSetPublishingMode(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndSetPublishingMode(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -3085,9 +3421,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the Publish service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use PublishAsync instead.")]
+        #endif
         public PublishResponseMessage Publish(PublishMessage request)
         {
             IAsyncResult result = null;
@@ -3099,10 +3439,14 @@ namespace Opc.Ua
 
             return this.Channel.EndPublish(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginPublish service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use PublishAsync instead.")]
+        #endif
         public IAsyncResult BeginPublish(PublishMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -3118,11 +3462,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndPublish service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use PublishAsync instead.")]
+        #endif
         public PublishResponseMessage EndPublish(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndPublish(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -3191,9 +3539,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the Republish service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use RepublishAsync instead.")]
+        #endif
         public RepublishResponseMessage Republish(RepublishMessage request)
         {
             IAsyncResult result = null;
@@ -3205,10 +3557,14 @@ namespace Opc.Ua
 
             return this.Channel.EndRepublish(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginRepublish service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use RepublishAsync instead.")]
+        #endif
         public IAsyncResult BeginRepublish(RepublishMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -3224,11 +3580,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndRepublish service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use RepublishAsync instead.")]
+        #endif
         public RepublishResponseMessage EndRepublish(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndRepublish(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -3297,9 +3657,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the TransferSubscriptions service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use TransferSubscriptionsAsync instead.")]
+        #endif
         public TransferSubscriptionsResponseMessage TransferSubscriptions(TransferSubscriptionsMessage request)
         {
             IAsyncResult result = null;
@@ -3311,10 +3675,14 @@ namespace Opc.Ua
 
             return this.Channel.EndTransferSubscriptions(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginTransferSubscriptions service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use TransferSubscriptionsAsync instead.")]
+        #endif
         public IAsyncResult BeginTransferSubscriptions(TransferSubscriptionsMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -3330,11 +3698,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndTransferSubscriptions service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use TransferSubscriptionsAsync instead.")]
+        #endif
         public TransferSubscriptionsResponseMessage EndTransferSubscriptions(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndTransferSubscriptions(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -3403,9 +3775,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the DeleteSubscriptions service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use DeleteSubscriptionsAsync instead.")]
+        #endif
         public DeleteSubscriptionsResponseMessage DeleteSubscriptions(DeleteSubscriptionsMessage request)
         {
             IAsyncResult result = null;
@@ -3417,10 +3793,14 @@ namespace Opc.Ua
 
             return this.Channel.EndDeleteSubscriptions(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginDeleteSubscriptions service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteSubscriptionsAsync instead.")]
+        #endif
         public IAsyncResult BeginDeleteSubscriptions(DeleteSubscriptionsMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -3436,11 +3816,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndDeleteSubscriptions service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use DeleteSubscriptionsAsync instead.")]
+        #endif
         public DeleteSubscriptionsResponseMessage EndDeleteSubscriptions(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndDeleteSubscriptions(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -3530,9 +3914,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the FindServers service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use FindServersAsync instead.")]
+        #endif
         public FindServersResponseMessage FindServers(FindServersMessage request)
         {
             IAsyncResult result = null;
@@ -3544,10 +3932,14 @@ namespace Opc.Ua
 
             return this.Channel.EndFindServers(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginFindServers service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use FindServersAsync instead.")]
+        #endif
         public IAsyncResult BeginFindServers(FindServersMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -3563,11 +3955,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndFindServers service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use FindServersAsync instead.")]
+        #endif
         public FindServersResponseMessage EndFindServers(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndFindServers(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -3636,9 +4032,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the FindServersOnNetwork service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
+        #endif
         public FindServersOnNetworkResponseMessage FindServersOnNetwork(FindServersOnNetworkMessage request)
         {
             IAsyncResult result = null;
@@ -3650,10 +4050,14 @@ namespace Opc.Ua
 
             return this.Channel.EndFindServersOnNetwork(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginFindServersOnNetwork service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
+        #endif
         public IAsyncResult BeginFindServersOnNetwork(FindServersOnNetworkMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -3669,11 +4073,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndFindServersOnNetwork service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use FindServersOnNetworkAsync instead.")]
+        #endif
         public FindServersOnNetworkResponseMessage EndFindServersOnNetwork(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndFindServersOnNetwork(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -3742,9 +4150,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the GetEndpoints service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use GetEndpointsAsync instead.")]
+        #endif
         public GetEndpointsResponseMessage GetEndpoints(GetEndpointsMessage request)
         {
             IAsyncResult result = null;
@@ -3756,10 +4168,14 @@ namespace Opc.Ua
 
             return this.Channel.EndGetEndpoints(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginGetEndpoints service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use GetEndpointsAsync instead.")]
+        #endif
         public IAsyncResult BeginGetEndpoints(GetEndpointsMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -3775,11 +4191,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndGetEndpoints service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use GetEndpointsAsync instead.")]
+        #endif
         public GetEndpointsResponseMessage EndGetEndpoints(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndGetEndpoints(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -3869,9 +4289,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the RegisterServer service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use RegisterServerAsync instead.")]
+        #endif
         public RegisterServerResponseMessage RegisterServer(RegisterServerMessage request)
         {
             IAsyncResult result = null;
@@ -3883,10 +4307,14 @@ namespace Opc.Ua
 
             return this.Channel.EndRegisterServer(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginRegisterServer service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use RegisterServerAsync instead.")]
+        #endif
         public IAsyncResult BeginRegisterServer(RegisterServerMessage request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -3902,11 +4330,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndRegisterServer service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use RegisterServerAsync instead.")]
+        #endif
         public RegisterServerResponseMessage EndRegisterServer(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndRegisterServer(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)
@@ -3975,9 +4407,13 @@ namespace Opc.Ua
             }
         }
         #else  // NET_STANDARD
+        #if (!NET_STANDARD_NO_SYNC && !NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the RegisterServer2 service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_SYNC && NET_STANDARD_ASYNC)
+        [Obsolete("Sync methods are deprecated in this version. Use RegisterServer2Async instead.")]
+        #endif
         public RegisterServer2ResponseMessage RegisterServer2(RegisterServer2Message request)
         {
             IAsyncResult result = null;
@@ -3989,10 +4425,14 @@ namespace Opc.Ua
 
             return this.Channel.EndRegisterServer2(result);
         }
-
+        #endif
+        #if (!NET_STANDARD_NO_APM)
         /// <summary>
         /// The client side implementation of the BeginRegisterServer2 service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use RegisterServer2Async instead.")]
+        #endif
         public IAsyncResult BeginRegisterServer2(RegisterServer2Message request, AsyncCallback callback, object asyncState)
         {
             UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
@@ -4008,11 +4448,15 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the EndRegisterServer2 service contract.
         /// </summary>
+        #if (NET_STANDARD_OBSOLETE_APM && NET_STANDARD_ASYNC)
+        [Obsolete("Begin/End methods are deprecated in this version. Use RegisterServer2Async instead.")]
+        #endif
         public RegisterServer2ResponseMessage EndRegisterServer2(IAsyncResult result)
         {
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndRegisterServer2(asyncResult.InnerResult);
         }
+        #endif
         #endif
 
         #if (NET_STANDARD_ASYNC)

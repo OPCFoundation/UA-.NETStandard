@@ -2499,6 +2499,15 @@ namespace Opc.Ua.Server
         /// <returns>Boolean value.</returns>
         public bool RegisterWithDiscoveryServer()
         {
+            return RegisterWithDiscoveryServerAsync().AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Registers the server with the discovery server.
+        /// </summary>
+        /// <returns>Boolean value.</returns>
+        public async ValueTask<bool> RegisterWithDiscoveryServerAsync(CancellationToken ct = default)
+        {
             var configuration = new ApplicationConfiguration(Configuration);
 
             // use a dedicated certificate validator with the registration, but derive behavior from server config
@@ -2507,10 +2516,9 @@ namespace Opc.Ua.Server
             configuration.CertificateValidator = new CertificateValidator();
             configuration.CertificateValidator.CertificateValidation
                 += registrationCertificateValidator;
-            configuration
+            await configuration
                 .CertificateValidator.UpdateAsync(configuration.SecurityConfiguration)
-                .GetAwaiter()
-                .GetResult();
+                .ConfigureAwait(false);
 
             try
             {
@@ -2536,7 +2544,7 @@ namespace Opc.Ua.Server
 
                                 if (updateRequired)
                                 {
-                                    endpoint.UpdateFromServer();
+                                    await endpoint.UpdateFromServerAsync(ct).ConfigureAwait(false);
                                 }
 
                                 lock (m_registrationLock)
@@ -2574,16 +2582,19 @@ namespace Opc.Ua.Server
                                     };
                                     var extensionObject = new ExtensionObject(mdnsDiscoveryConfig);
                                     discoveryConfiguration.Add(extensionObject);
-                                    client.RegisterServer2(
+                                    await client.RegisterServer2Async(
                                         requestHeader,
                                         m_registrationInfo,
                                         discoveryConfiguration,
-                                        out StatusCodeCollection configurationResults,
-                                        out DiagnosticInfoCollection diagnosticInfos);
+                                        ct).ConfigureAwait(false);
                                 }
                                 else
                                 {
-                                    client.RegisterServer(requestHeader, m_registrationInfo);
+                                    await client.RegisterServerAsync(
+                                        requestHeader,
+                                        m_registrationInfo,
+                                        ct)
+                                        .ConfigureAwait(false);
                                 }
 
                                 m_registeredWithDiscoveryServer = m_registrationInfo.IsOnline;
@@ -2604,7 +2615,7 @@ namespace Opc.Ua.Server
                                 {
                                     try
                                     {
-                                        client.Close();
+                                        await client.CloseAsync(ct).ConfigureAwait(false);
                                         client = null;
                                     }
                                     catch (Exception e)
