@@ -309,123 +309,91 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary>
-        /// The type of encoding being used.
-        /// </summary>
+        /// <inheritdoc/>
         public EncodingType EncodingType => EncodingType.Binary;
 
-        /// <summary>
-        /// The message context associated with the decoder.
-        /// </summary>
+        /// <inheritdoc/>
         public IServiceMessageContext Context { get; private set; }
 
-        /// <summary>
-        /// Pushes a namespace onto the namespace stack.
-        /// </summary>
+        /// <inheritdoc/>
         public void PushNamespace(string namespaceUri)
         {
             // not used in the binary encoding.
         }
 
-        /// <summary>
-        /// Pops a namespace from the namespace stack.
-        /// </summary>
+        /// <inheritdoc/>
         public void PopNamespace()
         {
             // not used in the binary encoding.
         }
 
-        /// <summary>
-        /// Reads a boolean from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public bool ReadBoolean(string fieldName)
         {
             return SafeReadBoolean();
         }
 
-        /// <summary>
-        /// Reads a sbyte from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public sbyte ReadSByte(string fieldName)
         {
             return SafeReadSByte();
         }
 
-        /// <summary>
-        /// Reads a byte from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public byte ReadByte(string fieldName)
         {
             return SafeReadByte();
         }
 
-        /// <summary>
-        /// Reads a short from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public short ReadInt16(string fieldName)
         {
             return SafeReadInt16();
         }
 
-        /// <summary>
-        /// Reads a ushort from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public ushort ReadUInt16(string fieldName)
         {
             return SafeReadUInt16();
         }
 
-        /// <summary>
-        /// Reads an int from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public int ReadInt32(string fieldName)
         {
             return SafeReadInt32();
         }
 
-        /// <summary>
-        /// Reads a uint from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public uint ReadUInt32(string fieldName)
         {
             return SafeReadUInt32();
         }
 
-        /// <summary>
-        /// Reads a long from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public long ReadInt64(string fieldName)
         {
             return SafeReadInt64();
         }
 
-        /// <summary>
-        /// Reads a ulong from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public ulong ReadUInt64(string fieldName)
         {
             return SafeReadUInt64();
         }
 
-        /// <summary>
-        /// Reads a float from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public float ReadFloat(string fieldName)
         {
             return SafeReadFloat();
         }
 
-        /// <summary>
-        /// Reads a double from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public double ReadDouble(string fieldName)
         {
             return SafeReadDouble();
         }
 
-        /// <summary>
-        /// Reads a string from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public string ReadString(string fieldName)
         {
             return ReadString(fieldName, Context.MaxStringLength);
@@ -500,9 +468,7 @@ namespace Opc.Ua
 #endif
         }
 
-        /// <summary>
-        /// Reads a UTC date/time from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public DateTime ReadDateTime(string fieldName)
         {
             long ticks = SafeReadInt64();
@@ -527,9 +493,7 @@ namespace Opc.Ua
             return new DateTime(ticks, DateTimeKind.Utc);
         }
 
-        /// <summary>
-        /// Reads a GUID from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public Uuid ReadGuid(string fieldName)
         {
             const int kGuidLength = 16;
@@ -537,9 +501,7 @@ namespace Opc.Ua
             return new Uuid(new Guid(bytes));
         }
 
-        /// <summary>
-        /// Reads a byte string from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public byte[] ReadByteString(string fieldName)
         {
             return ReadByteString(fieldName, Context.MaxByteStringLength);
@@ -570,9 +532,7 @@ namespace Opc.Ua
             return SafeReadBytes(length);
         }
 
-        /// <summary>
-        /// Reads an XmlElement from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public XmlElement ReadXmlElement(string fieldName)
         {
             byte[] bytes = ReadByteString(fieldName);
@@ -605,9 +565,7 @@ namespace Opc.Ua
             return document.DocumentElement;
         }
 
-        /// <summary>
-        /// Reads an NodeId from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public NodeId ReadNodeId(string fieldName)
         {
             byte encodingByte = SafeReadByte();
@@ -624,9 +582,7 @@ namespace Opc.Ua
             return value;
         }
 
-        /// <summary>
-        /// Reads an ExpandedNodeId from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public ExpandedNodeId ReadExpandedNodeId(string fieldName)
         {
             byte encodingByte = SafeReadByte();
@@ -664,25 +620,19 @@ namespace Opc.Ua
             return value;
         }
 
-        /// <summary>
-        /// Reads an StatusCode from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public StatusCode ReadStatusCode(string fieldName)
         {
             return SafeReadUInt32();
         }
 
-        /// <summary>
-        /// Reads an DiagnosticInfo from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public DiagnosticInfo ReadDiagnosticInfo(string fieldName)
         {
             return ReadDiagnosticInfo(fieldName, 0);
         }
 
-        /// <summary>
-        /// Reads an QualifiedName from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public QualifiedName ReadQualifiedName(string fieldName)
         {
             ushort namespaceIndex = ReadUInt16(null);
@@ -696,9 +646,7 @@ namespace Opc.Ua
             return new QualifiedName(name, namespaceIndex);
         }
 
-        /// <summary>
-        /// Reads an LocalizedText from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public LocalizedText ReadLocalizedText(string fieldName)
         {
             // read the encoding byte.
@@ -721,9 +669,7 @@ namespace Opc.Ua
             return new LocalizedText(locale, text);
         }
 
-        /// <summary>
-        /// Reads an Variant from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public Variant ReadVariant(string fieldName)
         {
             CheckAndIncrementNestingLevel();
@@ -738,9 +684,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// Reads an DataValue from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public DataValue ReadDataValue(string fieldName)
         {
             // read the encoding byte.
@@ -795,23 +739,13 @@ namespace Opc.Ua
             return value;
         }
 
-        /// <summary>
-        /// Reads an ExtensionObject from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public ExtensionObject ReadExtensionObject(string fieldName)
         {
             return ReadExtensionObject();
         }
 
-        /// <summary>
-        /// Reads an encodeable object from the stream.
-        /// </summary>
-        /// <param name="fieldName">The encodeable object field name</param>
-        /// <param name="systemType">The system type of the encodeable object to be read</param>
-        /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instance that will be read.</param>
-        /// <returns>An <see cref="IEncodeable"/> object that was read from the stream.</returns>
-        /// <exception cref="ArgumentNullException"><paramref name="systemType"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <inheritdoc/>
         public IEncodeable ReadEncodeable(
             string fieldName,
             Type systemType,
@@ -854,17 +788,13 @@ namespace Opc.Ua
             return encodeable;
         }
 
-        /// <summary>
-        ///  Reads an enumerated value from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public Enum ReadEnumerated(string fieldName, Type enumType)
         {
             return (Enum)Enum.ToObject(enumType, SafeReadInt32());
         }
 
-        /// <summary>
-        /// Reads a boolean array from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public BooleanCollection ReadBooleanArray(string fieldName)
         {
             int length = ReadArrayLength();
@@ -884,9 +814,7 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads a sbyte array from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public SByteCollection ReadSByteArray(string fieldName)
         {
             int length = ReadArrayLength();
@@ -906,9 +834,7 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads a byte array from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public ByteCollection ReadByteArray(string fieldName)
         {
             int length = ReadArrayLength();
@@ -928,9 +854,7 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads a short array from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public Int16Collection ReadInt16Array(string fieldName)
         {
             int length = ReadArrayLength();
@@ -950,9 +874,7 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads a ushort array from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public UInt16Collection ReadUInt16Array(string fieldName)
         {
             int length = ReadArrayLength();
@@ -972,9 +894,7 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads a int array from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public Int32Collection ReadInt32Array(string fieldName)
         {
             int length = ReadArrayLength();
@@ -994,9 +914,7 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads a uint array from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public UInt32Collection ReadUInt32Array(string fieldName)
         {
             int length = ReadArrayLength();
@@ -1016,9 +934,7 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads a long array from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public Int64Collection ReadInt64Array(string fieldName)
         {
             int length = ReadArrayLength();
@@ -1038,9 +954,7 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads a ulong array from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public UInt64Collection ReadUInt64Array(string fieldName)
         {
             int length = ReadArrayLength();
@@ -1060,9 +974,7 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads a float array from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public FloatCollection ReadFloatArray(string fieldName)
         {
             int length = ReadArrayLength();
@@ -1082,9 +994,7 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads a double array from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public DoubleCollection ReadDoubleArray(string fieldName)
         {
             int length = ReadArrayLength();
@@ -1104,9 +1014,7 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads a string array from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public StringCollection ReadStringArray(string fieldName)
         {
             int length = ReadArrayLength();
@@ -1126,9 +1034,7 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads a UTC date/time array from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public DateTimeCollection ReadDateTimeArray(string fieldName)
         {
             int length = ReadArrayLength();
@@ -1148,9 +1054,7 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads a GUID array from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public UuidCollection ReadGuidArray(string fieldName)
         {
             int length = ReadArrayLength();
@@ -1170,9 +1074,7 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads a byte string array from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public ByteStringCollection ReadByteStringArray(string fieldName)
         {
             int length = ReadArrayLength();
@@ -1192,9 +1094,7 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads an XmlElement array from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public XmlElementCollection ReadXmlElementArray(string fieldName)
         {
             int length = ReadArrayLength();
@@ -1214,9 +1114,7 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads an NodeId array from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public NodeIdCollection ReadNodeIdArray(string fieldName)
         {
             int length = ReadArrayLength();
@@ -1236,9 +1134,7 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads an ExpandedNodeId array from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public ExpandedNodeIdCollection ReadExpandedNodeIdArray(string fieldName)
         {
             int length = ReadArrayLength();
@@ -1258,9 +1154,7 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads an StatusCode array from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public StatusCodeCollection ReadStatusCodeArray(string fieldName)
         {
             int length = ReadArrayLength();
@@ -1280,9 +1174,7 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads an DiagnosticInfo array from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public DiagnosticInfoCollection ReadDiagnosticInfoArray(string fieldName)
         {
             int length = ReadArrayLength();
@@ -1302,9 +1194,7 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads an QualifiedName array from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public QualifiedNameCollection ReadQualifiedNameArray(string fieldName)
         {
             int length = ReadArrayLength();
@@ -1324,9 +1214,7 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads an LocalizedText array from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public LocalizedTextCollection ReadLocalizedTextArray(string fieldName)
         {
             int length = ReadArrayLength();
@@ -1346,9 +1234,7 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads an Variant array from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public VariantCollection ReadVariantArray(string fieldName)
         {
             int length = ReadArrayLength();
@@ -1368,9 +1254,7 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads an DataValue array from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public DataValueCollection ReadDataValueArray(string fieldName)
         {
             int length = ReadArrayLength();
@@ -1390,9 +1274,7 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads an extension object array from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public ExtensionObjectCollection ReadExtensionObjectArray(string fieldName)
         {
             int length = ReadArrayLength();
@@ -1412,13 +1294,7 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads an encodeable array from the stream.
-        /// </summary>
-        /// <param name="fieldName">The encodeable array field name</param>
-        /// <param name="systemType">The system type of the encodeable objects to be read object</param>
-        /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instances that will be read.</param>
-        /// <returns>An <see cref="IEncodeable"/> array that was read from the stream.</returns>
+        /// <inheritdoc/>
         public Array ReadEncodeableArray(
             string fieldName,
             Type systemType,
@@ -1441,9 +1317,7 @@ namespace Opc.Ua
             return values;
         }
 
-        /// <summary>
-        /// Reads an enumerated value array from the stream.
-        /// </summary>
+        /// <inheritdoc/>
         public Array ReadEnumeratedArray(string fieldName, Type enumType)
         {
             int length = ReadArrayLength();
@@ -2403,7 +2277,7 @@ namespace Opc.Ua
 
                         if (dimensions.Count == 1)
                         {
-                            value = new Variant(array, new TypeInfo(builtInType, 1));
+                            value = new Variant(array, TypeInfo.CreateArray(builtInType));
                         }
                         else
                         {
@@ -2412,7 +2286,7 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        value = new Variant(array, new TypeInfo(builtInType, 1));
+                        value = new Variant(array, TypeInfo.CreateArray(builtInType));
                     }
                 }
             }
