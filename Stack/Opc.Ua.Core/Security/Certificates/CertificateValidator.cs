@@ -243,7 +243,7 @@ namespace Opc.Ua
                             .ConfigureAwait(false);
                         if (certificate == null)
                         {
-                            Utils.Trace(
+                            Utils.Log(
                                 Utils.TraceMasks.Security,
                                 "Could not find application certificate: {0}",
                                 applicationCertificate);

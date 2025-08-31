@@ -127,8 +127,7 @@ namespace Opc.Ua.PubSub.Transport
                 ExtensionObject.ToEncodeable(transportSettings.DiscoveryAddress)
                     is NetworkAddressUrlDataType discoveryNetworkAddressUrlState)
             {
-                Utils.Trace(
-                    Utils.TraceMasks.Information,
+                Utils.LogInfo(
                     "The configuration for connection {0} has custom DiscoveryAddress configuration.",
                     pubSubConnectionConfiguration.Name);
 
@@ -139,8 +138,7 @@ namespace Opc.Ua.PubSub.Transport
 
             if (DiscoveryNetworkAddressEndPoint == null)
             {
-                Utils.Trace(
-                    Utils.TraceMasks.Information,
+                Utils.LogInfo(
                     "The configuration for connection {0} will use the default DiscoveryAddress: {1}.",
                     pubSubConnectionConfiguration.Name,
                     kDefaultDiscoveryUrl);

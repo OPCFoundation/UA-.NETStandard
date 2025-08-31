@@ -71,7 +71,7 @@ namespace Opc.Ua
                 }
                 catch (Exception ex)
                 {
-                    Utils.Trace(ex, "Exception invoking Trace Event Handler", true, null);
+                    Utils.LogError(ex, "Exception invoking Trace Event Handler", true, null);
                 }
             }
         }

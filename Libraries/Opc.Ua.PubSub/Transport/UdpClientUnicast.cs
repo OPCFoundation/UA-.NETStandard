@@ -59,7 +59,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "SetSocketOption has thrown exception ");
+                Utils.LogError(ex, "SetSocketOption has thrown exception ");
             }
             try
             {
@@ -68,12 +68,12 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "Setting ExclusiveAddressUse to false has thrown exception ");
+                Utils.LogError(ex, "Setting ExclusiveAddressUse to false has thrown exception ");
             }
 
             Client.Bind(new IPEndPoint(localAddress, port));
 
-            Utils.Trace(
+            Utils.LogInfo(
                 "UdpClientUnicast was created for local Address: {0}:{1}.",
                 localAddress,
                 port);

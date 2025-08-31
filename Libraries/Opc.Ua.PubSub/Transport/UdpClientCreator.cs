@@ -55,15 +55,14 @@ namespace Opc.Ua.PubSub.Transport
             {
                 if (connectionUri.Scheme != Utils.UriSchemeOpcUdp)
                 {
-                    Utils.Trace(
-                        Utils.TraceMasks.Error,
+                    Utils.LogError(
                         "Invalid Scheme specified in URL: {0}",
                         url);
                     return null;
                 }
                 if (connectionUri.Port <= 0)
                 {
-                    Utils.Trace(Utils.TraceMasks.Error, "Invalid Port specified in URL: {0}", url);
+                    Utils.LogError("Invalid Port specified in URL: {0}", url);
                     return null;
                 }
                 string hostName = connectionUri.Host;
@@ -92,7 +91,7 @@ namespace Opc.Ua.PubSub.Transport
                 }
                 catch (Exception ex)
                 {
-                    Utils.Trace(ex, "Could not resolve host name: {0}", hostName);
+                    Utils.LogError(ex, "Could not resolve host name: {0}", hostName);
                 }
             }
             return null;
@@ -119,7 +118,7 @@ namespace Opc.Ua.PubSub.Transport
                 "configuredEndpoint = {0}",
                 configuredEndpoint != null ? configuredEndpoint.ToString() : "null");
 
-            Utils.Trace(Utils.TraceMasks.Information, buffer.ToString());
+            Utils.LogInfo(buffer.ToString());
 
             var udpClients = new List<UdpClient>();
             //validate input parameters
@@ -133,8 +132,7 @@ namespace Opc.Ua.PubSub.Transport
             NetworkInterface[] interfaces = NetworkInterface.GetAllNetworkInterfaces();
             if (string.IsNullOrEmpty(networkInterface))
             {
-                Utils.Trace(
-                    Utils.TraceMasks.Information,
+                Utils.LogInfo(
                     "No NetworkInterface name was provided. Use all available NICs.");
                 usableNetworkInterfaces.AddRange(interfaces);
             }
@@ -150,8 +148,7 @@ namespace Opc.Ua.PubSub.Transport
                 }
                 if (usableNetworkInterfaces.Count == 0)
                 {
-                    Utils.Trace(
-                        Utils.TraceMasks.Information,
+                    Utils.LogInfo(
                         "The configured value for NetworkInterface name('{0}') could not be used.",
                         networkInterface);
                     usableNetworkInterfaces.AddRange(interfaces);
@@ -160,8 +157,7 @@ namespace Opc.Ua.PubSub.Transport
 
             foreach (NetworkInterface nic in usableNetworkInterfaces)
             {
-                Utils.Trace(
-                    Utils.TraceMasks.Information,
+                Utils.LogInfo(
                     "NetworkInterface name('{0}') attempts to create instance of UdpClient.",
                     nic.Name);
 
@@ -185,8 +181,7 @@ namespace Opc.Ua.PubSub.Transport
                 }
                 //store UdpClient
                 udpClients.Add(udpClient);
-                Utils.Trace(
-                    Utils.TraceMasks.Information,
+                Utils.LogInfo(
                     "NetworkInterface name('{0}') UdpClient successfully created.",
                     nic.Name);
             }
@@ -259,8 +254,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.Trace(
-                    Utils.TraceMasks.Information,
+                Utils.LogInfo(
                     "Cannot use Network interface '{0}'. Exception: {1}",
                     networkInterface.Name,
                     ex.Message);

@@ -51,7 +51,7 @@ namespace Opc.Ua
                 return;
             }
             int traceMask = Utils.GetTraceMask(eventId, logLevel);
-            Utils.Trace(state, exception, traceMask, formatter);
+            Utils.Log(state, exception, traceMask, formatter);
         }
     }
 }

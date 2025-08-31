@@ -68,7 +68,7 @@ namespace Opc.Ua.PubSub.Transport
                 mqttClient.ApplicationMessageReceivedAsync += receiveMessageHandler;
                 mqttClient.ConnectedAsync += async _ =>
                 {
-                    Utils.Trace("{0} Connected to MQTTBroker", mqttClient?.Options?.ClientId);
+                    Utils.LogInfo("{0} Connected to MQTTBroker", mqttClient?.Options?.ClientId);
 
                     try
                     {
@@ -78,14 +78,14 @@ namespace Opc.Ua.PubSub.Transport
                             await mqttClient.SubscribeAsync(topic).ConfigureAwait(false);
                         }
 
-                        Utils.Trace(
+                        Utils.LogInfo(
                             "{0} Subscribed to topics: {1}",
                             mqttClient?.Options?.ClientId,
                             string.Join(",", topicFilter));
                     }
                     catch (Exception exception)
                     {
-                        Utils.Trace(
+                        Utils.LogError(
                             exception,
                             "{0} could not subscribe to topics: {1}",
                             mqttClient?.Options?.ClientId,
@@ -97,13 +97,13 @@ namespace Opc.Ua.PubSub.Transport
             {
                 if (receiveMessageHandler == null)
                 {
-                    Utils.Trace(
+                    Utils.LogInfo(
                         "The provided MQTT message handler is null therefore messages will not be processed on client {0}!!!",
                         mqttClient?.Options?.ClientId);
                 }
                 if (topicFilter == null)
                 {
-                    Utils.Trace(
+                    Utils.LogInfo(
                         "The provided MQTT message topic filter is null therefore messages will not be processed on client {0}!!!",
                         mqttClient?.Options?.ClientId);
                 }
@@ -115,7 +115,7 @@ namespace Opc.Ua.PubSub.Transport
                 await Task.Delay(TimeSpan.FromSeconds(reconnectInterval)).ConfigureAwait(false);
                 try
                 {
-                    Utils.Trace(
+                    Utils.LogInfo(
                         "Disconnect Handler called on client {0}, reason: {1} was connected: {2}",
                         mqttClient?.Options?.ClientId,
                         e.Reason,
@@ -125,7 +125,7 @@ namespace Opc.Ua.PubSub.Transport
                 }
                 catch (Exception excOnDisconnect)
                 {
-                    Utils.Trace(
+                    Utils.LogInfo(
                         "{0} Failed to reconnect after disconnect occurred: {1}",
                         mqttClient?.Options?.ClientId,
                         excOnDisconnect.Message);
@@ -153,13 +153,13 @@ namespace Opc.Ua.PubSub.Transport
                     .ConfigureAwait(false);
                 if (MqttClientConnectResultCode.Success == result.ResultCode)
                 {
-                    Utils.Trace(
+                    Utils.LogInfo(
                         "MQTT client {0} successfully connected",
                         mqttClient?.Options?.ClientId);
                 }
                 else
                 {
-                    Utils.Trace(
+                    Utils.LogInfo(
                         "MQTT client {0} connect attempt returned {0}",
                         mqttClient?.Options?.ClientId,
                         result?.ResultCode);
@@ -167,7 +167,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception e)
             {
-                Utils.Trace(
+                Utils.LogInfo(
                     "MQTT client {0} connect attempt returned {1} will try to reconnect in {2} seconds",
                     mqttClient?.Options?.ClientId,
                     e.Message,

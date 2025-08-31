@@ -79,8 +79,7 @@ namespace Opc.Ua.PubSub.Transport
                     }
                     catch (Exception ex)
                     {
-                        Utils.Trace(
-                            Utils.TraceMasks.Information,
+                        Utils.LogInfo(
                             "UdpDiscoveryPublisher: UdpClient '{0}' Cannot receive data. Exception: {1}",
                             discoveryUdpClient.Client.LocalEndPoint,
                             ex.Message);
@@ -109,8 +108,7 @@ namespace Opc.Ua.PubSub.Transport
 
                 if (message != null)
                 {
-                    Utils.Trace(
-                        Utils.TraceMasks.Information,
+                    Utils.LogInfo(
                         "OnUadpDiscoveryReceive received message with length {0} from {1}",
                         message.Length,
                         source.Address);
@@ -124,7 +122,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "OnUadpDiscoveryReceive from {0}", source.Address);
+                Utils.LogError(ex, "OnUadpDiscoveryReceive from {0}", source.Address);
             }
 
             try
@@ -134,8 +132,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.Trace(
-                    Utils.TraceMasks.Information,
+                Utils.LogInfo(
                     "OnUadpDiscoveryReceive BeginReceive threw Exception {0}",
                     ex.Message);
 
@@ -151,8 +148,7 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         private void ProcessReceivedMessageDiscovery(byte[] messageBytes, IPEndPoint source)
         {
-            Utils.Trace(
-                Utils.TraceMasks.Information,
+            Utils.LogInfo(
                 "UdpDiscoveryPublisher.ProcessReceivedMessageDiscovery from source={0}",
                 source);
 
@@ -165,8 +161,7 @@ namespace Opc.Ua.PubSub.Transport
                     .UADPDiscoveryType == UADPNetworkMessageDiscoveryType.DataSetMetaData &&
                 networkMessage.DataSetWriterIds != null)
             {
-                Utils.Trace(
-                    Utils.TraceMasks.Information,
+                Utils.LogInfo(
                     "UdpDiscoveryPublisher.ProcessReceivedMessageDiscovery Request MetaData Received on endpoint {1} for {0}",
                     string.Join(", ", networkMessage.DataSetWriterIds),
                     source.Address);
@@ -217,7 +212,7 @@ namespace Opc.Ua.PubSub.Transport
                             .CreateDataSetMetaDataNetworkMessages(
                                 [.. m_metadataWriterIdsToSend]))
                     {
-                        Utils.Trace(
+                        Utils.LogInfo(
                             "UdpDiscoveryPublisher.SendResponseDataSetMetaData before sending message for DataSetWriterId:{0}",
                             message.DataSetWriterId);
 
@@ -251,7 +246,7 @@ namespace Opc.Ua.PubSub.Transport
 
                     foreach (UaNetworkMessage responsesMessage in responsesMessages)
                     {
-                        Utils.Trace(
+                        Utils.LogInfo(
                             "UdpDiscoveryPublisher.SendResponseDataSetWriterConfiguration Before sending message for DataSetWriterId:{0}",
                             responsesMessage.DataSetWriterId);
 
@@ -281,7 +276,7 @@ namespace Opc.Ua.PubSub.Transport
                     publisherEndpointsToSend.Count > 0 ? StatusCodes.Good : StatusCodes.BadNotFound,
                     m_udpConnection.PubSubConnectionConfiguration.PublisherId.Value);
 
-                Utils.Trace(
+                Utils.LogInfo(
                     "UdpDiscoveryPublisher.SendResponsePublisherEndpoints before sending message for PublisherEndpoints.");
 
                 m_udpConnection.PublishNetworkMessage(message);

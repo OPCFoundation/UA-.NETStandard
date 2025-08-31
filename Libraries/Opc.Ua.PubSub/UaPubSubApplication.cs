@@ -113,7 +113,7 @@ namespace Opc.Ua.PubSub
             UaPubSubConfigurator.PublishedDataSetRemoved
                 += UaPubSubConfigurator_PublishedDataSetRemoved;
 
-            Utils.Trace("An instance of UaPubSubApplication was created.");
+            Utils.LogInfo("An instance of UaPubSubApplication was created.");
         }
 
         /// <summary>
@@ -212,12 +212,12 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public void Start()
         {
-            Utils.Trace("UaPubSubApplication is starting.");
+            Utils.LogInfo("UaPubSubApplication is starting.");
             foreach (IUaPubSubConnection connection in m_uaPubSubConnections)
             {
                 connection.Start();
             }
-            Utils.Trace("UaPubSubApplication was started.");
+            Utils.LogInfo("UaPubSubApplication was started.");
         }
 
         /// <summary>
@@ -225,12 +225,12 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public void Stop()
         {
-            Utils.Trace("UaPubSubApplication is stopping.");
+            Utils.LogInfo("UaPubSubApplication is stopping.");
             foreach (IUaPubSubConnection connection in m_uaPubSubConnections)
             {
                 connection.Stop();
             }
-            Utils.Trace("UaPubSubApplication is stopped.");
+            Utils.LogInfo("UaPubSubApplication is stopped.");
         }
 
         /// <summary>
@@ -244,7 +244,7 @@ namespace Opc.Ua.PubSub
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "UaPubSubApplication.RaiseRawDataReceivedEvent");
+                Utils.LogError(ex, "UaPubSubApplication.RaiseRawDataReceivedEvent");
             }
         }
 
@@ -259,7 +259,7 @@ namespace Opc.Ua.PubSub
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "UaPubSubApplication.RaiseDataReceivedEvent");
+                Utils.LogError(ex, "UaPubSubApplication.RaiseDataReceivedEvent");
             }
         }
 
@@ -274,7 +274,7 @@ namespace Opc.Ua.PubSub
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "UaPubSubApplication.RaiseMetaDataReceivedEvent");
+                Utils.LogError(ex, "UaPubSubApplication.RaiseMetaDataReceivedEvent");
             }
         }
 
@@ -290,7 +290,7 @@ namespace Opc.Ua.PubSub
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "UaPubSubApplication.DatasetWriterConfigurationReceivedEvent");
+                Utils.LogError(ex, "UaPubSubApplication.DatasetWriterConfigurationReceivedEvent");
             }
         }
 
@@ -305,7 +305,7 @@ namespace Opc.Ua.PubSub
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "UaPubSubApplication.RaisePublisherEndpointsReceivedEvent");
+                Utils.LogError(ex, "UaPubSubApplication.RaisePublisherEndpointsReceivedEvent");
             }
         }
 
@@ -320,7 +320,7 @@ namespace Opc.Ua.PubSub
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "UaPubSubApplication.RaiseConfigurationUpdatingEvent");
+                Utils.LogError(ex, "UaPubSubApplication.RaiseConfigurationUpdatingEvent");
             }
         }
 

@@ -314,12 +314,11 @@ namespace Quickstarts
         /// <param name="logConsole">Enable logging to the console.</param>
         /// <param name="consoleLogLevel">The LogLevel to use for the console/debug.<
         /// /param>
-        public static void ConfigureLogging(
+        public static Microsoft.Extensions.Logging.ILogger ConfigureLogging(
             ApplicationConfiguration configuration,
             string context,
             bool logConsole,
-            LogLevel consoleLogLevel
-        )
+            LogLevel consoleLogLevel)
         {
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
             TaskScheduler.UnobservedTaskException += Unobserved_TaskException;
@@ -331,34 +330,28 @@ namespace Quickstarts
             {
                 loggerConfiguration.WriteTo.Console(
                     restrictedToMinimumLevel: (LogEventLevel)consoleLogLevel,
-                    formatProvider: CultureInfo.InvariantCulture
-                );
+                    formatProvider: CultureInfo.InvariantCulture);
             }
 #if DEBUG
             else
             {
                 loggerConfiguration.WriteTo.Debug(
                     restrictedToMinimumLevel: (LogEventLevel)consoleLogLevel,
-                    formatProvider: CultureInfo.InvariantCulture
-                );
+                    formatProvider: CultureInfo.InvariantCulture);
             }
 #endif
             LogLevel fileLevel = LogLevel.Information;
 
             // switch for Trace/Verbose output
             int traceMasks = configuration.TraceConfiguration.TraceMasks;
-            if (
-                (
-                    traceMasks &
-                    ~(
-                        TraceMasks.Information |
-                        TraceMasks.Error |
-                        TraceMasks.Security |
-                        TraceMasks.StartStop |
-                        TraceMasks.StackTrace
-                    )
-                ) != 0
-            )
+            if ((traceMasks &
+                ~(
+                    TraceMasks.Information |
+                    TraceMasks.Error |
+                    TraceMasks.Security |
+                    TraceMasks.StartStop |
+                    TraceMasks.StackTrace
+                )) != 0)
             {
                 fileLevel = LogLevel.Trace;
             }
@@ -386,54 +379,10 @@ namespace Quickstarts
             Serilog.Core.Logger serilogger = loggerConfiguration.CreateLogger();
 
             // create the ILogger for Opc.Ua.Core
-            Microsoft.Extensions.Logging.ILogger logger = LoggerFactory
+            return LoggerFactory
                 .Create(builder => builder.SetMinimumLevel(LogLevel.Trace))
                 .AddSerilog(serilogger)
                 .CreateLogger(context);
-
-            // set logger interface, disables TraceEvent
-            SetLogger(logger);
-        }
-
-        /// <summary>
-        /// Output log messages.
-        /// </summary>
-        public static void LogTest()
-        {
-            // print legacy logging output, for testing
-            Trace(TraceMasks.Error, "This is an Error message: {0}", TraceMasks.Error);
-            Trace(
-                TraceMasks.Information,
-                "This is a Information message: {0}",
-                TraceMasks.Information);
-            Trace(
-                TraceMasks.StackTrace,
-                "This is a StackTrace message: {0}",
-                TraceMasks.StackTrace);
-            Trace(TraceMasks.Service, "This is a Service message: {0}", TraceMasks.Service);
-            Trace(
-                TraceMasks.ServiceDetail,
-                "This is a ServiceDetail message: {0}",
-                TraceMasks.ServiceDetail);
-            Trace(TraceMasks.Operation, "This is a Operation message: {0}", TraceMasks.Operation);
-            Trace(
-                TraceMasks.OperationDetail,
-                "This is a OperationDetail message: {0}",
-                TraceMasks.OperationDetail);
-            Trace(TraceMasks.StartStop, "This is a StartStop message: {0}", TraceMasks.StartStop);
-            Trace(
-                TraceMasks.ExternalSystem,
-                "This is a ExternalSystem message: {0}",
-                TraceMasks.ExternalSystem);
-            Trace(TraceMasks.Security, "This is a Security message: {0}", TraceMasks.Security);
-
-            // print ILogger logging output
-            LogTrace("This is a Trace message: {0}", LogLevel.Trace);
-            LogDebug("This is a Debug message: {0}", LogLevel.Debug);
-            LogInfo("This is a Info message: {0}", LogLevel.Information);
-            LogWarning("This is a Warning message: {0}", LogLevel.Warning);
-            LogError("This is a Error message: {0}", LogLevel.Error);
-            LogCritical("This is a Critical message: {0}", LogLevel.Critical);
         }
 
         /// <summary>

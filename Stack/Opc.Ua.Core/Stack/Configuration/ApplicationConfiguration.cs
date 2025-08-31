@@ -705,7 +705,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Could not load configuration from file: {0}", filePath);
+                Utils.LogError(e, "Could not load configuration from file: {0}", filePath);
             }
             finally
             {

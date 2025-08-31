@@ -55,9 +55,10 @@ namespace Opc.Ua.Server
             bool publishingEnabled,
             uint maxMessageCount)
         {
-            m_server = server ?? throw new ArgumentNullException(nameof(server));
-            Session = session ?? throw new ArgumentNullException(nameof(session));
             Id = subscriptionId;
+            Session = session ?? throw new ArgumentNullException(nameof(session));
+            m_server = server ?? throw new ArgumentNullException(nameof(server));
+            m_logger = server.ObservabilityContext.CreateLogger<Subscription>();
             m_publishingInterval = publishingInterval;
             m_maxLifetimeCount = maxLifetimeCount;
             m_maxKeepAliveCount = maxKeepAliveCount;
@@ -138,6 +139,7 @@ namespace Opc.Ua.Server
             }
 
             m_server = server;
+            m_logger = server.ObservabilityContext.CreateLogger<Subscription>();
             Session = null;
             Id = storedSubscription.Id;
             m_publishingInterval = storedSubscription.PublishingInterval;
@@ -2627,7 +2629,7 @@ namespace Opc.Ua.Server
             const string itemsMessage
                 = "Subscription {0}, Id={1}, ItemCount={2}, ItemsToCheck={3}, ItemsToPublish={4}";
 
-            if (!Utils.Logger.IsEnabled(logLevel))
+            if (!m_logger.IsEnabled(logLevel))
             {
                 return;
             }
@@ -2724,5 +2726,6 @@ namespace Opc.Ua.Server
         private bool m_expired;
         private readonly Dictionary<uint, List<ITriggeredMonitoredItem>> m_itemsToTrigger;
         private readonly bool m_supportsDurable;
+        private readonly ILogger m_logger;
     }
 }

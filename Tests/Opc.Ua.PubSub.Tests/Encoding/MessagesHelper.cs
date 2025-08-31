@@ -3438,7 +3438,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
             catch (Exception ex)
             {
-                Utils.Trace("ConvertToNullable has thrown: ", ex.Message);
+                Utils.LogInfo("ConvertToNullable has thrown: ", ex.Message);
             }
 
             return nullableObject;

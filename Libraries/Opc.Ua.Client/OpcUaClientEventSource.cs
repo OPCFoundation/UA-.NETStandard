@@ -121,20 +121,17 @@ namespace Opc.Ua.Client
                     currentPublishingEnabled,
                     monitoredItemCount);
             }
-            else if (Logger.IsEnabled(LogLevel.Information))
-            {
-                LogInfo(
-                    SubscriptionStateMessageEventId,
-                    SubscriptionStateMessage,
-                    context,
-                    id,
-                    lastNotificationTime,
-                    goodPublishRequestCount,
-                    currentPublishingInterval,
-                    currentKeepAliveCount,
-                    currentPublishingEnabled,
-                    monitoredItemCount);
-            }
+            LogInfo(
+                SubscriptionStateMessageEventId,
+                SubscriptionStateMessage,
+                context,
+                id,
+                lastNotificationTime,
+                goodPublishRequestCount,
+                currentPublishingInterval,
+                currentKeepAliveCount,
+                currentPublishingEnabled,
+                monitoredItemCount);
         }
 
         /// <summary>
@@ -159,14 +156,11 @@ namespace Opc.Ua.Client
             {
                 WriteEvent(NotificationReceivedId, subscriptionId, sequenceNumber);
             }
-            else if (Logger.IsEnabled(LogLevel.Trace))
-            {
-                LogTrace(
-                    NotificationReceivedEventId,
-                    NotificationReceivedMessage,
-                    subscriptionId,
-                    sequenceNumber);
-            }
+            LogTrace(
+                NotificationReceivedEventId,
+                NotificationReceivedMessage,
+                subscriptionId,
+                sequenceNumber);
         }
 
         /// <summary>
@@ -179,10 +173,7 @@ namespace Opc.Ua.Client
             {
                 WriteEvent(PublishStartId, requestHandle);
             }
-            else if (Logger.IsEnabled(LogLevel.Trace))
-            {
-                LogTrace(PublishStartEventId, PublishStartMessage, requestHandle);
-            }
+            LogTrace(PublishStartEventId, PublishStartMessage, requestHandle);
         }
 
         /// <summary>
@@ -195,10 +186,7 @@ namespace Opc.Ua.Client
             {
                 WriteEvent(PublishStopId, requestHandle);
             }
-            else if (Logger.IsEnabled(LogLevel.Trace))
-            {
-                LogTrace(PublishStopEventId, PublishStopMessage, requestHandle);
-            }
+            LogTrace(PublishStopEventId, PublishStopMessage, requestHandle);
         }
 
         /// <summary>
@@ -214,10 +202,7 @@ namespace Opc.Ua.Client
                 {
                     Notification((int)clientHandle, wrappedValue.ToString());
                 }
-                else if (Logger.IsEnabled(LogLevel.Trace))
-                {
-                    LogTrace(NotificationEventId, NotificationMessage, clientHandle, wrappedValue);
-                }
+                LogTrace(NotificationEventId, NotificationMessage, clientHandle, wrappedValue);
             }
         }
     }

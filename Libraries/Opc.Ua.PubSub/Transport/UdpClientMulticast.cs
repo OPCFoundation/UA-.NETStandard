@@ -63,8 +63,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.Trace(
-                    Utils.TraceMasks.Error,
+                Utils.LogError(
                     "UdpClientMulticast set SetSocketOption resulted in ex {0}",
                     ex.Message);
             }
@@ -75,8 +74,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.Trace(
-                    Utils.TraceMasks.Error,
+                Utils.LogError(
                     "UdpClientMulticast set ExclusiveAddressUse = false resulted in ex {0}",
                     ex.Message);
             }
@@ -92,7 +90,7 @@ namespace Opc.Ua.PubSub.Transport
                 JoinMulticastGroup(multicastAddress, localAddress);
             }
 
-            Utils.Trace(
+            Utils.LogInfo(
                 "UdpClientMulticast was created for local Address: {0}:{1} and multicast address: {2}.",
                 localAddress,
                 port,

@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using static Opc.Ua.Utils;
 
 namespace Opc.Ua.PubSub.Encoding
 {
@@ -471,14 +470,14 @@ namespace Opc.Ua.PubSub.Encoding
             }
             else
             {
-                Trace(
+                Utils.LogInfo(
                     "The UADP DiscoveryResponse DataSetMetaData message cannot be encoded: The DataSetWriterId property is missing. Value 0 will be used.");
                 binaryEncoder.WriteUInt16("DataSetWriterId", 0);
             }
 
             if (m_metadata == null)
             {
-                Trace(
+                Utils.LogInfo(
                     "The UADP DiscoveryResponse DataSetMetaData message cannot be encoded: The MetaData property is missing. Value null will be used.");
             }
             binaryEncoder.WriteEncodeable("MetaData", m_metadata, typeof(DataSetMetaDataType));
@@ -497,14 +496,14 @@ namespace Opc.Ua.PubSub.Encoding
             }
             else
             {
-                Trace(
+                Utils.LogInfo(
                     "The UADP DiscoveryResponse DataSetWriterConfiguration message cannot be encoded: The DataSetWriterId property is missing. Value 0 will be used.");
                 binaryEncoder.WriteUInt16Array("DataSetWriterIds", []);
             }
 
             if (DataSetWriterIds == null)
             {
-                Trace(
+                Utils.LogInfo(
                     "The UADP DiscoveryResponse DataSetWriterConfiguration message cannot be encoded: The DataSetWriterConfiguration property is missing. Value null will be used.");
             }
             else
@@ -831,7 +830,7 @@ namespace Opc.Ua.PubSub.Encoding
             catch (Exception ex)
             {
                 // Unexpected exception in DecodeSubscribedDataSets
-                Trace(ex, "UadpNetworkMessage.DecodeSubscribedDataSets");
+                Utils.LogError(ex, "UadpNetworkMessage.DecodeSubscribedDataSets");
             }
         }
 
@@ -847,7 +846,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             // temporary write StatusCode.Good
             StatusCode statusCode = binaryDecoder.ReadStatusCode("StatusCode");
-            Trace("DecodeMetaDataMessage returned: ", statusCode);
+            Utils.LogInfo("DecodeMetaDataMessage returned: ", statusCode);
         }
 
         /// <summary>
@@ -860,7 +859,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             PublisherProvideEndpoints = binaryDecoder.ReadStatusCode("statusCode");
 
-            Trace("DecodePublisherEndpointsMessage returned: ", PublisherProvideEndpoints);
+            Utils.LogInfo("DecodePublisherEndpointsMessage returned: ", PublisherProvideEndpoints);
         }
 
         /// <summary>
@@ -884,7 +883,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             // temporary write StatusCode.Good
             MessageStatusCodes = [.. binaryDecoder.ReadStatusCodeArray("StatusCodes")];
-            Trace("DecodeDataSetWriterConfigurationMessage returned: ", MessageStatusCodes);
+            Utils.LogInfo("DecodeDataSetWriterConfigurationMessage returned: ", MessageStatusCodes);
         }
 
         /// <summary>
@@ -910,8 +909,8 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 if (PublisherId == null)
                 {
-                    Trace(
-                        TraceMasks.Error,
+                    Utils.LogError(
+                        Utils.TraceMasks.Error,
                         "NetworkMessageHeader cannot be encoded. PublisherId is null but it is expected to be encoded.");
                 }
                 else

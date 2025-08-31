@@ -7030,7 +7030,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.Trace(
+                Utils.LogError(
                     e,
                     "Unexpected error calling SessionConfigurationChanged event handler.");
             }

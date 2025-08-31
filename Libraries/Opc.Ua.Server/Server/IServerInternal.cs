@@ -148,6 +148,11 @@ namespace Opc.Ua.Server
         ISubscriptionStore SubscriptionStore { get; }
 
         /// <summary>
+        /// The server's observability context
+        /// </summary>
+        IObservabilityContext ObservabilityContext { get; }
+
+        /// <summary>
         /// Whether the server is currently running.
         /// </summary>
         /// <value>

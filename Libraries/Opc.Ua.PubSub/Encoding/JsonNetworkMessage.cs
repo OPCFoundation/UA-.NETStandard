@@ -316,7 +316,7 @@ namespace Opc.Ua.PubSub.Encoding
                 }
                 else
                 {
-                    Utils.Trace(
+                    Utils.LogInfo(
                         "The JSON MetaDataMessage cannot be encoded: The DataSetWriterId property is missing for MessageId:{0}.",
                         MessageId);
                 }
@@ -425,7 +425,7 @@ namespace Opc.Ua.PubSub.Encoding
                 }
                 else
                 {
-                    Utils.Trace(
+                    Utils.LogInfo(
                         "The JSON MetaDataMessage cannot be decoded: The DataSetWriterId property is missing for MessageId:{0}.",
                         MessageId);
                 }
@@ -447,7 +447,7 @@ namespace Opc.Ua.PubSub.Encoding
             catch (Exception ex)
             {
                 // Unexpected exception in DecodeMetaDataMessage
-                Utils.Trace(ex, "JsonNetworkMessage.DecodeMetaDataMessage");
+                Utils.LogError(ex, "JsonNetworkMessage.DecodeMetaDataMessage");
             }
         }
 
@@ -594,7 +594,7 @@ namespace Opc.Ua.PubSub.Encoding
             catch (Exception ex)
             {
                 // Unexpected exception in DecodeSubscribedDataSets
-                Utils.Trace(ex, "JsonNetworkMessage.DecodeSubscribedDataSets");
+                Utils.LogError(ex, "JsonNetworkMessage.DecodeSubscribedDataSets");
             }
         }
     }

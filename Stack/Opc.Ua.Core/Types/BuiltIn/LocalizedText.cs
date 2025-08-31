@@ -593,7 +593,7 @@ namespace Opc.Ua
             }
             catch
             {
-                Utils.Trace("Failed to parse mul locale JSON text: {0}", XmlEncodedText);
+                Utils.LogInfo("Failed to parse mul locale JSON text: {0}", XmlEncodedText);
                 return null; // Return null if parsing fails
             }
             return new ReadOnlyDictionary<string, string>(result);

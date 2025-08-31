@@ -66,16 +66,19 @@ namespace Opc.Ua.Server
         /// <param name="messageContext">The message context.</param>
         /// <param name="certificateValidator">The certificate validator.</param>
         /// <param name="instanceCertificateProvider">The certificate type provider.</param>
+        /// <param name="observabilityContext">Observability context for the server.</param>
         public ServerInternalData(
             ServerProperties serverDescription,
             ApplicationConfiguration configuration,
             IServiceMessageContext messageContext,
             CertificateValidator certificateValidator,
-            CertificateTypesProvider instanceCertificateProvider)
+            CertificateTypesProvider instanceCertificateProvider,
+            IObservabilityContext observabilityContext = null)
         {
             m_serverDescription = serverDescription;
             m_configuration = configuration;
             MessageContext = messageContext;
+            ObservabilityContext = observabilityContext;
 
             m_endpointAddresses = [];
 
@@ -321,6 +324,9 @@ namespace Opc.Ua.Server
         /// The store to persist and retrieve subscriptions
         /// </summary>
         public ISubscriptionStore SubscriptionStore { get; private set; }
+
+        /// <inheritdoc/>
+        public IObservabilityContext ObservabilityContext { get; private set; }
 
         /// <summary>
         /// Returns the status object for the server.

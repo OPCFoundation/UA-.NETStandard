@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -46,6 +47,7 @@ namespace Opc.Ua.Server
         public SessionPublishQueue(IServerInternal server, ISession session, int maxPublishRequests)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
+            m_logger = server.ObservabilityContext.CreateLogger<SessionPublishQueue>();
             m_session = session ?? throw new ArgumentNullException(nameof(session));
             m_publishEvent = new ManualResetEvent(false);
             m_queuedRequests = new LinkedList<QueuedRequest>();
@@ -885,7 +887,7 @@ namespace Opc.Ua.Server
         internal void TraceState(string context, params object[] args)
         {
             // TODO: implement as EventSource
-            if (!Utils.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Trace))
+            if (!m_logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Trace))
             {
                 return;
             }
@@ -948,6 +950,7 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
+        private readonly ILogger m_logger;
         private readonly IServerInternal m_server;
         private readonly ISession m_session;
         private readonly ManualResetEvent m_publishEvent;

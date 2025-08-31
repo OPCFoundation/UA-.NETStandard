@@ -61,7 +61,7 @@ namespace Opc.Ua.PubSub.Transport
         {
             m_transportProtocol = TransportProtocol.UDP;
 
-            Utils.Trace(
+            Utils.LogInfo(
                 "UdpPubSubConnection with name '{0}' was created.",
                 pubSubConnectionDataType.Name);
 
@@ -136,8 +136,7 @@ namespace Opc.Ua.PubSub.Transport
                         }
                         catch (Exception ex)
                         {
-                            Utils.Trace(
-                                Utils.TraceMasks.Information,
+                            Utils.LogInfo(
                                 "UdpClient '{0}' Cannot receive data. Exception: {1}",
                                 subscriberUdpClient.Client.LocalEndPoint,
                                 ex.Message);
@@ -395,14 +394,14 @@ namespace Opc.Ua.PubSub.Transport
                             {
                                 udpClient.Send(bytes, bytes.Length, NetworkAddressEndPoint);
 
-                                Utils.Trace(
+                                Utils.LogInfo(
                                     "UdpPubSubConnection.PublishNetworkMessage bytes:{0}, endpoint:{1}",
                                     bytes.Length,
                                     NetworkAddressEndPoint);
                             }
                             catch (Exception ex)
                             {
-                                Utils.Trace(ex, "UdpPubSubConnection.PublishNetworkMessage");
+                                Utils.LogError(ex, "UdpPubSubConnection.PublishNetworkMessage");
                                 return false;
                             }
                         }
@@ -412,7 +411,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "UdpPubSubConnection.PublishNetworkMessage");
+                Utils.LogError(ex, "UdpPubSubConnection.PublishNetworkMessage");
                 return false;
             }
 
@@ -518,8 +517,7 @@ namespace Opc.Ua.PubSub.Transport
             if (ExtensionObject.ToEncodeable(PubSubConnectionConfiguration.Address)
                 is not NetworkAddressUrlDataType networkAddressUrlState)
             {
-                Utils.Trace(
-                    Utils.TraceMasks.Error,
+                Utils.LogError(
                     "The configuration for connection {0} has invalid Address configuration.",
                     PubSubConnectionConfiguration.Name);
                 return;
@@ -530,8 +528,7 @@ namespace Opc.Ua.PubSub.Transport
 
             if (NetworkAddressEndPoint == null)
             {
-                Utils.Trace(
-                    Utils.TraceMasks.Error,
+                Utils.LogError(
                     "The configuration for connection {0} with Url:'{1}' resulted in an invalid endpoint.",
                     PubSubConnectionConfiguration.Name,
                     networkAddressUrlState.Url);
@@ -543,8 +540,7 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         private void ProcessReceivedMessage(byte[] message, IPEndPoint source)
         {
-            Utils.Trace(
-                Utils.TraceMasks.Information,
+            Utils.LogInfo(
                 "UdpPubSubConnection.ProcessReceivedMessage from source={0}",
                 source);
 
@@ -606,7 +602,7 @@ namespace Opc.Ua.PubSub.Transport
 
                 if (message != null)
                 {
-                    Utils.Trace(
+                    Utils.LogInfo(
                         "OnUadpReceive received message with length {0} from {1}",
                         message.Length,
                         source.Address);
@@ -629,7 +625,7 @@ namespace Opc.Ua.PubSub.Transport
                         // check if the RawData message is marked as handled
                         if (rawDataReceivedEventArgs.Handled)
                         {
-                            Utils.Trace(
+                            Utils.LogInfo(
                                 "UdpConnection message from source={0} is marked as handled and will not be decoded.",
                                 rawDataReceivedEventArgs.Source);
                             return;
@@ -642,7 +638,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "OnUadpReceive from {0}", source.Address);
+                Utils.LogError(ex, "OnUadpReceive from {0}", source.Address);
             }
 
             try
@@ -652,8 +648,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.Trace(
-                    Utils.TraceMasks.Information,
+                Utils.LogInfo(
                     "OnUadpReceive BeginReceive threw Exception {0}",
                     ex.Message);
 

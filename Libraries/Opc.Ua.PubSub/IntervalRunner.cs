@@ -105,7 +105,7 @@ namespace Opc.Ua.PubSub
         public void Start()
         {
             Task.Run(ProcessAsync).ConfigureAwait(false);
-            Utils.Trace("IntervalRunner with id: {0} was started.", Id);
+            Utils.LogInfo("IntervalRunner with id: {0} was started.", Id);
         }
 
         /// <summary>
@@ -118,7 +118,7 @@ namespace Opc.Ua.PubSub
                 m_cancellationToken?.Cancel();
             }
 
-            Utils.Trace("IntervalRunner with id: {0} was stopped.", Id);
+            Utils.LogInfo("IntervalRunner with id: {0} was stopped.", Id);
         }
 
         /// <summary>

@@ -266,16 +266,13 @@ namespace Opc.Ua
             {
                 WriteEvent(ServiceCallStartId, serviceName, requestHandle, pendingRequestCount);
             }
-            else if (Logger.IsEnabled(LogLevel.Trace))
-            {
-                Utils.Log(
-                    LogLevel.Trace,
-                    ServiceCallStartEventId,
-                    ServiceCallStartMessage,
-                    serviceName,
-                    requestHandle,
-                    pendingRequestCount);
-            }
+            Utils.Log(
+                LogLevel.Trace,
+                ServiceCallStartEventId,
+                ServiceCallStartMessage,
+                serviceName,
+                requestHandle,
+                pendingRequestCount);
         }
 
         /// <summary>
@@ -294,16 +291,13 @@ namespace Opc.Ua
             {
                 WriteEvent(ServiceCallStopId, serviceName, requestHandle, pendingRequestCount);
             }
-            else if (Logger.IsEnabled(LogLevel.Trace))
-            {
-                Utils.Log(
-                    LogLevel.Trace,
-                    ServiceCallStopEventId,
-                    ServiceCallStopMessage,
-                    serviceName,
-                    requestHandle,
-                    pendingRequestCount);
-            }
+            Utils.Log(
+                LogLevel.Trace,
+                ServiceCallStopEventId,
+                ServiceCallStopMessage,
+                serviceName,
+                requestHandle,
+                pendingRequestCount);
         }
 
         /// <summary>
@@ -331,17 +325,14 @@ namespace Opc.Ua
                     pendingRequestCount,
                     statusCode);
             }
-            else if (Logger.IsEnabled(LogLevel.Trace))
-            {
-                Utils.Log(
-                    LogLevel.Trace,
-                    ServiceCallBadStopEventId,
-                    ServiceCallBadStopMessage,
-                    serviceName,
-                    requestHandle,
-                    pendingRequestCount,
-                    statusCode);
-            }
+            Utils.Log(
+                LogLevel.Trace,
+                ServiceCallBadStopEventId,
+                ServiceCallBadStopMessage,
+                serviceName,
+                requestHandle,
+                pendingRequestCount,
+                statusCode);
         }
 
         /// <summary>
@@ -370,15 +361,12 @@ namespace Opc.Ua
             {
                 WriteEvent(SendResponseId, channelId, requestId);
             }
-            else if (Logger.IsEnabled(LogLevel.Trace))
-            {
-                Utils.Log(
-                    LogLevel.Trace,
-                    SendResponseEventId,
-                    SendResponseMessage,
-                    channelId,
-                    requestId);
-            }
+            Utils.Log(
+                LogLevel.Trace,
+                SendResponseEventId,
+                SendResponseMessage,
+                channelId,
+                requestId);
         }
     }
 }

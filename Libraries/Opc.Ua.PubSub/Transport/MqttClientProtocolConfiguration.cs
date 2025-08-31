@@ -556,8 +556,7 @@ namespace Opc.Ua.PubSub.Transport
                     CultureInfo.InvariantCulture);
             if (ProtocolVersion == EnumMqttProtocolVersion.Unknown)
             {
-                Utils.Trace(
-                    Utils.TraceMasks.Information,
+                Utils.LogInfo(
                     "Mqtt protocol version is Unknown and it will default to V310");
                 ProtocolVersion = EnumMqttProtocolVersion.V310;
             }

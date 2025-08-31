@@ -64,7 +64,7 @@ namespace Opc.Ua.PubSub.PublishedData
             }
             if (publishedDataSet.DataSetMetaData == null)
             {
-                Utils.Trace(Utils.TraceMasks.Error, "The DataSetMetaData field is null.");
+                Utils.LogError("The DataSetMetaData field is null.");
                 return false;
             }
             if (ExtensionObject.ToEncodeable(publishedDataSet.DataSetSource)
@@ -73,8 +73,7 @@ namespace Opc.Ua.PubSub.PublishedData
                 publishedDataItems.PublishedData.Count != publishedDataSet.DataSetMetaData.Fields
                     .Count)
             {
-                Utils.Trace(
-                    Utils.TraceMasks.Error,
+                Utils.LogError(
                     "The DataSetSource.Count is different from DataSetMetaData.Fields.Count.");
                 return false;
             }
@@ -99,8 +98,7 @@ namespace Opc.Ua.PubSub.PublishedData
             }
             else
             {
-                Utils.Trace(
-                    Utils.TraceMasks.Error,
+                Utils.LogError(
                     "The PublishedDataSet {0} was not registered because it is not configured properly.",
                     publishedDataSet.Name);
             }
@@ -294,8 +292,7 @@ namespace Opc.Ua.PubSub.PublishedData
                             {
                                 dataSet.Fields[i].Value
                                     = new DataValue(StatusCodes.Bad, DateTime.UtcNow);
-                                Utils.Trace(
-                                    Utils.TraceMasks.Information,
+                                Utils.LogInfo(
                                     "DataCollector.CollectData for dataset {0} field {1} resulted in ex {2}",
                                     dataSetName,
                                     i,

@@ -101,9 +101,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void Trace()
         {
-            Utils.TraceDebug(string.Empty);
-            Utils.TraceDebug(null);
-            Utils.Trace(
+            Utils.LogDebug(string.Empty);
+            Utils.LogDebug(null);
+            Utils.LogError(
                 new ServiceResultException(StatusCodes.BadAggregateConfigurationRejected),
                 "Exception {0}",
                 1);
@@ -112,19 +112,19 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 "Exception {0} {1}",
                 2,
                 3);
-            Utils.Trace(
+            Utils.LogError(
                 new ServiceResultException(StatusCodes.BadAggregateConfigurationRejected),
                 "Exception {0} {1}",
                 true,
                 2,
                 3);
-            Utils.Trace(
+            Utils.LogError(
                 new ServiceResultException(StatusCodes.BadEdited_OutOfRange),
                 "Exception {0} {1}",
                 false,
                 2,
                 3);
-            Utils.Trace(Utils.TraceMasks.Information, "Exception {0} {1}", 2, 3);
+            Utils.LogInfo("Exception {0} {1}", 2, 3);
         }
 
         [Test]

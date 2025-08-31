@@ -139,12 +139,12 @@ namespace Opc.Ua.PubSub.Transport
             {
                 try
                 {
-                    Utils.Trace("UdpDiscoverySubscriber.SendDiscoveryRequestDataSetWriterConfiguration message");
+                    Utils.LogInfo("UdpDiscoverySubscriber.SendDiscoveryRequestDataSetWriterConfiguration message");
                     udpClient.Send(bytes, bytes.Length, DiscoveryNetworkAddressEndPoint);
                 }
                 catch (Exception ex)
                 {
-                    Utils.Trace(
+                    Utils.LogError(
                         ex,
                         "UdpDiscoverySubscriber.SendDiscoveryRequestDataSetWriterConfiguration");
                 }
@@ -190,7 +190,7 @@ namespace Opc.Ua.PubSub.Transport
             {
                 try
                 {
-                    Utils.Trace(
+                    Utils.LogInfo(
                         "UdpDiscoverySubscriber.SendDiscoveryRequestPublisherEndpoints message for PublisherId: {0}",
                         discoveryRequestPublisherEndpoints.PublisherId);
 
@@ -198,7 +198,7 @@ namespace Opc.Ua.PubSub.Transport
                 }
                 catch (Exception ex)
                 {
-                    Utils.Trace(
+                    Utils.LogError(
                         ex,
                         "UdpDiscoverySubscriber.SendDiscoveryRequestPublisherEndpoints");
                 }
@@ -240,7 +240,7 @@ namespace Opc.Ua.PubSub.Transport
             {
                 try
                 {
-                    Utils.Trace(
+                    Utils.LogInfo(
                         "UdpDiscoverySubscriber.SendDiscoveryRequestDataSetMetaData Before sending message for DataSetWriterIds:{0}",
                         string.Join(", ", dataSetWriterIds));
 
@@ -248,7 +248,7 @@ namespace Opc.Ua.PubSub.Transport
                 }
                 catch (Exception ex)
                 {
-                    Utils.Trace(ex, "UdpDiscoverySubscriber.SendDiscoveryRequestDataSetMetaData");
+                    Utils.LogError(ex, "UdpDiscoverySubscriber.SendDiscoveryRequestDataSetMetaData");
                 }
             }
 

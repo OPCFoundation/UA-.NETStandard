@@ -42,7 +42,7 @@ namespace Opc.Ua.Fuzzing
         /// <summary>
         /// Configure the serilog logging provider.
         /// </summary>
-        public static void Configure(
+        public static Microsoft.Extensions.Logging.ILogger Configure(
             string context,
             string outputFilePath,
             bool logConsole,
@@ -88,13 +88,10 @@ namespace Opc.Ua.Fuzzing
             Serilog.Core.Logger serilogger = loggerConfiguration.CreateLogger();
 
             // create the ILogger for Opc.Ua.Core
-            Microsoft.Extensions.Logging.ILogger logger = LoggerFactory
+            return LoggerFactory
                 .Create(builder => builder.SetMinimumLevel(LogLevel.Trace))
                 .AddSerilog(serilogger)
                 .CreateLogger(context);
-
-            // set logger interface, disables TraceEvent
-            Utils.SetLogger(logger);
         }
 
         private static void CurrentDomain_UnhandledException(

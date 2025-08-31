@@ -385,8 +385,7 @@ namespace Opc.Ua.PubSub.Configuration
                     }
                     if (duplicateName)
                     {
-                        Utils.Trace(
-                            Utils.TraceMasks.Error,
+                        Utils.LogError(
                             "Attempted to add PublishedDataSetDataType with duplicate name = {0}",
                             publishedDataSetDataType.Name);
                         return StatusCodes.BadBrowseNameDuplicated;
@@ -421,7 +420,7 @@ namespace Opc.Ua.PubSub.Configuration
             catch (Exception ex)
             {
                 // Unexpected exception
-                Utils.Trace(ex, "UaPubSubConfigurator.AddPublishedDataSet: Exception");
+                Utils.LogError(ex, "UaPubSubConfigurator.AddPublishedDataSet: Exception");
             }
 
             //todo implement state validation
@@ -444,8 +443,7 @@ namespace Opc.Ua.PubSub.Configuration
                     publishedDataSetId) is not PublishedDataSetDataType publishedDataSetDataType)
                 {
                     // Unexpected exception
-                    Utils.Trace(
-                        Utils.TraceMasks.Information,
+                    Utils.LogInfo(
                         "Current configuration does not contain PublishedDataSetDataType with ConfigId = {0}",
                         publishedDataSetId);
                     return StatusCodes.Good;
@@ -514,7 +512,7 @@ namespace Opc.Ua.PubSub.Configuration
             catch (Exception ex)
             {
                 // Unexpected exception
-                Utils.Trace(ex, "UaPubSubConfigurator.RemovePublishedDataSet: Exception");
+                Utils.LogError(ex, "UaPubSubConfigurator.RemovePublishedDataSet: Exception");
             }
 
             return StatusCodes.BadNodeIdUnknown;
@@ -552,8 +550,7 @@ namespace Opc.Ua.PubSub.Configuration
                     }
                     if (duplicateName)
                     {
-                        Utils.Trace(
-                            Utils.TraceMasks.Error,
+                        Utils.LogError(
                             "AddExtensionField -  A field with the name already exists. Duplicate name = {0}",
                             extensionField.Key);
                         return StatusCodes.BadNodeIdExists;
@@ -657,8 +654,7 @@ namespace Opc.Ua.PubSub.Configuration
                     }
                     if (duplicateName)
                     {
-                        Utils.Trace(
-                            Utils.TraceMasks.Error,
+                        Utils.LogError(
                             "Attempted to add PubSubConnectionDataType with duplicate name = {0}",
                             pubSubConnectionDataType.Name);
                         return StatusCodes.BadBrowseNameDuplicated;
@@ -721,7 +717,7 @@ namespace Opc.Ua.PubSub.Configuration
             catch (Exception ex)
             {
                 // Unexpected exception
-                Utils.Trace(ex, "UaPubSubConfigurator.AddConnection: Exception");
+                Utils.LogError(ex, "UaPubSubConfigurator.AddConnection: Exception");
             }
             return StatusCodes.BadInvalidArgument;
         }
@@ -743,8 +739,7 @@ namespace Opc.Ua.PubSub.Configuration
                     connectionId) is not PubSubConnectionDataType pubSubConnectionDataType)
                 {
                     // Unexpected exception
-                    Utils.Trace(
-                        Utils.TraceMasks.Information,
+                    Utils.LogInfo(
                         "Current configuration does not contain PubSubConnectionDataType with ConfigId = {0}",
                         connectionId);
                     return StatusCodes.BadNodeIdUnknown;
@@ -807,7 +802,7 @@ namespace Opc.Ua.PubSub.Configuration
             catch (Exception ex)
             {
                 // Unexpected exception
-                Utils.Trace(ex, "UaPubSubConfigurator.RemoveConnection: Exception");
+                Utils.LogError(ex, "UaPubSubConfigurator.RemoveConnection: Exception");
             }
 
             return StatusCodes.BadInvalidArgument;
@@ -860,8 +855,7 @@ namespace Opc.Ua.PubSub.Configuration
                         }
                         if (duplicateName)
                         {
-                            Utils.Trace(
-                                Utils.TraceMasks.Error,
+                            Utils.LogError(
                                 "Attempted to add WriterGroupDataType with duplicate name = {0}",
                                 writerGroupDataType.Name);
                             return StatusCodes.BadBrowseNameDuplicated;
@@ -909,7 +903,7 @@ namespace Opc.Ua.PubSub.Configuration
             catch (Exception ex)
             {
                 // Unexpected exception
-                Utils.Trace(ex, "UaPubSubConfigurator.AddWriterGroup: Exception");
+                Utils.LogError(ex, "UaPubSubConfigurator.AddWriterGroup: Exception");
             }
             return StatusCodes.BadInvalidArgument;
         }
@@ -929,8 +923,7 @@ namespace Opc.Ua.PubSub.Configuration
                 if (FindObjectById(writerGroupId) is not WriterGroupDataType writerGroupDataType)
                 {
                     // Unexpected exception
-                    Utils.Trace(
-                        Utils.TraceMasks.Information,
+                    Utils.LogInfo(
                         "Current configuration does not contain WriterGroupDataType with ConfigId = {0}",
                         writerGroupId);
                     return StatusCodes.BadNodeIdUnknown;
@@ -996,7 +989,7 @@ namespace Opc.Ua.PubSub.Configuration
             catch (Exception ex)
             {
                 // Unexpected exception
-                Utils.Trace(ex, "UaPubSubConfigurator.RemoveWriterGroup: Exception");
+                Utils.LogError(ex, "UaPubSubConfigurator.RemoveWriterGroup: Exception");
             }
 
             return StatusCodes.BadInvalidArgument;
@@ -1045,8 +1038,7 @@ namespace Opc.Ua.PubSub.Configuration
                         }
                         if (duplicateName)
                         {
-                            Utils.Trace(
-                                Utils.TraceMasks.Error,
+                            Utils.LogError(
                                 "Attempted to add DataSetWriterDataType with duplicate name = {0}",
                                 dataSetWriterDataType.Name);
                             return StatusCodes.BadBrowseNameDuplicated;
@@ -1083,7 +1075,7 @@ namespace Opc.Ua.PubSub.Configuration
             catch (Exception ex)
             {
                 // Unexpected exception
-                Utils.Trace(ex, "UaPubSubConfigurator.AddDataSetWriter: Exception");
+                Utils.LogError(ex, "UaPubSubConfigurator.AddDataSetWriter: Exception");
             }
             return StatusCodes.BadInvalidArgument;
         }
@@ -1104,8 +1096,7 @@ namespace Opc.Ua.PubSub.Configuration
                     dataSetWriterId) is not DataSetWriterDataType dataSetWriterDataType)
                 {
                     // Unexpected exception
-                    Utils.Trace(
-                        Utils.TraceMasks.Information,
+                    Utils.LogInfo(
                         "Current configuration does not contain DataSetWriterDataType with ConfigId = {0}",
                         dataSetWriterId);
                     return StatusCodes.BadNodeIdUnknown;
@@ -1163,7 +1154,7 @@ namespace Opc.Ua.PubSub.Configuration
             catch (Exception ex)
             {
                 // Unexpected exception
-                Utils.Trace(ex, "UaPubSubConfigurator.RemoveDataSetWriter: Exception");
+                Utils.LogError(ex, "UaPubSubConfigurator.RemoveDataSetWriter: Exception");
             }
 
             return StatusCodes.BadInvalidArgument;
@@ -1216,8 +1207,7 @@ namespace Opc.Ua.PubSub.Configuration
                         }
                         if (duplicateName)
                         {
-                            Utils.Trace(
-                                Utils.TraceMasks.Error,
+                            Utils.LogError(
                                 "Attempted to add ReaderGroupDataType with duplicate name = {0}",
                                 readerGroupDataType.Name);
                             return StatusCodes.BadBrowseNameDuplicated;
@@ -1266,7 +1256,7 @@ namespace Opc.Ua.PubSub.Configuration
             catch (Exception ex)
             {
                 // Unexpected exception
-                Utils.Trace(ex, "UaPubSubConfigurator.AddReaderGroup: Exception");
+                Utils.LogError(ex, "UaPubSubConfigurator.AddReaderGroup: Exception");
             }
             return StatusCodes.BadInvalidArgument;
         }
@@ -1285,8 +1275,7 @@ namespace Opc.Ua.PubSub.Configuration
             {
                 if (FindObjectById(readerGroupId) is not ReaderGroupDataType readerGroupDataType)
                 {
-                    Utils.Trace(
-                        Utils.TraceMasks.Information,
+                    Utils.LogInfo(
                         "Current configuration does not contain ReaderGroupDataType with ConfigId = {0}",
                         readerGroupId);
                     return StatusCodes.BadInvalidArgument;
@@ -1352,7 +1341,7 @@ namespace Opc.Ua.PubSub.Configuration
             catch (Exception ex)
             {
                 // Unexpected exception
-                Utils.Trace(ex, "UaPubSubConfigurator.RemoveReaderGroup: Exception");
+                Utils.LogError(ex, "UaPubSubConfigurator.RemoveReaderGroup: Exception");
             }
 
             return StatusCodes.BadInvalidArgument;
@@ -1401,8 +1390,7 @@ namespace Opc.Ua.PubSub.Configuration
                         }
                         if (duplicateName)
                         {
-                            Utils.Trace(
-                                Utils.TraceMasks.Error,
+                            Utils.LogError(
                                 "Attempted to add DataSetReaderDataType with duplicate name = {0}",
                                 dataSetReaderDataType.Name);
                             return StatusCodes.BadBrowseNameDuplicated;
@@ -1439,7 +1427,7 @@ namespace Opc.Ua.PubSub.Configuration
             catch (Exception ex)
             {
                 // Unexpected exception
-                Utils.Trace(ex, "UaPubSubConfigurator.AddDataSetReader: Exception");
+                Utils.LogError(ex, "UaPubSubConfigurator.AddDataSetReader: Exception");
             }
             return StatusCodes.BadInvalidArgument;
         }
@@ -1460,8 +1448,7 @@ namespace Opc.Ua.PubSub.Configuration
                     dataSetReaderId) is not DataSetReaderDataType dataSetReaderDataType)
                 {
                     // Unexpected exception
-                    Utils.Trace(
-                        Utils.TraceMasks.Information,
+                    Utils.LogInfo(
                         "Current configuration does not contain DataSetReaderDataType with ConfigId = {0}",
                         dataSetReaderId);
                     return StatusCodes.BadNodeIdUnknown;
@@ -1519,7 +1506,7 @@ namespace Opc.Ua.PubSub.Configuration
             catch (Exception ex)
             {
                 // Unexpected exception
-                Utils.Trace(ex, "UaPubSubConfigurator.RemoveDataSetReader: Exception");
+                Utils.LogError(ex, "UaPubSubConfigurator.RemoveDataSetReader: Exception");
             }
 
             return StatusCodes.BadInvalidArgument;
@@ -1554,8 +1541,7 @@ namespace Opc.Ua.PubSub.Configuration
             PubSubState currentState = FindStateForObject(configurationObject);
             if (currentState != PubSubState.Disabled)
             {
-                Utils.Trace(
-                    Utils.TraceMasks.Information,
+                Utils.LogInfo(
                     "Attempted to call Enable() on an object that is not in Disabled state");
                 return StatusCodes.BadInvalidState;
             }
@@ -1608,7 +1594,7 @@ namespace Opc.Ua.PubSub.Configuration
             PubSubState currentState = FindStateForObject(configurationObject);
             if (currentState == PubSubState.Disabled)
             {
-                Utils.Trace(
+                Utils.LogInfo(
                     Utils.TraceMasks.Information,
                     "Attempted to call Disable() on an object that is already in Disabled state");
                 return StatusCodes.BadInvalidState;

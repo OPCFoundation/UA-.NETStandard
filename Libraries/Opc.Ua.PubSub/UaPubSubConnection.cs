@@ -71,7 +71,7 @@ namespace Opc.Ua.PubSub
             if (string.IsNullOrEmpty(pubSubConnectionDataType.Name))
             {
                 pubSubConnectionDataType.Name = "<connection>";
-                Utils.Trace(
+                Utils.LogInfo(
                     "UaPubSubConnection() received a PubSubConnectionDataType object without name. '<connection>' will be used");
             }
         }
@@ -133,7 +133,7 @@ namespace Opc.Ua.PubSub
                     publisher.Dispose();
                 }
 
-                Utils.Trace("Connection '{0}' was disposed.", PubSubConnectionConfiguration.Name);
+                Utils.LogInfo("Connection '{0}' was disposed.", PubSubConnectionConfiguration.Name);
             }
         }
 
@@ -143,7 +143,7 @@ namespace Opc.Ua.PubSub
         public void Start()
         {
             InternalStart().Wait();
-            Utils.Trace("Connection '{0}' was started.", PubSubConnectionConfiguration.Name);
+            Utils.LogInfo("Connection '{0}' was started.", PubSubConnectionConfiguration.Name);
 
             lock (Lock)
             {
@@ -169,7 +169,7 @@ namespace Opc.Ua.PubSub
                     publisher.Stop();
                 }
             }
-            Utils.Trace("Connection '{0}' was stopped.", PubSubConnectionConfiguration.Name);
+            Utils.LogInfo("Connection '{0}' was stopped.", PubSubConnectionConfiguration.Name);
         }
 
         /// <summary>
@@ -316,7 +316,7 @@ namespace Opc.Ua.PubSub
                         // check to see if the event handler canceled the save of new MetaData
                         if (!metaDataUpdatedEventArgs.Cancel)
                         {
-                            Utils.Trace(
+                            Utils.LogInfo(
                                 "Connection '{0}' - The MetaData is updated for DataSetReader '{1}' with DataSetWriterId={2}",
                                 source,
                                 reader.Name,
@@ -339,7 +339,7 @@ namespace Opc.Ua.PubSub
                 // trigger notification for received DataSet MetaData
                 Application.RaiseMetaDataReceivedEvent(subscribedDataEventArgs);
 
-                Utils.Trace(
+                Utils.LogInfo(
                     "Connection '{0}' - RaiseMetaDataReceivedEvent() from source={0}",
                     source,
                     subscribedDataEventArgs.NetworkMessage.DataSetMessages.Count);
@@ -356,7 +356,7 @@ namespace Opc.Ua.PubSub
                 //trigger notification for received subscribed DataSet
                 Application.RaiseDataReceivedEvent(subscribedDataEventArgs);
 
-                Utils.Trace(
+                Utils.LogInfo(
                     "Connection '{0}' - RaiseNetworkMessageDataReceivedEvent() from source={0}, with {1} DataSets",
                     source,
                     subscribedDataEventArgs.NetworkMessage.DataSetMessages.Count);
@@ -383,7 +383,7 @@ namespace Opc.Ua.PubSub
                         //trigger notification for received configuration
                         Application.RaiseDatasetWriterConfigurationReceivedEvent(eventArgs);
 
-                        Utils.Trace(
+                        Utils.LogInfo(
                             "Connection '{0}' - RaiseDataSetWriterConfigurationReceivedEvent() from source={0}, with {1} DataSetWriterConfiguration",
                             source,
                             eventArgs.DataSetWriterIds.Length);
@@ -405,7 +405,7 @@ namespace Opc.Ua.PubSub
                         Application.RaisePublisherEndpointsReceivedEvent(
                             publisherEndpointsEventArgs);
 
-                        Utils.Trace(
+                        Utils.LogInfo(
                             "Connection '{0}' - RaisePublisherEndpointsReceivedEvent() from source={0}, with {1} PublisherEndpoints",
                             source,
                             publisherEndpointsEventArgs.PublisherEndpoints.Length);

@@ -583,13 +583,13 @@ namespace Opc.Ua.PubSub.Encoding
                             (BuiltInType)fieldMetaData.BuiltInType);
                     }
 
-                    Utils.Trace(
+                    Utils.LogInfo(
                         "JsonDataSetMessage - Decoding ValueRank = {0} not supported yet !!!",
                         fieldMetaData.ValueRank);
                 }
                 catch (Exception ex)
                 {
-                    Utils.Trace(ex, "JsonDataSetMessage - Error reading element for RawData.");
+                    Utils.LogError(ex, "JsonDataSetMessage - Error reading element for RawData.");
                     return StatusCodes.BadDecodingError;
                 }
             }
@@ -704,7 +704,7 @@ namespace Opc.Ua.PubSub.Encoding
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "JsonDataSetMessage - Error decoding field {0}", fieldName);
+                Utils.LogError(ex, "JsonDataSetMessage - Error decoding field {0}", fieldName);
             }
 
             return null;

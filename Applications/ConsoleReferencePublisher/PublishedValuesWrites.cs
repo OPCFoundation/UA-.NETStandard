@@ -137,8 +137,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             }
             catch (Exception e)
             {
-                Utils.Trace(
-                    Utils.TraceMasks.Error,
+                Utils.LogError(
                     "SamplePublisher.DataStoreValuesGenerator.LoadInitialData wrong field: {0}",
                     e.StackTrace
                 );
@@ -319,7 +318,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Unexpected error doing simulation.");
+                Utils.LogError(e, "Unexpected error doing simulation.");
             }
         }
 

@@ -38,11 +38,17 @@
 
 // Disable: 'Use the LoggerMessage delegates'
 
+#nullable enable
+
 using System;
 using System.Diagnostics;
+using System.Globalization;
+using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Threading;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Redaction;
 
 #pragma warning disable IDE0079 // Remove unnecessary suppression
@@ -65,40 +71,177 @@ namespace Opc.Ua
         /// The high performance EventSource log interface.
         /// </summary>
         internal static OpcUaCoreEventSource EventLog { get; } = new OpcUaCoreEventSource();
+#if DEBUG
+        private static int s_traceOutput = (int)TraceOutput.DebugAndFile;
+#else
+        private static int s_traceOutput = (int)TraceOutput.FileOnly;
+#endif
+
+        private static string s_traceFileName = string.Empty;
+        private static readonly Lock s_traceFileLock = new();
 
         /// <summary>
-        /// ILogger abstraction used by all Utils.LogXXX methods.
+        /// The possible trace output mechanisms.
         /// </summary>
-        public static ILogger Logger { get; private set; } = new TraceEventLogger();
-
-        /// <summary>
-        /// Sets the LogLevel for the TraceEventLogger.
-        /// </summary>
-        /// <remarks>
-        /// The setting is ignored if ILogger is replaced.
-        /// </remarks>
-        public static void SetLogLevel(LogLevel logLevel)
+        public enum TraceOutput
         {
-            if (Logger is TraceEventLogger tlogger)
+            /// <summary>
+            /// No tracing
+            /// </summary>
+            Off = 0,
+
+            /// <summary>
+            /// Only write to file (if specified). Default for Release mode.
+            /// </summary>
+            FileOnly = 1,
+
+            /// <summary>
+            /// Write to debug trace listeners and a file (if specified). Default for Debug mode.
+            /// </summary>
+            DebugAndFile = 2
+        }
+
+        /// <summary>
+        /// The masks used to filter trace messages.
+        /// </summary>
+        public static class TraceMasks
+        {
+            /// <summary>
+            /// Do not output any messages.
+            /// </summary>
+            public const int None = 0x0;
+
+            /// <summary>
+            /// Output error messages.
+            /// </summary>
+            public const int Error = 0x1;
+
+            /// <summary>
+            /// Output informational messages.
+            /// </summary>
+            public const int Information = 0x2;
+
+            /// <summary>
+            /// Output stack traces.
+            /// </summary>
+            public const int StackTrace = 0x4;
+
+            /// <summary>
+            /// Output basic messages for service calls.
+            /// </summary>
+            public const int Service = 0x8;
+
+            /// <summary>
+            /// Output detailed messages for service calls.
+            /// </summary>
+            public const int ServiceDetail = 0x10;
+
+            /// <summary>
+            /// Output basic messages for each operation.
+            /// </summary>
+            public const int Operation = 0x20;
+
+            /// <summary>
+            /// Output detailed messages for each operation.
+            /// </summary>
+            public const int OperationDetail = 0x40;
+
+            /// <summary>
+            /// Output messages related to application initialization or shutdown
+            /// </summary>
+            public const int StartStop = 0x80;
+
+            /// <summary>
+            /// Output messages related to a call to an external system.
+            /// </summary>
+            public const int ExternalSystem = 0x100;
+
+            /// <summary>
+            /// Output messages related to security
+            /// </summary>
+            public const int Security = 0x200;
+
+            /// <summary>
+            /// Output all messages.
+            /// </summary>
+            public const int All = 0x3FF;
+        }
+
+        /// <summary>
+        /// Sets the output for tracing (thread safe).
+        /// </summary>
+        public static void SetTraceOutput(TraceOutput output)
+        {
+            lock (s_traceFileLock)
             {
-                tlogger.LogLevel = logLevel;
+                s_traceOutput = (int)output;
             }
         }
 
         /// <summary>
-        /// Sets the ILogger.
+        /// Gets the current trace mask settings.
         /// </summary>
-        public static void SetLogger(ILogger logger)
+        public static int TraceMask { get; private set; }
+#if DEBUG
+            = TraceMasks.All;
+#else
+            = TraceMasks.None;
+#endif
+
+        /// <summary>
+        /// Sets the mask for tracing (thread safe).
+        /// </summary>
+        public static void SetTraceMask(int masks)
         {
-            Logger = logger;
-            UseTraceEvent = false;
+            TraceMask = masks;
         }
 
         /// <summary>
-        /// If the legacy trace event handler should be used.
+        /// Returns Tracing class instance for event attaching.
         /// </summary>
-        /// <remarks>By default true, however a call to SetLogger disables it.</remarks>
-        public static bool UseTraceEvent { get; set; } = true;
+        public static Tracing Tracing => Tracing.Instance;
+
+        /// <summary>
+        /// Sets the path to the log file to use for tracing.
+        /// </summary>
+        public static void SetTraceLog(string filePath, bool deleteExisting)
+        {
+            // turn tracing on.
+            lock (s_traceFileLock)
+            {
+                // check if tracing is being turned off.
+                if (string.IsNullOrEmpty(filePath))
+                {
+                    s_traceFileName = string.Empty;
+                    return;
+                }
+
+                s_traceFileName = GetAbsoluteFilePath(filePath, true, false, true, true);
+
+                if (s_traceOutput == (int)TraceOutput.Off)
+                {
+                    s_traceOutput = (int)TraceOutput.FileOnly;
+                }
+
+                try
+                {
+                    var file = new FileInfo(s_traceFileName);
+
+                    if (deleteExisting && file.Exists)
+                    {
+                        file.Delete();
+                    }
+
+                    // write initial log message.
+                    TraceWriteLine(string.Empty);
+                    TraceWriteLine("{1} Logging started at {0}", DateTime.Now, new string('*', 25));
+                }
+                catch (Exception e)
+                {
+                    TraceWriteLine(e.Message);
+                }
+            }
+        }
 
         /// <summary>
         /// Formats and writes a log message for a certificate.
@@ -161,7 +304,7 @@ namespace Opc.Ua
             X509Certificate2 certificate,
             params object[] args)
         {
-            if (Logger.IsEnabled(logLevel))
+            // TODO: if (Logger.IsEnabled(logLevel))
             {
                 StringBuilder builder = new StringBuilder().Append(message);
                 if (certificate != null)
@@ -263,10 +406,7 @@ namespace Opc.Ua
             {
                 EventLog.Log(LogLevel.Trace, eventId, exception, message, args);
             }
-            else if (Logger.IsEnabled(LogLevel.Trace))
-            {
-                Log(LogLevel.Trace, eventId, exception, message, args);
-            }
+            Log(LogLevel.Trace, eventId, exception, message, args);
         }
 
         /// <summary>
@@ -282,10 +422,7 @@ namespace Opc.Ua
             {
                 EventLog.Log(LogLevel.Trace, eventId, message, args);
             }
-            else if (Logger.IsEnabled(LogLevel.Trace))
-            {
-                Log(LogLevel.Trace, eventId, message, args);
-            }
+            Log(LogLevel.Trace, eventId, message, args);
         }
 
         /// <summary>
@@ -301,10 +438,7 @@ namespace Opc.Ua
             {
                 EventLog.Log(LogLevel.Trace, 0, exception, message, args);
             }
-            else if (Logger.IsEnabled(LogLevel.Trace))
-            {
-                Log(LogLevel.Trace, 0, exception, message, args);
-            }
+            Log(LogLevel.Trace, 0, exception, message, args);
         }
 
         /// <summary>
@@ -319,10 +453,7 @@ namespace Opc.Ua
             {
                 EventLog.Log(LogLevel.Trace, 0, message, args);
             }
-            else if (Logger.IsEnabled(LogLevel.Trace))
-            {
-                Log(LogLevel.Trace, 0, message, args);
-            }
+            Log(LogLevel.Trace, 0, message, args);
         }
 
         /// <summary>
@@ -561,24 +692,18 @@ namespace Opc.Ua
             {
                 EventLog.Log(logLevel, eventId, null, message, args);
             }
-            else if (Logger.IsEnabled(logLevel))
+            else if (Tracing.IsEnabled())
             {
-                // note: to support semantic logging strings
-                if (UseTraceEvent && Tracing.IsEnabled())
+                // call the legacy logging handler (TraceEvent)
+                int traceMask = GetTraceMask(eventId, logLevel);
+                Tracing.Instance.RaiseTraceEvent(
+                    new TraceEventArgs(traceMask, message, string.Empty, null, args));
+                // done if mask not enabled, otherwise legacy write handler is
+                // called via logger interface to handle semantic logging.
+                if ((TraceMask & traceMask) == 0)
                 {
-                    // call the legacy logging handler (TraceEvent)
-                    int traceMask = GetTraceMask(eventId, logLevel);
-                    Tracing.Instance.RaiseTraceEvent(
-                        new TraceEventArgs(traceMask, message, string.Empty, null, args));
-                    // done if mask not enabled, otherwise legacy write handler is
-                    // called via logger interface to handle semantic logging.
-                    if ((TraceMask & traceMask) == 0)
-                    {
-                        return;
-                    }
+                    return;
                 }
-
-                Logger.Log(logLevel, eventId, null, message, args);
             }
         }
 
@@ -609,7 +734,7 @@ namespace Opc.Ua
         public static void Log(
             LogLevel logLevel,
             EventId eventId,
-            Exception exception,
+            Exception? exception,
             string message,
             params object[] args)
         {
@@ -617,45 +742,19 @@ namespace Opc.Ua
             {
                 EventLog.Log(logLevel, eventId, exception, message, args);
             }
-            else if (Logger.IsEnabled(logLevel))
+            else if (Tracing.IsEnabled())
             {
-                if (UseTraceEvent && Tracing.IsEnabled())
+                // call the legacy logging handler (TraceEvent)
+                int traceMask = GetTraceMask(eventId, logLevel);
+                Tracing.Instance.RaiseTraceEvent(
+                    new TraceEventArgs(traceMask, message, string.Empty, exception, args));
+                // done if mask not enabled, otherwise legacy write handler is
+                // called via logger interface to handle semantic logging.
+                if ((TraceMask & traceMask) == 0)
                 {
-                    // call the legacy logging handler (TraceEvent)
-                    int traceMask = GetTraceMask(eventId, logLevel);
-                    Tracing.Instance.RaiseTraceEvent(
-                        new TraceEventArgs(traceMask, message, string.Empty, exception, args));
-                    // done if mask not enabled, otherwise legacy write handler is
-                    // called via logger interface to handle semantic logging.
-                    if ((TraceMask & traceMask) == 0)
-                    {
-                        return;
-                    }
+                    return;
                 }
-
-                Logger.Log(logLevel, eventId, exception, message, args);
             }
-        }
-
-        /// <summary>
-        /// Formats the message and creates a scope.
-        /// </summary>
-        /// <param name="messageFormat">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
-        /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <returns>A disposable scope object. Can be null.</returns>
-        /// <example>
-        /// using(BeginScope("Processing request from {Address}", address))
-        /// {
-        /// }
-        /// </example>
-        public static IDisposable BeginScope(string messageFormat, params object[] args)
-        {
-            if (EventLog.IsEnabled())
-            {
-                return EventLog.BeginScope(messageFormat, args);
-            }
-
-            return Logger.BeginScope(messageFormat, args);
         }
 
         /// <summary>
@@ -688,5 +787,319 @@ namespace Opc.Ua
             }
             return mask;
         }
+
+        /// <summary>
+        /// Writes a message to the trace log.
+        /// </summary>
+        public static void Log(int traceMask, string format, params object[] args)
+        {
+            const int informationMask = TraceMasks.Information |
+                TraceMasks.StartStop |
+                TraceMasks.Security;
+            const int errorMask = TraceMasks.Error | TraceMasks.StackTrace;
+            if ((traceMask & errorMask) != 0)
+            {
+                LogError(traceMask, format, args);
+            }
+            else if ((traceMask & informationMask) != 0)
+            {
+                LogInfo(traceMask, format, args);
+            }
+            else
+            {
+                LogTrace(traceMask, format, args);
+            }
+        }
+
+        /// <summary>
+        /// Writes an exception/error message to the trace log.
+        /// </summary>
+        public static void LogError(Exception e, string format, bool handled, params object[] args)
+        {
+            StringBuilder message = TraceExceptionMessage(e, format, args);
+
+            // trace message.
+            Log(e, TraceMasks.Error, message.ToString(), handled);
+        }
+
+        /// <summary>
+        /// Writes a message to the trace log.
+        /// </summary>
+        public static void Log(int traceMask, string format, bool handled, params object[] args)
+        {
+            Log(null, traceMask, format, handled, args);
+        }
+
+        /// <summary>
+        /// Writes a message to the trace log.
+        /// </summary>
+        /// <typeparam name="TState"></typeparam>
+        public static void Log<TState>(
+            TState state,
+            Exception exception,
+            int traceMask,
+            Func<TState, Exception, string> formatter)
+        {
+            // do nothing if mask not enabled.
+            bool tracingEnabled = Tracing.IsEnabled();
+            bool traceMaskEnabled = (TraceMask & traceMask) != 0;
+            if (!traceMaskEnabled && !tracingEnabled)
+            {
+                return;
+            }
+
+            var message = new StringBuilder();
+            try
+            {
+                // append process and timestamp.
+                message.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    "{0:d} {0:HH:mm:ss.fff} ",
+                    DateTime.UtcNow.ToLocalTime())
+                    .Append(formatter(state, exception));
+                if (exception != null)
+                {
+                    message.Append(TraceExceptionMessage(exception, string.Empty));
+                }
+            }
+            catch (Exception)
+            {
+                return;
+            }
+
+            string output = message.ToString();
+            if (tracingEnabled)
+            {
+                Tracing.Instance.RaiseTraceEvent(
+                    new TraceEventArgs(traceMask, output, string.Empty, exception, []));
+            }
+            if (traceMaskEnabled)
+            {
+                TraceWriteLine(output);
+            }
+        }
+
+        /// <summary>
+        /// Writes a message to the trace log.
+        /// </summary>
+        private static void Log(
+            Exception? e,
+            int traceMask,
+            string format,
+            bool handled,
+            params object[] args)
+        {
+            if (!handled)
+            {
+                Tracing.Instance
+                    .RaiseTraceEvent(new TraceEventArgs(traceMask, format, string.Empty, e, args));
+            }
+
+            // do nothing if mask not enabled.
+            if ((TraceMask & traceMask) == 0)
+            {
+                return;
+            }
+
+            var message = new StringBuilder();
+
+            // append process and timestamp.
+            message.AppendFormat(
+                CultureInfo.InvariantCulture,
+                "{0:d} {0:HH:mm:ss.fff} ",
+                DateTime.UtcNow.ToLocalTime());
+
+            // format message.
+            if (args != null && args.Length > 0)
+            {
+                try
+                {
+                    message.AppendFormat(CultureInfo.InvariantCulture, format, args);
+                }
+                catch (Exception)
+                {
+                    message.Append(format);
+                }
+            }
+            else
+            {
+                message.Append(format);
+            }
+
+            TraceWriteLine(message.ToString());
+        }
+
+        /// <summary>
+        /// Create an exception/error message for a log.
+        /// </summary>
+        internal static StringBuilder TraceExceptionMessage(
+            Exception e,
+            string format,
+            params object[] args)
+        {
+            var message = new StringBuilder();
+
+            // format message.
+            if (args != null && args.Length > 0)
+            {
+                try
+                {
+                    message.AppendFormat(CultureInfo.InvariantCulture, format, args)
+                        .AppendLine();
+                }
+                catch (Exception)
+                {
+                    message.AppendLine(format);
+                }
+            }
+            else
+            {
+                message.AppendLine(format);
+            }
+
+            // append exception information.
+            if (e != null)
+            {
+                if (e is ServiceResultException sre)
+                {
+                    message.AppendFormat(
+                        CultureInfo.InvariantCulture,
+                        " {0} '{1}'",
+                        StatusCodes.GetBrowseName(sre.StatusCode),
+                        sre.Message);
+                }
+                else
+                {
+                    message.AppendFormat(
+                        CultureInfo.InvariantCulture,
+                        " {0} '{1}'",
+                        e.GetType().Name,
+                        e.Message);
+                }
+                message.AppendLine();
+
+                // append stack trace.
+                if ((TraceMask & TraceMasks.StackTrace) != 0)
+                {
+                    message.AppendLine()
+                        .AppendLine();
+                    string separator = new('=', 40);
+                    message.AppendLine(separator)
+                        .AppendLine(new ServiceResult(e).ToLongString())
+                        .AppendLine(separator);
+                }
+            }
+
+            return message;
+        }
+
+        /// <summary>
+        /// Writes a trace statement.
+        /// </summary>
+        private static void TraceWriteLine(string message, params object[] args)
+        {
+            // null strings not supported.
+            if (string.IsNullOrEmpty(message))
+            {
+                return;
+            }
+
+            // format the message if format arguments provided.
+            string output = message;
+
+            if (args != null && args.Length > 0)
+            {
+                try
+                {
+                    output = string.Format(CultureInfo.InvariantCulture, message, args);
+                }
+                catch (Exception)
+                {
+                    output = message;
+                }
+            }
+
+            TraceWriteLine(output);
+        }
+
+        /// <summary>
+        /// Writes a trace statement.
+        /// </summary>
+        private static void TraceWriteLine(string output)
+        {
+            // write to the log file.
+            lock (s_traceFileLock)
+            {
+                // write to debug trace listeners.
+                if (s_traceOutput == (int)TraceOutput.DebugAndFile)
+                {
+                    Debug.WriteLine(output);
+                }
+
+                string traceFileName = s_traceFileName;
+
+                if (s_traceOutput != (int)TraceOutput.Off && !string.IsNullOrEmpty(traceFileName))
+                {
+                    try
+                    {
+                        var file = new FileInfo(traceFileName);
+
+                        // limit the file size
+                        bool truncated = false;
+
+                        if (file.Exists && file.Length > 10000000)
+                        {
+                            file.Delete();
+                            truncated = true;
+                        }
+
+                        using var writer = new StreamWriter(
+                            File.Open(
+                                file.FullName,
+                                FileMode.Append,
+                                FileAccess.Write,
+                                FileShare.Read));
+                        if (truncated)
+                        {
+                            writer.WriteLine("WARNING - LOG FILE TRUNCATED.");
+                        }
+
+                        writer.WriteLine(output);
+                        writer.Flush();
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.WriteLine("Could not write to trace file. Error={0}", e.Message);
+                        Debug.WriteLine("FilePath={1}", traceFileName);
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Extensions for the <see cref="IObservabilityContext"/>.
+    /// </summary>
+    public static class ObservabilityContextExtensions
+    {
+        /// <summary>
+        /// Get logger factory from observability context
+        /// </summary>
+        public static ILoggerFactory GetLoggerFactory(this IObservabilityContext? context)
+        {
+            return context?.LoggerFactory ?? s_loggerFactory.Value;
+        }
+
+        /// <summary>
+        /// Create logger for a type name
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static ILogger<T> CreateLogger<T>(this IObservabilityContext? context)
+        {
+            return context.GetLoggerFactory().CreateLogger<T>();
+        }
+
+        private static readonly Lazy<ILoggerFactory> s_loggerFactory =
+            new(() => new NullLoggerFactory());
     }
 }
