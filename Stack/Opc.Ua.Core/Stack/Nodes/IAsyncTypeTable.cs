@@ -200,6 +200,23 @@ namespace Opc.Ua
     }
 
     /// <summary>
+    /// Type table extensions
+    /// </summary>
+    public static class TypeTableExtensions
+    {
+        /// <summary>
+        /// Expose a async type table as a synchronous table to
+        /// adapt it to code that requires synchronous methods.
+        /// </summary>
+        /// <param name="table"></param>
+        /// <returns></returns>
+        public static ITypeTable AsTypeTable(this IAsyncTypeTable table)
+        {
+            return new TypeTableAdapter(table);
+        }
+    }
+
+    /// <summary>
     /// Type table adapter for synchronous access to the table.
     /// We need to keep the sync interface for now as it is shared
     /// between the client and the server. However, we want to

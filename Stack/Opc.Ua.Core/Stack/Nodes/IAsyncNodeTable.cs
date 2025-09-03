@@ -99,6 +99,23 @@ namespace Opc.Ua
             CancellationToken ct = default);
     }
 
+    /// <summary>
+    /// Node table extensions
+    /// </summary>
+    public static class NodeTableExtensions
+    {
+        /// <summary>
+        /// Expose a async node table as a synchronous table to
+        /// adapt it to code that requires synchronous methods.
+        /// </summary>
+        /// <param name="table"></param>
+        /// <returns></returns>
+        public static INodeTable AsNodeTable(this IAsyncNodeTable table)
+        {
+            return new NodeTableAdapter(table);
+        }
+    }
+
     internal sealed class NodeTableAdapter : INodeTable
     {
         public NodeTableAdapter(IAsyncNodeTable nodeTable)

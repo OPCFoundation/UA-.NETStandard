@@ -85,7 +85,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Legacy type table adapter for backwards compatibility.
         /// </summary>
-        public ITypeTable TypeTree => new TypeTableAdapter(this);
+        public ITypeTable TypeTree => this.AsTypeTable();
 
         /// <inheritdoc/>
         public async ValueTask<INode> FindAsync(
