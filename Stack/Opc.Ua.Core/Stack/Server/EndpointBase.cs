@@ -330,6 +330,7 @@ namespace Opc.Ua
         /// <summary>
         /// Dispatches an incoming binary encoded request.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public virtual async Task<InvokeServiceResponseMessage> InvokeServiceAsync(
             InvokeServiceMessage request,
             CancellationToken cancellationToken)
@@ -345,7 +346,7 @@ namespace Opc.Ua
                 // set the request context.
                 SetRequestContext(RequestEncoding.Binary);
 
-                var context = SecureChannelContext.Current;
+                SecureChannelContext context = SecureChannelContext.Current;
 
                 // decoding incoming message.
                 var serviceRequest =
@@ -355,7 +356,7 @@ namespace Opc.Ua
                         MessageContext) as IServiceRequest;
 
                 // process the request.
-                var response = await ProcessRequestAsync(
+                IServiceResponse response = await ProcessRequestAsync(
                     context.SecureChannelId,
                     context.EndpointDescription,
                     serviceRequest,
@@ -1061,6 +1062,8 @@ namespace Opc.Ua
                 m_tcs = new TaskCompletionSource<IServiceResponse>();
             }
 
+            /// <inheritdoc/>
+            public object Calldata { get; set; }
 
             /// <inheritdoc/>
             public SecureChannelContext SecureChannelContext { get; }
@@ -1092,16 +1095,49 @@ namespace Opc.Ua
             /// <inheritdoc/>
             public async Task CallAsync(CancellationToken cancellationToken = default)
             {
-                var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(m_cancellationToken, cancellationToken);
+                int timeoutHint = (int)Request.RequestHeader.TimeoutHint;
+
+                using CancellationTokenSource timeoutHintCts = timeoutHint > 0 ?
+                     new CancellationTokenSource(timeoutHint)
+                    : new CancellationTokenSource();
+
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(m_cancellationToken, cancellationToken, timeoutHintCts.Token);
 
                 try
                 {
                     SecureChannelContext.Current = SecureChannelContext;
-                    var response = await m_service.InvokeAsync(Request, linkedCts.Token).ConfigureAwait(false);
-                    m_tcs.TrySetResult(response);
+
+                    Activity activity = null;
+                    if (ActivitySource.HasListeners())
+                    {
+                        // extract trace information from the request header if available
+                        if (Request.RequestHeader?.AdditionalHeader?
+                            .Body is AdditionalParametersType parameters &&
+                            TryExtractActivityContextFromParameters(
+                                parameters,
+                                out ActivityContext activityContext))
+                        {
+                            activity = ActivitySource.StartActivity(
+                                Request.GetType().Name,
+                                ActivityKind.Server,
+                                activityContext);
+                        }
+                    }
+
+                    using (activity)
+                    {
+                        IServiceResponse response = await m_service.InvokeAsync(Request, linkedCts.Token).ConfigureAwait(false);
+                        m_tcs.TrySetResult(response);
+                    }
+
                 }
                 catch (Exception e)
                 {
+                    if (e is OperationCanceledException)
+                    {
+                        e = new ServiceResultException(StatusCodes.BadTimeout);
+                    }
+
                     m_tcs.TrySetResult(CreateFault(Request, e));
                 }
                 finally
