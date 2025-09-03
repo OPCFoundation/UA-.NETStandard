@@ -29,6 +29,8 @@
 
 using System;
 using System.Runtime.Serialization;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Client
 {
@@ -229,8 +231,19 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Browses the specified node.
         /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
+        [Obsolete("Use BrowseAsync(NodeId) instead.")]
         public ReferenceDescriptionCollection Browse(NodeId nodeId)
+        {
+            return BrowseAsync(nodeId).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Browses the specified node.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public async ValueTask<ReferenceDescriptionCollection> BrowseAsync(
+            NodeId nodeId,
+            CancellationToken ct = default)
         {
             if (m_session == null)
             {
@@ -257,14 +270,16 @@ namespace Opc.Ua.Client
                 var nodesToBrowse = new BrowseDescriptionCollection { nodeToBrowse };
 
                 // make the call to the server.
-
-                ResponseHeader responseHeader = m_session.Browse(
+                BrowseResponse browseResponse = await m_session.BrowseAsync(
                     null,
                     m_view,
                     m_maxReferencesReturned,
                     nodesToBrowse,
-                    out BrowseResultCollection results,
-                    out DiagnosticInfoCollection diagnosticInfos);
+                    ct).ConfigureAwait(false);
+
+                BrowseResultCollection results = browseResponse.Results;
+                DiagnosticInfoCollection diagnosticInfos = browseResponse.DiagnosticInfos;
+                ResponseHeader responseHeader = browseResponse.ResponseHeader;
 
                 // ensure that the server returned valid results.
                 ClientBase.ValidateResponse(results, nodesToBrowse);
@@ -284,38 +299,51 @@ namespace Opc.Ua.Client
                 byte[] continuationPoint = results[0].ContinuationPoint;
                 ReferenceDescriptionCollection references = results[0].References;
 
-                // process any continuation point.
-                while (continuationPoint != null)
+                try
                 {
-                    ReferenceDescriptionCollection additionalReferences;
-
-                    if (!m_continueUntilDone && m_MoreReferences != null)
+                    // process any continuation point.
+                    while (continuationPoint != null)
                     {
-                        var args = new BrowserEventArgs(references);
-                        m_MoreReferences(this, args);
+                        ReferenceDescriptionCollection additionalReferences;
 
-                        // cancel browser and return the references fetched so far.
-                        if (args.Cancel)
+                        if (!m_continueUntilDone && m_MoreReferences != null)
                         {
-                            BrowseNext(ref continuationPoint, true);
-                            return references;
+                            var args = new BrowserEventArgs(references);
+                            m_MoreReferences(this, args);
+
+                            // cancel browser and return the references fetched so far.
+                            if (args.Cancel)
+                            {
+                                (_, continuationPoint) = await BrowseNextAsync(
+                                    continuationPoint,
+                                    true,
+                                    ct).ConfigureAwait(false);
+                                return references;
+                            }
+
+                            m_continueUntilDone = args.ContinueUntilDone;
                         }
 
-                        m_continueUntilDone = args.ContinueUntilDone;
-                    }
-
-                    additionalReferences = BrowseNext(ref continuationPoint, false);
-                    if (additionalReferences != null && additionalReferences.Count > 0)
-                    {
-                        references.AddRange(additionalReferences);
-                    }
-                    else
-                    {
-                        Utils.LogWarning("Browser: Continuation point exists, but the browse results are null/empty.");
-                        break;
+                        (additionalReferences, continuationPoint) = await BrowseNextAsync(
+                            continuationPoint,
+                            false,
+                            ct).ConfigureAwait(false);
+                        if (additionalReferences != null && additionalReferences.Count > 0)
+                        {
+                            references.AddRange(additionalReferences);
+                        }
+                        else
+                        {
+                            Utils.LogWarning(
+                                "Browser: Continuation point exists, but the browse results are null/empty.");
+                            break;
+                        }
                     }
                 }
-
+                catch (OperationCanceledException) when (continuationPoint?.Length > 0)
+                {
+                    (_, _) = await BrowseNextAsync(continuationPoint, true, default).ConfigureAwait(false);
+                }
                 // return the results.
                 return references;
             }
@@ -344,20 +372,27 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="continuationPoint">The continuation point.</param>
         /// <param name="cancel">if set to <c>true</c> the browse operation is cancelled.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>The next batch of references</returns>
         /// <exception cref="ServiceResultException"></exception>
-        private ReferenceDescriptionCollection BrowseNext(ref byte[] continuationPoint, bool cancel)
+        private async ValueTask<(ReferenceDescriptionCollection, byte[])> BrowseNextAsync(
+            byte[] continuationPoint,
+            bool cancel,
+            CancellationToken ct = default)
         {
             var continuationPoints = new ByteStringCollection { continuationPoint };
 
             // make the call to the server.
-
-            ResponseHeader responseHeader = m_session.BrowseNext(
+            BrowseNextResponse browseResponse = await m_session.BrowseNextAsync(
                 null,
                 cancel,
                 continuationPoints,
-                out BrowseResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
+                ct)
+                .ConfigureAwait(false);
+
+            BrowseResultCollection results = browseResponse.Results;
+            DiagnosticInfoCollection diagnosticInfos = browseResponse.DiagnosticInfos;
+            ResponseHeader responseHeader = browseResponse.ResponseHeader;
 
             // ensure that the server returned valid results.
             ClientBase.ValidateResponse(results, continuationPoints);
@@ -373,11 +408,8 @@ namespace Opc.Ua.Client
                     responseHeader.StringTable);
             }
 
-            // update continuation point.
-            continuationPoint = results[0].ContinuationPoint;
-
-            // return references.
-            return results[0].References;
+            // return references and continuation point if provided.
+            return (results[0].References, results[0].ContinuationPoint);
         }
 
         private ISession m_session;

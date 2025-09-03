@@ -80,11 +80,6 @@ namespace Opc.Ua
         void DetachChannel();
 
         /// <summary>
-        /// Closes the channel.
-        /// </summary>
-        StatusCode Close();
-
-        /// <summary>
         /// Closes the channel using async call.
         /// </summary>
         Task<StatusCode> CloseAsync(CancellationToken ct = default);

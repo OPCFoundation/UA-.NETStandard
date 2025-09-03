@@ -30,6 +30,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Security;
 
 namespace Opc.Ua.Client
@@ -48,10 +50,13 @@ namespace Opc.Ua.Client
         /// Discovers the servers on the local machine.
         /// </summary>
         /// <param name="configuration">The configuration.</param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>A list of server urls.</returns>
-        public static IList<string> DiscoverServers(ApplicationConfiguration configuration)
+        public static ValueTask<IList<string>> DiscoverServersAsync(
+            ApplicationConfiguration configuration,
+            CancellationToken ct = default)
         {
-            return DiscoverServers(configuration, DefaultDiscoverTimeout);
+            return DiscoverServersAsync(configuration, DefaultDiscoverTimeout, ct);
         }
 
         /// <summary>
@@ -59,10 +64,12 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="configuration">The configuration.</param>
         /// <param name="discoverTimeout">Operation timeout in milliseconds.</param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>A list of server urls.</returns>
-        public static IList<string> DiscoverServers(
+        public static async ValueTask<IList<string>> DiscoverServersAsync(
             ApplicationConfiguration configuration,
-            int discoverTimeout)
+            int discoverTimeout,
+            CancellationToken ct = default)
         {
             var serverUrls = new List<string>();
 
@@ -75,7 +82,8 @@ namespace Opc.Ua.Client
                     new Uri(Utils.Format(Utils.DiscoveryUrls[0], "localhost")),
                     endpointConfiguration))
             {
-                ApplicationDescriptionCollection servers = client.FindServers(null);
+                ApplicationDescriptionCollection servers =
+                    await client.FindServersAsync(null, ct).ConfigureAwait(false);
 
                 // populate the drop down list with the discovery URLs for the available servers.
                 for (int ii = 0; ii < servers.Count; ii++)
@@ -114,22 +122,29 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Finds the endpoint that best matches the current settings.
         /// </summary>
-        public static EndpointDescription SelectEndpoint(
+        public static ValueTask<EndpointDescription> SelectEndpointAsync(
             ApplicationConfiguration application,
             ITransportWaitingConnection connection,
-            bool useSecurity)
+            bool useSecurity,
+            CancellationToken ct = default)
         {
-            return SelectEndpoint(application, connection, useSecurity, DefaultDiscoverTimeout);
+            return SelectEndpointAsync(
+                application,
+                connection,
+                useSecurity,
+                DefaultDiscoverTimeout,
+                ct);
         }
 
         /// <summary>
         /// Finds the endpoint that best matches the current settings.
         /// </summary>
-        public static EndpointDescription SelectEndpoint(
+        public static async ValueTask<EndpointDescription> SelectEndpointAsync(
             ApplicationConfiguration application,
             ITransportWaitingConnection connection,
             bool useSecurity,
-            int discoverTimeout)
+            int discoverTimeout,
+            CancellationToken ct = default)
         {
             var endpointConfiguration = EndpointConfiguration.Create(application);
             endpointConfiguration.OperationTimeout = discoverTimeout > 0
@@ -141,7 +156,8 @@ namespace Opc.Ua.Client
                 connection,
                 endpointConfiguration);
             var url = new Uri(client.Endpoint.EndpointUrl);
-            EndpointDescriptionCollection endpoints = client.GetEndpoints(null);
+            EndpointDescriptionCollection endpoints =
+                await client.GetEndpointsAsync(null, ct).ConfigureAwait(false);
             return SelectEndpoint(application, url, endpoints, useSecurity);
         }
 
@@ -150,14 +166,22 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="application">The application configuration.</param>
         /// <param name="discoveryUrl">The discovery URL.</param>
-        /// <param name="useSecurity">if set to <c>true</c> select an endpoint that uses security.</param>
+        /// <param name="useSecurity">if set to <c>true</c> select an endpoint
+        /// that uses security.</param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>The best available endpoint.</returns>
-        public static EndpointDescription SelectEndpoint(
+        public static ValueTask<EndpointDescription> SelectEndpointAsync(
             ApplicationConfiguration application,
             string discoveryUrl,
-            bool useSecurity)
+            bool useSecurity,
+            CancellationToken ct = default)
         {
-            return SelectEndpoint(application, discoveryUrl, useSecurity, DefaultDiscoverTimeout);
+            return SelectEndpointAsync(
+                application,
+                discoveryUrl,
+                useSecurity,
+                DefaultDiscoverTimeout,
+                ct);
         }
 
         /// <summary>
@@ -167,12 +191,14 @@ namespace Opc.Ua.Client
         /// <param name="discoveryUrl">The discovery URL.</param>
         /// <param name="useSecurity">if set to <c>true</c> select an endpoint that uses security.</param>
         /// <param name="discoverTimeout">The timeout for the discover operation.</param>
+        /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>The best available endpoint.</returns>
-        public static EndpointDescription SelectEndpoint(
+        public static async ValueTask<EndpointDescription> SelectEndpointAsync(
             ApplicationConfiguration application,
             string discoveryUrl,
             bool useSecurity,
-            int discoverTimeout)
+            int discoverTimeout,
+            CancellationToken ct = default)
         {
             Uri uri = GetDiscoveryUrl(discoveryUrl);
             var endpointConfiguration = EndpointConfiguration.Create(application);
@@ -181,7 +207,8 @@ namespace Opc.Ua.Client
             using var client = DiscoveryClient.Create(application, uri, endpointConfiguration);
             // Connect to the server's discovery endpoint and find the available configuration.
             var url = new Uri(client.Endpoint.EndpointUrl);
-            EndpointDescriptionCollection endpoints = client.GetEndpoints(null);
+            EndpointDescriptionCollection endpoints =
+                await client.GetEndpointsAsync(null, ct).ConfigureAwait(false);
             EndpointDescription selectedEndpoint = SelectEndpoint(
                 application,
                 url,

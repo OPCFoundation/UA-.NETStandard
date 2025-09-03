@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
@@ -162,7 +163,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         {
             var dictionaryIds = new List<NodeId> {
                 VariableIds.OpcUa_BinarySchema,
-                GetTestDataDictionaryNodeId() };
+                await GetTestDataDictionaryNodeIdAsync().ConfigureAwait(false) };
 
             var theSession = (Session)((TraceableSession)Session).Session;
 
@@ -187,22 +188,20 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 var nodesToRead = new ReadValueIdCollection { readValueId };
 
                 ServiceResultException x = NUnit.Framework.Assert
-                    .Throws<ServiceResultException>(() =>
-                        _ = theSession.Read(
+                    .ThrowsAsync<ServiceResultException>(() =>
+                        theSession.ReadAsync(
                             null,
                             0,
                             TimestampsToReturn.Neither,
                             nodesToRead,
-                            out DataValueCollection results,
-                            out DiagnosticInfoCollection diagnosticInfos));
+                            default));
 
                 Assert.AreEqual(StatusCodes.BadEncodingLimitsExceeded, x.StatusCode);
 
                 // now ensure we get the dictionary in chunks
                 DataDictionary dictionary = await LoadDataDictionaryAsync(
                     theSession,
-                    referenceDescription)
-                    .ConfigureAwait(false);
+                    referenceDescription).ConfigureAwait(false);
                 Assert.IsNotNull(dictionary);
 
                 // Sanity checks: verify that some well-known information is present
@@ -234,7 +233,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         /// </summary>
         public Task<DataDictionary> LoadDataDictionaryAsync(
             ISession session,
-            ReferenceDescription dictionaryNode)
+            ReferenceDescription dictionaryNode,
+            CancellationToken ct = default)
         {
             // check if the dictionary has already been loaded.
             var dictionaryId = ExpandedNodeId.ToNodeId(
@@ -251,7 +251,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         /// retrieve the node id of the test data dictionary without relying on
         /// hard coded identifiers
         /// </summary>
-        public NodeId GetTestDataDictionaryNodeId()
+        public async Task<NodeId> GetTestDataDictionaryNodeIdAsync(CancellationToken ct = default)
         {
             var browseDescription = new BrowseDescription
             {
@@ -265,13 +265,15 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             var browseDescriptions = new BrowseDescriptionCollection { browseDescription };
 
             Assert.NotNull(Session, "Client not connected to Server.");
-            _ = Session.Browse(
+            BrowseResponse response = await Session.BrowseAsync(
                 null,
                 null,
                 0,
                 browseDescriptions,
-                out BrowseResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
+                ct).ConfigureAwait(false);
+
+            BrowseResultCollection results = response.Results;
+            DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
 
             if (results[0] == null || results[0].StatusCode != StatusCodes.Good)
             {

@@ -1038,73 +1038,43 @@ namespace Opc.Ua
         /// <summary>
         /// Updates an endpoint with information from the server's discovery endpoint.
         /// </summary>
+        [Obsolete("Use UpdateFromServerAsync() instead.")]
         public void UpdateFromServer()
         {
-            UpdateFromServer(
-                EndpointUrl,
-                m_description.SecurityMode,
-                m_description.SecurityPolicyUri);
+            UpdateFromServerAsync()
+                .GetAwaiter()
+                .GetResult();
         }
 
         /// <summary>
         /// Updates an endpoint with information from the server's discovery endpoint.
         /// </summary>
+        [Obsolete("Use UpdateFromServerAsync() instead.")]
         public void UpdateFromServer(
             Uri endpointUrl,
             MessageSecurityMode securityMode,
             string securityPolicyUri)
         {
-            UpdateFromServer(endpointUrl, null, securityMode, securityPolicyUri);
+            UpdateFromServerAsync(endpointUrl, securityMode, securityPolicyUri)
+                .GetAwaiter()
+                .GetResult();
         }
 
         /// <summary>
         /// Updates an endpoint with information from the server's discovery endpoint.
         /// </summary>
+        [Obsolete("Use UpdateFromServerAsync() instead.")]
         public void UpdateFromServer(
             Uri endpointUrl,
             ITransportWaitingConnection connection,
             MessageSecurityMode securityMode,
             string securityPolicyUri)
         {
-            // get the a discovery url.
-            Uri discoveryUrl = GetDiscoveryUrl(endpointUrl);
-
-            // create the discovery client.
-            DiscoveryClient client;
-            if (connection != null)
-            {
-                client = DiscoveryClient.Create(connection, m_configuration);
-            }
-            else
-            {
-                client = DiscoveryClient.Create(discoveryUrl, m_configuration);
-            }
-
-            try
-            {
-                // get the endpoints.
-                EndpointDescriptionCollection collection = client.GetEndpoints(null);
-
-                // find list of matching endpoints.
-                EndpointDescriptionCollection matches = MatchEndpoints(
-                    collection,
-                    endpointUrl,
-                    securityMode,
-                    securityPolicyUri);
-
-                // select best match
-                EndpointDescription match = SelectBestMatch(matches, discoveryUrl);
-
-                // update the endpoint.
-                Update(match);
-            }
-            finally
-            {
-                client.Close();
-            }
+            UpdateFromServerAsync(endpointUrl, connection, securityMode, securityPolicyUri)
+                .GetAwaiter()
+                .GetResult();
         }
 
-#if NET_STANDARD_ASYNC
         /// <summary>
         /// Updates an endpoint with information from the server's discovery endpoint.
         /// </summary>
@@ -1178,7 +1148,6 @@ namespace Opc.Ua
                 await client.CloseAsync(ct).ConfigureAwait(false);
             }
         }
-#endif
 
         /// <summary>
         /// Returns a discovery url that can be used to update the endpoint description.

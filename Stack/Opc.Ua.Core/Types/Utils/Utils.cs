@@ -159,13 +159,24 @@ namespace Opc.Ua
             .Name;
 
         /// <summary>
+        /// Helper to get the name of the Opc.Ua.Bindings.Https assembly.
+        /// </summary>
+        private static string OpcUaHttpsAssemblyName()
+        {
+            string assemblyName = DefaultOpcUaCoreAssemblyName;
+            int offset = assemblyName.IndexOf("Core", StringComparison.Ordinal);
+            Debug.Assert(offset != -1);
+            return $"{assemblyName[0..offset]}Bindings.Https";
+        }
+
+        /// <summary>
         /// List of known default bindings hosted in other assemblies.
         /// </summary>
         public static readonly ReadOnlyDictionary<string, string> DefaultBindings = new(
             new Dictionary<string, string>
             {
-                { UriSchemeHttps, "Opc.Ua.Bindings.Https" },
-                { UriSchemeOpcHttps, "Opc.Ua.Bindings.Https" }
+                { UriSchemeHttps, OpcUaHttpsAssemblyName() },
+                { UriSchemeOpcHttps, OpcUaHttpsAssemblyName() }
             });
 
         /// <summary>
@@ -1395,6 +1406,27 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Corresponds to <see cref="string.IsNullOrEmpty(string?)"/> for byte[].
+        /// </summary>
+        public static bool Utf8IsNullOrEmpty(ReadOnlySpan<byte> bytes)
+        {
+            if (bytes.IsEmpty)
+            {
+                return true;
+            }
+
+            for (int i = 0; i < bytes.Length; i++)
+            {
+                if (bytes[i] != ' ')
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// Unescapes a URI string using the percent encoding.
         /// </summary>
         public static string UnescapeUri(string uri)
@@ -2133,6 +2165,25 @@ namespace Opc.Ua
             }
 
             if (value1 is null || value2 is null)
+            {
+                return false;
+            }
+
+            return value1.SequenceEqual(value2);
+        }
+
+        /// <summary>
+        /// Checks if two T[] values are equal.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        public static bool IsEqual<T>(ReadOnlySpan<T> value1, ReadOnlySpan<T> value2) where T : unmanaged, IEquatable<T>
+        {
+            if (value1.IsEmpty && value2.IsEmpty)
+            {
+                return true;
+            }
+
+            if (value1.Length != value2.Length)
             {
                 return false;
             }

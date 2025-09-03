@@ -160,10 +160,10 @@ namespace Opc.Ua.Gds.Tests
         {
             // start GDS first clean, then restart server
             // to ensure the application cert is not 'fresh'
-            m_server = await TestUtils.StartGDSAsync(true).ConfigureAwait(false);
+            m_server = await TestUtils.StartGDSAsync(true, CertificateStoreType.Directory, TestContext.Out).ConfigureAwait(false);
             m_server.StopServer();
             await Task.Delay(1000).ConfigureAwait(false);
-            m_server = await TestUtils.StartGDSAsync(false).ConfigureAwait(false);
+            m_server = await TestUtils.StartGDSAsync(false, CertificateStoreType.Directory, TestContext.Out).ConfigureAwait(false);
 
             m_randomSource = new RandomSource(kRandomStart);
 
@@ -217,6 +217,8 @@ namespace Opc.Ua.Gds.Tests
         protected void SetUp()
         {
             m_server.ResetLogFile();
+            m_server.SetTraceOutput(TestContext.Out);
+            m_server.SetTraceOutputLevel(Microsoft.Extensions.Logging.LogLevel.Error);
         }
 
         [TearDown]
@@ -965,10 +967,33 @@ namespace Opc.Ua.Gds.Tests
             bool sysAdmin,
             [System.Runtime.CompilerServices.CallerMemberName] string memberName = "")
         {
-            m_pushClient.PushClient.AdminCredentials = sysAdmin
-                ? m_pushClient.SysAdminUser
-                : m_pushClient.AppUser;
-            await m_pushClient.ConnectAsync(m_securityPolicyUri).ConfigureAwait(false);
+            int retryCount = 3;
+            TimeSpan retryInterval = TimeSpan.FromSeconds(2);
+
+            while (retryCount > 0)
+            {
+                try
+                {
+                    m_pushClient.PushClient.AdminCredentials = sysAdmin
+                        ? m_pushClient.SysAdminUser
+                        : m_pushClient.AppUser;
+                    await m_pushClient.ConnectAsync(m_securityPolicyUri).ConfigureAwait(false);
+                    TestContext.Progress.WriteLine($"GDS Push({sysAdmin}) Connected -- {memberName}");
+                    return; // Connection successful, exit the loop
+                }
+                catch (Exception ex)
+                {
+                    TestContext.Progress.WriteLine($"Connection attempt failed: {ex.Message}. Retrying in {retryInterval}...");
+                    retryCount--;
+                    if (retryCount == 0)
+                    {
+                        TestContext.Progress.WriteLine($"GDS Push({sysAdmin}) Connection failed after multiple retries -- {memberName}");
+                        throw; // Re-throw the exception if all retries failed
+                    }
+                    await Task.Delay(retryInterval).ConfigureAwait(false);
+                }
+            }
+
             TestContext.Progress.WriteLine($"GDS Push({sysAdmin}) Connected -- {memberName}");
         }
 
@@ -994,14 +1019,15 @@ namespace Opc.Ua.Gds.Tests
             await m_gdsClient.GDSClient.DisconnectAsync().ConfigureAwait(false);
         }
 
-        private async Task RegisterPushServerApplicationAsync(string discoveryUrl)
+        private async Task RegisterPushServerApplicationAsync(string discoveryUrl, CancellationToken ct = default)
         {
             if (m_applicationRecord == null && discoveryUrl != null)
             {
-                EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(
+                EndpointDescription endpointDescription = await CoreClientUtils.SelectEndpointAsync(
                     m_gdsClient.Configuration,
                     discoveryUrl,
-                    true);
+                    true,
+                    ct).ConfigureAwait(false);
                 ApplicationDescription description = endpointDescription.Server;
                 m_applicationRecord = new ApplicationRecordDataType
                 {
@@ -1015,13 +1041,15 @@ namespace Opc.Ua.Gds.Tests
             }
             Assert.IsNotNull(m_applicationRecord);
             Assert.IsNull(m_applicationRecord.ApplicationId);
-            NodeId id = await m_gdsClient.GDSClient.RegisterApplicationAsync(m_applicationRecord).ConfigureAwait(false);
+            NodeId id = await m_gdsClient.GDSClient.RegisterApplicationAsync(m_applicationRecord, ct).ConfigureAwait(false);
             Assert.IsNotNull(id);
             m_applicationRecord.ApplicationId = id;
 
             // add issuer and trusted certs to client stores
-            NodeId trustListId = await m_gdsClient.GDSClient.GetTrustListAsync(id, null).ConfigureAwait(false);
-            TrustListDataType trustList = await m_gdsClient.GDSClient.ReadTrustListAsync(trustListId).ConfigureAwait(false);
+            NodeId trustListId = await m_gdsClient.GDSClient.GetTrustListAsync(id, null, ct).ConfigureAwait(false);
+            TrustListDataType trustList = await m_gdsClient.GDSClient.ReadTrustListAsync(
+                trustListId,
+                ct).ConfigureAwait(false);
             bool result = AddTrustListToStoreAsync(
                 m_gdsClient.Configuration.SecurityConfiguration,
                 trustList).Result;
@@ -1067,9 +1095,7 @@ namespace Opc.Ua.Gds.Tests
                 {
                     Utils.LogError(ex, "Failure while verifying new Push Server certificate.");
                 }
-
             }
-
             Assert.Fail("Server certificate did not match with the Certificate pushed by " +
                 "the GDS within the allowed time.");
         }

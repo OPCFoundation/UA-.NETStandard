@@ -30,8 +30,10 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Primitives;
 using NUnit.Framework;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server.Tests;
@@ -190,10 +192,11 @@ namespace Opc.Ua.Client.Tests
         /// Connects the specified endpoint URL.
         /// </summary>
         /// <param name="endpointUrl">The endpoint URL.</param>
+        /// <param name="ct"">Cancellation token to cancel operation with</param>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>
-        public async Task<ISession> ConnectAsync(string endpointUrl)
+        public async Task<ISession> ConnectAsync(string endpointUrl, CancellationToken ct = default)
         {
             if (string.IsNullOrEmpty(endpointUrl))
             {
@@ -212,10 +215,12 @@ namespace Opc.Ua.Client.Tests
             {
                 try
                 {
-                    EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(
-                        Config,
-                        endpointUrl,
-                        true);
+                    EndpointDescription endpointDescription =
+                        await CoreClientUtils.SelectEndpointAsync(
+                            Config,
+                            endpointUrl,
+                            true,
+                            ct).ConfigureAwait(false);
                     var endpointConfiguration = EndpointConfiguration.Create(Config);
                     var endpoint = new ConfiguredEndpoint(
                         null,
@@ -227,7 +232,7 @@ namespace Opc.Ua.Client.Tests
                 catch (ServiceResultException e) when (e.StatusCode == StatusCodes.BadServerHalted)
                 {
                     serverHalted = true;
-                    await Task.Delay(1000).ConfigureAwait(false);
+                    await Task.Delay(1000, ct).ConfigureAwait(false);
                 }
             } while (serverHalted);
 
