@@ -1249,6 +1249,12 @@ namespace Opc.Ua.Client
             return typeId;
         }
 
+        /// <inheritdoc/>
+        public INodeTable ToNodeTable()
+        {
+            return new NodeTableAdapter(this);
+        }
+
         private void InternalWriteLockedAttach(ILocalNode node)
         {
             m_cacheLock.EnterWriteLock();
