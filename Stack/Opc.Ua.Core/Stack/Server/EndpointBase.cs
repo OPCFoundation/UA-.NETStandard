@@ -1095,13 +1095,14 @@ namespace Opc.Ua
             /// <inheritdoc/>
             public async Task CallAsync(CancellationToken cancellationToken = default)
             {
-                int timeoutHint = (int)Request.RequestHeader.TimeoutHint;
+                using CancellationTokenSource timeoutHintCts = (int)Request.RequestHeader.TimeoutHint > 0 ?
+                    new CancellationTokenSource((int)Request.RequestHeader.TimeoutHint) : null;
 
-                using CancellationTokenSource timeoutHintCts = timeoutHint > 0 ?
-                     new CancellationTokenSource(timeoutHint)
-                    : new CancellationTokenSource();
+                CancellationToken[] tokens = timeoutHintCts != null ?
+                    [m_cancellationToken, cancellationToken, timeoutHintCts.Token] :
+                    [m_cancellationToken, cancellationToken];
 
-                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(m_cancellationToken, cancellationToken, timeoutHintCts.Token);
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(tokens);
 
                 try
                 {
@@ -1129,7 +1130,6 @@ namespace Opc.Ua
                         IServiceResponse response = await m_service.InvokeAsync(Request, linkedCts.Token).ConfigureAwait(false);
                         m_tcs.TrySetResult(response);
                     }
-
                 }
                 catch (Exception e)
                 {
