@@ -135,10 +135,5 @@ namespace Opc.Ua.Client
         NodeId BuildBrowsePath(
             ILocalNode node,
             IList<QualifiedName> browsePath);
-
-        /// <summary>
-        /// Returns a copy of the node table implementing the <see cref="INodeTable"/> interface.
-        /// </summary>
-        INodeTable ToNodeTable();
     }
 }
