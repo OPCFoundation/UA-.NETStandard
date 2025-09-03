@@ -1729,7 +1729,6 @@ namespace Opc.Ua.Server
                 notificationMessage = ServerInternal.SubscriptionManager.Publish(
                     context,
                     subscriptionAcknowledgements,
-                    null,
                     out subscriptionId,
                     out availableSequenceNumbers,
                     out moreNotifications,
@@ -1771,53 +1770,63 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Begins an asynchronous publish operation.
+        /// Invokes the Publish service using async Task based request.
         /// </summary>
-        /// <param name="request">The request.</param>
-        public virtual void BeginPublish(IEndpointIncomingRequest request)
+        /// <param name="requestHeader">The request header.</param>
+        /// <param name="subscriptionAcknowledgements">The list of acknowledgements for one or more Subscriptions.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>
+        /// Returns a <see cref="PublishResponse"/>
+        /// </returns>
+        public override async Task<PublishResponse> PublishAsync(
+            RequestHeader requestHeader,
+            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
+            CancellationToken ct)
         {
-            var input = (PublishRequest)request.Request;
-            OperationContext context = ValidateRequest(input.RequestHeader, RequestType.Publish);
+            OperationContext context = ValidateRequest(requestHeader, RequestType.Publish);
 
             try
             {
-                var operation = new AsyncPublishOperation(context, request, this);
+                /*
+                // check if there is an odd delay.
+                if (DateTime.UtcNow > requestHeader.Timestamp.AddMilliseconds(100))
+                {
+                    Utils.LogTrace(m_eventId,
+                        "WARNING. Unexpected delay receiving Publish request. Time={0:hh:mm:ss.fff}, ReceiveTime={1:hh:mm:ss.fff}",
+                        DateTime.UtcNow,
+                        requestHeader.Timestamp);
+                }
+                */
 
-                NotificationMessage notificationMessage = ServerInternal.SubscriptionManager
-                    .Publish(
-                        context,
-                        input.SubscriptionAcknowledgements,
-                        operation,
-                        out uint subscriptionId,
-                        out UInt32Collection availableSequenceNumbers,
-                        out bool moreNotifications,
-                        out StatusCodeCollection results,
-                        out DiagnosticInfoCollection diagnosticInfos);
+                LogTrace(
+                    "PUBLISH #{0} RECEIVED. TIME={1:hh:mm:ss.fff}",
+                    requestHeader.RequestHandle,
+                    requestHeader.Timestamp);
 
-                // request completed asynchronously.
+                PublishResponse response = await ServerInternal.SubscriptionManager.PublishAsync(
+                    context,
+                    subscriptionAcknowledgements,
+                    ct).ConfigureAwait(false);
+
+                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+
+                return response;
+
+                /*
                 if (notificationMessage != null)
                 {
-                    OnRequestComplete(context);
-
-                    operation.Response.ResponseHeader
-                        = CreateResponse(input.RequestHeader, context.StringTable);
-                    operation.Response.SubscriptionId = subscriptionId;
-                    operation.Response.AvailableSequenceNumbers = availableSequenceNumbers;
-                    operation.Response.MoreNotifications = moreNotifications;
-                    operation.Response.Results = results;
-                    operation.Response.DiagnosticInfos = diagnosticInfos;
-                    operation.Response.NotificationMessage = notificationMessage;
-
-                    LogTrace(
-                        "PUBLISH: #{0} Completed Synchronously",
-                        input.RequestHeader.RequestHandle);
-                    request.OperationCompleted(operation.Response, null);
+                    Utils.LogTrace(m_eventId,
+                        "PublishResponse: SubId={0} SeqNo={1}, PublishTime={2:mm:ss.fff}, Time={3:mm:ss.fff}",
+                        subscriptionId,
+                        notificationMessage.SequenceNumber,
+                        notificationMessage.PublishTime,
+                        DateTime.UtcNow);
                 }
+                */
+
             }
             catch (ServiceResultException e)
             {
-                OnRequestComplete(context);
-
                 lock (ServerInternal.DiagnosticsWriteLock)
                 {
                     ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
@@ -1830,43 +1839,9 @@ namespace Opc.Ua.Server
 
                 throw TranslateException(context, e);
             }
-        }
-
-        /// <summary>
-        /// Completes an asynchronous publish operation.
-        /// </summary>
-        /// <param name="request">The request.</param>
-        public virtual void CompletePublish(IEndpointIncomingRequest request)
-        {
-            var operation = (AsyncPublishOperation)request.Calldata;
-            OperationContext context = operation.Context;
-
-            try
-            {
-                if (ServerInternal.SubscriptionManager.CompletePublish(context, operation))
-                {
-                    operation.Response.ResponseHeader = CreateResponse(
-                        request.Request.RequestHeader,
-                        context.StringTable);
-                    request.OperationCompleted(operation.Response, null);
-                    OnRequestComplete(context);
-                }
-            }
-            catch (ServiceResultException e)
+            finally
             {
                 OnRequestComplete(context);
-
-                lock (ServerInternal.DiagnosticsWriteLock)
-                {
-                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
-                    }
-                }
-
-                throw TranslateException(context, e);
             }
         }
 

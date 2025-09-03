@@ -390,7 +390,6 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default);
     }
 
-
     /// <summary>
     /// An asynchronous verison of the <see cref="INodeManager2"/> interface.
     /// </summary>
