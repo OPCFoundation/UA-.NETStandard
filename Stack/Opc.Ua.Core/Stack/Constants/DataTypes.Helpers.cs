@@ -11,7 +11,15 @@
 */
 
 using System;
+using System.Collections.Generic;
 using System.Reflection;
+
+#if NET8_0_OR_GREATER
+using System.Collections.Frozen;
+#else
+using System.Collections.ObjectModel;
+using System.Linq;
+#endif
 
 namespace Opc.Ua
 {
@@ -21,57 +29,35 @@ namespace Opc.Ua
     public static partial class DataTypes
     {
         /// <summary>
-        /// Returns the browse name for the attribute.
+        /// Returns the browse names for all data types.
+        /// </summary>
+        public static IEnumerable<string> BrowseNames => s_dataTypeNameToId.Value.Keys;
+
+        /// <summary>
+        /// Returns the browse name for the data type id.
         /// </summary>
         public static string GetBrowseName(int identifier)
         {
-            foreach (FieldInfo field in typeof(DataTypes).GetFields(
-                BindingFlags.Public | BindingFlags.Static))
-            {
-                if (identifier == (uint)field.GetValue(typeof(DataTypes)))
-                {
-                    return field.Name;
-                }
-            }
-
-            return string.Empty;
+            return s_dataTypeIdToName.Value.TryGetValue((uint)identifier, out string name)
+                ? name : string.Empty;
         }
 
         /// <summary>
-        /// Returns the browse names for all attributes.
+        /// Returns the browse names for all data types.
         /// </summary>
+        [Obsolete("Use BrowseNames property instead.")]
         public static string[] GetBrowseNames()
         {
-            FieldInfo[] fields = typeof(DataTypes).GetFields(
-                BindingFlags.Public | BindingFlags.Static);
-
-            int ii = 0;
-
-            string[] names = new string[fields.Length];
-
-            foreach (FieldInfo field in fields)
-            {
-                names[ii++] = field.Name;
-            }
-
-            return names;
+            return [.. BrowseNames];
         }
 
         /// <summary>
-        /// Returns the id for the attribute with the specified browse name.
+        /// Returns the id for the data type with the specified browse name.
         /// </summary>
         public static uint GetIdentifier(string browseName)
         {
-            foreach (FieldInfo field in typeof(DataTypes).GetFields(
-                BindingFlags.Public | BindingFlags.Static))
-            {
-                if (field.Name == browseName)
-                {
-                    return (uint)field.GetValue(typeof(DataTypes));
-                }
-            }
-
-            return 0;
+            return s_dataTypeNameToId.Value.TryGetValue(browseName, out uint id)
+                ? id : 0;
         }
 
         /// <summary>
@@ -137,5 +123,40 @@ namespace Opc.Ua
         {
             return TypeInfo.GetSystemType(datatypeId, factory);
         }
+
+        /// <summary>
+        /// Creates a dictionary of data type names to identifiers
+        /// </summary>
+        private static readonly Lazy<IReadOnlyDictionary<string, uint>> s_dataTypeNameToId =
+            new(() =>
+            {
+#if NET8_0_OR_GREATER
+                return s_dataTypeIdToName.Value.ToFrozenDictionary(k => k.Value, k => k.Key);
+#else
+                return new ReadOnlyDictionary<string, uint>(
+                    s_dataTypeIdToName.Value.ToDictionary(k => k.Value, k => k.Key));
+#endif
+            });
+
+        /// <summary>
+        /// Creates a dictionary of data type identifers to browse names.
+        /// </summary>
+        private static readonly Lazy<IReadOnlyDictionary<uint, string>> s_dataTypeIdToName =
+            new(() =>
+            {
+                FieldInfo[] fields = typeof(DataTypes).GetFields(
+                    BindingFlags.Public | BindingFlags.Static);
+
+                var keyValuePairs = new Dictionary<uint, string>();
+                foreach (FieldInfo field in fields)
+                {
+                    keyValuePairs.Add((uint)field.GetValue(typeof(DataTypes)), field.Name);
+                }
+#if NET8_0_OR_GREATER
+                return keyValuePairs.ToFrozenDictionary();
+#else
+                return new ReadOnlyDictionary<uint, string>(keyValuePairs);
+#endif
+            });
     }
 }

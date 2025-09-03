@@ -331,6 +331,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             MemoryStreamType memoryStreamType,
             object expected)
         {
+            string formatted = null;
             object result = null;
             try
             {
@@ -354,7 +355,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     buffer = encoderStream.ToArray();
                 }
 
-                string formatted;
                 switch (encoderType)
                 {
                     case EncodingType.Json:
@@ -379,6 +379,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     expected = Utils.ToOpcUaUniversalTime((DateTime)expected);
                 }
+
                 Assert.AreEqual(expected, result, encodeInfo);
                 Assert.IsTrue(
                     Utils.IsEqual(expected, result),
@@ -393,6 +394,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     TestContext.Out.WriteLine("Result:");
                     TestContext.Out.WriteLine(result);
+                }
+                if (formatted != null)
+                {
+                    TestContext.Out.WriteLine("Encoded:");
+                    TestContext.Out.WriteLine(formatted);
                 }
                 throw;
             }
