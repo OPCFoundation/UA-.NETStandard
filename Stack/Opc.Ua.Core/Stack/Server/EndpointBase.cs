@@ -1140,10 +1140,6 @@ namespace Opc.Ua
 
                     m_tcs.TrySetResult(CreateFault(Request, e));
                 }
-                finally
-                {
-                    linkedCts.Dispose();
-                }
             }
 
             /// <inheritdoc/>

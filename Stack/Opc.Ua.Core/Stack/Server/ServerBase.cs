@@ -129,7 +129,7 @@ namespace Opc.Ua
         /// Schedules an incoming request.
         /// </summary>
         /// <param name="request">The request.</param>
-        /// <param name="cancellationToken">The canncellationToken</param>
+        /// <param name="cancellationToken">The cancellationToken</param>
         public virtual void ScheduleIncomingRequest(IEndpointIncomingRequest request, CancellationToken cancellationToken = default)
         {
             m_requestQueue.ScheduleIncomingRequest(request);
