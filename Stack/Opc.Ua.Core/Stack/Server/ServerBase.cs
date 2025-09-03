@@ -10,9 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-// use a thread scheduler with dedicated worker threads
-//#define THREAD_SCHEDULER
-
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -132,7 +129,8 @@ namespace Opc.Ua
         /// Schedules an incoming request.
         /// </summary>
         /// <param name="request">The request.</param>
-        public virtual void ScheduleIncomingRequest(IEndpointIncomingRequest request)
+        /// <param name="cancellationToken">The canncellationToken</param>
+        public virtual void ScheduleIncomingRequest(IEndpointIncomingRequest request, CancellationToken cancellationToken = default)
         {
             m_requestQueue.ScheduleIncomingRequest(request);
         }
@@ -1482,232 +1480,14 @@ namespace Opc.Ua
         /// Processes the request.
         /// </summary>
         /// <param name="request">The request.</param>
-        /// <param name="calldata">The calldata passed with the request.</param>
-        protected virtual void ProcessRequest(IEndpointIncomingRequest request, object calldata)
-        {
-            request.CallSynchronously();
-        }
-
-        /// <summary>
-        /// Processes the request.
-        /// </summary>
-        /// <param name="request">The request.</param>
-        /// <param name="calldata">The calldata passed with the request.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         protected virtual async Task ProcessRequestAsync(
             IEndpointIncomingRequest request,
-            object calldata,
             CancellationToken cancellationToken = default)
         {
             await request.CallAsync(cancellationToken).ConfigureAwait(false);
         }
 
-#if THREAD_SCHEDULER
-        /// <summary>
-        /// Manages a queue of requests.
-        /// </summary>
-        protected class RequestQueue : IDisposable
-        {
-            /// <summary>
-            /// Initializes a new instance of the <see cref="RequestQueue"/> class.
-            /// </summary>
-            /// <param name="server">The server.</param>
-            /// <param name="minThreadCount">The minimum number of threads in the pool.</param>
-            /// <param name="maxThreadCount">The maximum number of threads  in the pool.</param>
-            /// <param name="maxRequestCount">The maximum number of requests that will placed in the queue.</param>
-            public RequestQueue(
-                ServerBase server,
-                int minThreadCount,
-                int maxThreadCount,
-                int maxRequestCount)
-            {
-                m_server = server;
-                m_stopped = false;
-                m_minThreadCount = minThreadCount;
-                m_maxThreadCount = maxThreadCount;
-                m_maxRequestCount = maxRequestCount;
-                m_activeThreadCount = 0;
-                m_queue = new Queue<IEndpointIncomingRequest>(maxRequestCount);
-                m_totalThreadCount = 0;
-
-                // adjust ThreadPool, only increase values if necessary
-                ThreadPool.GetMinThreads(out minThreadCount, out int minCompletionPortThreads);
-                ThreadPool.SetMinThreads(
-                    Math.Max(minThreadCount, m_minThreadCount),
-                    Math.Max(minCompletionPortThreads, m_minThreadCount));
-                ThreadPool.GetMaxThreads(out maxThreadCount, out int maxCompletionPortThreads);
-                ThreadPool.SetMaxThreads(
-                    Math.Max(maxThreadCount, m_maxThreadCount),
-                    Math.Max(maxCompletionPortThreads, m_maxThreadCount));
-            }
-
-            /// <summary>
-            /// Frees any unmanaged resources.
-            /// </summary>
-            public void Dispose()
-            {
-                Dispose(true);
-            }
-
-            /// <summary>
-            /// An overrideable version of the Dispose.
-            /// </summary>
-            protected virtual void Dispose(bool disposing)
-            {
-                if (disposing)
-                {
-                    lock (m_lock)
-                    {
-                        m_stopped = true;
-
-                        Monitor.PulseAll(m_lock);
-
-                        m_queue.Clear();
-                    }
-                }
-            }
-
-            /// <summary>
-            /// Schedules an incoming request.
-            /// </summary>
-            /// <param name="request">The request.</param>
-            public void ScheduleIncomingRequest(IEndpointIncomingRequest request)
-            {
-                int totalThreadCount;
-                int activeThreadCount;
-
-                // Queue the request. Call logger only outside lock.
-                Monitor.Enter(m_lock);
-                bool monitorExit = true;
-                try
-                {
-                    // check if the server is stopped
-                    if (m_stopped)
-                    {
-                        monitorExit = false;
-                        Monitor.Exit(m_lock);
-                        request.OperationCompleted(null, StatusCodes.BadServerHalted);
-                        Utils.LogTrace("Server halted.");
-                    }
-                    // check if we're able to schedule requests.
-                    else if (m_queue.Count >= m_maxRequestCount)
-                    {
-                        // too many operations
-                        totalThreadCount = m_totalThreadCount;
-                        activeThreadCount = m_activeThreadCount;
-                        monitorExit = false;
-                        Monitor.Exit(m_lock);
-
-                        request.OperationCompleted(null, StatusCodes.BadServerTooBusy);
-
-                        Utils.LogTrace(
-                            "Too many operations. Total: {0} Active: {1}",
-                            totalThreadCount,
-                            activeThreadCount);
-                    }
-                    else
-                    {
-                        m_queue.Enqueue(request);
-
-                        // wake up an idle thread to handle the request if there is one
-                        if (m_activeThreadCount < m_totalThreadCount)
-                        {
-                            Monitor.Pulse(m_lock);
-                        }
-                        // start a new thread to handle the request if none are idle and the pool is not full.
-                        else if (m_totalThreadCount < m_maxThreadCount)
-                        {
-                            totalThreadCount = ++m_totalThreadCount;
-                            activeThreadCount = ++m_activeThreadCount;
-                            monitorExit = false;
-                            Monitor.Exit(m_lock);
-
-                            // new threads start in an active state
-                            var thread = new Thread(OnProcessRequestQueue) { IsBackground = true };
-                            thread.Start(null);
-
-                            Utils.LogTrace(
-                                "Thread created: {0:X8}. Total: {1} Active: {2}",
-                                thread.ManagedThreadId,
-                                totalThreadCount,
-                                activeThreadCount);
-
-                            return;
-                        }
-                    }
-                }
-                finally
-                {
-                    if (monitorExit)
-                    {
-                        Monitor.Exit(m_lock);
-                    }
-                }
-            }
-
-            /// <summary>
-            /// Processes the requests in the request queue.
-            /// </summary>
-            private void OnProcessRequestQueue(object state)
-            {
-                lock (m_lock) // i.e. Monitor.Enter(m_lock)
-                {
-                    while (true)
-                    {
-                        // check if the queue is empty.
-                        while (m_queue.Count == 0)
-                        {
-                            m_activeThreadCount--;
-
-                            // wait for a request. end the thread if no activity.
-                            if (m_stopped ||
-                                (!Monitor.Wait(m_lock, 15_000) &&
-                                    m_totalThreadCount > m_minThreadCount))
-                            {
-                                m_totalThreadCount--;
-                                Utils.LogTrace(
-                                    "Thread ended: {0:X8}. Total: {1} Active: {2}",
-                                    Environment.CurrentManagedThreadId,
-                                    m_totalThreadCount,
-                                    m_activeThreadCount);
-                                return;
-                            }
-
-                            m_activeThreadCount++;
-                        }
-
-                        IEndpointIncomingRequest request = m_queue.Dequeue();
-
-                        Monitor.Exit(m_lock);
-
-                        try
-                        {
-                            // process the request.
-                            m_server.ProcessRequest(request, state);
-                        }
-                        catch (Exception e)
-                        {
-                            Utils.LogError(e, "Unexpected error processing incoming request.");
-                        }
-                        finally
-                        {
-                            Monitor.Enter(m_lock);
-                        }
-                    }
-                }
-            }
-
-            private readonly ServerBase m_server;
-            private bool m_stopped;
-            private int m_activeThreadCount;
-            private readonly int m_maxThreadCount;
-            private readonly int m_minThreadCount;
-            private readonly int m_maxRequestCount;
-            private readonly object m_lock = new();
-            private readonly Queue<IEndpointIncomingRequest> m_queue;
-            private int m_totalThreadCount;
-    }
-#else
         /// <summary>
         /// Asynchronously manages a queue of requests.
         /// </summary>
@@ -1770,6 +1550,11 @@ namespace Opc.Ua
                         m_queueSignal.Release(m_totalThreadCount); // Unblock all workers
                     }
                     Utils.SilentDispose(m_queueSignal);
+
+                    foreach (IEndpointIncomingRequest request in m_queue.ToList())
+                    {
+                        Utils.SilentDispose(request);
+                    }
 #if NETSTANDARD2_1_OR_GREATER
                     m_queue.Clear();
 #endif
@@ -1839,7 +1624,7 @@ namespace Opc.Ua
                             {
                                 Interlocked.Decrement(ref m_queuedRequestsCount);
                                 Interlocked.Increment(ref m_activeThreadCount);
-                                await m_server.ProcessRequestAsync(request, null, ct)
+                                await m_server.ProcessRequestAsync(request, ct)
                                     .ConfigureAwait(false);
                             }
                             catch (Exception ex)
@@ -1877,7 +1662,6 @@ namespace Opc.Ua
             private int m_queuedRequestsCount;
             private bool m_stopped;
         }
-#endif
 
         private object m_messageContext;
         private object m_serverError;
