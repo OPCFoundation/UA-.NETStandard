@@ -375,12 +375,12 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// An asynchronous verson of the <see cref="INodeManager2"/> interface.
+    /// An asynchronous version of the "Call" method defined on the <see cref="INodeManager2"/> interface.
     /// </summary>
-    public interface IAsyncNodeManager : INodeManager2
+    public interface ICallAsyncNodeManager
     {
         /// <summary>
-        /// Asycnhronously calls a method defined on an object.
+        /// Asynchronously calls a method defined on an object.
         /// </summary>
         ValueTask CallAsync(
             OperationContext context,
@@ -389,6 +389,12 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default);
     }
+
+
+    /// <summary>
+    /// An asynchronous verison of the <see cref="INodeManager2"/> interface.
+    /// </summary>
+    public interface IAsyncNodeManager : ICallAsyncNodeManager;
 
     /// <summary>
     /// Stores metadata required to process requests related to a node.

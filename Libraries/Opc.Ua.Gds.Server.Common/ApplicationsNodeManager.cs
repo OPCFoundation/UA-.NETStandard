@@ -45,7 +45,7 @@ namespace Opc.Ua.Gds.Server
     /// <summary>
     /// A node manager for a global discovery server
     /// </summary>
-    public class ApplicationsNodeManager : CustomNodeManager2, IAsyncNodeManager
+    public class ApplicationsNodeManager : CustomNodeManager2, ICallAsyncNodeManager
     {
         private readonly NodeId m_defaultApplicationGroupId;
         private readonly NodeId m_defaultHttpsGroupId;
