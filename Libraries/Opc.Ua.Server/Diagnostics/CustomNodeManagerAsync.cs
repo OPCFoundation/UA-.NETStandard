@@ -35,7 +35,7 @@ namespace Opc.Ua.Server
 {
     /// <summary>
     /// Second part of the see<see cref="CustomNodeManager2"/> class."/>
-    /// Implementation of the <see cref="IAsyncNodeManager"/> interface for custom node management.
+    /// Implementation of the <see cref="ICallAsyncNodeManager"/> interface for custom node management.
     /// The interface is not implmented by default to ensure consistent behaviour in existing NodeManagers, but can be implemented in a derived class.
     /// </summary>
     public partial class CustomNodeManager2
