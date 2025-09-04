@@ -34,7 +34,7 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Second part of the see<see cref="CustomNodeManager2"/> class."/>
+    /// Second part of the <see cref="CustomNodeManager2"/>
     /// Implementation of the <see cref="ICallAsyncNodeManager"/> interface for custom node management.
     /// The interface is not implmented by default to ensure consistent behaviour in existing NodeManagers, but can be implemented in a derived class.
     /// </summary>

@@ -57,6 +57,7 @@ namespace Opc.Ua.Server
 
             Server = server ?? throw new ArgumentNullException(nameof(server));
             m_nodeManagers = [];
+            m_asyncNodeManagers = [];
             m_maxContinuationPointsPerBrowse = (uint)configuration.ServerConfiguration
                 .MaxBrowseContinuationPoints;
 

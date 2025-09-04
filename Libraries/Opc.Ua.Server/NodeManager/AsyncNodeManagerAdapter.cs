@@ -13,9 +13,9 @@ namespace Opc.Ua.Server
     public static class AsyncNodeManagerAdapterFactory
     {
         /// <summary>
-        /// returns an instace of <see cref="IAsyncNodeManager"/>
-        /// if the nodeManager does not implement the interface uses the <see cref="AsyncNodeManagerAdapter"/>
-        /// to create an IASyncNodeManager compatible object
+        /// returns an instance of <see cref="IAsyncNodeManager"/>
+        /// if the NodeManager does not implement the interface uses the <see cref="AsyncNodeManagerAdapter"/>
+        /// to create an IAsyncNodeManager compatible object
         /// </summary>
         public static IAsyncNodeManager ToAsyncNodeManager(this INodeManager nodeManager)
         {
