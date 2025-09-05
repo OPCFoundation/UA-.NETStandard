@@ -508,7 +508,7 @@ namespace Opc.Ua.Bindings
                 if (m_callback != null)
                 {
                     channel.SetRequestReceivedCallback(
-                        new TcpChannelRequestEventHandler(OnRequestReceived));
+                        new TcpChannelRequestEventHandler(OnRequestReceivedAsync));
                     channel.SetReportOpenSecureChannelAuditCallback(
                         new ReportAuditOpenSecureChannelEventHandler(
                             OnReportAuditOpenSecureChannelEvent));
@@ -885,7 +885,7 @@ namespace Opc.Ua.Bindings
                                 if (m_callback != null)
                                 {
                                     channel.SetRequestReceivedCallback(
-                                        new TcpChannelRequestEventHandler(OnRequestReceived));
+                                        new TcpChannelRequestEventHandler(OnRequestReceivedAsync));
                                     channel.SetReportOpenSecureChannelAuditCallback(
                                         new ReportAuditOpenSecureChannelEventHandler(
                                             OnReportAuditOpenSecureChannelEvent));
@@ -985,7 +985,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Handles requests arriving from a channel.
         /// </summary>
-        private void OnRequestReceived(
+        private async void OnRequestReceivedAsync(
             TcpListenerChannel channel,
             uint requestId,
             IServiceRequest request)
@@ -994,12 +994,37 @@ namespace Opc.Ua.Bindings
             {
                 if (m_callback != null)
                 {
-                    IAsyncResult result = m_callback.BeginProcessRequest(
+                    IServiceResponse response = await m_callback.ProcessRequestAsync(
                         channel.GlobalChannelId,
                         channel.EndpointDescription,
-                        request,
-                        OnProcessRequestComplete,
-                        new object[] { channel, requestId, request });
+                        request).ConfigureAwait(false);
+
+                    try
+                    {
+                        ((TcpServerChannel)channel).SendResponse(requestId, response);
+                    }
+                    catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadSecureChannelClosed)
+                    {
+                        // try to find the new channel id for the authentication token to send response over new channel
+                        NodeId authenticationToken = request.RequestHeader.AuthenticationToken;
+                        if (m_callback.TryGetSecureChannelIdForAuthenticationToken(
+                                authenticationToken,
+                                out uint channelId
+                            ) &&
+                            m_channels.TryGetValue(channelId, out TcpListenerChannel newChannel))
+                        {
+                            var serverChannel = (TcpServerChannel)newChannel;
+
+                            // if the channel is not the same as the one we started with, send the response over the new channel
+                            if (serverChannel != channel)
+                            {
+                                serverChannel.SendResponse(requestId, response);
+                                return;
+                            }
+                        }
+                        // if we could not find a new channel, just log the error
+                        throw;
+                    }
                 }
             }
             catch (Exception e)
@@ -1069,53 +1094,6 @@ namespace Opc.Ua.Bindings
                 Utils.LogError(
                     e,
                     "TCPLISTENER - Unexpected error sending Certificate Audit event.");
-            }
-        }
-
-        private void OnProcessRequestComplete(IAsyncResult result)
-        {
-            try
-            {
-                object[] args = (object[])result.AsyncState;
-
-                if (m_callback != null)
-                {
-                    var channel = (TcpServerChannel)args[0];
-                    IServiceResponse response = m_callback.EndProcessRequest(result);
-
-                    try
-                    {
-                        channel.SendResponse((uint)args[1], response);
-                    }
-                    catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes
-                        .BadSecureChannelClosed)
-                    {
-                        //try to find the new channel id for the authentication token to send response over new channel
-                        var request = (IServiceRequest)args[2];
-                        NodeId authenticationToken = request.RequestHeader.AuthenticationToken;
-                        if (m_callback?.TryGetSecureChannelIdForAuthenticationToken(
-                                authenticationToken,
-                                out uint channelId
-                            ) == true &&
-                            m_channels.TryGetValue(channelId, out TcpListenerChannel newChannel))
-                        {
-                            var serverChannel = (TcpServerChannel)newChannel;
-
-                            // if the channel is not the same as the one we started with, send the response over the new channel
-                            if (serverChannel != channel)
-                            {
-                                serverChannel.SendResponse((uint)args[1], response);
-                                return;
-                            }
-                        }
-                        // if we could not find a new channel, just log the error
-                        throw;
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                Utils.LogError(e, "TCPLISTENER - Unexpected error sending result.");
             }
         }
 
