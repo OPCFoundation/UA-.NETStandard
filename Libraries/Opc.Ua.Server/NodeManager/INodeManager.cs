@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -390,10 +391,12 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default);
     }
 
-
     /// <summary>
     /// An asynchronous verison of the <see cref="INodeManager2"/> interface.
+    /// This interface is in active development and will be extended in future releases.
+    /// Please use the sub interfaces to implement async support for specific serive calls.
     /// </summary>
+    [Experimental("UA_NETStandard_1")]
     public interface IAsyncNodeManager : ICallAsyncNodeManager;
 
     /// <summary>
