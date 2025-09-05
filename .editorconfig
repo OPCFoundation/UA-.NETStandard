@@ -566,6 +566,9 @@ dotnet_diagnostic.RCS1168.severity                                            = 
 dotnet_diagnostic.RCS1163.severity                                            = none
 dotnet_diagnostic.IDE0060.severity                                            = none
 
+# UA_NETStandard_1: Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+dotnet_diagnostic.UA_NETStandard_1.severity = none
+
 # exclude generated code
 
 [**/Generated/*.cs]

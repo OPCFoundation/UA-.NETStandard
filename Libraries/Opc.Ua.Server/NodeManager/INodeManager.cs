@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -390,11 +391,68 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default);
     }
 
+    /// <summary>
+    /// An asynchronous version of the "Read" method defined on the <see cref="INodeManager2"/> interface.
+    /// </summary>
+    public interface IReadAsyncNodeManager
+    {
+        /// <summary>
+        /// Reads the attribute values for a set of nodes.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The MasterNodeManager pre-processes the nodesToRead and ensures that:
+        ///    - the AttributeId is a known attribute.
+        ///    - the IndexRange, if specified, is valid.
+        ///    - the DataEncoding and the IndexRange are not specified if the AttributeId is not Value.
+        /// </para>
+        /// <para>
+        /// The MasterNodeManager post-processes the values by:
+        ///    - sets values[ii].StatusCode to the value of errors[ii].Code
+        ///    - creates a instance of DataValue if one does not exist and an errors[ii] is bad.
+        ///    - removes timestamps from the DataValue if the client does not want them.
+        /// </para>
+        /// <para>
+        /// The node manager must ignore ReadValueId with the Processed flag set to true.
+        /// The node manager must set the Processed flag for any ReadValueId that it processes.
+        /// </para>
+        /// </remarks>
+        ValueTask ReadAsync(
+            OperationContext context,
+            double maxAge,
+            IList<ReadValueId> nodesToRead,
+            IList<DataValue> values,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// An asynchronous version of the "Write" method defined on the <see cref="INodeManager2"/> interface.
+    /// </summary>
+    public interface IWriteAsyncNodeManager
+    {
+        /// <summary>
+        /// Writes a set of values.
+        /// </summary>
+        /// <remarks>
+        /// Each node manager should only process node ids that it recognizes. If it processes a value it
+        /// must set the Processed flag in the WriteValue structure.
+        /// </remarks>
+        ValueTask WriteAsync(
+            OperationContext context,
+            IList<WriteValue> nodesToWrite,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default);
+    }
 
     /// <summary>
     /// An asynchronous verison of the <see cref="INodeManager2"/> interface.
     /// </summary>
-    public interface IAsyncNodeManager : ICallAsyncNodeManager;
+    [Experimental("UA_NETStandard_1")]
+    public interface IAsyncNodeManager :
+        ICallAsyncNodeManager,
+        IReadAsyncNodeManager,
+        IWriteAsyncNodeManager;
 
     /// <summary>
     /// Stores metadata required to process requests related to a node.

@@ -1333,6 +1333,59 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Invokes the Read service using async Task based request.
+        /// </summary>
+        public override async Task<ReadResponse> ReadAsync(
+            RequestHeader requestHeader,
+            double maxAge,
+            TimestampsToReturn timestampsToReturn,
+            ReadValueIdCollection nodesToRead,
+            CancellationToken ct)
+        {
+            OperationContext context = ValidateRequest(requestHeader, RequestType.Read);
+
+            try
+            {
+                ValidateOperationLimits(nodesToRead, OperationLimits.MaxNodesPerRead);
+
+                (DataValueCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                    await m_serverInternal.NodeManager.ReadAsync(
+                        context,
+                        maxAge,
+                        timestampsToReturn,
+                        nodesToRead,
+                        ct).ConfigureAwait(false);
+
+                return new ReadResponse
+                {
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos,
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                };
+            }
+            catch (ServiceResultException e)
+            {
+                lock (ServerInternal.DiagnosticsWriteLock)
+                {
+                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+
+                    if (IsSecurityError(e.StatusCode))
+                    {
+                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                    }
+                }
+
+                ServerInternal.ReportAuditEvent(context, "Read", e);
+
+                throw TranslateException(context, e);
+            }
+            finally
+            {
+                OnRequestComplete(context);
+            }
+        }
+
+        /// <summary>
         /// Invokes the HistoryRead service.
         /// </summary>
         /// <param name="requestHeader">The request header.</param>
@@ -1430,6 +1483,52 @@ namespace Opc.Ua.Server
                     .Write(context, nodesToWrite, out results, out diagnosticInfos);
 
                 return CreateResponse(requestHeader, context.StringTable);
+            }
+            catch (ServiceResultException e)
+            {
+                lock (ServerInternal.DiagnosticsWriteLock)
+                {
+                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+
+                    if (IsSecurityError(e.StatusCode))
+                    {
+                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                    }
+                }
+
+                throw TranslateException(context, e);
+            }
+            finally
+            {
+                OnRequestComplete(context);
+            }
+        }
+
+        /// <summary>
+        /// Invokes the Write service using async Task based request.
+        /// </summary>
+        public override async Task<WriteResponse> WriteAsync(
+            RequestHeader requestHeader,
+            WriteValueCollection nodesToWrite,
+            CancellationToken ct)
+        {
+            OperationContext context = ValidateRequest(requestHeader, RequestType.Write);
+
+            try
+            {
+                ValidateOperationLimits(nodesToWrite, OperationLimits.MaxNodesPerWrite);
+
+                (StatusCodeCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                    await m_serverInternal.NodeManager
+                        .WriteAsync(context, nodesToWrite, ct)
+                        .ConfigureAwait(false);
+
+                return new WriteResponse
+                {
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos,
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                };
             }
             catch (ServiceResultException e)
             {

@@ -1693,6 +1693,44 @@ namespace Opc.Ua.Server
             out DataValueCollection values,
             out DiagnosticInfoCollection diagnosticInfos)
         {
+#pragma warning disable CA2012 // Use ValueTasks correctly
+            (values, diagnosticInfos) = ReadInternalAsync(
+                context,
+                maxAge,
+                timestampsToReturn,
+                nodesToRead,
+                sync: true).Result;
+#pragma warning restore CA2012 // Use ValueTasks correctly
+        }
+
+        /// <summary>
+        /// Reads a set of nodes.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="nodesToRead"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public virtual ValueTask<(DataValueCollection values, DiagnosticInfoCollection diagnosticInfos)> ReadAsync(
+            OperationContext context,
+            double maxAge,
+            TimestampsToReturn timestampsToReturn,
+            ReadValueIdCollection nodesToRead,
+            CancellationToken cancellationToken = default)
+        {
+            return ReadInternalAsync(context, maxAge, timestampsToReturn, nodesToRead, sync: false, cancellationToken);
+        }
+
+        /// <summary>
+        /// Reads a set of nodes.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="nodesToRead"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        protected virtual async ValueTask<(DataValueCollection values, DiagnosticInfoCollection diagnosticInfos)> ReadInternalAsync(
+            OperationContext context,
+            double maxAge,
+            TimestampsToReturn timestampsToReturn,
+            ReadValueIdCollection nodesToRead,
+            bool sync,
+            CancellationToken cancellationToken = default)
+        {
             if (nodesToRead == null)
             {
                 throw new ArgumentNullException(nameof(nodesToRead));
@@ -1709,8 +1747,8 @@ namespace Opc.Ua.Server
             }
 
             bool diagnosticsExist = false;
-            values = new DataValueCollection(nodesToRead.Count);
-            diagnosticInfos = new DiagnosticInfoCollection(nodesToRead.Count);
+            var values = new DataValueCollection(nodesToRead.Count);
+            var diagnosticInfos = new DiagnosticInfoCollection(nodesToRead.Count);
 
             // create empty list of errors.
             var errors = new List<ServiceResult>(values.Count);
@@ -1760,16 +1798,34 @@ namespace Opc.Ua.Server
             // call each node manager.
             if (validItems)
             {
-                for (int ii = 0; ii < m_nodeManagers.Count; ii++)
+                foreach (IAsyncNodeManager asyncNodeManager in m_asyncNodeManagers)
                 {
-#if VERBOSE
-                    Utils.LogTrace(
-                        (int)Utils.TraceMasks.ServiceDetail,
-                        "MasterNodeManager.Read - Calling NodeManager {0} of {1}",
-                        ii,
-                        m_nodeManagers.Count);
-#endif
-                    m_nodeManagers[ii].Read(context, maxAge, nodesToRead, values, errors);
+                    if (sync)
+                    {
+                        if (asyncNodeManager is not AsyncNodeManagerAdapter)
+                        {
+                            Utils.LogWarning(
+                                "Async Method called sychronously. Prefer using CallAsync for best performance. NodeManager={0}",
+                                asyncNodeManager);
+                        }
+                        asyncNodeManager.ReadAsync(
+                            context,
+                            maxAge,
+                            nodesToRead,
+                            values,
+                            errors,
+                            cancellationToken).AsTask().GetAwaiter().GetResult();
+                    }
+                    else
+                    {
+                        await asyncNodeManager.ReadAsync(
+                            context,
+                            maxAge,
+                            nodesToRead,
+                            values,
+                            errors,
+                            cancellationToken).ConfigureAwait(false);
+                    }
                 }
             }
 
@@ -1818,6 +1874,8 @@ namespace Opc.Ua.Server
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
+
+            return (values, diagnosticInfos);
         }
 
         /// <summary>
@@ -1950,11 +2008,49 @@ namespace Opc.Ua.Server
         /// Writes a set of values.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        public virtual ValueTask<(StatusCodeCollection results, DiagnosticInfoCollection diagnosticInfos)> WriteAsync(
+            OperationContext context,
+            WriteValueCollection nodesToWrite,
+            CancellationToken cancellationToken = default)
+        {
+            return WriteInternalAsync(
+                context,
+                nodesToWrite,
+                sync: false,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Writes a set of values.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public virtual void Write(
             OperationContext context,
             WriteValueCollection nodesToWrite,
             out StatusCodeCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
+        {
+#pragma warning disable CA2012 // Use ValueTasks correctly
+            (results, diagnosticInfos) = WriteInternalAsync(
+                context,
+                nodesToWrite,
+                sync: true).Result;
+#pragma warning restore CA2012 // Use ValueTasks correctly
+        }
+
+        /// <summary>
+        /// Calls a method defined on an object.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="context"/> is <c>null</c>.</exception>
+        protected virtual async ValueTask<(
+            StatusCodeCollection results,
+            DiagnosticInfoCollection diagnosticInfos
+            )> WriteInternalAsync(
+                OperationContext context,
+                WriteValueCollection nodesToWrite,
+                bool sync,
+                CancellationToken cancellationToken = default)
         {
             if (context == null)
             {
@@ -1969,8 +2065,8 @@ namespace Opc.Ua.Server
             int count = nodesToWrite.Count;
 
             bool diagnosticsExist = false;
-            results = new StatusCodeCollection(count);
-            diagnosticInfos = new DiagnosticInfoCollection(count);
+            var results = new StatusCodeCollection(count);
+            var diagnosticInfos = new DiagnosticInfoCollection(count);
 
             // add placeholder for each result.
             bool validItems = false;
@@ -2013,9 +2109,30 @@ namespace Opc.Ua.Server
                 var errors = new List<ServiceResult>(count);
                 errors.AddRange(new ServiceResult[count]);
 
-                foreach (INodeManager nodeManager in m_nodeManagers)
+                foreach (IAsyncNodeManager asyncNodeManager in m_asyncNodeManagers)
                 {
-                    nodeManager.Write(context, nodesToWrite, errors);
+                    if (sync)
+                    {
+                        if (asyncNodeManager is not AsyncNodeManagerAdapter)
+                        {
+                            Utils.LogWarning(
+                                "Async Method called sychronously. Prefer using CallAsync for best performance. NodeManager={0}",
+                                asyncNodeManager);
+                        }
+                        asyncNodeManager.WriteAsync(
+                            context,
+                            nodesToWrite,
+                            errors,
+                            cancellationToken).AsTask().GetAwaiter().GetResult();
+                    }
+                    else
+                    {
+                        await asyncNodeManager.WriteAsync(
+                            context,
+                            nodesToWrite,
+                            errors,
+                            cancellationToken).ConfigureAwait(false);
+                    }
                 }
 
                 for (int ii = 0; ii < nodesToWrite.Count; ii++)
@@ -2049,6 +2166,8 @@ namespace Opc.Ua.Server
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
+
+            return (results, diagnosticInfos);
         }
 
         /// <summary>
@@ -2215,7 +2334,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="context"/> is <c>null</c>.</exception>
-        public virtual async ValueTask<(
+        protected virtual async ValueTask<(
             CallMethodResultCollection results,
             DiagnosticInfoCollection diagnosticInfos
             )> CallInternalAsync(

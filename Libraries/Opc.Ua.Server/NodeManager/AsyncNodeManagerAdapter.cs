@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -62,6 +60,42 @@ namespace Opc.Ua.Server
             }
 
             m_nodeManager.Call(context, methodsToCall, results, errors);
+
+            // Return a completed ValueTask since the underlying call is synchronous.
+            return default;
+        }
+
+        /// <inheritdoc/>
+        public ValueTask ReadAsync(OperationContext context,
+                                   double maxAge,
+                                   IList<ReadValueId> nodesToRead,
+                                   IList<DataValue> values,
+                                   IList<ServiceResult> errors,
+                                   CancellationToken cancellationToken = default)
+        {
+            if (m_nodeManager is IReadAsyncNodeManager asyncNodeManager)
+            {
+                return asyncNodeManager.ReadAsync(context, maxAge, nodesToRead, values, errors, cancellationToken);
+            }
+
+            m_nodeManager.Read(context, maxAge, nodesToRead, values, errors);
+
+            // Return a completed ValueTask since the underlying call is synchronous.
+            return default;
+        }
+
+        /// <inheritdoc/>
+        public ValueTask WriteAsync(OperationContext context,
+                                    IList<WriteValue> nodesToWrite,
+                                    IList<ServiceResult> errors,
+                                    CancellationToken cancellationToken = default)
+        {
+            if (m_nodeManager is IWriteAsyncNodeManager asyncNodeManager)
+            {
+                return asyncNodeManager.WriteAsync(context, nodesToWrite, errors, cancellationToken);
+            }
+
+            m_nodeManager.Write(context, nodesToWrite, errors);
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return default;
