@@ -146,7 +146,7 @@ namespace Opc.Ua.Client
             int discoverTimeout,
             CancellationToken ct = default)
         {
-            var endpointConfiguration = EndpointConfiguration.Create();
+            var endpointConfiguration = EndpointConfiguration.Create(application);
             endpointConfiguration.OperationTimeout = discoverTimeout > 0
                 ? discoverTimeout
                 : DefaultDiscoverTimeout;
@@ -201,7 +201,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             Uri uri = GetDiscoveryUrl(discoveryUrl);
-            var endpointConfiguration = EndpointConfiguration.Create();
+            var endpointConfiguration = EndpointConfiguration.Create(application);
             endpointConfiguration.OperationTimeout = discoverTimeout;
 
             using var client = DiscoveryClient.Create(application, uri, endpointConfiguration);
