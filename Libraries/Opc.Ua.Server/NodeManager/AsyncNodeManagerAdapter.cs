@@ -47,12 +47,11 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask CallAsync(
-            OperationContext context,
-            IList<CallMethodRequest> methodsToCall,
-            IList<CallMethodResult> results,
-            IList<ServiceResult> errors,
-            CancellationToken cancellationToken = default)
+        public ValueTask CallAsync(OperationContext context,
+                                   IList<CallMethodRequest> methodsToCall,
+                                   IList<CallMethodResult> results,
+                                   IList<ServiceResult> errors,
+                                   CancellationToken cancellationToken = default)
         {
             if (m_nodeManager is ICallAsyncNodeManager asyncNodeManager)
             {
@@ -60,6 +59,34 @@ namespace Opc.Ua.Server
             }
 
             m_nodeManager.Call(context, methodsToCall, results, errors);
+
+            // Return a completed ValueTask since the underlying call is synchronous.
+            return default;
+        }
+
+        /// <inheritdoc/>
+        public ValueTask HistoryReadAsync(OperationContext context,
+                                          HistoryReadDetails details,
+                                          TimestampsToReturn timestampsToReturn,
+                                          bool releaseContinuationPoints,
+                                          IList<HistoryReadValueId> nodesToRead,
+                                          IList<HistoryReadResult> results,
+                                          IList<ServiceResult> errors,
+                                          CancellationToken cancellationToken = default)
+        {
+            if (m_nodeManager is IHistoryReadAsyncNodeManager asyncNodeManager)
+            {
+                return asyncNodeManager.HistoryReadAsync(context,
+                                                         details,
+                                                         timestampsToReturn,
+                                                         releaseContinuationPoints,
+                                                         nodesToRead,
+                                                         results,
+                                                         errors,
+                                                         cancellationToken);
+            }
+
+            m_nodeManager.HistoryRead(context, details, timestampsToReturn, releaseContinuationPoints, nodesToRead, results, errors);
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return default;

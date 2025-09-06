@@ -446,13 +446,33 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// An asynchronous version of the "HistoryRead" method defined on the <see cref="INodeManager2"/> interface.
+    /// </summary>
+    public interface IHistoryReadAsyncNodeManager
+    {
+        /// <summary>
+        /// Reads the history of a set of items.
+        /// </summary>
+        ValueTask HistoryReadAsync(
+            OperationContext context,
+            HistoryReadDetails details,
+            TimestampsToReturn timestampsToReturn,
+            bool releaseContinuationPoints,
+            IList<HistoryReadValueId> nodesToRead,
+            IList<HistoryReadResult> results,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// An asynchronous verison of the <see cref="INodeManager2"/> interface.
     /// </summary>
     [Experimental("UA_NETStandard_1")]
     public interface IAsyncNodeManager :
         ICallAsyncNodeManager,
         IReadAsyncNodeManager,
-        IWriteAsyncNodeManager;
+        IWriteAsyncNodeManager,
+        IHistoryReadAsyncNodeManager;
 
     /// <summary>
     /// Stores metadata required to process requests related to a node.

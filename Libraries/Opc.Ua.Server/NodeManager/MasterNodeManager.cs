@@ -33,6 +33,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
 
 namespace Opc.Ua.Server
 {
@@ -1888,8 +1889,53 @@ namespace Opc.Ua.Server
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
             HistoryReadValueIdCollection nodesToRead,
-            out HistoryReadResultCollection results,
+            out HistoryReadResultCollection values,
             out DiagnosticInfoCollection diagnosticInfos)
+        {
+#pragma warning disable CA2012 // Use ValueTasks correctly
+            (values, diagnosticInfos) = HistoryReadInternalAsync(
+                context,
+                historyReadDetails,
+                timestampsToReturn,
+                releaseContinuationPoints,
+                nodesToRead,
+                sync: true).Result;
+#pragma warning restore CA2012 // Use ValueTasks correctly
+        }
+
+        /// <summary>
+        /// Reads the history of a set of items.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public virtual ValueTask<(HistoryReadResultCollection values, DiagnosticInfoCollection diagnosticInfos)> HistoryReadAsync(
+            OperationContext context,
+            ExtensionObject historyReadDetails,
+            TimestampsToReturn timestampsToReturn,
+            bool releaseContinuationPoints,
+            HistoryReadValueIdCollection nodesToRead,
+            CancellationToken cancellationToken = default)
+        {
+            return HistoryReadInternalAsync(context,
+                                            historyReadDetails,
+                                            timestampsToReturn,
+                                            releaseContinuationPoints,
+                                            nodesToRead,
+                                            sync: false,
+                                            cancellationToken);
+        }
+
+        /// <summary>
+        /// Reads the history of a set of items.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        protected virtual async ValueTask<(HistoryReadResultCollection values, DiagnosticInfoCollection diagnosticInfos)> HistoryReadInternalAsync(
+            OperationContext context,
+            ExtensionObject historyReadDetails,
+            TimestampsToReturn timestampsToReturn,
+            bool releaseContinuationPoints,
+            HistoryReadValueIdCollection nodesToRead,
+            bool sync,
+            CancellationToken cancellationToken = default)
         {
             // validate history details parameter.
             if (ExtensionObject.IsNull(historyReadDetails))
@@ -1904,8 +1950,8 @@ namespace Opc.Ua.Server
 
             // create result lists.
             bool diagnosticsExist = false;
-            results = new HistoryReadResultCollection(nodesToRead.Count);
-            diagnosticInfos = new DiagnosticInfoCollection(nodesToRead.Count);
+            var results = new HistoryReadResultCollection(nodesToRead.Count);
+            var diagnosticInfos = new DiagnosticInfoCollection(nodesToRead.Count);
 
             // pre-validate items.
             bool validItems = false;
@@ -1955,16 +2001,38 @@ namespace Opc.Ua.Server
             // call each node manager.
             if (validItems)
             {
-                foreach (INodeManager nodeManager in m_nodeManagers)
+                foreach (IAsyncNodeManager asyncNodeManager in m_asyncNodeManagers)
                 {
-                    nodeManager.HistoryRead(
-                        context,
-                        details,
-                        timestampsToReturn,
-                        releaseContinuationPoints,
-                        nodesToRead,
-                        results,
-                        errors);
+                    if (sync)
+                    {
+                        if (asyncNodeManager is not AsyncNodeManagerAdapter)
+                        {
+                            Utils.LogWarning(
+                                "Async Method called sychronously. Prefer using CallAsync for best performance. NodeManager={0}",
+                                asyncNodeManager);
+                        }
+                        asyncNodeManager.HistoryReadAsync(
+                            context,
+                            details,
+                            timestampsToReturn,
+                            releaseContinuationPoints,
+                            nodesToRead,
+                            results,
+                            errors,
+                            cancellationToken).AsTask().GetAwaiter().GetResult();
+                    }
+                    else
+                    {
+                        await asyncNodeManager.HistoryReadAsync(
+                             context,
+                            details,
+                            timestampsToReturn,
+                            releaseContinuationPoints,
+                            nodesToRead,
+                            results,
+                            errors,
+                            cancellationToken).ConfigureAwait(false);
+                    }
                 }
 
                 for (int ii = 0; ii < nodesToRead.Count; ii++)
@@ -2002,6 +2070,8 @@ namespace Opc.Ua.Server
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
+
+            return (results, diagnosticInfos);
         }
 
         /// <summary>

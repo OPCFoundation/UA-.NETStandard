@@ -1458,6 +1458,73 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Invokes the HistoryRead service using async Task based request.
+        /// </summary>
+        public override async Task<HistoryReadResponse> HistoryReadAsync(
+            RequestHeader requestHeader,
+            ExtensionObject historyReadDetails,
+            TimestampsToReturn timestampsToReturn,
+            bool releaseContinuationPoints,
+            HistoryReadValueIdCollection nodesToRead,
+            CancellationToken ct)
+        {
+            OperationContext context = ValidateRequest(requestHeader, RequestType.HistoryRead);
+
+            try
+            {
+                if (historyReadDetails?.Body is ReadEventDetails)
+                {
+                    ValidateOperationLimits(
+                        nodesToRead,
+                        OperationLimits.MaxNodesPerHistoryReadEvents);
+                }
+                else
+                {
+                    ValidateOperationLimits(
+                        nodesToRead,
+                        OperationLimits.MaxNodesPerHistoryReadData);
+                }
+
+                (HistoryReadResultCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                    await m_serverInternal.NodeManager.HistoryReadAsync(
+                        context,
+                        historyReadDetails,
+                        timestampsToReturn,
+                        releaseContinuationPoints,
+                        nodesToRead,
+                        ct)
+                    .ConfigureAwait(false);
+
+                return new HistoryReadResponse
+                {
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos,
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                };
+            }
+            catch (ServiceResultException e)
+            {
+                lock (ServerInternal.DiagnosticsWriteLock)
+                {
+                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+
+                    if (IsSecurityError(e.StatusCode))
+                    {
+                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                    }
+                }
+
+                ServerInternal.ReportAuditEvent(context, "HistoryRead", e);
+
+                throw TranslateException(context, e);
+            }
+            finally
+            {
+                OnRequestComplete(context);
+            }
+        }
+
+        /// <summary>
         /// Invokes the Write service.
         /// </summary>
         /// <param name="requestHeader">The request header.</param>
