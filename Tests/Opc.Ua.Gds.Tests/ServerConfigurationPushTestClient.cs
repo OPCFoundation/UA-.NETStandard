@@ -110,7 +110,7 @@ namespace Opc.Ua.Gds.Tests
                 .AddExtension<ServerConfigurationPushTestClientConfiguration>(null, clientConfig)
                 .SetOutputFilePath(Path.Combine(root, "Logs", "Opc.Ua.Gds.Tests.log.txt"))
                 .SetTraceMasks(Utils.TraceMasks.Error)
-                .Create()
+                .CreateAsync()
                 .ConfigureAwait(false);
 #endif
             // check the application certificate.

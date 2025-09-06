@@ -313,7 +313,7 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        public async Task<ApplicationConfiguration> Create()
+        public async Task<ApplicationConfiguration> CreateAsync()
         {
             // sanity checks
             if (ApplicationInstance

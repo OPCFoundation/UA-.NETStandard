@@ -126,13 +126,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <inheritdoc/>
-        [Obsolete("Use DeleteAsync instead.")]
-        public Task<bool> Delete(string thumbprint)
-        {
-            return DeleteAsync(thumbprint);
-        }
-
-        /// <inheritdoc/>
         public Task<bool> DeleteAsync(string thumbprint, CancellationToken ct = default)
         {
             return m_innerStore.DeleteAsync(thumbprint, ct);
@@ -151,13 +144,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <inheritdoc/>
-        [Obsolete("Use FindByThumbprintAsync instead.")]
-        public Task<X509Certificate2Collection> FindByThumbprint(string thumbprint)
-        {
-            return FindByThumbprintAsync(thumbprint);
-        }
-
-        /// <inheritdoc/>
         public Task<X509Certificate2Collection> FindByThumbprintAsync(
             string thumbprint,
             CancellationToken ct = default)
@@ -169,36 +155,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public bool SupportsCRLs => m_innerStore.SupportsCRLs;
 
         /// <inheritdoc/>
-        [Obsolete("Use AddCRLAsync instead.")]
-        public Task AddCRL(X509CRL crl)
-        {
-            return m_innerStore.AddCRLAsync(crl);
-        }
-
-        /// <inheritdoc/>
         public Task AddCRLAsync(X509CRL crl, CancellationToken ct = default)
         {
             return m_innerStore.AddCRLAsync(crl, ct);
         }
-
-        /// <inheritdoc/>
-        [Obsolete("Use DeleteCRLAsync instead.")]
-        public Task<bool> DeleteCRL(X509CRL crl)
-        {
-            return DeleteCRLAsync(crl);
-        }
-
         /// <inheritdoc/>
         public Task<bool> DeleteCRLAsync(X509CRL crl, CancellationToken ct = default)
         {
             return m_innerStore.DeleteCRLAsync(crl, ct);
-        }
-
-        /// <inheritdoc/>
-        [Obsolete("Use EnumerateCRLsAsync instead.")]
-        public Task<X509CRLCollection> EnumerateCRLs()
-        {
-            return EnumerateCRLsAsync();
         }
 
         /// <inheritdoc/>
@@ -208,28 +172,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <inheritdoc/>
-        [Obsolete("Use EnumerateCRLsAsync instead.")]
-        public Task<X509CRLCollection> EnumerateCRLs(
-            X509Certificate2 issuer,
-            bool validateUpdateTime = true)
-        {
-            return EnumerateCRLsAsync(issuer, validateUpdateTime);
-        }
-
-        /// <inheritdoc/>
         public Task<X509CRLCollection> EnumerateCRLsAsync(
             X509Certificate2 issuer,
             bool validateUpdateTime = true,
             CancellationToken ct = default)
         {
             return m_innerStore.EnumerateCRLsAsync(issuer, validateUpdateTime, ct);
-        }
-
-        /// <inheritdoc/>
-        [Obsolete("Use IsRevokedAsync instead.")]
-        public Task<StatusCode> IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
-        {
-            return IsRevokedAsync(issuer, certificate);
         }
 
         /// <inheritdoc/>
@@ -243,23 +191,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         /// <inheritdoc/>
         public bool SupportsLoadPrivateKey => m_innerStore.SupportsLoadPrivateKey;
-
-        /// <inheritdoc/>
-        [Obsolete("Use LoadPrivateKeyAsync instead.")]
-        public Task<X509Certificate2> LoadPrivateKey(
-            string thumbprint,
-            string subjectName,
-            string applicationUri,
-            NodeId certificateType,
-            string password)
-        {
-            return LoadPrivateKeyAsync(
-                thumbprint,
-                subjectName,
-                applicationUri,
-                certificateType,
-                password);
-        }
 
         /// <inheritdoc/>
         public Task<X509Certificate2> LoadPrivateKeyAsync(
@@ -277,13 +208,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 certificateType,
                 password,
                 ct);
-        }
-
-        /// <inheritdoc/>
-        [Obsolete("Use AddRejectedAsync instead.")]
-        public Task AddRejected(X509Certificate2Collection certificates, int maxCertificates)
-        {
-            return AddRejectedAsync(certificates, maxCertificates);
         }
 
         /// <inheritdoc/>

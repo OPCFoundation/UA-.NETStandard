@@ -139,7 +139,7 @@ namespace Opc.Ua.Client.Tests
                 .SetRejectSHA1SignedCertificates(false)
                 .SetOutputFilePath(Path.Combine(pkiRoot, "Logs", "Opc.Ua.Client.Tests.log.txt"))
                 .SetTraceMasks(TraceMasks)
-                .Create()
+                .CreateAsync()
                 .ConfigureAwait(false);
 
             // check the application certificate.

@@ -181,7 +181,7 @@ namespace Opc.Ua.Server.Tests
             Config = await serverConfig
                 .AddSecurityConfiguration(applicationCerts, pkiRoot)
                 .SetAutoAcceptUntrustedCertificates(AutoAccept)
-                .Create()
+                .CreateAsync()
                 .ConfigureAwait(false);
         }
 
