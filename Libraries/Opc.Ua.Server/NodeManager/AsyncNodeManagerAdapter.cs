@@ -93,6 +93,30 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        public ValueTask HistoryUpdateAsync(OperationContext context,
+                                            Type detailsType,
+                                            IList<HistoryUpdateDetails> nodesToUpdate,
+                                            IList<HistoryUpdateResult> results,
+                                            IList<ServiceResult> errors,
+                                            CancellationToken cancellationToken = default)
+        {
+            if (m_nodeManager is IHistoryUpdateAsyncNodeManager asyncNodeManager)
+            {
+                return asyncNodeManager.HistoryUpdateAsync(context,
+                                                           detailsType,
+                                                           nodesToUpdate,
+                                                           results,
+                                                           errors,
+                                                           cancellationToken);
+            }
+
+            m_nodeManager.HistoryUpdate(context, detailsType, nodesToUpdate, results, errors);
+
+            // Return a completed ValueTask since the underlying call is synchronous.
+            return default;
+        }
+
+        /// <inheritdoc/>
         public ValueTask ReadAsync(OperationContext context,
                                    double maxAge,
                                    IList<ReadValueId> nodesToRead,

@@ -465,6 +465,23 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// An asynchronous version of the "HistoryUpdate" method defined on the <see cref="INodeManager2"/> interface.
+    /// </summary>
+    public interface IHistoryUpdateAsyncNodeManager
+    {
+        /// <summary>
+        /// Updates the history for a set of nodes.
+        /// </summary>
+        ValueTask HistoryUpdateAsync(
+            OperationContext context,
+            Type detailsType,
+            IList<HistoryUpdateDetails> nodesToUpdate,
+            IList<HistoryUpdateResult> results,
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// An asynchronous verison of the <see cref="INodeManager2"/> interface.
     /// </summary>
     [Experimental("UA_NETStandard_1")]
@@ -472,7 +489,8 @@ namespace Opc.Ua.Server
         ICallAsyncNodeManager,
         IReadAsyncNodeManager,
         IWriteAsyncNodeManager,
-        IHistoryReadAsyncNodeManager;
+        IHistoryReadAsyncNodeManager,
+        IHistoryUpdateAsyncNodeManager;
 
     /// <summary>
     /// Stores metadata required to process requests related to a node.

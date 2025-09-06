@@ -2243,11 +2243,46 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Updates the history for a set of nodes.
         /// </summary>
+        public virtual ValueTask<(HistoryUpdateResultCollection results, DiagnosticInfoCollection diagnosticInfos)> HistoryUpdateAsync(
+            OperationContext context,
+            ExtensionObjectCollection historyUpdateDetails,
+            CancellationToken cancellationToken = default)
+        {
+            return HistoryUpdateAsync(
+                context,
+                historyUpdateDetails,
+                sync: false,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Updates the history for a set of nodes.
+        /// </summary>
         public virtual void HistoryUpdate(
             OperationContext context,
             ExtensionObjectCollection historyUpdateDetails,
             out HistoryUpdateResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
+        {
+#pragma warning disable CA2012 // Use ValueTasks correctly
+            (results, diagnosticInfos) = HistoryUpdateAsync(
+                context,
+                historyUpdateDetails,
+                sync: true).Result;
+#pragma warning restore CA2012 // Use ValueTasks correctly
+        }
+
+        /// <summary>
+        /// Updates the history for a set of nodes.
+        /// </summary>
+        protected virtual async ValueTask<(
+            HistoryUpdateResultCollection results,
+            DiagnosticInfoCollection diagnosticInfos
+            )> HistoryUpdateAsync(
+                OperationContext context,
+                ExtensionObjectCollection historyUpdateDetails,
+                bool sync,
+                CancellationToken cancellationToken = default)
         {
             Type detailsType = null;
             var nodesToUpdate = new List<HistoryUpdateDetails>();
@@ -2268,8 +2303,8 @@ namespace Opc.Ua.Server
 
             // create result lists.
             bool diagnosticsExist = false;
-            results = new HistoryUpdateResultCollection(nodesToUpdate.Count);
-            diagnosticInfos = new DiagnosticInfoCollection(nodesToUpdate.Count);
+            var results = new HistoryUpdateResultCollection(nodesToUpdate.Count);
+            var diagnosticInfos = new DiagnosticInfoCollection(nodesToUpdate.Count);
 
             // pre-validate items.
             bool validItems = false;
@@ -2325,9 +2360,34 @@ namespace Opc.Ua.Server
             // call each node manager.
             if (validItems)
             {
-                foreach (INodeManager nodeManager in m_nodeManagers)
+                foreach (IAsyncNodeManager asyncNodeManager in m_asyncNodeManagers)
                 {
-                    nodeManager.HistoryUpdate(context, detailsType, nodesToUpdate, results, errors);
+                    if (sync)
+                    {
+                        if (asyncNodeManager is not AsyncNodeManagerAdapter)
+                        {
+                            Utils.LogWarning(
+                                "Async Method called sychronously. Prefer using CallAsync for best performance. NodeManager={0}",
+                                asyncNodeManager);
+                        }
+                        asyncNodeManager.HistoryUpdateAsync(
+                            context,
+                            detailsType,
+                            nodesToUpdate,
+                            results,
+                            errors,
+                            cancellationToken).AsTask().GetAwaiter().GetResult();
+                    }
+                    else
+                    {
+                        await asyncNodeManager.HistoryUpdateAsync(
+                            context,
+                            detailsType,
+                            nodesToUpdate,
+                            results,
+                            errors,
+                            cancellationToken).ConfigureAwait(false);
+                    }
                 }
 
                 for (int ii = 0; ii < nodesToUpdate.Count; ii++)
@@ -2365,6 +2425,8 @@ namespace Opc.Ua.Server
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
+
+            return (results, diagnosticInfos);
         }
 
         /// <summary>

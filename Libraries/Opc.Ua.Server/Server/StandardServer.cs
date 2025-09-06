@@ -1671,6 +1671,53 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Invokes the HistoryUpdate service using async Task based request.
+        /// </summary>
+        public override async Task<HistoryUpdateResponse> HistoryUpdateAsync(
+            RequestHeader requestHeader,
+            ExtensionObjectCollection historyUpdateDetails,
+            CancellationToken ct)
+        {
+            OperationContext context = ValidateRequest(requestHeader, RequestType.HistoryUpdate);
+
+            try
+            {
+                // check only for BadNothingToDo here
+                // MaxNodesPerHistoryUpdateEvents & MaxNodesPerHistoryUpdateData
+                // must be checked in NodeManager (TODO)
+                ValidateOperationLimits(historyUpdateDetails);
+
+                (HistoryUpdateResultCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                    await m_serverInternal.NodeManager.HistoryUpdateAsync(context, historyUpdateDetails, ct).ConfigureAwait(false);
+
+                return new HistoryUpdateResponse
+                {
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos,
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                };
+            }
+            catch (ServiceResultException e)
+            {
+                lock (ServerInternal.DiagnosticsWriteLock)
+                {
+                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+
+                    if (IsSecurityError(e.StatusCode))
+                    {
+                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                    }
+                }
+
+                throw TranslateException(context, e);
+            }
+            finally
+            {
+                OnRequestComplete(context);
+            }
+        }
+
+        /// <summary>
         /// Invokes the CreateSubscription service.
         /// </summary>
         /// <param name="requestHeader">The request header.</param>
