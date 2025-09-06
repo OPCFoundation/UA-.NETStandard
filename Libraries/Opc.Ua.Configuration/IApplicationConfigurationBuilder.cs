@@ -680,6 +680,6 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Creates and updates the application configuration.
         /// </summary>
-        Task<ApplicationConfiguration> Create();
+        Task<ApplicationConfiguration> CreateAsync();
     }
 }
