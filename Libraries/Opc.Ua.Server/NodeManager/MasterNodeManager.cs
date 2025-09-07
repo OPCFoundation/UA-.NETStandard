@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -111,15 +112,11 @@ namespace Opc.Ua.Server
                     RegisterNodeManager(nodeManager, registeredManagers, namespaceManagers);
                 }
 
+                NamespaceManagers = new ConcurrentDictionary<int, IReadOnlyList<INodeManager>>();
                 // build table from dictionary.
-                NamespaceManagers = new INodeManager[Server.NamespaceUris.Count][];
-
-                for (int ii = 0; ii < NamespaceManagers.Length; ii++)
+                foreach (KeyValuePair<int, List<INodeManager>> namespaceManager in namespaceManagers)
                 {
-                    if (namespaceManagers.TryGetValue(ii, out registeredManagers))
-                    {
-                        NamespaceManagers[ii] = [.. registeredManagers];
-                    }
+                    NamespaceManagers.TryAdd(namespaceManager.Key, namespaceManager.Value.AsReadOnly());
                 }
             }
         }
@@ -432,44 +429,24 @@ namespace Opc.Ua.Server
             // allocate a new table (using arrays instead of collections because lookup efficiency is critical).
             var namespaceManagers = new INodeManager[Server.NamespaceUris.Count][];
 
-            m_readWriterLockSlim.EnterWriteLock();
+            m_namespaceManagersReadWriterLockSlim.EnterWriteLock();
             try
             {
-                // copy existing values.
-                for (int ii = 0; ii < NamespaceManagers.Length; ii++)
-                {
-                    if (NamespaceManagers.Length >= ii)
-                    {
-                        namespaceManagers[ii] = NamespaceManagers[ii];
-                    }
-                }
+                NamespaceManagers.AddOrUpdate(
+                    index,
+                    [nodeManager],
+                    (key, existingNodeManagers) =>
+                        {
+                            var nodeManagers = existingNodeManagers.ToList();
 
-                // allocate a new array for the index being updated.
-                INodeManager[] registeredManagers = namespaceManagers[index];
+                            nodeManagers.Add(nodeManager);
 
-                if (registeredManagers == null)
-                {
-                    registeredManagers = new INodeManager[1];
-                }
-                else
-                {
-                    registeredManagers = new INodeManager[registeredManagers.Length + 1];
-                    Array.Copy(
-                        namespaceManagers[index],
-                        registeredManagers,
-                        namespaceManagers[index].Length);
-                }
-
-                // add new node manager to the end of the list.
-                registeredManagers[^1] = nodeManager;
-                namespaceManagers[index] = registeredManagers;
-
-                // replace the table.
-                NamespaceManagers = namespaceManagers;
+                            return nodeManagers.AsReadOnly();
+                        });
             }
             finally
             {
-                m_readWriterLockSlim.ExitWriteLock();
+                m_namespaceManagersReadWriterLockSlim.ExitWriteLock();
             }
         }
 
@@ -499,65 +476,34 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            // look up the node manager in the registered node managers for the namespace.
-            int nodeManagerIndex = Array.IndexOf(NamespaceManagers[namespaceIndex], nodeManager);
-            if (nodeManagerIndex < 0)
-            {
-                return false;
-            }
-
-            // allocate a new table (using arrays instead of collections because lookup efficiency is critical).
-            var namespaceManagers = new INodeManager[Server.NamespaceUris.Count][];
-
-            m_readWriterLockSlim.EnterWriteLock();
+            m_namespaceManagersReadWriterLockSlim.EnterWriteLock();
             try
             {
-                // copy existing values.
-                for (int ii = 0; ii < NamespaceManagers.Length; ii++)
+                if (!NamespaceManagers.TryGetValue(namespaceIndex, out IReadOnlyList<INodeManager> readOnlyNodeManagers))
                 {
-                    if (NamespaceManagers.Length >= ii)
-                    {
-                        namespaceManagers[ii] = NamespaceManagers[ii];
-                    }
+                    return false;
                 }
+                var nodeManagers = readOnlyNodeManagers.ToList();
 
-                // allocate a new smaller array to support element removal for the index being updated.
-                var registeredManagers = new INodeManager[namespaceManagers[namespaceIndex].Length -
-                    1];
+                nodeManagers.Remove(nodeManager);
 
-                // begin by populating the new array with existing elements up to the target index.
-                if (nodeManagerIndex > 0)
+                if (nodeManagers.Count == 0)
                 {
-                    Array.Copy(
-                        namespaceManagers[namespaceIndex],
-                        0,
-                        registeredManagers,
-                        0,
-                        nodeManagerIndex);
+                    NamespaceManagers.TryRemove(namespaceIndex, out _);
                 }
-
-                // finish by populating the new array with existing elements after the target index.
-                if (nodeManagerIndex < namespaceManagers[namespaceIndex].Length - 1)
+                else
                 {
-                    Array.Copy(
-                        namespaceManagers[namespaceIndex],
-                        nodeManagerIndex + 1,
-                        registeredManagers,
-                        nodeManagerIndex,
-                        namespaceManagers[namespaceIndex].Length - nodeManagerIndex - 1);
+                    NamespaceManagers.AddOrUpdate(
+                        namespaceIndex,
+                        nodeManagers.AsReadOnly(),
+                        (key, existingNodeManagers) => nodeManagers.AsReadOnly());
                 }
-
-                // update the array for the target index.
-                namespaceManagers[namespaceIndex] = registeredManagers;
-
-                // replace the table.
-                NamespaceManagers = namespaceManagers;
 
                 return true;
             }
             finally
             {
-                m_readWriterLockSlim.ExitWriteLock();
+                m_namespaceManagersReadWriterLockSlim.ExitWriteLock();
             }
         }
 
@@ -578,40 +524,27 @@ namespace Opc.Ua.Server
             // use the namespace index to select the node manager.
             int index = nodeId.NamespaceIndex;
 
-            m_readWriterLockSlim.EnterReadLock();
-            try
+            // check if node managers are registered - use the core node manager if unknown.
+            if (!NamespaceManagers.TryGetValue(index, out IReadOnlyList<INodeManager> nodeManagers))
             {
-                // check if node managers are registered - use the core node manager if unknown.
-                if (index >= NamespaceManagers.Length || NamespaceManagers[index] == null)
+                handle = m_nodeManagers[1].GetManagerHandle(nodeId);
+                if (handle != null)
                 {
-                    handle = m_nodeManagers[1].GetManagerHandle(nodeId);
-
-                    if (handle != null)
-                    {
-                        nodeManager = m_nodeManagers[1];
-                        return handle;
-                    }
-
-                    return null;
+                    nodeManager = m_nodeManagers[1];
+                    return handle;
                 }
-
-                // check each of the registered node managers.
-                INodeManager[] nodeManagers = NamespaceManagers[index];
-
-                for (int ii = 0; ii < nodeManagers.Length; ii++)
-                {
-                    handle = nodeManagers[ii].GetManagerHandle(nodeId);
-
-                    if (handle != null)
-                    {
-                        nodeManager = nodeManagers[ii];
-                        return handle;
-                    }
-                }
+                return null;
             }
-            finally
+
+            foreach (INodeManager nodeManagerToCheck in nodeManagers)
             {
-                m_readWriterLockSlim.ExitReadLock();
+                handle = nodeManagerToCheck.GetManagerHandle(nodeId);
+
+                if (handle != null)
+                {
+                    nodeManager = nodeManagerToCheck;
+                    return handle;
+                }
             }
 
             // node not recognized.
@@ -3196,7 +3129,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The namespace managers being managed
         /// </summary>
-        internal INodeManager[][] NamespaceManagers { get; private set; }
+        internal ConcurrentDictionary<int, IReadOnlyList<INodeManager>> NamespaceManagers { get; }
 
         /// <summary>
         /// Validates a monitoring attributes parameter.
@@ -3799,7 +3732,7 @@ namespace Opc.Ua.Server
         private readonly List<IAsyncNodeManager> m_asyncNodeManagers;
         private long m_lastMonitoredItemId;
         private readonly uint m_maxContinuationPointsPerBrowse;
-        private readonly ReaderWriterLockSlim m_readWriterLockSlim = new();
+        private readonly ReaderWriterLockSlim m_namespaceManagersReadWriterLockSlim = new();
     }
 
     /// <summary>
