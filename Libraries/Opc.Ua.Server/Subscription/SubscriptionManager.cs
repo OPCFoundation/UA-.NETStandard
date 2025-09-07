@@ -179,11 +179,7 @@ namespace Opc.Ua.Server
         /// <returns>A list of the subscriptions.</returns>
         public IList<ISubscription> GetSubscriptions()
         {
-            var subscriptions = new List<ISubscription>(m_subscriptions.Count);
-
-            subscriptions.AddRange(m_subscriptions.Values);
-
-            return subscriptions;
+            return [.. m_subscriptions.Values];
         }
 
         /// <summary>
@@ -829,16 +825,19 @@ namespace Opc.Ua.Server
                 }
 
                 // create/update publish queue.
-
-                if (!m_publishQueues.TryGetValue(session.Id, out SessionPublishQueue queue))
-                {
-                    m_publishQueues[session.Id] = queue = new SessionPublishQueue(
+                m_publishQueues.AddOrUpdate(
+                    session.Id,
+                    new SessionPublishQueue(
                         m_server,
                         session,
-                        m_maxPublishRequestCount);
-                }
+                        m_maxPublishRequestCount),
+                    (key, queue) =>
+                        {
+                            queue.Add(subscription);
 
-                queue.Add(subscription);
+                            return queue;
+                        }
+                );
 
                 // get the count for the diagnostics.
                 publishingIntervalCount = GetPublishingIntervalCount();
