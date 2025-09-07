@@ -1865,7 +1865,7 @@ namespace Opc.Ua.Server
                         if (asyncNodeManager is not AsyncNodeManagerAdapter)
                         {
                             Utils.LogWarning(
-                                "Async Method called sychronously. Prefer using CallAsync for best performance. NodeManager={0}",
+                                "Async Read called synchronously. Prefer using ReadAsync for best performance. NodeManager={0}",
                                 asyncNodeManager);
                         }
                         asyncNodeManager.ReadAsync(
@@ -2067,7 +2067,7 @@ namespace Opc.Ua.Server
                         if (asyncNodeManager is not AsyncNodeManagerAdapter)
                         {
                             Utils.LogWarning(
-                                "Async Method called sychronously. Prefer using CallAsync for best performance. NodeManager={0}",
+                                "Async HistoryRead called synchronously. Prefer using HistoryReadAsync for best performance. NodeManager={0}",
                                 asyncNodeManager);
                         }
                         asyncNodeManager.HistoryReadAsync(
@@ -2245,7 +2245,7 @@ namespace Opc.Ua.Server
                         if (asyncNodeManager is not AsyncNodeManagerAdapter)
                         {
                             Utils.LogWarning(
-                                "Async Method called sychronously. Prefer using CallAsync for best performance. NodeManager={0}",
+                                "Async Write called synchronously. Prefer using WriteAsync for best performance. NodeManager={0}",
                                 asyncNodeManager);
                         }
                         asyncNodeManager.WriteAsync(
@@ -2426,7 +2426,7 @@ namespace Opc.Ua.Server
                         if (asyncNodeManager is not AsyncNodeManagerAdapter)
                         {
                             Utils.LogWarning(
-                                "Async Method called sychronously. Prefer using CallAsync for best performance. NodeManager={0}",
+                                "Async HistoryUpdate called synchronously. Prefer using HistoryUpdateAsync for best performance. NodeManager={0}",
                                 asyncNodeManager);
                         }
                         asyncNodeManager.HistoryUpdateAsync(
@@ -2597,7 +2597,7 @@ namespace Opc.Ua.Server
                         if (asyncNodeManager is not AsyncNodeManagerAdapter)
                         {
                             Utils.LogWarning(
-                                "Async Method called sychronously. Prefer using CallAsync for best performance. NodeManager={0}",
+                                "Async Call called synchronously. Prefer using CallAsync for best performance. NodeManager={0}",
                                 asyncNodeManager);
                         }
                         asyncNodeManager.CallAsync(
@@ -2704,7 +2704,7 @@ namespace Opc.Ua.Server
                         if (asyncNodeManager is not AsyncNodeManagerAdapter)
                         {
                             Utils.LogWarning(
-                                "Async Method called sychronously. Prefer using CallAsync for best performance. NodeManager={0}",
+                                "Async ConditionRefresh called synchronously. Prefer using ConditionRefreshAsync for best performance. NodeManager={0}",
                                 asyncNodeManager);
                         }
                         asyncNodeManager.ConditionRefreshAsync(context, monitoredItems, cancellationToken)
