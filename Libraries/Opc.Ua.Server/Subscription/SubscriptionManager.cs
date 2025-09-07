@@ -1827,14 +1827,6 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
             }
 
-            lock (m_lock)
-            {
-                if (!m_subscriptions.TryGetValue(subscriptionId, out subscription))
-                {
-                    throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
-                }
-            }
-
             // create the items.
             subscription.SetMonitoringMode(
                 context,
