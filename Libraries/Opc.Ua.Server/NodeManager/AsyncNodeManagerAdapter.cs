@@ -65,6 +65,22 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        public ValueTask ConditionRefreshAsync(OperationContext context,
+                                               IList<IEventMonitoredItem> monitoredItems,
+                                               CancellationToken cancellationToken = default)
+        {
+            if (m_nodeManager is IConditionRefreshAsyncNodeManager asyncNodeManager)
+            {
+                return asyncNodeManager.ConditionRefreshAsync(context, monitoredItems, cancellationToken);
+            }
+
+            m_nodeManager.ConditionRefresh(context, monitoredItems);
+
+            // Return a completed ValueTask since the underlying call is synchronous.
+            return default;
+        }
+
+        /// <inheritdoc/>
         public ValueTask HistoryReadAsync(OperationContext context,
                                           HistoryReadDetails details,
                                           TimestampsToReturn timestampsToReturn,
@@ -130,6 +146,25 @@ namespace Opc.Ua.Server
             }
 
             m_nodeManager.Read(context, maxAge, nodesToRead, values, errors);
+
+            // Return a completed ValueTask since the underlying call is synchronous.
+            return default;
+        }
+
+        /// <inheritdoc/>
+        public ValueTask TranslateBrowsePathAsync(OperationContext context,
+                                                  object sourceHandle,
+                                                  RelativePathElement relativePath,
+                                                  IList<ExpandedNodeId> targetIds,
+                                                  IList<NodeId> unresolvedTargetIds,
+                                                  CancellationToken cancellationToken = default)
+        {
+            if (m_nodeManager is ITranslateBrowsePathAsyncNodeManager asyncNodeManager)
+            {
+                return asyncNodeManager.TranslateBrowsePathAsync(context, sourceHandle, relativePath, targetIds, unresolvedTargetIds, cancellationToken);
+            }
+
+            m_nodeManager.TranslateBrowsePath(context, sourceHandle, relativePath, targetIds, unresolvedTargetIds);
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return default;

@@ -482,6 +482,51 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// An asynchronous version of the "ConditionRefresh" method defined on the <see cref="INodeManager2"/> interface.
+    /// </summary>
+    public interface IConditionRefreshAsyncNodeManager
+    {
+        /// <summary>
+        /// Tells the NodeManager to refresh any conditions.
+        /// </summary>
+        ValueTask ConditionRefreshAsync(
+            OperationContext context,
+            IList<IEventMonitoredItem> monitoredItems,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// An asynchronous version of the "TranslateBrowsePath" method defined on the <see cref="INodeManager2"/> interface.
+    /// </summary>
+    public interface ITranslateBrowsePathAsyncNodeManager
+    {
+        /// <summary>
+        /// Finds the targets of the relative path from the source node.
+        /// </summary>
+        /// <param name="context">The context to used when processing the request.</param>
+        /// <param name="sourceHandle">The handle for the source node.</param>
+        /// <param name="relativePath">The relative path to follow.</param>
+        /// <param name="targetIds">The NodeIds for any target at the end of the relative path.</param>
+        /// <param name="unresolvedTargetIds">The NodeIds for any local target that is in another NodeManager.</param>
+        /// <param name="cancellationToken">The cancellation token</param>
+        /// <remarks>
+        /// A null context indicates that the server's internal logic is making the call.
+        /// The first target in the list must be the target that matches the instance declaration (if applicable).
+        /// Any local targets that belong to other NodeManagers are returned as unresolvedTargetIds.
+        /// The caller must check the BrowseName to determine if it matches the relativePath.
+        /// The implementor must not throw an exception if the source or target nodes do not exist.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException">Thrown if the sourceHandle, relativePath or targetIds parameters are null.</exception>
+        ValueTask TranslateBrowsePathAsync(
+            OperationContext context,
+            object sourceHandle,
+            RelativePathElement relativePath,
+            IList<ExpandedNodeId> targetIds,
+            IList<NodeId> unresolvedTargetIds,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// An asynchronous verison of the <see cref="INodeManager2"/> interface.
     /// </summary>
     [Experimental("UA_NETStandard_1")]
@@ -490,7 +535,9 @@ namespace Opc.Ua.Server
         IReadAsyncNodeManager,
         IWriteAsyncNodeManager,
         IHistoryReadAsyncNodeManager,
-        IHistoryUpdateAsyncNodeManager;
+        IHistoryUpdateAsyncNodeManager,
+        IConditionRefreshAsyncNodeManager,
+        ITranslateBrowsePathAsyncNodeManager;
 
     /// <summary>
     /// Stores metadata required to process requests related to a node.

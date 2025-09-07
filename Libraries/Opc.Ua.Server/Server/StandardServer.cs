@@ -1275,6 +1275,65 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Invokes the TranslateBrowsePathsToNodeIds service using async Task based request.
+        /// </summary>
+        public override async Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
+            RequestHeader requestHeader,
+            BrowsePathCollection browsePaths,
+            CancellationToken ct)
+        {
+            OperationContext context = ValidateRequest(
+                requestHeader,
+                RequestType.TranslateBrowsePathsToNodeIds);
+
+            try
+            {
+                ValidateOperationLimits(
+                    browsePaths,
+                    OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
+
+                foreach (BrowsePath bp in browsePaths)
+                {
+                    ValidateOperationLimits(
+                        bp.RelativePath.Elements.Count,
+                        OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
+                }
+
+                (BrowsePathResultCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                    await m_serverInternal.NodeManager.TranslateBrowsePathsToNodeIdsAsync(
+                        context,
+                        browsePaths,
+                        ct)
+                    .ConfigureAwait(false);
+
+                return new TranslateBrowsePathsToNodeIdsResponse
+                {
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos,
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                };
+            }
+            catch (ServiceResultException e)
+            {
+                lock (ServerInternal.DiagnosticsWriteLock)
+                {
+                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+
+                    if (IsSecurityError(e.StatusCode))
+                    {
+                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                    }
+                }
+
+                throw TranslateException(context, e);
+            }
+            finally
+            {
+                OnRequestComplete(context);
+            }
+        }
+
+        /// <summary>
         /// Invokes the Read service.
         /// </summary>
         /// <param name="requestHeader">The request header.</param>

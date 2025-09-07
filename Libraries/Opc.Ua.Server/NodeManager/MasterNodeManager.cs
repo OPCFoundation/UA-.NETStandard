@@ -33,7 +33,6 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json.Linq;
 
 namespace Opc.Ua.Server
 {
@@ -770,11 +769,48 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="browsePaths"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
+        public virtual ValueTask<(BrowsePathResultCollection results, DiagnosticInfoCollection diagnosticInfos)> TranslateBrowsePathsToNodeIdsAsync(
+            OperationContext context,
+            BrowsePathCollection browsePaths,
+            CancellationToken cancellationToken = default)
+        {
+            return TranslateBrowsePathsToNodeIdsInternalAsync(
+                context,
+                browsePaths,
+                sync: false,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Translates a start node id plus a relative paths into a node id.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="browsePaths"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public virtual void TranslateBrowsePathsToNodeIds(
             OperationContext context,
             BrowsePathCollection browsePaths,
             out BrowsePathResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
+        {
+#pragma warning disable CA2012 // Use ValueTasks correctly
+            (results, diagnosticInfos) = TranslateBrowsePathsToNodeIdsInternalAsync(
+                context,
+                browsePaths,
+                sync: true).Result;
+#pragma warning restore CA2012 // Use ValueTasks correctly
+        }
+
+        /// <summary>
+        /// Translates a start node id plus a relative paths into a node id.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="browsePaths"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        protected virtual async ValueTask<(BrowsePathResultCollection results, DiagnosticInfoCollection diagnosticInfos)>
+            TranslateBrowsePathsToNodeIdsInternalAsync(
+                OperationContext context,
+                BrowsePathCollection browsePaths,
+                bool sync,
+                CancellationToken cancellationToken = default)
         {
             if (browsePaths == null)
             {
@@ -782,8 +818,8 @@ namespace Opc.Ua.Server
             }
 
             bool diagnosticsExist = false;
-            results = new BrowsePathResultCollection(browsePaths.Count);
-            diagnosticInfos = new DiagnosticInfoCollection(browsePaths.Count);
+            var results = new BrowsePathResultCollection(browsePaths.Count);
+            var diagnosticInfos = new DiagnosticInfoCollection(browsePaths.Count);
 
             for (int ii = 0; ii < browsePaths.Count; ii++)
             {
@@ -803,7 +839,8 @@ namespace Opc.Ua.Server
                 // need to trap unexpected exceptions to handle bugs in the node managers.
                 try
                 {
-                    error = TranslateBrowsePath(context, browsePath, result);
+                    error = await TranslateBrowsePathAsync(context, browsePath, result, cancellationToken)
+                        .ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -846,6 +883,8 @@ namespace Opc.Ua.Server
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
+
+            return (results, diagnosticInfos);
         }
 
         /// <summary>
@@ -892,10 +931,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Translates a browse path.
         /// </summary>
-        protected ServiceResult TranslateBrowsePath(
+        protected async ValueTask<ServiceResult> TranslateBrowsePathAsync(
             OperationContext context,
             BrowsePath browsePath,
-            BrowsePathResult result)
+            BrowsePathResult result,
+            CancellationToken cancellationToken)
         {
             Debug.Assert(browsePath != null);
             Debug.Assert(result != null);
@@ -944,13 +984,15 @@ namespace Opc.Ua.Server
             if (ServiceResult.IsGood(serviceResult))
             {
                 // translate path only if validation is passing
-                TranslateBrowsePath(
+                await TranslateBrowsePathAsync(
                     context,
                     nodeManager,
                     sourceHandle,
                     relativePath,
                     result.Targets,
-                    0);
+                    0,
+                    cancellationToken)
+                .ConfigureAwait(false);
             }
 
             return serviceResult;
@@ -960,13 +1002,14 @@ namespace Opc.Ua.Server
         /// Recursively processes the elements in the RelativePath starting at the specified index.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void TranslateBrowsePath(
+        private async ValueTask TranslateBrowsePathAsync(
             OperationContext context,
             INodeManager nodeManager,
             object sourceHandle,
             RelativePath relativePath,
             BrowsePathTargetCollection targets,
-            int index)
+            int index,
+            CancellationToken cancellationToken)
         {
             Debug.Assert(nodeManager != null);
             Debug.Assert(sourceHandle != null);
@@ -999,12 +1042,26 @@ namespace Opc.Ua.Server
 
             try
             {
-                nodeManager.TranslateBrowsePath(
+                if (nodeManager is ITranslateBrowsePathAsyncNodeManager asyncNodeManager)
+                {
+                    await asyncNodeManager.TranslateBrowsePathAsync(
+                        context,
+                        sourceHandle,
+                        element,
+                        targetIds,
+                        externalTargetIds,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                }
+                else
+                {
+                    nodeManager.TranslateBrowsePath(
                     context,
                     sourceHandle,
                     element,
                     targetIds,
                     externalTargetIds);
+                }
             }
             catch (Exception e)
             {
@@ -1113,13 +1170,15 @@ namespace Opc.Ua.Server
                 }
 
                 // recursively follow hops.
-                TranslateBrowsePath(
+                await TranslateBrowsePathAsync(
                     context,
                     nodeManager,
                     sourceHandle,
                     relativePath,
                     targets,
-                    index + 1);
+                    index + 1,
+                    cancellationToken)
+                .ConfigureAwait(false);
             }
         }
 
@@ -2598,21 +2657,68 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Handles condition refresh request.
+        /// Calls a method defined on an object.
+        /// </summary>
+        public virtual ValueTask ConditionRefreshAsync(
+            OperationContext context,
+            IList<IEventMonitoredItem> monitoredItems,
+            CancellationToken cancellationToken = default)
+        {
+            return ConditionRefreshInternalAsync(
+                context,
+                monitoredItems,
+                sync: false,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Calls a method defined on an object.
         /// </summary>
         public virtual void ConditionRefresh(
             OperationContext context,
             IList<IEventMonitoredItem> monitoredItems)
         {
-            foreach (INodeManager nodeManager in m_nodeManagers)
+#pragma warning disable CA2012 // Use ValueTasks correctly
+            _ = ConditionRefreshInternalAsync(
+                context,
+                monitoredItems,
+                sync: true);
+#pragma warning restore CA2012 // Use ValueTasks correctly
+        }
+
+        /// <summary>
+        /// Handles condition refresh request.
+        /// </summary>
+        protected virtual async ValueTask ConditionRefreshInternalAsync(
+            OperationContext context,
+            IList<IEventMonitoredItem> monitoredItems,
+            bool sync,
+            CancellationToken cancellationToken = default)
+        {
+            foreach (IAsyncNodeManager asyncNodeManager in m_asyncNodeManagers)
             {
                 try
                 {
-                    nodeManager.ConditionRefresh(context, monitoredItems);
+                    if (sync)
+                    {
+                        if (asyncNodeManager is not AsyncNodeManagerAdapter)
+                        {
+                            Utils.LogWarning(
+                                "Async Method called sychronously. Prefer using CallAsync for best performance. NodeManager={0}",
+                                asyncNodeManager);
+                        }
+                        asyncNodeManager.ConditionRefreshAsync(context, monitoredItems, cancellationToken)
+                            .AsTask().GetAwaiter().GetResult();
+                    }
+                    else
+                    {
+                        await asyncNodeManager.ConditionRefreshAsync(context, monitoredItems, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
                 }
                 catch (Exception e)
                 {
-                    Utils.LogError(e, "Error calling ConditionRefresh on NodeManager.");
+                    Utils.LogError(e, "Error calling ConditionRefreshAsync on AsyncNodeManager.");
                 }
             }
         }
