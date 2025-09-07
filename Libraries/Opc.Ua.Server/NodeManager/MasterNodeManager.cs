@@ -1948,11 +1948,11 @@ namespace Opc.Ua.Server
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
             HistoryReadValueIdCollection nodesToRead,
-            out HistoryReadResultCollection values,
+            out HistoryReadResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
 #pragma warning disable CA2012 // Use ValueTasks correctly
-            (values, diagnosticInfos) = HistoryReadInternalAsync(
+            (results, diagnosticInfos) = HistoryReadInternalAsync(
                 context,
                 historyReadDetails,
                 timestampsToReturn,
