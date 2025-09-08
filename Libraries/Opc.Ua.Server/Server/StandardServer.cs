@@ -1064,6 +1064,58 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Invokes the Browse service using async Task based request.
+        /// </summary>
+        public override async Task<BrowseResponse> BrowseAsync(
+            RequestHeader requestHeader,
+            ViewDescription view,
+            uint requestedMaxReferencesPerNode,
+            BrowseDescriptionCollection nodesToBrowse,
+            CancellationToken ct)
+        {
+            OperationContext context = ValidateRequest(requestHeader, RequestType.Browse);
+
+            try
+            {
+                ValidateOperationLimits(nodesToBrowse, OperationLimits.MaxNodesPerBrowse);
+
+                (BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos) = 
+                    await m_serverInternal.NodeManager.BrowseAsync(
+                        context,
+                        view,
+                        requestedMaxReferencesPerNode,
+                        nodesToBrowse,
+                        ct)
+                    .ConfigureAwait(false);
+
+                return new BrowseResponse
+                {
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos,
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                };
+            }
+            catch (ServiceResultException e)
+            {
+                lock (ServerInternal.DiagnosticsWriteLock)
+                {
+                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+
+                    if (IsSecurityError(e.StatusCode))
+                    {
+                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                    }
+                }
+
+                throw TranslateException(context, e);
+            }
+            finally
+            {
+                OnRequestComplete(context);
+            }
+        }
+
+        /// <summary>
         /// Invokes the BrowseNext service.
         /// </summary>
         /// <param name="requestHeader">The request header.</param>
@@ -1098,6 +1150,56 @@ namespace Opc.Ua.Server
                     out diagnosticInfos);
 
                 return CreateResponse(requestHeader, context.StringTable);
+            }
+            catch (ServiceResultException e)
+            {
+                lock (ServerInternal.DiagnosticsWriteLock)
+                {
+                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+
+                    if (IsSecurityError(e.StatusCode))
+                    {
+                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                    }
+                }
+
+                throw TranslateException(context, e);
+            }
+            finally
+            {
+                OnRequestComplete(context);
+            }
+        }
+
+        /// <summary>
+        /// Invokes the BrowseNext service using async Task based request.
+        /// </summary>
+        public override async Task<BrowseNextResponse> BrowseNextAsync(
+            RequestHeader requestHeader,
+            bool releaseContinuationPoints,
+            ByteStringCollection continuationPoints,
+            CancellationToken ct)
+        {
+            OperationContext context = ValidateRequest(requestHeader, RequestType.BrowseNext);
+
+            try
+            {
+                ValidateOperationLimits(continuationPoints, OperationLimits.MaxNodesPerBrowse);
+
+                (BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos) =
+                    await m_serverInternal.NodeManager.BrowseNextAsync(
+                        context,
+                        releaseContinuationPoints,
+                        continuationPoints,
+                        ct)
+                    .ConfigureAwait(false);
+
+                return new BrowseNextResponse
+                {
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos,
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                };
             }
             catch (ServiceResultException e)
             {

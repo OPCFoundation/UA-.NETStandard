@@ -47,6 +47,23 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        public ValueTask<ContinuationPoint> BrowseAsync(OperationContext context,
+                                                        ContinuationPoint continuationPoint,
+                                                        IList<ReferenceDescription> references,
+                                                        CancellationToken cancellationToken = default)
+        {
+            if (m_nodeManager is IBrowseAsyncNodeManager asyncNodeManager)
+            {
+                return asyncNodeManager.BrowseAsync(context, continuationPoint, references, cancellationToken);
+            }
+
+            m_nodeManager.Browse(context, ref continuationPoint, references);
+
+            // Return a completed ValueTask since the underlying call is synchronous.
+            return new ValueTask<ContinuationPoint>(continuationPoint);
+        }
+
+        /// <inheritdoc/>
         public ValueTask CallAsync(OperationContext context,
                                    IList<CallMethodRequest> methodsToCall,
                                    IList<CallMethodResult> results,

@@ -1195,6 +1195,51 @@ namespace Opc.Ua.Server
             out BrowseResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
+#pragma warning disable CA2012 // Use ValueTasks correctly
+            (results, diagnosticInfos) = BrowseInternalAsync(
+                context,
+                view,
+                maxReferencesPerNode,
+                nodesToBrowse,
+                sync: true).Result;
+#pragma warning restore CA2012 // Use ValueTasks correctly
+        }
+
+        /// <summary>
+        /// Returns the set of references that meet the filter criteria.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public virtual ValueTask<(BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos)> BrowseAsync(
+            OperationContext context,
+            ViewDescription view,
+            uint maxReferencesPerNode,
+            BrowseDescriptionCollection nodesToBrowse,
+            CancellationToken cancellationToken = default)
+        {
+            return BrowseInternalAsync(
+                context,
+                view,
+                maxReferencesPerNode,
+                nodesToBrowse,
+                sync: false,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Returns the set of references that meet the filter criteria.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public virtual async ValueTask<(BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos)> 
+            BrowseInternalAsync(
+            OperationContext context,
+            ViewDescription view,
+            uint maxReferencesPerNode,
+            BrowseDescriptionCollection nodesToBrowse,
+            bool sync,
+            CancellationToken cancellationToken = default)
+        {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
@@ -1237,8 +1282,8 @@ namespace Opc.Ua.Server
             }
 
             bool diagnosticsExist = false;
-            results = new BrowseResultCollection(nodesToBrowse.Count);
-            diagnosticInfos = new DiagnosticInfoCollection(nodesToBrowse.Count);
+            var results = new BrowseResultCollection(nodesToBrowse.Count);
+            var diagnosticInfos = new DiagnosticInfoCollection(nodesToBrowse.Count);
 
             uint continuationPointsAssigned = 0;
 
@@ -1274,13 +1319,32 @@ namespace Opc.Ua.Server
                 // need to trap unexpected exceptions to handle bugs in the node managers.
                 try
                 {
-                    error = Browse(
-                        context,
-                        view,
-                        maxReferencesPerNode,
-                        continuationPointsAssigned < m_maxContinuationPointsPerBrowse,
-                        nodeToBrowse,
-                        result);
+                    if (sync)
+                    {
+#pragma warning disable CA2012 // Use ValueTasks correctly
+                        error = BrowseAsync(
+                            context,
+                            view,
+                            maxReferencesPerNode,
+                            continuationPointsAssigned < m_maxContinuationPointsPerBrowse,
+                            nodeToBrowse,
+                            result,
+                            sync,
+                            cancellationToken).Result;
+#pragma warning restore CA2012 // Use ValueTasks correctly
+                    }
+                    else
+                    {
+                        error = await BrowseAsync(
+                            context,
+                            view,
+                            maxReferencesPerNode,
+                            continuationPointsAssigned < m_maxContinuationPointsPerBrowse,
+                            nodeToBrowse,
+                            result,
+                            sync,
+                            cancellationToken).ConfigureAwait(false);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -1315,6 +1379,8 @@ namespace Opc.Ua.Server
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
+
+            return (results, diagnosticInfos);
         }
 
         /// <summary>
@@ -1371,6 +1437,48 @@ namespace Opc.Ua.Server
             out BrowseResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
+#pragma warning disable CA2012 // Use ValueTasks correctly
+            (results, diagnosticInfos) = BrowseNextInternalAsync(
+                context,
+                releaseContinuationPoints,
+                continuationPoints,
+                sync: true).Result;
+#pragma warning restore CA2012 // Use ValueTasks correctly
+        }
+
+        /// <summary>
+        /// Continues a browse operation that was previously halted.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public virtual ValueTask<(BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos)>
+            BrowseNextAsync(
+                OperationContext context,
+                bool releaseContinuationPoints,
+                ByteStringCollection continuationPoints,
+                CancellationToken cancellationToken = default)
+        {
+            return BrowseNextInternalAsync(
+                context,
+                releaseContinuationPoints,
+                continuationPoints,
+                sync: false,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Continues a browse operation that was previously halted.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        protected virtual async ValueTask<(BrowseResultCollection results, DiagnosticInfoCollection diagnosticInfos)>
+            BrowseNextInternalAsync(
+            OperationContext context,
+            bool releaseContinuationPoints,
+            ByteStringCollection continuationPoints,
+            bool sync,
+            CancellationToken cancellationToken = default)
+        {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
@@ -1382,14 +1490,14 @@ namespace Opc.Ua.Server
             }
 
             bool diagnosticsExist = false;
-            results = new BrowseResultCollection(continuationPoints.Count);
-            diagnosticInfos = new DiagnosticInfoCollection(continuationPoints.Count);
+            var results = new BrowseResultCollection(continuationPoints.Count);
+            var diagnosticInfos = new DiagnosticInfoCollection(continuationPoints.Count);
 
             uint continuationPointsAssigned = 0;
 
             for (int ii = 0; ii < continuationPoints.Count; ii++)
             {
-                ContinuationPoint cp = null;
+                ContinuationPoint cp;
 
                 // check if request has timed out or been canceled.
                 if (StatusCode.IsBad(context.OperationStatus))
@@ -1461,11 +1569,29 @@ namespace Opc.Ua.Server
                     {
                         ReferenceDescriptionCollection references = result.References;
 
-                        error = FetchReferences(
-                            context,
-                            continuationPointsAssigned < m_maxContinuationPointsPerBrowse,
-                            ref cp,
-                            ref references);
+                        if (sync)
+                        {
+#pragma warning disable CA2012 // Use ValueTasks correctly
+                            (error, cp, references) = FetchReferencesAsync(
+                                context,
+                                continuationPointsAssigned < m_maxContinuationPointsPerBrowse,
+                                cp,
+                                references,
+                                sync,
+                                cancellationToken).Result;
+#pragma warning restore CA2012 // Use ValueTasks correctly
+                        }
+                        else
+                        {
+                            (error, cp, references) = await FetchReferencesAsync(
+                                    context,
+                                    continuationPointsAssigned < m_maxContinuationPointsPerBrowse,
+                                    cp,
+                                    references,
+                                    sync,
+                                    cancellationToken)
+                                .ConfigureAwait(false);
+                        }
 
                         result.References = references;
                     }
@@ -1510,18 +1636,22 @@ namespace Opc.Ua.Server
 
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
+
+            return (results, diagnosticInfos);
         }
 
         /// <summary>
         /// Returns the set of references that meet the filter criteria.
         /// </summary>
-        protected ServiceResult Browse(
+        protected async ValueTask<ServiceResult> BrowseAsync(
             OperationContext context,
             ViewDescription view,
             uint maxReferencesPerNode,
             bool assignContinuationPoint,
             BrowseDescription nodeToBrowse,
-            BrowseResult result)
+            BrowseResult result,
+            bool sync,
+            CancellationToken cancellationToken = default)
         {
             Debug.Assert(context != null);
             Debug.Assert(nodeToBrowse != null);
@@ -1584,11 +1714,32 @@ namespace Opc.Ua.Server
 
             // loop until browse is complete or max results.
             ReferenceDescriptionCollection references = result.References;
-            ServiceResult error = FetchReferences(
-                context,
-                assignContinuationPoint,
-                ref cp,
-                ref references);
+
+            ServiceResult error;
+            if (sync)
+            {
+#pragma warning disable CA2012 // Use ValueTasks correctly
+                (error, cp, references) = FetchReferencesAsync(
+                   context,
+                   assignContinuationPoint,
+                   cp,
+                   references,
+                   sync,
+                   cancellationToken).Result;
+#pragma warning restore CA2012 // Use ValueTasks correctly
+            }
+            else
+            {
+                (error, cp, references) = await FetchReferencesAsync(
+                   context,
+                   assignContinuationPoint,
+                   cp,
+                   references,
+                   sync,
+                   cancellationToken)
+                   .ConfigureAwait(false);
+            }
+
             result.References = references;
 
             // save continuation point.
@@ -1605,11 +1756,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Loops until browse is complete for max results reached.
         /// </summary>
-        protected ServiceResult FetchReferences(
-            OperationContext context,
-            bool assignContinuationPoint,
-            ref ContinuationPoint cp,
-            ref ReferenceDescriptionCollection references)
+        protected async ValueTask<(
+            ServiceResult serviceResult,
+            ContinuationPoint cp,
+            ReferenceDescriptionCollection references
+            )> FetchReferencesAsync(
+                OperationContext context,
+                bool assignContinuationPoint,
+                ContinuationPoint cp,
+                ReferenceDescriptionCollection references,
+                bool sync,
+                CancellationToken cancellationToken = default)
         {
             Debug.Assert(context != null);
             Debug.Assert(cp != null);
@@ -1623,7 +1780,24 @@ namespace Opc.Ua.Server
             while (cp != null)
             {
                 // fetch next batch.
-                nodeManager.Browse(context, ref cp, references);
+                if (nodeManager is IBrowseAsyncNodeManager asyncNodeManager)
+                {
+                    if (sync)
+                    {
+                        Utils.LogWarning("Async Browse called synchronously. Prefer using BrowseAsync for best performance. NodeManager={0}", nodeManager);
+                        cp = asyncNodeManager.BrowseAsync(context, cp, references, cancellationToken)
+                            .AsTask().GetAwaiter().GetResult();
+                    }
+                    else
+                    {
+                        cp = await asyncNodeManager.BrowseAsync(context, cp, references, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                }
+                else
+                {
+                    nodeManager.Browse(context, ref cp, references);
+                }
 
                 var referencesToKeep = new ReferenceDescriptionCollection(references.Count);
 
@@ -1667,7 +1841,7 @@ namespace Opc.Ua.Server
                 {
                     if (!assignContinuationPoint)
                     {
-                        return StatusCodes.BadNoContinuationPoints;
+                        return (StatusCodes.BadNoContinuationPoints, cp, references);
                     }
 
                     cp.Id = Guid.NewGuid();
@@ -1677,7 +1851,7 @@ namespace Opc.Ua.Server
             }
 
             // all is good.
-            return ServiceResult.Good;
+            return (ServiceResult.Good, cp, references);
         }
 
         /// <summary>

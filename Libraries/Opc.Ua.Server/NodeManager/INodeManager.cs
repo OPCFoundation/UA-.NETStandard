@@ -527,6 +527,36 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// An asynchronous version of the "Browse" method defined on the <see cref="INodeManager2"/> interface.
+    /// </summary>
+    public interface IBrowseAsyncNodeManager
+    {
+        /// <summary>
+        /// Returns the set of references that meet the filter criteria.
+        /// </summary>
+        /// <param name="context">The context to used when processing the request.</param>
+        /// <param name="continuationPoint">The continuation point that stores the state of the Browse operation.</param>
+        /// <param name="references">The list of references that meet the filter criteria.</param>
+        /// <param name="cancellationToken">The cancellation token</param>
+        /// <remarks>
+        /// NodeManagers will likely have references to other NodeManagers which means they will not be able
+        /// to apply the NodeClassMask or fill in the attributes for the target Node. In these cases the
+        /// NodeManager must return a ReferenceDescription with the NodeId and ReferenceTypeId set. The caller will
+        /// be responsible for filling in the target attributes.
+        /// The references parameter may already contain references when the method is called. The implementer must
+        /// include these references when calculating whether a continuation point must be returned.
+        /// </remarks>
+        /// <returns>The continuation point that stores the state of the Browse operation or null if there are no more references to return.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if the context, continuationPoint or references parameters are null.</exception>
+        /// <exception cref="ServiceResultException">Thrown if an error occurs during processing.</exception>
+        ValueTask<ContinuationPoint> BrowseAsync(
+            OperationContext context,
+            ContinuationPoint continuationPoint,
+            IList<ReferenceDescription> references,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// An asynchronous verison of the <see cref="INodeManager2"/> interface.
     /// </summary>
     [Experimental("UA_NETStandard_1")]
@@ -537,7 +567,8 @@ namespace Opc.Ua.Server
         IHistoryReadAsyncNodeManager,
         IHistoryUpdateAsyncNodeManager,
         IConditionRefreshAsyncNodeManager,
-        ITranslateBrowsePathAsyncNodeManager;
+        ITranslateBrowsePathAsyncNodeManager,
+        IBrowseAsyncNodeManager;
 
     /// <summary>
     /// Stores metadata required to process requests related to a node.
