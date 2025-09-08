@@ -484,7 +484,7 @@ namespace Opc.Ua.Server
                 }
                 var nodeManagers = readOnlyNodeManagers.ToList();
 
-                nodeManagers.Remove(nodeManager);
+                bool nodeManagerFound = nodeManagers.Remove(nodeManager);
 
                 if (nodeManagers.Count == 0)
                 {
@@ -495,7 +495,7 @@ namespace Opc.Ua.Server
                     NamespaceManagers[namespaceIndex] = nodeManagers.AsReadOnly();
                 }
 
-                return true;
+                return nodeManagerFound;
             }
             finally
             {
