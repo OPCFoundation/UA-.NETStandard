@@ -111,13 +111,12 @@ namespace Opc.Ua.Server
                 {
                     RegisterNodeManager(nodeManager, registeredManagers, namespaceManagers);
                 }
+            }
 
-                NamespaceManagers = new ConcurrentDictionary<int, IReadOnlyList<INodeManager>>();
-                // build table from dictionary.
-                foreach (KeyValuePair<int, List<INodeManager>> namespaceManager in namespaceManagers)
-                {
-                    NamespaceManagers.TryAdd(namespaceManager.Key, namespaceManager.Value.AsReadOnly());
-                }
+            // build NamespaceManagersDictionary from local dictionary.
+            foreach (KeyValuePair<int, List<INodeManager>> namespaceManager in namespaceManagers)
+            {
+                NamespaceManagers.TryAdd(namespaceManager.Key, namespaceManager.Value.AsReadOnly());
             }
         }
 
@@ -493,10 +492,7 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    NamespaceManagers.AddOrUpdate(
-                        namespaceIndex,
-                        nodeManagers.AsReadOnly(),
-                        (key, existingNodeManagers) => nodeManagers.AsReadOnly());
+                    NamespaceManagers[namespaceIndex] = nodeManagers.AsReadOnly();
                 }
 
                 return true;
@@ -3129,7 +3125,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The namespace managers being managed
         /// </summary>
-        internal ConcurrentDictionary<int, IReadOnlyList<INodeManager>> NamespaceManagers { get; }
+        internal ConcurrentDictionary<int, IReadOnlyList<INodeManager>> NamespaceManagers { get; } = [];
 
         /// <summary>
         /// Validates a monitoring attributes parameter.
