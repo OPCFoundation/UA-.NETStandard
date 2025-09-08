@@ -827,14 +827,19 @@ namespace Opc.Ua.Server
                 // create/update publish queue.
                 m_publishQueues.AddOrUpdate(
                     session.Id,
-                    new SessionPublishQueue(
-                        m_server,
-                        session,
-                        m_maxPublishRequestCount),
+                    (key) =>
+                    {
+                        var queue = new SessionPublishQueue(
+                            m_server,
+                            session,
+                            m_maxPublishRequestCount);
+
+                        queue.Add(subscription);
+                        return queue;
+                    },
                     (key, queue) =>
                         {
                             queue.Add(subscription);
-
                             return queue;
                         }
                 );
