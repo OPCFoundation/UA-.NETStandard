@@ -57,6 +57,7 @@ namespace Opc.Ua.Server
 
             Server = server ?? throw new ArgumentNullException(nameof(server));
             m_nodeManagers = [];
+            m_asyncNodeManagers = [];
             m_maxContinuationPointsPerBrowse = (uint)configuration.ServerConfiguration
                 .MaxBrowseContinuationPoints;
 
@@ -92,8 +93,9 @@ namespace Opc.Ua.Server
 
             // add the core node manager second because the diagnostics node manager takes priority.
             // always add the core node manager to the second of the list.
-            m_nodeManagers.Add(
-                new CoreNodeManager(Server, configuration, (ushort)dynamicNamespaceIndex));
+            var coreNodeManager = new CoreNodeManager(Server, configuration, (ushort)dynamicNamespaceIndex);
+            m_nodeManagers.Add(coreNodeManager);
+            m_asyncNodeManagers.Add(coreNodeManager.ToAsyncNodeManager());
 
             // register core node manager for default UA namespace.
             namespaceManagers[0].Add(m_nodeManagers[1]);
@@ -131,6 +133,7 @@ namespace Opc.Ua.Server
             Dictionary<int, List<INodeManager>> namespaceManagers)
         {
             m_nodeManagers.Add(nodeManager);
+            m_asyncNodeManagers.Add(nodeManager.ToAsyncNodeManager());
 
             // ensure the NamespaceUris supported by the NodeManager are in the Server's NamespaceTable.
             if (nodeManager.NamespaceUris != null)
@@ -178,6 +181,7 @@ namespace Opc.Ua.Server
                 {
                     nodeManagers = [.. m_nodeManagers];
                     m_nodeManagers.Clear();
+                    m_asyncNodeManagers.Clear();
                 }
 
                 foreach (INodeManager nodeManager in nodeManagers)
@@ -2198,10 +2202,12 @@ namespace Opc.Ua.Server
             out CallMethodResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
+#pragma warning disable CA2012 // Use ValueTasks correctly
             (results, diagnosticInfos) = CallInternalAsync(
                 context,
                 methodsToCall,
                 sync: true).Result;
+#pragma warning restore CA2012 // Use ValueTasks correctly
         }
 
         /// <summary>
@@ -2274,36 +2280,31 @@ namespace Opc.Ua.Server
             // call each node manager.
             if (validItems)
             {
-                foreach (INodeManager nodeManager in m_nodeManagers)
+                foreach (IAsyncNodeManager asyncNodeManager in m_asyncNodeManagers)
                 {
-                    if (nodeManager is IAsyncNodeManager asyncNodeManager)
+                    if (sync)
                     {
-                        // call async node manager
-                        if (sync)
+                        if (asyncNodeManager is not AsyncNodeManagerAdapter)
                         {
                             Utils.LogWarning(
                                 "Async Method called sychronously. Prefer using CallAsync for best performance. NodeManager={0}",
-                                nodeManager);
-                            asyncNodeManager.CallAsync(
-                                context,
-                                methodsToCall,
-                                results,
-                                errors,
-                                cancellationToken).AsTask().GetAwaiter().GetResult();
+                                asyncNodeManager);
                         }
-                        else
-                        {
-                            await asyncNodeManager.CallAsync(
-                                context,
-                                methodsToCall,
-                                results,
-                                errors,
-                                cancellationToken).ConfigureAwait(false);
-                        }
+                        asyncNodeManager.CallAsync(
+                            context,
+                            methodsToCall,
+                            results,
+                            errors,
+                            cancellationToken).AsTask().GetAwaiter().GetResult();
                     }
                     else
                     {
-                        nodeManager.Call(context, methodsToCall, results, errors);
+                        await asyncNodeManager.CallAsync(
+                            context,
+                            methodsToCall,
+                            results,
+                            errors,
+                            cancellationToken).ConfigureAwait(false);
                     }
                 }
             }
@@ -3190,7 +3191,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The node managers being managed.
         /// </summary>
-        public IList<INodeManager> NodeManagers => m_nodeManagers;
+        public IReadOnlyList<INodeManager> NodeManagers => m_nodeManagers;
 
         /// <summary>
         /// The namespace managers being managed
@@ -3795,6 +3796,7 @@ namespace Opc.Ua.Server
 
         private readonly Lock m_lock = new();
         private readonly List<INodeManager> m_nodeManagers;
+        private readonly List<IAsyncNodeManager> m_asyncNodeManagers;
         private long m_lastMonitoredItemId;
         private readonly uint m_maxContinuationPointsPerBrowse;
         private readonly ReaderWriterLockSlim m_readWriterLockSlim = new();

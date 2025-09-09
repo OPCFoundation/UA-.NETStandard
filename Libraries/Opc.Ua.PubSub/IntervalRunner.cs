@@ -104,6 +104,14 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public void Start()
         {
+            lock (m_lock)
+            {
+                if (m_cancellationToken.IsCancellationRequested)
+                {
+                    m_cancellationToken.Dispose();
+                    m_cancellationToken = new CancellationTokenSource();
+                }
+            }
             Task.Run(ProcessAsync).ConfigureAwait(false);
             Utils.LogInfo("IntervalRunner with id: {0} was started.", Id);
         }

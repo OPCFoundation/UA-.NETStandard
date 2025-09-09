@@ -158,7 +158,6 @@ namespace Opc.Ua.Gds.Tests
         [OneTimeSetUp]
         protected async Task OneTimeSetUpAsync()
         {
-            
             // start GDS first clean, then restart server
             // to ensure the application cert is not 'fresh'
             m_server = await TestUtils.StartGDSAsync(true, CertificateStoreType.Directory, TestContext.Out).ConfigureAwait(false);
@@ -994,7 +993,7 @@ namespace Opc.Ua.Gds.Tests
                     await Task.Delay(retryInterval).ConfigureAwait(false);
                 }
             }
-            
+
             TestContext.Progress.WriteLine($"GDS Push({sysAdmin}) Connected -- {memberName}");
         }
 

@@ -479,7 +479,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 new Variant(s_valueArray),
                 //TODO: works as expected, but the expected need to be tweaked for the Int32 result
                 //new Variant(new TestEnumType[] { TestEnumType.One, TestEnumType.Two, TestEnumType.Hundred }),
-                new Variant(s_valueArray0, new TypeInfo(BuiltInType.Enumeration, 1))
+                new Variant(s_valueArray0,  TypeInfo.Arrays.Enumeration)
             };
             EncodeDecodeDataValue(
                 encoderType,

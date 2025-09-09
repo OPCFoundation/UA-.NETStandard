@@ -117,7 +117,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             object randomData = DataGenerator.GetRandom(builtInType);
             var variant1 = new Variant(randomData);
             Assert.AreEqual(builtInType, variant1.TypeInfo.BuiltInType);
-            var variant2 = new Variant(randomData, new TypeInfo(builtInType, ValueRanks.Scalar));
+            var variant2 = new Variant(randomData, TypeInfo.CreateScalar(builtInType));
             Assert.AreEqual(builtInType, variant2.TypeInfo.BuiltInType);
             var variant3 = new Variant(variant2);
             Assert.AreEqual(builtInType, variant3.TypeInfo.BuiltInType);
@@ -147,9 +147,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             {
                 Assert.AreEqual(builtInType, variant1.TypeInfo.BuiltInType);
             }
-            var variant2 = new Variant(
-                randomData,
-                new TypeInfo(builtInType, ValueRanks.OneDimension));
+            var variant2 = new Variant(randomData, TypeInfo.CreateArray(builtInType));
             Assert.AreEqual(builtInType, variant2.TypeInfo.BuiltInType);
         }
 
@@ -175,12 +173,12 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
 
             _ = new Variant(
                 DayOfWeek.Monday,
-                new TypeInfo(BuiltInType.Enumeration, ValueRanks.Scalar));
+                TypeInfo.Scalars.Enumeration);
 
             // Enum array
             var days = new DayOfWeek[] { DayOfWeek.Monday, DayOfWeek.Tuesday };
 
-            _ = new Variant(days, new TypeInfo(BuiltInType.Enumeration, ValueRanks.OneDimension));
+            _ = new Variant(days, TypeInfo.Arrays.Enumeration);
 
             _ = new Variant(days);
 
@@ -193,7 +191,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
 
             _ = new Variant(
                 daysdays,
-                new TypeInfo(BuiltInType.Enumeration, ValueRanks.TwoDimensions));
+                TypeInfo.Create(BuiltInType.Enumeration, ValueRanks.TwoDimensions));
 
             // not supported
             // Variant variant6 = new Variant(daysdays);
