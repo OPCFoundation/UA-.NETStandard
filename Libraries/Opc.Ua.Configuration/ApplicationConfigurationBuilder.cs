@@ -313,6 +313,13 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
+        [Obsolete("Use CreateAsync instead")]
+        public Task<ApplicationConfiguration> Create()
+        {
+            return CreateAsync();
+        }
+
+        /// <inheritdoc/>
         public async Task<ApplicationConfiguration> CreateAsync()
         {
             // sanity checks
