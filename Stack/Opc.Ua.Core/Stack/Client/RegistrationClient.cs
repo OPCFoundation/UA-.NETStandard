@@ -27,12 +27,14 @@ namespace Opc.Ua
         /// <param name="description">The description.</param>
         /// <param name="endpointConfiguration">The endpoint configuration.</param>
         /// <param name="instanceCertificate">The instance certificate.</param>
+        /// <param name="telemetry"></param>
         /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
         public static RegistrationClient Create(
             ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
-            X509Certificate2 instanceCertificate)
+            X509Certificate2 instanceCertificate,
+            ITelemetryContext telemetry)
         {
             if (configuration == null)
             {
@@ -49,7 +51,8 @@ namespace Opc.Ua
                 description,
                 endpointConfiguration,
                 instanceCertificate,
-                new ServiceMessageContext());
+                new ServiceMessageContext(),
+                telemetry);
 
             return new RegistrationClient(channel);
         }
@@ -68,12 +71,14 @@ namespace Opc.Ua
         /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
+        /// <param name="telemetry"></param>
         public static ITransportChannel Create(
             ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
-            IServiceMessageContext messageContext)
+            IServiceMessageContext messageContext,
+            ITelemetryContext telemetry)
         {
             // create a UA binary channel.
             ITransportChannel channel = CreateUaBinaryChannel(
@@ -81,7 +86,8 @@ namespace Opc.Ua
                 description,
                 endpointConfiguration,
                 clientCertificate,
-                messageContext);
+                messageContext,
+                telemetry);
 
             // create a registration channel.
             if (channel == null)

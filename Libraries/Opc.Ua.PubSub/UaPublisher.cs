@@ -107,7 +107,7 @@ namespace Opc.Ua.PubSub
         public void Start()
         {
             m_intervalRunner.Start();
-            Utils.LogInfo(
+            Utils.LogInformation(
                 "The UaPublisher for WriterGroup '{0}' was started.",
                 WriterGroupConfiguration.Name);
         }
@@ -119,7 +119,7 @@ namespace Opc.Ua.PubSub
         {
             m_intervalRunner.Stop();
 
-            Utils.LogInfo(
+            Utils.LogInformation(
                 "The UaPublisher for WriterGroup '{0}' was stopped.",
                 WriterGroupConfiguration.Name);
         }
@@ -152,7 +152,7 @@ namespace Opc.Ua.PubSub
                         if (uaNetworkMessage != null)
                         {
                             bool success = PubSubConnection.PublishNetworkMessage(uaNetworkMessage);
-                            Utils.LogInfo(
+                            Utils.LogInformation(
                                 "UaPublisher - PublishNetworkMessage, WriterGroupId:{0}; success = {1}",
                                 WriterGroupConfiguration.WriterGroupId,
                                 success.ToString());

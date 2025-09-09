@@ -19,6 +19,8 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Opc.Ua.Security;
 
 namespace Opc.Ua.Bindings
 {
@@ -38,7 +40,8 @@ namespace Opc.Ua.Bindings
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
             X509Certificate2 serverCertificate,
-            EndpointDescription endpoint)
+            EndpointDescription endpoint,
+            ITelemetryContext telemetry)
             : base(
                 contextId,
                 bufferManager,
@@ -46,8 +49,11 @@ namespace Opc.Ua.Bindings
                 serverCertificate,
                 endpoint != null ? [.. new EndpointDescription[] { endpoint }] : null,
                 endpoint != null ? endpoint.SecurityMode : MessageSecurityMode.None,
-                endpoint != null ? endpoint.SecurityPolicyUri : SecurityPolicies.None)
+                endpoint != null ? endpoint.SecurityPolicyUri : SecurityPolicies.None,
+                telemetry)
         {
+            m_logger = telemetry.CreateLogger<UaSCUaBinaryClientChannel>();
+
             if (endpoint != null && endpoint.SecurityMode != MessageSecurityMode.None)
             {
                 if (clientCertificate == null)
@@ -181,7 +187,7 @@ namespace Opc.Ua.Bindings
             try
             {
                 operation.End(int.MaxValue);
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "CLIENTCHANNEL SOCKET CONNECTED: {0:X8}, ChannelId={1}",
                     Socket.Handle,
                     ChannelId);
@@ -214,7 +220,7 @@ namespace Opc.Ua.Bindings
             try
             {
                 await operation.EndAsync(int.MaxValue, true, ct).ConfigureAwait(false);
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "CLIENTCHANNEL SOCKET CONNECTED: {0:X8}, ChannelId={1}",
                     Socket.Handle,
                     ChannelId);
@@ -740,7 +746,7 @@ namespace Opc.Ua.Bindings
                 // log security information.
                 if (State == TcpChannelState.Opening)
                 {
-                    Security.Audit.SecureChannelCreated(
+                    m_logger.SecureChannelCreated(
                         implementation,
                         m_url.ToString(),
                         Utils.Format("{0}", channelId),
@@ -751,8 +757,7 @@ namespace Opc.Ua.Bindings
                 }
                 else
                 {
-                    Security.Audit
-                        .SecureChannelRenewed(implementation, Utils.Format("{0}", channelId));
+                    m_logger.SecureChannelRenewed(implementation, Utils.Format("{0}", channelId));
                 }
 
                 ChannelId = m_requestedToken.ChannelId = channelId;
@@ -996,7 +1001,7 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "ChannelId {0}: Scheduled Handshake Starting: TokenId={1}",
                     ChannelId,
                     CurrentToken?.TokenId);
@@ -1008,7 +1013,7 @@ namespace Opc.Ua.Bindings
 
                     if (token == CurrentToken)
                     {
-                        Utils.LogInfo(
+                        Utils.LogInformation(
                             "ChannelId {0}: Attempting Renew Token Now: TokenId={1}",
                             ChannelId,
                             token?.TokenId);
@@ -1036,7 +1041,7 @@ namespace Opc.Ua.Bindings
                         return;
                     }
 
-                    Utils.LogInfo("ChannelId {0}: Attempting Reconnect Now.", ChannelId);
+                    Utils.LogInformation("ChannelId {0}: Attempting Reconnect Now.", ChannelId);
 
                     // cancel any previous attempt.
                     if (m_handshakeOperation != null)
@@ -1057,7 +1062,7 @@ namespace Opc.Ua.Bindings
                     if (socket != null)
                     {
                         Socket = null;
-                        Utils.LogInfo(
+                        Utils.LogInformation(
                             "ChannelId {0}: CLIENTCHANNEL SOCKET CLOSED ON SCHEDULED HANDSHAKE: {1:X8}",
                             channelId,
                             socket.Handle);
@@ -1278,7 +1283,7 @@ namespace Opc.Ua.Bindings
                 if (socket != null)
                 {
                     Socket = null;
-                    Utils.LogInfo(
+                    Utils.LogInformation(
                         "ChannelId {0}: CLIENTCHANNEL SOCKET CLOSED SHUTDOWN: {1:X8}",
                         channelId,
                         socket.Handle);
@@ -1347,7 +1352,7 @@ namespace Opc.Ua.Bindings
                 State = TcpChannelState.Faulted;
 
                 // schedule a reconnect.
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "ChannelId {0}: Attempting Reconnect in {1} ms. Reason: {2}",
                     ChannelId,
                     m_waitBetweenReconnects,
@@ -1406,7 +1411,7 @@ namespace Opc.Ua.Bindings
                 timeToRenewal = 0;
             }
 
-            Utils.LogInfo(
+            Utils.LogInformation(
                 "ChannelId {0}: Token Expiry {1:HH:mm:ss.fff}, renewal scheduled at {2:HH:mm:ss.fff} in {3} ms.",
                 ChannelId,
                 token.CreatedAt.AddMilliseconds(token.Lifetime),
@@ -1769,6 +1774,7 @@ namespace Opc.Ua.Bindings
         private readonly AsyncCallback m_handshakeComplete;
         private List<QueuedOperation> m_queuedOperations;
         private readonly Random m_random;
+        private readonly ILogger m_logger;
 
         private static readonly string s_implementationString =
             "UA.NETStandard ClientChannel {0} " + Utils.GetAssemblyBuildNumber();

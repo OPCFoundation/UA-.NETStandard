@@ -118,7 +118,7 @@ namespace Opc.Ua.PubSub.Transport
                 "configuredEndpoint = {0}",
                 configuredEndpoint != null ? configuredEndpoint.ToString() : "null");
 
-            Utils.LogInfo(buffer.ToString());
+            Utils.LogInformation(buffer.ToString());
 
             var udpClients = new List<UdpClient>();
             //validate input parameters
@@ -132,7 +132,7 @@ namespace Opc.Ua.PubSub.Transport
             NetworkInterface[] interfaces = NetworkInterface.GetAllNetworkInterfaces();
             if (string.IsNullOrEmpty(networkInterface))
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "No NetworkInterface name was provided. Use all available NICs.");
                 usableNetworkInterfaces.AddRange(interfaces);
             }
@@ -148,7 +148,7 @@ namespace Opc.Ua.PubSub.Transport
                 }
                 if (usableNetworkInterfaces.Count == 0)
                 {
-                    Utils.LogInfo(
+                    Utils.LogInformation(
                         "The configured value for NetworkInterface name('{0}') could not be used.",
                         networkInterface);
                     usableNetworkInterfaces.AddRange(interfaces);
@@ -157,7 +157,7 @@ namespace Opc.Ua.PubSub.Transport
 
             foreach (NetworkInterface nic in usableNetworkInterfaces)
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "NetworkInterface name('{0}') attempts to create instance of UdpClient.",
                     nic.Name);
 
@@ -181,7 +181,7 @@ namespace Opc.Ua.PubSub.Transport
                 }
                 //store UdpClient
                 udpClients.Add(udpClient);
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "NetworkInterface name('{0}') UdpClient successfully created.",
                     nic.Name);
             }
@@ -254,7 +254,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "Cannot use Network interface '{0}'. Exception: {1}",
                     networkInterface.Name,
                     ex.Message);

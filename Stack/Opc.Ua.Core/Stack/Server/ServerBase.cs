@@ -26,6 +26,7 @@ using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -37,8 +38,10 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes object with default values.
         /// </summary>
-        public ServerBase()
+        public ServerBase(ITelemetryContext telemetry = null)
         {
+            Telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<ServerBase>();
             m_messageContext = new ServiceMessageContext();
             m_serverError = new ServiceResult(StatusCodes.BadServerHalted);
             ServiceHosts = [];
@@ -89,6 +92,11 @@ namespace Opc.Ua
                 Utils.SilentDispose(m_requestQueue);
             }
         }
+
+        /// <summary>
+        /// This must be set by the derived class to initialize the telemtry system
+        /// </summary>
+        public ITelemetryContext Telemetry { get; init; }
 
         /// <summary>
         /// The message context to use with the service.
@@ -201,7 +209,7 @@ namespace Opc.Ua
         {
             ITransportListener listener = null;
 
-            Utils.LogInfo("Create Reverse Connection to Client at {0}.", url);
+            m_logger.LogInformation("Create Reverse Connection to Client at {0}.", url);
 
             if (TransportListeners != null)
             {
@@ -535,7 +543,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(
+                        m_logger.LogError(
                             e,
                             "Unexpected error closing a listener. {0}",
                             listeners[ii].GetType().FullName);
@@ -828,7 +836,7 @@ namespace Opc.Ua
                 {
                     message.Append(' ').Append(e.InnerException.Message);
                 }
-                Utils.LogError(e, message.ToString());
+                m_logger.LogError(e, message.ToString());
                 throw;
             }
         }
@@ -913,7 +921,7 @@ namespace Opc.Ua
                 }
                 catch (SocketException e)
                 {
-                    Utils.LogWarning(e, "Unable to get host addresses for hostname {0}.", hostname);
+                    m_logger.LogWarning(e, "Unable to get host addresses for hostname {0}.", hostname);
                 }
 
                 if (addresses.Length == 0)
@@ -925,7 +933,7 @@ namespace Opc.Ua
                     }
                     catch (SocketException e)
                     {
-                        Utils.LogError(
+                        m_logger.LogError(
                             e,
                             "Unable to get host addresses for DNS hostname {0}.",
                             fullName);
@@ -953,7 +961,7 @@ namespace Opc.Ua
             }
             catch (SocketException e)
             {
-                Utils.LogError(e, "Unable to check aliases for hostname {0}.", computerName);
+                m_logger.LogError(e, "Unable to check aliases for hostname {0}.", computerName);
             }
 
             if (entry != null)
@@ -1358,7 +1366,7 @@ namespace Opc.Ua
 
             // load the instance certificate.
             X509Certificate2 defaultInstanceCertificate = null;
-            InstanceCertificateTypesProvider = new CertificateTypesProvider(configuration);
+            InstanceCertificateTypesProvider = new CertificateTypesProvider(configuration, Telemetry);
             InstanceCertificateTypesProvider.InitializeAsync().GetAwaiter().GetResult();
 
             foreach (ServerSecurityPolicy securityPolicy in configuration.ServerConfiguration
@@ -1587,7 +1595,7 @@ namespace Opc.Ua
                         monitorExit = false;
                         Monitor.Exit(m_lock);
                         request.OperationCompleted(null, StatusCodes.BadServerHalted);
-                        Utils.LogTrace("Server halted.");
+                        m_logger.LogTrace("Server halted.");
                     }
                     // check if we're able to schedule requests.
                     else if (m_queue.Count >= m_maxRequestCount)
@@ -1600,7 +1608,7 @@ namespace Opc.Ua
 
                         request.OperationCompleted(null, StatusCodes.BadServerTooBusy);
 
-                        Utils.LogTrace(
+                        m_logger.LogTrace(
                             "Too many operations. Total: {0} Active: {1}",
                             totalThreadCount,
                             activeThreadCount);
@@ -1626,7 +1634,7 @@ namespace Opc.Ua
                             var thread = new Thread(OnProcessRequestQueue) { IsBackground = true };
                             thread.Start(null);
 
-                            Utils.LogTrace(
+                            m_logger.LogTrace(
                                 "Thread created: {0:X8}. Total: {1} Active: {2}",
                                 thread.ManagedThreadId,
                                 totalThreadCount,
@@ -1665,7 +1673,7 @@ namespace Opc.Ua
                                     m_totalThreadCount > m_minThreadCount))
                             {
                                 m_totalThreadCount--;
-                                Utils.LogTrace(
+                                m_logger.LogTrace(
                                     "Thread ended: {0:X8}. Total: {1} Active: {2}",
                                     Environment.CurrentManagedThreadId,
                                     m_totalThreadCount,
@@ -1687,7 +1695,7 @@ namespace Opc.Ua
                         }
                         catch (Exception e)
                         {
-                            Utils.LogError(e, "Unexpected error processing incoming request.");
+                            m_logger.LogError(e, "Unexpected error processing incoming request.");
                         }
                         finally
                         {
@@ -1787,7 +1795,7 @@ namespace Opc.Ua
                 if (m_stopped)
                 {
                     request.OperationCompleted(null, StatusCodes.BadServerHalted);
-                    Utils.LogTrace("Server halted.");
+                    m_server.m_logger.LogTrace("Server halted.");
                     return;
                 }
 
@@ -1795,7 +1803,7 @@ namespace Opc.Ua
                 if (m_queuedRequestsCount >= m_maxRequestCount)
                 {
                     request.OperationCompleted(null, StatusCodes.BadServerTooBusy);
-                    Utils.LogTrace("Too many operations. Active: {0}", m_activeThreadCount);
+                    m_server.m_logger.LogTrace("Too many operations. Active: {0}", m_activeThreadCount);
                     return;
                 }
                 // Optionally scale up workers if needed
@@ -1844,7 +1852,7 @@ namespace Opc.Ua
                             }
                             catch (Exception ex)
                             {
-                                Utils.LogError(ex, "Unexpected error processing incoming request.");
+                                m_server.m_logger.LogError(ex, "Unexpected error processing incoming request.");
                                 request.OperationCompleted(null, StatusCodes.BadInternalError);
                             }
                             finally
@@ -1886,6 +1894,7 @@ namespace Opc.Ua
         private object m_configuration;
         private object m_serverDescription;
         private RequestQueue m_requestQueue;
+        private ILogger m_logger;
 
         /// <summary>
         /// identifier for the UserTokenPolicy should be unique within the context of a single Server

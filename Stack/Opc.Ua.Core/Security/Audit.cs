@@ -11,6 +11,7 @@
 */
 
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Security
 {
@@ -22,6 +23,7 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Called when a secure channel is created by the client.
         /// </summary>
+        /// <param name="logger"></param>
         /// <param name="implementationInfo">Information about the secure channel implementation.</param>
         /// <param name="endpointUrl">The identifier assigned to the secure channel</param>
         /// <param name="secureChannelId">The identifier assigned to the secure channel</param>
@@ -30,6 +32,7 @@ namespace Opc.Ua.Security
         /// <param name="serverCertificate">The server certificate.</param>
         /// <param name="encodingSupport">The type of encoding supported by the channel.</param>
         public static void SecureChannelCreated(
+            this ILogger logger,
             string implementationInfo,
             string endpointUrl,
             string secureChannelId,
@@ -60,8 +63,8 @@ namespace Opc.Ua.Security
                     encoding = "BinaryOrXml";
                 }
 
-                Utils.LogInfo(
-                    "SECURE CHANNEL CREATED [{0}] [ID={1}] Connected To: {2} [{3}/{4}/{5}]",
+                logger.LogInformation(
+                    "SECURE CHANNEL CREATED [{ImplementationInfo}] [ID={SecureChannelId}] Connected To: {EndpointUrl} [{SecurityMode}/{SecurityPolicyUri}/{Encoding}]",
                     implementationInfo,
                     secureChannelId,
                     endpointUrl,
@@ -71,14 +74,14 @@ namespace Opc.Ua.Security
 
                 if (endpoint.SecurityMode != MessageSecurityMode.None)
                 {
-                    Utils.LogCertificate("Client Certificate: ", clientCertificate);
-                    Utils.LogCertificate("Server Certificate: ", serverCertificate);
+                    logger.LogCertificate("Client Certificate: ", clientCertificate);
+                    logger.LogCertificate("Server Certificate: ", serverCertificate);
                 }
             }
             else
             {
-                Utils.LogInfo(
-                    "SECURE CHANNEL CREATED [{0}] [ID={1}] Connected To: {2}",
+                logger.LogInformation(
+                    "SECURE CHANNEL CREATED [{ImplementationInfo}] [ID={SecureChannelId}] Connected To: {EndpointUrl}",
                     implementationInfo,
                     secureChannelId,
                     endpointUrl);
@@ -88,9 +91,13 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Called when a secure channel is renewed by the client.
         /// </summary>
+        /// <param name="logger"></param>
         /// <param name="implementationInfo">Information about the secure channel implementation.</param>
         /// <param name="secureChannelId">The identifier assigned to the secure channel.</param>
-        public static void SecureChannelRenewed(string implementationInfo, string secureChannelId)
+        public static void SecureChannelRenewed(
+            this ILogger logger,
+            string implementationInfo,
+            string secureChannelId)
         {
             // do nothing if security turned off.
             if ((Utils.TraceMask & Utils.TraceMasks.Security) == 0)
@@ -98,8 +105,8 @@ namespace Opc.Ua.Security
                 return;
             }
 
-            Utils.LogInfo(
-                "SECURE CHANNEL RENEWED [{0}] [ID={1}]",
+            logger.LogInformation(
+                "SECURE CHANNEL RENEWED [{ImplementationInfo}] [ID={SecureChannelId}]",
                 implementationInfo,
                 secureChannelId);
         }

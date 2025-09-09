@@ -34,12 +34,21 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public ApplicationConfiguration(ITelemetryContext telemetry)
+        {
+            m_telemetry = telemetry;
+
+            Initialize();
+        }
+
+        /// <summary>
         /// The constructor from a template.
         /// </summary>
         public ApplicationConfiguration(ApplicationConfiguration template)
         {
-            Initialize();
-
+            m_telemetry = template.m_telemetry;
             ApplicationName = template.ApplicationName;
             ApplicationType = template.ApplicationType;
             ApplicationUri = template.ApplicationUri;
@@ -69,7 +78,7 @@ namespace Opc.Ua
             m_transportConfigurations = [];
             DisableHiResClock = false;
             m_properties = [];
-            CertificateValidator = new CertificateValidator();
+            CertificateValidator = new CertificateValidator(m_telemetry);
             m_extensionObjects = [];
         }
 
@@ -208,6 +217,7 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 12)]
         public bool DisableHiResClock { get; set; }
 
+        private readonly ITelemetryContext m_telemetry;
         private SecurityConfiguration m_securityConfiguration;
         private TransportConfigurationCollection m_transportConfigurations;
         private XmlElementCollection m_extensions;

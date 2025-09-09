@@ -65,7 +65,7 @@ namespace Opc.Ua
     /// name collisions with anything that is called 'Log'
     /// the Utils class hosts the Logger class.
     /// </remarks>
-    public partial class Utils
+    public static partial class Utils
     {
         /// <summary>
         /// The high performance EventSource log interface.
@@ -246,58 +246,66 @@ namespace Opc.Ua
         /// <summary>
         /// Formats and writes a log message for a certificate.
         /// </summary>
+        /// <param name="logger"></param>
         /// <param name="message">The log message as string.</param>
         /// <param name="certificate">The certificate information to be logged.</param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         public static void LogCertificate(
+            this ILogger logger,
             string message,
             X509Certificate2 certificate,
             params object[] args)
         {
-            LogCertificate(LogLevel.Information, 0, message, certificate, args);
+            LogCertificate(logger, LogLevel.Information, 0, message, certificate, args);
         }
 
         /// <summary>
         /// Formats and writes a log message for a certificate.
         /// </summary>
+        /// <param name="logger"></param>
         /// <param name="logLevel">Entry will be written on this level.</param>
         /// <param name="message">The log message as string.</param>
         /// <param name="certificate">The certificate information to be logged.</param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         public static void LogCertificate(
+            this ILogger logger,
             LogLevel logLevel,
             string message,
             X509Certificate2 certificate,
             params object[] args)
         {
-            LogCertificate(logLevel, 0, message, certificate, args);
+            LogCertificate(logger, logLevel, 0, message, certificate, args);
         }
 
         /// <summary>
         /// Formats and writes a log message for a certificate.
         /// </summary>
+        /// <param name="logger"></param>
         /// <param name="eventId">The event id associated with the log.</param>
         /// <param name="message">The log message as string.</param>
         /// <param name="certificate">The certificate information to be logged.</param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         public static void LogCertificate(
+            this ILogger logger,
             EventId eventId,
             string message,
             X509Certificate2 certificate,
             params object[] args)
         {
-            LogCertificate(LogLevel.Information, eventId, message, certificate, args);
+            LogCertificate(logger, LogLevel.Information, eventId, message, certificate, args);
         }
 
         /// <summary>
         /// Formats and writes a log message for a certificate.
         /// </summary>
+        /// <param name="logger"></param>
         /// <param name="logLevel">Entry will be written on this level.</param>
         /// <param name="eventId">The event id associated with the log.</param>
         /// <param name="message">The log message as string.</param>
         /// <param name="certificate">The certificate information to be logged.</param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         public static void LogCertificate(
+            this ILogger logger,
             LogLevel logLevel,
             EventId eventId,
             string message,
@@ -322,12 +330,12 @@ namespace Opc.Ua
                     }
                     allArgs[argsLength] = Redact.Create(certificate.Subject);
                     allArgs[argsLength + 1] = certificate.Thumbprint;
-                    Log(logLevel, eventId, builder.ToString(), allArgs);
+                    logger.Log(logLevel, eventId, builder.ToString(), allArgs);
                 }
                 else
                 {
                     builder.Append(" (none)");
-                    Log(logLevel, eventId, builder.ToString(), args);
+                    logger.Log(logLevel, eventId, builder.ToString(), args);
                 }
             }
         }
@@ -464,7 +472,7 @@ namespace Opc.Ua
         /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogInformation(0, exception, "Error while processing request from {Address}", address)</example>
-        public static void LogInfo(
+        public static void LogInformation(
             EventId eventId,
             Exception exception,
             string message,
@@ -480,7 +488,7 @@ namespace Opc.Ua
         /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogInformation(0, "Processing request from {Address}", address)</example>
-        public static void LogInfo(EventId eventId, string message, params object[] args)
+        public static void LogInformation(EventId eventId, string message, params object[] args)
         {
             Log(LogLevel.Information, eventId, message, args);
         }
@@ -492,7 +500,7 @@ namespace Opc.Ua
         /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogInformation(exception, "Error while processing request from {Address}", address)</example>
-        public static void LogInfo(Exception exception, string message, params object[] args)
+        public static void LogInformation(Exception exception, string message, params object[] args)
         {
             Log(LogLevel.Information, exception, message, args);
         }
@@ -503,7 +511,7 @@ namespace Opc.Ua
         /// <param name="message">Format string of the log message in message template format. Example: <c>"User {User} logged in from {Address}"</c></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogInformation("Processing request from {Address}", address)</example>
-        public static void LogInfo(string message, params object[] args)
+        public static void LogInformation(string message, params object[] args)
         {
             Log(LogLevel.Information, message, args);
         }
@@ -803,7 +811,7 @@ namespace Opc.Ua
             }
             else if ((traceMask & informationMask) != 0)
             {
-                LogInfo(traceMask, format, args);
+                LogInformation(traceMask, format, args);
             }
             else
             {
@@ -1075,31 +1083,5 @@ namespace Opc.Ua
                 }
             }
         }
-    }
-
-    /// <summary>
-    /// Extensions for the <see cref="IObservabilityContext"/>.
-    /// </summary>
-    public static class ObservabilityContextExtensions
-    {
-        /// <summary>
-        /// Get logger factory from observability context
-        /// </summary>
-        public static ILoggerFactory GetLoggerFactory(this IObservabilityContext? context)
-        {
-            return context?.LoggerFactory ?? s_loggerFactory.Value;
-        }
-
-        /// <summary>
-        /// Create logger for a type name
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        public static ILogger<T> CreateLogger<T>(this IObservabilityContext? context)
-        {
-            return context.GetLoggerFactory().CreateLogger<T>();
-        }
-
-        private static readonly Lazy<ILoggerFactory> s_loggerFactory =
-            new(() => new NullLoggerFactory());
     }
 }

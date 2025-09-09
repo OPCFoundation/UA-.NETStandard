@@ -843,7 +843,7 @@ namespace Opc.Ua.PubSub.Encoding
                                 fieldMetaData.ValueRank,
                                 (BuiltInType)fieldMetaData.BuiltInType);
                         default:
-                            Utils.LogInfo(
+                            Utils.LogInformation(
                                 "Decoding ValueRank = {0} not supported yet !!!",
                                 fieldMetaData.ValueRank);
                             break;

@@ -243,7 +243,7 @@ namespace Opc.Ua.Server.Tests
                                 ii,
                                 response,
                                 stringTable);
-                            Utils.LogInfo("DiagnosticInfo: {0}", serviceResult.ToString());
+                            Utils.LogInformation("DiagnosticInfo: {0}", serviceResult.ToString());
                         }
                     }
                 }

@@ -12,9 +12,7 @@
   </PropertyGroup>
   <!-- select ECC support -->
   <Choose>
-    <When
-      Condition="'$(TargetFramework)' == 'net462' OR '$(TargetFramework)' == 'netstandard2.0'"
-    ></When>
+    <When Condition="'$(TargetFramework)' == 'net462' OR '$(TargetFramework)' == 'netstandard2.0'"></When>
     <Otherwise>
       <PropertyGroup>
         <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
@@ -72,19 +70,10 @@
     <EmbeddedResource Include="$(ZipNodeSet2XML)" Link="$(NodeSet2XML).zip" />
   </ItemGroup>
   <!-- Zip the NodeSet2 file -->
-  <Target
-    Name="ZipNodeSet2"
-    BeforeTargets="PrepareForBuild"
-    Inputs="$(NodeSet2XML)"
-    Outputs="$(ZipNodeSet2XML)"
-  >
+  <Target Name="ZipNodeSet2" BeforeTargets="PrepareForBuild" Inputs="$(NodeSet2XML)" Outputs="$(ZipNodeSet2XML)">
     <Message Text="Zip $(NodeSet2XML) in $(ZipNodeSet2XML)." Importance="high" />
     <Copy SourceFiles="$(NodeSet2XML)" DestinationFolder="$(ZipTmp)" />
-    <ZipDirectory
-      SourceDirectory="$(ZipTmp)"
-      DestinationFile="$(ZipNodeSet2XML)"
-      Overwrite="true"
-    />
+    <ZipDirectory SourceDirectory="$(ZipTmp)" DestinationFile="$(ZipNodeSet2XML)" Overwrite="true" />
     <RemoveDir Directories="$(ZipTmp)" />
     <Message Text="Zip NodeSet2 completed, $(ZipTmp) removed." Importance="high" />
   </Target>

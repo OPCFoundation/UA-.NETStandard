@@ -18,6 +18,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -52,12 +53,18 @@ namespace Opc.Ua
         /// Creates a certificate from a buffer with DER encoded certificate.
         /// </summary>
         /// <param name="encodedData">The encoded data.</param>
-        /// <param name="useCache">if set to <c>true</c> the copy of the certificate in the cache is used.</param>
+        /// <param name="useCache">if set to <c>true</c> the copy of the certificate
+        /// in the cache is used.</param>
+        /// <param name="logger"></param>
         /// <returns>The certificate.</returns>
-        public static X509Certificate2 Create(ReadOnlyMemory<byte> encodedData, bool useCache)
+        public static X509Certificate2 Create(
+            ReadOnlyMemory<byte> encodedData,
+            bool useCache,
+            ILogger logger)
         {
 #if NET6_0_OR_GREATER
-            X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(encodedData.Span);
+            X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(
+                encodedData.Span);
 #else
             X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(
                 encodedData.ToArray());
@@ -65,7 +72,7 @@ namespace Opc.Ua
 
             if (useCache)
             {
-                return Load(certificate, false);
+                return Load(certificate, false, logger);
             }
             return certificate;
         }
@@ -74,7 +81,9 @@ namespace Opc.Ua
         /// Loads the cached version of a certificate.
         /// </summary>
         /// <param name="certificate">The certificate to load.</param>
-        /// <param name="ensurePrivateKeyAccessible">If true a key container is created for a certificate that must be deleted by calling Cleanup.</param>
+        /// <param name="ensurePrivateKeyAccessible">If true a key container is created
+        /// for a certificate that must be deleted by calling Cleanup.</param>
+        /// <param name="logger"></param>
         /// <returns>The cached certificate.</returns>
         /// <remarks>
         /// This function is necessary because all private keys used for cryptography
@@ -83,7 +92,8 @@ namespace Opc.Ua
         /// </remarks>
         public static X509Certificate2 Load(
             X509Certificate2 certificate,
-            bool ensurePrivateKeyAccessible)
+            bool ensurePrivateKeyAccessible,
+            ILogger logger)
         {
             if (certificate == null)
             {
@@ -115,7 +125,7 @@ namespace Opc.Ua
                 if (ensurePrivateKeyAccessible &&
                     !X509Utils.VerifyKeyPair(certificate, certificate))
                 {
-                    Utils.LogWarning(
+                    logger.LogWarning(
                         "Trying to add certificate to cache with invalid private key.");
                     return null;
                 }
@@ -125,7 +135,7 @@ namespace Opc.Ua
 
                 if (s_certificates.Count > 100)
                 {
-                    Utils.LogWarning(
+                    logger.LogWarning(
                         "Certificate cache has {0} certificates in it.",
                         s_certificates.Count);
                 }

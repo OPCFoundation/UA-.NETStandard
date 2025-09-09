@@ -336,14 +336,14 @@ namespace Opc.Ua.Client
                     keepaliveRecovered = true;
                     // breaking change, the callback must only assign the new
                     // session if the property is != null
-                    Utils.LogInfo(
+                    Utils.LogInformation(
                         "Reconnect {0} aborted, KeepAlive recovered.",
                         Session?.SessionId);
                     Session = null;
                 }
                 else
                 {
-                    Utils.LogInfo("Reconnect {0}.", Session?.SessionId);
+                    Utils.LogInformation("Reconnect {0}.", Session?.SessionId);
                 }
 
                 // do the reconnect or recover state.
@@ -377,7 +377,7 @@ namespace Opc.Ua.Client
                     else
                     {
                         int elapsed = HiResClock.TickCount - reconnectStart;
-                        Utils.LogInfo(
+                        Utils.LogInformation(
                             "Reconnect period is {0} ms, {1} ms elapsed in reconnect.",
                             m_reconnectPeriod,
                             elapsed);
@@ -385,7 +385,7 @@ namespace Opc.Ua.Client
                             m_reconnectPeriod - elapsed);
                         adjustedReconnectPeriod = JitteredReconnectPeriod(adjustedReconnectPeriod);
                         m_reconnectTimer.Change(adjustedReconnectPeriod, Timeout.Infinite);
-                        Utils.LogInfo(
+                        Utils.LogInformation(
                             "Next adjusted reconnect scheduled in {0} ms.",
                             adjustedReconnectPeriod);
                         m_reconnectPeriod = CheckedReconnectPeriod(m_reconnectPeriod, true);
@@ -447,7 +447,7 @@ namespace Opc.Ua.Client
                                 (HiResClock.TickCount - Session.LastKeepAliveTickCount);
                             if (timeout > 0)
                             {
-                                Utils.LogInfo(
+                                Utils.LogInformation(
                                     "Retry to reactivate, est. session timeout in {0} ms.",
                                     timeout);
                                 return false;
@@ -459,7 +459,7 @@ namespace Opc.Ua.Client
                             .BadCertificateInvalid)
                         {
                             m_updateFromServer = true;
-                            Utils.LogInfo(
+                            Utils.LogInformation(
                                 "Reconnect failed due to security check. Request endpoint update from server. {0}",
                                 sre.Message);
                         }

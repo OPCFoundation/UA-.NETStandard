@@ -32,22 +32,45 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 #nullable enable
 
 namespace Opc.Ua
 {
     /// <summary>
-    /// Extensions for the <see cref="IObservabilityContext"/>.
+    /// Extensions for the <see cref="ITelemetryContext"/>.
     /// </summary>
-    public static class ObservabilityExtensions
+    public static class TelemetryExtensions
     {
+        /// <summary>
+        /// Get a logger factory from a context with or without logger factory
+        /// Returns the default logger factory if none is provided.
+        /// </summary>
+        /// <param name="context"></param>
+        /// <returns></returns>
+        public static ILoggerFactory GetLoggerFactory(this ITelemetryContext? context)
+        {
+            return context?.LoggerFactory ?? s_loggerFactory.Value;
+        }
+
+        /// <summary>
+        /// Create a logger from a logger factory
+        /// </summary>
+        /// <typeparam name="TContext"></typeparam>
+        /// <param name="context"></param>
+        /// <returns></returns>
+        public static ILogger<TContext> CreateLogger<TContext>(this ITelemetryContext? context)
+        {
+            return context.GetLoggerFactory().CreateLogger<TContext>();
+        }
+
         /// <summary>
         /// Get meter instance or a default one.
         /// </summary>
         /// <param name="context"></param>
         /// <returns></returns>
-        public static Meter GetMeter(this IObservabilityContext? context)
+        public static Meter GetMeter(this ITelemetryContext? context)
         {
             return context?.Meter ?? s_meter.Value;
         }
@@ -57,7 +80,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context"></param>
         /// <returns></returns>
-        public static ActivitySource GetActivitySource(this IObservabilityContext? context)
+        public static ActivitySource GetActivitySource(this ITelemetryContext? context)
         {
             return context?.ActivitySource ?? s_activitySource.Value;
         }
@@ -69,7 +92,7 @@ namespace Opc.Ua
         /// <param name="name"></param>
         /// <param name="kind"></param>
         /// <returns></returns>
-        public static Activity? StartActivity(this IObservabilityContext? context,
+        public static Activity? StartActivity(this ITelemetryContext? context,
             [CallerMemberName] string name = "", ActivityKind kind = ActivityKind.Internal)
         {
             return context.GetActivitySource().StartActivity(name, kind);
@@ -79,5 +102,7 @@ namespace Opc.Ua
             new(() => new Meter("Opc.Ua", "1.0.0"));
         private static readonly Lazy<ActivitySource> s_activitySource =
             new(() => new ActivitySource("Opc.Ua", "1.0.0"));
+        private static readonly Lazy<ILoggerFactory> s_loggerFactory =
+            new(() => new NullLoggerFactory());
     }
 }

@@ -583,7 +583,7 @@ namespace Opc.Ua.PubSub.Encoding
                             (BuiltInType)fieldMetaData.BuiltInType);
                     }
 
-                    Utils.LogInfo(
+                    Utils.LogInformation(
                         "JsonDataSetMessage - Decoding ValueRank = {0} not supported yet !!!",
                         fieldMetaData.ValueRank);
                 }

@@ -664,7 +664,7 @@ namespace MemoryBuffer
             {
                 if (m_itemCount > 0 && m_updateCount < m_itemCount)
                 {
-                    Utils.LogInfo(
+                    Utils.LogInformation(
                         "{0:HH:mm:ss.fff} MEMORYBUFFER Reported  {1}/{2} items ***.",
                         DateTime.Now,
                         m_updateCount,
@@ -680,7 +680,7 @@ namespace MemoryBuffer
 
             if (delta1 > 100)
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "{0} ****** PUBLISH DELAY ({1}ms) ******",
                     nameof(MemoryBufferState),
                     delta1);

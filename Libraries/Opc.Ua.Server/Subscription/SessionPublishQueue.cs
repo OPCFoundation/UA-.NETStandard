@@ -47,7 +47,7 @@ namespace Opc.Ua.Server
         public SessionPublishQueue(IServerInternal server, ISession session, int maxPublishRequests)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
-            m_logger = server.ObservabilityContext.CreateLogger<SessionPublishQueue>();
+            m_logger = server.Telemetry.CreateLogger<SessionPublishQueue>();
             m_session = session ?? throw new ArgumentNullException(nameof(session));
             m_publishEvent = new ManualResetEvent(false);
             m_queuedRequests = new LinkedList<QueuedRequest>();
@@ -887,7 +887,7 @@ namespace Opc.Ua.Server
         internal void TraceState(string context, params object[] args)
         {
             // TODO: implement as EventSource
-            if (!m_logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Trace))
+            if (!m_logger.IsEnabled(LogLevel.Trace))
             {
                 return;
             }

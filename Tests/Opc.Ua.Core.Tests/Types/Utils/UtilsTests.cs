@@ -124,7 +124,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 false,
                 2,
                 3);
-            Utils.LogInfo("Exception {0} {1}", 2, 3);
+            Utils.LogInformation("Exception {0} {1}", 2, 3);
         }
 
         [Test]

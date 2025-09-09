@@ -30,7 +30,6 @@
 using System;
 using System.Diagnostics.Tracing;
 using Microsoft.Extensions.Logging;
-using static Opc.Ua.Utils;
 
 namespace Opc.Ua.Client
 {
@@ -75,23 +74,23 @@ namespace Opc.Ua.Client
         /// The Client Event Ids used for event messages, when calling ILogger.
         /// </summary>
         internal readonly EventId SubscriptionStateMessageEventId = new(
-            TraceMasks.Operation,
+            Utils.TraceMasks.Operation,
             nameof(SubscriptionState));
 
         internal readonly EventId NotificationEventId = new(
-            TraceMasks.Operation,
+            Utils.TraceMasks.Operation,
             nameof(Notification));
 
         internal readonly EventId NotificationReceivedEventId = new(
-            TraceMasks.Operation,
+            Utils.TraceMasks.Operation,
             nameof(NotificationReceived));
 
         internal readonly EventId PublishStartEventId = new(
-            TraceMasks.ServiceDetail,
+            Utils.TraceMasks.ServiceDetail,
             nameof(PublishStart));
 
         internal readonly EventId PublishStopEventId = new(
-            TraceMasks.ServiceDetail,
+            Utils.TraceMasks.ServiceDetail,
             nameof(PublishStop));
 
         /// <summary>
@@ -121,7 +120,7 @@ namespace Opc.Ua.Client
                     currentPublishingEnabled,
                     monitoredItemCount);
             }
-            LogInfo(
+            Utils.LogInformation(
                 SubscriptionStateMessageEventId,
                 SubscriptionStateMessage,
                 context,
@@ -156,7 +155,7 @@ namespace Opc.Ua.Client
             {
                 WriteEvent(NotificationReceivedId, subscriptionId, sequenceNumber);
             }
-            LogTrace(
+            Utils.LogTrace(
                 NotificationReceivedEventId,
                 NotificationReceivedMessage,
                 subscriptionId,
@@ -173,7 +172,7 @@ namespace Opc.Ua.Client
             {
                 WriteEvent(PublishStartId, requestHandle);
             }
-            LogTrace(PublishStartEventId, PublishStartMessage, requestHandle);
+            Utils.LogTrace(PublishStartEventId, PublishStartMessage, requestHandle);
         }
 
         /// <summary>
@@ -186,7 +185,7 @@ namespace Opc.Ua.Client
             {
                 WriteEvent(PublishStopId, requestHandle);
             }
-            LogTrace(PublishStopEventId, PublishStopMessage, requestHandle);
+            Utils.LogTrace(PublishStopEventId, PublishStopMessage, requestHandle);
         }
 
         /// <summary>
@@ -196,13 +195,13 @@ namespace Opc.Ua.Client
         public void NotificationValue(uint clientHandle, Variant wrappedValue)
         {
             // expensive operation, only enable if tracemask set
-            if ((TraceMask & TraceMasks.OperationDetail) != 0)
+            if ((Utils.TraceMask & Utils.TraceMasks.OperationDetail) != 0)
             {
                 if (IsEnabled())
                 {
                     Notification((int)clientHandle, wrappedValue.ToString());
                 }
-                LogTrace(NotificationEventId, NotificationMessage, clientHandle, wrappedValue);
+                Utils.LogTrace(NotificationEventId, NotificationMessage, clientHandle, wrappedValue);
             }
         }
     }

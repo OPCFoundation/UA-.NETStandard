@@ -16,6 +16,7 @@ using System.Diagnostics;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -27,8 +28,9 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object when it is created by the WCF framework.
         /// </summary>
-        protected EndpointBase()
+        protected EndpointBase(ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<EndpointBase>();
             SupportedServices = [];
 
             try
@@ -264,7 +266,7 @@ namespace Opc.Ua
                 }
 
                 // invoke service.
-                return service.Invoke(incoming);
+                return service.Invoke(incoming, m_logger);
             }
             catch (Exception e)
             {
@@ -495,12 +497,24 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Create a fault message
+        /// </summary>
+        /// <param name="request"></param>
+        /// <param name="exception"></param>
+        /// <returns></returns>
+        protected ServiceFault CreateFault(IServiceRequest request, Exception exception)
+        {
+            return CreateFault(m_logger, request, exception);
+        }
+
+        /// <summary>
         /// Creates a fault message.
         /// </summary>
+        /// <param name="logger"></param>
         /// <param name="request">The request.</param>
         /// <param name="exception">The exception.</param>
         /// <returns>A fault message.</returns>
-        public static ServiceFault CreateFault(IServiceRequest request, Exception exception)
+        public static ServiceFault CreateFault(ILogger logger, IServiceRequest request, Exception exception)
         {
             DiagnosticsMasks diagnosticsMask = DiagnosticsMasks.ServiceNoInnerStatus;
 
@@ -521,16 +535,16 @@ namespace Opc.Ua
             if (exception is ServiceResultException sre)
             {
                 result = new ServiceResult(sre);
-                Utils.LogWarning("SERVER - Service Fault Occurred. Reason={0}", result.StatusCode);
+                logger.LogWarning("SERVER - Service Fault Occurred. Reason={0}", result.StatusCode);
                 if (sre.StatusCode == StatusCodes.BadUnexpectedError)
                 {
-                    Utils.LogWarning(Utils.TraceMasks.StackTrace, sre, sre.ToString());
+                    logger.LogWarning(Utils.TraceMasks.StackTrace, sre, sre.ToString());
                 }
             }
             else
             {
                 result = new ServiceResult(exception, StatusCodes.BadUnexpectedError);
-                Utils.LogError(
+                logger.LogError(
                     exception,
                     "SERVER - Unexpected Service Fault: {0}",
                     exception.Message);
@@ -557,7 +571,7 @@ namespace Opc.Ua
         /// <param name="request">The request.</param>
         /// <param name="exception">The exception.</param>
         /// <returns>A fault message.</returns>
-        public static Exception CreateSoapFault(IServiceRequest request, Exception exception)
+        protected Exception CreateSoapFault(IServiceRequest request, Exception exception)
         {
             ServiceFault fault = CreateFault(request, exception);
 
@@ -686,11 +700,12 @@ namespace Opc.Ua
             /// Processes the request.
             /// </summary>
             /// <param name="request">The request.</param>
-            public IServiceResponse Invoke(IServiceRequest request)
+            /// <param name="logger"></param>
+            public IServiceResponse Invoke(IServiceRequest request, ILogger logger)
             {
                 if (m_invokeService == null && m_invokeServiceAsync != null)
                 {
-                    Utils.LogWarning(
+                    logger.LogWarning(
                         "Async Service invoced sychronously. Prefer using InvokeAsync for best performance.");
                     return InvokeAsync(request).GetAwaiter().GetResult();
                 }
@@ -966,11 +981,11 @@ namespace Opc.Ua
             {
                 try
                 {
-                    return CreateFault(Request, e);
+                    return m_endpoint.CreateFault(Request, e);
                 }
                 catch (Exception e2)
                 {
-                    return CreateFault(null, e2);
+                    return m_endpoint.CreateFault(null, e2);
                 }
             }
 
@@ -998,18 +1013,18 @@ namespace Opc.Ua
                                 ActivityKind.Server,
                                 activityContext);
                             // call the service.
-                            m_response = m_service.Invoke(Request);
+                            m_response = m_service.Invoke(Request, m_endpoint.m_logger);
                         }
                         else
                         {
                             // call the service even when there is no trace information
-                            m_response = m_service.Invoke(Request);
+                            m_response = m_service.Invoke(Request, m_endpoint.m_logger);
                         }
                     }
                     else
                     {
                         // no listener, directly call the service.
-                        m_response = m_service.Invoke(Request);
+                        m_response = m_service.Invoke(Request, m_endpoint.m_logger);
                     }
                 }
                 catch (Exception e)
@@ -1083,6 +1098,7 @@ namespace Opc.Ua
             private Exception m_error;
         }
 
+        private ILogger m_logger;
         private IServiceHostBase m_host;
         private IServerBase m_server;
     }

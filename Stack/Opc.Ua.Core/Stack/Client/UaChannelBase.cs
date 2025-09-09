@@ -14,6 +14,7 @@ using System;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua
@@ -26,8 +27,9 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with the specified binding and endpoint address.
         /// </summary>
-        protected UaChannelBase()
+        protected UaChannelBase(ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<UaChannelBase>();
             m_messageContext = null;
             m_settings = null;
             UaBypassChannel = null;
@@ -719,7 +721,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Unexpected error sending outgoing request.");
+                m_logger.LogError(e, "Unexpected error sending outgoing request.");
             }
         }
 #endif
@@ -735,12 +737,13 @@ namespace Opc.Ua
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
-            IServiceMessageContext messageContext)
+            IServiceMessageContext messageContext,
+            ITelemetryContext telemetry)
         {
             // initialize the channel which will be created with the server.
             string uriScheme = new Uri(description.EndpointUrl).Scheme;
             ITransportChannel channel =
-                TransportBindings.Channels.GetChannel(uriScheme)
+                TransportBindings.Channels.GetChannel(uriScheme, telemetry)
                 ?? throw ServiceResultException.Create(
                     StatusCodes.BadProtocolVersionUnsupported,
                     "Unsupported transport profile for scheme {0}.",
@@ -784,12 +787,14 @@ namespace Opc.Ua
         /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
+        /// <param name="telemetry">Telemetry context to use</param>
         public static ITransportChannel CreateUaBinaryChannel(
             ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
-            IServiceMessageContext messageContext)
+            IServiceMessageContext messageContext,
+            ITelemetryContext telemetry)
         {
             return CreateUaBinaryChannel(
                 configuration,
@@ -797,7 +802,8 @@ namespace Opc.Ua
                 endpointConfiguration,
                 clientCertificate,
                 null,
-                messageContext);
+                messageContext,
+                telemetry);
         }
 
         /// <summary>
@@ -809,6 +815,7 @@ namespace Opc.Ua
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="clientCertificateChain">The client certificate chain.</param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
+        /// <param name="telemetry">Telemetry context to use</param>
         /// <exception cref="ServiceResultException"></exception>
         public static ITransportChannel CreateUaBinaryChannel(
             ApplicationConfiguration configuration,
@@ -816,7 +823,8 @@ namespace Opc.Ua
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
-            IServiceMessageContext messageContext)
+            IServiceMessageContext messageContext,
+            ITelemetryContext telemetry)
         {
             string uriScheme = new Uri(description.EndpointUrl).Scheme;
 
@@ -835,7 +843,7 @@ namespace Opc.Ua
 
             // initialize the channel which will be created with the server.
             ITransportChannel channel =
-                TransportBindings.Channels.GetChannel(uriScheme)
+                TransportBindings.Channels.GetChannel(uriScheme, telemetry)
                 ?? throw ServiceResultException.Create(
                     StatusCodes.BadProtocolVersionUnsupported,
                     "Unsupported transport profile for scheme {0}.",
@@ -881,6 +889,7 @@ namespace Opc.Ua
         /// </summary>
         protected internal ITransportChannel UaBypassChannel { get; set; }
 
+        private readonly ILogger m_logger;
         private readonly IServiceMessageContext m_messageContext;
         private int m_operationTimeout;
     }
@@ -892,6 +901,15 @@ namespace Opc.Ua
     public class UaChannelBase<TChannel> : UaChannelBase
         where TChannel : class, IChannelBase
     {
+        /// <summary>
+        /// Create channel
+        /// </summary>
+        /// <param name="telemetry"></param>
+        protected UaChannelBase(ITelemetryContext telemetry) : base(telemetry)
+        {
+            m_logger = telemetry.CreateLogger<UaChannelBase<TChannel>>();
+        }
+
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
@@ -929,7 +947,7 @@ namespace Opc.Ua
             AsyncCallback callback,
             object asyncState)
         {
-            var asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
+            var asyncResult = new UaChannelAsyncResult(this, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
@@ -962,7 +980,7 @@ namespace Opc.Ua
                 return;
             }
 
-            Utils.LogInfo("RECONNECT: Reconnecting to {0}.", m_settings.Description.EndpointUrl);
+            m_logger.LogInformation("RECONNECT: Reconnecting to {0}.", m_settings.Description.EndpointUrl);
         }
 
         /// <inheritdoc/>
@@ -984,7 +1002,7 @@ namespace Opc.Ua
             /// <param name="callback">The callback.</param>
             /// <param name="callbackData">The callback data.</param>
             public UaChannelAsyncResult(
-                TChannel channel,
+                UaChannelBase<TChannel> channel,
                 AsyncCallback callback,
                 object callbackData)
                 : base(callback, callbackData, 0)
@@ -996,7 +1014,7 @@ namespace Opc.Ua
             /// Gets the wrapped channel.
             /// </summary>
             /// <value>The wrapped channel.</value>
-            public TChannel Channel { get; }
+            public UaChannelBase<TChannel> Channel { get; }
 
             /// <summary>
             /// Called when asynchronous operation completes.
@@ -1017,7 +1035,7 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    Utils.LogError(
+                    Channel.m_logger.LogError(
                         e,
                         "Unexpected exception invoking UaChannelAsyncResult callback function.");
                 }
@@ -1053,5 +1071,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The channel.</value>
         protected TChannel Channel { get; private set; }
+
+        private readonly ILogger m_logger;
     }
 }

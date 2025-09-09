@@ -98,7 +98,7 @@ namespace Opc.Ua.Client.Tests
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            Utils.LogInfo(
+            Utils.LogInformation(
                 Utils.TraceMasks.StartStop,
                 "Creating the Reference Server Node Manager.");
 

@@ -62,11 +62,13 @@ namespace Opc.Ua.Client
         /// <param name="channel">The channel used to communicate with the server.</param>
         /// <param name="configuration">The configuration for the client application.</param>
         /// <param name="endpoint">The endpoint use to initialize the channel.</param>
+        /// <param name="telemetry"></param>
         public Session(
             ISessionChannel channel,
             ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint)
-            : this(channel as ITransportChannel, configuration, endpoint, null)
+            ConfiguredEndpoint endpoint,
+            ITelemetryContext telemetry)
+            : this(channel as ITransportChannel, configuration, endpoint, null, telemetry)
         {
         }
 
@@ -77,6 +79,7 @@ namespace Opc.Ua.Client
         /// <param name="configuration">The configuration for the client application.</param>
         /// <param name="endpoint">The endpoint used to initialize the channel.</param>
         /// <param name="clientCertificate">The certificate to use for the client.</param>
+        /// <param name="telemetry"></param>
         /// <param name="availableEndpoints">The list of available endpoints returned by server in GetEndpoints() response.</param>
         /// <param name="discoveryProfileUris">The value of profileUris used in GetEndpoints() request.</param>
         /// <remarks>
@@ -92,11 +95,12 @@ namespace Opc.Ua.Client
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
+            ITelemetryContext telemetry,
             EndpointDescriptionCollection availableEndpoints = null,
             StringCollection discoveryProfileUris = null)
             : base(channel)
         {
-            Initialize(channel, configuration, endpoint);
+            Initialize(channel, configuration, endpoint, telemetry);
             LoadInstanceCertificateAsync(clientCertificate).GetAwaiter().GetResult();
             m_discoveryServerEndpoints = availableEndpoints;
             m_discoveryProfileUris = discoveryProfileUris;
@@ -111,7 +115,7 @@ namespace Opc.Ua.Client
         public Session(ITransportChannel channel, Session template, bool copyEventHandlers)
             : base(channel)
         {
-            Initialize(channel, template.m_configuration, template.ConfiguredEndpoint);
+            Initialize(channel, template.m_configuration, template.ConfiguredEndpoint, template.m_telemetry);
             LoadInstanceCertificateAsync(template.m_instanceCertificate).GetAwaiter().GetResult();
             SessionFactory = template.SessionFactory;
             DefaultSubscription = template.DefaultSubscription;
@@ -159,9 +163,12 @@ namespace Opc.Ua.Client
         private void Initialize(
             ITransportChannel channel,
             ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint)
+            ConfiguredEndpoint endpoint,
+            ITelemetryContext telemetry)
         {
             Initialize();
+
+            m_telemetry = telemetry;
 
             ValidateClientConfiguration(configuration);
 
@@ -1115,6 +1122,7 @@ namespace Opc.Ua.Client
         /// <param name="endpoint">A configured endpoint to connect to.</param>
         /// <param name="updateBeforeConnect">Update configuration based on server prior connect.</param>
         /// <param name="checkDomain">Check that the certificate specifies a valid domain (computer) name.</param>
+        /// <param name="telemetry"></param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
         public static async Task<ITransportChannel> CreateChannelAsync(
@@ -1123,6 +1131,7 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
             bool checkDomain,
+            ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
             endpoint.UpdateBeforeConnect = updateBeforeConnect;
@@ -1183,7 +1192,8 @@ namespace Opc.Ua.Client
                     endpointConfiguration,
                     clientCertificate,
                     clientCertificateChain,
-                    messageContext);
+                    messageContext,
+                    telemetry);
             }
 
             return SessionChannel.Create(
@@ -1192,7 +1202,8 @@ namespace Opc.Ua.Client
                 endpointConfiguration,
                 clientCertificate,
                 clientCertificateChain,
-                messageContext);
+                messageContext,
+                telemetry);
         }
 
         /// <summary>
@@ -1232,6 +1243,7 @@ namespace Opc.Ua.Client
                     endpoint,
                     updateBeforeConnect,
                     checkDomain,
+                    sessionInstantiator.Telemetry,
                     ct)
                 .ConfigureAwait(false);
 
@@ -1707,7 +1719,7 @@ namespace Opc.Ua.Client
                 }
                 catch (Exception ex)
                 {
-                    Utils.LogInfo(
+                    Utils.LogInformation(
                         "Create session failed with client certificate NULL. " + ex.Message);
                     successCreateSession = false;
                 }
@@ -1748,8 +1760,8 @@ namespace Opc.Ua.Client
                 base.SessionCreated(sessionId, sessionCookie);
             }
 
-            Utils.LogInfo("Revised session timeout value: {0}. ", m_sessionTimeout);
-            Utils.LogInfo(
+            Utils.LogInformation("Revised session timeout value: {0}. ", m_sessionTimeout);
+            Utils.LogInformation(
                 "Max response message size value: {0}. Max request message size: {1} ",
                 MessageContext.MaxMessageSize,
                 m_maxRequestMessageSize);
@@ -1848,7 +1860,7 @@ namespace Opc.Ua.Client
                 {
                     for (int i = 0; i < certificateResults.Count; i++)
                     {
-                        Utils.LogInfo(
+                        Utils.LogInformation(
                             "ActivateSession result[{0}] = {1}",
                             i,
                             certificateResults[i]);
@@ -1858,7 +1870,7 @@ namespace Opc.Ua.Client
                 if (clientSoftwareCertificates?.Count > 0 &&
                     (certificateResults == null || certificateResults.Count == 0))
                 {
-                    Utils.LogInfo("Empty results were received for the ActivateSession call.");
+                    Utils.LogInformation("Empty results were received for the ActivateSession call.");
                 }
 
                 // fetch namespaces.
@@ -2168,7 +2180,7 @@ namespace Opc.Ua.Client
                         }
                     }
 
-                    Utils.LogInfo(
+                    Utils.LogInformation(
                         "Session REACTIVATE of {0} subscriptions completed. {1} failed.",
                         subscriptions.Count,
                         failedSubscriptions);
@@ -2183,7 +2195,7 @@ namespace Opc.Ua.Client
             }
             else
             {
-                Utils.LogInfo("No subscriptions. TransferSubscription skipped.");
+                Utils.LogInformation("No subscriptions. TransferSubscription skipped.");
             }
 
             return failedSubscriptions == 0;
@@ -2295,7 +2307,7 @@ namespace Opc.Ua.Client
                         }
                         else if (results[ii].StatusCode == StatusCodes.BadNothingToDo)
                         {
-                            Utils.LogInfo(
+                            Utils.LogInformation(
                                 "SubscriptionId {0} is already member of the session.",
                                 subscriptionIds[ii]);
                             failedSubscriptions++;
@@ -2328,7 +2340,7 @@ namespace Opc.Ua.Client
             }
             else
             {
-                Utils.LogInfo("No subscriptions. TransferSubscription skipped.");
+                Utils.LogInformation("No subscriptions. TransferSubscription skipped.");
             }
 
             return failedSubscriptions == 0;
@@ -3701,7 +3713,8 @@ namespace Opc.Ua.Client
                 sessionTemplate.m_configuration.SecurityConfiguration.SendCertificateChain
                     ? sessionTemplate.m_instanceCertificateChain
                     : null,
-                messageContext);
+                messageContext,
+                sessionTemplate.m_telemetry);
 
             // create the session object.
             Session session = sessionTemplate.CloneSession(channel, true);
@@ -3758,7 +3771,8 @@ namespace Opc.Ua.Client
                 sessionTemplate.m_configuration.SecurityConfiguration.SendCertificateChain
                     ? sessionTemplate.m_instanceCertificateChain
                     : null,
-                messageContext);
+                messageContext,
+                sessionTemplate.m_telemetry);
 
             // create the session object.
             Session session = sessionTemplate.CloneSession(channel, true);
@@ -4043,7 +4057,7 @@ namespace Opc.Ua.Client
                     out StatusCodeCollection certificateResults,
                     out DiagnosticInfoCollection certificateDiagnosticInfos);
 
-                Utils.LogInfo("Session RECONNECT {0} completed successfully.", SessionId);
+                Utils.LogInformation("Session RECONNECT {0} completed successfully.", SessionId);
 
                 lock (SyncRoot)
                 {
@@ -4089,7 +4103,7 @@ namespace Opc.Ua.Client
 
             try
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "Requesting RepublishAsync for {0}-{1}",
                     subscriptionId,
                     sequenceNumber);
@@ -4104,7 +4118,7 @@ namespace Opc.Ua.Client
                 ResponseHeader responseHeader = response.ResponseHeader;
                 NotificationMessage notificationMessage = response.NotificationMessage;
 
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "Received RepublishAsync for {0}-{1}-{2}",
                     subscriptionId,
                     sequenceNumber,
@@ -4604,7 +4618,7 @@ namespace Opc.Ua.Client
             {
                 //keep alive read timed out
                 int delta = HiResClock.TickCount - LastKeepAliveTickCount;
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "KEEP ALIVE LATE: {0}ms, EndpointUrl={1}, RequestCount={2}/{3}",
                     delta,
                     Endpoint?.EndpointUrl,
@@ -5750,7 +5764,7 @@ namespace Opc.Ua.Client
                         if (BelowPublishRequestLimit(tooManyPublishRequests))
                         {
                             m_tooManyPublishRequests = tooManyPublishRequests;
-                            Utils.LogInfo(
+                            Utils.LogInformation(
                                 "PUBLISH - Too many requests, set limit to GoodPublishRequestCount={0}.",
                                 m_tooManyPublishRequests);
                         }
@@ -6006,7 +6020,7 @@ namespace Opc.Ua.Client
         {
             if (serverSignature == null || serverSignature.Signature == null)
             {
-                Utils.LogInfo("Server signature is null or empty.");
+                Utils.LogInformation("Server signature is null or empty.");
 
                 //throw ServiceResultException.Create(
                 //    StatusCodes.BadSecurityChecksFailed,
@@ -6217,7 +6231,7 @@ namespace Opc.Ua.Client
             ITransportWaitingConnection connection,
             ITransportChannel transportChannel)
         {
-            Utils.LogInfo("Session RECONNECT {0} starting.", SessionId);
+            Utils.LogInformation("Session RECONNECT {0} starting.", SessionId);
 
             // create the client signature.
             byte[] dataToSign = Utils.Append(m_serverCertificate?.RawData, m_serverNonce);
@@ -6287,7 +6301,7 @@ namespace Opc.Ua.Client
             SignedSoftwareCertificateCollection clientSoftwareCertificates
                 = GetSoftwareCertificates();
 
-            Utils.LogInfo("Session REPLACING channel for {0}.", SessionId);
+            Utils.LogInformation("Session REPLACING channel for {0}.", SessionId);
 
             if (connection != null)
             {
@@ -6311,7 +6325,8 @@ namespace Opc.Ua.Client
                         m_configuration.SecurityConfiguration.SendCertificateChain
                             ? m_instanceCertificateChain
                             : null,
-                        MessageContext);
+                        MessageContext,
+                        m_telemetry);
 
                     // disposes the existing channel.
                     TransportChannel = channel;
@@ -6342,14 +6357,15 @@ namespace Opc.Ua.Client
                         m_configuration.SecurityConfiguration.SendCertificateChain
                             ? m_instanceCertificateChain
                             : null,
-                        MessageContext);
+                        MessageContext,
+                        m_telemetry);
 
                     // disposes the existing channel.
                     TransportChannel = channel;
                 }
             }
 
-            Utils.LogInfo("Session RE-ACTIVATING {0}.", SessionId);
+            Utils.LogInformation("Session RE-ACTIVATING {0}.", SessionId);
 
             var header = new RequestHeader { TimeoutHint = kReconnectTimeout };
             return BeginActivateSession(
@@ -6738,7 +6754,7 @@ namespace Opc.Ua.Client
         {
             try
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "Deleting server subscription for SubscriptionId={0}",
                     subscriptionId);
 
@@ -7160,6 +7176,11 @@ namespace Opc.Ua.Client
         /// The Instance Certificate Chain.
         /// </summary>
         protected X509Certificate2Collection m_instanceCertificateChain;
+
+        /// <summary>
+        /// The session telemetry context
+        /// </summary>
+        protected ITelemetryContext m_telemetry;
 
         /// <summary>
         /// If set to<c>true</c> then the domain in the certificate must match the endpoint used.

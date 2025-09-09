@@ -20,6 +20,7 @@ using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
@@ -33,9 +34,9 @@ namespace Opc.Ua.Bindings
         public override string UriScheme => Utils.UriSchemeOpcTcp;
 
         /// <inheritdoc/>
-        public override ITransportListener Create()
+        public override ITransportListener Create(ITelemetryContext telemetry)
         {
-            return new TcpTransportListener();
+            return new TcpTransportListener(telemetry);
         }
     }
 
@@ -63,13 +64,14 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Manages clients with potential problematic activities
     /// </summary>
-    public sealed class ActiveClientTracker : IDisposable
+    internal sealed class ActiveClientTracker : IDisposable
     {
         /// <summary>
         /// Constructor
         /// </summary>
-        public ActiveClientTracker()
+        public ActiveClientTracker(ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<ActiveClientTracker>();
             m_cleanupTimer = new Timer(
                 CleanupExpiredEntries,
                 null,
@@ -126,8 +128,8 @@ namespace Opc.Ua.Bindings
                         {
                             // Block the IP
                             existingEntry.BlockedUntilTicks = currentTicks + kBlockDurationMs;
-                            Utils.LogError(
-                                "RemoteClient IPAddress: {0} blocked for {1} ms due to exceeding {2} actions under {3} ms ",
+                            m_logger.LogError(
+                                "RemoteClient IPAddress: {IpAddress} blocked for {Duration} ms due to exceeding {ActionCOunt} actions under {ActionInterval} ms ",
                                 ipAddress.ToString(),
                                 kBlockDurationMs,
                                 kNrActionsTillBlock,
@@ -172,8 +174,8 @@ namespace Opc.Ua.Bindings
                 {
                     rClient.BlockedUntilTicks = 0;
                     rClient.ActiveActionCount = 0;
-                    Utils.LogDebug(
-                        "Active Client with IP {0} is now unblocked, blocking duration of {1} ms has been exceeded",
+                    m_logger.LogDebug(
+                        "Active Client with IP {IpAddress} is now unblocked, blocking duration of {BlockDurationMs} ms has been exceeded",
                         clientIp.ToString(),
                         kBlockDurationMs);
                 }
@@ -185,8 +187,8 @@ namespace Opc.Ua.Bindings
                     // Even if TryRemove fails it will most probably succeed at the next execution
                     if (m_activeClients.TryRemove(clientIp, out _))
                     {
-                        Utils.LogDebug(
-                            "Active Client with IP {0} is not tracked any longer, hasn't had actions for more than {1} ms",
+                        m_logger.LogDebug(
+                            "Active Client with IP {IpAddress} is not tracked any longer, hasn't had actions for more than {ExpirationMs} ms",
                             clientIp.ToString(),
                             kEntryExpirationMs);
                     }
@@ -226,6 +228,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private const int kEntryExpirationMs = 600_000;
 
+        private readonly ILogger m_logger;
         private readonly Timer m_cleanupTimer;
     }
 
@@ -238,6 +241,16 @@ namespace Opc.Ua.Bindings
         /// The limit of queued connections for the listener socket..
         /// </summary>
         private const int kSocketBacklog = 10;
+
+        /// <summary>
+        /// Create listener
+        /// </summary>
+        /// <param name="telemetry">Telemetry context to use</param>
+        public TcpTransportListener(ITelemetryContext telemetry)
+        {
+            m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<TcpTransportListener>();
+        }
 
         /// <summary>
         /// Frees any unmanaged resources.
@@ -425,7 +438,7 @@ namespace Opc.Ua.Bindings
 
             channel.Reconnect(socket, requestId, sequenceNumber, clientCertificate, token, request);
 
-            Utils.LogInfo("ChannelId {0}: reconnected", channelId);
+            m_logger.LogInformation("ChannelId {Id}: reconnected", channelId);
             return true;
         }
 
@@ -437,11 +450,11 @@ namespace Opc.Ua.Bindings
             if (m_channels?.TryRemove(channelId, out TcpListenerChannel channel) == true)
             {
                 Utils.SilentDispose(channel);
-                Utils.LogInfo("ChannelId {0}: closed", channelId);
+                m_logger.LogInformation("ChannelId {Id}: closed", channelId);
             }
             else
             {
-                Utils.LogInfo("ChannelId {0}: closed, but channel was not found", channelId);
+                m_logger.LogInformation("ChannelId {Id}: closed, but channel was not found", channelId);
             }
         }
 
@@ -464,7 +477,8 @@ namespace Opc.Ua.Bindings
                 m_bufferManager,
                 m_quotas,
                 m_serverCertificateTypesProvider,
-                m_descriptions);
+                m_descriptions,
+                m_telemetry);
 
             uint channelId = GetNextChannelId();
             channel.StatusChanged += Channel_StatusChanged;
@@ -548,7 +562,7 @@ namespace Opc.Ua.Bindings
                 if (m_descriptions != null &&
                     m_descriptions.Any(d => d.SecurityPolicyUri == SecurityPolicies.Basic128Rsa15))
                 {
-                    m_activeClientTracker = new ActiveClientTracker();
+                    m_activeClientTracker = new ActiveClientTracker(m_telemetry);
                 }
 
                 // ensure a valid port.
@@ -603,7 +617,7 @@ namespace Opc.Ua.Bindings
                         m_listeningSocket.Dispose();
                         m_listeningSocket = null;
                     }
-                    Utils.LogWarning("Failed to create IPv4 listening socket: {0}", ex.Message);
+                    m_logger.LogWarning("Failed to create IPv4 listening socket: {Message}", ex.Message);
                 }
 
                 if (ipAddress == IPAddress.Any)
@@ -638,7 +652,7 @@ namespace Opc.Ua.Bindings
                             m_listeningSocketIPv6.Dispose();
                             m_listeningSocketIPv6 = null;
                         }
-                        Utils.LogWarning("Failed to create IPv6 listening socket: {0}", ex.Message);
+                        m_logger.LogWarning("Failed to create IPv6 listening socket: {Message}", ex.Message);
                     }
                 }
                 if (m_listeningSocketIPv6 == null && m_listeningSocket == null)
@@ -760,8 +774,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         internal void MarkAsPotentialProblematic(IPAddress remoteEndpoint)
         {
-            Utils.LogDebug(
-                "MarkClientAsPotentialProblematic address: {0} ",
+            m_logger.LogDebug(
+                "MarkClientAsPotentialProblematic address: {RemoteEndpoint} ",
                 remoteEndpoint.ToString());
             m_activeClientTracker?.AddClientAction(remoteEndpoint);
         }
@@ -784,9 +798,9 @@ namespace Opc.Ua.Bindings
                     IPAddress ipAddress = ((IPEndPoint)e?.AcceptSocket?.RemoteEndPoint)?.Address;
                     if (ipAddress != null && m_activeClientTracker.IsBlocked(ipAddress))
                     {
-                        Utils.LogDebug(
-                            "OnAccept: RemoteEndpoint address: {0} refused access for behaving as potential problematic ",
-                            ((IPEndPoint)e.AcceptSocket.RemoteEndPoint).Address.ToString());
+                        m_logger.LogDebug(
+                            "OnAccept: RemoteEndpoint address: {IpAddress} refused access for behaving as potential problematic ",
+                            ((IPEndPoint)e.AcceptSocket.RemoteEndPoint).Address);
                         isBlocked = true;
                     }
                 }
@@ -796,7 +810,7 @@ namespace Opc.Ua.Bindings
                 {
                     if (e.UserToken is not Socket listeningSocket)
                     {
-                        Utils.LogError("OnAccept: Listensocket was null.");
+                        m_logger.LogError("OnAccept: Listensocket was null.");
                         e.Dispose();
                         return;
                     }
@@ -829,12 +843,12 @@ namespace Opc.Ua.Bindings
                                             ? current
                                             : max);
 
-                                Utils.LogInfo(
-                                    "TCPLISTENER: Channel Id {0} scheduled for IdleCleanup - Oldest without established session.",
+                                m_logger.LogInformation(
+                                    "TCPLISTENER: Channel Id {Id} scheduled for IdleCleanup - Oldest without established session.",
                                     oldestIdChannel.Value.Id);
                                 oldestIdChannel.Value.IdleCleanup();
-                                Utils.LogInfo(
-                                    "TCPLISTENER: Channel Id {0} finished IdleCleanup - Oldest without established session.",
+                                m_logger.LogInformation(
+                                    "TCPLISTENER: Channel Id {Id} finished IdleCleanup - Oldest without established session.",
                                     oldestIdChannel.Value.Id);
 
                                 channelCount--;
@@ -845,8 +859,8 @@ namespace Opc.Ua.Bindings
                             MaxChannelCount < channelCount);
                         if (!serveChannel)
                         {
-                            Utils.LogError(
-                                "OnAccept: Maximum number of channels {0} reached, serving channels is stopped until number is lower or equal than {1} ",
+                            m_logger.LogError(
+                                "OnAccept: Maximum number of channels {CurrentCount} reached, serving channels is stopped until number is lower or equal than {MaxChannelCount} ",
                                 channelCount,
                                 MaxChannelCount);
                             Utils.SilentDispose(e.AcceptSocket);
@@ -868,7 +882,8 @@ namespace Opc.Ua.Bindings
                                         this,
                                         m_bufferManager,
                                         m_quotas,
-                                        m_descriptions);
+                                        m_descriptions,
+                                        m_telemetry);
                                 }
                                 else
                                 {
@@ -879,7 +894,8 @@ namespace Opc.Ua.Bindings
                                         m_bufferManager,
                                         m_quotas,
                                         m_serverCertificateTypesProvider,
-                                        m_descriptions);
+                                        m_descriptions,
+                                        m_telemetry);
                                 }
 
                                 if (m_callback != null)
@@ -914,7 +930,7 @@ namespace Opc.Ua.Bindings
                             }
                             catch (Exception ex)
                             {
-                                Utils.LogError(ex, "Unexpected error accepting a new connection.");
+                                m_logger.LogError(ex, "Unexpected error accepting a new connection.");
                             }
                             finally
                             {
@@ -940,7 +956,7 @@ namespace Opc.Ua.Bindings
                         }
                         catch (Exception ex)
                         {
-                            Utils.LogError(ex, "Unexpected error listening for a new connection.");
+                            m_logger.LogError(ex, "Unexpected error listening for a new connection.");
                         }
                     }
                 }
@@ -966,14 +982,14 @@ namespace Opc.Ua.Bindings
 
             if (cleanup)
             {
-                Utils.LogInfo(
-                    "TCPLISTENER: {0} channels scheduled for IdleCleanup.",
+                m_logger.LogInformation(
+                    "TCPLISTENER: {ChannelCount} channels scheduled for IdleCleanup.",
                     channels.Count);
                 foreach (TcpListenerChannel channel in channels)
                 {
                     channel.IdleCleanup();
                 }
-                Utils.LogInfo("TCPLISTENER: {0} channels finished IdleCleanup.", channels.Count);
+                m_logger.LogInformation("TCPLISTENER: {ChannelCount} channels finished IdleCleanup.", channels.Count);
             }
         }
 
@@ -1004,7 +1020,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "TCPLISTENER - Unexpected error processing request.");
+                m_logger.LogError(e, "TCPLISTENER - Unexpected error processing request.");
             }
         }
 
@@ -1028,7 +1044,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                Utils.LogError(
+                m_logger.LogError(
                     e,
                     "TCPLISTENER - Unexpected error sending OpenSecureChannel Audit event.");
             }
@@ -1047,7 +1063,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                Utils.LogError(
+                m_logger.LogError(
                     e,
                     "TCPLISTENER - Unexpected error sending CloseSecureChannel Audit event.");
             }
@@ -1066,7 +1082,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                Utils.LogError(
+                m_logger.LogError(
                     e,
                     "TCPLISTENER - Unexpected error sending Certificate Audit event.");
             }
@@ -1115,7 +1131,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "TCPLISTENER - Unexpected error sending result.");
+                m_logger.LogError(e, "TCPLISTENER - Unexpected error sending result.");
             }
         }
 
@@ -1129,6 +1145,8 @@ namespace Opc.Ua.Bindings
         }
 
         private readonly Lock m_lock = new();
+        private readonly ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
         private EndpointDescriptionCollection m_descriptions;
         private BufferManager m_bufferManager;
         private ChannelQuotas m_quotas;

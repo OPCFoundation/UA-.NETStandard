@@ -71,7 +71,7 @@ namespace Alarms
         {
             Stop();
 
-            Utils.LogInfo("Start the Alarms for {0} seconds!", seconds);
+            Utils.LogInformation("Start the Alarms for {0} seconds!", seconds);
 
             m_validLastMaxValue = false;
 
@@ -83,7 +83,7 @@ namespace Alarms
 
         public virtual void Stop()
         {
-            Utils.LogInfo("Stop the Alarms!");
+            Utils.LogInformation("Stop the Alarms!");
 
             m_value = m_midpoint;
             m_increment = true;
@@ -101,7 +101,7 @@ namespace Alarms
                 bool boolValue = false;
                 GetValue(ref value, ref boolValue);
 
-                Utils.LogInfo("AlarmController Update Value = {0}", value);
+                Utils.LogInformation("AlarmController Update Value = {0}", value);
 
                 if (m_isBoolean)
                 {
@@ -209,7 +209,7 @@ namespace Alarms
                 {
                     if (m_validLastMaxValue)
                     {
-                        Utils.LogInfo(
+                        Utils.LogInformation(
                             "Cycle Time {0} Interval {1}",
                             DateTime.Now - m_lastMaxValue,
                             m_interval);

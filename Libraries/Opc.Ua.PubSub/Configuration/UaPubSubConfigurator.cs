@@ -443,7 +443,7 @@ namespace Opc.Ua.PubSub.Configuration
                     publishedDataSetId) is not PublishedDataSetDataType publishedDataSetDataType)
                 {
                     // Unexpected exception
-                    Utils.LogInfo(
+                    Utils.LogInformation(
                         "Current configuration does not contain PublishedDataSetDataType with ConfigId = {0}",
                         publishedDataSetId);
                     return StatusCodes.Good;
@@ -739,7 +739,7 @@ namespace Opc.Ua.PubSub.Configuration
                     connectionId) is not PubSubConnectionDataType pubSubConnectionDataType)
                 {
                     // Unexpected exception
-                    Utils.LogInfo(
+                    Utils.LogInformation(
                         "Current configuration does not contain PubSubConnectionDataType with ConfigId = {0}",
                         connectionId);
                     return StatusCodes.BadNodeIdUnknown;
@@ -923,7 +923,7 @@ namespace Opc.Ua.PubSub.Configuration
                 if (FindObjectById(writerGroupId) is not WriterGroupDataType writerGroupDataType)
                 {
                     // Unexpected exception
-                    Utils.LogInfo(
+                    Utils.LogInformation(
                         "Current configuration does not contain WriterGroupDataType with ConfigId = {0}",
                         writerGroupId);
                     return StatusCodes.BadNodeIdUnknown;
@@ -1096,7 +1096,7 @@ namespace Opc.Ua.PubSub.Configuration
                     dataSetWriterId) is not DataSetWriterDataType dataSetWriterDataType)
                 {
                     // Unexpected exception
-                    Utils.LogInfo(
+                    Utils.LogInformation(
                         "Current configuration does not contain DataSetWriterDataType with ConfigId = {0}",
                         dataSetWriterId);
                     return StatusCodes.BadNodeIdUnknown;
@@ -1275,7 +1275,7 @@ namespace Opc.Ua.PubSub.Configuration
             {
                 if (FindObjectById(readerGroupId) is not ReaderGroupDataType readerGroupDataType)
                 {
-                    Utils.LogInfo(
+                    Utils.LogInformation(
                         "Current configuration does not contain ReaderGroupDataType with ConfigId = {0}",
                         readerGroupId);
                     return StatusCodes.BadInvalidArgument;
@@ -1448,7 +1448,7 @@ namespace Opc.Ua.PubSub.Configuration
                     dataSetReaderId) is not DataSetReaderDataType dataSetReaderDataType)
                 {
                     // Unexpected exception
-                    Utils.LogInfo(
+                    Utils.LogInformation(
                         "Current configuration does not contain DataSetReaderDataType with ConfigId = {0}",
                         dataSetReaderId);
                     return StatusCodes.BadNodeIdUnknown;
@@ -1541,7 +1541,7 @@ namespace Opc.Ua.PubSub.Configuration
             PubSubState currentState = FindStateForObject(configurationObject);
             if (currentState != PubSubState.Disabled)
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "Attempted to call Enable() on an object that is not in Disabled state");
                 return StatusCodes.BadInvalidState;
             }
@@ -1594,7 +1594,7 @@ namespace Opc.Ua.PubSub.Configuration
             PubSubState currentState = FindStateForObject(configurationObject);
             if (currentState == PubSubState.Disabled)
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     Utils.TraceMasks.Information,
                     "Attempted to call Disable() on an object that is already in Disabled state");
                 return StatusCodes.BadInvalidState;

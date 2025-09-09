@@ -589,7 +589,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                Utils.LogInfo("Server - Session Monitor Thread Started.");
+                Utils.LogInformation("Server - Session Monitor Thread Started.");
 
                 int sleepCycle = Convert.ToInt32(data, CultureInfo.InvariantCulture);
 

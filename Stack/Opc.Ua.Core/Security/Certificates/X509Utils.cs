@@ -684,28 +684,20 @@ namespace Opc.Ua
         /// <param name="storePath">The store path (syntax depends on storeType).</param>
         /// <param name="password">The password to use to protect the certificate.</param>
         /// <exception cref="ArgumentException"></exception>
+        [Obsolete("Use AddToStoreAsync instead")]
         public static X509Certificate2 AddToStore(
             this X509Certificate2 certificate,
             string storeType,
             string storePath,
             string password = null)
         {
-            // add cert to the store.
-            if (!string.IsNullOrEmpty(storePath) && !string.IsNullOrEmpty(storeType))
-            {
-                var certificateStoreIdentifier = new CertificateStoreIdentifier(
-                    storePath,
-                    storeType,
-                    false);
-                using ICertificateStore store =
-                    certificateStoreIdentifier.OpenStore() ??
-                    throw new ArgumentException("Invalid store type");
+            return AddToStoreAsync(
+                certificate,
+                storeType,
+                storePath,
+                password)
+                .GetAwaiter().GetResult();
 
-                store.Open(storePath, false);
-                store.AddAsync(certificate, password).GetAwaiter().GetResult();
-                store.Close();
-            }
-            return certificate;
         }
 
         /// <summary>
@@ -719,30 +711,17 @@ namespace Opc.Ua
         /// <param name="storeIdentifier">The certificate store.</param>
         /// <param name="password">The password to use to protect the certificate.</param>
         /// <exception cref="ArgumentException"></exception>
+        [Obsolete("Use AddToStoreAsync instead")]
         public static X509Certificate2 AddToStore(
             this X509Certificate2 certificate,
             CertificateStoreIdentifier storeIdentifier,
             string password = null)
         {
-            // add cert to the store.
-            if (storeIdentifier != null)
-            {
-                ICertificateStore store = storeIdentifier.OpenStore();
-                try
-                {
-                    if (store == null || store.NoPrivateKeys)
-                    {
-                        throw new ArgumentException("Invalid store type");
-                    }
-
-                    store.AddAsync(certificate, password).GetAwaiter().GetResult();
-                }
-                finally
-                {
-                    store?.Close();
-                }
-            }
-            return certificate;
+            return AddToStoreAsync(
+                certificate,
+                storeIdentifier,
+                password)
+                .GetAwaiter().GetResult();
         }
 
         /// <summary>e
@@ -756,6 +735,7 @@ namespace Opc.Ua
         /// <param name="storeType">Type of certificate store (Directory) <see cref="CertificateStoreType"/>.</param>
         /// <param name="storePath">The store path (syntax depends on storeType).</param>
         /// <param name="password">The password to use to protect the certificate.</param>
+        /// <param name="telemetry">Telemetry context to use</param>
         /// <param name="ct">The cancellation token.</param>
         /// <exception cref="ArgumentException"></exception>
         public static async Task<X509Certificate2> AddToStoreAsync(
@@ -763,6 +743,7 @@ namespace Opc.Ua
             string storeType,
             string storePath,
             string password = null,
+            ITelemetryContext telemetry = null,
             CancellationToken ct = default)
         {
             // add cert to the store.
@@ -773,7 +754,7 @@ namespace Opc.Ua
                     storeType,
                     false);
                 using ICertificateStore store =
-                    certificateStoreIdentifier.OpenStore() ??
+                    certificateStoreIdentifier.OpenStore(telemetry) ??
                     throw new ArgumentException("Invalid store type");
 
                 await store.AddAsync(certificate, password, ct).ConfigureAwait(false);
@@ -792,18 +773,20 @@ namespace Opc.Ua
         /// <param name="certificate">The certificate to store.</param>
         /// <param name="storeIdentifier">Type of certificate store (Directory) <see cref="CertificateStoreType"/>.</param>
         /// <param name="password">The password to use to protect the certificate.</param>
+        /// <param name="telemetry">Telemetry context to use</param>
         /// <param name="ct">The cancellation token.</param>
         /// <exception cref="ArgumentException"></exception>
         public static async Task<X509Certificate2> AddToStoreAsync(
             this X509Certificate2 certificate,
             CertificateStoreIdentifier storeIdentifier,
             string password = null,
+            ITelemetryContext telemetry = null,
             CancellationToken ct = default)
         {
             // add cert to the store.
             if (storeIdentifier != null)
             {
-                ICertificateStore store = storeIdentifier.OpenStore();
+                ICertificateStore store = storeIdentifier.OpenStore(telemetry);
                 try
                 {
                     if (store == null)

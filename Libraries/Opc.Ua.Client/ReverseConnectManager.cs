@@ -181,8 +181,9 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        public ReverseConnectManager()
+        public ReverseConnectManager(ITelemetryContext telemetry)
         {
+            m_telemetry = telemetry;
             m_state = ReverseConnectManagerState.New;
             m_registrations = [];
             m_endpointUrls = [];
@@ -647,7 +648,7 @@ namespace Opc.Ua.Client
         /// <param name="configEntry">Tf this is an entry in the application configuration.</param>
         private void AddEndpointInternal(Uri endpointUrl, bool configEntry)
         {
-            var reverseConnectHost = new ReverseConnectHost();
+            var reverseConnectHost = new ReverseConnectHost(m_telemetry);
             var info = new ReverseConnectInfo(reverseConnectHost, configEntry);
             try
             {
@@ -676,7 +677,7 @@ namespace Opc.Ua.Client
             bool matched = MatchRegistration(sender, e);
             while (!matched)
             {
-                Utils.LogInfo("Holding reverse connection: {0} {1}", e.ServerUri, e.EndpointUrl);
+                Utils.LogInformation("Holding reverse connection: {0} {1}", e.ServerUri, e.EndpointUrl);
                 CancellationToken ct;
                 lock (m_registrationsLock)
                 {
@@ -693,7 +694,7 @@ namespace Opc.Ua.Client
                                 matched = MatchRegistration(sender, e);
                                 if (matched)
                                 {
-                                    Utils.LogInfo(
+                                    Utils.LogInformation(
                                         "Matched reverse connection {0} {1} after {2}ms",
                                         e.ServerUri,
                                         e.EndpointUrl,
@@ -706,7 +707,7 @@ namespace Opc.Ua.Client
                 break;
             }
 
-            Utils.LogInfo(
+            Utils.LogInformation(
                 "{0} reverse connection: {1} {2} after {3}ms",
                 e.Accepted ? "Accepted" : "Rejected",
                 e.ServerUri,
@@ -739,7 +740,7 @@ namespace Opc.Ua.Client
                         callbackRegistration = registration;
                         e.Accepted = true;
                         found = true;
-                        Utils.LogInfo(
+                        Utils.LogInformation(
                             "Accepted reverse connection: {0} {1}",
                             e.ServerUri,
                             e.EndpointUrl);
@@ -759,7 +760,7 @@ namespace Opc.Ua.Client
                             callbackRegistration = registration;
                             e.Accepted = true;
                             found = true;
-                            Utils.LogInfo(
+                            Utils.LogInformation(
                                 "Accept any reverse connection for approval: {0} {1}",
                                 e.ServerUri,
                                 e.EndpointUrl);
@@ -786,7 +787,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private void OnConnectionStatusChanged(object sender, ConnectionStatusEventArgs e)
         {
-            Utils.LogInfo("Channel status: {0} {1} {2}", e.EndpointUrl, e.ChannelStatus, e.Closed);
+            Utils.LogInformation("Channel status: {0} {1} {2}", e.EndpointUrl, e.ChannelStatus, e.Closed);
         }
 
         /// <summary>
@@ -801,6 +802,7 @@ namespace Opc.Ua.Client
         }
 
         private readonly Lock m_lock = new();
+        private readonly ITelemetryContext m_telemetry;
         private ConfigurationWatcher m_configurationWatcher;
         private ApplicationType m_applicationType;
         private Type m_configType;

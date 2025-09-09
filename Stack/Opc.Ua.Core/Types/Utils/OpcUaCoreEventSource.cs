@@ -13,7 +13,6 @@
 using System;
 using System.Diagnostics.Tracing;
 using Microsoft.Extensions.Logging;
-using static Opc.Ua.Utils;
 
 namespace Opc.Ua
 {
@@ -59,23 +58,23 @@ namespace Opc.Ua
         /// The Core ILogger event Ids used for event messages, when calling back to ILogger.
         /// </summary>
         internal readonly EventId ServiceCallStartEventId = new(
-            TraceMasks.Service,
+            Utils.TraceMasks.Service,
             nameof(ServiceCallStart));
 
         internal readonly EventId ServiceCallStopEventId = new(
-            TraceMasks.Service,
+            Utils.TraceMasks.Service,
             nameof(ServiceCallStop));
 
         internal readonly EventId ServiceCallBadStopEventId = new(
-            TraceMasks.Service,
+            Utils.TraceMasks.Service,
             nameof(ServiceCallBadStop));
 
         internal readonly EventId SendResponseEventId = new(
-            TraceMasks.Service,
+            Utils.TraceMasks.Service,
             nameof(SendResponse));
 
         internal readonly EventId ServiceFaultEventId = new(
-            TraceMasks.Service,
+            Utils.TraceMasks.Service,
             nameof(ServiceFault));
 
         /// <summary>
@@ -347,7 +346,7 @@ namespace Opc.Ua
             }
             else
             {
-                LogWarning(ServiceFaultEventId, ServiceFaultMessage, statusCode);
+                Utils.LogWarning(ServiceFaultEventId, ServiceFaultMessage, statusCode);
             }
         }
 

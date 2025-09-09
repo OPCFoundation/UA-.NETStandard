@@ -41,9 +41,9 @@ using Microsoft.Extensions.Logging;
 namespace Opc.Ua
 {
     /// <summary>
-    /// Provides observability context for tracing, metrics and logging.
+    /// Provides context for tracing, metrics and logging.
     /// </summary>
-    public interface IObservabilityContext
+    public interface ITelemetryContext
     {
         /// <summary>
         /// Get the meter instance to create and record metrics.

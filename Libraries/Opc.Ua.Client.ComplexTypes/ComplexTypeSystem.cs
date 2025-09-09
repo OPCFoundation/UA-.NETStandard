@@ -526,7 +526,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                     typeDictionary[qName] = ExpandedNodeId.ToNodeId(
                                         typeId,
                                         m_complexTypeResolver.NamespaceUris);
-                                    Utils.LogInfo(
+                                    Utils.LogInformation(
                                         "Skip the type definition of {0} because the type already exists.",
                                         item.Name);
                                     continue;
@@ -593,7 +593,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                     }
                                     catch (DataTypeNotSupportedException typeNotSupportedException)
                                     {
-                                        Utils.LogInfo(
+                                        Utils.LogInformation(
                                             typeNotSupportedException,
                                             "Skipped the type definition of {0} because it is not supported.",
                                             item.Name);

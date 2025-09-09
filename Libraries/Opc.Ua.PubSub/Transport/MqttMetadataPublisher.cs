@@ -70,7 +70,7 @@ namespace Opc.Ua.PubSub.Transport
         public void Start()
         {
             m_intervalRunner.Start();
-            Utils.LogInfo(
+            Utils.LogInformation(
                 "The MqttMetadataPublisher for DataSetWriterId '{0}' was started.",
                 m_dataSetWriter.DataSetWriterId);
         }
@@ -82,7 +82,7 @@ namespace Opc.Ua.PubSub.Transport
         {
             m_intervalRunner.Stop();
 
-            Utils.LogInfo(
+            Utils.LogInformation(
                 "The MqttMetadataPublisher for DataSetWriterId '{0}' was stopped.",
                 m_dataSetWriter.DataSetWriterId);
         }
@@ -109,7 +109,7 @@ namespace Opc.Ua.PubSub.Transport
                 if (metaDataNetworkMessage != null)
                 {
                     bool success = m_parentConnection.PublishNetworkMessage(metaDataNetworkMessage);
-                    Utils.LogInfo(
+                    Utils.LogInformation(
                         "MqttMetadataPublisher Publish DataSetMetaData, DataSetWriterId:{0}; success = {1}",
                         m_dataSetWriter.DataSetWriterId,
                         success);

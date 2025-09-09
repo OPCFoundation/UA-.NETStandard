@@ -175,7 +175,7 @@ namespace Opc.Ua.PubSub.Transport
             m_publisherMqttClientOptions = GetMqttClientOptions();
             m_subscriberMqttClientOptions = GetMqttClientOptions();
 
-            Utils.LogInfo(
+            Utils.LogInformation(
                 "MqttPubSubConnection with name '{0}' was created.",
                 pubSubConnectionDataType.Name);
         }
@@ -494,7 +494,7 @@ namespace Opc.Ua.PubSub.Transport
                 m_subscriberMqttClient = subscriberClient;
             }
 
-            Utils.LogInfo(
+            Utils.LogInformation(
                 "Connection '{0}' started {1} publishers and {2} subscribers.",
                 PubSubConnectionConfiguration.Name,
                 nrOfPublishers,
@@ -598,7 +598,7 @@ namespace Opc.Ua.PubSub.Transport
         {
             string topic = eventArgs.ApplicationMessage.Topic;
 
-            Utils.LogInfo("MQTTConnection - ProcessMqttMessage() received from topic={0}", topic);
+            Utils.LogInformation("MQTTConnection - ProcessMqttMessage() received from topic={0}", topic);
 
             // get the datasetreaders for received message topic
             var dataSetReaders = new List<DataSetReaderDataType>();
@@ -656,7 +656,7 @@ namespace Opc.Ua.PubSub.Transport
                 // check if the RawData message is marked as handled
                 if (rawDataReceivedEventArgs.Handled)
                 {
-                    Utils.LogInfo(
+                    Utils.LogInformation(
                         "MqttConnection message from topic={0} is marked as handled and will not be decoded.",
                         topic);
                     return Task.CompletedTask;
@@ -686,7 +686,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             else
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "MqttConnection - ProcessMqttMessage() No DataSetReader is registered for topic={0}.",
                     topic);
             }

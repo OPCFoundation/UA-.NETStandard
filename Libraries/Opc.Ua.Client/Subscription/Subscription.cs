@@ -1757,7 +1757,7 @@ namespace Opc.Ua.Client
                         }
                     }
 
-                    Utils.LogInfo(
+                    Utils.LogInformation(
                         "SubscriptionId {0}: Republishing {1} messages, next sequencenumber {2} after transfer.",
                         Id,
                         republishMessages,
@@ -1991,7 +1991,7 @@ namespace Opc.Ua.Client
 
             if (KeepAliveCount != revisedKeepAliveCount)
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "For subscription {0}, Keep alive count was revised from {1} to {2}",
                     Id,
                     KeepAliveCount,
@@ -2000,7 +2000,7 @@ namespace Opc.Ua.Client
 
             if (LifetimeCount != revisedLifetimeCounter)
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "For subscription {0}, Lifetime count was revised from {1} to {2}",
                     Id,
                     LifetimeCount,
@@ -2009,7 +2009,7 @@ namespace Opc.Ua.Client
 
             if (PublishingInterval != revisedPublishingInterval)
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "For subscription {0}, Publishing interval was revised from {1} to {2}",
                     Id,
                     PublishingInterval,
@@ -2018,7 +2018,7 @@ namespace Opc.Ua.Client
 
             if (revisedLifetimeCounter < revisedKeepAliveCount * 3)
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "For subscription {0}, Revised lifetime counter (value={1}) is less than three times the keep alive count (value={2})",
                     Id,
                     revisedLifetimeCounter,
@@ -2027,7 +2027,7 @@ namespace Opc.Ua.Client
 
             if (CurrentPriority == 0)
             {
-                Utils.LogInfo("For subscription {0}, the priority was set to 0.", Id);
+                Utils.LogInformation("For subscription {0}, the priority was set to 0.", Id);
             }
         }
 
@@ -2085,7 +2085,7 @@ namespace Opc.Ua.Client
             // keep alive count must be at least 1, 10 is a good default.
             if (keepAliveCount == 0)
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "Adjusted KeepAliveCount from value={0}, to value={1}, for subscription {2}.",
                     keepAliveCount,
                     kDefaultKeepAlive,
@@ -2116,7 +2116,7 @@ namespace Opc.Ua.Client
                         lifetimeCount++;
                     }
 
-                    Utils.LogInfo(
+                    Utils.LogInformation(
                         "Adjusted LifetimeCount to value={0}, for subscription {1}. ",
                         lifetimeCount,
                         Id);
@@ -2135,7 +2135,7 @@ namespace Opc.Ua.Client
             {
                 // don't know what the sampling interval will be - use something large enough
                 // to ensure the user does not experience unexpected drop outs.
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "Adjusted LifetimeCount from value={0}, to value={1}, for subscription {2}. ",
                     lifetimeCount,
                     kDefaultLifeTime,
@@ -2147,7 +2147,7 @@ namespace Opc.Ua.Client
             uint minLifeTimeCount = 3 * keepAliveCount;
             if (lifetimeCount < minLifeTimeCount)
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "Adjusted LifetimeCount from value={0}, to value={1}, for subscription {2}. ",
                     lifetimeCount,
                     minLifeTimeCount,
@@ -2215,7 +2215,7 @@ namespace Opc.Ua.Client
                                 m_lastSequenceNumberProcessed = ii.Value.SequenceNumber;
                                 if (m_resyncLastSequenceNumberProcessed)
                                 {
-                                    Utils.LogInfo(
+                                    Utils.LogInformation(
                                         "SubscriptionId {0}: Resynced last sequence number processed to {1}.",
                                         Id,
                                         m_lastSequenceNumberProcessed);
@@ -2251,7 +2251,7 @@ namespace Opc.Ua.Client
                                 }
                                 else
                                 {
-                                    Utils.LogInfo(
+                                    Utils.LogInformation(
                                         "Skipped to receive RepublishAsync for {0}-{1}-BadMessageNotAvailable",
                                         subscriptionId,
                                         ii.Value.SequenceNumber);
@@ -2696,7 +2696,7 @@ namespace Opc.Ua.Client
             // check for empty monitored items list.
             if (notifications.MonitoredItems == null || notifications.MonitoredItems.Count == 0)
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "Publish response contains empty MonitoredItems list for SubscriptionId = {0}.",
                     Id);
                 return;

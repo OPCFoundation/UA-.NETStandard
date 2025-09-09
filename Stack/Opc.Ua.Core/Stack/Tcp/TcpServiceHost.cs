@@ -29,7 +29,7 @@ namespace Opc.Ua.Bindings
         public abstract string UriScheme { get; }
 
         /// <inheritdoc/>
-        public abstract ITransportListener Create();
+        public abstract ITransportListener Create(ITelemetryContext telemetry);
 
         /// <inheritdoc/>
         /// <summary>
@@ -76,7 +76,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 _ = instanceCertificateTypesProvider.SendCertificateChain;
-                ITransportListener listener = Create();
+                ITransportListener listener = Create(serverBase.Telemetry);
                 if (listener != null)
                 {
                     var listenerEndpoints = new EndpointDescriptionCollection();

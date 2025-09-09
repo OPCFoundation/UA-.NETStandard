@@ -72,7 +72,7 @@ namespace Opc.Ua.PubSub.Transport
             Client.Bind(boundEndpoint);
             EnableBroadcast = true;
 
-            Utils.LogInfo(
+            Utils.LogInformation(
                 "UdpClientBroadcast was created for address: {0}:{1} - {2}.",
                 address,
                 port,
@@ -112,7 +112,7 @@ namespace Opc.Ua.PubSub.Transport
                 }
                 catch (Exception ex)
                 {
-                    Utils.LogInfo(
+                    Utils.LogInformation(
                         "UdpClientBroadcast set SetSocketOption {1} to {2} resulted in ex {0}",
                         ex.Message,
                         SocketOptionName.Broadcast,
@@ -131,7 +131,7 @@ namespace Opc.Ua.PubSub.Transport
                 }
                 catch (Exception ex)
                 {
-                    Utils.LogInfo(
+                    Utils.LogInformation(
                         "UdpClientBroadcast set ExclusiveAddressUse to false resulted in ex {0}",
                         ex.Message);
                 }

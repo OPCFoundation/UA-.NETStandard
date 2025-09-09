@@ -30,7 +30,6 @@
 using System;
 using System.Diagnostics.Tracing;
 using Microsoft.Extensions.Logging;
-using static Opc.Ua.Utils;
 
 namespace Opc.Ua.Server
 {
@@ -74,19 +73,19 @@ namespace Opc.Ua.Server
         /// The Server ILogger event Ids used for event messages, when calling back to ILogger.
         /// </summary>
         private readonly EventId m_sendResponseEventId = new(
-            TraceMasks.ServiceDetail,
+            Utils.TraceMasks.ServiceDetail,
             nameof(SendResponse));
 
         private readonly EventId m_serverCallEventId = new(
-            TraceMasks.ServiceDetail,
+            Utils.TraceMasks.ServiceDetail,
             nameof(ServerCall));
 
         private readonly EventId m_sessionStateMessageEventId = new(
-            TraceMasks.Information,
+            Utils.TraceMasks.Information,
             nameof(SessionState));
 
         private readonly EventId m_monitoredItemReadyEventId = new(
-            TraceMasks.OperationDetail,
+            Utils.TraceMasks.OperationDetail,
             nameof(MonitoredItemReady));
 
         /// <summary>
@@ -99,9 +98,9 @@ namespace Opc.Ua.Server
             {
                 WriteEvent(kSendResponseId, channelId, requestId);
             }
-            else if ((TraceMask & TraceMasks.ServiceDetail) != 0)
+            else if ((Utils.TraceMask & Utils.TraceMasks.ServiceDetail) != 0)
             {
-                LogTrace(m_sendResponseEventId, kSendResponseMessage, channelId, requestId);
+                Utils.LogTrace(m_sendResponseEventId, kSendResponseMessage, channelId, requestId);
             }
         }
 
@@ -135,7 +134,7 @@ namespace Opc.Ua.Server
                     secureChannelId,
                     identity);
             }
-            LogInfo(
+            Utils.LogInformation(
                 m_sessionStateMessageEventId,
                 kSessionStateMessage,
                 context,
@@ -154,13 +153,13 @@ namespace Opc.Ua.Server
             Level = EventLevel.Verbose)]
         public void MonitoredItemReady(uint id, string state)
         {
-            if ((TraceMask & TraceMasks.OperationDetail) != 0)
+            if ((Utils.TraceMask & Utils.TraceMasks.OperationDetail) != 0)
             {
                 if (IsEnabled())
                 {
                     WriteEvent(kMonitoredItemReadyId, id, state);
                 }
-                LogTrace(m_monitoredItemReadyEventId, kMonitoredItemReadyMessage, id, state);
+                Utils.LogTrace(m_monitoredItemReadyEventId, kMonitoredItemReadyMessage, id, state);
             }
         }
 
@@ -179,9 +178,9 @@ namespace Opc.Ua.Server
             {
                 ServerCall(requestTypeString, requestId);
             }
-            else if ((TraceMask & TraceMasks.ServiceDetail) != 0)
+            else if ((Utils.TraceMask & Utils.TraceMasks.ServiceDetail) != 0)
             {
-                LogTrace(m_serverCallEventId, kServerCallMessage, requestTypeString, requestId);
+                Utils.LogTrace(m_serverCallEventId, kServerCallMessage, requestTypeString, requestId);
             }
         }
 
@@ -191,14 +190,14 @@ namespace Opc.Ua.Server
         [NonEvent]
         public void WriteValueRange(NodeId nodeId, Variant wrappedValue, string range)
         {
-            if ((TraceMask & TraceMasks.ServiceDetail) != 0)
+            if ((Utils.TraceMask & Utils.TraceMasks.ServiceDetail) != 0)
             {
                 if (IsEnabled())
                 {
                     //WriteEvent();
                 }
-                LogTrace(
-                    TraceMasks.ServiceDetail,
+                Utils.LogTrace(
+                    Utils.TraceMasks.ServiceDetail,
                     "WRITE: NodeId={0} Value={1} Range={2}",
                     nodeId,
                     wrappedValue,
@@ -212,14 +211,14 @@ namespace Opc.Ua.Server
         [NonEvent]
         public void ReadValueRange(NodeId nodeId, Variant wrappedValue, string range)
         {
-            if ((TraceMask & TraceMasks.ServiceDetail) != 0)
+            if ((Utils.TraceMask & Utils.TraceMasks.ServiceDetail) != 0)
             {
                 if (IsEnabled())
                 {
                     //WriteEvent();
                 }
-                LogTrace(
-                    TraceMasks.ServiceDetail,
+                Utils.LogTrace(
+                    Utils.TraceMasks.ServiceDetail,
                     "READ: NodeId={0} Value={1} Range={2}",
                     nodeId,
                     wrappedValue,
@@ -233,13 +232,13 @@ namespace Opc.Ua.Server
         [NonEvent]
         public void EnqueueValue(Variant wrappedValue)
         {
-            if ((TraceMask & TraceMasks.OperationDetail) != 0)
+            if ((Utils.TraceMask & Utils.TraceMasks.OperationDetail) != 0)
             {
                 if (IsEnabled())
                 {
                     //WriteEvent();
                 }
-                LogTrace("ENQUEUE VALUE: Value={0}", wrappedValue);
+                Utils.LogTrace("ENQUEUE VALUE: Value={0}", wrappedValue);
             }
         }
 
@@ -249,13 +248,13 @@ namespace Opc.Ua.Server
         [NonEvent]
         public void DequeueValue(Variant wrappedValue, StatusCode statusCode)
         {
-            if ((TraceMask & TraceMasks.OperationDetail) != 0)
+            if ((Utils.TraceMask & Utils.TraceMasks.OperationDetail) != 0)
             {
                 if (IsEnabled())
                 {
                     //WriteEvent();
                 }
-                LogTrace(
+                Utils.LogTrace(
                     "DEQUEUE VALUE: Value={0} CODE={1}<{2:X8}> OVERFLOW={3}",
                     wrappedValue,
                     statusCode.Code,
@@ -270,14 +269,14 @@ namespace Opc.Ua.Server
         [NonEvent]
         public void QueueValue(uint id, Variant wrappedValue, StatusCode statusCode)
         {
-            if ((TraceMask & TraceMasks.OperationDetail) != 0)
+            if ((Utils.TraceMask & Utils.TraceMasks.OperationDetail) != 0)
             {
                 if (IsEnabled())
                 {
                     //WriteEvent();
                 }
-                LogTrace(
-                    TraceMasks.OperationDetail,
+                Utils.LogTrace(
+                    Utils.TraceMasks.OperationDetail,
                     "QUEUE VALUE[{0}]: Value={1} CODE={2}<{3:X8}> OVERFLOW={4}",
                     id,
                     wrappedValue,

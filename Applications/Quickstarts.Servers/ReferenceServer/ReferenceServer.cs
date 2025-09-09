@@ -72,7 +72,7 @@ namespace Quickstarts.ReferenceServer
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            Utils.LogInfo(
+            Utils.LogInformation(
                 Utils.TraceMasks.StartStop,
                 "Creating the Reference Server Node Manager.");
 
@@ -174,7 +174,7 @@ namespace Quickstarts.ReferenceServer
         /// </remarks>
         protected override void OnServerStarting(ApplicationConfiguration configuration)
         {
-            Utils.LogInfo(Utils.TraceMasks.StartStop, "The server is starting.");
+            Utils.LogInformation(Utils.TraceMasks.StartStop, "The server is starting.");
 
             base.OnServerStarting(configuration);
 
@@ -282,7 +282,7 @@ namespace Quickstarts.ReferenceServer
             {
                 args.Identity = VerifyPassword(userNameToken);
 
-                Utils.LogInfo(
+                Utils.LogInformation(
                     Utils.TraceMasks.Security,
                     "Username Token Accepted: {0}",
                     args.Identity?.DisplayName);
@@ -299,7 +299,7 @@ namespace Quickstarts.ReferenceServer
                 args.Identity = new RoleBasedIdentity(
                     new UserIdentity(x509Token),
                     [Role.AuthenticatedUser]);
-                Utils.LogInfo(
+                Utils.LogInformation(
                     Utils.TraceMasks.Security,
                     "X509 Token Accepted: {0}",
                     args.Identity?.DisplayName);

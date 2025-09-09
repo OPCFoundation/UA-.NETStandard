@@ -451,7 +451,7 @@ namespace Opc.Ua.Gds.Client
 
         private void Session_SessionClosing(object sender, EventArgs e)
         {
-            Utils.LogInfo("The GDS Client session is closing.");
+            Utils.LogInformation("The GDS Client session is closing.");
         }
 
         /// <summary>

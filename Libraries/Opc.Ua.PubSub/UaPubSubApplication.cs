@@ -113,7 +113,7 @@ namespace Opc.Ua.PubSub
             UaPubSubConfigurator.PublishedDataSetRemoved
                 += UaPubSubConfigurator_PublishedDataSetRemoved;
 
-            Utils.LogInfo("An instance of UaPubSubApplication was created.");
+            Utils.LogInformation("An instance of UaPubSubApplication was created.");
         }
 
         /// <summary>
@@ -212,12 +212,12 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public void Start()
         {
-            Utils.LogInfo("UaPubSubApplication is starting.");
+            Utils.LogInformation("UaPubSubApplication is starting.");
             foreach (IUaPubSubConnection connection in m_uaPubSubConnections)
             {
                 connection.Start();
             }
-            Utils.LogInfo("UaPubSubApplication was started.");
+            Utils.LogInformation("UaPubSubApplication was started.");
         }
 
         /// <summary>
@@ -225,12 +225,12 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public void Stop()
         {
-            Utils.LogInfo("UaPubSubApplication is stopping.");
+            Utils.LogInformation("UaPubSubApplication is stopping.");
             foreach (IUaPubSubConnection connection in m_uaPubSubConnections)
             {
                 connection.Stop();
             }
-            Utils.LogInfo("UaPubSubApplication is stopped.");
+            Utils.LogInformation("UaPubSubApplication is stopped.");
         }
 
         /// <summary>

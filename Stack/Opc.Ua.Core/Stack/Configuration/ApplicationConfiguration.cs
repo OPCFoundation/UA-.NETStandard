@@ -560,7 +560,7 @@ namespace Opc.Ua
                     "SecurityConfiguration must be specified.");
             }
 
-            SecurityConfiguration.Validate();
+            SecurityConfiguration.Validate(m_telemetry);
 
             // load private keys
             foreach (CertificateIdentifier applicationCertificate in SecurityConfiguration
@@ -570,6 +570,7 @@ namespace Opc.Ua
                     .LoadPrivateKeyExAsync(
                         SecurityConfiguration.CertificatePasswordProvider,
                         ApplicationUri,
+                        m_telemetry,
                         ct)
                     .ConfigureAwait(false);
             }

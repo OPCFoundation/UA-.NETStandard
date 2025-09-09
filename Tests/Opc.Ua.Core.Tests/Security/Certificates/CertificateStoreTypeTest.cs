@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
@@ -26,6 +27,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task CertificateStoreTypeConfigTestAsync()
         {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var fileInfo = new FileInfo(
                 Path.Combine(
                     TestContext.CurrentContext.TestDirectory,
@@ -39,7 +41,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.IsTrue(instancesCreatedWhileLoadingConfig > 0);
             CertificateTrustList trustedIssuers = appConfig.SecurityConfiguration
                 .TrustedIssuerCertificates;
-            using ICertificateStore trustedIssuersStore = trustedIssuers.OpenStore();
+            using ICertificateStore trustedIssuersStore = trustedIssuers.OpenStore(telemetry);
             trustedIssuersStore.Close();
             int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
             Assert.IsTrue(
@@ -47,7 +49,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             var certificateStoreIdentifier = new CertificateStoreIdentifier(
                 TestCertStore.StoreTypePrefix + @"CurrentUser\Disallowed");
-            using ICertificateStore store = certificateStoreIdentifier.OpenStore();
+            using ICertificateStore store = certificateStoreIdentifier.OpenStore(telemetry);
             Assert.IsTrue(
                 instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
         }
@@ -55,9 +57,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
     internal sealed class TestStoreType : ICertificateStoreType
     {
-        public ICertificateStore CreateStore()
+        public ICertificateStore CreateStore(ITelemetryContext telemetry)
         {
-            return new TestCertStore();
+            return new TestCertStore(telemetry);
         }
 
         public bool SupportsStorePath(string storePath)
@@ -68,10 +70,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
     internal sealed class TestCertStore : ICertificateStore
     {
-        public TestCertStore()
+        public TestCertStore(ITelemetryContext telemetry)
         {
             s_instancesCreated++;
-            m_innerStore = new X509CertificateStore();
+            m_innerStore = new X509CertificateStore(telemetry);
         }
 
         /// <inheritdoc/>

@@ -16,6 +16,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -154,9 +155,10 @@ namespace Opc.Ua
         /// </summary>
         public Task<X509Certificate2> FindAsync(
             string applicationUri = null,
+            ITelemetryContext telemetry = null,
             CancellationToken ct = default)
         {
-            return FindAsync(false, applicationUri, ct);
+            return FindAsync(false, applicationUri, telemetry, ct);
         }
 
         /// <summary>
@@ -176,11 +178,13 @@ namespace Opc.Ua
         public Task<X509Certificate2> LoadPrivateKeyAsync(
             string password,
             string applicationUri = null,
+            ITelemetryContext telemetry = null,
             CancellationToken ct = default)
         {
             return LoadPrivateKeyExAsync(
                 password != null ? new CertificatePasswordProvider(password) : null,
                 applicationUri,
+                telemetry,
                 ct);
         }
 
@@ -201,6 +205,7 @@ namespace Opc.Ua
         public async Task<X509Certificate2> LoadPrivateKeyExAsync(
             ICertificatePasswordProvider passwordProvider,
             string applicationUri = null,
+            ITelemetryContext telemetry = null,
             CancellationToken ct = default)
         {
             if (StoreType != CertificateStoreType.X509Store)
@@ -209,7 +214,7 @@ namespace Opc.Ua
                     StorePath,
                     StoreType,
                     false);
-                using ICertificateStore store = certificateStoreIdentifier.OpenStore();
+                using ICertificateStore store = certificateStoreIdentifier.OpenStore(telemetry);
                 if (store?.SupportsLoadPrivateKey == true)
                 {
                     string password = passwordProvider?.GetPassword(this);
@@ -264,14 +269,17 @@ namespace Opc.Ua
         /// <remarks>The certificate type is used to match the signature and public key type.</remarks>
         /// <param name="needPrivateKey">if set to <c>true</c> the returned certificate must contain the private key.</param>
         /// <param name="applicationUri">the application uri in the extensions of the certificate.</param>
+        /// <param name="telemetry">Telemetry context to use</param>
         /// <param name="ct">Cancellation token to cancel action</param>
         /// <returns>An instance of the <see cref="X509Certificate2"/> that is embedded by this instance or find it in
         /// the selected store pointed out by the <see cref="StorePath"/> using selected <see cref="SubjectName"/> or if specified applicationUri.</returns>
         public async Task<X509Certificate2> FindAsync(
             bool needPrivateKey,
             string applicationUri = null,
+            ITelemetryContext telemetry = null,
             CancellationToken ct = default)
         {
+            var logger = telemetry.CreateLogger<CertificateIdentifier>();
             X509Certificate2 certificate = null;
 
             // check if the entire certificate has been specified.
@@ -283,7 +291,7 @@ namespace Opc.Ua
             {
                 // open store.
                 var certificateStoreIdentifier = new CertificateStoreIdentifier(StorePath, false);
-                using ICertificateStore store = certificateStoreIdentifier.OpenStore();
+                using ICertificateStore store = certificateStoreIdentifier.OpenStore(telemetry);
                 if (store == null)
                 {
                     return null;
@@ -304,11 +312,10 @@ namespace Opc.Ua
                 {
                     if (needPrivateKey && store.SupportsLoadPrivateKey)
                     {
-                        var message = new StringBuilder();
-                        message.AppendLine("Loaded a certificate with private key from store {0}.")
-                            .AppendLine(
-                            "Ensure to call LoadPrivateKeyEx with password provider before calling Find(true).");
-                        Utils.LogWarning(message.ToString(), StoreType);
+                        logger.LogWarning(
+                            "Loaded a certificate with private key from store {0}. " +
+                            "Ensure to call LoadPrivateKeyEx with password provider before calling Find(true).",
+                            StoreType);
                     }
 
                     m_certificate = certificate;
@@ -318,7 +325,7 @@ namespace Opc.Ua
             // use the single instance in the certificate cache.
             if (needPrivateKey)
             {
-                certificate = m_certificate = CertificateFactory.Load(certificate, true);
+                certificate = m_certificate = CertificateFactory.Load(certificate, true, logger);
             }
 
             return certificate;
@@ -481,9 +488,9 @@ namespace Opc.Ua
         /// Opens a store which contains public and private keys.
         /// </remarks>
         /// <returns>A disposable instance of the <see cref="ICertificateStore"/>.</returns>
-        public ICertificateStore OpenStore()
+        public ICertificateStore OpenStore(ITelemetryContext telemetry)
         {
-            ICertificateStore store = CertificateStoreIdentifier.CreateStore(StoreType);
+            ICertificateStore store = CertificateStoreIdentifier.CreateStore(StoreType, telemetry);
             store.Open(StorePath, false);
             return store;
         }

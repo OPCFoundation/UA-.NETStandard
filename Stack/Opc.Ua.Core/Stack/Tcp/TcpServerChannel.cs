@@ -17,8 +17,9 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Opc.Ua.Security;
 using Opc.Ua.Security.Certificates;
-using static Opc.Ua.Utils;
 
 namespace Opc.Ua.Bindings
 {
@@ -36,15 +37,18 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             ChannelQuotas quotas,
             CertificateTypesProvider serverCertificateTypesProvider,
-            EndpointDescriptionCollection endpoints)
+            EndpointDescriptionCollection endpoints,
+            ITelemetryContext telemetry)
             : base(
                 contextId,
                 listener,
                 bufferManager,
                 quotas,
                 serverCertificateTypesProvider,
-                endpoints)
+                endpoints,
+                telemetry)
         {
+            m_logger = telemetry.CreateLogger<TcpServerChannel>();
             m_queuedResponses = [];
         }
 
@@ -231,8 +235,8 @@ namespace Opc.Ua.Bindings
 
                 try
                 {
-                    LogInfo(
-                        "{0} SOCKET RECONNECTED: {1:X8}, ChannelId={2}",
+                    m_logger.LogInformation(
+                        "{Channel} SOCKET RECONNECTED: {SocketHandle:X8}, ChannelId={ChannelId}",
                         ChannelName,
                         socket.Handle,
                         ChannelId);
@@ -284,9 +288,9 @@ namespace Opc.Ua.Bindings
                     // process a response.
                     if (TcpMessageType.IsType(messageType, TcpMessageType.Message))
                     {
-                        LogTrace(
-                            TraceMasks.ServiceDetail,
-                            "ChannelId {0}: ProcessRequestMessage",
+                        m_logger.LogTrace(
+                            Utils.TraceMasks.ServiceDetail,
+                            "ChannelId {Id}: ProcessRequestMessage",
                             ChannelId);
                         return ProcessRequestMessage(messageType, messageChunk);
                     }
@@ -294,9 +298,9 @@ namespace Opc.Ua.Bindings
                     // check for hello.
                     if (messageType == TcpMessageType.Hello)
                     {
-                        LogTrace(
-                            TraceMasks.ServiceDetail,
-                            "ChannelId {0}: ProcessHelloMessage",
+                        m_logger.LogTrace(
+                            Utils.TraceMasks.ServiceDetail,
+                            "ChannelId {Id}: ProcessHelloMessage",
                             ChannelId);
                         return ProcessHelloMessage(messageChunk);
                     }
@@ -304,9 +308,9 @@ namespace Opc.Ua.Bindings
                     // process open secure channel repsonse.
                     if (TcpMessageType.IsType(messageType, TcpMessageType.Open))
                     {
-                        LogTrace(
-                            TraceMasks.ServiceDetail,
-                            "ChannelId {0}: ProcessOpenSecureChannelRequest",
+                        m_logger.LogTrace(
+                            Utils.TraceMasks.ServiceDetail,
+                            "ChannelId {Id}: ProcessOpenSecureChannelRequest",
                             ChannelId);
                         return ProcessOpenSecureChannelRequest(messageType, messageChunk);
                     }
@@ -314,9 +318,9 @@ namespace Opc.Ua.Bindings
                     // process close secure channel response.
                     if (TcpMessageType.IsType(messageType, TcpMessageType.Close))
                     {
-                        LogTrace(
-                            TraceMasks.ServiceDetail,
-                            "ChannelId {0}: ProcessCloseSecureChannelRequest",
+                        m_logger.LogTrace(
+                            Utils.TraceMasks.ServiceDetail,
+                            "ChannelId {Id}: ProcessCloseSecureChannelRequest",
                             ChannelId);
                         return ProcessCloseSecureChannelRequest(messageType, messageChunk);
                     }
@@ -354,7 +358,7 @@ namespace Opc.Ua.Bindings
                 }
                 catch (Exception e)
                 {
-                    LogError(e, "Unexpected error re-sending request (ID={0}).", response.Key);
+                    m_logger.LogError(e, "Unexpected error re-sending request (ID={Id}).", response.Key);
                 }
             }
         }
@@ -705,8 +709,8 @@ namespace Opc.Ua.Bindings
 
                         token = null;
 
-                        LogInfo(
-                            "{0} ReconnectToExistingChannel Socket={1:X8}, ChannelId={2}, TokenId={3}",
+                        m_logger.LogInformation(
+                            "{Channel} ReconnectToExistingChannel Socket={SocketHandle:X8}, ChannelId={ChannelId}, TokenId={TokenId}",
                             ChannelName,
                             (Socket?.Handle) ?? 0,
                             CurrentToken != null ? CurrentToken.ChannelId : 0,
@@ -735,10 +739,10 @@ namespace Opc.Ua.Bindings
                 // log security information.
                 if (requestType == SecurityTokenRequestType.Issue)
                 {
-                    Security.Audit.SecureChannelCreated(
+                    m_logger.SecureChannelCreated(
                         s_implementationString,
                         Listener.EndpointUrl.ToString(),
-                        Format("{0}", ChannelId),
+                        Utils.Format("{0}", ChannelId),
                         EndpointDescription,
                         ClientCertificate,
                         ServerCertificate,
@@ -746,8 +750,7 @@ namespace Opc.Ua.Bindings
                 }
                 else
                 {
-                    Security.Audit
-                        .SecureChannelRenewed(s_implementationString, Format("{0}", ChannelId));
+                    m_logger.SecureChannelRenewed(s_implementationString, Utils.Format("{0}", ChannelId));
                 }
 
                 if (requestType == SecurityTokenRequestType.Renew)
@@ -798,8 +801,7 @@ namespace Opc.Ua.Bindings
                 ReportAuditOpenSecureChannelEvent?.Invoke(this, request, ClientCertificate, e);
 
                 SendServiceFault(
-                    requestId,
-                    ServiceResult.Create(
+                    requestId, ServiceResult.Create(
                         e,
                         StatusCodes.BadTcpInternalError,
                         "Unexpected error processing OpenSecureChannel request."));
@@ -808,7 +810,7 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                SilentDispose(token);
+                Utils.SilentDispose(token);
                 chunksToProcess?.Release(BufferManager, "ProcessOpenSecureChannelRequest");
             }
         }
@@ -822,7 +824,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                LogError(e, "Error raising StatusChanged event.");
+                m_logger.LogError(e, "Error raising StatusChanged event.");
             }
         }
 
@@ -846,7 +848,7 @@ namespace Opc.Ua.Bindings
             ChannelToken token,
             OpenSecureChannelRequest request)
         {
-            LogTrace("ChannelId {0}: SendOpenSecureChannelResponse()", ChannelId);
+            m_logger.LogTrace("ChannelId {Id}: SendOpenSecureChannelResponse()", ChannelId);
 
             var response = new OpenSecureChannelResponse();
 
@@ -963,14 +965,14 @@ namespace Opc.Ua.Bindings
                 // report the audit event for close secure channel
                 ReportAuditCloseSecureChannelEvent?.Invoke(this, e);
 
-                LogError(e, "Unexpected error processing CloseSecureChannel request.");
+                m_logger.LogError(e, "Unexpected error processing CloseSecureChannel request.");
             }
             finally
             {
                 chunksToProcess?.Release(BufferManager, "ProcessCloseSecureChannelRequest");
 
-                LogInfo(
-                    "{0} ProcessCloseSecureChannelRequest success, ChannelId={1}, TokenId={2}, Socket={3:X8}",
+                m_logger.LogInformation(
+                    "{Channel} ProcessCloseSecureChannelRequest success, ChannelId={ChannelId}, TokenId={TokenId}, Socket={SocketHandle:X8}",
                     ChannelName,
                     CurrentToken?.ChannelId,
                     CurrentToken?.TokenId,
@@ -1025,8 +1027,8 @@ namespace Opc.Ua.Bindings
 
                 if (token == CurrentToken && PreviousToken != null && !PreviousToken.Expired)
                 {
-                    LogInfo(
-                        "ChannelId {0}: Server Current Token #{1}, Revoked Token #{2}.",
+                    m_logger.LogInformation(
+                        "ChannelId {Id}: Server Current Token #{CurrentToken}, Revoked Token #{PreviousToken}.",
                         PreviousToken.ChannelId,
                         CurrentToken.TokenId,
                         PreviousToken.TokenId);
@@ -1045,14 +1047,14 @@ namespace Opc.Ua.Bindings
             int countForDisconnect = 5;
             while (ChannelFull && countForDisconnect > 0)
             {
-                LogInfo("Channel {0}: full -- delay processing.", Id);
+                m_logger.LogInformation("Channel {Id}: full -- delay processing.", Id);
 
                 // delay reading from channel
                 Thread.Sleep(1000);
 
                 if (--countForDisconnect == 0 && ChannelFull)
                 {
-                    LogWarning("Channel {0}: break socket connection.", Id);
+                    m_logger.LogWarning("Channel {Id}: break socket connection.", Id);
                     ChannelClosed();
                     return false;
                 }
@@ -1065,9 +1067,9 @@ namespace Opc.Ua.Bindings
                 // check for an abort.
                 if (TcpMessageType.IsAbort(messageType))
                 {
-                    LogWarning(
-                        TraceMasks.ServiceDetail,
-                        "ChannelId {0}: ProcessRequestMessage RequestId {1} was aborted.",
+                    m_logger.LogWarning(
+                        Utils.TraceMasks.ServiceDetail,
+                        "ChannelId {Id}: ProcessRequestMessage RequestId {RequestId} was aborted.",
                         ChannelId,
                         requestId);
                     chunksToProcess = GetSavedChunks(requestId, messageBody, true);
@@ -1110,7 +1112,7 @@ namespace Opc.Ua.Bindings
                     return true;
                 }
 
-                // Utils.LogTrace("ChannelId {0}: ProcessRequestMessage RequestId {1}", ChannelId, requestId);
+                // m_logger.LogTrace("ChannelId {Id}: ProcessRequestMessage RequestId {RequestId}", ChannelId, requestId);
                 if (DiscoveryOnly &&
                     GetSavedChunksTotalSize() == 0 &&
                     !ValidateDiscoveryServiceCall(
@@ -1161,7 +1163,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                LogError(e, "Unexpected error processing request.");
+                m_logger.LogError(e, "Unexpected error processing request.");
                 SendServiceFault(
                     token,
                     requestId,
@@ -1206,7 +1208,7 @@ namespace Opc.Ua.Bindings
                         "Cannot send response over a closed channel.");
                 }
 
-                EventLog.SendResponse((int)ChannelId, (int)requestId);
+                Utils.EventLog.SendResponse((int)ChannelId, (int)requestId);
 
                 BufferCollection buffers = null;
 
@@ -1304,11 +1306,11 @@ namespace Opc.Ua.Bindings
             return true;
         }
 
+        private readonly ILogger m_logger;
         private SortedDictionary<uint, IServiceResponse> m_queuedResponses;
+        private ReverseConnectAsyncResult m_pendingReverseHello;
 
         private static readonly string s_implementationString =
-            ".NET Standard ServerChannel UA-TCP " + GetAssemblyBuildNumber();
-
-        private ReverseConnectAsyncResult m_pendingReverseHello;
+            ".NET Standard ServerChannel UA-TCP " + Utils.GetAssemblyBuildNumber();
     }
 }

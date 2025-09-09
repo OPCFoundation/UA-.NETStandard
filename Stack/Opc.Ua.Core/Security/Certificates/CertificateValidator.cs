@@ -38,8 +38,10 @@ namespace Opc.Ua
         /// <summary>
         /// The default constructor.
         /// </summary>
-        public CertificateValidator()
+        public CertificateValidator(ITelemetryContext telemetry)
         {
+            m_telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<CertificateValidator>();
             m_validatedCertificates = [];
             m_applicationCertificates = [];
             m_protectFlags = 0;
@@ -243,9 +245,9 @@ namespace Opc.Ua
                             .ConfigureAwait(false);
                         if (certificate == null)
                         {
-                            Utils.Log(
+                            m_logger.LogInformation(
                                 Utils.TraceMasks.Security,
-                                "Could not find application certificate: {0}",
+                                "Could not find application certificate: {ApplicationCert}",
                                 applicationCertificate);
                             continue;
                         }
@@ -571,7 +573,7 @@ namespace Opc.Ua
             await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                Utils.LogCertificate(
+                m_logger.LogCertificate(
                     LogLevel.Warning,
                     "Validation errors suppressed: ",
                     certificate);
@@ -623,7 +625,7 @@ namespace Opc.Ua
 
             try
             {
-                Utils.LogCertificate(
+                m_logger.LogCertificate(
                     LogLevel.Warning,
                     "Validation errors suppressed: ",
                     certificate);
@@ -843,7 +845,7 @@ namespace Opc.Ua
             // check for errors that may be suppressed.
             if (ContainsUnsuppressibleSC(se.Result))
             {
-                Utils.LogCertificate(
+                m_logger.LogCertificate(
                     LogLevel.Error,
                     "Certificate rejected. Reason={0}.",
                     certificate,
@@ -883,7 +885,7 @@ namespace Opc.Ua
                         serviceResult.StatusCode == StatusCodes.BadCertificateUntrusted)
                     {
                         accept = true;
-                        Utils.LogCertificate("Auto accepted certificate: ", certificate);
+                        m_logger.LogCertificate("Auto accepted certificate: ", certificate);
                     }
 
                     if (accept)
@@ -909,7 +911,7 @@ namespace Opc.Ua
             if (!accept)
             {
                 // only log errors if the cert validation failed and it was not accepted
-                Utils.LogCertificate(
+                m_logger.LogCertificate(
                     LogLevel.Error,
                     "Certificate validation failed with suppressible errors but was rejected. Reason={0}.",
                     certificate,
@@ -947,11 +949,11 @@ namespace Opc.Ua
         /// <summary>
         /// List all reasons for failing cert validation.
         /// </summary>
-        private static void LogInnerServiceResults(LogLevel logLevel, ServiceResult result)
+        private void LogInnerServiceResults(LogLevel logLevel, ServiceResult result)
         {
             while (result != null)
             {
-                Utils.Log(logLevel, Utils.TraceMasks.Security, " -- {0}", result.ToString());
+                m_logger.Log(logLevel, Utils.TraceMasks.Security, " -- {Result}", result.ToString());
                 result = result.InnerResult;
             }
         }
@@ -988,18 +990,18 @@ namespace Opc.Ua
                 if (!await m_semaphore.WaitAsync(kSaveCertificatesTimeout, ct)
                     .ConfigureAwait(false))
                 {
-                    Utils.LogTrace(
+                    m_logger.LogTrace(
                         "SaveCertificatesAsync: Timed out waiting, skip job to reduce CPU load.");
                     return;
                 }
 
                 try
                 {
-                    Utils.LogTrace(
-                        "Writing rejected certificate chain to: {0}",
+                    m_logger.LogTrace(
+                        "Writing rejected certificate chain to: {RefjectedCertificateStore}",
                         rejectedCertificateStore);
 
-                    ICertificateStore store = rejectedCertificateStore.OpenStore();
+                    ICertificateStore store = rejectedCertificateStore.OpenStore(m_telemetry);
                     try
                     {
                         if (store != null)
@@ -1022,8 +1024,8 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.LogTrace(
-                    "Could not write certificate to directory: {0} Error:{1}",
+                m_logger.LogTrace(
+                    "Could not write certificate to directory: {RejectedStore} Error:{Message}",
                     rejectedCertificateStore,
                     e.Message);
             }
@@ -1056,7 +1058,7 @@ namespace Opc.Ua
             // check if in peer trust store.
             if (m_trustedCertificateStore != null)
             {
-                ICertificateStore store = m_trustedCertificateStore.OpenStore();
+                ICertificateStore store = m_trustedCertificateStore.OpenStore(m_telemetry);
                 if (store != null)
                 {
                     try
@@ -1199,13 +1201,13 @@ namespace Opc.Ua
             // check in certificate store.
             if (certificateStore != null)
             {
-                ICertificateStore store = certificateStore.OpenStore();
+                ICertificateStore store = certificateStore.OpenStore(m_telemetry);
 
                 try
                 {
                     if (store == null)
                     {
-                        Utils.LogWarning("Failed to open issuer store: {0}", certificateStore);
+                        m_logger.LogWarning("Failed to open issuer store: {CertificateStore}", certificateStore);
                         // not a trusted issuer.
                         return (null, null);
                     }
@@ -1434,8 +1436,8 @@ namespace Opc.Ua
                             break;
                         // unexpected error status
                         default:
-                            Utils.LogError(
-                                "Unexpected status {0} processing certificate chain.",
+                            m_logger.LogError(
+                                "Unexpected status {ChainStatus} processing certificate chain.",
                                 chainStatus.Status);
                             sresult = new ServiceResult(ServiceResult.Create(
                                 StatusCodes.BadCertificateInvalid,
@@ -1472,7 +1474,7 @@ namespace Opc.Ua
                         if (issuer == null || !Utils.IsEqual(issuerCert.RawData, issuer.RawData))
                         {
                             // the chain used for cert validation differs from the issuers provided
-                            Utils.LogCertificate(
+                            m_logger.LogCertificate(
                                 Utils.TraceMasks.Security,
                                 "An unexpected certificate was used in the certificate chain.",
                                 issuerCert);
@@ -1844,12 +1846,12 @@ namespace Opc.Ua
                 {
                     if (serverValidation)
                     {
-                        Utils.LogError(message, Redact.Create(endpointUrl));
+                        m_logger.LogError(message, Redact.Create(endpointUrl));
                     }
                     else
                     {
                         // write the invalid certificate to rejected store if specified.
-                        Utils.LogCertificate(
+                        m_logger.LogCertificate(
                             LogLevel.Error,
                             "Certificate rejected. Reason={0}.",
                             serverCertificate,
@@ -1866,7 +1868,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns an error if the chain status elements indicate an error.
         /// </summary>
-        private static ServiceResult CheckChainStatus(
+        private ServiceResult CheckChainStatus(
             X509ChainStatus status,
             CertificateIdentifier id,
             CertificateIdentifier issuer,
@@ -1916,9 +1918,9 @@ namespace Opc.Ua
                         (issuer.ValidationOptions &
                             CertificateValidationOptions.SuppressRevocationStatusUnknown) != 0)
                     {
-                        Utils.LogWarning(
+                        m_logger.LogWarning(
                             Utils.TraceMasks.Security,
-                            "Error suppressed: {0}: {1}",
+                            "Error suppressed: {Status}: {Information}",
                             status.Status,
                             status.StatusInformation);
                         break;
@@ -1950,9 +1952,9 @@ namespace Opc.Ua
                         ((id.ValidationOptions &
                             CertificateValidationOptions.SuppressCertificateExpired) != 0))
                     {
-                        Utils.LogWarning(
+                        m_logger.LogWarning(
                             Utils.TraceMasks.Security,
-                            "Error suppressed: {0}: {1}",
+                            "Error suppressed: {Status}: {Information}",
                             status.Status,
                             status.StatusInformation);
                         break;
@@ -1967,9 +1969,9 @@ namespace Opc.Ua
                         ((id.ValidationOptions &
                             CertificateValidationOptions.SuppressCertificateExpired) != 0))
                     {
-                        Utils.LogWarning(
+                        m_logger.LogWarning(
                             Utils.TraceMasks.Security,
-                            "Error suppressed: {0}: {1}",
+                            "Error suppressed: {Status}: {Information}",
                             status.Status,
                             status.StatusInformation);
                         break;
@@ -2183,6 +2185,8 @@ namespace Opc.Ua
 
         private readonly SemaphoreSlim m_semaphore = new(1, 1);
         private readonly Lock m_callbackLock = new();
+        private readonly ILogger m_logger;
+        private readonly ITelemetryContext m_telemetry;
         private readonly Dictionary<string, X509Certificate2> m_validatedCertificates;
         private CertificateStoreIdentifier m_trustedCertificateStore;
         private CertificateIdentifierCollection m_trustedCertificateList;

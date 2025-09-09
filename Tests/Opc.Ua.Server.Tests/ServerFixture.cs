@@ -44,7 +44,6 @@ namespace Opc.Ua.Server.Tests
     public class ServerFixture<T>
         where T : ServerBase, new()
     {
-        private NUnitTestLogger<T> m_traceLogger;
         public ApplicationInstance Application { get; private set; }
         public ApplicationConfiguration Config { get; private set; }
         public T Server { get; private set; }
@@ -246,7 +245,7 @@ namespace Opc.Ua.Server.Tests
 
             if (writer != null)
             {
-                m_traceLogger = NUnitTestLogger<T>.Create(writer);
+                m_telemetry = NUnitTestLogger.Create(writer);
             }
 
             // check the application certificate.
@@ -259,7 +258,7 @@ namespace Opc.Ua.Server.Tests
             }
 
             // start the server.
-            var server = new T();
+            var server = new T { Telemetry = m_telemetry };
             if (AllNodeManagers && server is StandardServer standardServer)
             {
                 Quickstarts.Servers.Utils.AddDefaultNodeManagers(standardServer);
@@ -279,17 +278,9 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         public void SetTraceOutput(TextWriter writer)
         {
-            m_traceLogger.SetWriter(writer);
-        }
-
-        /// <summary>
-        /// Adjust the Log level for the tracer
-        /// </summary>
-        public void SetTraceOutputLevel(LogLevel logLevel = LogLevel.Debug)
-        {
-            if (m_traceLogger != null)
+            if (m_telemetry is NUnitTestLogger testLogger)
             {
-                m_traceLogger.MinimumLogLevel = logLevel;
+                testLogger.SetWriter(writer);
             }
         }
 
@@ -319,7 +310,7 @@ namespace Opc.Ua.Server.Tests
                     Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
                         ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = activity =>
-                        Utils.LogInfo(
+                        Utils.LogInformation(
                             "Server Started: {0,-15} - TraceId: {1,-32} SpanId: {2,-16} ParentId: {3,-32}",
                             activity.OperationName,
                             activity.TraceId,
@@ -327,7 +318,7 @@ namespace Opc.Ua.Server.Tests
                             activity.ParentId
                         ),
                     ActivityStopped = activity =>
-                        Utils.LogInfo(
+                        Utils.LogInformation(
                             "Server Stopped: {0,-15} - TraceId: {1,-32} SpanId: {2,-16} ParentId: {3,-32} Duration: {4}",
                             activity.OperationName,
                             activity.TraceId,
@@ -351,5 +342,7 @@ namespace Opc.Ua.Server.Tests
             ActivityListener = null;
             return Task.Delay(100);
         }
+
+        private ITelemetryContext m_telemetry;
     }
 }

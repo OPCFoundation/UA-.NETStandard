@@ -32,7 +32,7 @@ namespace Opc.Ua
         [Obsolete("Use Utils.LogInfo instead.")]
         public static void Trace(string message)
         {
-            LogInfo(message);
+            LogInformation(message);
         }
 
         /// <summary>
@@ -41,7 +41,7 @@ namespace Opc.Ua
         [Obsolete("Use Utils.LogInfo instead.")]
         public static void Trace(string format, params object[] args)
         {
-            LogInfo(format, args);
+            LogInformation(format, args);
         }
 
         /// <summary>
@@ -133,7 +133,7 @@ namespace Opc.Ua
         /// <remarks>
         /// The setting is ignored if ILogger is replaced.
         /// </remarks>
-        [Obsolete("Use IObservabilityContext ILoggerFactory and concrete ILoggers.")]
+        [Obsolete("Use ITelemetryContext ILoggerFactory and concrete ILoggers.")]
         public static void SetLogLevel(LogLevel logLevel)
         {
             // Do nothing
@@ -142,7 +142,7 @@ namespace Opc.Ua
         /// <summary>
         /// Sets the ILogger.
         /// </summary>
-        [Obsolete("Use IObservabilityContext ILoggerFactory and concrete ILoggers.")]
+        [Obsolete("Use ITelemetryContext ILoggerFactory and concrete ILoggers.")]
         public static void SetLogger(ILogger logger)
         {
             // Do nothing
@@ -152,7 +152,7 @@ namespace Opc.Ua
         /// If the legacy trace event handler should be used.
         /// </summary>
         /// <remarks>By default true, however a call to SetLogger disables it.</remarks>
-        [Obsolete("Use IObservabilityContext ILoggerFactory and concrete ILoggers.")]
+        [Obsolete("Use ITelemetryContext ILoggerFactory and concrete ILoggers.")]
         public static bool UseTraceEvent { get; set; } = true;
     }
 }

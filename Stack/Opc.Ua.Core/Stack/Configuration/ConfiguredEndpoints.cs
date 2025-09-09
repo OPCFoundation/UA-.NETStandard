@@ -1041,7 +1041,7 @@ namespace Opc.Ua
         [Obsolete("Use UpdateFromServerAsync() instead.")]
         public void UpdateFromServer()
         {
-            UpdateFromServerAsync()
+            UpdateFromServerAsync(null)
                 .GetAwaiter()
                 .GetResult();
         }
@@ -1055,7 +1055,7 @@ namespace Opc.Ua
             MessageSecurityMode securityMode,
             string securityPolicyUri)
         {
-            UpdateFromServerAsync(endpointUrl, securityMode, securityPolicyUri)
+            UpdateFromServerAsync(endpointUrl, securityMode, securityPolicyUri, null)
                 .GetAwaiter()
                 .GetResult();
         }
@@ -1070,7 +1070,7 @@ namespace Opc.Ua
             MessageSecurityMode securityMode,
             string securityPolicyUri)
         {
-            UpdateFromServerAsync(endpointUrl, connection, securityMode, securityPolicyUri)
+            UpdateFromServerAsync(endpointUrl, connection, securityMode, securityPolicyUri, null)
                 .GetAwaiter()
                 .GetResult();
         }
@@ -1078,12 +1078,13 @@ namespace Opc.Ua
         /// <summary>
         /// Updates an endpoint with information from the server's discovery endpoint.
         /// </summary>
-        public Task UpdateFromServerAsync(CancellationToken ct = default)
+        public Task UpdateFromServerAsync(ITelemetryContext telemetry, CancellationToken ct = default)
         {
             return UpdateFromServerAsync(
                 EndpointUrl,
                 m_description.SecurityMode,
                 m_description.SecurityPolicyUri,
+                telemetry,
                 ct);
         }
 
@@ -1094,9 +1095,10 @@ namespace Opc.Ua
             Uri endpointUrl,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
+            ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
-            return UpdateFromServerAsync(endpointUrl, null, securityMode, securityPolicyUri, ct);
+            return UpdateFromServerAsync(endpointUrl, null, securityMode, securityPolicyUri, telemetry, ct);
         }
 
         /// <summary>
@@ -1107,6 +1109,7 @@ namespace Opc.Ua
             ITransportWaitingConnection connection,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
+            ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
             // get the a discovery url.
@@ -1116,11 +1119,11 @@ namespace Opc.Ua
             DiscoveryClient client;
             if (connection != null)
             {
-                client = DiscoveryClient.Create(connection, m_configuration);
+                client = DiscoveryClient.Create(connection, m_configuration, telemetry);
             }
             else
             {
-                client = DiscoveryClient.Create(discoveryUrl, m_configuration);
+                client = DiscoveryClient.Create(discoveryUrl, m_configuration, telemetry);
             }
 
             try

@@ -316,7 +316,7 @@ namespace Opc.Ua.PubSub.Encoding
                 }
                 else
                 {
-                    Utils.LogInfo(
+                    Utils.LogInformation(
                         "The JSON MetaDataMessage cannot be encoded: The DataSetWriterId property is missing for MessageId:{0}.",
                         MessageId);
                 }
@@ -425,7 +425,7 @@ namespace Opc.Ua.PubSub.Encoding
                 }
                 else
                 {
-                    Utils.LogInfo(
+                    Utils.LogInformation(
                         "The JSON MetaDataMessage cannot be decoded: The DataSetWriterId property is missing for MessageId:{0}.",
                         MessageId);
                 }

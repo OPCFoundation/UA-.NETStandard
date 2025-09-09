@@ -61,7 +61,7 @@ namespace Opc.Ua.PubSub.Transport
         {
             m_transportProtocol = TransportProtocol.UDP;
 
-            Utils.LogInfo(
+            Utils.LogInformation(
                 "UdpPubSubConnection with name '{0}' was created.",
                 pubSubConnectionDataType.Name);
 
@@ -136,7 +136,7 @@ namespace Opc.Ua.PubSub.Transport
                         }
                         catch (Exception ex)
                         {
-                            Utils.LogInfo(
+                            Utils.LogInformation(
                                 "UdpClient '{0}' Cannot receive data. Exception: {1}",
                                 subscriberUdpClient.Client.LocalEndPoint,
                                 ex.Message);
@@ -394,7 +394,7 @@ namespace Opc.Ua.PubSub.Transport
                             {
                                 udpClient.Send(bytes, bytes.Length, NetworkAddressEndPoint);
 
-                                Utils.LogInfo(
+                                Utils.LogInformation(
                                     "UdpPubSubConnection.PublishNetworkMessage bytes:{0}, endpoint:{1}",
                                     bytes.Length,
                                     NetworkAddressEndPoint);
@@ -540,7 +540,7 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         private void ProcessReceivedMessage(byte[] message, IPEndPoint source)
         {
-            Utils.LogInfo(
+            Utils.LogInformation(
                 "UdpPubSubConnection.ProcessReceivedMessage from source={0}",
                 source);
 
@@ -602,7 +602,7 @@ namespace Opc.Ua.PubSub.Transport
 
                 if (message != null)
                 {
-                    Utils.LogInfo(
+                    Utils.LogInformation(
                         "OnUadpReceive received message with length {0} from {1}",
                         message.Length,
                         source.Address);
@@ -625,7 +625,7 @@ namespace Opc.Ua.PubSub.Transport
                         // check if the RawData message is marked as handled
                         if (rawDataReceivedEventArgs.Handled)
                         {
-                            Utils.LogInfo(
+                            Utils.LogInformation(
                                 "UdpConnection message from source={0} is marked as handled and will not be decoded.",
                                 rawDataReceivedEventArgs.Source);
                             return;
@@ -648,7 +648,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "OnUadpReceive BeginReceive threw Exception {0}",
                     ex.Message);
 

@@ -13,6 +13,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
@@ -38,7 +39,7 @@ namespace Opc.Ua.Bindings
         /// The factory to create a new transport.
         /// </summary>
         /// <returns>The transport.</returns>
-        T Create();
+        T Create(ITelemetryContext telemetry);
     }
 
     /// <summary>
@@ -51,7 +52,8 @@ namespace Opc.Ua.Bindings
         /// Get a transport binding for a uri scheme.
         /// </summary>
         /// <param name="uriScheme">The uri scheme.</param>
-        T GetBinding(string uriScheme);
+        /// <param name="telemetry"></param>
+        T GetBinding(string uriScheme, ITelemetryContext telemetry);
 
         /// <summary>
         /// Return if there is a transport listener for a uri scheme.

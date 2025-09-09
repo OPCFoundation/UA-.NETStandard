@@ -25,14 +25,18 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a binding for to use for discovering servers.
         /// </summary>
-        public static DiscoveryClient Create(ApplicationConfiguration application, Uri discoveryUrl)
+        public static DiscoveryClient Create(
+            ApplicationConfiguration application,
+            Uri discoveryUrl,
+            ITelemetryContext telemetry)
         {
             var configuration = EndpointConfiguration.Create();
             ITransportChannel channel = DiscoveryChannel.Create(
                 application,
                 discoveryUrl,
                 configuration,
-                new ServiceMessageContext());
+                new ServiceMessageContext(),
+                telemetry);
             return new DiscoveryClient(channel);
         }
 
@@ -42,7 +46,8 @@ namespace Opc.Ua
         public static DiscoveryClient Create(
             ApplicationConfiguration application,
             Uri discoveryUrl,
-            EndpointConfiguration configuration)
+            EndpointConfiguration configuration,
+            ITelemetryContext telemetry)
         {
             configuration ??= EndpointConfiguration.Create();
 
@@ -50,7 +55,8 @@ namespace Opc.Ua
                 application,
                 discoveryUrl,
                 configuration,
-                application.CreateMessageContext());
+                application.CreateMessageContext(),
+                telemetry);
             return new DiscoveryClient(channel);
         }
 
@@ -60,7 +66,8 @@ namespace Opc.Ua
         public static DiscoveryClient Create(
             ApplicationConfiguration application,
             ITransportWaitingConnection connection,
-            EndpointConfiguration configuration)
+            EndpointConfiguration configuration,
+            ITelemetryContext telemetry)
         {
             configuration ??= EndpointConfiguration.Create();
 
@@ -68,7 +75,8 @@ namespace Opc.Ua
                 application,
                 connection,
                 configuration,
-                application.CreateMessageContext());
+                application.CreateMessageContext(),
+                telemetry);
             return new DiscoveryClient(channel);
         }
 
@@ -86,9 +94,13 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="discoveryUrl">The discovery URL.</param>
         /// <param name="configuration">The configuration.</param>
-        public static DiscoveryClient Create(Uri discoveryUrl, EndpointConfiguration configuration)
+        /// <param name="telemetry"></param>
+        public static DiscoveryClient Create(
+            Uri discoveryUrl,
+            EndpointConfiguration configuration,
+            ITelemetryContext telemetry)
         {
-            return Create(discoveryUrl, configuration, null);
+            return Create(discoveryUrl, configuration, null, telemetry);
         }
 
         /// <summary>
@@ -96,7 +108,8 @@ namespace Opc.Ua
         /// </summary>
         public static DiscoveryClient Create(
             ITransportWaitingConnection connection,
-            EndpointConfiguration configuration)
+            EndpointConfiguration configuration,
+            ITelemetryContext telemetry)
         {
             configuration ??= EndpointConfiguration.Create();
 
@@ -104,7 +117,8 @@ namespace Opc.Ua
                 null,
                 connection,
                 configuration,
-                new ServiceMessageContext());
+                new ServiceMessageContext(),
+                telemetry);
             return new DiscoveryClient(channel);
         }
 
@@ -114,10 +128,12 @@ namespace Opc.Ua
         /// <param name="discoveryUrl">The discovery URL.</param>
         /// <param name="endpointConfiguration">The endpoint configuration.</param>
         /// /// <param name="applicationConfiguration">The application configuration.</param>
+        /// <param name="telemetry"></param>
         public static DiscoveryClient Create(
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
-            ApplicationConfiguration applicationConfiguration)
+            ApplicationConfiguration applicationConfiguration,
+            ITelemetryContext telemetry)
         {
             endpointConfiguration ??= EndpointConfiguration.Create();
 
@@ -130,7 +146,7 @@ namespace Opc.Ua
                 clientCertificate = applicationConfiguration?
                     .SecurityConfiguration?
                     .ApplicationCertificate?
-                    .FindAsync(true)
+                    .FindAsync(true, telemetry: telemetry)
                     .GetAwaiter()
                     .GetResult();
             }
@@ -144,6 +160,7 @@ namespace Opc.Ua
                 discoveryUrl,
                 endpointConfiguration,
                 new ServiceMessageContext(),
+                telemetry,
                 clientCertificate);
             return new DiscoveryClient(channel);
         }
@@ -284,7 +301,7 @@ namespace Opc.Ua
                     if (discoveryEndPointUri == null)
                     {
                         Utils.LogWarning(
-                            "Discovery endpoint contains invalid Url: {0}",
+                            "Discovery endpoint contains invalid Url: {EndpointUrl}",
                             discoveryEndPoint.EndpointUrl);
                         continue;
                     }
@@ -322,11 +339,13 @@ namespace Opc.Ua
         /// <param name="discoveryUrl">The discovery url.</param>
         /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
+        /// <param name="telemetry"></param>
         /// <param name="clientCertificate">The client certificate to use.</param>
         public static ITransportChannel Create(
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
             IServiceMessageContext messageContext,
+            ITelemetryContext telemetry,
             X509Certificate2 clientCertificate = null)
         {
             // create a default description.
@@ -344,7 +363,8 @@ namespace Opc.Ua
                 endpoint,
                 endpointConfiguration,
                 clientCertificate,
-                messageContext);
+                messageContext,
+                telemetry);
         }
 
         /// <summary>
@@ -355,6 +375,7 @@ namespace Opc.Ua
             ITransportWaitingConnection connection,
             EndpointConfiguration endpointConfiguration,
             IServiceMessageContext messageContext,
+            ITelemetryContext telemetry,
             X509Certificate2 clientCertificate = null)
         {
             // create a default description.
@@ -374,7 +395,8 @@ namespace Opc.Ua
                 endpointConfiguration,
                 clientCertificate,
                 null,
-                messageContext);
+                messageContext,
+                telemetry);
         }
 
         /// <summary>
@@ -385,6 +407,7 @@ namespace Opc.Ua
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
             IServiceMessageContext messageContext,
+            ITelemetryContext telemetry,
             X509Certificate2 clientCertificate = null)
         {
             // create a default description.
@@ -403,7 +426,8 @@ namespace Opc.Ua
                 endpointConfiguration,
                 clientCertificate,
                 null,
-                messageContext);
+                messageContext,
+                telemetry);
         }
     }
 }

@@ -24,6 +24,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Hosting;
 using Opc.Ua.Security.Certificates;
+using Microsoft.Extensions.Logging;
+
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
 using System.Security.Cryptography;
 #endif
@@ -45,9 +47,9 @@ namespace Opc.Ua.Bindings
         /// The method creates a new instance of a <see cref="HttpsTransportListener"/>.
         /// </summary>
         /// <returns>The transport listener.</returns>
-        public override ITransportListener Create()
+        public override ITransportListener Create(ITelemetryContext telemetry)
         {
-            return new HttpsTransportListener(Utils.UriSchemeHttps);
+            return new HttpsTransportListener(Utils.UriSchemeHttps, telemetry);
         }
     }
 
@@ -66,9 +68,9 @@ namespace Opc.Ua.Bindings
         /// The method creates a new instance of a <see cref="HttpsTransportListener"/>.
         /// </summary>
         /// <returns>The transport listener.</returns>
-        public override ITransportListener Create()
+        public override ITransportListener Create(ITelemetryContext telemetry)
         {
-            return new HttpsTransportListener(Utils.UriSchemeOpcHttps);
+            return new HttpsTransportListener(Utils.UriSchemeOpcHttps, telemetry);
         }
     }
 
@@ -118,9 +120,10 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Initializes a new instance of the <see cref="HttpsTransportListener"/> class.
         /// </summary>
-        public HttpsTransportListener(string uriScheme)
+        public HttpsTransportListener(string uriScheme, ITelemetryContext telemetry)
         {
             UriScheme = uriScheme;
+            m_logger = telemetry.CreateLogger<HttpsTransportListener>();
         }
 
         /// <summary>
@@ -273,7 +276,7 @@ namespace Opc.Ua.Bindings
             }
             catch (CryptographicException ce)
             {
-                Utils.LogTrace("Copy of the private key for https was denied: {0}", ce.Message);
+                m_logger.LogTrace("Copy of the private key for https was denied: {0}", ce.Message);
             }
 #endif
 
@@ -385,7 +388,7 @@ namespace Opc.Ua.Bindings
                     {
                         message =
                             "Client TLS certificate does not match with ClientCertificate provided in CreateSessionRequest";
-                        Utils.LogError(message);
+                        m_logger.LogError(message);
                         await WriteResponseAsync(
                             context.Response,
                             message,
@@ -488,7 +491,7 @@ namespace Opc.Ua.Bindings
             catch (Exception e)
             {
                 message = "HTTPSLISTENER - Unexpected error processing request.";
-                Utils.LogError(e, message);
+                m_logger.LogError(e, message);
             }
 
             await WriteResponseAsync(context.Response, message, HttpStatusCode.InternalServerError)
@@ -596,5 +599,6 @@ namespace Opc.Ua.Bindings
         private IWebHost m_host;
         private CertificateTypesProvider m_serverCertProvider;
         private bool m_mutualTlsEnabled;
+        private readonly ILogger m_logger;
     }
 }

@@ -376,7 +376,7 @@ namespace Quickstarts
                             );
                     if (state == SessionReconnectHandler.ReconnectState.Triggered)
                     {
-                        Utils.LogInfo(
+                        Utils.LogInformation(
                             "KeepAlive status {0}, reconnect status {1}, reconnect period {2}ms.",
                             e.Status,
                             state,
@@ -385,7 +385,7 @@ namespace Quickstarts
                     }
                     else
                     {
-                        Utils.LogInfo(
+                        Utils.LogInformation(
                             "KeepAlive status {0}, reconnect status {1}.",
                             e.Status,
                             state);

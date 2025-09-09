@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
@@ -33,7 +34,7 @@ namespace Opc.Ua.Bindings
         /// The method creates a new instance of a <see cref="HttpsTransportListener"/>.
         /// </summary>
         /// <returns>The transport listener.</returns>
-        public abstract ITransportListener Create();
+        public abstract ITransportListener Create(ITelemetryContext telemetry);
 
         /// <inheritdoc/>
         /// <summary>
@@ -164,7 +165,7 @@ namespace Opc.Ua.Bindings
                     ];
                 }
 
-                ITransportListener listener = Create();
+                ITransportListener listener = Create(serverBase.Telemetry);
                 if (listener != null)
                 {
                     endpoints.Add(description);
@@ -177,7 +178,8 @@ namespace Opc.Ua.Bindings
                 }
                 else
                 {
-                    Utils.LogError("Failed to create endpoint {0} because the transport profile is unsupported.", uri);
+                    var logger = serverBase.Telemetry.CreateLogger<HttpsServiceHost>();
+                    logger.LogError("Failed to create endpoint {Uri} because the transport profile is unsupported.", uri);
                 }
             }
 

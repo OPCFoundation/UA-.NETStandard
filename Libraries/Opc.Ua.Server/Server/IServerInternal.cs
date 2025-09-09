@@ -148,9 +148,9 @@ namespace Opc.Ua.Server
         ISubscriptionStore SubscriptionStore { get; }
 
         /// <summary>
-        /// The server's observability context
+        /// The server's telemetry context
         /// </summary>
-        IObservabilityContext ObservabilityContext { get; }
+        ITelemetryContext Telemetry { get; }
 
         /// <summary>
         /// Whether the server is currently running.

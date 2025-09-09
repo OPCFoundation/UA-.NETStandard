@@ -614,7 +614,7 @@ namespace Quickstarts
                 }
 
                 searchDepth++;
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "{0}: Find {1} references after {2}ms",
                     searchDepth,
                     nodesToBrowse.Count,
@@ -678,11 +678,11 @@ namespace Quickstarts
                 }
                 if (duplicates > 0)
                 {
-                    Utils.LogInfo("Find References {0} duplicate nodes were ignored", duplicates);
+                    Utils.LogInformation("Find References {0} duplicate nodes were ignored", duplicates);
                 }
                 if (leafNodes > 0)
                 {
-                    Utils.LogInfo("Find References {0} leaf nodes were ignored", leafNodes);
+                    Utils.LogInformation("Find References {0} leaf nodes were ignored", leafNodes);
                 }
                 nodesToBrowse = nextNodesToBrowse;
             }
@@ -771,7 +771,7 @@ namespace Quickstarts
             while (nodesToBrowse.Count != 0 && searchDepth < kMaxSearchDepth)
             {
                 searchDepth++;
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "{0}: Browse {1} nodes after {2}ms",
                     searchDepth,
                     nodesToBrowse.Count,
@@ -855,7 +855,7 @@ namespace Quickstarts
 
                 if (duplicates > 0)
                 {
-                    Utils.LogInfo(
+                    Utils.LogInformation(
                         "Managed Browse Result {0} duplicate nodes were ignored.",
                         duplicates);
                 }
@@ -930,7 +930,7 @@ namespace Quickstarts
             while (browseDescriptionCollection.Count > 0 && searchDepth < kMaxSearchDepth)
             {
                 searchDepth++;
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "{0}: Browse {1} nodes after {2}ms",
                     searchDepth,
                     browseDescriptionCollection.Count,
@@ -1034,7 +1034,7 @@ namespace Quickstarts
                         m_output.WriteLine("Browse aborted.");
                     }
 
-                    Utils.LogInfo("BrowseNext {0} continuation points.", continuationPoints.Count);
+                    Utils.LogInformation("BrowseNext {0} continuation points.", continuationPoints.Count);
                     BrowseNextResponse browseNextResult = await uaClient
                         .Session.BrowseNextAsync(null, false, continuationPoints, ct)
                         .ConfigureAwait(false);
@@ -1074,7 +1074,7 @@ namespace Quickstarts
                 }
                 if (duplicates > 0)
                 {
-                    Utils.LogInfo("Browse Result {0} duplicate nodes were ignored.", duplicates);
+                    Utils.LogInformation("Browse Result {0} duplicate nodes were ignored.", duplicates);
                 }
                 browseDescriptionCollection.AddRange(
                     CreateBrowseDescriptionCollectionFromNodeId(browseTable, browseTemplate));

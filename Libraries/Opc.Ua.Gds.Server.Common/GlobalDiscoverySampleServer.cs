@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
@@ -60,9 +61,11 @@ namespace Opc.Ua.Gds.Server
             ICertificateRequest request,
             ICertificateGroup certificateGroup,
             IUserDatabase userDatabase,
+            ITelemetryContext telemetry,
             bool autoApprove = true,
-            bool createStandardUsers = true)
+            bool createStandardUsers = true) : base (telemetry)
         {
+            m_logger = telemetry.CreateLogger<GlobalDiscoverySampleServer>();
             m_database = database;
             m_request = request;
             m_certificateGroup = certificateGroup;
@@ -99,7 +102,7 @@ namespace Opc.Ua.Gds.Server
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            Utils.LogInfo("Creating the Node Managers.");
+            m_logger.LogInformation("Creating the Node Managers.");
 
             var nodeManagers = new List<INodeManager>
             {
@@ -222,7 +225,7 @@ namespace Opc.Ua.Gds.Server
                 // todo: is cert listed in admin list? then
                 // role = GdsRole.ApplicationAdmin;
 
-                Utils.LogInfo(
+                m_logger.LogInformation(
                     "X509 Token Accepted: {0} as {1}",
                     args.Identity.DisplayName,
                     Role.AuthenticatedUser);
@@ -259,7 +262,7 @@ namespace Opc.Ua.Gds.Server
             //check if application certificate is in the Store of the GDS
             var certificateStoreIdentifier = new CertificateStoreIdentifier(
                 configuration.ApplicationCertificatesStorePath);
-            using (ICertificateStore applicationsStore = certificateStoreIdentifier.OpenStore())
+            using (ICertificateStore applicationsStore = certificateStoreIdentifier.OpenStore(Telemetry))
             {
                 X509Certificate2Collection matchingCerts = applicationsStore
                     .FindByThumbprintAsync(applicationInstanceCertificate.Thumbprint)
@@ -278,7 +281,7 @@ namespace Opc.Ua.Gds.Server
             //check if application certificate is revoked
             certificateStoreIdentifier = new CertificateStoreIdentifier(
                 configuration.AuthoritiesStorePath);
-            using (ICertificateStore authoritiesStore = certificateStoreIdentifier.OpenStore())
+            using (ICertificateStore authoritiesStore = certificateStoreIdentifier.OpenStore(Telemetry))
             {
                 foreach (X509CRL crl in authoritiesStore.EnumerateCRLsAsync().Result)
                 {
@@ -382,13 +385,13 @@ namespace Opc.Ua.Gds.Server
             ApplicationRecordDataType[] application = m_database.FindApplications(applicationUri);
             if (application == null || application.Length != 1)
             {
-                Utils.LogInfo(
+                m_logger.LogInformation(
                     "Cannot login based on ApplicationInstanceCertificate, no unique result for Application with URI: {0}",
                     applicationUri);
                 return;
             }
             NodeId applicationId = application.FirstOrDefault().ApplicationId;
-            Utils.LogInfo(
+            m_logger.LogInformation(
                 "Application {0} accepted based on ApplicationInstanceCertificate as ApplicationSelfAdmin",
                 applicationUri);
             args.Identity = new GdsRoleBasedIdentity(
@@ -397,6 +400,7 @@ namespace Opc.Ua.Gds.Server
                 applicationId);
         }
 
+        private readonly ILogger m_logger;
         private readonly Dictionary<uint, ImpersonationContext> m_contexts = [];
         private readonly IApplicationsDatabase m_database;
         private readonly ICertificateRequest m_request;

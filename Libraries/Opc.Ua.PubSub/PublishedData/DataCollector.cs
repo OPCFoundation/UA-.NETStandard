@@ -292,7 +292,7 @@ namespace Opc.Ua.PubSub.PublishedData
                             {
                                 dataSet.Fields[i].Value
                                     = new DataValue(StatusCodes.Bad, DateTime.UtcNow);
-                                Utils.LogInfo(
+                                Utils.LogInformation(
                                     "DataCollector.CollectData for dataset {0} field {1} resulted in ex {2}",
                                     dataSetName,
                                     i,

@@ -90,7 +90,7 @@ namespace Opc.Ua.PubSub.Transport
                 JoinMulticastGroup(multicastAddress, localAddress);
             }
 
-            Utils.LogInfo(
+            Utils.LogInformation(
                 "UdpClientMulticast was created for local Address: {0}:{1} and multicast address: {2}.",
                 localAddress,
                 port,

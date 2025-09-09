@@ -20,6 +20,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
+using Microsoft.Extensions.Logging;
+
 #if NETSTANDARD2_1_OR_GREATER || NET472_OR_GREATER || NET5_0_OR_GREATER
 using System.Runtime.InteropServices;
 #endif
@@ -47,16 +49,17 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes a store for a directory path.
         /// </summary>
-        public DirectoryCertificateStore()
-            : this(false)
+        public DirectoryCertificateStore(ITelemetryContext telemetry)
+            : this(false, telemetry)
         {
         }
 
         /// <summary>
         /// Initializes a store with a directory path.
         /// </summary>
-        public DirectoryCertificateStore(bool noSubDirs)
+        public DirectoryCertificateStore(bool noSubDirs, ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<DirectoryCertificateStore>();
             m_noSubDirs = noSubDirs;
             m_certificates = [];
         }
@@ -424,7 +427,7 @@ namespace Opc.Ua
                     catch (IOException)
                     {
                         // file to delete may still be in use, retry
-                        Utils.LogWarning("Failed to delete cert [{0}], retry.", thumbprint);
+                        m_logger.LogWarning("Failed to delete cert [{0}], retry.", thumbprint);
                         retry--;
                     }
 
@@ -683,7 +686,7 @@ namespace Opc.Ua
                                             flag);
                                         if (X509Utils.VerifyKeyPair(certificate, certificate, true))
                                         {
-                                            Utils.LogInfo(
+                                            m_logger.LogInformation(
                                                 Utils.TraceMasks.Security,
                                                 "Imported the PFX private key for [{0}].",
                                                 certificate.Thumbprint);
@@ -712,7 +715,7 @@ namespace Opc.Ua
                                             password);
                                     if (X509Utils.VerifyKeyPair(certificate, certificate, true))
                                     {
-                                        Utils.LogInfo(
+                                        m_logger.LogInformation(
                                             Utils.TraceMasks.Security,
                                             "Imported the PEM private key for [{0}].",
                                             certificate.Thumbprint);
@@ -740,7 +743,7 @@ namespace Opc.Ua
                                             password);
                                     if (X509Utils.VerifyKeyPair(certificate, certificate, true))
                                     {
-                                        Utils.LogInfo(
+                                        m_logger.LogInformation(
                                             Utils.TraceMasks.Security,
                                             "Imported the PEM private key for [{0}].",
                                             certificate.Thumbprint);
@@ -755,7 +758,7 @@ namespace Opc.Ua
                             }
                             else
                             {
-                                Utils.LogError(
+                                m_logger.LogError(
                                     Utils.TraceMasks.Security,
                                     "A private key for the certificate with thumbprint [{0}] does not exist.",
                                     certificate.Thumbprint);
@@ -764,7 +767,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(
+                        m_logger.LogError(
                             e,
                             "Could not load private key for certificate {0}",
                             subjectName);
@@ -774,20 +777,20 @@ namespace Opc.Ua
                 // found a certificate, but some error occurred
                 if (certificateFound)
                 {
-                    Utils.LogError(
+                    m_logger.LogError(
                         Utils.TraceMasks.Security,
                         "The private key for the certificate with subject {0} failed to import.",
                         Redact.Create(subjectName));
                     if (importException != null)
                     {
-                        Utils.LogError(importException, "Certificate import failed.");
+                        m_logger.LogError(importException, "Certificate import failed.");
                     }
                 }
                 else
                 {
                     if (!string.IsNullOrEmpty(thumbprint))
                     {
-                        Utils.LogError(
+                        m_logger.LogError(
                             Utils.TraceMasks.Security,
                             "A Private key for the certificate with thumbpint {0} was not found.",
                             thumbprint);
@@ -799,7 +802,7 @@ namespace Opc.Ua
                 // retry within a few ms
                 if (retryCounter > 0)
                 {
-                    Utils.LogInfo(
+                    m_logger.LogInformation(
                         Utils.TraceMasks.Security,
                         "Retry to import private key after {0} ms.",
                         retryDelay);
@@ -848,7 +851,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(
+                        m_logger.LogError(
                             e,
                             "Failed to parse CRL {0} in store {1}.",
                             file.FullName,
@@ -917,7 +920,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(
+                        m_logger.LogError(
                             e,
                             "Failed to parse CRL {0} in store {1}.",
                             file.FullName,
@@ -1174,7 +1177,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(
+                        m_logger.LogError(
                             e,
                             "Could not load certificate from file: {0}",
                             file.FullName);
@@ -1343,6 +1346,7 @@ namespace Opc.Ua
         }
 
         private readonly Lock m_lock = new();
+        private readonly ILogger m_logger;
         private readonly bool m_noSubDirs;
         private DirectoryInfo m_certificateSubdir;
         private DirectoryInfo m_crlSubdir;

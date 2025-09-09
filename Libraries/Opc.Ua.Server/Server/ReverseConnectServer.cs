@@ -214,7 +214,7 @@ namespace Opc.Ua.Server
             lock (m_connectionsLock)
             {
                 m_connections[url] = reverseConnection;
-                Utils.LogInfo("Reverse Connection added for EndpointUrl: {0}.", url);
+                Utils.LogInformation("Reverse Connection added for EndpointUrl: {0}.", url);
 
                 StartTimer(false);
             }
@@ -238,7 +238,7 @@ namespace Opc.Ua.Server
 
                 if (connectionRemoved)
                 {
-                    Utils.LogInfo("Reverse Connection removed for EndpointUrl: {0}.", url);
+                    Utils.LogInformation("Reverse Connection removed for EndpointUrl: {0}.", url);
                 }
 
                 if (m_connections.Count == 0)
@@ -301,7 +301,7 @@ namespace Opc.Ua.Server
                                     reverseConnection.Timeout > 0
                                         ? reverseConnection.Timeout
                                         : m_connectTimeout);
-                                Utils.LogInfo(
+                                Utils.LogInformation(
                                     "Create Connection! [{0}][{1}]",
                                     reverseConnection.LastState,
                                     reverseConnection.ClientUrl);
@@ -366,7 +366,7 @@ namespace Opc.Ua.Server
                     reverseConnection.LastState = e.Closed
                         ? ReverseConnectState.Closed
                         : ReverseConnectState.Connected;
-                    Utils.LogInfo(
+                    Utils.LogInformation(
                         "New Connection State! [{0}][{1}]",
                         reverseConnection.LastState,
                         e.EndpointUrl);
@@ -488,7 +488,7 @@ namespace Opc.Ua.Server
                                         client.MaxSessionCount,
                                         true,
                                         client.Enabled);
-                                    Utils.LogInfo(
+                                    Utils.LogInformation(
                                         "Reverse Connection added for EndpointUrl: {0}.",
                                         uri);
                                 }

@@ -295,7 +295,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     Utils.TraceMasks.StartStop,
                     "MasterNodeManager.Startup - NodeManagers={0}",
                     m_nodeManagers.Count);
@@ -379,7 +379,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     Utils.TraceMasks.StartStop,
                     "MasterNodeManager.Shutdown - NodeManagers={0}",
                     m_nodeManagers.Count);

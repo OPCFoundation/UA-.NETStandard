@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Bindings
 {
@@ -51,11 +52,11 @@ namespace Opc.Ua.Bindings
         protected Dictionary<string, T> Bindings { get; }
 
         /// <inheritdoc/>
-        public T GetBinding(string uriScheme)
+        public T GetBinding(string uriScheme, ITelemetryContext telemetry)
         {
             if (!Bindings.TryGetValue(uriScheme, out T binding))
             {
-                TryAddDefaultTransportBindings(uriScheme);
+                TryAddDefaultTransportBindings(telemetry, uriScheme);
                 if (!Bindings.TryGetValue(uriScheme, out binding))
                 {
                     return default;
@@ -126,9 +127,11 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Try to load a binding from well known assemblies at runtime.
         /// </summary>
+        /// <param name="telemetry"></param>
         /// <param name="scheme">The uri scheme of the binding.</param>
-        private bool TryAddDefaultTransportBindings(string scheme)
+        private bool TryAddDefaultTransportBindings(ITelemetryContext telemetry, string scheme)
         {
+            var logger = telemetry.CreateLogger<TransportBindingsBase<T>>();
             if (Utils.DefaultBindings.TryGetValue(scheme, out string assemblyName))
             {
                 Assembly assembly = null;
@@ -142,8 +145,8 @@ namespace Opc.Ua.Bindings
                 }
                 catch
                 {
-                    Utils.LogError(
-                        "Failed to load the assembly {0} for transport binding {1}.",
+                    logger.LogError(
+                        "Failed to load the assembly {FullName} for transport binding {Scheme}.",
                         fullName,
                         scheme);
                 }
@@ -156,7 +159,7 @@ namespace Opc.Ua.Bindings
             }
             else
             {
-                Utils.LogError("The transport binding {0} is unsupported.", scheme);
+                logger.LogError("The transport binding {Scheme} is unsupported.", scheme);
             }
             return false;
         }

@@ -33,6 +33,7 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 #if ECC_SUPPORT
 using System.Security.Cryptography;
@@ -69,6 +70,7 @@ namespace Opc.Ua.Server
             ApplicationConfiguration configuration)
             : base(server, configuration)
         {
+            m_logger = server.Telemetry.CreateLogger<ConfigurationNodeManager>();
             string rejectedStorePath = configuration.SecurityConfiguration.RejectedCertificateStore?
                 .StorePath;
             if (!string.IsNullOrEmpty(rejectedStorePath))
@@ -304,7 +306,8 @@ namespace Opc.Ua.Server
                     certGroup.TrustedStore,
                     certGroup.IssuerStore,
                     new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
-                    new TrustList.SecureAccess(HasApplicationSecureAdminAccess));
+                    new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
+                    Server.Telemetry);
                 certGroup.Node.ClearChangeMasks(systemContext, true);
             }
 
@@ -360,8 +363,8 @@ namespace Opc.Ua.Server
                 if (FindPredefinedNode(ObjectIds.Server_Namespaces, typeof(NamespacesState))
                     is not NamespacesState serverNamespacesNode)
                 {
-                    Utils.LogError(
-                        "Cannot create NamespaceMetadataState for namespace '{0}'.",
+                    m_logger.LogError(
+                        "Cannot create NamespaceMetadataState for namespace '{NamespaceUri}'.",
                         namespaceUri);
                     return null;
                 }
@@ -555,7 +558,7 @@ namespace Opc.Ua.Server
                     try
                     {
                         // verify cert with issuer chain
-                        var certValidator = new CertificateValidator();
+                        var certValidator = new CertificateValidator(Server.Telemetry);
                         var issuerStore = new CertificateTrustList();
                         var issuerCollection = new CertificateIdentifierCollection();
                         foreach (X509Certificate2 issuerCert in newIssuerCollection)
@@ -603,6 +606,7 @@ namespace Opc.Ua.Server
                                     .LoadPrivateKeyExAsync(
                                         passwordProvider,
                                         m_configuration.ApplicationUri,
+                                        Server.Telemetry,
                                         cancellation)
                                     .ConfigureAwait(false);
                                 exportableKey = X509Utils.CreateCopyWithPrivateKey(
@@ -658,7 +662,7 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
-                        using (ICertificateStore appStore = existingCertIdentifier.OpenStore())
+                        using (ICertificateStore appStore = existingCertIdentifier.OpenStore(Server.Telemetry))
                         {
                             if (appStore == null)
                             {
@@ -667,13 +671,13 @@ namespace Opc.Ua.Server
                                     "Failed to open application certificate store.");
                             }
 
-                            Utils.LogCertificate(
+                            m_logger.LogCertificate(
                                 Utils.TraceMasks.Security,
                                 "Delete application certificate: ",
                                 existingCertIdentifier.Certificate);
                             appStore.DeleteAsync(existingCertIdentifier.Thumbprint, cancellation)
                                 .Wait(cancellation);
-                            Utils.LogCertificate(
+                            m_logger.LogCertificate(
                                 Utils.TraceMasks.Security,
                                 "Add new application certificate: ",
                                 updateCertificate.CertificateWithPrivateKey);
@@ -694,11 +698,12 @@ namespace Opc.Ua.Server
                             //update certificate identifier with new certificate
                             await existingCertIdentifier.FindAsync(
                                 m_configuration.ApplicationUri,
+                                Server.Telemetry,
                                 cancellation)
                                 .ConfigureAwait(false);
                         }
 
-                        ICertificateStore issuerStore = certificateGroup.IssuerStore.OpenStore();
+                        ICertificateStore issuerStore = certificateGroup.IssuerStore.OpenStore(Server.Telemetry);
                         try
                         {
                             if (issuerStore == null)
@@ -712,7 +717,7 @@ namespace Opc.Ua.Server
                             {
                                 try
                                 {
-                                    Utils.LogCertificate(
+                                    m_logger.LogCertificate(
                                         Utils.TraceMasks.Security,
                                         "Add new issuer certificate: ",
                                         issuer);
@@ -740,7 +745,7 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception ex)
                     {
-                        Utils.LogError(
+                        m_logger.LogError(
                             Utils.TraceMasks.Security,
                             ServiceResult.BuildExceptionTrace(ex));
                         throw new ServiceResultException(
@@ -820,6 +825,7 @@ namespace Opc.Ua.Server
                 certWithPrivateKey = await existingCertIdentifier
                     .LoadPrivateKeyExAsync(passwordProvider,
                                            m_configuration.ApplicationUri,
+                                           Server.Telemetry,
                                            cancellationToken)
                     .ConfigureAwait(false);
 
@@ -829,7 +835,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            Utils.LogCertificate(
+            m_logger.LogCertificate(
                 Utils.TraceMasks.Security,
                 "Create signing request: ",
                 certWithPrivateKey);
@@ -904,7 +910,7 @@ namespace Opc.Ua.Server
                     if (updateCertificate != null)
                     {
                         disconnectSessions = true;
-                        Utils.LogCertificate(
+                        m_logger.LogCertificate(
                             Utils.TraceMasks.Security,
                             "Apply Changes for certificate: ",
                             updateCertificate.CertificateWithPrivateKey);
@@ -920,7 +926,7 @@ namespace Opc.Ua.Server
             {
                 Task.Run(async () =>
                 {
-                    Utils.LogInfo(
+                    m_logger.LogInformation(
                         Utils.TraceMasks.Security,
                         "Apply Changes for application certificate update.");
                     // give the client some time to receive the response
@@ -936,7 +942,7 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception ex)
                     {
-                        Utils.LogCritical(
+                        m_logger.LogCritical(
                             ex,
                             "Failed to sucessfully Apply Changes: Error updating application instance certificates. Server could be in faulted state.");
                         throw;
@@ -962,7 +968,7 @@ namespace Opc.Ua.Server
                 return StatusCodes.Good;
             }
 
-            ICertificateStore store = m_rejectedStore.OpenStore();
+            ICertificateStore store = m_rejectedStore.OpenStore(Server.Telemetry);
             try
             {
                 if (store != null)
@@ -1058,7 +1064,7 @@ namespace Opc.Ua.Server
                 if (FindPredefinedNode(ObjectIds.Server_Namespaces, typeof(NamespacesState))
                     is not NamespacesState serverNamespacesNode)
                 {
-                    Utils.LogError("Cannot find ObjectIds.Server_Namespaces node.");
+                    m_logger.LogError("Cannot find ObjectIds.Server_Namespaces node.");
                     return null;
                 }
 
@@ -1107,9 +1113,9 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(
+                m_logger.LogError(
                     ex,
-                    "Error searching NamespaceMetadata for namespaceUri {0}.",
+                    "Error searching NamespaceMetadata for namespaceUri {NamespaceUri}.",
                     namespaceUri);
                 return null;
             }
@@ -1165,5 +1171,6 @@ namespace Opc.Ua.Server
         private readonly List<ServerCertificateGroup> m_certificateGroups;
         private readonly CertificateStoreIdentifier m_rejectedStore;
         private readonly Dictionary<string, NamespaceMetadataState> m_namespaceMetadataStates = [];
+        private readonly ILogger m_logger;
     }
 }

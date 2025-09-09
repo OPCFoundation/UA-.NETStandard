@@ -321,7 +321,7 @@ namespace Alarms
                     }
                     catch (Exception ex)
                     {
-                        Utils.LogInfo(ex, "Alarm Loop Exception");
+                        Utils.LogInformation(ex, "Alarm Loop Exception");
                     }
                 }
                 m_allowEntry = true;
@@ -329,7 +329,7 @@ namespace Alarms
             else if (m_success > 0)
             {
                 m_missed++;
-                Utils.LogInfo("Alarms: Missed Loop {0} Success {1}", m_missed, m_success);
+                Utils.LogInformation("Alarms: Missed Loop {0} Success {1}", m_missed, m_success);
             }
         }
 
@@ -365,7 +365,7 @@ namespace Alarms
 
             if (sourceControllers != null)
             {
-                Utils.LogInfo("Starting up alarm group {0}", GetUnitFromNodeId(node.NodeId));
+                Utils.LogInformation("Starting up alarm group {0}", GetUnitFromNodeId(node.NodeId));
 
                 lock (m_alarms)
                 {
@@ -427,7 +427,7 @@ namespace Alarms
 
             if (sourceControllers != null)
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "Starting up Branch for alarm group {0}",
                     GetUnitFromNodeId(node.NodeId));
 
@@ -475,7 +475,7 @@ namespace Alarms
 
             if (sourceControllers != null)
             {
-                Utils.LogInfo("Stopping alarm group {0}", GetUnitFromNodeId(node.NodeId));
+                Utils.LogInformation("Stopping alarm group {0}", GetUnitFromNodeId(node.NodeId));
 
                 lock (m_alarms)
                 {
@@ -530,7 +530,7 @@ namespace Alarms
                     return StatusCodes.BadNodeIdUnknown;
                 }
 
-                Utils.LogInfo("Manual Write {0} to {1}", value, node.NodeId);
+                Utils.LogInformation("Manual Write {0} to {1}", value, node.NodeId);
 
                 lock (m_alarms)
                 {

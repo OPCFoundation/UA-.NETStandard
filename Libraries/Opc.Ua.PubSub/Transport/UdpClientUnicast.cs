@@ -73,7 +73,7 @@ namespace Opc.Ua.PubSub.Transport
 
             Client.Bind(new IPEndPoint(localAddress, port));
 
-            Utils.LogInfo(
+            Utils.LogInformation(
                 "UdpClientUnicast was created for local Address: {0}:{1}.",
                 localAddress,
                 port);

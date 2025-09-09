@@ -139,7 +139,7 @@ namespace Opc.Ua.PubSub.Transport
             {
                 try
                 {
-                    Utils.LogInfo("UdpDiscoverySubscriber.SendDiscoveryRequestDataSetWriterConfiguration message");
+                    Utils.LogInformation("UdpDiscoverySubscriber.SendDiscoveryRequestDataSetWriterConfiguration message");
                     udpClient.Send(bytes, bytes.Length, DiscoveryNetworkAddressEndPoint);
                 }
                 catch (Exception ex)
@@ -190,7 +190,7 @@ namespace Opc.Ua.PubSub.Transport
             {
                 try
                 {
-                    Utils.LogInfo(
+                    Utils.LogInformation(
                         "UdpDiscoverySubscriber.SendDiscoveryRequestPublisherEndpoints message for PublisherId: {0}",
                         discoveryRequestPublisherEndpoints.PublisherId);
 
@@ -240,7 +240,7 @@ namespace Opc.Ua.PubSub.Transport
             {
                 try
                 {
-                    Utils.LogInfo(
+                    Utils.LogInformation(
                         "UdpDiscoverySubscriber.SendDiscoveryRequestDataSetMetaData Before sending message for DataSetWriterIds:{0}",
                         string.Join(", ", dataSetWriterIds));
 

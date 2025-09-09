@@ -15,6 +15,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
@@ -34,7 +35,8 @@ namespace Opc.Ua.Bindings
             X509Certificate2 serverCertificate,
             EndpointDescriptionCollection endpoints,
             MessageSecurityMode securityMode,
-            string securityPolicyUri)
+            string securityPolicyUri,
+            ITelemetryContext telemetry)
             : this(
                 contextId,
                 bufferManager,
@@ -43,7 +45,8 @@ namespace Opc.Ua.Bindings
                 serverCertificate,
                 endpoints,
                 securityMode,
-                securityPolicyUri)
+                securityPolicyUri,
+                telemetry)
         {
         }
 
@@ -57,7 +60,8 @@ namespace Opc.Ua.Bindings
             CertificateTypesProvider serverCertificateTypesProvider,
             EndpointDescriptionCollection endpoints,
             MessageSecurityMode securityMode,
-            string securityPolicyUri)
+            string securityPolicyUri,
+            ITelemetryContext telemetry)
             : this(
                 contextId,
                 bufferManager,
@@ -66,7 +70,8 @@ namespace Opc.Ua.Bindings
                 null,
                 endpoints,
                 securityMode,
-                securityPolicyUri)
+                securityPolicyUri,
+                telemetry)
         {
         }
 
@@ -81,10 +86,13 @@ namespace Opc.Ua.Bindings
             X509Certificate2 serverCertificate,
             EndpointDescriptionCollection endpoints,
             MessageSecurityMode securityMode,
-            string securityPolicyUri)
+            string securityPolicyUri,
+            ITelemetryContext telemetry)
         {
             // create a unique contex if none provided.
             m_contextId = contextId;
+            Telemetry = telemetry;
+            m_logger = telemetry.CreateLogger<UaSCUaBinaryChannel>();
 
             if (string.IsNullOrEmpty(m_contextId))
             {
@@ -218,6 +226,11 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Telemetry context for the channel
+        /// </summary>
+        protected ITelemetryContext Telemetry { get; }
+
+        /// <summary>
         /// The identifier assigned to the channel by the server.
         /// </summary>
         public uint Id { get; private set; }
@@ -340,8 +353,8 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            Utils.LogError(
-                "ChannelId {0}: {1} - Duplicate sequence number: {2} <= {3}",
+            m_logger.LogError(
+                "ChannelId {ChannelId}: {Context} - Duplicate sequence number: {SequenceNumber} <= {RemoteSequenceNumber}",
                 ChannelId,
                 context,
                 sequenceNumber,
@@ -373,8 +386,8 @@ namespace Opc.Ua.Bindings
             {
                 if (m_partialMessageChunks.Count > 0)
                 {
-                    Utils.LogWarning(
-                        "WARNING - Discarding unprocessed message chunks for Request #{0}",
+                    m_logger.LogWarning(
+                        "WARNING - Discarding unprocessed message chunks for Request #{PartialRequestId}",
                         m_partialRequestId);
                 }
 
@@ -423,8 +436,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected virtual void DoMessageLimitsExceeded()
         {
-            Utils.LogError(
-                "ChannelId {0}: - Message limits exceeded while building up message. Channel will be closed.",
+            m_logger.LogError(
+                "ChannelId {ChannelId}: - Message limits exceeded while building up message. Channel will be closed.",
                 ChannelId);
         }
 
@@ -834,7 +847,7 @@ namespace Opc.Ua.Bindings
             {
                 if (Interlocked.Exchange(ref m_state, (int)value) != (int)value)
                 {
-                    Utils.LogTrace("ChannelId {0}: in {1} state.", ChannelId, value);
+                    m_logger.LogTrace("ChannelId {ChannelId}: in {State} state.", ChannelId, value);
                 }
             }
         }
@@ -938,7 +951,7 @@ namespace Opc.Ua.Bindings
 
         private int m_activeWriteRequests;
         private readonly string m_contextId;
-
+        private readonly ILogger m_logger;
         /// <summary>
         /// treat TcpChannelState as int to use Interlocked
         /// </summary>

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Gds.Server.Diagnostics
@@ -42,12 +43,14 @@ namespace Opc.Ua.Gds.Server.Diagnostics
         /// <param name="objectId">The id of the object used for the method</param>
         /// <param name="method">The method that triggered the audit event.</param>
         /// <param name="inputArguments">The input arguments used to call the method that triggered the audit event.</param>
+        /// <param name="logger"></param>
         public static void ReportCertificateDeliveredAuditEvent(
             this IAuditEventServer server,
             ISystemContext systemContext,
             NodeId objectId,
             MethodState method,
-            object[] inputArguments)
+            object[] inputArguments,
+            ILogger logger)
         {
             try
             {
@@ -83,7 +86,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             }
             catch (Exception ex)
             {
-                Utils.LogError(
+                logger.LogError(
                     ex,
                     "Error while reporting CertificateDeliveredAuditEventState event.");
             }
@@ -99,6 +102,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
         /// <param name="inputArguments">The input arguments used to call the method that triggered the audit event.</param>
         /// <param name="certificateGroupId">The id of the certificate group</param>
         /// <param name="certificateTypeId">the certificate type id</param>
+        /// <param name="logger"></param>
         /// <param name="exception">The exception resulted after executing the StartNewKeyPairRequest StartNewSigningRequest method. If null, the operation was successfull.</param>
         public static void ReportCertificateRequestedAuditEvent(
             this IAuditEventServer server,
@@ -108,6 +112,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             object[] inputArguments,
             NodeId certificateGroupId,
             NodeId certificateTypeId,
+            ILogger logger,
             Exception exception = null)
         {
             try
@@ -173,7 +178,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             }
             catch (Exception ex)
             {
-                Utils.LogError(
+                logger.LogError(
                     ex,
                     "Error while reporting CertificateDeliveredAuditEventState event.");
             }
@@ -187,12 +192,14 @@ namespace Opc.Ua.Gds.Server.Diagnostics
         /// <param name="objectId">The id of the object used for register Application method</param>
         /// <param name="method">The method that triggered the audit event.</param>
         /// <param name="inputArguments">The input arguments used to call the method that triggered the audit event.</param>
+        /// <param name="logger"></param>
         public static void ReportApplicationRegistrationChangedAuditEvent(
             this IAuditEventServer server,
             ISystemContext systemContext,
             NodeId objectId,
             MethodState method,
-            object[] inputArguments)
+            object[] inputArguments,
+            ILogger logger)
         {
             try
             {
@@ -228,7 +235,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             }
             catch (Exception ex)
             {
-                Utils.LogError(
+                logger.LogError(
                     ex,
                     "Error while reporting CertificateDeliveredAuditEventState event.");
             }

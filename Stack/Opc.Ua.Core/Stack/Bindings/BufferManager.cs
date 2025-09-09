@@ -17,6 +17,7 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Bindings
 {
@@ -112,15 +113,17 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="name">The name.</param>
         /// <param name="maxBufferSize">Max size of the buffer.</param>
-        public BufferManager(string name, int maxBufferSize)
+        /// <param name="telemetry"></param>
+        public BufferManager(string name, int maxBufferSize, ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<BufferManager>();
             Name = name;
             m_arrayPool =
                 maxBufferSize <= 1024 * 1024
                     ? ArrayPool<byte>.Shared
                     : ArrayPool<byte>.Create(maxBufferSize + kCookieLength, 4);
             m_maxBufferSize = maxBufferSize;
-            MaxSuggestedBufferSize = DetermineSuggestedBufferSize(maxBufferSize);
+            MaxSuggestedBufferSize = DetermineSuggestedBufferSize(m_logger, maxBufferSize);
         }
 
         /// <summary>
@@ -159,7 +162,7 @@ namespace Opc.Ua.Bindings
             }
 #endif
 #if TRACE_MEMORY
-            Utils.LogTrace(
+            m_logger.LogTrace(
                 "{0:X}:TakeBuffer({1:X},{2:X},{3},{4})",
                 this.GetHashCode(),
                 buffer.GetHashCode(),
@@ -197,7 +200,7 @@ namespace Opc.Ua.Bindings
 
                     if (allocation.Reported > 0)
                     {
-                        Utils.LogTrace(
+                        m_logger.LogTrace(
                             "{0}: Id={1}; Owner={2}; Size={3} KB; *** TRANSFERRED ***",
                             m_name,
                             allocation.Id,
@@ -208,7 +211,7 @@ namespace Opc.Ua.Bindings
             }
 #endif
 #if TRACE_MEMORY
-            Utils.LogTrace(
+            m_logger.LogTrace(
                 "{0:X}:TransferBuffer({1:X},{2:X},{3})",
                 this.GetHashCode(),
                 buffer.GetHashCode(),
@@ -229,7 +232,7 @@ namespace Opc.Ua.Bindings
                 throw new InvalidOperationException("Buffer is already locked.");
             }
 #if TRACE_MEMORY
-            Utils.LogTrace("LockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
+            m_logger.LogTrace("LockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
 #endif
             buffer[^1] = kCookieLocked;
         }
@@ -246,7 +249,7 @@ namespace Opc.Ua.Bindings
                 throw new InvalidOperationException("Buffer is not locked.");
             }
 #if TRACE_MEMORY
-            Utils.LogTrace("UnlockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
+            m_logger.LogTrace("UnlockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
 #endif
             buffer[^1] = kCookieUnlocked;
         }
@@ -267,7 +270,7 @@ namespace Opc.Ua.Bindings
             Debug.Assert(owner != null);
 
 #if TRACE_MEMORY
-            Utils.LogTrace(
+            m_logger.LogTrace(
                 "{0:X}:ReturnBuffer({1:X},{2:X},{3},{4})",
                 this.GetHashCode(),
                 buffer.GetHashCode(),
@@ -298,7 +301,7 @@ namespace Opc.Ua.Bindings
 
                     if (allocation.Reported > 0)
                     {
-                        Utils.LogTrace(
+                        m_logger.LogTrace(
                             "{0}: Id={1}; Owner={2}; ReleasedBy={3}; Size={4} KB; *** RETURNED ***",
                             m_name,
                             allocation.Id,
@@ -310,7 +313,7 @@ namespace Opc.Ua.Bindings
 
                 m_allocations.Remove(id);
 
-                Utils.LogTrace("Deallocated ID {0}: {1}/{2}", id, buffer.Length, m_allocated);
+                m_logger.LogTrace("Deallocated ID {0}: {1}/{2}", id, buffer.Length, m_allocated);
 
                 foreach (KeyValuePair<int, Allocation> current in m_allocations)
                 {
@@ -329,7 +332,7 @@ namespace Opc.Ua.Bindings
                     {
                         if (allocation.Reported < age)
                         {
-                            Utils.LogTrace(
+                            m_logger.LogTrace(
                                 "{0}: Id={1}; Owner={2}; Size={3} KB; Age={4}",
                                 m_name,
                                 allocation.Id,
@@ -361,14 +364,15 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns the suggested max rent size for data in the buffers.
         /// </summary>
+        /// <param name="logger"></param>
         /// <param name="maxBufferSize">The max buffer size configured.</param>
-        private static int DetermineSuggestedBufferSize(int maxBufferSize)
+        private static int DetermineSuggestedBufferSize(ILogger logger, int maxBufferSize)
         {
             int bufferArrayPoolSize = RoundUpToPowerOfTwo(maxBufferSize);
             int maxDataRentSize = RoundUpToPowerOfTwo(maxBufferSize + kCookieLength);
             if (bufferArrayPoolSize != maxDataRentSize)
             {
-                Utils.LogWarning(
+                logger.LogWarning(
                     "BufferManager: Max buffer size {0} + cookie length {1} may waste memory because it allocates buffers in the next bucket!",
                     maxBufferSize,
                     kCookieLength);
@@ -408,6 +412,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         internal string Name { get; }
 
+        private readonly ILogger m_logger;
         private readonly int m_maxBufferSize;
 #if TRACE_MEMORY
         private int m_buffersTaken = 0;

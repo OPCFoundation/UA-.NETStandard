@@ -54,7 +54,7 @@ namespace Opc.Ua.Bindings
         /// Verifies an RSA PKCS#1 v1.5 or PSS signature of a hash algorithm for the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private static bool Rsa_Verify(
+        private bool Rsa_Verify(
             ArraySegment<byte> dataToVerify,
             byte[] signature,
             X509Certificate2 signingCertificate,
@@ -83,10 +83,10 @@ namespace Opc.Ua.Bindings
                     dataToVerify.Array,
                     dataToVerify.Offset + 4);
                 string actualSignature = Utils.ToHexString(signature);
-                Utils.LogError("Could not validate signature.");
-                Utils.LogCertificate(LogLevel.Error, "Certificate: ", signingCertificate);
-                Utils.LogError(
-                    "MessageType ={0}, Length ={1}, ActualSignature={2}",
+                m_logger.LogError("Could not validate signature.");
+                m_logger.LogCertificate(LogLevel.Error, "Certificate: ", signingCertificate);
+                m_logger.LogError(
+                    "MessageType ={MessageType}, Length ={Length}, ActualSignature={ActualSignature}",
                     messageType,
                     messageLength,
                     actualSignature);
@@ -118,8 +118,8 @@ namespace Opc.Ua.Bindings
             // verify the input data is the correct block size.
             if (dataToEncrypt.Count % inputBlockSize != 0)
             {
-                Utils.LogWarning(
-                    "Message is not an integral multiple of the block size. Length = {0}, BlockSize = {1}.",
+                m_logger.LogWarning(
+                    "Message is not an integral multiple of the block size. Length = {Length}, BlockSize = {BlockSize}.",
                     dataToEncrypt.Count,
                     inputBlockSize);
             }
@@ -181,8 +181,8 @@ namespace Opc.Ua.Bindings
             // verify the input data is the correct block size.
             if (dataToDecrypt.Count % inputBlockSize != 0)
             {
-                Utils.LogWarning(
-                    "Message is not an integral multiple of the block size. Length = {0}, BlockSize = {1}.",
+                m_logger.LogWarning(
+                    "Message is not an integral multiple of the block size. Length = {Length}, BlockSize = {BlockSize}.",
                     dataToDecrypt.Count,
                     inputBlockSize);
             }

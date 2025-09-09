@@ -470,14 +470,14 @@ namespace Opc.Ua.PubSub.Encoding
             }
             else
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "The UADP DiscoveryResponse DataSetMetaData message cannot be encoded: The DataSetWriterId property is missing. Value 0 will be used.");
                 binaryEncoder.WriteUInt16("DataSetWriterId", 0);
             }
 
             if (m_metadata == null)
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "The UADP DiscoveryResponse DataSetMetaData message cannot be encoded: The MetaData property is missing. Value null will be used.");
             }
             binaryEncoder.WriteEncodeable("MetaData", m_metadata, typeof(DataSetMetaDataType));
@@ -496,14 +496,14 @@ namespace Opc.Ua.PubSub.Encoding
             }
             else
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "The UADP DiscoveryResponse DataSetWriterConfiguration message cannot be encoded: The DataSetWriterId property is missing. Value 0 will be used.");
                 binaryEncoder.WriteUInt16Array("DataSetWriterIds", []);
             }
 
             if (DataSetWriterIds == null)
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "The UADP DiscoveryResponse DataSetWriterConfiguration message cannot be encoded: The DataSetWriterConfiguration property is missing. Value null will be used.");
             }
             else
@@ -846,7 +846,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             // temporary write StatusCode.Good
             StatusCode statusCode = binaryDecoder.ReadStatusCode("StatusCode");
-            Utils.LogInfo("DecodeMetaDataMessage returned: ", statusCode);
+            Utils.LogInformation("DecodeMetaDataMessage returned: ", statusCode);
         }
 
         /// <summary>
@@ -859,7 +859,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             PublisherProvideEndpoints = binaryDecoder.ReadStatusCode("statusCode");
 
-            Utils.LogInfo("DecodePublisherEndpointsMessage returned: ", PublisherProvideEndpoints);
+            Utils.LogInformation("DecodePublisherEndpointsMessage returned: ", PublisherProvideEndpoints);
         }
 
         /// <summary>
@@ -883,7 +883,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             // temporary write StatusCode.Good
             MessageStatusCodes = [.. binaryDecoder.ReadStatusCodeArray("StatusCodes")];
-            Utils.LogInfo("DecodeDataSetWriterConfigurationMessage returned: ", MessageStatusCodes);
+            Utils.LogInformation("DecodeDataSetWriterConfigurationMessage returned: ", MessageStatusCodes);
         }
 
         /// <summary>

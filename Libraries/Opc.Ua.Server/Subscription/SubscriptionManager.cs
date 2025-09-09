@@ -307,7 +307,7 @@ namespace Opc.Ua.Server
             {
                 if (m_subscriptionStore.StoreSubscriptions(subscriptionsToStore))
                 {
-                    Utils.LogInfo("{0} Subscriptions stored", subscriptionsToStore.Count);
+                    Utils.LogInformation("{0} Subscriptions stored", subscriptionsToStore.Count);
                 }
             }
             catch (Exception ex)
@@ -1438,7 +1438,7 @@ namespace Opc.Ua.Server
             results = [];
             diagnosticInfos = [];
 
-            Utils.LogInfo(
+            Utils.LogInformation(
                 "TransferSubscriptions to SessionId={0}, Count={1}, sendInitialValues={2}",
                 context.Session.Id,
                 subscriptionIds.Count,
@@ -1664,7 +1664,7 @@ namespace Opc.Ua.Server
                         diagnosticInfos.Add(null);
                     }
 
-                    Utils.LogInfo(
+                    Utils.LogInformation(
                         "Transferred subscription Id {0} to SessionId {1}",
                         subscription.Id,
                         context.Session.Id);
@@ -2153,7 +2153,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "Subscription - Publish Thread {0:X8} Started.",
                     Environment.CurrentManagedThreadId);
 
@@ -2208,7 +2208,7 @@ namespace Opc.Ua.Server
 
                             (subscriptionsToDelete ??= []).Add(subscription);
                             SubscriptionExpired(subscription);
-                            Utils.LogInfo(
+                            Utils.LogInformation(
                                 "Subscription - Abandoned Subscription Id={0} Delete Scheduled.",
                                 subscription.Id);
                         }
@@ -2230,7 +2230,7 @@ namespace Opc.Ua.Server
 
                     if (m_shutdownEvent.WaitOne(timeToWait))
                     {
-                        Utils.LogInfo(
+                        Utils.LogInformation(
                             "Subscription - Publish Thread {0:X8} Exited Normally.",
                             Environment.CurrentManagedThreadId);
                         break;
@@ -2256,7 +2256,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "Subscription - ConditionRefresh Thread {0:X8} Started.",
                     Environment.CurrentManagedThreadId);
 
@@ -2294,7 +2294,7 @@ namespace Opc.Ua.Server
                     // use shutdown event to end loop
                     if (m_shutdownEvent.WaitOne(0))
                     {
-                        Utils.LogInfo(
+                        Utils.LogInformation(
                             "Subscription - ConditionRefresh Thread {0:X8} Exited Normally.",
                             Environment.CurrentManagedThreadId);
                         break;
@@ -2321,7 +2321,7 @@ namespace Opc.Ua.Server
         {
             if (subscriptionsToDelete != null && subscriptionsToDelete.Count > 0)
             {
-                Utils.LogInfo(
+                Utils.LogInformation(
                     "Server - {0} Subscriptions scheduled for delete.",
                     subscriptionsToDelete.Count);
 
@@ -2337,7 +2337,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                Utils.LogInfo("Server - CleanupSubscriptions Task Started");
+                Utils.LogInformation("Server - CleanupSubscriptions Task Started");
 
                 object[] args = (object[])data;
 
@@ -2347,7 +2347,7 @@ namespace Opc.Ua.Server
                     server.DeleteSubscription(subscription.Id);
                 }
 
-                Utils.LogInfo("Server - CleanupSubscriptions Task Completed");
+                Utils.LogInformation("Server - CleanupSubscriptions Task Completed");
             }
             catch (Exception e)
             {

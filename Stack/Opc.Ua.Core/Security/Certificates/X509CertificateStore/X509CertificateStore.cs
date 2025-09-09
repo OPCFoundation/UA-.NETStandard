@@ -19,6 +19,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.X509StoreExtensions;
 
@@ -32,9 +33,10 @@ namespace Opc.Ua
         /// <summary>
         /// Create an instance of the certificate store.
         /// </summary>
-        public X509CertificateStore()
+        public X509CertificateStore(ITelemetryContext telemetry)
         {
             // defaults
+            m_logger = telemetry.CreateLogger<X509CertificateStore>();
             m_storeName = "My";
             m_storeLocation = StoreLocation.CurrentUser;
         }
@@ -187,7 +189,7 @@ namespace Opc.Ua
                         store.Add(certificate);
                     }
 
-                    Utils.LogCertificate(
+                    m_logger.LogCertificate(
                         "Added certificate to X509Store {0}.",
                         certificate,
                         store.Name);
@@ -383,7 +385,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(e, "Failed to parse CRL in store {0}.", store.Name);
+                        m_logger.LogError(e, "Failed to parse CRL in store {StoreName}.", store.Name);
                     }
                 }
             }
@@ -528,6 +530,7 @@ namespace Opc.Ua
             return Task.CompletedTask;
         }
 
+        private readonly ILogger m_logger;
         private string m_storeName;
         private StoreLocation m_storeLocation;
     }

@@ -17,6 +17,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
@@ -1100,7 +1101,7 @@ namespace Opc.Ua.Bindings
 
             if (!Verify(dataToVerify, signature, senderCertificate))
             {
-                Utils.LogWarning("Could not verify signature on message.");
+                m_logger.LogWarning("Could not verify signature on message.");
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
                     "Could not verify the signature on the message.");
@@ -1163,8 +1164,8 @@ namespace Opc.Ua.Bindings
                 headerSize += decoder.Position;
             }
 
-            Utils.LogInfo("Security Policy: {0}", SecurityPolicyUri);
-            Utils.LogCertificate("Sender Certificate:", senderCertificate);
+            m_logger.LogInformation("Security Policy: {SecurityPolicyUri}", SecurityPolicyUri);
+            m_logger.LogCertificate("Sender Certificate:", senderCertificate);
 
             // return the body.
             return new ArraySegment<byte>(

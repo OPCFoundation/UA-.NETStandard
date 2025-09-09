@@ -58,7 +58,7 @@ namespace Opc.Ua.Server
             Id = subscriptionId;
             Session = session ?? throw new ArgumentNullException(nameof(session));
             m_server = server ?? throw new ArgumentNullException(nameof(server));
-            m_logger = server.ObservabilityContext.CreateLogger<Subscription>();
+            m_logger = server.Telemetry.CreateLogger<Subscription>();
             m_publishingInterval = publishingInterval;
             m_maxLifetimeCount = maxLifetimeCount;
             m_maxKeepAliveCount = maxKeepAliveCount;
@@ -139,7 +139,7 @@ namespace Opc.Ua.Server
             }
 
             m_server = server;
-            m_logger = server.ObservabilityContext.CreateLogger<Subscription>();
+            m_logger = server.Telemetry.CreateLogger<Subscription>();
             Session = null;
             Id = storedSubscription.Id;
             m_publishingInterval = storedSubscription.PublishingInterval;

@@ -484,14 +484,14 @@ namespace Opc.Ua.Client.Tests
                     Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
                         ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = activity =>
-                        Utils.LogInfo(
+                        Utils.LogInformation(
                             "Client Started: {0,-15} - TraceId: {1,-32} SpanId: {2,-16}",
                             activity.OperationName,
                             activity.TraceId,
                             activity.SpanId
                         ),
                     ActivityStopped = activity =>
-                        Utils.LogInfo(
+                        Utils.LogInformation(
                             "Client Stopped: {0,-15} - TraceId: {1,-32} SpanId: {2,-16} Duration: {3}",
                             activity.OperationName,
                             activity.TraceId,

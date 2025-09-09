@@ -42,7 +42,6 @@ using Opc.Ua.Configuration;
 using Serilog;
 using Serilog.Events;
 using Serilog.Templates;
-using static Opc.Ua.Utils;
 #if NET5_0_OR_GREATER
 using Microsoft.Extensions.Configuration;
 #endif
@@ -64,34 +63,34 @@ namespace Quickstarts
         public override void WriteLine(char value)
         {
             m_builder.Append(value);
-            LogInfo("{0}", m_builder.ToString());
+            Utils.LogInformation("{0}", m_builder.ToString());
             m_builder.Clear();
         }
 
         public override void WriteLine()
         {
-            LogInfo("{0}", m_builder.ToString());
+            Utils.LogInformation("{0}", m_builder.ToString());
             m_builder.Clear();
         }
 
         public override void WriteLine(string format, object arg0)
         {
             m_builder.Append(format);
-            LogInfo(m_builder.ToString(), arg0);
+            Utils.LogInformation(m_builder.ToString(), arg0);
             m_builder.Clear();
         }
 
         public override void WriteLine(string format, object arg0, object arg1)
         {
             m_builder.Append(format);
-            LogInfo(m_builder.ToString(), arg0, arg1);
+            Utils.LogInformation(m_builder.ToString(), arg0, arg1);
             m_builder.Clear();
         }
 
         public override void WriteLine(string format, params object[] arg)
         {
             m_builder.Append(format);
-            LogInfo(m_builder.ToString(), arg);
+            Utils.LogInformation(m_builder.ToString(), arg);
             m_builder.Clear();
         }
 
@@ -103,7 +102,7 @@ namespace Quickstarts
         public override void WriteLine(string value)
         {
             m_builder.Append(value);
-            LogInfo("{0}", m_builder.ToString());
+            Utils.LogInformation("{0}", m_builder.ToString());
             m_builder.Clear();
         }
 
@@ -346,11 +345,11 @@ namespace Quickstarts
             int traceMasks = configuration.TraceConfiguration.TraceMasks;
             if ((traceMasks &
                 ~(
-                    TraceMasks.Information |
-                    TraceMasks.Error |
-                    TraceMasks.Security |
-                    TraceMasks.StartStop |
-                    TraceMasks.StackTrace
+                    Utils.TraceMasks.Information |
+                    Utils.TraceMasks.Error |
+                    Utils.TraceMasks.Security |
+                    Utils.TraceMasks.StartStop |
+                    Utils.TraceMasks.StackTrace
                 )) != 0)
             {
                 fileLevel = LogLevel.Trace;
@@ -363,7 +362,7 @@ namespace Quickstarts
                 loggerConfiguration.WriteTo.File(
                     new ExpressionTemplate(
                         "{UtcDateTime(@t):yyyy-MM-dd HH:mm:ss.fff} [{@l:u3}] {@m}\n{@x}"),
-                    ReplaceSpecialFolderNames(outputFilePath),
+                    Utils.ReplaceSpecialFolderNames(outputFilePath),
                     restrictedToMinimumLevel: (LogEventLevel)fileLevel,
                     rollOnFileSizeLimit: true
                 );
@@ -412,7 +411,7 @@ namespace Quickstarts
             object sender,
             UnhandledExceptionEventArgs args)
         {
-            LogCritical(
+            Utils.LogCritical(
                 "Unhandled Exception: {0} IsTerminating: {1}",
                 args.ExceptionObject,
                 args.IsTerminating);
@@ -422,7 +421,7 @@ namespace Quickstarts
             object sender,
             UnobservedTaskExceptionEventArgs args)
         {
-            LogCritical("Unobserved Exception: {0} Observed: {1}", args.Exception, args.Observed);
+            Utils.LogCritical("Unobserved Exception: {0} Observed: {1}", args.Exception, args.Observed);
         }
     }
 }

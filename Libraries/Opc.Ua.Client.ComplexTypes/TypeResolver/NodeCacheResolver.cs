@@ -418,7 +418,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
 #if DEBUG
             stopwatch.Stop();
-            Utils.LogInfo(
+            Utils.LogInformation(
                 "LoadDataTypes returns {0} nodes in {1}ms",
                 result.Count,
                 stopwatch.ElapsedMilliseconds);
