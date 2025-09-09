@@ -164,7 +164,7 @@ namespace Opc.Ua
         {
             string assemblyName = DefaultOpcUaCoreAssemblyName;
             int offset = assemblyName.IndexOf("Core", StringComparison.Ordinal);
-            Debug.Assert(offset != -1);
+            System.Diagnostics.Debug.Assert(offset != -1);
             return $"{assemblyName[0..offset]}Bindings.Https";
         }
 

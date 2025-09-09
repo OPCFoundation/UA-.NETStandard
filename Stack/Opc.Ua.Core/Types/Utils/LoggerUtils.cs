@@ -65,7 +65,7 @@ namespace Opc.Ua
     /// name collisions with anything that is called 'Log'
     /// the Utils class hosts the Logger class.
     /// </remarks>
-    public static partial class Utils
+    public partial class Utils
     {
         /// <summary>
         /// The high performance EventSource log interface.
