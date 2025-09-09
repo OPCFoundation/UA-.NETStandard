@@ -210,7 +210,6 @@ namespace Opc.Ua.Configuration.Tests
             return m_innerStore.AddAsync(certificate, password, ct);
         }
 
-
         /// <inheritdoc/>
         public Task<bool> DeleteAsync(string thumbprint, CancellationToken ct = default)
         {
