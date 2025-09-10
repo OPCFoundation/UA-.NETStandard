@@ -173,6 +173,8 @@ namespace Opc.Ua.Server
             {
                 List<INodeManager> nodeManagers = null;
 
+                Utils.SilentDispose(m_namespaceManagersSemaphoreSlim);
+
                 lock (m_lock)
                 {
                     nodeManagers = [.. m_nodeManagers];
@@ -428,7 +430,7 @@ namespace Opc.Ua.Server
             // allocate a new table (using arrays instead of collections because lookup efficiency is critical).
             var namespaceManagers = new INodeManager[Server.NamespaceUris.Count][];
 
-            m_namespaceManagersReadWriterLockSlim.EnterWriteLock();
+            m_namespaceManagersSemaphoreSlim.Wait();
             try
             {
                 NamespaceManagers.AddOrUpdate(
@@ -445,7 +447,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                m_namespaceManagersReadWriterLockSlim.ExitWriteLock();
+                m_namespaceManagersSemaphoreSlim.Release();
             }
         }
 
@@ -475,7 +477,7 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            m_namespaceManagersReadWriterLockSlim.EnterWriteLock();
+            m_namespaceManagersSemaphoreSlim.Wait();
             try
             {
                 if (!NamespaceManagers.TryGetValue(namespaceIndex, out IReadOnlyList<INodeManager> readOnlyNodeManagers))
@@ -499,7 +501,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                m_namespaceManagersReadWriterLockSlim.ExitWriteLock();
+                m_namespaceManagersSemaphoreSlim.Release();
             }
         }
 
@@ -3728,7 +3730,7 @@ namespace Opc.Ua.Server
         private readonly List<IAsyncNodeManager> m_asyncNodeManagers;
         private long m_lastMonitoredItemId;
         private readonly uint m_maxContinuationPointsPerBrowse;
-        private readonly ReaderWriterLockSlim m_namespaceManagersReadWriterLockSlim = new();
+        private readonly SemaphoreSlim m_namespaceManagersSemaphoreSlim = new(1);
     }
 
     /// <summary>
