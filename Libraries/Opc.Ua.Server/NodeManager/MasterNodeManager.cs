@@ -2215,7 +2215,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="context"/> is <c>null</c>.</exception>
-        public virtual async ValueTask<(
+        protected virtual async ValueTask<(
             CallMethodResultCollection results,
             DiagnosticInfoCollection diagnosticInfos
             )> CallInternalAsync(
